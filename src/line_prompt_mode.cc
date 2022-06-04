@@ -429,14 +429,14 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                 VLOG(6) << "Ignoring value, no match: " << line.ToString();
                 return;
               }
-              naive_bayes::FeaturesSet features({});
+              naive_bayes::FeaturesSet current_features({});
               for (auto& [key, value] : *line_keys) {
                 if (key != L"prompt") {
-                  features.insert(naive_bayes::Feature(
+                  current_features.insert(naive_bayes::Feature(
                       key + L":" + QuoteString(value)->ToString()));
                 }
               }
-              features_output->push_back(std::move(features));
+              features_output->push_back(std::move(current_features));
             }},
         vm::EscapedString::Parse(range.first->second->ToString()));
     return !abort_notification->HasBeenNotified();
@@ -610,10 +610,9 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
             FilterSortHistorySync, abort_notification, filter, history_contents,
             GetCurrentFeatures(editor_state)));
       })
-      .Transform([&editor_state, abort_notification,
-                  filter_buffer_root](FilterSortHistorySyncOutput output) {
+      .Transform([&editor_state, abort_notification, filter_buffer_root,
+                  &filter_buffer](FilterSortHistorySyncOutput output) {
         LOG(INFO) << "Receiving output from history evaluator.";
-        OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
         if (!output.errors.empty()) {
           editor_state.status().SetExpiringInformationText(
               output.errors.front().read());
@@ -784,11 +783,10 @@ class HistoryScrollBehavior : public ScrollBehavior {
       return;
     }
     filtered_history_.AddListener(
-        [delta, buffer_root = buffer.NewRoot(),
+        [delta, buffer_root = buffer.NewRoot(), &buffer,
          original_input = original_input_, prompt_state = prompt_state_,
          previous_context =
              previous_context_](gc::Root<OpenBuffer> history_root) {
-          OpenBuffer& buffer = buffer_root.ptr().value();
           std::shared_ptr<const Line> line_to_insert;
           OpenBuffer& history = history_root.ptr().value();
           if (history.contents().size() > LineNumberDelta(1) ||
@@ -988,11 +986,12 @@ void Prompt(PromptOptions options) {
         history.ptr()->set_current_position_line(
             LineNumber(0) + history.ptr()->contents().size());
 
-        gc::Root<OpenBuffer> buffer = GetPromptBuffer(options, editor_state);
+        gc::Root<OpenBuffer> prompt_buffer =
+            GetPromptBuffer(options, editor_state);
 
         auto prompt_state = MakeNonNullShared<PromptState>(options);
 
-        buffer.ptr()->ApplyToCursors(transformation::Insert(
+        prompt_buffer.ptr()->ApplyToCursors(transformation::Insert(
             {.contents_to_insert = MakeNonNullUnique<BufferContents>(
                  MakeNonNullShared<Line>(options.initial_value))}));
 
@@ -1005,7 +1004,7 @@ void Prompt(PromptOptions options) {
             std::make_shared<NonNull<std::shared_ptr<Notification>>>();
         InsertModeOptions insert_mode_options{
             .editor_state = editor_state,
-            .buffers = {{buffer}},
+            .buffers = {{prompt_buffer}},
             .modify_handler =
                 [&editor_state, history, prompt_state, options,
                  abort_notification_ptr](OpenBuffer& buffer) {
@@ -1066,19 +1065,22 @@ void Prompt(PromptOptions options) {
                                       abort_notification_ptr,
                                       original_line =
                                           buffer.contents().at(LineNumber(0))](
-                                         ColorizePromptOptions options) {
+                                         ColorizePromptOptions
+                                             colorize_prompt_options) {
                                        LOG(INFO) << "Calling ColorizePrompt "
                                                     "with results.";
                                        ColorizePrompt(buffer.ptr().value(),
                                                       prompt_state,
                                                       *abort_notification_ptr,
-                                                      original_line, options);
+                                                      original_line,
+                                                      colorize_prompt_options);
                                        return EmptyValue();
                                      }))
                       .Transform([](auto) { return EmptyValue(); });
                 },
             .scroll_behavior = MakeNonNullShared<HistoryScrollBehaviorFactory>(
-                editor_state, options.prompt, history, prompt_state, buffer),
+                editor_state, options.prompt, history, prompt_state,
+                prompt_buffer),
             .escape_handler =
                 [&editor_state, options, prompt_state]() {
                   LOG(INFO) << "Running escape_handler from Prompt.";
@@ -1185,11 +1187,12 @@ void Prompt(PromptOptions options) {
                                                 buffer_root.ptr()
                                                     ->contents()
                                                     .at(LineNumber(0))](
-                                               ColorizePromptOptions options) {
+                                               ColorizePromptOptions
+                                                   colorize_prompt_options) {
                                   ColorizePrompt(
                                       buffer_root.ptr().value(), prompt_state,
                                       NonNull<std::shared_ptr<Notification>>(),
-                                      original_line, options);
+                                      original_line, colorize_prompt_options);
                                   return Success();
                                 });
                           }
@@ -1223,8 +1226,8 @@ void Prompt(PromptOptions options) {
 
         // We do this after `EnterInsertMode` because `EnterInsertMode` resets
         // the status.
-        prompt_state->status().set_prompt(options.prompt, buffer);
-        insert_mode_options.modify_handler(buffer.ptr().value());
+        prompt_state->status().set_prompt(options.prompt, prompt_buffer);
+        insert_mode_options.modify_handler(prompt_buffer.ptr().value());
       });
 }
 
