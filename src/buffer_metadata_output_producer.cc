@@ -369,7 +369,7 @@ std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                                 Range range) {
   static Tracker top_tracker(L"BufferMetadataOutput::Prepare");
-  auto call = top_tracker.Call();
+  auto top_call = top_tracker.Call();
 
   std::list<MetadataLine> output;
   const Line& contents = options.buffer.contents().at(range.begin.line).value();
