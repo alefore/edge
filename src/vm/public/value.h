@@ -88,7 +88,8 @@ class Value {
       const VMType& expected_type) const {
     CHECK_EQ(type, expected_type);
     CHECK(std::holds_alternative<ObjectInstance>(value_))
-        << "Invalid call to get_user_value, expected type: " << expected_type;
+        << "Invalid call to get_user_value, expected type: " << expected_type
+        << ", index was: " << value_.index();
     return language::NonNull<std::shared_ptr<T>>::UnsafeStaticCast(
         std::get<ObjectInstance>(value_).value);
   }
