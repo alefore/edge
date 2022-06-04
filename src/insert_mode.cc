@@ -369,16 +369,15 @@ class InsertMode : public EditorMode {
               .Transform([options,
                           buffer_root = buffer.NewRoot()](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
-                return buffer_root.ptr()
-                    ->ApplyToCursors(transformation::Insert{
-                        .contents_to_insert = MakeNonNullShared<BufferContents>(
-                            MakeNonNullShared<Line>(value)),
-                        .modifiers =
-                            {.insertion =
-                                 options.editor_state.modifiers().insertion}})
-                    .Transform(ModifyHandler<EmptyValue>(
-                        options.modify_handler, buffer_root.ptr().value()));
-              });
+                return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
+                    .contents_to_insert = MakeNonNullShared<BufferContents>(
+                        MakeNonNullShared<Line>(value)),
+                    .modifiers = {
+                        .insertion =
+                            options.editor_state.modifiers().insertion}});
+              })
+              .Transform(
+                  ModifyHandler<EmptyValue>(options.modify_handler, buffer));
         });
     current_insertion_->AppendToLine(current_insertion_->EndLine(),
                                      Line(std::wstring(1, c)));
@@ -432,27 +431,28 @@ class InsertMode : public EditorMode {
         [direction, options = options_](OpenBuffer& buffer) {
           buffer.MaybeAdjustPositionCol();
           gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
-          return buffer
-              .ApplyToCursors(transformation::Delete{
-                  .modifiers = {.direction = direction,
-                                .paste_buffer_behavior =
-                                    Modifiers::PasteBufferBehavior::kDoNothing},
-                  .initiator = transformation::Delete::Initiator::kUser})
-              .Transform([options, direction, buffer_root](EmptyValue) {
-                if (options.editor_state.modifiers().insertion !=
-                    Modifiers::ModifyMode::kOverwrite)
-                  return futures::Past(EmptyValue());
+          transformation::Stack stack;
+          stack.PushBack(transformation::Delete{
+              .modifiers = {.direction = direction,
+                            .paste_buffer_behavior =
+                                Modifiers::PasteBufferBehavior::kDoNothing},
+              .initiator = transformation::Delete::Initiator::kUser});
+          switch (options.editor_state.modifiers().insertion) {
+            case Modifiers::ModifyMode::kShift:
+              break;
+            case Modifiers::ModifyMode::kOverwrite:
+              stack.PushBack(transformation::Insert{
+                  .contents_to_insert = MakeNonNullShared<BufferContents>(
+                      MakeNonNullShared<const Line>(L" ")),
+                  .final_position =
+                      direction == Direction::kBackwards
+                          ? transformation::Insert::FinalPosition::kStart
+                          : transformation::Insert::FinalPosition::kEnd});
+              break;
+          }
 
-                return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
-                    .contents_to_insert = MakeNonNullShared<BufferContents>(
-                        MakeNonNullShared<const Line>(L" ")),
-                    .final_position =
-                        direction == Direction::kBackwards
-                            ? transformation::Insert::FinalPosition::kStart
-                            : transformation::Insert::FinalPosition::kEnd});
-              })
-              .Transform(
-                  ModifyHandler<EmptyValue>(options.modify_handler, buffer));
+          return buffer.ApplyToCursors(stack).Transform(
+              ModifyHandler<EmptyValue>(options.modify_handler, buffer));
         });
     switch (direction) {
       case Direction::kBackwards:
