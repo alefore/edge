@@ -19,7 +19,6 @@
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/value.h"
-#include "src/vm/public/vector.h"
 
 namespace afc::editor {
 using concurrent::Notification;
