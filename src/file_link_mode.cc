@@ -618,9 +618,7 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
         auto resolve_path_options_copy = resolve_path_options;
         resolve_path_options_copy.search_paths = *search_paths;
         resolve_path_options_copy.validator =
-            [file_system_driver](const Path& path) {
-              return CanStatPath(file_system_driver, path);
-            };
+            std::bind_front(CanStatPath, file_system_driver);
         return ResolvePath(resolve_path_options_copy)
             .Transform([path, resolve_path_options_copy = resolve_path_options](
                            ResolvePathOutput input) {
