@@ -313,15 +313,14 @@ class InsertMode : public EditorMode {
                     L"Unable to compile (type mismatch).");
                 return futures::Past(EmptyValue());
               }
-              return CallModifyHandler(
-                  options, buffer,
-                  buffer
-                      .EvaluateExpression(expression.value(),
-                                          buffer.environment().ToRoot())
-                      .ConsumeErrors(
-                          [&pool = buffer.editor().gc_pool()](Error) {
-                            return futures::Past(vm::Value::NewVoid(pool));
-                          }));
+              return buffer
+                  .EvaluateExpression(expression.value(),
+                                      buffer.environment().ToRoot())
+                  .ConsumeErrors([&pool = buffer.editor().gc_pool()](Error) {
+                    return futures::Past(vm::Value::NewVoid(pool));
+                  })
+                  .Transform(ModifyHandler<gc::Root<vm::Value>>(
+                      options.modify_handler, buffer));
             });
         return;
       }
@@ -345,16 +344,17 @@ class InsertMode : public EditorMode {
 
         ForEachActiveBuffer(
             buffers_, {0x0b}, [options = options_](OpenBuffer& buffer) {
-              return CallModifyHandler(
-                  options, buffer,
-                  buffer.ApplyToCursors(transformation::Delete{
+              return buffer
+                  .ApplyToCursors(transformation::Delete{
                       .modifiers =
                           {.structure = StructureLine(),
                            .paste_buffer_behavior =
                                Modifiers::PasteBufferBehavior::kDoNothing,
                            .boundary_begin = Modifiers::CURRENT_POSITION,
                            .boundary_end = Modifiers::LIMIT_CURRENT},
-                      .initiator = transformation::Delete::Initiator::kUser}));
+                      .initiator = transformation::Delete::Initiator::kUser})
+                  .Transform(ModifyHandler<EmptyValue>(options.modify_handler,
+                                                       buffer));
             });
         return;
       }
@@ -369,14 +369,15 @@ class InsertMode : public EditorMode {
               .Transform([options,
                           buffer_root = buffer.NewRoot()](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
-                return CallModifyHandler(
-                    options, buffer_root.ptr().value(),
-                    buffer_root.ptr()->ApplyToCursors(transformation::Insert{
+                return buffer_root.ptr()
+                    ->ApplyToCursors(transformation::Insert{
                         .contents_to_insert = MakeNonNullShared<BufferContents>(
                             MakeNonNullShared<Line>(value)),
-                        .modifiers = {
-                            .insertion =
-                                options.editor_state.modifiers().insertion}}));
+                        .modifiers =
+                            {.insertion =
+                                 options.editor_state.modifiers().insertion}})
+                    .Transform(ModifyHandler<EmptyValue>(
+                        options.modify_handler, buffer_root.ptr().value()));
               });
         });
     current_insertion_->AppendToLine(current_insertion_->EndLine(),
@@ -431,15 +432,14 @@ class InsertMode : public EditorMode {
         [direction, options = options_](OpenBuffer& buffer) {
           buffer.MaybeAdjustPositionCol();
           gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
-          return CallModifyHandler(
-                     options, buffer,
-                     buffer.ApplyToCursors(transformation::Delete{
-                         .modifiers =
-                             {.direction = direction,
-                              .paste_buffer_behavior =
-                                  Modifiers::PasteBufferBehavior::kDoNothing},
-                         .initiator =
-                             transformation::Delete::Initiator::kUser}))
+          return buffer
+              .ApplyToCursors(transformation::Delete{
+                  .modifiers = {.direction = direction,
+                                .paste_buffer_behavior =
+                                    Modifiers::PasteBufferBehavior::kDoNothing},
+                  .initiator = transformation::Delete::Initiator::kUser})
+              .Transform(
+                  ModifyHandler<EmptyValue>(options.modify_handler, buffer))
               .Transform([options, direction, buffer_root](EmptyValue) {
                 if (options.editor_state.modifiers().insertion !=
                     Modifiers::ModifyMode::kOverwrite)
@@ -494,12 +494,12 @@ class InsertMode : public EditorMode {
   }
 
   template <typename T>
-  static futures::Value<EmptyValue> CallModifyHandler(InsertModeOptions options,
-                                                      OpenBuffer& buffer,
-                                                      futures::Value<T> value) {
-    return value.Transform([options, buffer_root = buffer.NewRoot()](const T&) {
-      return options.modify_handler(buffer_root.ptr().value());
-    });
+  static std::function<futures::Value<EmptyValue>(const T&)> ModifyHandler(
+      std::function<futures::Value<language::EmptyValue>(OpenBuffer&)> handler,
+      OpenBuffer& buffer) {
+    return [handler, buffer_root = buffer.NewRoot()](const T&) {
+      return handler(buffer_root.ptr().value());
+    };
   }
 
   futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>
