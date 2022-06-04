@@ -57,7 +57,9 @@ struct InsertModeOptions {
   std::optional<std::vector<language::gc::Root<OpenBuffer>>> buffers =
       std::nullopt;
 
-  // Optional function to run whenever the contents of the buffer are modified.
+  // Optional function to run whenever the contents of a buffer are modified. If
+  // `buffers` contains multiple buffers, this will be called multiple times
+  // (once for each buffer each time it is modified).
   std::function<futures::Value<language::EmptyValue>(OpenBuffer&)>
       modify_handler = nullptr;
 
