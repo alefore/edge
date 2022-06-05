@@ -22,50 +22,8 @@ using language::ValueOrError;
 
 namespace gc = language::gc;
 
-namespace {
-class RunCppFileCommand : public Command {
- public:
-  RunCppFileCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  std::wstring Description() const override {
-    return L"runs a command from a file";
-  }
-  std::wstring Category() const override { return L"Extensions"; }
-
-  void ProcessInput(wint_t) override {
-    if (!editor_state_.has_current_buffer()) {
-      return;
-    }
-    auto buffer = editor_state_.current_buffer();
-    CHECK(buffer.has_value());
-    Prompt({.editor_state = editor_state_,
-            .prompt = L"cmd ",
-            .history_file = HistoryFile(L"editor_commands"),
-            .initial_value =
-                buffer->ptr()->Read(buffer_variables::editor_commands_path),
-            .handler =
-                [&editor = editor_state_](
-                    NonNull<std::shared_ptr<LazyString>> input) {
-                  // TODO(easy, 2022-06-05): Use transform rather than
-                  // SetConsumer.
-                  futures::Future<EmptyValue> output;
-                  RunCppFileHandler(editor, input)
-                      .SetConsumer([consumer = std::move(output.consumer)](
-                                       ValueOrError<EmptyValue>) {
-                        consumer(EmptyValue());
-                      });
-                  return std::move(output.value);
-                },
-            .cancel_handler = []() { /* Nothing. */ },
-            .predictor = FilePredictor});
-  }
-
- private:
-  EditorState& editor_state_;
-};
-}  // namespace
-
-futures::Value<PossibleError> RunCppFileHandler(const std::wstring& input,
-                                                EditorState& editor_state) {
+futures::Value<PossibleError> RunCppFileHandler(
+    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> input) {
   // TODO(easy): Honor `multiple_buffers`.
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   if (!buffer.has_value()) {
@@ -86,11 +44,13 @@ futures::Value<PossibleError> RunCppFileHandler(const std::wstring& input,
   auto options = ResolvePathOptions::New(
       editor_state,
       std::make_shared<FileSystemDriver>(editor_state.thread_pool()));
-  options.path = input;
+  // TODO(easy, 2022-06-05): Get rid of ToString.
+  options.path = input->ToString();
   return OnError(ResolvePath(std::move(options)),
                  [buffer, input](Error error) {
+                   // TODO(easy, 2022-06-05): Get rid of ToString.
                    buffer->ptr()->status().SetWarningText(
-                       L"🗱  File not found: " + input);
+                       L"🗱  File not found: " + input->ToString());
                    return futures::Past(error);
                  })
       .Transform([buffer, &editor_state, input](ResolvePathOutput resolved_path)
@@ -117,6 +77,43 @@ futures::Value<PossibleError> RunCppFileHandler(const std::wstring& input,
             });
       });
 }
+
+namespace {
+class RunCppFileCommand : public Command {
+ public:
+  RunCppFileCommand(EditorState& editor_state) : editor_state_(editor_state) {}
+  std::wstring Description() const override {
+    return L"runs a command from a file";
+  }
+  std::wstring Category() const override { return L"Extensions"; }
+
+  void ProcessInput(wint_t) override {
+    if (!editor_state_.has_current_buffer()) {
+      return;
+    }
+    auto buffer = editor_state_.current_buffer();
+    CHECK(buffer.has_value());
+    Prompt(
+        {.editor_state = editor_state_,
+         .prompt = L"cmd ",
+         .history_file = HistoryFile(L"editor_commands"),
+         .initial_value =
+             buffer->ptr()->Read(buffer_variables::editor_commands_path),
+         .handler =
+             [&editor =
+                  editor_state_](NonNull<std::shared_ptr<LazyString>> input) {
+               return RunCppFileHandler(editor, input).ConsumeErrors([](Error) {
+                 return futures::Past(EmptyValue());
+               });
+             },
+         .cancel_handler = []() { /* Nothing. */ },
+         .predictor = FilePredictor});
+  }
+
+ private:
+  EditorState& editor_state_;
+};
+}  // namespace
 
 NonNull<std::unique_ptr<Command>> NewRunCppFileCommand(
     EditorState& editor_state) {
