@@ -55,11 +55,10 @@ struct SearchNamespaces {
 };
 
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(
-    NonNull<EditorState*> editor_state,
-    NonNull<std::shared_ptr<LazyString>> name) {
+    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> name) {
   // TODO(easy): Honor `multiple_buffers`.
   return VisitPointer(
-      editor_state->current_buffer(),
+      editor_state.current_buffer(),
       [&](gc::Root<OpenBuffer> buffer) {
         buffer.ptr()->ResetMode();
         // TODO(easy, 2022-06-05): Get rid of call to ToString.
@@ -362,9 +361,8 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
         PromptOptions::ColorizeFunction colorize_options_provider;
         switch (mode) {
           case CppCommandMode::kLiteral:
-            handler =
-                std::bind_front(RunCppCommandLiteralHandler,
-                                NonNull<EditorState*>::AddressOf(editor_state));
+            handler = std::bind_front(RunCppCommandLiteralHandler,
+                                      std::ref(editor_state));
             prompt = L"cpp";
             break;
           case CppCommandMode::kShell:
