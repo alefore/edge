@@ -10,6 +10,7 @@
 #include "src/language/hash.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
+#include "src/line_number_delta.h"
 
 namespace afc::language::gc {
 class Pool;
@@ -18,37 +19,6 @@ namespace afc {
 namespace editor {
 
 class LazyString;
-
-struct LineNumberDelta {
-  LineNumberDelta() = default;
-  explicit LineNumberDelta(int value) : line_delta(value) {}
-
-  bool IsZero() const;
-
-  int line_delta = 0;
-};
-
-bool operator==(const LineNumberDelta& a, const LineNumberDelta& b);
-bool operator!=(const LineNumberDelta& a, const LineNumberDelta& b);
-std::ostream& operator<<(std::ostream& os, const LineNumberDelta& lc);
-bool operator<(const LineNumberDelta& a, const LineNumberDelta& b);
-bool operator<=(const LineNumberDelta& a, const LineNumberDelta& b);
-bool operator>(const LineNumberDelta& a, const LineNumberDelta& b);
-bool operator>=(const LineNumberDelta& a, const LineNumberDelta& b);
-LineNumberDelta operator+(LineNumberDelta a, const LineNumberDelta& b);
-LineNumberDelta operator-(LineNumberDelta a, const LineNumberDelta& b);
-LineNumberDelta operator-(LineNumberDelta a);
-LineNumberDelta operator*(LineNumberDelta a, const size_t& b);
-LineNumberDelta operator*(const size_t& a, LineNumberDelta b);
-LineNumberDelta operator*(LineNumberDelta a, const double& b);
-LineNumberDelta operator*(const double& a, LineNumberDelta b);
-LineNumberDelta operator/(LineNumberDelta a, const size_t& b);
-LineNumberDelta& operator+=(LineNumberDelta& a, const LineNumberDelta& value);
-LineNumberDelta& operator-=(LineNumberDelta& a, const LineNumberDelta& value);
-LineNumberDelta& operator++(LineNumberDelta& a);
-LineNumberDelta operator++(LineNumberDelta& a, int);
-LineNumberDelta& operator--(LineNumberDelta& a);
-LineNumberDelta operator--(LineNumberDelta& a, int);
 
 struct ColumnNumberDelta {
   // Generates a string of the length specified by `this` filled up with the
