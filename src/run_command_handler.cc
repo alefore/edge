@@ -622,6 +622,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
     return buffer;
   }
 
+  // TODO(easy, 2022-06-05): Use NonNull.
   auto command_data = std::make_shared<CommandData>();
   gc::Root<OpenBuffer> buffer = OpenBuffer::New(
       {.editor = editor_state,
@@ -660,7 +661,7 @@ futures::Value<EmptyValue> RunCommandHandler(
 }
 
 futures::Value<EmptyValue> RunMultipleCommandsHandler(
-    NonNull<std::shared_ptr<LazyString>> input, EditorState& editor_state) {
+    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> input) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
         buffer.contents().ForEach([&editor_state, input](wstring arg) {

@@ -683,11 +683,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 .editor_state = editor_state,
                 .prompt = L"...$ ",
                 .history_file = HistoryFileCommands(),
-                // TODO(easy, 2022-06-05): Use std::bind_front?
-                .handler = [&editor_state](
-                               NonNull<std::shared_ptr<LazyString>> input) {
-                  return RunMultipleCommandsHandler(input, editor_state);
-                }};
+                .handler = std::bind_front(RunMultipleCommandsHandler,
+                                           std::ref(editor_state))};
           }));
 
   commands->Add(L"af", NewForkCommand(editor_state));
