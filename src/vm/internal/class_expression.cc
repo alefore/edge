@@ -68,7 +68,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
         CHECK_EQ(args.size(), 1u);
         gc::Root<vm::Environment> environment =
             Instance::Read(class_type, args[0]);
-        static const vm::Namespace empty_namespace({});
+        static const vm::Namespace empty_namespace;
         return futures::Past(VisitPointer(
             environment.ptr()->Lookup(pool, empty_namespace, field_name,
                                       field_type),

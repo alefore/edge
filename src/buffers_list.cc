@@ -75,9 +75,8 @@ ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponents(
             : PathComponent::FromString(
                   output.empty()
                       ? it->ToString().substr(it->size() -
-                                              columns_allowed.column_delta)
-                      : it->ToString().substr(0,
-                                              columns_allowed.column_delta)));
+                                              columns_allowed.read())
+                      : it->ToString().substr(0, columns_allowed.read())));
     consumed +=
         ColumnNumberDelta(next.size() + (output.empty() ? 0 : kSlash.size()));
     CHECK_LE(consumed, columns_per_buffer);
@@ -553,8 +552,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
             output.AppendString(
-                ColumnNumberDelta::PaddingString(
-                    start.ToDelta() - output.contents->size(), L' '),
+                PaddingString(start.ToDelta() - output.contents->size(), L' '),
                 LineModifierSet());
 
             FilterResult filter_result =
@@ -571,8 +569,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             output.AppendString(
                 StringAppend(
-                    ColumnNumberDelta::PaddingString(
-                        start.ToDelta() - output.contents->size(), L' '),
+                    PaddingString(start.ToDelta() - output.contents->size(),
+                                  L' '),
                     NewLazyString(number_prefix)),
                 number_modifiers);
 
@@ -587,7 +585,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
               progress = ProgressString(buffer.Read(buffer_variables::progress),
                                         OverflowBehavior::kModulo);
             } else {
-              progress = ProgressStringFillUp(buffer.lines_size().line_delta,
+              progress = ProgressStringFillUp(buffer.lines_size().read(),
                                               OverflowBehavior::kModulo);
               progress_modifier.insert(LineModifier::DIM);
             }
@@ -741,12 +739,12 @@ Layout BuffersPerLine(LineNumberDelta maximum_lines, ColumnNumberDelta width,
   double count = buffers_count;
   static const auto kDesiredColumnsPerBuffer = ColumnNumberDelta(20);
   size_t max_buffers_per_line =
-      width / std::min(kDesiredColumnsPerBuffer,
-                       width / static_cast<size_t>(
-                                   ceil(count / maximum_lines.line_delta)));
+      width /
+      std::min(kDesiredColumnsPerBuffer,
+               width / static_cast<size_t>(ceil(count / maximum_lines.read())));
   auto lines = LineNumberDelta(ceil(count / max_buffers_per_line));
   return Layout{
-      .buffers_per_line = static_cast<size_t>(ceil(count / lines.line_delta)),
+      .buffers_per_line = static_cast<size_t>(ceil(count / lines.read())),
       .lines = lines};
 }
 

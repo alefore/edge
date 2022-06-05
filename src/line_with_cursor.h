@@ -30,7 +30,7 @@ struct LineWithCursor {
       Vector& RemoveCursor();
 
       std::vector<Generator> lines;
-      ColumnNumberDelta width;
+      ColumnNumberDelta width = ColumnNumberDelta();
     };
 
     static Generator Empty() {

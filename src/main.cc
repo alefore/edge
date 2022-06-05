@@ -268,9 +268,8 @@ void RedrawScreens(const CommandLineValues& args,
         LOG(INFO) << "Sending screen size update to server.";
         SendCommandsToParent(
             remote_server_fd.value(),
-            "screen.set_size(" +
-                std::to_string(screen_size.column.column_delta) + "," +
-                std::to_string(screen_size.line.line_delta) + ");" +
+            "screen.set_size(" + std::to_string(screen_size.column.read()) +
+                "," + std::to_string(screen_size.line.read()) + ");" +
                 "editor.set_screen_needs_hard_redraw(true);\n");
         *last_screen_size = screen_size;
       }
@@ -278,10 +277,11 @@ void RedrawScreens(const CommandLineValues& args,
   }
   VLOG(5) << "Updating remote screens.";
   for (auto& buffer : *editor_state().buffers()) {
+    static const afc::vm::Namespace kEmptyNamespace;
     std::optional<gc::Root<afc::vm::Value>> value =
-        buffer.second.ptr()->environment()->Lookup(
-            editor_state().gc_pool(), afc::vm::Namespace({}), L"screen",
-            GetScreenVmType());
+        buffer.second.ptr()->environment()->Lookup(editor_state().gc_pool(),
+                                                   kEmptyNamespace, L"screen",
+                                                   GetScreenVmType());
     if (!value.has_value() || value.value().ptr()->type != GetScreenVmType()) {
       continue;
     }

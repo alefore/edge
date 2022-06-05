@@ -156,7 +156,7 @@ void Terminal::WriteLine(Screen& screen, LineNumber line,
 
   if (hashes_current_lines_.size() <= line.line) {
     CHECK_LT(line.ToDelta(), screen.size().line);
-    hashes_current_lines_.resize(screen.size().line.line_delta * 2 + 50);
+    hashes_current_lines_.resize((screen.size().line * 2 + 50).read());
   }
 
   auto factory = [&] {
@@ -186,8 +186,8 @@ void Terminal::WriteLine(Screen& screen, LineNumber line,
 
 Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
                                              ColumnNumberDelta width) {
-  static Tracker tracker(L"Terminal::GetLineDrawer");
-  auto call = tracker.Call();
+  static Tracker top_tracker(L"Terminal::GetLineDrawer");
+  auto top_call = top_tracker.Call();
 
   Terminal::LineDrawer output;
   std::vector<decltype(LineDrawer::draw_callback)> functions;

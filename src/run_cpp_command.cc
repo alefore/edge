@@ -42,7 +42,8 @@ namespace {
 struct SearchNamespaces {
   SearchNamespaces(const OpenBuffer& buffer)
       : namespaces([&] {
-          std::vector<vm::Namespace> output = {vm::Namespace({})};
+          static const vm::Namespace kEmptyNamespace;
+          std::vector<vm::Namespace> output = {kEmptyNamespace};
           auto var = NewLazyString(
               buffer.Read(buffer_variables::cpp_prompt_namespaces));
           for (auto& token : TokenizeBySpaces(var.value())) {

@@ -10,7 +10,6 @@
 #include "src/language/hash.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
-#include "src/line_number_delta.h"
 
 namespace afc::language::gc {
 class Pool;
@@ -20,44 +19,17 @@ namespace editor {
 
 class LazyString;
 
-struct ColumnNumberDelta {
-  // Generates a string of the length specified by `this` filled up with the
-  // character given.
-  //
-  // If length is negative (or zero), returns an empty string.
-  static language::NonNull<std::shared_ptr<LazyString>> PaddingString(
-      const ColumnNumberDelta& length, wchar_t fill);
+GHOST_TYPE_INT(LineNumberDelta);
+GHOST_TYPE_INT(ColumnNumberDelta);
 
-  ColumnNumberDelta() = default;
-  explicit ColumnNumberDelta(int value) : column_delta(value) {}
-
-  bool IsZero() const;
-
-  int column_delta = 0;
-};
-
-bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
-bool operator!=(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
-std::ostream& operator<<(std::ostream& os, const ColumnNumberDelta& lc);
-bool operator<(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
-bool operator<=(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
-bool operator>(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
-bool operator>=(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
-ColumnNumberDelta operator+(ColumnNumberDelta a, const ColumnNumberDelta& b);
-ColumnNumberDelta operator-(ColumnNumberDelta a, const ColumnNumberDelta& b);
-ColumnNumberDelta operator-(ColumnNumberDelta a);
-ColumnNumberDelta operator*(ColumnNumberDelta a, const size_t& b);
-ColumnNumberDelta operator*(const size_t& a, ColumnNumberDelta b);
-ColumnNumberDelta operator/(ColumnNumberDelta a, const size_t& b);
-int operator/(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
-ColumnNumberDelta& operator+=(ColumnNumberDelta& a,
-                              const ColumnNumberDelta& value);
-ColumnNumberDelta& operator-=(ColumnNumberDelta& a,
-                              const ColumnNumberDelta& value);
-ColumnNumberDelta& operator++(ColumnNumberDelta& a);
-ColumnNumberDelta operator++(ColumnNumberDelta& a, int);
-ColumnNumberDelta& operator--(ColumnNumberDelta& a);
-ColumnNumberDelta operator--(ColumnNumberDelta& a, int);
+// Generates a string of the length specified by `this` filled up with the
+// character given.
+//
+// If length is negative (or zero), returns an empty string.
+//
+// TODO(easy, 2022-06-05): Move this to a LazyString-related module?
+language::NonNull<std::shared_ptr<LazyString>> PaddingString(
+    const ColumnNumberDelta& length, wchar_t fill);
 
 // First adds the line, then adds the column.
 struct LineColumnDelta {
@@ -312,13 +284,13 @@ namespace std {
 template <>
 struct hash<afc::editor::ColumnNumberDelta> {
   std::size_t operator()(const afc::editor::ColumnNumberDelta& delta) const {
-    return std::hash<size_t>()(delta.column_delta);
+    return std::hash<size_t>()(delta.read());
   }
 };
 template <>
 struct hash<afc::editor::LineNumberDelta> {
   std::size_t operator()(const afc::editor::LineNumberDelta& delta) const {
-    return std::hash<size_t>()(delta.line_delta);
+    return std::hash<size_t>()(delta.read());
   }
 };
 template <>

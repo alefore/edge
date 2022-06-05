@@ -18,111 +18,12 @@ using language::NonNull;
 namespace gc = language::gc;
 namespace editor {
 
-/* static */ NonNull<std::shared_ptr<LazyString>>
-ColumnNumberDelta::PaddingString(const ColumnNumberDelta& length,
-                                 wchar_t fill) {
+NonNull<std::shared_ptr<LazyString>> PaddingString(
+    const ColumnNumberDelta& length, wchar_t fill) {
   if (length < ColumnNumberDelta(0)) {
     return EmptyString();
   }
   return NewLazyString(length, fill);
-}
-
-bool ColumnNumberDelta::IsZero() const { return *this == ColumnNumberDelta(); }
-
-bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.column_delta == b.column_delta;
-}
-
-bool operator!=(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return !(a == b);
-}
-
-std::ostream& operator<<(std::ostream& os, const ColumnNumberDelta& lc) {
-  os << "[column delta: " << lc.column_delta << "]";
-  return os;
-}
-
-bool operator<(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.column_delta < b.column_delta;
-}
-bool operator<=(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.column_delta <= b.column_delta;
-}
-
-bool operator>(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.column_delta > b.column_delta;
-}
-
-bool operator>=(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.column_delta >= b.column_delta;
-}
-
-ColumnNumberDelta operator+(ColumnNumberDelta a, const ColumnNumberDelta& b) {
-  a.column_delta += b.column_delta;
-  return a;
-}
-
-ColumnNumberDelta operator-(ColumnNumberDelta a, const ColumnNumberDelta& b) {
-  a.column_delta -= b.column_delta;
-  return a;
-}
-
-ColumnNumberDelta operator-(ColumnNumberDelta a) {
-  a.column_delta = -a.column_delta;
-  return a;
-}
-
-ColumnNumberDelta operator*(ColumnNumberDelta a, const size_t& b) {
-  a.column_delta *= b;
-  return a;
-}
-
-ColumnNumberDelta operator*(const size_t& a, ColumnNumberDelta b) {
-  b.column_delta *= a;
-  return b;
-}
-
-ColumnNumberDelta operator/(ColumnNumberDelta a, const size_t& b) {
-  a.column_delta /= b;
-  return a;
-}
-
-int operator/(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.column_delta / b.column_delta;
-}
-
-ColumnNumberDelta& operator+=(ColumnNumberDelta& a,
-                              const ColumnNumberDelta& value) {
-  a.column_delta += value.column_delta;
-  return a;
-}
-
-ColumnNumberDelta& operator-=(ColumnNumberDelta& a,
-                              const ColumnNumberDelta& value) {
-  a.column_delta -= value.column_delta;
-  return a;
-}
-
-ColumnNumberDelta& operator++(ColumnNumberDelta& a) {
-  a.column_delta++;
-  return a;
-}
-
-ColumnNumberDelta operator++(ColumnNumberDelta& a, int) {
-  ColumnNumberDelta copy = a;
-  a.column_delta++;
-  return copy;
-}
-
-ColumnNumberDelta& operator--(ColumnNumberDelta& a) {
-  a.column_delta--;
-  return a;
-}
-
-ColumnNumberDelta operator--(ColumnNumberDelta& a, int) {
-  ColumnNumberDelta copy = a;
-  a.column_delta--;
-  return copy;
 }
 
 LineColumnDelta::LineColumnDelta(LineNumberDelta input_line,
@@ -205,11 +106,11 @@ bool operator>=(const LineNumber& a, const LineNumber& b) {
 }
 
 LineNumber& operator+=(LineNumber& a, const LineNumberDelta& delta) {
-  if (delta.line_delta < 0) {
-    CHECK_GE(a.line, static_cast<size_t>(-delta.line_delta));
+  if (delta < LineNumberDelta()) {
+    CHECK_GE(a.ToDelta(), -delta);
   }
 
-  a.line += delta.line_delta;
+  a.line += delta.read();
   return a;
 }
 
@@ -242,22 +143,22 @@ LineNumber operator--(LineNumber& a, int) {
 
 LineNumber operator%(LineNumber a, const LineNumberDelta& delta) {
   CHECK_NE(delta, LineNumberDelta(0));
-  return LineNumber(a.line % delta.line_delta);
+  return LineNumber(a.line % delta.read());
 }
 
 LineNumber operator+(LineNumber a, const LineNumberDelta& delta) {
-  if (delta.line_delta < 0) {
-    CHECK_GE(a.line, static_cast<size_t>(-delta.line_delta));
+  if (delta < LineNumberDelta(0)) {
+    CHECK_GE(a.ToDelta(), -delta);
   }
-  a.line += delta.line_delta;
+  a.line += delta.read();
   return a;
 }
 
 LineNumber operator-(LineNumber a, const LineNumberDelta& delta) {
-  if (delta.line_delta > 0) {
-    CHECK_GE(a.line, static_cast<size_t>(delta.line_delta));
+  if (delta > LineNumberDelta()) {
+    CHECK_GE(a.ToDelta(), delta);
   }
-  a.line -= delta.line_delta;
+  a.line -= delta.read();
   return a;
 }
 
@@ -341,7 +242,7 @@ bool operator>=(const ColumnNumber& a, const ColumnNumber& b) {
 }
 
 ColumnNumber& operator+=(ColumnNumber& a, const ColumnNumberDelta& delta) {
-  a.column += delta.column_delta;
+  a.column += delta.read();
   return a;
 }
 
@@ -369,22 +270,22 @@ ColumnNumber operator--(ColumnNumber& a, int) {
 
 ColumnNumber operator%(ColumnNumber a, const ColumnNumberDelta& delta) {
   CHECK_NE(delta, ColumnNumberDelta(0));
-  return ColumnNumber(a.column % delta.column_delta);
+  return ColumnNumber(a.column % delta.read());
 }
 
 ColumnNumber operator+(ColumnNumber a, const ColumnNumberDelta& delta) {
-  if (delta.column_delta < 0) {
-    CHECK_GE(a.column, static_cast<size_t>(-delta.column_delta));
+  if (delta < ColumnNumberDelta(0)) {
+    CHECK_GE(a.ToDelta(), -delta);
   }
-  a.column += delta.column_delta;
+  a.column += delta.read();
   return a;
 }
 
 ColumnNumber operator-(ColumnNumber a, const ColumnNumberDelta& delta) {
-  if (delta.column_delta > 0) {
-    CHECK_GE(a.column, static_cast<size_t>(delta.column_delta));
+  if (delta > ColumnNumberDelta(0)) {
+    CHECK_GE(a.ToDelta(), delta);
   }
-  a.column -= delta.column_delta;
+  a.column -= delta.read();
   return a;
 }
 
@@ -466,7 +367,7 @@ LineColumn LineColumn::operator+(const LineNumberDelta& value) const {
 }
 
 LineColumn LineColumn::operator-(const LineNumberDelta& value) const {
-  return *this + LineNumberDelta(-value.line_delta);
+  return *this + -value;
 }
 
 LineColumn& LineColumn::operator+=(const LineNumberDelta& value) {
@@ -475,7 +376,7 @@ LineColumn& LineColumn::operator+=(const LineNumberDelta& value) {
 }
 
 LineColumn& LineColumn::operator-=(const LineNumberDelta& value) {
-  return operator+=(LineNumberDelta(-value.line_delta));
+  return operator+=(-value);
 }
 
 LineColumn LineColumn::operator+(const ColumnNumberDelta& value) const {

@@ -136,20 +136,20 @@ class CursorsTracker {
 
     // Number of lines to add to a given cursor. For example, a cursor
     // LineColumn(25, 2) will move to LineColumn(20, 2) if lines_delta is -5.
-    LineNumberDelta line_delta;
+    LineNumberDelta line_delta = LineNumberDelta();
 
     // If lines_delta would leave the output line at a value smaller than this
     // one, goes with this one.
-    LineNumber line_lower_bound;
+    LineNumber line_lower_bound = LineNumber();
 
     // Number of columns to add to a given cursor.
-    ColumnNumberDelta column_delta;
+    ColumnNumberDelta column_delta = ColumnNumberDelta();
 
     // If column_delta would leave the output cursor at a value smaller than
     // this one, goes with this one.
     //
     // Same as line_lower_bound but for column computations.
-    ColumnNumber column_lower_bound;
+    ColumnNumber column_lower_bound = ColumnNumber();
   };
 
   CursorsTracker();

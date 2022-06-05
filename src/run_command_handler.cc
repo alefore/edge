@@ -416,13 +416,14 @@ class ForkEditorCommand : public Command {
           editor_state_.current_buffer();
       // TODO(easy, 2022-05-16): Why is this safe?
       CHECK(original_buffer.has_value());
+      static const vm::Namespace kEmptyNamespace;
       NonNull<std::shared_ptr<PromptState>> prompt_state =
           MakeNonNullShared<PromptState>(PromptState{
               .original_buffer = *original_buffer,
               .base_command = std::nullopt,
               .context_command_callback =
                   original_buffer->ptr()->environment()->Lookup(
-                      pool, vm::Namespace({}), L"GetShellPromptContextProgram",
+                      pool, kEmptyNamespace, L"GetShellPromptContextProgram",
                       vm::VMType::Function(
                           {vm::VMType::String(), vm::VMType::String()}))});
 

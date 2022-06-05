@@ -132,22 +132,24 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
       L"line",
       NewCallback(pool, PurityType::kPure,
                   [](LineColumnDelta line_column_delta) {
-                    return static_cast<int>(line_column_delta.line.line_delta);
+                    // TODO(easy, 2022-06-05): Why the need for the cast?
+                    return static_cast<int>(line_column_delta.line.read());
                   }));
 
   line_column_delta->AddField(
       L"column",
-      NewCallback(
-          pool, PurityType::kPure, [](LineColumnDelta line_column_delta) {
-            return static_cast<int>(line_column_delta.column.column_delta);
-          }));
+      NewCallback(pool, PurityType::kPure,
+                  [](LineColumnDelta line_column_delta) {
+                    // TODO(easy, 2022-06-05): Why the need for the cast?
+                    return static_cast<int>(line_column_delta.column.read());
+                  }));
 
   line_column_delta->AddField(
       L"tostring",
       NewCallback(
           pool, PurityType::kPure, [](LineColumnDelta line_column_delta) {
-            return std::to_wstring(line_column_delta.line.line_delta) + L", " +
-                   std::to_wstring(line_column_delta.column.column_delta);
+            return std::to_wstring(line_column_delta.line.read()) + L", " +
+                   std::to_wstring(line_column_delta.column.read());
           }));
 
   environment.DefineType(std::move(line_column_delta));

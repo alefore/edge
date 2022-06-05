@@ -190,7 +190,7 @@ std::vector<BufferContentsWindow::Line> PrependLines(
   }
   auto insert_start = lines_to_insert.begin();
   if (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
-    insert_start += lines_to_insert.size() - lines_desired.line_delta;
+    insert_start += lines_to_insert.size() - lines_desired.read();
   }
   output.insert(output.begin(), insert_start, lines_to_insert.end());
   return output;
@@ -320,11 +320,11 @@ BufferContentsWindow BufferContentsWindow::Get(
         output.lines.empty() ? options.begin : output.lines.front().range.begin;
     output.status_position = BufferContentsWindow::StatusPosition::kTop;
     output.lines.erase(output.lines.begin(),
-                       output.lines.begin() + lines_to_drop.line_delta);
+                       output.lines.begin() + lines_to_drop.read());
   } else if (LineNumberDelta(output.lines.size()) <= lines_to_drop) {
     output.lines.clear();
   } else {
-    output.lines.resize(output.lines.size() - lines_to_drop.line_delta);
+    output.lines.resize(output.lines.size() - lines_to_drop.read());
     output.view_start =
         output.lines.empty() ? options.begin : output.lines.front().range.begin;
   }

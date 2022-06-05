@@ -112,8 +112,9 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
       .common_prefix = common_prefix,
       .predictions_buffer = predictions_buffer.NewRoot()};
 
+  static const vm::Namespace kEmptyNamespace;
   if (auto value = predictions_buffer.environment()->Lookup(
-          predictions_buffer.editor().gc_pool(), vm::Namespace({}),
+          predictions_buffer.editor().gc_pool(), kEmptyNamespace,
           kLongestPrefixEnvironmentVariable, vm::VMType::Int());
       value.has_value()) {
     LOG(INFO) << "Setting " << kLongestPrefixEnvironmentVariable << ": "
@@ -123,7 +124,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
   }
 
   if (auto value = predictions_buffer.environment()->Lookup(
-          predictions_buffer.editor().gc_pool(), vm::Namespace({}),
+          predictions_buffer.editor().gc_pool(), kEmptyNamespace,
           kLongestDirectoryMatchEnvironmentVariable, vm::VMType::Int());
       value.has_value()) {
     predict_results.longest_directory_match =
@@ -131,13 +132,13 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
   }
 
   if (auto value = predictions_buffer.environment()->Lookup(
-          predictions_buffer.editor().gc_pool(), vm::Namespace({}),
+          predictions_buffer.editor().gc_pool(), kEmptyNamespace,
           kExactMatchEnvironmentVariable, vm::VMType::Bool());
       value.has_value()) {
     predict_results.found_exact_match = value.value().ptr()->get_bool();
   }
 
-  predict_results.matches = predictions_buffer.lines_size().line_delta - 1;
+  predict_results.matches = predictions_buffer.lines_size().read() - 1;
   return predict_results;
 }
 
@@ -246,8 +247,9 @@ struct DescendDirectoryTreeOutput {
 
 void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
+  static const vm::Namespace kEmptyNamespace;
   std::optional<gc::Root<vm::Value>> value = buffer.environment()->Lookup(
-      pool, vm::Namespace({}), kLongestDirectoryMatchEnvironmentVariable,
+      pool, kEmptyNamespace, kLongestDirectoryMatchEnvironmentVariable,
       vm::VMType::Int());
   if (!value.has_value()) return;
   buffer.environment()->Assign(
@@ -258,8 +260,9 @@ void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer& buffer) {
 
 void RegisterPredictorExactMatch(OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
+  static const vm::Namespace kEmptyNamespace;
   std::optional<gc::Root<vm::Value>> value = buffer.environment()->Lookup(
-      pool, vm::Namespace({}), kExactMatchEnvironmentVariable,
+      pool, kEmptyNamespace, kExactMatchEnvironmentVariable,
       vm::VMType::Bool());
   if (!value.has_value()) return;
   buffer.environment()->Assign(kExactMatchEnvironmentVariable,
@@ -530,7 +533,7 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
     input.progress_channel.Push(ProgressInformation{
         .values = {
             {StatusPromptExtraInformationKey(L"values"),
-             std::to_wstring(input.predictions.lines_size().line_delta - 1)}}});
+             std::to_wstring(input.predictions.lines_size().read() - 1)}}});
     input.predictions.EndOfFile();
     return futures::Past(PredictorOutput());
   };
@@ -656,8 +659,9 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
 
 void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer& buffer) {
   gc::Pool& pool = buffer.editor().gc_pool();
+  static const vm::Namespace kEmptyNamespace;
   std::optional<gc::Root<vm::Value>> value = buffer.environment()->Lookup(
-      pool, vm::Namespace({}), kLongestPrefixEnvironmentVariable,
+      pool, kEmptyNamespace, kLongestPrefixEnvironmentVariable,
       vm::VMType::Int());
   if (!value.has_value()) return;
   buffer.environment()->Assign(

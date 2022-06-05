@@ -142,9 +142,8 @@ std::optional<ParseTree> ZoomOutTree(const ParseTree& input, double ratio) {
 ParseTree ZoomOutTree(const ParseTree& input, LineNumberDelta input_lines,
                       LineNumberDelta output_lines) {
   LOG(INFO) << "Zooming out: " << input_lines << " to " << output_lines;
-  auto output =
-      ZoomOutTree(input, static_cast<double>(output_lines.line_delta) /
-                             input_lines.line_delta);
+  auto output = ZoomOutTree(
+      input, static_cast<double>(output_lines.read()) / input_lines.read());
   if (!output.has_value()) {
     return ParseTree();
   }

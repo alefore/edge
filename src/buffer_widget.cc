@@ -280,7 +280,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     LineWithCursor::Generator::Vector section_lines =
         LinesSpanView(buffer, BufferContentsWindow::Get(section_input).lines,
                       section_output_producer_options, sections.size());
-    section_lines.lines.resize(section_input.lines_shown.line_delta,
+    section_lines.lines.resize(section_input.lines_shown.read(),
                                LineWithCursor::Generator::Empty());
     if (!section.Contains(buffer.position())) section_lines.RemoveCursor();
     output.Append(section_lines);
@@ -343,8 +343,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                      std::max(
                          LineNumberDelta(ceil(
                              buffer.Read(buffer_variables::margin_lines_ratio) *
-                             input.output_producer_options.size.line
-                                 .line_delta)),
+                             input.output_producer_options.size.line.read())),
                          std::max(LineNumberDelta(buffer.Read(
                                       buffer_variables::margin_lines)),
                                   LineNumberDelta(0)))))};

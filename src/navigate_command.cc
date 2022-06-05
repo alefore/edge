@@ -22,6 +22,7 @@ namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
 namespace {
+// TODO(easy, 2022-06-05): Template this by type?
 class SearchRange {
  public:
   SearchRange(size_t begin, size_t end) : begin_(begin), end_(end) {
@@ -278,8 +279,8 @@ NavigateState InitialState(EditorState& editor_state) {
   } else if (structure == StructureLine()) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn) {
-      return SearchRange{
-          0, static_cast<size_t>(buffer.contents().size().line_delta)};
+      return SearchRange{0,
+                         static_cast<size_t>(buffer.contents().size().read())};
     };
     initial_state.navigate_options.write_index = [](LineColumn position,
                                                     size_t target) {

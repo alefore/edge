@@ -53,7 +53,7 @@ class CppTreeParser : public TreeParser {
   ParseTree FindChildren(const BufferContents& buffer, Range range) override {
     static Tracker top_tracker(L"CppTreeParser::FindChildren");
     auto call = top_tracker.Call();
-    cache_.SetMaxSize(buffer.size().line_delta);
+    cache_.SetMaxSize(buffer.size().read());
 
     std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
     std::vector<ParseTree> trees = {ParseTree(range)};

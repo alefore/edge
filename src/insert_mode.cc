@@ -290,7 +290,7 @@ class InsertMode : public EditorMode {
         // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
         std::optional<gc::Root<vm::Value>> callback =
             options_.editor_state.environment().ptr()->Lookup(
-                options_.editor_state.gc_pool(), vm::Namespace({}),
+                options_.editor_state.gc_pool(), vm::Namespace(),
                 L"HandleKeyboardControlU",
                 VMType::Function({VMType::Void(),
                                   VMTypeMapper<gc::Root<OpenBuffer>>::vmtype}));

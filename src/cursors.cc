@@ -139,11 +139,11 @@ LineColumn TransformLineColumn(
     const CursorsTracker::Transformation& transformation, LineColumn position,
     bool is_end) {
   position.line = LineNumber(
-      TransformValue(position.line.line, transformation.line_delta.line_delta,
+      TransformValue(position.line.line, transformation.line_delta.read(),
                      transformation.line_lower_bound.line, is_end));
-  position.column = ColumnNumber(TransformValue(
-      position.column.column, transformation.column_delta.column_delta,
-      transformation.column_lower_bound.column, is_end));
+  position.column = ColumnNumber(
+      TransformValue(position.column.column, transformation.column_delta.read(),
+                     transformation.column_lower_bound.column, is_end));
   return position;
 }
 

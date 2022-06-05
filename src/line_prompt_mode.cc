@@ -361,7 +361,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   FilterSortHistorySyncOutput output;
   if (abort_notification->HasBeenNotified()) return output;
   // Sets of features for each unique `prompt` value in the history.
-  naive_bayes::History history_data({});
+  naive_bayes::History history_data;
   // Tokens by parsing the `prompt` value in the history.
   std::unordered_map<naive_bayes::Event, std::vector<Token>>
       history_prompt_tokens;
@@ -436,7 +436,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                 VLOG(6) << "Ignoring value, no match: " << line.ToString();
                 return;
               }
-              naive_bayes::FeaturesSet current_features({});
+              naive_bayes::FeaturesSet current_features;
               for (auto& [key, value] : *line_keys) {
                 if (key != L"prompt") {
                   current_features.insert(naive_bayes::Feature(
@@ -452,7 +452,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   VLOG(4) << "Matches found: " << history_data.read().size();
 
   // For sorting.
-  naive_bayes::FeaturesSet current_features({});
+  naive_bayes::FeaturesSet current_features;
   for (const auto& [name, value] : features) {
     current_features.insert(
         naive_bayes::Feature(name + L":" + QuoteString(value)->ToString()));
@@ -1062,7 +1062,7 @@ void Prompt(PromptOptions options) {
                                              L"history"),
                                          filtered_history.ptr()
                                                  ->lines_size()
-                                                 .line_delta -
+                                                 .read() -
                                              (last_line_empty ? 1 : 0));
                                    }
                                    return EmptyValue();

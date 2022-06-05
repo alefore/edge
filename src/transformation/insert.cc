@@ -124,9 +124,8 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
                  ++i) {
               if (text[i.column] == L'\n') {
                 VLOG(8) << "Adding line from " << line_start << " to " << i;
-                buffer->push_back(MakeNonNullShared<Line>(
-                    text.substr(line_start.column,
-                                (ColumnNumber(i) - line_start).column_delta)));
+                buffer->push_back(MakeNonNullShared<Line>(text.substr(
+                    line_start.column, (ColumnNumber(i) - line_start).read())));
                 line_start = ColumnNumber(i) + ColumnNumberDelta(1);
               }
             }

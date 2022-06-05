@@ -444,9 +444,8 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
               ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8;
           VLOG(8) << "Handling TAB character at position: " << output_column
                   << ", target: " << target;
-          line_output.AppendString(
-              ColumnNumberDelta::PaddingString(target - output_column, L' '),
-              std::nullopt);
+          line_output.AppendString(PaddingString(target - output_column, L' '),
+                                   std::nullopt);
           output_column = target;
           break;
         }

@@ -88,7 +88,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
 
   // Outer index is the line being produced; inner index is the column.
   std::vector<std::vector<LineWithCursor::Generator>> generator_by_line_column(
-      lines_longest_column.line_delta,
+      lines_longest_column.read(),
       std::vector<LineWithCursor::Generator>(
           inputs_by_column.size(), LineWithCursor::Generator::Empty()));
 
@@ -96,8 +96,8 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
        ++column_index) {
     LineWithCursor::Generator::Vector& input = inputs_by_column[column_index];
     for (LineNumberDelta i; i < input.size(); ++i) {
-      generator_by_line_column[i.line_delta][column_index] =
-          std::move(input.lines[i.line_delta]);
+      generator_by_line_column[i.read()][column_index] =
+          std::move(input.lines[i.read()]);
     }
   }
 
@@ -124,9 +124,8 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
                   *columns_vector->columns[i].padding[line.line],
                   padding_needed));
             } else {
-              options.AppendString(
-                  ColumnNumberDelta::PaddingString(padding_needed, L' '),
-                  current_modifiers);
+              options.AppendString(PaddingString(padding_needed, L' '),
+                                   current_modifiers);
             }
             columns_shown = initial_column;
 

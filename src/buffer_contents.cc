@@ -466,15 +466,14 @@ void BufferContents::ForEach(
 }
 
 size_t BufferContents::CountCharacters() const {
-  size_t output = 0;
+  ColumnNumberDelta output;
   ForEach([&output](const Line& line) {
-    output += (line.EndColumn().ToDelta() + ColumnNumberDelta(sizeof("\n") - 1))
-                  .column_delta;
+    output += line.EndColumn().ToDelta() + ColumnNumberDelta(sizeof("\n") - 1);
   });
-  if (output > 0) {
+  if (output > ColumnNumberDelta(0)) {
     output--;  // Last line has no \n.
   }
-  return output;
+  return output.read();
 }
 
 void BufferContents::insert_line(LineNumber line_position,
@@ -618,7 +617,7 @@ void BufferContents::push_back(std::wstring str) {
     CHECK_GE(i, start);
     if (c == '\n') {
       push_back(MakeNonNullShared<const Line>(
-          str.substr(start.column, (i - start).column_delta)));
+          str.substr(start.column, (i - start).read())));
       start = i + ColumnNumberDelta(1);
     }
   }

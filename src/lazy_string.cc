@@ -23,7 +23,7 @@ class EmptyStringImpl : public LazyString {
 std::wstring LazyString::ToString() const {
   static Tracker tracker(L"LazyString::ToString");
   auto call = tracker.Call();
-  std::wstring output(size().column_delta, 0);
+  std::wstring output(size().read(), 0);
   ForEachColumn(*this,
                 [&output](ColumnNumber i, wchar_t c) { output[i.column] = c; });
   return output;

@@ -12,14 +12,14 @@ using language::MakeNonNullShared;
 
 LineWithCursor::Generator::Vector& LineWithCursor::Generator::Vector::resize(
     LineNumberDelta size) {
-  lines.resize(size.line_delta, Generator::Empty());
+  lines.resize(size.read(), Generator::Empty());
   return *this;
 }
 
 LineWithCursor::Generator::Vector&
 LineWithCursor::Generator::Vector::PrependEmptyLines(LineNumberDelta size) {
   std::vector<LineWithCursor::Generator> prefix(
-      size.line_delta, LineWithCursor::Generator::Empty());
+      size.read(), LineWithCursor::Generator::Empty());
   lines.insert(lines.begin(), prefix.begin(), prefix.end());
   return *this;
 }
@@ -82,7 +82,7 @@ LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
                                              LineNumberDelta times) {
   return LineWithCursor::Generator::Vector{
       .lines = std::vector(
-          times.line_delta,
+          times.read(),
           LineWithCursor::Generator{.inputs_hash = {},
                                     .generate = [line] { return line; }}),
       .width = line.line->contents()->size()};

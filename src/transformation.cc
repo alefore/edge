@@ -38,7 +38,7 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     Output output = Output::SetColumn(column);
 
     output.Push(transformation::Delete{
-        .modifiers = {.repetitions = (line->EndColumn() - column).column_delta,
+        .modifiers = {.repetitions = (line->EndColumn() - column).read(),
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::kDoNothing},
         .initiator = transformation::Delete::Initiator::kInternal});

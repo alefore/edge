@@ -64,8 +64,8 @@ LineWithCursor::Generator::Vector LineNumberOutput(
                                     ? range.begin.line.ToUserString()
                                     : L"↪";
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
-          auto padding = ColumnNumberDelta::PaddingString(
-              width - ColumnNumberDelta(number.size() + 1), L' ');
+          language::NonNull<std::shared_ptr<LazyString>> padding =
+              PaddingString(width - ColumnNumberDelta(number.size() + 1), L' ');
 
           Line::Options line_options;
           line_options.AppendString(

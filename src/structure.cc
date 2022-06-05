@@ -460,9 +460,8 @@ Structure* StructurePage() {
       std::optional<LineColumnDelta> view_size =
           buffer.display_data().view_size().Get();
       auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
-      size_t pages =
-          ceil(static_cast<double>(buffer.contents().size().line_delta) /
-               lines.line_delta);
+      size_t pages = ceil(static_cast<double>(buffer.contents().size().read()) /
+                          lines.read());
       position.line =
           LineNumber(0) +
           lines * ComputePosition(0, pages, pages, modifiers.direction,
@@ -486,7 +485,7 @@ Structure* StructurePage() {
       return StructureLine()->Move(buffer, position, range,
                                    {.structure = StructureLine(),
                                     .direction = modifiers.direction,
-                                    .repetitions = lines.line_delta});
+                                    .repetitions = lines.read()});
     }
   };
   static Impl output;

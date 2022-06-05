@@ -354,7 +354,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   {.modifiers =
                        {.structure = StructureLine(),
                         .repetitions =
-                            (range.lines() - LineNumberDelta(1)).line_delta,
+                            (range.lines() - LineNumberDelta(1)).read(),
                         .boundary_end = Modifiers::LIMIT_NEIGHBOR},
                    .transformation = transformation});
             auto columns = range.lines() <= LineNumberDelta(1)
@@ -362,7 +362,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                                : range.end.column.ToDelta();
             if (!columns.IsZero())
               transformations.push_back(
-                  {.modifiers = {.repetitions = columns.column_delta},
+                  {.modifiers = {.repetitions = columns.read()},
                    .transformation = transformation});
             auto final_position = output->position;
             auto sub_input = input.NewChild(range.begin);

@@ -138,7 +138,7 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
       L"line_count",
       vm::NewCallback(
           pool, PurityType::kReader, [](gc::Root<OpenBuffer> buffer) {
-            return static_cast<int>(buffer.ptr()->contents().size().line_delta);
+            return static_cast<int>(buffer.ptr()->contents().size().read());
           }));
 
   buffer->AddField(

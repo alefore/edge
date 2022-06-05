@@ -42,7 +42,7 @@ struct Compilation {
 
   std::unique_ptr<Expression> expr;
 
-  Namespace current_namespace = Namespace({});
+  Namespace current_namespace;
   std::vector<VMType> current_class = {};
   language::gc::Root<Environment> environment;
   std::wstring last_token = L"";

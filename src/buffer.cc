@@ -1164,7 +1164,7 @@ void OpenBuffer::MaybeExtendLine(LineColumn position) {
   if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
     return;
   }
-  line->Append(Line(ColumnNumberDelta::PaddingString(
+  line->Append(Line(PaddingString(
       position.column - line->EndColumn() + ColumnNumberDelta(1), L' ')));
 
   contents_.set_line(position.line, NonNull(std::move(line)));
@@ -1881,7 +1881,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
 
   if (fd() != nullptr) {
     output.insert({L"<", L""});
-    switch (contents_.size().line_delta) {
+    switch (contents_.size().read()) {
       case 1:
         output.insert({L"⚊", L""});
         break;

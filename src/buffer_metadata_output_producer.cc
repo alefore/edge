@@ -159,15 +159,15 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
                                    LineNumberDelta total_size) {
   CHECK_GE(current_line, lines_shown.begin.line);
   double buffer_lines_per_screen_line =
-      static_cast<double>(total_size.line_delta) /
-      (lines_shown.end.line - lines_shown.begin.line).line_delta;
+      static_cast<double>(total_size.read()) /
+      (lines_shown.end.line - lines_shown.begin.line).read();
   Range output;
-  output.begin.line = LineNumber(
-      std::round(buffer_lines_per_screen_line *
-                 (current_line - lines_shown.begin.line).line_delta));
+  output.begin.line =
+      LineNumber(std::round(buffer_lines_per_screen_line *
+                            (current_line - lines_shown.begin.line).read()));
   output.end.line = LineNumber(std::round(
       buffer_lines_per_screen_line *
-      (current_line + LineNumberDelta(1) - lines_shown.begin.line).line_delta));
+      (current_line + LineNumberDelta(1) - lines_shown.begin.line).read()));
   return output;
 }
 
@@ -229,24 +229,24 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   DCHECK_LT(initial_line(options), LineNumber(0) + lines_size);
 
   static const Rows kRowsPerScreenLine(3);
-  Rows total_rows = size_t(lines_shown.line_delta) * kRowsPerScreenLine;
+  Rows total_rows = size_t(lines_shown.read()) * kRowsPerScreenLine;
 
   // Number of rows the bar should take.
   Rows bar_size = std::max(
       Rows(1), Rows(std::round(static_cast<double>(total_rows.read()) *
-                               static_cast<double>(lines_shown.line_delta) /
-                               lines_size.line_delta)));
+                               static_cast<double>(lines_shown.read()) /
+                               lines_size.read())));
 
   // Bar will be shown in lines in interval [start, end] (units are rows).
   Rows start = Rows(std::round(static_cast<double>(total_rows.read()) *
                                static_cast<double>(initial_line(options).line) /
-                               lines_size.line_delta));
+                               lines_size.read()));
   Rows end = start + bar_size;
 
   LineModifierSet modifiers;
 
   Line::Options line_options;
-  Rows current = kRowsPerScreenLine * (line - initial_line(options)).line_delta;
+  Rows current = kRowsPerScreenLine * (line - initial_line(options)).read();
 
   // Characters:
   // 01
@@ -294,8 +294,7 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
   if (!marks.empty() || !expired_marks.empty()) {
     double buffer_lines_per_row =
-        static_cast<double>(options.buffer.lines_size().line_delta) /
-        total_rows;
+        static_cast<double>(options.buffer.lines_size().read()) / total_rows;
     bool active_marks = false;
     for (size_t row = 0; row < 3; row++) {
       LineColumn begin_line(
@@ -644,7 +643,7 @@ std::vector<std::wstring> ComputePrefixLines(
     return box.box.reference < boxes[i].position;
   };
 
-  std::vector<std::wstring> output(screen_size.line_delta, L"");
+  std::vector<std::wstring> output(screen_size.read(), L"");
   auto get = [&](LineNumber l) -> std::wstring& {
     CHECK_LT(l.line, output.size());
     return output[l.line];
@@ -742,7 +741,7 @@ ColumnsVector::Column BufferMetadataOutput(
   std::vector<std::list<MetadataLine>> metadata_by_line(
       options.screen_lines.size());
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
-    if (Range range = options.screen_lines[i.ToDelta().line_delta].range;
+    if (Range range = options.screen_lines[i.ToDelta().read()].range;
         range.begin.line < LineNumber(0) + options.buffer.lines_size()) {
       metadata_by_line[i.line] = Prepare(options, range);
     }

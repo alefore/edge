@@ -48,8 +48,7 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
   } else {
     symbol_start = ColumnNumber(index_before_symbol + 1);
   }
-  return line_str.substr(symbol_start.column,
-                         (end - symbol_start).column_delta + 1);
+  return line_str.substr(symbol_start.column, (end - symbol_start).read() + 1);
 }
 
 transformation::Delete DeleteLastCharacters(int characters) {
@@ -91,7 +90,7 @@ class PredictorTransformation : public CompositeTransformation {
           if (!results->common_prefix.has_value() ||
               results->common_prefix.value().size() < text.size()) {
             CHECK_LE(results->longest_prefix, ColumnNumberDelta(text.size()));
-            auto prefix = text.substr(0, results->longest_prefix.column_delta);
+            auto prefix = text.substr(0, results->longest_prefix.read());
             if (!prefix.empty()) {
               VLOG(5) << "Setting buffer status.";
               buffer.status().SetInformationText(

@@ -145,8 +145,6 @@ src/line_marks.h \
 src/line_marks_test.cc \
 src/line_modifier.cc \
 src/line_modifier.h \
-src/line_number_delta.cc \
-src/line_number_delta.h \
 src/line_number_output_producer.h \
 src/line_number_output_producer.cc \
 src/line_prompt_mode.cc \

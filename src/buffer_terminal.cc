@@ -388,8 +388,8 @@ void BufferTerminal::InternalUpdateSize(Data& data) {
   struct winsize screen_size;
   LOG(INFO) << "Update buffer size: "
             << data.buffer.Read(buffer_variables::name) << " to: " << view_size;
-  screen_size.ws_row = view_size.line.line_delta;
-  screen_size.ws_col = view_size.column.column_delta;
+  screen_size.ws_row = view_size.line.read();
+  screen_size.ws_col = view_size.column.read();
   // Silence valgrind warnings about uninitialized values:
   screen_size.ws_xpixel = 0;
   screen_size.ws_ypixel = 0;
