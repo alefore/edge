@@ -408,10 +408,17 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
               VLOG(8) << "Considering history value: "
                       << cpp_string.EscapedRepresentation();
               NonNull<std::shared_ptr<LazyString>> prompt_value =
-                  NewLazyString(cpp_string.EscapedRepresentation());
+                  NewLazyString(cpp_string.OriginalString());
+              if (FindFirstColumnWithPredicate(
+                      prompt_value.value(),
+                      [](ColumnNumber, wchar_t c) { return c == L'\n'; })
+                      .has_value()) {
+                VLOG(5) << "Ignoring value that contains a new line character.";
+                return;
+              }
               std::vector<Token> line_tokens = ExtendTokensToEndOfString(
                   prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-              naive_bayes::Event event_key(cpp_string.EscapedRepresentation());
+              naive_bayes::Event event_key(cpp_string.OriginalString());
               std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
               if (filter_tokens.empty()) {
                 VLOG(6) << "Accepting value (empty filters): "
@@ -503,10 +510,10 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                                     NonNull<std::shared_ptr<LazyString>>>
                 features;
             BufferContents history_contents;
-            history_contents.push_back(L"prompt:\"foo\\nbardo\"");
-            FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(MakeNonNullShared<Notification>(), L"bar",
-                                      history_contents.copy(), features);
+            history_contents.push_back(L"prompt:\"foo\\\\nbardo\"");
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                MakeNonNullShared<Notification>(), L"nbar",
+                history_contents.copy(), features);
             CHECK_EQ(output.lines.size(), 1ul);
             Line& line = output.lines[0].value();
             CHECK(line.ToString() == L"foo\\nbardo");
@@ -518,7 +525,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             }
 
             {
-              auto s = modifiers.find(ColumnNumber(5));
+              auto s = modifiers.find(ColumnNumber(4));
               CHECK(s != modifiers.end());
               LOG(INFO) << "Modifiers found: " << s->second;
               CHECK_EQ(s->second, LineModifierSet{LineModifier::BOLD});
@@ -581,8 +588,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
         FilterSortHistorySyncOutput output =
             FilterSortHistorySync(MakeNonNullShared<Notification>(), L"ls",
                                   history_contents.copy(), features);
-        CHECK_EQ(output.lines.size(), 1ul);
-        CHECK(output.lines[0]->ToString() == L"ls\\n");
+        CHECK_EQ(output.lines.size(), 0ul);
       }}});
 
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
@@ -1097,27 +1103,14 @@ void Prompt(PromptOptions options) {
                 },
             .new_line_handler =
                 [&editor_state, options, prompt_state](OpenBuffer& buffer) {
-                  NonNull<std::shared_ptr<LazyString>> escaped_input =
+                  NonNull<std::shared_ptr<LazyString>> input =
                       buffer.current_line()->contents();
-                  return std::visit(
-                      overload{
-                          [&](vm::EscapedString input) {
-                            AddLineToHistory(
-                                editor_state, options.history_file,
-                                NewLazyString(input.OriginalString()));
-                            auto ensure_survival_of_current_closure =
-                                editor_state.set_keyboard_redirect(nullptr);
-                            prompt_state->Reset();
-                            return options.handler(input.OriginalString());
-                          },
-                          [&](Error error) {
-                            editor_state.status().Set(error);
-                            auto ensure_survival_of_current_closure =
-                                editor_state.set_keyboard_redirect(nullptr);
-                            prompt_state->Reset();
-                            return futures::Past(EmptyValue());
-                          }},
-                      vm::EscapedString::Parse(escaped_input->ToString()));
+                  AddLineToHistory(editor_state, options.history_file, input);
+                  auto ensure_survival_of_current_closure =
+                      editor_state.set_keyboard_redirect(nullptr);
+                  prompt_state->Reset();
+                  // TODO(easy, 2022-06-05): Get rid of the call to ToString.
+                  return options.handler(input->ToString());
                 },
             .start_completion =
                 [&editor_state, options, prompt_state](OpenBuffer& buffer) {

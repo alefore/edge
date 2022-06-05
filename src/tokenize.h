@@ -29,9 +29,6 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command);
 
 // Given: src/CreateSomethingOrOther/buffer_list.cc
 // Returns: "src", "Create", "Something", "Or", "Other", "buffer", "list", "cc"
-//
-// Can handle escape characters. For example: a\nb gives {"a", "b"} (rather than
-// {"a", "nb"}).
 std::vector<Token> TokenizeNameForPrefixSearches(
     const language::NonNull<std::shared_ptr<LazyString>>& path);
 

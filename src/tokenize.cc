@@ -77,7 +77,7 @@ std::vector<Token> TokenizeGroupsAlnum(
   std::vector<Token> output;
   for (ColumnNumber i; i.ToDelta() < name->size();) {
     while (i.ToDelta() < name->size() && !isalnum(name->get(i))) {
-      if (name->get(i) == L'\\') ++i;
+      // if (name->get(i) == L'\\') ++i;
       ++i;
     }
     Token token;
@@ -92,6 +92,7 @@ std::vector<Token> TokenizeGroupsAlnum(
   return output;
 }
 
+#if 0
 namespace {
 const bool get_synthetic_features_tests_registration = tests::Register(
     L"TokenizeGroupsAlnum",
@@ -107,6 +108,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
                                    .end = ColumnNumber(10)}));
       }}});
 }
+#endif
 
 std::vector<Token> TokenizeNameForPrefixSearches(
     const NonNull<std::shared_ptr<LazyString>>& name) {
