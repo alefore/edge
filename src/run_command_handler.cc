@@ -115,7 +115,7 @@ std::map<std::wstring, std::wstring> LoadEnvironmentVariables(
 
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
-    CommandData* data, OpenBuffer& target) {
+    NonNull<CommandData*> data, OpenBuffer& target) {
   int pipefd_out[2];
   int pipefd_err[2];
   static const int parent_fd = 0;
@@ -622,8 +622,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
     return buffer;
   }
 
-  // TODO(easy, 2022-06-05): Use NonNull.
-  auto command_data = std::make_shared<CommandData>();
+  NonNull<std::shared_ptr<CommandData>> command_data;
   gc::Root<OpenBuffer> buffer = OpenBuffer::New(
       {.editor = editor_state,
        .name = name,
@@ -635,7 +634,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
            },
        .describe_status =
            [command_data](const OpenBuffer& buffer) {
-             return Flags(*command_data, buffer);
+             return Flags(command_data.value(), buffer);
            }});
   buffer.ptr()->Set(
       buffer_variables::children_path,
