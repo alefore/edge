@@ -330,6 +330,7 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
   return output;
 }
 
+// TODO(easy, 2022-06-05): Receive input as LazyString.
 void RunCommand(const BufferName& name, const std::wstring& input,
                 std::map<std::wstring, std::wstring> environment,
                 EditorState& editor_state, std::optional<Path> children_path) {
@@ -659,13 +660,14 @@ futures::Value<EmptyValue> RunCommandHandler(
 }
 
 futures::Value<EmptyValue> RunMultipleCommandsHandler(
-    const std::wstring& input, EditorState& editor_state) {
+    NonNull<std::shared_ptr<LazyString>> input, EditorState& editor_state) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
         buffer.contents().ForEach([&editor_state, input](wstring arg) {
           std::map<std::wstring, std::wstring> environment = {{L"ARG", arg}};
-          RunCommand(BufferName(L"$ " + input + L" " + arg), input, environment,
-                     editor_state, OptionalFrom(GetChildrenPath(editor_state)));
+          RunCommand(BufferName(L"$ " + input->ToString() + L" " + arg),
+                     input->ToString(), environment, editor_state,
+                     OptionalFrom(GetChildrenPath(editor_state)));
         });
         return futures::Past(EmptyValue());
       })
