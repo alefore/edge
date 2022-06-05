@@ -190,7 +190,7 @@ class SearchCommand : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     if (editor_state_.structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
       editor_state_
