@@ -26,7 +26,7 @@ class Paste : public Command {
   }
   std::wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     auto it = editor_state_.buffers()->find(BufferName::PasteBuffer());
     if (it == editor_state_.buffers()->end()) {
       LOG(INFO) << "Attempted to paste without a paste buffer.";

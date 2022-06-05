@@ -409,7 +409,7 @@ class ForkEditorCommand : public Command {
   }
   std::wstring Category() const override { return L"Buffers"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     gc::Pool& pool = editor_state_.gc_pool();
     if (editor_state_.structure() == StructureChar()) {
       std::optional<gc::Root<OpenBuffer>> original_buffer =

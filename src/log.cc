@@ -52,11 +52,11 @@ class FileLog : public Log {
 
   ~FileLog() override { Write(data_, id_, L"End"); }
 
-  void Append(std::wstring statement) {
+  void Append(std::wstring statement) override {
     Write(data_, id_, L"Info: " + std::move(statement));
   }
 
-  NonNull<std::unique_ptr<Log>> NewChild(std::wstring name) {
+  NonNull<std::unique_ptr<Log>> NewChild(std::wstring name) override {
     Write(data_, id_,
           L"New Child: id:" + std::to_wstring(data_->next_id) + L": " + name);
     return NonNull<std::unique_ptr<FileLog>>(data_);
