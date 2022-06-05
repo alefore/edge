@@ -4,6 +4,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
+#include "src/char_buffer.h"
 #include "src/direction.h"
 #include "src/editor.h"
 #include "src/language/safe_types.h"
@@ -111,6 +112,7 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
       first_line_contents = line_contents.get_shared();
   }
   if (observers.empty()) return;
+  // TODO(easy, 2022-06-05): Get rid of ToString.
   std::wstring details = observers.size() == 1
                              ? first_line_contents->ToString()
                              : L" files: " + std::to_wstring(observers.size());
@@ -121,8 +123,7 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
       .handler =
           [buffer = buffer.NewRoot(),
            observers](NonNull<std::shared_ptr<LazyString>> input) {
-            // TODO(easy, 2022-06-05): Get rid of ToString.
-            if (input->ToString() == L"yes") {
+            if (input.value() == NewLazyString(L"yes").value()) {
               for (auto& o : observers) o();
             } else {
               // TODO: insert it again?  Actually, only let it
