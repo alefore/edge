@@ -33,11 +33,12 @@ using language::VisitPointer;
 
 namespace gc = language::gc;
 
-futures::Value<EmptyValue> OpenFileHandler(const std::wstring& name,
-                                           EditorState& editor_state) {
+futures::Value<EmptyValue> OpenFileHandler(
+    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> name) {
+  // TODO(easy, 2022-06-05): Get rid of ToString.
   OpenOrCreateFile(
       OpenFileOptions{.editor_state = editor_state,
-                      .path = OptionalFrom(Path::FromString(name)),
+                      .path = OptionalFrom(Path::FromString(name->ToString())),
                       .insertion_type = BuffersList::AddBufferType::kVisit});
   return futures::Past(EmptyValue());
 }
@@ -266,12 +267,7 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
               return AdjustPath(editor, line, std::move(progress_channel),
                                 std::move(abort_notification));
             },
-        .handler =
-            [&editor](NonNull<std::shared_ptr<LazyString>> input) {
-              // TODO(easy, 2022-06-05): Get rid of ToString and use
-              // std::bind_front.
-              return OpenFileHandler(input->ToString(), editor);
-            },
+        .handler = std::bind_front(OpenFileHandler, std::ref(editor)),
         .cancel_handler =
             [&editor]() {
               VisitPointer(
