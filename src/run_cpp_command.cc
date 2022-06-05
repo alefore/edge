@@ -55,14 +55,18 @@ struct SearchNamespaces {
 };
 
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(
-    NonNull<EditorState*> editor_state, const std::wstring& name) {
+    NonNull<EditorState*> editor_state,
+    NonNull<std::shared_ptr<LazyString>> name) {
   // TODO(easy): Honor `multiple_buffers`.
   return VisitPointer(
       editor_state->current_buffer(),
       [&](gc::Root<OpenBuffer> buffer) {
         buffer.ptr()->ResetMode();
-        return buffer.ptr()
-            ->EvaluateString(name)
+        // TODO(easy, 2022-06-05): Get rid of call to ToString.
+        return buffer
+            .ptr()
+
+            ->EvaluateString(name->ToString())
             .Transform([buffer](gc::Root<vm::Value> value) {
               if (value.ptr()->IsVoid()) return Success();
               std::ostringstream oss;
@@ -246,8 +250,10 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
-    NonNull<EditorState*> editor_state, const std::wstring& command) {
-  return RunCppCommandShell(command, editor_state.value())
+    NonNull<EditorState*> editor_state,
+    NonNull<std::shared_ptr<LazyString>> command) {
+  // TODO(easy, 2022-06-05): Get rid of ToString.
+  return RunCppCommandShell(command->ToString(), editor_state.value())
       .Transform([](auto) { return Success(); })
       .ConsumeErrors([](auto) { return futures::Past(EmptyValue()); });
 }
@@ -350,7 +356,8 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
   return NewLinePromptCommand(
       editor_state, description, [&editor_state, mode]() {
         std::wstring prompt;
-        std::function<futures::Value<EmptyValue>(const std::wstring& input)>
+        std::function<futures::Value<EmptyValue>(
+            NonNull<std::shared_ptr<LazyString>> input)>
             handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
         switch (mode) {

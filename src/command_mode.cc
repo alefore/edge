@@ -469,22 +469,23 @@ class ActivateLink : public Command {
           buffer.ptr()
               ->OpenBufferForCurrentPosition(
                   OpenBuffer::RemoteURLBehavior::kLaunchBrowser)
-              .Transform([&editor_state = editor_state_](
-                             std::optional<gc::Root<OpenBuffer>> target) {
-                return VisitPointer(
-                    target,
-                    [&](gc::Root<OpenBuffer> target) {
-                      if (std::wstring path =
-                              target.ptr()->Read(buffer_variables::path);
-                          !path.empty())
-                        AddLineToHistory(editor_state, HistoryFileFiles(),
-                                         NewLazyString(path));
-                      editor_state.AddBuffer(
-                          target, BuffersList::AddBufferType::kVisit);
-                      return Success();
-                    },
-                    [] { return Success(); });
-              });
+              .Transform(
+                  [&editor_state = editor_state_](
+                      std::optional<gc::Root<OpenBuffer>> optional_target) {
+                    return VisitPointer(
+                        optional_target,
+                        [&](gc::Root<OpenBuffer> target) {
+                          if (std::wstring path =
+                                  target.ptr()->Read(buffer_variables::path);
+                              !path.empty())
+                            AddLineToHistory(editor_state, HistoryFileFiles(),
+                                             NewLazyString(path));
+                          editor_state.AddBuffer(
+                              target, BuffersList::AddBufferType::kVisit);
+                          return Success();
+                        },
+                        [] { return Success(); });
+                  });
         },
         [] {});
   }
@@ -682,8 +683,12 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 .editor_state = editor_state,
                 .prompt = L"...$ ",
                 .history_file = HistoryFileCommands(),
-                .handler = [&editor_state](std::wstring input) {
-                  return RunMultipleCommandsHandler(input, editor_state);
+                // TODO(easy, 2022-06-05): Use std::bind_front?
+                .handler = [&editor_state](
+                               NonNull<std::shared_ptr<LazyString>> input) {
+                  // TODO(easy, 2022-06-05) Get rid of call to ToString.
+                  return RunMultipleCommandsHandler(input->ToString(),
+                                                    editor_state);
                 }};
           }));
 

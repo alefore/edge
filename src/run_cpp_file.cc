@@ -43,9 +43,13 @@ class RunCppFileCommand : public Command {
             .initial_value =
                 buffer->ptr()->Read(buffer_variables::editor_commands_path),
             .handler =
-                [&editor = editor_state_](const std::wstring& input) {
+                [&editor = editor_state_](
+                    NonNull<std::shared_ptr<LazyString>> input) {
+                  // TODO(easy, 2022-06-05): Use transform rather than
+                  // SetConsumer.
                   futures::Future<EmptyValue> output;
-                  RunCppFileHandler(input, editor)
+                  // TODO(easy, 2022-06-05): Get rid of call to ToString.
+                  RunCppFileHandler(input->ToString(), editor)
                       .SetConsumer([consumer = std::move(output.consumer)](
                                        ValueOrError<EmptyValue>) {
                         consumer(EmptyValue());

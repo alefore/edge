@@ -62,7 +62,8 @@ struct PromptOptions {
   ColorizeFunction colorize_options_provider = nullptr;
 
   // Function to run when the prompt receives the final input.
-  std::function<futures::Value<language::EmptyValue>(const std::wstring& input)>
+  std::function<futures::Value<language::EmptyValue>(
+      language::NonNull<std::shared_ptr<LazyString>>)>
       handler;
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was

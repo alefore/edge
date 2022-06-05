@@ -63,24 +63,27 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   const HistoryFile history_file(L"values");
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
-    Prompt({.editor_state = editor_state,
-            .prompt = name + L" := ",
-            .history_file = history_file,
-            .initial_value = active_buffers[0].ptr()->Read(var),
-            .handler =
-                [&editor_state, var](const std::wstring& input) {
-                  editor_state.ResetRepetitions();
-                  return editor_state.ForEachActiveBuffer(
-                      [var, input](OpenBuffer& buffer) {
-                        buffer.Set(var, input);
-                        buffer.status().SetInformationText(var->name() +
-                                                           L" := " + input);
-                        return futures::Past(EmptyValue());
-                      });
-                },
-            .cancel_handler = []() { /* Nothing. */ },
-            .predictor = var->predictor(),
-            .status = PromptOptions::Status::kBuffer});
+    Prompt(
+        {.editor_state = editor_state,
+         .prompt = name + L" := ",
+         .history_file = history_file,
+         .initial_value = active_buffers[0].ptr()->Read(var),
+         .handler =
+             [&editor_state, var](NonNull<std::shared_ptr<LazyString>> input) {
+               editor_state.ResetRepetitions();
+               return editor_state.ForEachActiveBuffer(
+                   [var, input](OpenBuffer& buffer) {
+                     // TODO(easy, 2022-06-05): Get rid of calls to ToString.
+                     buffer.Set(var, input->ToString());
+                     // TODO(easy, 2022-06-05): Get rid of calls to ToString.
+                     buffer.status().SetInformationText(var->name() + L" := " +
+                                                        input->ToString());
+                     return futures::Past(EmptyValue());
+                   });
+             },
+         .cancel_handler = []() { /* Nothing. */ },
+         .predictor = var->predictor(),
+         .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
 
@@ -99,17 +102,19 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
             .history_file = history_file,
             .initial_value = std::to_wstring(editor_state.Read(var)),
             .handler =
-                [&editor_state, var,
-                 &default_error_status](const std::wstring& input) {
-                  std::wstringstream ss(input);
+                [&editor_state, var, &default_error_status](
+                    NonNull<std::shared_ptr<LazyString>> input) {
+                  // TODO(easy, 2022-06-05): Get rid of ToString.
+                  std::wstringstream ss(input->ToString());
                   double value;
                   ss >> value;
                   if (ss.eof() && !ss.fail()) {
                     editor_state.Set(var, value);
                   } else {
+                    // TODO(easy, 2022-06-05): Get rid of ToString.
                     default_error_status.SetWarningText(
                         L"Invalid value for double value “" + var->name() +
-                        L"”: " + input);
+                        L"”: " + input->ToString());
                   }
                   return futures::Past(EmptyValue());
                 },
@@ -133,63 +138,66 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   }
   if (auto var = buffer_variables::IntStruct()->find_variable(name);
       var != nullptr) {
-    Prompt(
-        {.editor_state = editor_state,
-         .prompt = name + L" := ",
-         .history_file = history_file,
-         .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
-         .handler =
-             [&editor_state, var,
-              &default_error_status](const std::wstring& input) {
-               int value;
-               try {
-                 value = stoi(input);
-               } catch (const std::invalid_argument& ia) {
-                 default_error_status.SetWarningText(
-                     L"Invalid value for integer value “" + var->name() +
-                     L"”: " + FromByteString(ia.what()));
-                 return futures::Past(EmptyValue());
-               }
-               editor_state.ForEachActiveBuffer(
-                   [var, value](OpenBuffer& buffer) {
-                     buffer.Set(var, value);
-                     return futures::Past(EmptyValue());
-                   });
-               return futures::Past(EmptyValue());
-             },
-         .cancel_handler = []() { /* Nothing. */ },
-         .predictor = var->predictor(),
-         .status = PromptOptions::Status::kBuffer});
+    Prompt(PromptOptions{
+        .editor_state = editor_state,
+        .prompt = name + L" := ",
+        .history_file = history_file,
+        .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
+        .handler =
+            [&editor_state, var, &default_error_status](
+                NonNull<std::shared_ptr<LazyString>> input) {
+              int value;
+              try {
+                // TODO(easy, 2022-06-05): Get rid of ToString.
+                value = stoi(input->ToString());
+              } catch (const std::invalid_argument& ia) {
+                default_error_status.SetWarningText(
+                    L"Invalid value for integer value “" + var->name() +
+                    L"”: " + FromByteString(ia.what()));
+                return futures::Past(EmptyValue());
+              }
+              editor_state.ForEachActiveBuffer(
+                  [var, value](OpenBuffer& buffer) {
+                    buffer.Set(var, value);
+                    return futures::Past(EmptyValue());
+                  });
+              return futures::Past(EmptyValue());
+            },
+        .cancel_handler = []() { /* Nothing. */ },
+        .predictor = var->predictor(),
+        .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
   if (auto var = buffer_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
-    Prompt(
-        {.editor_state = editor_state,
-         .prompt = name + L" := ",
-         .history_file = history_file,
-         .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
-         .handler =
-             [&editor_state, var,
-              &default_error_status](const std::wstring& input) {
-               std::wstringstream ss(input);
-               double value;
-               ss >> value;
-               if (ss.eof() && !ss.fail()) {
-                 editor_state.ForEachActiveBuffer(
-                     [var, value](OpenBuffer& buffer) {
-                       buffer.Set(var, value);
-                       return futures::Past(EmptyValue());
-                     });
-               } else {
-                 default_error_status.SetWarningText(
-                     L"Invalid value for double value “" + var->name() +
-                     L"”: " + input);
-               }
-               return futures::Past(EmptyValue());
-             },
-         .cancel_handler = []() { /* Nothing. */ },
-         .status = PromptOptions::Status::kBuffer});
+    Prompt(PromptOptions{
+        .editor_state = editor_state,
+        .prompt = name + L" := ",
+        .history_file = history_file,
+        .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
+        .handler =
+            [&editor_state, var, &default_error_status](
+                NonNull<std::shared_ptr<LazyString>> input) {
+              // TODO(easy, 2022-06-05): Get rid of ToString.
+              std::wstringstream ss(input->ToString());
+              double value;
+              ss >> value;
+              if (ss.eof() && !ss.fail()) {
+                editor_state.ForEachActiveBuffer(
+                    [var, value](OpenBuffer& buffer) {
+                      buffer.Set(var, value);
+                      return futures::Past(EmptyValue());
+                    });
+              } else {
+                // TODO(easy, 2022-06-05): Get rid of ToString.
+                default_error_status.SetWarningText(
+                    L"Invalid value for double value “" + var->name() + L"”: " +
+                    input->ToString());
+              }
+              return futures::Past(EmptyValue());
+            },
+        .cancel_handler = []() { /* Nothing. */ },
+        .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
 
@@ -229,8 +237,11 @@ NonNull<std::unique_ptr<Command>> NewSetVariableCommand(
                   });
             },
             .handler =
-                [&editor_state](const std::wstring input) {
-                  return SetVariableCommandHandler(input, editor_state);
+                [&editor_state](NonNull<std::shared_ptr<LazyString>> input) {
+                  // TODO(easy, 2022-06-05): Get rid of ToString; use
+                  // std::bind_front.
+                  return SetVariableCommandHandler(input->ToString(),
+                                                   editor_state);
                 },
             .cancel_handler = []() { /* Nothing. */ },
             .predictor = variables_predictor,

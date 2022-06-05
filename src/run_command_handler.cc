@@ -439,9 +439,11 @@ class ForkEditorCommand : public Command {
                       return PromptChange(prompt_state.value(), line);
                     })
                   : PromptOptions::ColorizeFunction(nullptr),
-          .handler = [&editor_state = editor_state_,
-                      children_path](const std::wstring& name) {
-            return RunCommandHandler(name, editor_state, 0, 1,
+          .handler = [&editor_state = editor_state_, children_path](
+                         NonNull<std::shared_ptr<LazyString>> name) {
+            // TODO(easy, 2022-06-05): Use std::bind_front; avoid call to
+            // ToString.
+            return RunCommandHandler(name->ToString(), editor_state, 0, 1,
                                      OptionalFrom(children_path));
           }});
     } else if (editor_state_.structure() == StructureLine()) {

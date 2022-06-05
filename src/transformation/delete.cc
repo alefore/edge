@@ -119,8 +119,10 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
       .prompt = L"unlink " + details + L"? [yes/no] ",
       .history_file = HistoryFile(L"confirmation"),
       .handler =
-          [buffer = buffer.NewRoot(), observers](const std::wstring& input) {
-            if (input == L"yes") {
+          [buffer = buffer.NewRoot(),
+           observers](NonNull<std::shared_ptr<LazyString>> input) {
+            // TODO(easy, 2022-06-05): Get rid of ToString.
+            if (input->ToString() == L"yes") {
               for (auto& o : observers) o();
             } else {
               // TODO: insert it again?  Actually, only let it

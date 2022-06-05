@@ -900,9 +900,14 @@ class LinePromptCommand : public Command {
     auto options = options_supplier_();
     if (editor_state_.structure() == StructureLine()) {
       editor_state_.ResetStructure();
-      auto input = buffer->ptr()->current_line();
-      AddLineToHistory(editor_state_, options.history_file, input->contents());
-      options.handler(input->ToString());
+      VisitPointer(
+          buffer->ptr()->current_line(),
+          [&](NonNull<std::shared_ptr<const Line>> line) {
+            AddLineToHistory(editor_state_, options.history_file,
+                             line->contents());
+            options.handler(line->contents());
+          },
+          [] {});
     } else {
       Prompt(std::move(options));
     }
@@ -1097,7 +1102,7 @@ void Prompt(PromptOptions options) {
                     options.cancel_handler();
                   } else {
                     VLOG(5) << "Running handler on empty input.";
-                    options.handler(L"");
+                    options.handler(EmptyString());
                   }
                   editor_state.set_keyboard_redirect(nullptr);
                 },
@@ -1109,8 +1114,7 @@ void Prompt(PromptOptions options) {
                   auto ensure_survival_of_current_closure =
                       editor_state.set_keyboard_redirect(nullptr);
                   prompt_state->Reset();
-                  // TODO(easy, 2022-06-05): Get rid of the call to ToString.
-                  return options.handler(input->ToString());
+                  return options.handler(input);
                 },
             .start_completion =
                 [&editor_state, options, prompt_state](OpenBuffer& buffer) {

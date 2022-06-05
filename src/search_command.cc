@@ -310,11 +310,13 @@ class SearchCommand : public Command {
                    });
              },
          .handler =
-             [&editor_state = editor_state_](const std::wstring& input) {
+             [&editor_state =
+                  editor_state_](NonNull<std::shared_ptr<LazyString>> input) {
                return editor_state
                    .ForEachActiveBuffer([input](OpenBuffer& buffer) {
+                     // TODO(easy, 2022-06-05): Avoid call to ToString.
                      if (auto search_options = BuildPromptSearchOptions(
-                             input, buffer,
+                             input->ToString(), buffer,
                              NonNull<std::shared_ptr<Notification>>());
                          search_options.has_value()) {
                        DoSearch(buffer, *search_options);

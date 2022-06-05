@@ -267,8 +267,10 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
                                 std::move(abort_notification));
             },
         .handler =
-            [&editor](const std::wstring input) {
-              return OpenFileHandler(input, editor);
+            [&editor](NonNull<std::shared_ptr<LazyString>> input) {
+              // TODO(easy, 2022-06-05): Get rid of ToString and use
+              // std::bind_front.
+              return OpenFileHandler(input->ToString(), editor);
             },
         .cancel_handler =
             [&editor]() {
