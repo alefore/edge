@@ -9,6 +9,7 @@
 #include "src/lazy_string_functional.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
+#include "src/tests/tests.h"
 #include "src/transformation/delete.h"
 
 namespace afc::editor {
@@ -318,6 +319,8 @@ Structure* StructureLine() {
           repetitions > position.line.line) {
         position = LineColumn();
       } else {
+        VLOG(5) << "Move: " << position.line << " " << direction << " "
+                << repetitions;
         position.line += LineNumberDelta(direction * repetitions);
         if (position.line > buffer.contents().EndLine()) {
           position = LineColumn(buffer.contents().EndLine(),
@@ -430,6 +433,33 @@ Structure* StructureMark() {
   return &output;
 }
 
+LineNumberDelta ComputePageMoveLines(
+    std::optional<LineNumberDelta> view_size_lines, double margin_lines_ratio,
+    std::optional<size_t> repetitions) {
+  static const auto kDefaultScreenLines = LineNumberDelta(24);
+  const LineNumberDelta screen_lines(
+      std::max(0.2, 1.0 - 2.0 * margin_lines_ratio) *
+      static_cast<double>(
+          (view_size_lines ? *view_size_lines : kDefaultScreenLines).read()));
+  return repetitions.value_or(1) * screen_lines - LineNumberDelta(1);
+}
+
+namespace {
+bool compute_page_move_lines_test_registration = tests::Register(
+    L"ComputePageMoveLines",
+    std::vector<tests::Test>(
+        {{.name = L"Simple",
+          .callback =
+              [] {
+                CHECK_EQ(ComputePageMoveLines(LineNumberDelta(10), 0.2, 1),
+                         LineNumberDelta(5));
+              }},
+         {.name = L"Large", .callback = [] {
+            CHECK_EQ(ComputePageMoveLines(LineNumberDelta(100), 0.1, 5),
+                     LineNumberDelta(399));
+          }}}));
+}
+
 Structure* StructurePage() {
   class Impl : public Structure {
    public:
@@ -473,19 +503,18 @@ Structure* StructurePage() {
     std::optional<LineColumn> Move(const OpenBuffer& buffer,
                                    LineColumn position, Range range,
                                    const Modifiers& modifiers) override {
-      static const auto kDefaultScreenLines = LineNumberDelta(24);
       std::optional<LineColumnDelta> view_size =
           buffer.display_data().view_size().Get();
-      auto screen_lines =
-          std::max(0.2, 1.0 - 2.0 * buffer.Read(
-                                        buffer_variables::margin_lines_ratio)) *
-          (view_size.has_value() ? view_size->line : kDefaultScreenLines);
-      auto lines =
-          modifiers.repetitions.value_or(1) * screen_lines - LineNumberDelta(1);
+      LineNumberDelta lines_to_move = ComputePageMoveLines(
+          view_size.has_value()
+              ? std::optional<LineNumberDelta>(view_size->line)
+              : std::optional<LineNumberDelta>(),
+          buffer.Read(buffer_variables::margin_lines_ratio),
+          modifiers.repetitions);
       return StructureLine()->Move(buffer, position, range,
                                    {.structure = StructureLine(),
                                     .direction = modifiers.direction,
-                                    .repetitions = lines.read()});
+                                    .repetitions = lines_to_move.read()});
     }
   };
   static Impl output;
