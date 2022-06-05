@@ -55,10 +55,10 @@ struct SearchNamespaces {
 };
 
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(
-    const std::wstring& name, EditorState& editor_state) {
+    NonNull<EditorState*> editor_state, const std::wstring& name) {
   // TODO(easy): Honor `multiple_buffers`.
   return VisitPointer(
-      editor_state.current_buffer(),
+      editor_state->current_buffer(),
       [&](gc::Root<OpenBuffer> buffer) {
         buffer.ptr()->ResetMode();
         return buffer.ptr()
@@ -355,10 +355,9 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
         PromptOptions::ColorizeFunction colorize_options_provider;
         switch (mode) {
           case CppCommandMode::kLiteral:
-            // TODO(c++20): Use std::bind_front.
-            handler = [&editor_state](const std::wstring& input) {
-              return RunCppCommandLiteralHandler(input, editor_state);
-            };
+            handler =
+                std::bind_front(RunCppCommandLiteralHandler,
+                                NonNull<EditorState*>::AddressOf(editor_state));
             prompt = L"cpp";
             break;
           case CppCommandMode::kShell:
