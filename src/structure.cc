@@ -341,7 +341,10 @@ static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
                                   const Modifiers& modifiers) {
   using P = std::pair<const LineColumn, LineMarks::Mark>;
   Iterator it = std::upper_bound(
-      it_begin, it_end, P(LineColumn(current.line), LineMarks::Mark()),
+      it_begin, it_end,
+      P(LineColumn(current.line),
+        LineMarks::Mark{.source_line = LineNumber(),
+                        .target_line_column = LineColumn()}),
       modifiers.direction == Direction::kForwards
           ? [](const P& a, const P& b) { return a.first < b.first; }
           : [](const P& a, const P& b) { return a.first > b.first; });
