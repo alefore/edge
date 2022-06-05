@@ -48,8 +48,7 @@ class RunCppFileCommand : public Command {
                   // TODO(easy, 2022-06-05): Use transform rather than
                   // SetConsumer.
                   futures::Future<EmptyValue> output;
-                  // TODO(easy, 2022-06-05): Get rid of call to ToString.
-                  RunCppFileHandler(input->ToString(), editor)
+                  RunCppFileHandler(editor, input)
                       .SetConsumer([consumer = std::move(output.consumer)](
                                        ValueOrError<EmptyValue>) {
                         consumer(EmptyValue());
