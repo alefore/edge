@@ -48,8 +48,10 @@ Predictor VariablesPredictor() {
 }  // namespace
 
 futures::Value<EmptyValue> SetVariableCommandHandler(
-    const std::wstring& input_name, EditorState& editor_state) {
-  std::wstring name = TrimWhitespace(input_name);
+    EditorState& editor_state,
+    NonNull<std::shared_ptr<LazyString>> input_name) {
+  // TODO(easy, 2022-06-05): Get rid of ToString.
+  std::wstring name = TrimWhitespace(input_name->ToString());
   if (name.empty()) {
     return futures::Past(EmptyValue());
   }
@@ -236,13 +238,8 @@ NonNull<std::unique_ptr<Command>> NewSetVariableCommand(
                                        : std::optional<gc::Root<OpenBuffer>>()};
                   });
             },
-            .handler =
-                [&editor_state](NonNull<std::shared_ptr<LazyString>> input) {
-                  // TODO(easy, 2022-06-05): Get rid of ToString; use
-                  // std::bind_front.
-                  return SetVariableCommandHandler(input->ToString(),
-                                                   editor_state);
-                },
+            .handler = std::bind_front(SetVariableCommandHandler,
+                                       std::ref(editor_state)),
             .cancel_handler = []() { /* Nothing. */ },
             .predictor = variables_predictor,
             .status = PromptOptions::Status::kBuffer};

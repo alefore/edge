@@ -1,6 +1,7 @@
 #include "src/editor_vm.h"
 
 #include "src/buffer_vm.h"
+#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
@@ -170,7 +171,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"SetVariablePrompt",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](EditorState& editor_arg, std::wstring variable) {
-                        SetVariableCommandHandler(variable, editor_arg);
+                        SetVariableCommandHandler(editor_arg,
+                                                  NewLazyString(variable));
                       }));
 
   editor_type->AddField(
