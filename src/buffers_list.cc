@@ -347,8 +347,7 @@ std::vector<std::list<PathComponent>> RemoveCommonPrefixes(
 std::vector<std::wstring> RemoveCommonPrefixesForTesting(
     std::vector<std::wstring> input) {
   std::vector<std::list<PathComponent>> transformed;
-  for (auto& c : input) {
-    auto path = Path::FromString(c);
+  for (const std::wstring& c : input) {
     transformed.push_back(std::visit(
         overload{[](Error) { return std::list<PathComponent>(); },
                  [](Path path) {
