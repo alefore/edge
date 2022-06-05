@@ -24,6 +24,8 @@ class LazyString {
 };
 
 language::NonNull<std::shared_ptr<LazyString>> EmptyString();
+
+bool operator==(const LazyString& a, const LazyString& b);
 }  // namespace afc::editor
 
 #endif

@@ -48,4 +48,11 @@ NonNull<std::shared_ptr<LazyString>> EmptyString() {
   return NonNull<std::shared_ptr<EmptyStringImpl>>();
 }
 
+bool operator==(const LazyString& a, const LazyString& b) {
+  return a.size() == b.size() &&
+         !FindFirstColumnWithPredicate(a, [&](ColumnNumber column, wchar_t c) {
+            return b.get(column) != c;
+          }).has_value();
+}
+
 }  // namespace afc::editor
