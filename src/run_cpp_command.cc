@@ -246,8 +246,8 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
-    const std::wstring& command, EditorState& editor_state) {
-  return RunCppCommandShell(command, editor_state)
+    NonNull<EditorState*> editor_state, const std::wstring& command) {
+  return RunCppCommandShell(command, editor_state.value())
       .Transform([](auto) { return Success(); })
       .ConsumeErrors([](auto) { return futures::Past(EmptyValue()); });
 }
@@ -361,9 +361,9 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
             prompt = L"cpp";
             break;
           case CppCommandMode::kShell:
-            handler = [&editor_state](const std::wstring& input) {
-              return RunCppCommandShellHandler(input, editor_state);
-            };
+            handler =
+                std::bind_front(RunCppCommandShellHandler,
+                                NonNull<EditorState*>::AddressOf(editor_state));
             prompt = L":";
             auto buffer = editor_state.current_buffer();
             CHECK(buffer.has_value());
