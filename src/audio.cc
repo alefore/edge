@@ -129,7 +129,7 @@ class PlayerImpl : public Player {
     return MakeNonNullUnique<PlayerImplLock>(data_.lock());
   }
 
-  virtual void SetVolume(Volume volume) {
+  void SetVolume(Volume volume) override {
     data_.lock([volume](MutableData& data) { data.external_volume = volume; });
   }
 
@@ -207,7 +207,7 @@ class NullPlayer : public Player {
   NonNull<std::unique_ptr<Player::Lock>> lock() override {
     return MakeNonNullUnique<NullLock>();
   }
-  virtual void SetVolume(Volume) {}
+  void SetVolume(Volume) override {}
 };
 }  // namespace
 
