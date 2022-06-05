@@ -330,12 +330,12 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
   return output;
 }
 
-// TODO(easy, 2022-06-05): Receive input as LazyString.
-void RunCommand(const BufferName& name, const std::wstring& input,
+void RunCommand(const BufferName& name,
                 std::map<std::wstring, std::wstring> environment,
-                EditorState& editor_state, std::optional<Path> children_path) {
+                EditorState& editor_state, std::optional<Path> children_path,
+                NonNull<std::shared_ptr<LazyString>> input) {
   auto buffer = editor_state.current_buffer();
-  if (input.empty()) {
+  if (input->size().IsZero()) {
     if (buffer.has_value()) {
       buffer->ptr()->ResetMode();
       buffer->ptr()->status().Reset();
@@ -345,7 +345,8 @@ void RunCommand(const BufferName& name, const std::wstring& input,
   }
 
   ForkCommandOptions options;
-  options.command = input;
+  // TODO(easy, 2022-06-05): Avoid call to ToString.
+  options.command = input->ToString();
   options.name = name;
   options.insertion_type =
       buffer.has_value() &&
@@ -358,8 +359,9 @@ void RunCommand(const BufferName& name, const std::wstring& input,
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const std::wstring& input, EditorState& editor_state, size_t i, size_t n,
-    std::optional<Path> children_path) {
+    EditorState& editor_state, size_t i, size_t n,
+    std::optional<Path> children_path,
+    NonNull<std::shared_ptr<LazyString>> input) {
   std::map<std::wstring, std::wstring> environment = {
       {L"EDGE_RUN", std::to_wstring(i)}, {L"EDGE_RUNS", std::to_wstring(n)}};
   std::wstring name =
@@ -374,8 +376,10 @@ futures::Value<EmptyValue> RunCommandHandler(
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
         buffer->ptr()->Read(buffer_variables::path);
   }
-  name += L" " + EscapedString::FromString(input).EscapedRepresentation();
-  RunCommand(BufferName(name), input, environment, editor_state, children_path);
+  // TODO(easy, 2022-06-05): Avoid call to ToString.
+  name += L" " +
+          EscapedString::FromString(input->ToString()).EscapedRepresentation();
+  RunCommand(BufferName(name), environment, editor_state, children_path, input);
   return futures::Past(EmptyValue());
 }
 
@@ -440,13 +444,8 @@ class ForkEditorCommand : public Command {
                       return PromptChange(prompt_state.value(), line);
                     })
                   : PromptOptions::ColorizeFunction(nullptr),
-          .handler = [&editor_state = editor_state_, children_path](
-                         NonNull<std::shared_ptr<LazyString>> name) {
-            // TODO(easy, 2022-06-05): Use std::bind_front; avoid call to
-            // ToString.
-            return RunCommandHandler(name->ToString(), editor_state, 0, 1,
-                                     OptionalFrom(children_path));
-          }});
+          .handler = std::bind_front(RunCommandHandler, std::ref(editor_state_),
+                                     0, 1, OptionalFrom(children_path))});
     } else if (editor_state_.structure() == StructureLine()) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
@@ -459,10 +458,13 @@ class ForkEditorCommand : public Command {
           overload{[&](EscapedString line) {
                      for (size_t i = 0;
                           i < editor_state_.repetitions().value_or(1); ++i) {
+                       // TODO(easy, 2022-06-05): Get rid of call to
+                       // NewLazyString; have OriginalString return a
+                       // LazyString.
                        RunCommandHandler(
-                           line.OriginalString(), editor_state_, i,
+                           editor_state_, i,
                            editor_state_.repetitions().value_or(1),
-                           children_path);
+                           children_path, NewLazyString(line.OriginalString()));
                      }
                    },
                    [&](Error error) { editor_state_.status().Set(error); }},
@@ -652,10 +654,11 @@ NonNull<std::unique_ptr<Command>> NewForkCommand(EditorState& editor_state) {
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    const std::wstring& input, EditorState& editor_state,
-    std::map<std::wstring, std::wstring> environment) {
-  RunCommand(BufferName(L"$ " + input), input, environment, editor_state,
-             OptionalFrom(GetChildrenPath(editor_state)));
+    EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
+    NonNull<std::shared_ptr<LazyString>> input) {
+  // TODO(easy, 2022-06-05): Avoid call to ToString.
+  RunCommand(BufferName(L"$ " + input->ToString()), environment, editor_state,
+             OptionalFrom(GetChildrenPath(editor_state)), input);
   return futures::Past(EmptyValue());
 }
 
@@ -666,8 +669,8 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(
         buffer.contents().ForEach([&editor_state, input](wstring arg) {
           std::map<std::wstring, std::wstring> environment = {{L"ARG", arg}};
           RunCommand(BufferName(L"$ " + input->ToString() + L" " + arg),
-                     input->ToString(), environment, editor_state,
-                     OptionalFrom(GetChildrenPath(editor_state)));
+                     environment, editor_state,
+                     OptionalFrom(GetChildrenPath(editor_state)), input);
         });
         return futures::Past(EmptyValue());
       })

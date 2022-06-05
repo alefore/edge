@@ -48,7 +48,8 @@ language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
 
 // Input must already be unescaped (e.g., contain `\n` rather than `\\n`).
 futures::Value<language::EmptyValue> RunCommandHandler(
-    std::wstring input, EditorState& editor_state,
+    language::NonNull<std::shared_ptr<LazyString>> input,
+    EditorState& editor_state,
     std::map<std::wstring, std::wstring> environment);
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
     EditorState& editor_state,
