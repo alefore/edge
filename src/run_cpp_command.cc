@@ -249,10 +249,9 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
 }
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
-    NonNull<EditorState*> editor_state,
-    NonNull<std::shared_ptr<LazyString>> command) {
+    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> command) {
   // TODO(easy, 2022-06-05): Get rid of ToString.
-  return RunCppCommandShell(command->ToString(), editor_state.value())
+  return RunCppCommandShell(command->ToString(), editor_state)
       .Transform([](auto) { return Success(); })
       .ConsumeErrors([](auto) { return futures::Past(EmptyValue()); });
 }
@@ -366,9 +365,8 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
             prompt = L"cpp";
             break;
           case CppCommandMode::kShell:
-            handler =
-                std::bind_front(RunCppCommandShellHandler,
-                                NonNull<EditorState*>::AddressOf(editor_state));
+            handler = std::bind_front(RunCppCommandShellHandler,
+                                      std::ref(editor_state));
             prompt = L":";
             auto buffer = editor_state.current_buffer();
             CHECK(buffer.has_value());
