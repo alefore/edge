@@ -278,7 +278,7 @@ class SearchCommand : public Command {
                               return futures::Past(Control::kContinue);
                             }
                             auto search_options = BuildPromptSearchOptions(
-                                line->ToString(), buffer, abort_notification);
+                                line, buffer, abort_notification);
                             if (!search_options.has_value()) {
                               VLOG(6) << "search_options has no value.";
                               return futures::Past(Control::kContinue);
@@ -314,9 +314,8 @@ class SearchCommand : public Command {
                   editor_state_](NonNull<std::shared_ptr<LazyString>> input) {
                return editor_state
                    .ForEachActiveBuffer([input](OpenBuffer& buffer) {
-                     // TODO(easy, 2022-06-05): Avoid call to ToString.
                      if (auto search_options = BuildPromptSearchOptions(
-                             input->ToString(), buffer,
+                             input, buffer,
                              NonNull<std::shared_ptr<Notification>>());
                          search_options.has_value()) {
                        DoSearch(buffer, *search_options);
@@ -335,11 +334,12 @@ class SearchCommand : public Command {
 
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(
-      std::wstring input, OpenBuffer& buffer,
+      NonNull<std::shared_ptr<LazyString>> input, OpenBuffer& buffer,
       NonNull<std::shared_ptr<Notification>> abort_notification) {
     auto& editor = buffer.editor();
     SearchOptions search_options;
-    search_options.search_query = input;
+    // TODO(easy, 2022-06-05): Avoid call to ToString.
+    search_options.search_query = input->ToString();
     if (editor.structure()->search_range() == Structure::SearchRange::kBuffer) {
       search_options.starting_position = buffer.position();
     } else {
