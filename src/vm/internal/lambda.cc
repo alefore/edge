@@ -20,18 +20,20 @@ namespace gc = language::gc;
 
 class LambdaExpression : public Expression {
  public:
+  // TODO(easy, 2022-06-06): Use ValueOrError<NonNull<>>.
   static std::unique_ptr<LambdaExpression> New(
-      VMType type,
+      VMType lambda_type,
       NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body, std::wstring* error) {
-    type.function_purity = body->purity();
-    VMType expected_return_type = *type.type_arguments.cbegin();
+    lambda_type.function_purity = body->purity();
+    VMType expected_return_type = *lambda_type.type_arguments.cbegin();
     auto deduced_types = body->ReturnTypes();
     if (deduced_types.empty()) {
       deduced_types.insert(VMType::Void());
     }
     if (deduced_types.size() > 1) {
       *error = L"Found multiple return types: ";
+      // TODO(easy, 2022-06-06): Use TypesToString.
       std::wstring separator;
       for (const auto& type : deduced_types) {
         *error += separator + L"`" + type.ToString() + L"`";
@@ -49,7 +51,7 @@ class LambdaExpression : public Expression {
       return nullptr;
     }
     return std::make_unique<LambdaExpression>(
-        std::move(type), std::move(argument_names), std::move(body),
+        std::move(lambda_type), std::move(argument_names), std::move(body),
         std::move(promotion_function));
   }
 
