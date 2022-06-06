@@ -21,8 +21,8 @@ class Expression;
 class Environment;
 
 struct Compilation {
-  Compilation(language::gc::Pool& pool,
-              language::gc::Root<Environment> environment);
+  Compilation(language::gc::Pool& input_pool,
+              language::gc::Root<Environment> input_environment);
 
   void AddError(language::Error error);
 

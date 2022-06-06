@@ -5,8 +5,9 @@
 namespace afc::vm {
 using language::Error;
 namespace gc = language::gc;
-Compilation::Compilation(gc::Pool& pool, gc::Root<Environment> environment)
-    : pool(pool), environment(std::move(environment)) {}
+Compilation::Compilation(gc::Pool& input_pool,
+                         gc::Root<Environment> input_environment)
+    : pool(input_pool), environment(std::move(input_environment)) {}
 
 void Compilation::AddError(Error error) {
   // TODO: Enable this logging statement.
