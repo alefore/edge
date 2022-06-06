@@ -138,21 +138,17 @@ class FunctionCall : public Expression {
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
       callback(std::move(values.value()), trampoline)
-          .SetConsumer([consumer,
-                        callback](ValueOrError<EvaluationOutput> return_value) {
-            std::visit(
-                overload{[&](Error error) {
-                           DVLOG(3) << "Function call aborted: " << error;
-                           consumer(std::move(error));
-                         },
-                         [&](EvaluationOutput return_value) {
-                           DVLOG(5) << "Function call consumer gets value: "
-                                    << return_value.value.ptr().value();
-                           consumer(Success(EvaluationOutput::New(
-                               std::move(return_value.value))));
-                         }},
-                std::move(return_value));
-          });
+          .SetConsumer(VisitCallback(overload{
+              [consumer](Error error) {
+                DVLOG(3) << "Function call aborted: " << error;
+                consumer(std::move(error));
+              },
+              [consumer](EvaluationOutput return_value) {
+                DVLOG(5) << "Function call consumer gets value: "
+                         << return_value.value.ptr().value();
+                consumer(Success(
+                    EvaluationOutput::New(std::move(return_value.value))));
+              }}));
       return;
     }
     NonNull<std::unique_ptr<Expression>>& arg = args_types->at(values->size());
