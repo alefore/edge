@@ -209,10 +209,10 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
         };
         static const std::unordered_map<std::string, LineModifierSet> off{
             {"24", {LineModifier::UNDERLINE}}};
-        if (auto it = on.find(sequence); it != on.end()) {
-          *modifiers = it->second;
-        } else if (auto it = off.find(sequence); it != off.end()) {
-          for (const auto& m : it->second) {
+        if (auto it_on = on.find(sequence); it_on != on.end()) {
+          *modifiers = it_on->second;
+        } else if (auto it_off = off.find(sequence); it_off != off.end()) {
+          for (const auto& m : it_off->second) {
             modifiers->erase(m);
           }
         } else if (sequence == "0;36") {
