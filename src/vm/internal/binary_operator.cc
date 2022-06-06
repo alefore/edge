@@ -103,8 +103,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
       (b->IsInt() || b->IsDouble())) {
     return std::make_unique<BinaryOperator>(
         std::move(a), std::move(b), VMType::Double(),
-        [double_operator](gc::Pool& pool, const Value& a,
-                          const Value& b) -> ValueOrError<gc::Root<Value>> {
+        [double_operator](
+            gc::Pool& pool, const Value& a_value,
+            const Value& b_value) -> ValueOrError<gc::Root<Value>> {
           auto to_double = [](const Value& x) {
             if (x.type == VMType::Int()) {
               return static_cast<double>(x.get_int());
@@ -115,8 +116,8 @@ std::unique_ptr<Expression> NewBinaryExpression(
               return 0.0;  // Silence warning: no return.
             }
           };
-          ASSIGN_OR_RETURN(double value,
-                           double_operator(to_double(a), to_double(b)));
+          ASSIGN_OR_RETURN(double value, double_operator(to_double(a_value),
+                                                         to_double(b_value)));
           return Value::NewDouble(pool, value);
         });
   }
