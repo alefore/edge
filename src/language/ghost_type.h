@@ -249,7 +249,8 @@
   friend ClassName& operator++(ClassName& a);                         \
   friend ClassName operator++(ClassName& a, int);                     \
   friend ClassName& operator--(ClassName& a);                         \
-  friend ClassName operator--(ClassName& a, int);
+  friend ClassName operator--(ClassName& a, int);                     \
+  friend ClassName& operator*=(ClassName& a, double value);
 
 #define GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, VariableType)            \
   inline ClassName operator+(const ClassName& a, VariableType other) {       \
@@ -302,6 +303,10 @@
     ClassName copy = a;                                                      \
     a.value--;                                                               \
     return copy;                                                             \
+  }                                                                          \
+  inline ClassName& operator*=(ClassName& a, double value) {                 \
+    a.value *= value;                                                        \
+    return a;                                                                \
   }
 
 #define GHOST_TYPE_NUMBER_OPERATORS_SELF(ClassName)                    \
