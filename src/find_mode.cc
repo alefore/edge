@@ -42,35 +42,33 @@ futures::Value<CompositeTransformation::Output> FindTransformation::Apply(
 
 std::optional<ColumnNumber> FindTransformation::SeekOnce(
     const Line& line, ColumnNumber column, const Modifiers& modifiers) const {
-  ColumnNumberDelta direction;
+  int direction;
   ColumnNumberDelta times;
   switch (modifiers.direction) {
     case Direction::kForwards:
-      direction = ColumnNumberDelta(1);
+      direction = 1;
       times = line.EndColumn() - column;
       break;
     case Direction::kBackwards:
-      direction = ColumnNumberDelta(-1);
+      direction = -1;
       times = (column + ColumnNumberDelta(1)).ToDelta();
       break;
   }
 
   CHECK_GE(times, ColumnNumberDelta(0));
-  // TODO(easy, 2022-06-05): Start should be ColumnNumberDelta?
-  size_t start = 0;
+  ColumnNumberDelta start(0);
 
   // Seek until we're at a different character:
-  while (start < static_cast<size_t>(times.read()) &&
-         column + direction * start < line.EndColumn() &&
+  while (start < times && column + direction * start < line.EndColumn() &&
          line.get(column + direction * start) == static_cast<wint_t>(c_))
-    start++;
+    ++start;
 
-  while (start < static_cast<size_t>(times.read())) {
+  while (start < times) {
     if (column + direction * start < line.EndColumn() &&
         line.get(column + direction * start) == static_cast<wint_t>(c_)) {
       return column + direction * start;
     }
-    start++;
+    ++start;
   }
   return std::nullopt;
 }
