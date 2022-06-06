@@ -99,7 +99,7 @@ class HelpCommand : public Command {
   std::wstring Description() const override { return L"Shows documentation."; }
   std::wstring Category() const override { return L"Editor"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     auto original_buffer = editor_state_.current_buffer();
     const BufferName name(L"- help: " + mode_description_);
 
