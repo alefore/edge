@@ -62,6 +62,7 @@ struct Reader<ColumnNumber> {
 }  // namespace editor
 }  // namespace afc
 namespace std {
+// TODO(easy, 2022-06-06): Define these on ghost types module.
 template <>
 class numeric_limits<afc::editor::LineNumber> {
  public:
@@ -194,33 +195,11 @@ std::ostream& operator<<(std::ostream& os, const Range& range);
 bool operator<(const Range& a, const Range& b);
 
 }  // namespace afc::editor
+GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumber);
+GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumberDelta);
+GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumber);
+GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumberDelta);
 namespace std {
-// TODO(easy, 2022-06-06): Use the hash templates from ghost types for
-// ColumnNumberDelta, LineNumberDelta, ColumnNumber, LineNumber.
-template <>
-struct hash<afc::editor::ColumnNumberDelta> {
-  std::size_t operator()(const afc::editor::ColumnNumberDelta& delta) const {
-    return std::hash<size_t>()(delta.read());
-  }
-};
-template <>
-struct hash<afc::editor::LineNumberDelta> {
-  std::size_t operator()(const afc::editor::LineNumberDelta& delta) const {
-    return std::hash<size_t>()(delta.read());
-  }
-};
-template <>
-struct hash<afc::editor::ColumnNumber> {
-  std::size_t operator()(const afc::editor::ColumnNumber& column) const {
-    return std::hash<size_t>()(column.read());
-  }
-};
-template <>
-struct hash<afc::editor::LineNumber> {
-  std::size_t operator()(const afc::editor::LineNumber& line) const {
-    return std::hash<size_t>()(line.read());
-  }
-};
 template <>
 struct hash<afc::editor::LineColumn> {
   std::size_t operator()(const afc::editor::LineColumn& line_column) const {
