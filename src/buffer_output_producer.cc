@@ -187,7 +187,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
             [](ColumnNumberDelta size_columns,
                Widget::OutputProducerOptions::MainCursorDisplay
                    main_cursor_display,
-               WithHash<std::shared_ptr<const Line>> line_contents,
+               WithHash<std::shared_ptr<const Line>> line_contents_with_hash,
                BufferContentsWindow::Line screen_line, bool atomic_lines,
                bool multiple_cursors, LineColumn position,
                EditorMode::CursorMode cursor_mode) {
@@ -241,7 +241,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                 }
               }
 
-              return line_contents.value->Output(std::move(options));
+              return line_contents_with_hash.value->Output(std::move(options));
             },
             output_producer_options.size.column,
             output_producer_options.main_cursor_display,
