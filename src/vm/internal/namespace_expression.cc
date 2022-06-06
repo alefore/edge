@@ -68,18 +68,17 @@ void StartNamespaceDeclaration(Compilation& compilation,
 }
 
 std::unique_ptr<Expression> NewNamespaceExpression(
-    Compilation& compilation, std::unique_ptr<Expression> body) {
+    Compilation& compilation, std::unique_ptr<Expression> body_ptr) {
   Namespace current_namespace = compilation.current_namespace;
   compilation.current_namespace.pop_back();
   CHECK(compilation.environment.ptr()->parent_environment().has_value());
   compilation.environment =
       compilation.environment.ptr()->parent_environment()->ToRoot();
   return VisitPointer(
-      std::move(body),
-      [&](NonNull<std::unique_ptr<Expression>> body)
-          -> std::unique_ptr<Expression> {
+      std::move(body_ptr),
+      [&](NonNull<std::unique_ptr<Expression>> body) {
         return std::make_unique<NamespaceExpression>(
-            Namespace(std::move(current_namespace)), std::move(body));
+            std::move(current_namespace), std::move(body));
       },
       [] { return nullptr; });
 }
