@@ -715,7 +715,7 @@ void EditorState::PushPosition(LineColumn position) {
     return;
   }
   auto buffer_it = buffers_.find(PositionsBufferName());
-  futures::Value<gc::Root<OpenBuffer>> positions_buffer =
+  futures::Value<gc::Root<OpenBuffer>> future_positions_buffer =
       buffer_it != buffers_.end()
           ? futures::Past(buffer_it->second)
           // Insert a new entry into the list of buffers.
@@ -730,27 +730,28 @@ void EditorState::PushPosition(LineColumn position) {
                                                  L"positions"))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore})
                 .Transform([](gc::Root<OpenBuffer> buffer_root) {
-                  OpenBuffer& buffer = buffer_root.ptr().value();
-                  buffer.Set(buffer_variables::save_on_close, true);
-                  buffer.Set(buffer_variables::trigger_reload_on_buffer_write,
+                  OpenBuffer& output = buffer_root.ptr().value();
+                  output.Set(buffer_variables::save_on_close, true);
+                  output.Set(buffer_variables::trigger_reload_on_buffer_write,
                              false);
-                  buffer.Set(buffer_variables::show_in_buffers_list, false);
-                  buffer.Set(buffer_variables::vm_lines_evaluation, false);
+                  output.Set(buffer_variables::show_in_buffers_list, false);
+                  output.Set(buffer_variables::vm_lines_evaluation, false);
                   return buffer_root;
                 });
 
-  positions_buffer.SetConsumer(
+  future_positions_buffer.SetConsumer(
       [line_to_insert = MakeNonNullShared<Line>(
            position.ToString() + L" " +
            buffer->ptr()->Read(buffer_variables::name))](
-          gc::Root<OpenBuffer> buffer) {
-        buffer.ptr()->CheckPosition();
-        CHECK_LE(buffer.ptr()->position().line,
-                 LineNumber(0) + buffer.ptr()->contents().size());
-        buffer.ptr()->InsertLine(buffer.ptr()->current_position_line(),
-                                 line_to_insert);
-        CHECK_LE(buffer.ptr()->position().line,
-                 LineNumber(0) + buffer.ptr()->contents().size());
+          gc::Root<OpenBuffer> positions_buffer_root) {
+        OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
+        positions_buffer.CheckPosition();
+        CHECK_LE(positions_buffer.position().line,
+                 LineNumber(0) + positions_buffer.contents().size());
+        positions_buffer.InsertLine(positions_buffer.current_position_line(),
+                                    line_to_insert);
+        CHECK_LE(positions_buffer.position().line,
+                 LineNumber(0) + positions_buffer.contents().size());
       });
 }
 
