@@ -122,7 +122,7 @@ class GotoPreviousPositionCommand : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     if (!editor_state_.HasPositionsInStack()) {
       LOG(INFO) << "Editor doesn't have positions in stack.";
       return;
@@ -290,7 +290,7 @@ class EnterInsertModeCommand : public Command {
   std::wstring Description() const override { return L"enters insert mode"; }
   std::wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     if (modifiers_.has_value()) {
       editor_state_.set_modifiers(modifiers_.value());
     }
@@ -312,7 +312,7 @@ class InsertionModifierCommand : public Command {
   }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     if (editor_state_.insertion_modifier() == Modifiers::ModifyMode::kShift) {
       editor_state_.set_insertion_modifier(Modifiers::ModifyMode::kOverwrite);
     } else if (editor_state_.default_insertion_modifier() ==
@@ -340,7 +340,7 @@ class ReverseDirectionCommand : public Command {
   }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     editor_state_.set_direction(ReverseDirection(editor_state_.direction()));
   }
 
@@ -358,7 +358,7 @@ class SetStructureCommand : public Command {
   }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     if (editor_state_.structure() != structure_) {
       editor_state_.set_structure(structure_);
       editor_state_.set_sticky_structure(false);
@@ -383,7 +383,7 @@ class SetStrengthCommand : public Command {
   std::wstring Description() const override { return L"Toggles the strength."; }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     Modifiers modifiers(editor_state_.modifiers());
     switch (modifiers.strength) {
       case Modifiers::Strength::kNormal:
@@ -409,7 +409,7 @@ class NumberMode : public Command {
   std::wstring Description() const override { return description_; }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t c) {
+  void ProcessInput(wint_t c) override {
     editor_state_.set_keyboard_redirect(NewRepeatMode(
         editor_state_, [&editor_state = editor_state_](int number) {
           editor_state.set_repetitions(number);
@@ -430,7 +430,7 @@ class ActivateLink : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     VisitPointer(
         editor_state_.current_buffer(),
         [&](gc::Root<OpenBuffer> buffer) {
@@ -502,7 +502,7 @@ class ResetStateCommand : public Command {
   }
   std::wstring Category() const override { return L"Editor"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     editor_state_.status().Reset();
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
       auto when = AddSeconds(Now(), 0.2);
@@ -524,7 +524,7 @@ class HardRedrawCommand : public Command {
   std::wstring Description() const override { return L"Redraws the screen"; }
   std::wstring Category() const override { return L"View"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     editor_state_.set_screen_needs_hard_redraw(true);
   }
 
@@ -542,7 +542,7 @@ class TreeNavigateCommand : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     static const NonNull<std::shared_ptr<CompositeTransformation>>*
         transformation = new NonNull<std::shared_ptr<CompositeTransformation>>(
             MakeNonNullShared<TreeNavigate>());
