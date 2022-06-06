@@ -115,30 +115,25 @@ statement(OUT) ::= RETURN SEMICOLON . {
 
 statement(OUT) ::= function_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET. {
+  OUT = nullptr;
   if (FUNC == nullptr) {
-    OUT = nullptr;
+    // Pass.
   } else if (BODY == nullptr) {
     // Compilation of the body failed. We should try to restore the environment.
     FUNC->Abort(*compilation);
-    OUT = nullptr;
   } else {
-    // TODO(easy, 2022-05-29): Turn into Error.
-    std::wstring error;
-    std::optional<gc::Root<Value>> value = FUNC->BuildValue(
-        *compilation,
-        NonNull<std::unique_ptr<Expression>>::Unsafe(
-            std::unique_ptr<Expression>(BODY)),
-        &error);
-    BODY = nullptr;
-    if (!value.has_value()) {
-      compilation->AddError(Error(error));
-      OUT = nullptr;
-    } else {
-      CHECK(FUNC->name.has_value());
-      compilation->environment.ptr()->Define(
-          FUNC->name.value(), std::move(value.value()));
-      OUT = NewVoidExpression(compilation->pool).get_unique().release();
-    }
+    std::visit(
+        overload{
+            IgnoreErrors{},
+            [&](gc::Root<Value> value) {
+              CHECK(FUNC->name.has_value());
+              compilation->environment.ptr()->Define(FUNC->name.value(),
+                                                     std::move(value));
+              OUT = NewVoidExpression(compilation->pool).get_unique().release();
+            }},
+        compilation->RegisterErrors(FUNC->BuildValue(
+            *compilation, NonNull<std::unique_ptr<Expression>>::Unsafe(
+                              std::unique_ptr<Expression>(BODY)))));
   }
 }
 
@@ -389,27 +384,20 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
 
 expr(OUT) ::= lambda_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET . {
+  OUT = nullptr;
   if (FUNC == nullptr) {
-    OUT = nullptr;
+    // Pass.
   } else if (BODY == nullptr) {
     FUNC->Abort(*compilation);
-    OUT = nullptr;
   } else {
-    // TODO(easy, 2022-05-29): Use ValueOrError.
-    std::wstring error;
-    auto value = FUNC->BuildExpression(
-        *compilation,
-        NonNull<std::unique_ptr<Expression>>::Unsafe(
-            std::unique_ptr<Expression>(BODY)),
-        &error);
-    BODY = nullptr;
-
-    if (value == nullptr) {
-      compilation->AddError(Error(error));
-      OUT = nullptr;
-    } else {
-      OUT = value.release();
-    }
+  if (true)
+    std::visit(overload{IgnoreErrors{},
+                        [&](NonNull<std::unique_ptr<Expression>> value) {
+                          OUT = value.release().get();
+                        }},
+               compilation->RegisterErrors(FUNC->BuildExpression(
+                   *compilation, NonNull<std::unique_ptr<Expression>>::Unsafe(
+                                     std::unique_ptr<Expression>(BODY)))));
   }
 }
 

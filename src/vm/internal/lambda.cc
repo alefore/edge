@@ -14,17 +14,18 @@ namespace {
 using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::Success;
+using language::ValueOrError;
 
 namespace gc = language::gc;
 
 class LambdaExpression : public Expression {
  public:
-  // TODO(easy, 2022-06-06): Use ValueOrError<NonNull<>>.
-  static std::unique_ptr<LambdaExpression> New(
+  static ValueOrError<NonNull<std::unique_ptr<LambdaExpression>>> New(
       VMType lambda_type,
       NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
-      NonNull<std::shared_ptr<Expression>> body, std::wstring* error) {
+      NonNull<std::shared_ptr<Expression>> body) {
     lambda_type.function_purity = body->purity();
     VMType expected_return_type = *lambda_type.type_arguments.cbegin();
     auto deduced_types = body->ReturnTypes();
@@ -32,19 +33,18 @@ class LambdaExpression : public Expression {
       deduced_types.insert(VMType::Void());
     }
     if (deduced_types.size() > 1) {
-      *error = L"Found multiple return types: " + TypesToString(deduced_types);
-      return nullptr;
+      return Error(L"Found multiple return types: " +
+                   TypesToString(deduced_types));
     }
     std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
         promotion_function =
             GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
-      *error = L"Expected a return type of `" +
-               expected_return_type.ToString() + L"` but found `" +
-               deduced_types.cbegin()->ToString() + L"`.";
-      return nullptr;
+      return Error(L"Expected a return type of `" +
+                   expected_return_type.ToString() + L"` but found `" +
+                   deduced_types.cbegin()->ToString() + L"`.");
     }
-    return std::make_unique<LambdaExpression>(
+    return MakeNonNullUnique<LambdaExpression>(
         std::move(lambda_type), std::move(argument_names), std::move(body),
         std::move(promotion_function));
   }
@@ -167,26 +167,32 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
   return compilation.pool.NewRoot(MakeNonNullUnique<Environment>());
 }
 
-std::optional<gc::Root<Value>> UserFunction::BuildValue(
-    Compilation& compilation, NonNull<std::unique_ptr<Expression>> body,
-    std::wstring* error) {
-  std::unique_ptr<LambdaExpression> expression = LambdaExpression::New(
-      std::move(type), std::move(argument_names), std::move(body), error);
-  if (expression == nullptr) return std::nullopt;
+ValueOrError<gc::Root<Value>> UserFunction::BuildValue(
+    Compilation& compilation, NonNull<std::unique_ptr<Expression>> body) {
+  ASSIGN_OR_RETURN(
+      NonNull<std::unique_ptr<LambdaExpression>> expression,
+      LambdaExpression::New(std::move(type), std::move(argument_names),
+                            std::move(body)));
   gc::Root<Environment> environment = compilation.environment;
   compilation.environment = GetOrCreateParentEnvironment(compilation);
   return expression->BuildValue(compilation.pool, std::move(environment));
 }
 
-std::unique_ptr<Expression> UserFunction::BuildExpression(
-    Compilation& compilation, NonNull<std::unique_ptr<Expression>> body,
-    std::wstring* error) {
+ValueOrError<NonNull<std::unique_ptr<Expression>>>
+UserFunction::BuildExpression(Compilation& compilation,
+                              NonNull<std::unique_ptr<Expression>> body) {
   // We ignore the environment used during the compilation. Instead, each time
   // the expression is evaluated, it will use the environment from the
   // trampoline, correctly receiving the actual values in that environment.
   compilation.environment = GetOrCreateParentEnvironment(compilation);
-  return LambdaExpression::New(std::move(type), std::move(argument_names),
-                               std::move(body), error);
+  // We can't just return the result of LambdaExpression::New; that's a
+  // ValueOrError<LambdaExpression>. We need to explicitly convert it to a
+  // ValueOrError<Expression>.
+  ASSIGN_OR_RETURN(
+      NonNull<std::unique_ptr<LambdaExpression>> expression,
+      LambdaExpression::New(std::move(type), std::move(argument_names),
+                            std::move(body)));
+  return expression;
 }
 
 void UserFunction::Abort(Compilation& compilation) {

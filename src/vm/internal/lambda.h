@@ -18,13 +18,14 @@ struct UserFunction {
       std::optional<std::wstring> name,
       std::vector<std::pair<VMType, wstring>>* args);
 
-  std::unique_ptr<Expression> BuildExpression(
-      Compilation& compilation,
-      language::NonNull<std::unique_ptr<Expression>> body, std::wstring* error);
+  language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
+  BuildExpression(Compilation& compilation,
+                  language::NonNull<std::unique_ptr<Expression>> body);
 
-  std::optional<language::gc::Root<Value>> BuildValue(
+  // It is the caller's responsibility to register errors.
+  language::ValueOrError<language::gc::Root<Value>> BuildValue(
       Compilation& compilation,
-      language::NonNull<std::unique_ptr<Expression>> body, std::wstring* error);
+      language::NonNull<std::unique_ptr<Expression>> body);
   void Abort(Compilation& compilation);
   void Done(Compilation& compilation);
 
