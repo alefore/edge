@@ -239,7 +239,7 @@ NavigateState InitialState(EditorState& editor_state) {
   if (structure == StructureChar()) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn position) {
-      return SearchRange{0, buffer.LineAt(position.line)->EndColumn().column};
+      return SearchRange{0, buffer.LineAt(position.line)->EndColumn().read()};
     };
     initial_state.navigate_options.write_index = [](LineColumn position,
                                                     size_t target) {
@@ -247,7 +247,7 @@ NavigateState InitialState(EditorState& editor_state) {
       return position;
     };
     initial_state.navigate_options.position_to_index = [](LineColumn position) {
-      return position.column.column;
+      return position.column.read();
     };
   } else if (structure == StructureSymbol()) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
@@ -256,14 +256,14 @@ NavigateState InitialState(EditorState& editor_state) {
       auto contents_str = contents->ToString();
       size_t previous_space = contents_str.find_last_not_of(
           buffer.Read(buffer_variables::symbol_characters),
-          buffer.position().column.column);
+          buffer.position().column.read());
 
       size_t next_space = contents_str.find_first_not_of(
           buffer.Read(buffer_variables::symbol_characters),
-          buffer.position().column.column);
+          buffer.position().column.read());
       return SearchRange(
           previous_space == std::wstring::npos ? 0 : previous_space + 1,
-          next_space == std::wstring::npos ? contents->EndColumn().column
+          next_space == std::wstring::npos ? contents->EndColumn().read()
                                            : next_space);
     };
 
@@ -274,7 +274,7 @@ NavigateState InitialState(EditorState& editor_state) {
     };
 
     initial_state.navigate_options.position_to_index = [](LineColumn position) {
-      return position.column.column;
+      return position.column.read();
     };
   } else if (structure == StructureLine()) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,

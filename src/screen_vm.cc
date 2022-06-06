@@ -70,7 +70,7 @@ class ScreenVm : public Screen {
 
   void Move(LineColumn position) override {
     buffer_ += "screen.Move(LineColumn(" + std::to_string(position.line.line) +
-               ", " + std::to_string(position.column.column) + "));";
+               ", " + std::to_string(position.column.read()) + "));";
   }
 
   void WriteString(const NonNull<std::shared_ptr<LazyString>>& str) override {

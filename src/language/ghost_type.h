@@ -97,43 +97,100 @@
 
 #define GHOST_TYPE_TOP_LEVEL(ClassName) GHOST_TYPE_HASH(ClassName);
 
-#define GHOST_TYPE_NUMBER(ClassName, VariableType)                      \
-  class ClassName {                                                     \
-   public:                                                              \
-    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value);             \
-    GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)                          \
-    GHOST_TYPE_EQ(ClassName, value);                                    \
-    GHOST_TYPE_ORDER(ClassName, value)                                  \
-                                                                        \
-    const auto& read() const { return value; }                          \
-                                                                        \
-    bool IsZero() const { return *this == ClassName(); }                \
-                                                                        \
-   private:                                                             \
-    friend ClassName& operator+=(ClassName& a, const ClassName& value); \
-    friend ClassName& operator-=(ClassName& a, const ClassName& value); \
-    friend ClassName& operator++(ClassName& a);                         \
-    friend ClassName operator++(ClassName& a, int);                     \
-    friend ClassName& operator--(ClassName& a);                         \
-    friend ClassName operator--(ClassName& a, int);                     \
-    GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);                         \
-    GHOST_TYPE_HASH_FRIEND(ClassName, value);                           \
-    VariableType value = VariableType();                                \
-  };                                                                    \
-                                                                        \
+#define GHOST_TYPE_NUMBER(ClassName, VariableType)                       \
+  class ClassName {                                                      \
+   public:                                                               \
+    using ValueType = VariableType;                                      \
+    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value);              \
+    GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)                           \
+    GHOST_TYPE_EQ(ClassName, value);                                     \
+    GHOST_TYPE_ORDER(ClassName, value)                                   \
+                                                                         \
+    const auto& read() const { return value; }                           \
+                                                                         \
+    bool IsZero() const { return *this == ClassName(); }                 \
+                                                                         \
+   private:                                                              \
+    static VariableType PrepareForOperator(VariableType i) { return i; } \
+    GHOST_TYPE_OPERATOR_FRIEND(ClassName, VariableType);                 \
+    GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);                          \
+    GHOST_TYPE_HASH_FRIEND(ClassName, value);                            \
+    VariableType value = VariableType();                                 \
+  };                                                                     \
+                                                                         \
   GHOST_TYPE_OUTPUT(ClassName, value);
 
-#define GHOST_TYPE_DOUBLE(ClassName)   \
-  GHOST_TYPE_NUMBER(ClassName, double) \
-  GHOST_TYPE_NUMBER_OPERATORS(ClassName, double);
+// Defines two types: ClassName and DeltaName. ClassName represents a value and
+// DeltaName represents a delta in ClassName.
+#define GHOST_TYPE_NUMBER_WITH_DELTA(ClassName, VariableType, DeltaName, \
+                                     DeltaNestedType)                    \
+  GHOST_TYPE_NUMBER(DeltaName, DeltaNestedType)                          \
+  GHOST_TYPE_NUMBER_OPERATORS_BASE(DeltaName, DeltaNestedType)           \
+  GHOST_TYPE_NUMBER_OPERATORS_SELF(DeltaName)                            \
+  class ClassName {                                                      \
+   public:                                                               \
+    using ValueType = VariableType;                                      \
+    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value);              \
+    GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)                           \
+    GHOST_TYPE_EQ(ClassName, value);                                     \
+    GHOST_TYPE_ORDER(ClassName, value)                                   \
+                                                                         \
+    DeltaName ToDelta() const { return DeltaName(read()); }              \
+    const VariableType& read() const { return value; }                   \
+                                                                         \
+    bool IsZero() const { return *this == ClassName(); }                 \
+                                                                         \
+    template <typename V = ClassName>                                    \
+    ClassName MinusHandlingOverflow(DeltaName delta) const {             \
+      const size_t& (V::*read_callback)() const = &V::read;              \
+      (void)read_callback;                                               \
+      return *this - std::min(delta, ToDelta());                         \
+    }                                                                    \
+                                                                         \
+    template <typename V = ClassName>                                    \
+    ClassName previous() const {                                         \
+      const size_t& (V::*read_callback)() const = &V::read;              \
+      (void)read_callback;                                               \
+      return *this - DeltaName(1);                                       \
+    }                                                                    \
+                                                                         \
+    template <typename V = ClassName>                                    \
+    ClassName next() const {                                             \
+      const size_t& (V::*read_callback)() const = &V::read;              \
+      (void)read_callback;                                               \
+      return *this + DeltaName(1);                                       \
+    }                                                                    \
+                                                                         \
+   private:                                                              \
+    static DeltaNestedType PrepareForOperator(DeltaName i) {             \
+      return i.read();                                                   \
+    }                                                                    \
+                                                                         \
+    GHOST_TYPE_OPERATOR_FRIEND(ClassName, DeltaName);                    \
+    friend ClassName& operator+=(ClassName& a, const DeltaName& value);  \
+    friend ClassName& operator-=(ClassName& a, const DeltaName& value);  \
+    GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);                          \
+    GHOST_TYPE_HASH_FRIEND(ClassName, value);                            \
+    VariableType value = VariableType();                                 \
+  };                                                                     \
+  GHOST_TYPE_OUTPUT(ClassName, value)                                    \
+  GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, DeltaName)                 \
+  GHOST_TYPE_NUMBER_OPERATORS_DELTA(ClassName, DeltaName)
 
-#define GHOST_TYPE_INT(ClassName)   \
-  GHOST_TYPE_NUMBER(ClassName, int) \
-  GHOST_TYPE_NUMBER_OPERATORS(ClassName, int);
+#define GHOST_TYPE_DOUBLE(ClassName)                  \
+  GHOST_TYPE_NUMBER(ClassName, double)                \
+  GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, double) \
+  GHOST_TYPE_NUMBER_OPERATORS_SELF(ClassName)
 
-#define GHOST_TYPE_SIZE_T(ClassName)   \
-  GHOST_TYPE_NUMBER(ClassName, size_t) \
-  GHOST_TYPE_NUMBER_OPERATORS(ClassName, size_t);
+#define GHOST_TYPE_INT(ClassName)                  \
+  GHOST_TYPE_NUMBER(ClassName, int)                \
+  GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, int) \
+  GHOST_TYPE_NUMBER_OPERATORS_SELF(ClassName)
+
+#define GHOST_TYPE_SIZE_T(ClassName)                  \
+  GHOST_TYPE_NUMBER(ClassName, size_t)                \
+  GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, size_t) \
+  GHOST_TYPE_NUMBER_OPERATORS_SELF(ClassName)
 
 #define GHOST_TYPE_CONTAINER(ClassName, VariableType)       \
   class ClassName {                                         \
@@ -170,82 +227,116 @@
 
 #define GHOST_TYPE_CONSTRUCTOR_EMPTY(ClassName) ClassName() = default;
 
-#define GHOST_TYPE_NUMBER_OPERATORS(ClassName, VariableType)               \
-  inline ClassName operator+(const ClassName& a, VariableType other) {     \
-    return ClassName(a.read() + other);                                    \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator+(VariableType other, const ClassName& a) {     \
-    return a + other;                                                      \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator+(const ClassName& a, const ClassName& b) {     \
-    return ClassName(a.read() + b.read());                                 \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator-(ClassName a) { return ClassName(-a.read()); } \
-                                                                           \
-  inline ClassName operator-(const ClassName& a, VariableType other) {     \
-    return ClassName(a.read() - other);                                    \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator-(VariableType other, const ClassName& a) {     \
-    return a - other;                                                      \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator-(const ClassName& a, const ClassName& b) {     \
-    return ClassName(a.read() - b.read());                                 \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator*(const ClassName& a, VariableType other) {     \
-    return ClassName(a.read() * other);                                    \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator*(VariableType other, const ClassName& a) {     \
-    return a * other;                                                      \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator*(const ClassName& a, const ClassName& b) {     \
-    return ClassName(a.read() * b.read());                                 \
-  }                                                                        \
-                                                                           \
-  inline ClassName operator/(const ClassName& a, VariableType other) {     \
-    return ClassName(a.read() / other);                                    \
-  }                                                                        \
-                                                                           \
-  inline VariableType operator/(const ClassName& a, const ClassName& b) {  \
-    return a.read() / b.read();                                            \
-  }                                                                        \
-                                                                           \
-  inline double operator/(double other, const ClassName& a) {              \
-    return other / a.read();                                               \
-  }                                                                        \
-                                                                           \
-  inline ClassName& operator+=(ClassName& a, const ClassName& value) {     \
-    a.value += value.read();                                               \
-    return a;                                                              \
-  }                                                                        \
-  inline ClassName& operator-=(ClassName& a, const ClassName& value) {     \
-    a.value -= value.read();                                               \
-    return a;                                                              \
-  }                                                                        \
-  inline ClassName& operator++(ClassName& a) {                             \
-    a.value++;                                                             \
-    return a;                                                              \
-  }                                                                        \
-  inline ClassName operator++(ClassName& a, int) {                         \
-    ClassName copy = a;                                                    \
-    a.value++;                                                             \
-    return copy;                                                           \
-  }                                                                        \
-  inline ClassName& operator--(ClassName& a) {                             \
-    a.value--;                                                             \
-    return a;                                                              \
-  }                                                                        \
-  inline ClassName operator--(ClassName& a, int) {                         \
-    ClassName copy = a;                                                    \
-    a.value--;                                                             \
-    return copy;                                                           \
+#define GHOST_TYPE_OPERATOR_FRIEND(ClassName, VariableType)           \
+  friend ClassName operator+(const ClassName& a, VariableType other); \
+  friend ClassName operator+(VariableType other, const ClassName& a); \
+  friend ClassName operator-(const ClassName& a, VariableType other); \
+  friend ClassName operator*(const ClassName& a, VariableType other); \
+  friend ClassName operator*(VariableType other, const ClassName& a); \
+  friend ClassName operator/(const ClassName& a, VariableType other); \
+  friend ClassName& operator+=(ClassName& a, const ClassName& value); \
+  friend ClassName& operator-=(ClassName& a, const ClassName& value); \
+  friend ClassName& operator++(ClassName& a);                         \
+  friend ClassName operator++(ClassName& a, int);                     \
+  friend ClassName& operator--(ClassName& a);                         \
+  friend ClassName operator--(ClassName& a, int);
+
+#define GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, VariableType)            \
+  inline ClassName operator+(const ClassName& a, VariableType other) {       \
+    return ClassName(a.read() + ClassName::PrepareForOperator(other));       \
+  }                                                                          \
+                                                                             \
+  inline ClassName operator+(VariableType other, const ClassName& a) {       \
+    return ClassName(a.read() + ClassName::PrepareForOperator(other));       \
+  }                                                                          \
+                                                                             \
+  inline ClassName operator-(ClassName a) { return ClassName(-a.read()); }   \
+                                                                             \
+  inline ClassName operator-(const ClassName& a, VariableType other) {       \
+    const auto value_other = ClassName::PrepareForOperator(other);           \
+    if constexpr (std::is_same<decltype(ClassName::value), size_t>::value) { \
+      if (other > VariableType(0)) {                                         \
+        CHECK_GE(a.read(),                                                   \
+                 static_cast<decltype(ClassName::value)>(value_other));      \
+      }                                                                      \
+    }                                                                        \
+    return ClassName(a.read() - value_other);                                \
+  }                                                                          \
+                                                                             \
+  inline ClassName operator*(const ClassName& a, VariableType other) {       \
+    return ClassName(a.read() * ClassName::PrepareForOperator(other));       \
+  }                                                                          \
+                                                                             \
+  inline ClassName operator*(VariableType other, const ClassName& a) {       \
+    return ClassName(a.read() * ClassName::PrepareForOperator(other));       \
+  }                                                                          \
+                                                                             \
+  inline ClassName operator/(const ClassName& a, VariableType other) {       \
+    return ClassName(a.read() / ClassName::PrepareForOperator(other));       \
+  }                                                                          \
+                                                                             \
+  inline ClassName& operator++(ClassName& a) {                               \
+    a.value++;                                                               \
+    return a;                                                                \
+  }                                                                          \
+  inline ClassName operator++(ClassName& a, int) {                           \
+    ClassName copy = a;                                                      \
+    a.value++;                                                               \
+    return copy;                                                             \
+  }                                                                          \
+  inline ClassName& operator--(ClassName& a) {                               \
+    a.value--;                                                               \
+    return a;                                                                \
+  }                                                                          \
+  inline ClassName operator--(ClassName& a, int) {                           \
+    ClassName copy = a;                                                      \
+    a.value--;                                                               \
+    return copy;                                                             \
+  }
+
+#define GHOST_TYPE_NUMBER_OPERATORS_SELF(ClassName)                    \
+  inline ClassName operator+(const ClassName& a, const ClassName& b) { \
+    return ClassName(a.read() + b.read());                             \
+  }                                                                    \
+                                                                       \
+  inline ClassName operator-(const ClassName& a, const ClassName& b) { \
+    return ClassName(a.read() - b.read());                             \
+  }                                                                    \
+                                                                       \
+  inline ClassName operator*(const ClassName& a, const ClassName& b) { \
+    return ClassName(a.read() * b.read());                             \
+  }                                                                    \
+                                                                       \
+  inline ClassName::ValueType operator/(const ClassName& a,            \
+                                        const ClassName& b) {          \
+    return a.read() / b.read();                                        \
+  }                                                                    \
+                                                                       \
+  inline ClassName& operator+=(ClassName& a, const ClassName& value) { \
+    a.value += value.read();                                           \
+    return a;                                                          \
+  }                                                                    \
+  inline ClassName& operator-=(ClassName& a, const ClassName& value) { \
+    a.value -= value.read();                                           \
+    return a;                                                          \
+  }                                                                    \
+  inline int operator%(const ClassName& a, const ClassName& b) {       \
+    return static_cast<int>(a.read()) % static_cast<int>(b.read());    \
+  }
+
+#define GHOST_TYPE_NUMBER_OPERATORS_DELTA(ClassName, DeltaName)        \
+  inline DeltaName operator-(const ClassName& a, const ClassName& b) { \
+    return DeltaName(a.read() - b.read());                             \
+  }                                                                    \
+                                                                       \
+  inline ClassName& operator+=(ClassName& a, const DeltaName& value) { \
+    a.value += ClassName::PrepareForOperator(value);                   \
+    return a;                                                          \
+  }                                                                    \
+                                                                       \
+  inline ClassName& operator-=(ClassName& a, const DeltaName& value) { \
+    a.value -= ClassName::PrepareForOperator(value);                   \
+    return a;                                                          \
   }
 
 #define GHOST_TYPE_EMPTY \

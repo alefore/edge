@@ -142,8 +142,8 @@ LineColumn TransformLineColumn(
       TransformValue(position.line.line, transformation.line_delta.read(),
                      transformation.line_lower_bound.line, is_end));
   position.column = ColumnNumber(
-      TransformValue(position.column.column, transformation.column_delta.read(),
-                     transformation.column_lower_bound.column, is_end));
+      TransformValue(position.column.read(), transformation.column_delta.read(),
+                     transformation.column_lower_bound.read(), is_end));
   return position;
 }
 

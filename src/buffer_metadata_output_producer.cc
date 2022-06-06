@@ -294,7 +294,8 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
   if (!marks.empty() || !expired_marks.empty()) {
     double buffer_lines_per_row =
-        static_cast<double>(options.buffer.lines_size().read()) / total_rows;
+        static_cast<double>(options.buffer.lines_size().read()) /
+        static_cast<double>(total_rows.read());
     bool active_marks = false;
     for (size_t row = 0; row < 3; row++) {
       LineColumn begin_line(

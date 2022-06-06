@@ -102,14 +102,14 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
   line_column->AddField(
       L"column",
       NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
-        return static_cast<int>(line_column.column.column);
+        return static_cast<int>(line_column.column.read());
       }));
 
   line_column->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
         return std::to_wstring(line_column.line.line) + L", " +
-               std::to_wstring(line_column.column.column);
+               std::to_wstring(line_column.column.read());
       }));
 
   environment.DefineType(std::move(line_column));

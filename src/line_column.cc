@@ -186,122 +186,6 @@ std::optional<LineNumber> Reader<LineNumber>::Read(Stream& input_stream) {
 };
 }  // namespace fuzz
 
-ColumnNumber::ColumnNumber(size_t value) : column(value) {}
-
-ColumnNumberDelta ColumnNumber::ToDelta() const {
-  return *this - ColumnNumber(0);
-}
-
-std::wstring ColumnNumber::ToUserString() const {
-  return std::to_wstring(column + 1);
-}
-
-std::wstring ColumnNumber::Serialize() const { return std::to_wstring(column); }
-
-ColumnNumber ColumnNumber::next() const {
-  if (column == std::numeric_limits<size_t>::max()) {
-    return *this;
-  }
-  return ColumnNumber(column + 1);
-}
-
-ColumnNumber ColumnNumber::previous() const {
-  CHECK_GT(column, 0ul);
-  return ColumnNumber(column - 1);
-}
-
-ColumnNumber ColumnNumber::MinusHandlingOverflow(
-    const ColumnNumberDelta& value) const {
-  return this->ToDelta() > value ? *this - value : ColumnNumber(0);
-}
-
-bool ColumnNumber::IsZero() const { return *this == ColumnNumber(); }
-
-bool operator==(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.column == b.column;
-}
-
-bool operator!=(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.column != b.column;
-}
-
-bool operator<(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.column < b.column;
-}
-
-bool operator<=(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.column <= b.column;
-}
-
-bool operator>(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.column > b.column;
-}
-
-bool operator>=(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.column >= b.column;
-}
-
-ColumnNumber& operator+=(ColumnNumber& a, const ColumnNumberDelta& delta) {
-  a.column += delta.read();
-  return a;
-}
-
-ColumnNumber& operator++(ColumnNumber& a) {
-  a.column++;
-  return a;
-}
-
-ColumnNumber operator++(ColumnNumber& a, int) {
-  auto output = a;
-  a.column++;
-  return output;
-}
-
-ColumnNumber& operator--(ColumnNumber& a) {
-  a.column--;
-  return a;
-}
-
-ColumnNumber operator--(ColumnNumber& a, int) {
-  auto output = a;
-  a.column--;
-  return output;
-}
-
-ColumnNumber operator%(ColumnNumber a, const ColumnNumberDelta& delta) {
-  CHECK_NE(delta, ColumnNumberDelta(0));
-  return ColumnNumber(a.column % delta.read());
-}
-
-ColumnNumber operator+(ColumnNumber a, const ColumnNumberDelta& delta) {
-  if (delta < ColumnNumberDelta(0)) {
-    CHECK_GE(a.ToDelta(), -delta);
-  }
-  a.column += delta.read();
-  return a;
-}
-
-ColumnNumber operator-(ColumnNumber a, const ColumnNumberDelta& delta) {
-  if (delta > ColumnNumberDelta(0)) {
-    CHECK_GE(a.ToDelta(), delta);
-  }
-  a.column -= delta.read();
-  return a;
-}
-
-ColumnNumber operator-(const ColumnNumber& a) {
-  return ColumnNumber(-a.column);
-}
-
-ColumnNumberDelta operator-(const ColumnNumber& a, const ColumnNumber& b) {
-  return ColumnNumberDelta(a.column - b.column);
-}
-
-std::ostream& operator<<(std::ostream& os, const ColumnNumber& lc) {
-  os << "[Column " << lc.column << "]";
-  return os;
-}
-
 namespace fuzz {
 std::optional<ColumnNumber> Reader<ColumnNumber>::Read(Stream& input_stream) {
   auto value = Reader<size_t>::Read(input_stream);
@@ -323,7 +207,7 @@ std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
      << ":"
      << (lc.column == std::numeric_limits<ColumnNumber>::max()
              ? "inf"
-             : std::to_string(lc.column.column))
+             : std::to_string(lc.column.read()))
      << "]";
   return os;
 }
@@ -333,11 +217,12 @@ bool LineColumn::operator!=(const LineColumn& other) const {
 }
 
 std::wstring LineColumn::ToString() const {
-  return std::to_wstring(line.line) + L" " + std::to_wstring(column.column);
+  return std::to_wstring(line.line) + L" " + std::to_wstring(column.read());
 }
 
 std::wstring LineColumn::Serialize() const {
-  return L"LineColumn(" + line.Serialize() + L", " + column.Serialize() + L")";
+  return L"LineColumn(" + line.Serialize() + L", " +
+         std::to_wstring(column.read()) + L")";
 }
 
 /* static */ Range Range::InLine(LineNumber line, ColumnNumber column,
@@ -393,7 +278,7 @@ LineColumn LineColumn::operator+(const LineColumnDelta& value) const {
 
 std::wstring LineColumn::ToCppString() const {
   return L"LineColumn(" + std::to_wstring(line.line) + L", " +
-         std::to_wstring(column.column) + L")";
+         std::to_wstring(column.read()) + L")";
 }
 
 namespace fuzz {

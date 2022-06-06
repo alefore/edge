@@ -58,8 +58,11 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     } else {
       output += options.buffer->current_position_line().ToUserString();
     }
-    output += L" of " + options.buffer->contents().EndLine().ToUserString() +
-              L", " + options.buffer->current_position_col().ToUserString();
+    output +=
+        L" of " + options.buffer->contents().EndLine().ToUserString() + L", " +
+        std::to_wstring(
+            (options.buffer->current_position_col() + ColumnNumberDelta(1))
+                .read());
     output += L"] ";
 
     auto marks_text = options.buffer->GetLineMarksText();

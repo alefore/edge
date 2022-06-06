@@ -122,15 +122,15 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
             ColumnNumber line_start;
             for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
                  ++i) {
-              if (text[i.column] == L'\n') {
+              if (text[i.read()] == L'\n') {
                 VLOG(8) << "Adding line from " << line_start << " to " << i;
                 buffer->push_back(MakeNonNullShared<Line>(text.substr(
-                    line_start.column, (ColumnNumber(i) - line_start).read())));
+                    line_start.read(), (ColumnNumber(i) - line_start).read())));
                 line_start = ColumnNumber(i) + ColumnNumberDelta(1);
               }
             }
             buffer->push_back(
-                MakeNonNullShared<Line>(text.substr(line_start.column)));
+                MakeNonNullShared<Line>(text.substr(line_start.read())));
             buffer->EraseLines(LineNumber(), LineNumber(1),
                                BufferContents::CursorsBehavior::kUnmodified);
             options->contents_to_insert = std::move(buffer);

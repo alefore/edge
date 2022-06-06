@@ -5,7 +5,7 @@ std::wstring GetCurrentToken(CurrentTokenOptions options) {
   // Scroll back to the first character outside of the token. If we're in not
   // inside a token, this is a no-op.
   size_t start = line.find_last_not_of(options.token_characters,
-                                       options.line_column.column.column);
+                                       options.line_column.column.read());
   if (start == line.npos) {
     start = 0;
   }

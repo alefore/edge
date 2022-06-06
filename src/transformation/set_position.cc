@@ -43,9 +43,9 @@ std::wstring ToStringBase(const SetPosition& v) {
   if (v.line.has_value()) {
     return L"SetPositionTransformation(LineColumn(" +
            std::to_wstring(v.line.value().line) + L", " +
-           std::to_wstring(v.column.column) + L"))";
+           std::to_wstring(v.column.read()) + L"))";
   }
-  return L"SetColumnTransformation(" + std::to_wstring(v.column.column) + L")";
+  return L"SetColumnTransformation(" + std::to_wstring(v.column.read()) + L")";
 }
 
 SetPosition OptimizeBase(SetPosition transformation) { return transformation; }

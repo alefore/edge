@@ -25,7 +25,7 @@ std::wstring LazyString::ToString() const {
   auto call = tracker.Call();
   std::wstring output(size().read(), 0);
   ForEachColumn(*this,
-                [&output](ColumnNumber i, wchar_t c) { output[i.column] = c; });
+                [&output](ColumnNumber i, wchar_t c) { output[i.read()] = c; });
   return output;
 }
 

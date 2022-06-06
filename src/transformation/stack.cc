@@ -206,7 +206,7 @@ ContentStats AnalyzeContent(const BufferContents& contents) {
   ContentStats output{.lines = contents.EndLine().line + 1};
   contents.ForEach([&output](const Line& line) {
     ColumnNumber i;
-    output.characters += line.EndColumn().column;
+    output.characters += line.EndColumn().read();
     while (i < line.EndColumn()) {
       while (i < line.EndColumn() && !isalnum(line.get(i))) ++i;
       if (i < line.EndColumn()) ++output.words;

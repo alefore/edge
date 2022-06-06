@@ -108,7 +108,7 @@ Structure* StructureChar() {
         end--;
       }
       position.column = ColumnNumber(ComputePosition(
-          start.column, end.column, line->EndColumn().column,
+          start.read(), end.read(), line->EndColumn().read(),
           modifiers.direction, modifiers.repetitions.value_or(1), calls));
       CHECK_LE(position.column, line->EndColumn());
       return position;

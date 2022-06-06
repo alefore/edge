@@ -283,7 +283,7 @@ LineColumn BufferContents::PositionAfter(LineColumn position) const {
     ++position.column;
   } else if (position.line < EndLine()) {
     ++position.line;
-    position.column = {};
+    position.column = ColumnNumber();
   } else if (position.column > at(position.line)->EndColumn()) {
     position.column = at(position.line)->EndColumn();
   }
@@ -613,15 +613,15 @@ void BufferContents::FoldNextLine(LineNumber position) {
 void BufferContents::push_back(std::wstring str) {
   ColumnNumber start;
   for (ColumnNumber i; i < ColumnNumber(str.size()); ++i) {
-    wchar_t c = str[i.column];
+    wchar_t c = str[i.read()];
     CHECK_GE(i, start);
     if (c == '\n') {
       push_back(MakeNonNullShared<const Line>(
-          str.substr(start.column, (i - start).read())));
+          str.substr(start.read(), (i - start).read())));
       start = i + ColumnNumberDelta(1);
     }
   }
-  push_back(MakeNonNullShared<const Line>(str.substr(start.column)));
+  push_back(MakeNonNullShared<const Line>(str.substr(start.read())));
 }
 
 namespace {
@@ -729,7 +729,8 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
         if (line->empty()) {
           position.column = ColumnNumber(0);
         } else {
-          position.column = position.column % line->EndColumn().ToDelta();
+          position.column = ColumnNumber(position.column.ToDelta() %
+                                         line->EndColumn().ToDelta());
         }
         SplitLine(position);
       })));

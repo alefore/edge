@@ -86,7 +86,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer) {
             VLOG(5) << "Considering prediction: " << line.ToString()
                     << " (end column: " << line.EndColumn() << ")";
             size_t current_size =
-                std::min(common_prefix.size(), line.EndColumn().column);
+                std::min(common_prefix.size(), line.EndColumn().read());
             std::wstring current =
                 line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
                     ->ToString();

@@ -35,7 +35,7 @@ class StringFromContainer : public LazyString {
 
   wchar_t get(ColumnNumber pos) const {
     CHECK_LT(pos, ColumnNumber(data_.size()));
-    return data_.at(pos.column);
+    return data_.at(pos.read());
   }
 
   ColumnNumberDelta size() const { return ColumnNumberDelta(data_.size()); }
@@ -51,7 +51,7 @@ class MoveableCharBuffer : public LazyString {
 
   wchar_t get(ColumnNumber pos) const {
     CHECK_LT(pos.ToDelta(), size_);
-    return (*buffer_)[pos.column];
+    return (*buffer_)[pos.read()];
   }
 
   ColumnNumberDelta size() const { return size_; }

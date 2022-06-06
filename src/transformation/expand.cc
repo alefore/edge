@@ -41,14 +41,14 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
   auto line_str = line->ToString();
 
   size_t index_before_symbol = line_str.find_last_not_of(
-      input.buffer.Read(characters_variable), end.column);
+      input.buffer.Read(characters_variable), end.read());
   ColumnNumber symbol_start;
   if (index_before_symbol == std::wstring::npos) {
     symbol_start = ColumnNumber(0);
   } else {
     symbol_start = ColumnNumber(index_before_symbol + 1);
   }
-  return line_str.substr(symbol_start.column, (end - symbol_start).read() + 1);
+  return line_str.substr(symbol_start.read(), (end - symbol_start).read() + 1);
 }
 
 transformation::Delete DeleteLastCharacters(int characters) {

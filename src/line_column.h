@@ -20,7 +20,7 @@ namespace editor {
 class LazyString;
 
 GHOST_TYPE_INT(LineNumberDelta);
-GHOST_TYPE_INT(ColumnNumberDelta);
+GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
 
 // Generates a string of the length specified by `this` filled up with the
 // character given.
@@ -96,47 +96,6 @@ struct Reader<LineNumber> {
   static std::optional<LineNumber> Read(fuzz::Stream& input_stream);
 };
 }  // namespace fuzz
-
-struct ColumnNumber {
-  ColumnNumber() = default;
-  explicit ColumnNumber(size_t column);
-
-  ColumnNumberDelta ToDelta() const;
-
-  // Starts counting from 1 (i.e. ColumnNumber(5).ToUserString() evaluates to
-  // L"6").
-  std::wstring ToUserString() const;
-  std::wstring Serialize() const;
-
-  ColumnNumber next() const;
-  ColumnNumber previous() const;
-
-  // a.MinusHadlingOverflow(value) is equivalent to `a - value` if `a` is
-  // greater than or equal to `value` (and `ColumnNumber(0)` otherwise).
-  ColumnNumber MinusHandlingOverflow(const ColumnNumberDelta& value) const;
-
-  bool IsZero() const;
-
-  size_t column = 0;
-};
-
-bool operator==(const ColumnNumber& a, const ColumnNumber& b);
-bool operator!=(const ColumnNumber& a, const ColumnNumber& b);
-bool operator<(const ColumnNumber& a, const ColumnNumber& b);
-bool operator<=(const ColumnNumber& a, const ColumnNumber& b);
-bool operator>(const ColumnNumber& a, const ColumnNumber& b);
-bool operator>=(const ColumnNumber& a, const ColumnNumber& b);
-ColumnNumber& operator+=(ColumnNumber& a, const ColumnNumberDelta& delta);
-ColumnNumber& operator++(ColumnNumber& a);
-ColumnNumber operator++(ColumnNumber& a, int);
-ColumnNumber& operator--(ColumnNumber& a);
-ColumnNumber operator--(ColumnNumber& a, int);
-ColumnNumber operator%(ColumnNumber a, const ColumnNumberDelta& delta);
-ColumnNumber operator+(ColumnNumber a, const ColumnNumberDelta& delta);
-ColumnNumber operator-(ColumnNumber a, const ColumnNumberDelta& delta);
-ColumnNumber operator-(ColumnNumber a);
-ColumnNumberDelta operator-(const ColumnNumber& a, const ColumnNumber& b);
-std::ostream& operator<<(std::ostream& os, const ColumnNumber& lc);
 
 namespace fuzz {
 template <>
@@ -296,7 +255,7 @@ struct hash<afc::editor::LineNumberDelta> {
 template <>
 struct hash<afc::editor::ColumnNumber> {
   std::size_t operator()(const afc::editor::ColumnNumber& column) const {
-    return std::hash<size_t>()(column.column);
+    return std::hash<size_t>()(column.read());
   }
 };
 template <>

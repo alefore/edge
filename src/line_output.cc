@@ -42,14 +42,14 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
     {{.name = L"EmptyAndZero",
       .callback =
           [] {
-            CHECK(LineOutputLength({}, {}, ColumnNumberDelta(),
+            CHECK(LineOutputLength({}, ColumnNumber(), ColumnNumberDelta(),
                                    LineWrapStyle::kBreakWords, L"")
                       .IsZero());
           }},
      {.name = L"EmptyAndWants",
       .callback =
           [] {
-            CHECK(LineOutputLength({}, {}, ColumnNumberDelta(80),
+            CHECK(LineOutputLength({}, ColumnNumber(), ColumnNumberDelta(80),
                                    LineWrapStyle::kBreakWords, L"")
                       .IsZero());
           }},
@@ -57,100 +57,103 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(LineOutputLength(
-                      Line(L"alejandro"), {}, ColumnNumberDelta(80),
+                      Line(L"alejandro"), ColumnNumber(), ColumnNumberDelta(80),
                       LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(9));
           }},
      {.name = L"NormalOverflow",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"alejandro"), {}, ColumnNumberDelta(6),
-                                   LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(6));
+            CHECK(LineOutputLength(
+                      Line(L"alejandro"), ColumnNumber(), ColumnNumberDelta(6),
+                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(6));
           }},
      {.name = L"SimpleWide",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"a🦋lejandro"), {}, ColumnNumberDelta(6),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(5));
+            CHECK(LineOutputLength(Line(L"a🦋lejandro"), ColumnNumber(),
+                                   ColumnNumberDelta(6),
+                                   LineWrapStyle::kBreakWords,
+                                   L"") == ColumnNumberDelta(5));
           }},
      {.name = L"WideConsumed",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"a🦋o"), {}, ColumnNumberDelta(6),
-                                   LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(3));
+            CHECK(LineOutputLength(
+                      Line(L"a🦋o"), ColumnNumber(), ColumnNumberDelta(6),
+                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(3));
           }},
      {.name = L"CharacterDoesNotFit",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"alejo🦋"), {}, ColumnNumberDelta(6),
-                                   LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(5));
+            CHECK(LineOutputLength(
+                      Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(6),
+                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(5));
           }},
      {.name = L"CharacterAtBorder",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"alejo🦋"), {}, ColumnNumberDelta(7),
-                                   LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(6));
+            CHECK(LineOutputLength(
+                      Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(7),
+                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(6));
           }},
      {.name = L"SingleWidthNormalCharacter",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"alejo🦋"), {}, ColumnNumberDelta(1),
-                                   LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(1));
+            CHECK(LineOutputLength(
+                      Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(1),
+                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(1));
           }},
      {.name = L"SingleWidthWide",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"🦋"), {}, ColumnNumberDelta(1),
-                                   LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(1));
+            CHECK(LineOutputLength(
+                      Line(L"🦋"), ColumnNumber(), ColumnNumberDelta(1),
+                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(1));
           }},
      {.name = L"ManyWideOverflow",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"🦋🦋🦋🦋abcdef"), {}, ColumnNumberDelta(5),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(2));
+            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"),
+                                   ColumnNumber(), ColumnNumberDelta(5),
+                                   LineWrapStyle::kBreakWords,
+                                   L"") == ColumnNumberDelta(2));
           }},
      {.name = L"ManyWideOverflowAfter",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), {},
-                                   ColumnNumberDelta(10),
+            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"),
+                                   ColumnNumber(), ColumnNumberDelta(10),
                                    LineWrapStyle::kBreakWords,
                                    L"") == ColumnNumberDelta(6));
           }},
      {.name = L"ManyWideOverflowExact",
       .callback =
           [] {
-            CHECK(LineOutputLength(
-                      Line(L"🦋🦋🦋🦋abcdef"), {}, ColumnNumberDelta(4),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(2));
+            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"),
+                                   ColumnNumber(), ColumnNumberDelta(4),
+                                   LineWrapStyle::kBreakWords,
+                                   L"") == ColumnNumberDelta(2));
           }},
      {.name = L"ContentBasedWrapFits",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"abcde"), {}, ColumnNumberDelta(10),
-                                   LineWrapStyle::kContentBased,
-                                   symbol_characters_for_testing) ==
-                  ColumnNumberDelta(5));
+            CHECK(LineOutputLength(
+                      Line(L"abcde"), ColumnNumber(), ColumnNumberDelta(10),
+                      LineWrapStyle::kContentBased,
+                      symbol_characters_for_testing) == ColumnNumberDelta(5));
           }},
      {.name = L"ContentBasedWrapLineWithSpaces",
       .callback =
           [] {
             CHECK(LineOutputLength(
-                      Line(L"abcde fghijklmnopqrstuv"), {},
+                      Line(L"abcde fghijklmnopqrstuv"), ColumnNumber(),
                       ColumnNumberDelta(10), LineWrapStyle::kContentBased,
                       symbol_characters_for_testing) == ColumnNumberDelta(6));
           }},
      {.name = L"ContentBasedWrapLineTooLong", .callback = [] {
         CHECK(LineOutputLength(
-                  Line(L"abcdefghijklmnopqrstuv"), {}, ColumnNumberDelta(10),
-                  LineWrapStyle::kContentBased,
+                  Line(L"abcdefghijklmnopqrstuv"), ColumnNumber(),
+                  ColumnNumberDelta(10), LineWrapStyle::kContentBased,
                   symbol_characters_for_testing) == ColumnNumberDelta(10));
       }}});
 }  // namespace

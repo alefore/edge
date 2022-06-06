@@ -16,7 +16,7 @@ class StringAppendImpl : public LazyString {
  public:
   StringAppendImpl(ConstTree<wchar_t>::Ptr tree) : tree_(std::move(tree)) {}
 
-  wchar_t get(ColumnNumber pos) const { return tree_->Get(pos.column); }
+  wchar_t get(ColumnNumber pos) const { return tree_->Get(pos.read()); }
 
   ColumnNumberDelta size() const {
     return ColumnNumberDelta(ConstTree<wchar_t>::Size(tree_));
