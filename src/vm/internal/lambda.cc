@@ -32,13 +32,7 @@ class LambdaExpression : public Expression {
       deduced_types.insert(VMType::Void());
     }
     if (deduced_types.size() > 1) {
-      *error = L"Found multiple return types: ";
-      // TODO(easy, 2022-06-06): Use TypesToString.
-      std::wstring separator;
-      for (const auto& type : deduced_types) {
-        *error += separator + L"`" + type.ToString() + L"`";
-        separator = L", ";
-      }
+      *error = L"Found multiple return types: " + TypesToString(deduced_types);
       return nullptr;
     }
     std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
