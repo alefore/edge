@@ -129,20 +129,16 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
                                  }));
 
   line_column_delta->AddField(
-      L"line",
-      NewCallback(pool, PurityType::kPure,
-                  [](LineColumnDelta line_column_delta) {
-                    // TODO(easy, 2022-06-05): Why the need for the cast?
-                    return static_cast<int>(line_column_delta.line.read());
-                  }));
+      L"line", NewCallback(pool, PurityType::kPure,
+                           [](LineColumnDelta line_column_delta) {
+                             return line_column_delta.line.read();
+                           }));
 
   line_column_delta->AddField(
-      L"column",
-      NewCallback(pool, PurityType::kPure,
-                  [](LineColumnDelta line_column_delta) {
-                    // TODO(easy, 2022-06-05): Why the need for the cast?
-                    return static_cast<int>(line_column_delta.column.read());
-                  }));
+      L"column", NewCallback(pool, PurityType::kPure,
+                             [](LineColumnDelta line_column_delta) {
+                               return line_column_delta.column.read();
+                             }));
 
   line_column_delta->AddField(
       L"tostring",
