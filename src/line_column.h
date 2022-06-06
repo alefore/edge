@@ -195,6 +195,8 @@ bool operator<(const Range& a, const Range& b);
 
 }  // namespace afc::editor
 namespace std {
+// TODO(easy, 2022-06-06): Use the hash templates from ghost types for
+// ColumnNumberDelta, LineNumberDelta, ColumnNumber, LineNumber.
 template <>
 struct hash<afc::editor::ColumnNumberDelta> {
   std::size_t operator()(const afc::editor::ColumnNumberDelta& delta) const {
