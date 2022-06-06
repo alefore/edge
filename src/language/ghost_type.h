@@ -91,12 +91,15 @@
    private:                                                 \
     GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);             \
     GHOST_TYPE_HASH_FRIEND(ClassName, value);               \
+    GHOST_TYPE_NUMERIC_LIMTS_FRIEND(ClassName);             \
     VariableType value;                                     \
   };                                                        \
                                                             \
   GHOST_TYPE_OUTPUT(ClassName, value);
 
-#define GHOST_TYPE_TOP_LEVEL(ClassName) GHOST_TYPE_HASH(ClassName);
+#define GHOST_TYPE_TOP_LEVEL(ClassName) \
+  GHOST_TYPE_HASH(ClassName)            \
+  GHOST_TYPE_NUMERIC_LIMITS(ClassName)
 
 #define GHOST_TYPE_NUMBER(ClassName, VariableType)                       \
   class ClassName {                                                      \
@@ -116,6 +119,7 @@
     GHOST_TYPE_OPERATOR_FRIEND(ClassName, VariableType);                 \
     GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);                          \
     GHOST_TYPE_HASH_FRIEND(ClassName, value);                            \
+    GHOST_TYPE_NUMERIC_LIMTS_FRIEND(ClassName);                          \
     VariableType value = VariableType();                                 \
   };                                                                     \
                                                                          \
@@ -181,6 +185,7 @@
     friend int operator%(const ClassName& a, const DeltaName& b);        \
     GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);                          \
     GHOST_TYPE_HASH_FRIEND(ClassName, value);                            \
+    GHOST_TYPE_NUMERIC_LIMTS_FRIEND(ClassName);                          \
     VariableType value = VariableType();                                 \
   };                                                                     \
   GHOST_TYPE_OUTPUT(ClassName, value)                                    \
@@ -422,6 +427,19 @@
           std::remove_reference<decltype(self.read())>::type>::type>()( \
           self.read());                                                 \
     }                                                                   \
+  };
+
+#define GHOST_TYPE_NUMERIC_LIMTS_FRIEND(ClassName) \
+  friend class std::numeric_limits<ClassName>;
+
+#define GHOST_TYPE_NUMERIC_LIMITS(ClassName)           \
+  template <>                                          \
+  class std::numeric_limits<ClassName> {               \
+   public:                                             \
+    template <typename T = decltype(ClassName::value)> \
+    static ClassName max() {                           \
+      return ClassName(std::numeric_limits<T>::max()); \
+    };                                                 \
   };
 
 #define GHOST_TYPE_INDEX                            \

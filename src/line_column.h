@@ -14,14 +14,17 @@
 namespace afc::language::gc {
 class Pool;
 }
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 class LazyString;
 
 GHOST_TYPE_NUMBER_WITH_DELTA(LineNumber, size_t, LineNumberDelta, int);
 GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
-
+}  // namespace afc::editor
+GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumber)
+GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumberDelta)
+GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumber)
+GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumberDelta)
+namespace afc::editor {
 // Generates a string of the length specified by `this` filled up with the
 // character given.
 //
@@ -50,35 +53,13 @@ template <>
 struct Reader<LineNumber> {
   static std::optional<LineNumber> Read(fuzz::Stream& input_stream);
 };
-}  // namespace fuzz
 
-namespace fuzz {
 template <>
 struct Reader<ColumnNumber> {
   static std::optional<ColumnNumber> Read(fuzz::Stream& input_stream);
 };
 }  // namespace fuzz
 
-}  // namespace editor
-}  // namespace afc
-namespace std {
-// TODO(easy, 2022-06-06): Define these on ghost types module.
-template <>
-class numeric_limits<afc::editor::LineNumber> {
- public:
-  static afc::editor::LineNumber max() {
-    return afc::editor::LineNumber(std::numeric_limits<size_t>::max());
-  };
-};
-template <>
-class numeric_limits<afc::editor::ColumnNumber> {
- public:
-  static afc::editor::ColumnNumber max() {
-    return afc::editor::ColumnNumber(std::numeric_limits<size_t>::max());
-  };
-};
-}  // namespace std
-namespace afc::editor {
 // A position in a text buffer.
 struct LineColumn {
   LineColumn() = default;
@@ -195,10 +176,6 @@ std::ostream& operator<<(std::ostream& os, const Range& range);
 bool operator<(const Range& a, const Range& b);
 
 }  // namespace afc::editor
-GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumber);
-GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumberDelta);
-GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumber);
-GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumberDelta);
 namespace std {
 template <>
 struct hash<afc::editor::LineColumn> {
