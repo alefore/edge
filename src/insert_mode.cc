@@ -121,7 +121,7 @@ class FindCompletionCommand : public Command {
   }
   std::wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t) {
+  void ProcessInput(wint_t) override {
     // TODO(multiple_buffers): Honor.
     VisitPointer(
         editor_state_.current_buffer(),
@@ -157,7 +157,7 @@ class InsertMode : public EditorMode {
     CHECK(!options_.buffers.value().empty());
   }
 
-  void ProcessInput(wint_t c) {
+  void ProcessInput(wint_t c) override {
     bool old_literal = status_expiration_for_literal_ != nullptr;
     status_expiration_for_literal_ = nullptr;
 
