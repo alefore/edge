@@ -89,8 +89,8 @@ std::wstring ToStatus(const CommandReachChar& c) {
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState& editor, ApplicationType application_type,
     transformation::Variant transformation) {
-  static Tracker tracker(L"ExecuteTransformation");
-  auto call = tracker.Call();
+  static Tracker top_tracker(L"ExecuteTransformation");
+  auto top_call = top_tracker.Call();
 
   auto buffers_transformed =
       std::make_shared<std::vector<gc::Root<OpenBuffer>>>();
@@ -117,9 +117,6 @@ futures::Value<UndoCallback> ExecuteTransformation(
           return futures::ForEach(
                      buffers_transformed->begin(), buffers_transformed->end(),
                      [buffers_transformed](gc::Root<OpenBuffer> buffer) {
-                       static Tracker tracker(
-                           L"ExecuteTransformation::Undo::Buffer");
-                       auto call = tracker.Call();
                        return buffer.ptr()
                            ->Undo(OpenBuffer::UndoMode::kOnlyOne)
                            .Transform([](auto) {
@@ -265,13 +262,14 @@ class State {
     auto call = tracker.Call();
     CHECK(!commands_.empty());
     RunUndoCallback();
-    auto undo_callback = undo_callback_;
+    std::shared_ptr<UndoCallback> original_undo_callback = undo_callback_;
     StartTransformationExecution(application_type, PrepareStack())
-        .SetConsumer([output = undo_callback](UndoCallback undo_callback) {
-          *output = [previous = std::move(*output), undo_callback]() {
-            return undo_callback().Transform(
-                [previous](EmptyValue) { return previous(); });
-          };
+        .SetConsumer([original_undo_callback](UndoCallback undo_callback) {
+          *original_undo_callback =
+              [previous = std::move(*original_undo_callback), undo_callback]() {
+                return undo_callback().Transform(
+                    [previous](EmptyValue) { return previous(); });
+              };
         });
   }
 
