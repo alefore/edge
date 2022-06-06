@@ -46,9 +46,10 @@ class BufferContents : public fuzz::FuzzTestable {
   // Drops all contents outside of a specific range.
   void FilterToRange(Range range);
 
-  language::NonNull<std::shared_ptr<const Line>> at(LineNumber position) const {
-    CHECK_LT(position, LineNumber(0) + size());
-    return lines_->Get(position.line);
+  language::NonNull<std::shared_ptr<const Line>> at(
+      LineNumber line_number) const {
+    CHECK_LT(line_number, LineNumber(0) + size());
+    return lines_->Get(line_number.read());
   }
 
   language::NonNull<std::shared_ptr<const Line>> back() const {
@@ -101,7 +102,8 @@ class BufferContents : public fuzz::FuzzTestable {
                    lines.push_back(line);
                    return true;
                  });
-    std::sort(lines.begin() + first.line, lines.begin() + last.line, compare);
+    std::sort(lines.begin() + first.read(), lines.begin() + last.read(),
+              compare);
     lines_ = nullptr;
     for (auto& line : lines) {
       lines_ = Lines::PushBack(std::move(lines_), std::move(line));

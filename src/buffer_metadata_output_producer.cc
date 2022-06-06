@@ -238,9 +238,9 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                                lines_size.read())));
 
   // Bar will be shown in lines in interval [start, end] (units are rows).
-  Rows start = Rows(std::round(static_cast<double>(total_rows.read()) *
-                               static_cast<double>(initial_line(options).line) /
-                               lines_size.read()));
+  Rows start = Rows(std::round(
+      static_cast<double>(total_rows.read()) *
+      static_cast<double>(initial_line(options).read()) / lines_size.read()));
   Rows end = start + bar_size;
 
   LineModifierSet modifiers;
@@ -646,8 +646,8 @@ std::vector<std::wstring> ComputePrefixLines(
 
   std::vector<std::wstring> output(screen_size.read(), L"");
   auto get = [&](LineNumber l) -> std::wstring& {
-    CHECK_LT(l.line, output.size());
-    return output[l.line];
+    CHECK_LT(l.read(), output.size());
+    return output[l.read()];
   };
   auto push = [&](LineNumber l, wchar_t c, size_t* indents) {
     std::wstring& target = get(l);
@@ -672,6 +672,8 @@ std::vector<std::wstring> ComputePrefixLines(
     *indents = target.size();
     target.push_back(c);
   };
+  // TODO(medium, 2022-06-06): Fix the wiring for boxes where the lines go
+  // upwards.
   for (BoxIndex i = 0; i < boxes.size(); ++i) {
     if (downwards(i)) {
       LineNumber l = boxes[i].position + boxes[i].box.size - LineNumberDelta(1);
@@ -707,7 +709,7 @@ std::vector<std::wstring> ComputePrefixLines(
     }
     // Add indents for all lines overlapping with the current box.
     for (LineNumberDelta l; l < b.box.size; ++l) {
-      std::wstring& target = output[(b.position + l).line];
+      std::wstring& target = output[(b.position + l).read()];
       CHECK_LE(target.size(), indents);
       target.resize(indents, target.empty() || target.back() == L'╮' ||
                                      target.back() == L'│' ||
@@ -744,13 +746,13 @@ ColumnsVector::Column BufferMetadataOutput(
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
     if (Range range = options.screen_lines[i.ToDelta().read()].range;
         range.begin.line < LineNumber(0) + options.buffer.lines_size()) {
-      metadata_by_line[i.line] = Prepare(options, range);
+      metadata_by_line[i.read()] = Prepare(options, range);
     }
   }
 
   std::list<Box> boxes_input;
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
-    const std::list<MetadataLine>& v = metadata_by_line[i.line];
+    const std::list<MetadataLine>& v = metadata_by_line[i.read()];
     if (!v.empty() &&
         (v.size() != 1 || v.front().type != MetadataLine::Type::kDefault)) {
       boxes_input.push_back(
@@ -766,7 +768,7 @@ ColumnsVector::Column BufferMetadataOutput(
 
   for (auto& b : boxes) {
     VLOG(5) << "Received output box: " << b;
-    CHECK_GE(LineNumberDelta(metadata_by_line[b.box.reference.line].size()),
+    CHECK_GE(LineNumberDelta(metadata_by_line[b.box.reference.read()].size()),
              b.box.size);
   }
 
@@ -778,21 +780,21 @@ ColumnsVector::Column BufferMetadataOutput(
   ColumnsVector::Column output;
   size_t box_index = 0;
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
-    CHECK_LT(i.line, metadata_by_line.size());
+    CHECK_LT(i.read(), metadata_by_line.size());
     size_t source;
     if (box_index == boxes.size() || boxes[box_index].position > i) {
-      if (metadata_by_line[i.line].empty()) continue;
-      CHECK(!metadata_by_line[i.line].empty());
-      source = i.line;
+      if (metadata_by_line[i.read()].empty()) continue;
+      CHECK(!metadata_by_line[i.read()].empty());
+      source = i.read();
     } else {
-      source = boxes[box_index].box.reference.line;
+      source = boxes[box_index].box.reference.read();
       if (metadata_by_line[source].size() == 1) ++box_index;
     }
     CHECK_LT(source, metadata_by_line.size());
     CHECK(!metadata_by_line[source].empty());
     MetadataLine& metadata_line = metadata_by_line[source].front();
 
-    std::wstring prefix = prefix_lines[i.line];
+    std::wstring prefix = prefix_lines[i.read()];
     output.lines.width =
         std::max(output.lines.width, width(prefix, metadata_line));
     output.lines.lines.push_back(

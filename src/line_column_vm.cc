@@ -96,7 +96,7 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
 
   line_column->AddField(
       L"line", NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
-        return static_cast<int>(line_column.line.line);
+        return static_cast<int>(line_column.line.read());
       }));
 
   line_column->AddField(
@@ -108,7 +108,7 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
   line_column->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
-        return std::to_wstring(line_column.line.line) + L", " +
+        return std::to_wstring(line_column.line.read()) + L", " +
                std::to_wstring(line_column.column.read());
       }));
 

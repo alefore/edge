@@ -104,7 +104,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
   for (LineNumber line;
        line.ToDelta() < LineNumberDelta(generator_by_line_column.size());
        ++line) {
-    auto& line_input = generator_by_line_column[line.line];
+    auto& line_input = generator_by_line_column[line.read()];
     output.lines.push_back(LineWithCursor::Generator{
         .inputs_hash = CombineHashes(line_input, *columns_vector),
         .generate = [line, line_input = std::move(line_input),
@@ -119,9 +119,9 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
           for (size_t i = 0; i < line_input.size(); i++) {
             ColumnNumberDelta padding_needed = initial_column - columns_shown;
             if (columns_vector->columns[i].padding.size() > i &&
-                columns_vector->columns[i].padding[line.line].has_value()) {
+                columns_vector->columns[i].padding[line.read()].has_value()) {
               options.Append(GeneratePadding(
-                  *columns_vector->columns[i].padding[line.line],
+                  *columns_vector->columns[i].padding[line.read()],
                   padding_needed));
             } else {
               options.AppendString(PaddingString(padding_needed, L' '),

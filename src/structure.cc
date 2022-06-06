@@ -302,7 +302,7 @@ Structure* StructureLine() {
                                                   const Modifiers& modifiers,
                                                   LineColumn position,
                                                   int calls) override {
-      size_t lines = buffer.EndLine().line;
+      size_t lines = buffer.EndLine().read();
       position.line =
           LineNumber(ComputePosition(0, lines, lines, modifiers.direction,
                                      modifiers.repetitions.value_or(1), calls));
@@ -316,7 +316,7 @@ Structure* StructureLine() {
       int direction = (modifiers.direction == Direction::kBackwards ? -1 : 1);
       size_t repetitions = modifiers.repetitions.value_or(1);
       if (modifiers.direction == Direction::kBackwards &&
-          repetitions > position.line.line) {
+          repetitions > position.line.read()) {
         position = LineColumn();
       } else {
         VLOG(5) << "Move: " << position.line << " " << direction << " "

@@ -288,7 +288,7 @@ NavigateState InitialState(EditorState& editor_state) {
       return position;
     };
     initial_state.navigate_options.position_to_index = [](LineColumn position) {
-      return position.line.line;
+      return position.line.read();
     };
   } else {
     editor_state.status().SetInformationText(

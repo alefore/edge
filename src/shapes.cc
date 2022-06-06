@@ -103,7 +103,7 @@ void FindBoundariesLine(
 struct Point {
   static Point New(LineColumn position) {
     return Point{.x = static_cast<double>(position.column.read()),
-                 .y = static_cast<double>(position.line.line)};
+                 .y = static_cast<double>(position.line.read())};
   }
 
   LineColumn ToLineColumn() {

@@ -55,7 +55,7 @@ class ScreenCurses : public Screen {
   }
 
   void Move(LineColumn position) override {
-    move(position.line.line, position.column.read());
+    move(position.line.read(), position.column.read());
   }
   void WriteString(const NonNull<std::shared_ptr<LazyString>>& s) override {
     static Tracker tracker(L"ScreenCurses::WriteString");

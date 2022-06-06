@@ -215,7 +215,8 @@ const bool position_before_tests_registration = tests::Register(
      {.name = L"EmptyBufferZeroLine",
       .callback =
           [] {
-            CHECK_EQ(BufferContents().PositionBefore({{}, ColumnNumber(10)}),
+            CHECK_EQ(BufferContents().PositionBefore(
+                         {LineNumber(), ColumnNumber(10)}),
                      LineColumn());
           }},
      {.name = L"EmptyBufferNormalLineColumn",
@@ -233,17 +234,17 @@ const bool position_before_tests_registration = tests::Register(
      {.name = L"NormalBufferZeroLineNormalColumn",
       .callback =
           [] {
-            CHECK_EQ(
-                BufferContentsForTests().PositionBefore({{}, ColumnNumber(4)}),
-                LineColumn(LineNumber(), ColumnNumber(3)));
+            CHECK_EQ(BufferContentsForTests().PositionBefore(
+                         {LineNumber(), ColumnNumber(4)}),
+                     LineColumn(LineNumber(), ColumnNumber(3)));
           }},
      {.name = L"NormalBufferZeroLineLargeColumn",
       .callback =
           [] {
-            CHECK_EQ(
-                BufferContentsForTests().PositionBefore({{}, ColumnNumber(30)}),
-                LineColumn(LineNumber(),
-                           ColumnNumber(sizeof("alejandro") - 1)));
+            CHECK_EQ(BufferContentsForTests().PositionBefore(
+                         {LineNumber(), ColumnNumber(30)}),
+                     LineColumn(LineNumber(),
+                                ColumnNumber(sizeof("alejandro") - 1)));
           }},
      {.name = L"NormalBufferNormalLineZeroColumn",
       .callback =
@@ -299,7 +300,8 @@ const bool position_after_tests_registration = tests::Register(
      {.name = L"EmptyBufferZeroLine",
       .callback =
           [] {
-            CHECK_EQ(BufferContents().PositionAfter({{}, ColumnNumber(10)}),
+            CHECK_EQ(BufferContents().PositionAfter(
+                         {LineNumber(0), ColumnNumber(10)}),
                      LineColumn());
           }},
      {.name = L"EmptyBufferNormalLineColumn",
@@ -318,23 +320,24 @@ const bool position_after_tests_registration = tests::Register(
      {.name = L"NormalBufferZeroLineNormalColumn",
       .callback =
           [] {
-            CHECK_EQ(
-                BufferContentsForTests().PositionAfter({{}, ColumnNumber(4)}),
-                LineColumn(LineNumber(), ColumnNumber(5)));
+            CHECK_EQ(BufferContentsForTests().PositionAfter(
+                         {LineNumber(0), ColumnNumber(4)}),
+                     LineColumn(LineNumber(), ColumnNumber(5)));
           }},
      {.name = L"NormalBufferZeroLineEndColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter(
-                         {{}, ColumnNumber(sizeof("alejandro") - 1)}),
-                     LineColumn(LineNumber(1), ColumnNumber(0)));
+            CHECK_EQ(
+                BufferContentsForTests().PositionAfter(
+                    {LineNumber(0), ColumnNumber(sizeof("alejandro") - 1)}),
+                LineColumn(LineNumber(1), ColumnNumber(0)));
           }},
      {.name = L"NormalBufferZeroLineLargeColumn",
       .callback =
           [] {
-            CHECK_EQ(
-                BufferContentsForTests().PositionAfter({{}, ColumnNumber(30)}),
-                LineColumn(LineNumber(1), ColumnNumber(0)));
+            CHECK_EQ(BufferContentsForTests().PositionAfter(
+                         {LineNumber(0), ColumnNumber(30)}),
+                     LineColumn(LineNumber(1), ColumnNumber(0)));
           }},
      {.name = L"NormalBufferNormalLineZeroColumn",
       .callback =
@@ -424,8 +427,8 @@ void BufferContents::insert(LineNumber position_line,
                             const BufferContents& source,
                             const std::optional<LineModifierSet>& modifiers) {
   CHECK_LE(position_line, EndLine());
-  auto prefix = Lines::Prefix(lines_, position_line.line);
-  auto suffix = Lines::Suffix(lines_, position_line.line);
+  auto prefix = Lines::Prefix(lines_, position_line.read());
+  auto suffix = Lines::Suffix(lines_, position_line.read());
   Lines::Every(source.lines_, [&](NonNull<std::shared_ptr<const Line>> line) {
     VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
             << (modifiers.has_value() ? modifiers->size() : -1);
@@ -480,10 +483,10 @@ void BufferContents::insert_line(LineNumber line_position,
                                  NonNull<std::shared_ptr<const Line>> line) {
   LOG(INFO) << "Inserting line at position: " << line_position;
   size_t original_size = Lines::Size(lines_);
-  auto prefix = Lines::Prefix(lines_, line_position.line);
-  CHECK_EQ(Lines::Size(prefix), line_position.line);
-  auto suffix = Lines::Suffix(lines_, line_position.line);
-  CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.line);
+  auto prefix = Lines::Prefix(lines_, line_position.read());
+  CHECK_EQ(Lines::Size(prefix), line_position.read());
+  auto suffix = Lines::Suffix(lines_, line_position.read());
+  CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.read());
   lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
   CHECK_EQ(Lines::Size(lines_), original_size + 1);
   update_listener_(CursorsTracker::Transformation()
@@ -500,7 +503,7 @@ void BufferContents::set_line(LineNumber position,
     return push_back(line);
   }
 
-  lines_ = lines_->Replace(position.line, std::move(line));
+  lines_ = lines_->Replace(position.read(), std::move(line));
   // TODO: Why no notify update listeners?
 }
 
@@ -562,8 +565,8 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
   CHECK_LE(first, last);
   CHECK_LE(last, LineNumber(0) + size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
-  lines_ = Lines::Append(Lines::Prefix(lines_, first.line),
-                         Lines::Suffix(lines_, last.line));
+  lines_ = Lines::Append(Lines::Prefix(lines_, first.read()),
+                         Lines::Suffix(lines_, last.read()));
 
   if (lines_ == nullptr) {
     lines_ = Lines::PushBack(nullptr, {});
@@ -695,14 +698,14 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
-        line_number = line_number % size();
+        line_number = LineNumber(line_number % size());
         insert_line(line_number, MakeNonNullShared<const Line>(Line::Options(
                                      NewLazyString(std::move(text.value)))));
       })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
-        line_number = line_number % size();
+        line_number = LineNumber(line_number % size());
         set_line(line_number, MakeNonNullShared<const Line>(Line::Options(
                                   NewLazyString(std::move(text.value)))));
       })));
@@ -717,14 +720,14 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
 
   output.push_back(Call(std::function<void(LineNumber, LineNumber)>(
       [this](LineNumber a, LineNumber b) {
-        a = a % size();
-        b = b % size();
+        a = LineNumber(a % size());
+        b = LineNumber(b % size());
         EraseLines(std::min(a, b), std::max(a, b), CursorsBehavior::kAdjust);
       })));
 
   output.push_back(
       Call(std::function<void(LineColumn)>([this](LineColumn position) {
-        position.line = position.line % size();
+        position.line = LineNumber(position.line % size());
         auto line = at(position.line);
         if (line->empty()) {
           position.column = ColumnNumber(0);
@@ -737,9 +740,9 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
 
   output.push_back(
       Call(std::function<void(LineNumber)>([this](LineNumber line) {
-        static const int kMargin = 10;
+        static const LineNumberDelta kMargin(10);
         // TODO: Declare a operator% for LineNumber and avoid the roundtrip.
-        FoldNextLine(LineNumber(line.line % (Lines::Size(lines_) + kMargin)));
+        FoldNextLine(LineNumber(line % (size() + kMargin)));
       })));
 
   output.push_back(Call(std::function<void(ShortRandomLine)>(

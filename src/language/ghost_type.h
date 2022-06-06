@@ -148,6 +148,13 @@
     }                                                                    \
                                                                          \
     template <typename V = ClassName>                                    \
+    ClassName PlusHandlingOverflow(const DeltaName& delta) const {       \
+      const size_t& (V::*read_callback)() const = &V::read;              \
+      (void)read_callback;                                               \
+      return ToDelta() > -delta ? *this + delta : ClassName(0);          \
+    }                                                                    \
+                                                                         \
+    template <typename V = ClassName>                                    \
     ClassName previous() const {                                         \
       const size_t& (V::*read_callback)() const = &V::read;              \
       (void)read_callback;                                               \
@@ -169,6 +176,8 @@
     GHOST_TYPE_OPERATOR_FRIEND(ClassName, DeltaName);                    \
     friend ClassName& operator+=(ClassName& a, const DeltaName& value);  \
     friend ClassName& operator-=(ClassName& a, const DeltaName& value);  \
+    friend int operator/(const ClassName& a, const DeltaName& b);        \
+    friend int operator%(const ClassName& a, const DeltaName& b);        \
     GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);                          \
     GHOST_TYPE_HASH_FRIEND(ClassName, value);                            \
     VariableType value = VariableType();                                 \
@@ -327,6 +336,14 @@
 #define GHOST_TYPE_NUMBER_OPERATORS_DELTA(ClassName, DeltaName)        \
   inline DeltaName operator-(const ClassName& a, const ClassName& b) { \
     return DeltaName(a.read() - b.read());                             \
+  }                                                                    \
+                                                                       \
+  inline int operator/(const ClassName& a, const DeltaName& b) {       \
+    return a.read() / ClassName::PrepareForOperator(b);                \
+  }                                                                    \
+                                                                       \
+  inline int operator%(const ClassName& a, const DeltaName& b) {       \
+    return a.read() % ClassName::PrepareForOperator(b);                \
   }                                                                    \
                                                                        \
   inline ClassName& operator+=(ClassName& a, const DeltaName& value) { \

@@ -1892,7 +1892,11 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
         output.insert({L"☰ ", L""});
         break;
       default:
-        output.insert({L"☰ ", contents_.EndLine().ToUserString()});
+        // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types
+        // and use it here.
+        output.insert(
+            {L"☰ ", std::to_wstring(
+                        (contents_.EndLine() + LineNumberDelta(1)).read())});
     }
     if (Read(buffer_variables::follow_end_of_file)) {
       output.insert({L"↓", L""});

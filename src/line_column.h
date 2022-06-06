@@ -19,7 +19,7 @@ namespace editor {
 
 class LazyString;
 
-GHOST_TYPE_INT(LineNumberDelta);
+GHOST_TYPE_NUMBER_WITH_DELTA(LineNumber, size_t, LineNumberDelta, int);
 GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
 
 // Generates a string of the length specified by `this` filled up with the
@@ -44,51 +44,6 @@ std::ostream& operator<<(std::ostream& os, const LineColumnDelta& lc);
 bool operator==(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator<(const LineColumnDelta& a, const LineColumnDelta& b);
-
-struct LineNumber {
-  LineNumber() = default;
-  explicit LineNumber(size_t column);
-
-  LineNumberDelta ToDelta() const;
-
-  // Starts counting from 1 (i.e. LineNumber(5).ToUserString() evaluates to
-  // L"6").
-  std::wstring ToUserString() const;
-  std::wstring Serialize() const;
-
-  LineNumber next() const;
-  LineNumber previous() const;
-
-  // a.MinusHadlingOverflow(value) is equivalent to `a - value` if `a` is
-  // greater than or equal to `value` (and `LineNumber(0)` otherwise).
-  LineNumber MinusHandlingOverflow(const LineNumberDelta& value) const;
-  // Similar to `MinusHandlingOverflow`, but adds the value. This makes sense
-  // for the case when
-  LineNumber PlusHandlingOverflow(const LineNumberDelta& value) const;
-
-  bool IsZero() const;
-
-  size_t line = 0;
-};
-
-bool operator==(const LineNumber& a, const LineNumber& b);
-bool operator!=(const LineNumber& a, const LineNumber& b);
-bool operator<(const LineNumber& a, const LineNumber& b);
-bool operator<=(const LineNumber& a, const LineNumber& b);
-bool operator>(const LineNumber& a, const LineNumber& b);
-bool operator>=(const LineNumber& a, const LineNumber& b);
-LineNumber& operator+=(LineNumber& a, const LineNumberDelta& delta);
-LineNumber& operator-=(LineNumber& a, const LineNumberDelta& delta);
-LineNumber& operator++(LineNumber& a);
-LineNumber operator++(LineNumber& a, int);
-LineNumber& operator--(LineNumber& a);
-LineNumber operator--(LineNumber& a, int);
-LineNumber operator%(LineNumber a, const LineNumberDelta& delta);
-LineNumber operator+(LineNumber a, const LineNumberDelta& delta);
-LineNumber operator-(LineNumber a, const LineNumberDelta& delta);
-LineNumber operator-(LineNumber a);
-LineNumberDelta operator-(const LineNumber& a, const LineNumber& b);
-std::ostream& operator<<(std::ostream& os, const LineNumber& lc);
 
 namespace fuzz {
 template <>
@@ -261,7 +216,7 @@ struct hash<afc::editor::ColumnNumber> {
 template <>
 struct hash<afc::editor::LineNumber> {
   std::size_t operator()(const afc::editor::LineNumber& line) const {
-    return std::hash<size_t>()(line.line);
+    return std::hash<size_t>()(line.read());
   }
 };
 template <>

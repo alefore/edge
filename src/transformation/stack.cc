@@ -203,7 +203,7 @@ std::wstring ToString(const ContentStats& stats) {
 }
 
 ContentStats AnalyzeContent(const BufferContents& contents) {
-  ContentStats output{.lines = contents.EndLine().line + 1};
+  ContentStats output{.lines = contents.EndLine().read() + 1};
   contents.ForEach([&output](const Line& line) {
     ColumnNumber i;
     output.characters += line.EndColumn().read();
@@ -233,7 +233,7 @@ const bool analyze_content_tests_registration = tests::Register(
       .callback =
           [] {
             BufferContents contents;
-            contents.AppendToLine({}, Line(L"foo"));
+            contents.AppendToLine(LineNumber(), Line(L"foo"));
             CHECK(AnalyzeContent(contents) ==
                   ContentStats(
                       {.lines = 1, .words = 1, .alnums = 3, .characters = 3}));
@@ -242,7 +242,7 @@ const bool analyze_content_tests_registration = tests::Register(
       .callback =
           [] {
             BufferContents contents;
-            contents.AppendToLine({}, Line(L"foo bar hey alejo"));
+            contents.AppendToLine(LineNumber(), Line(L"foo bar hey alejo"));
             CHECK(AnalyzeContent(contents) ==
                   ContentStats({.lines = 1,
                                 .words = 4,
@@ -253,7 +253,8 @@ const bool analyze_content_tests_registration = tests::Register(
       .callback =
           [] {
             BufferContents contents;
-            contents.AppendToLine({}, Line(L"   foo    bar   hey   alejo   "));
+            contents.AppendToLine(LineNumber(),
+                                  Line(L"   foo    bar   hey   alejo   "));
             CHECK(AnalyzeContent(contents) ==
                   ContentStats({.lines = 1,
                                 .words = 4,

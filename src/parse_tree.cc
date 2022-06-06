@@ -123,8 +123,9 @@ ParseTree SimplifyTree(const ParseTree& tree) {
 namespace {
 std::optional<ParseTree> ZoomOutTree(const ParseTree& input, double ratio) {
   Range range = input.range();
-  range.begin.line.line *= ratio;
-  range.end.line.line *= ratio;
+  // TODO(easy, 2022-06-06): Define an operator*=(..., double).
+  range.begin.line = LineNumber(range.begin.line.read() * ratio);
+  range.end.line = LineNumber(range.end.line.read() * ratio);
   if (range.begin.line == range.end.line) {
     return std::nullopt;
   }

@@ -11,12 +11,11 @@
 #include "src/line_column_vm.h"
 #include "src/vm/public/environment.h"
 
-namespace afc {
+namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
 
 namespace gc = language::gc;
-namespace editor {
 
 NonNull<std::shared_ptr<LazyString>> PaddingString(
     const ColumnNumberDelta& length, wchar_t fill) {
@@ -45,132 +44,6 @@ bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b) {
 
 bool operator<(const LineColumnDelta& a, const LineColumnDelta& b) {
   return a.line < b.line || (a.line == b.line && a.column < b.column);
-}
-
-LineNumber::LineNumber(size_t value) : line(value) {}
-
-LineNumberDelta LineNumber::ToDelta() const { return *this - LineNumber(0); }
-
-std::wstring LineNumber::ToUserString() const {
-  return std::to_wstring(line + 1);
-}
-
-std::wstring LineNumber::Serialize() const { return std::to_wstring(line); }
-
-LineNumber LineNumber::next() const {
-  if (line == std::numeric_limits<size_t>::max()) {
-    return *this;
-  }
-  return LineNumber(line + 1);
-}
-
-LineNumber LineNumber::previous() const {
-  CHECK_GT(line, 0ul);
-  return LineNumber(line - 1);
-}
-
-LineNumber LineNumber::MinusHandlingOverflow(
-    const LineNumberDelta& value) const {
-  return this->ToDelta() > value ? *this - value : LineNumber(0);
-}
-
-LineNumber LineNumber::PlusHandlingOverflow(
-    const LineNumberDelta& value) const {
-  return this->ToDelta() > -value ? *this + value : LineNumber(0);
-}
-
-bool LineNumber::IsZero() const { return *this == LineNumber(); }
-
-bool operator==(const LineNumber& a, const LineNumber& b) {
-  return a.line == b.line;
-}
-
-bool operator!=(const LineNumber& a, const LineNumber& b) {
-  return a.line != b.line;
-}
-
-bool operator<(const LineNumber& a, const LineNumber& b) {
-  return a.line < b.line;
-}
-
-bool operator<=(const LineNumber& a, const LineNumber& b) {
-  return a.line <= b.line;
-}
-
-bool operator>(const LineNumber& a, const LineNumber& b) {
-  return a.line > b.line;
-}
-
-bool operator>=(const LineNumber& a, const LineNumber& b) {
-  return a.line >= b.line;
-}
-
-LineNumber& operator+=(LineNumber& a, const LineNumberDelta& delta) {
-  if (delta < LineNumberDelta()) {
-    CHECK_GE(a.ToDelta(), -delta);
-  }
-
-  a.line += delta.read();
-  return a;
-}
-
-LineNumber& operator-=(LineNumber& a, const LineNumberDelta& delta) {
-  a += -delta;
-  return a;
-}
-
-LineNumber& operator++(LineNumber& a) {
-  a.line++;
-  return a;
-}
-
-LineNumber operator++(LineNumber& a, int) {
-  auto output = a;
-  a.line++;
-  return output;
-}
-
-LineNumber& operator--(LineNumber& a) {
-  a.line--;
-  return a;
-}
-
-LineNumber operator--(LineNumber& a, int) {
-  auto output = a;
-  a.line--;
-  return output;
-}
-
-LineNumber operator%(LineNumber a, const LineNumberDelta& delta) {
-  CHECK_NE(delta, LineNumberDelta(0));
-  return LineNumber(a.line % delta.read());
-}
-
-LineNumber operator+(LineNumber a, const LineNumberDelta& delta) {
-  if (delta < LineNumberDelta(0)) {
-    CHECK_GE(a.ToDelta(), -delta);
-  }
-  a.line += delta.read();
-  return a;
-}
-
-LineNumber operator-(LineNumber a, const LineNumberDelta& delta) {
-  if (delta > LineNumberDelta()) {
-    CHECK_GE(a.ToDelta(), delta);
-  }
-  a.line -= delta.read();
-  return a;
-}
-
-LineNumber operator-(const LineNumber& a) { return LineNumber(-a.line); }
-
-LineNumberDelta operator-(const LineNumber& a, const LineNumber& b) {
-  return LineNumberDelta(a.line - b.line);
-}
-
-std::ostream& operator<<(std::ostream& os, const LineNumber& lc) {
-  os << "[Line " << lc.line << "]";
-  return os;
 }
 
 namespace fuzz {
@@ -203,7 +76,7 @@ std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
   os << "["
      << (lc.line == std::numeric_limits<LineNumber>::max()
              ? "inf"
-             : std::to_string(lc.line.line))
+             : std::to_string(lc.line.read()))
      << ":"
      << (lc.column == std::numeric_limits<ColumnNumber>::max()
              ? "inf"
@@ -217,11 +90,15 @@ bool LineColumn::operator!=(const LineColumn& other) const {
 }
 
 std::wstring LineColumn::ToString() const {
-  return std::to_wstring(line.line) + L" " + std::to_wstring(column.read());
+  // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types and use
+  // it here.
+  return std::to_wstring(line.read()) + L" " + std::to_wstring(column.read());
 }
 
 std::wstring LineColumn::Serialize() const {
-  return L"LineColumn(" + line.Serialize() + L", " +
+  // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types and use
+  // it here.
+  return L"LineColumn(" + std::to_wstring(line.read()) + L", " +
          std::to_wstring(column.read()) + L")";
 }
 
@@ -277,7 +154,7 @@ LineColumn LineColumn::operator+(const LineColumnDelta& value) const {
 }
 
 std::wstring LineColumn::ToCppString() const {
-  return L"LineColumn(" + std::to_wstring(line.line) + L", " +
+  return L"LineColumn(" + std::to_wstring(line.read()) + L", " +
          std::to_wstring(column.read()) + L")";
 }
 
@@ -295,7 +172,4 @@ namespace fuzz {
   return output;
 }
 }  // namespace fuzz
-
-}  // namespace editor
-
-}  // namespace afc
+}  // namespace afc::editor

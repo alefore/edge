@@ -88,7 +88,7 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
   LineWithCursor::Generator::Vector lines = GetLines(editor_state, screen);
   CHECK_EQ(lines.size(), screen_size.line);
   for (LineNumber line; line.ToDelta() < screen_size.line; ++line)
-    WriteLine(screen, line, lines.lines[line.line]);
+    WriteLine(screen, line, lines.lines[line.read()]);
 
   if (editor_state.status().GetType() == Status::Type::kPrompt ||
       (buffer.has_value() &&
@@ -154,7 +154,7 @@ void Terminal::WriteLine(Screen& screen, LineNumber line,
   static Tracker tracker(L"Terminal::WriteLine");
   auto call = tracker.Call();
 
-  if (hashes_current_lines_.size() <= line.line) {
+  if (hashes_current_lines_.size() <= line.read()) {
     CHECK_LT(line.ToDelta(), screen.size().line);
     hashes_current_lines_.resize((screen.size().line * 2 + 50).read());
   }
@@ -166,7 +166,7 @@ void Terminal::WriteLine(Screen& screen, LineNumber line,
   LineDrawer no_hash_drawer;
   LineDrawer* drawer;
   if (generator.inputs_hash.has_value()) {
-    if (hashes_current_lines_[line.line] == generator.inputs_hash.value()) {
+    if (hashes_current_lines_[line.read()] == generator.inputs_hash.value()) {
       return;
     }
     drawer = lines_cache_.Get(generator.inputs_hash.value(), factory);
@@ -178,7 +178,7 @@ void Terminal::WriteLine(Screen& screen, LineNumber line,
   VLOG(8) << "Generating line for screen: " << line;
   screen.Move(LineColumn(line));
   drawer->draw_callback(screen);
-  hashes_current_lines_[line.line] = generator.inputs_hash;
+  hashes_current_lines_[line.read()] = generator.inputs_hash;
   if (drawer->cursor.has_value()) {
     cursor_position_ = LineColumn(line, drawer->cursor.value());
   }
