@@ -62,7 +62,7 @@ class GotoCommand : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t c) {
+  void ProcessInput(wint_t c) override {
     if (c != 'g') {
       auto old_mode = editor_state_.set_keyboard_redirect(nullptr);
       editor_state_.ProcessInput(c);
