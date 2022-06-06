@@ -69,11 +69,9 @@ class ScreenVm : public Screen {
   }
 
   void Move(LineColumn position) override {
-    // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types and
-    // use it here.
     buffer_ += "screen.Move(LineColumn(" +
-               std::to_string(position.line.read()) + ", " +
-               std::to_string(position.column.read()) + "));";
+               ToByteString(to_wstring(position.line)) + ", " +
+               ToByteString(to_wstring(position.column)) + "));";
   }
 
   void WriteString(const NonNull<std::shared_ptr<LazyString>>& str) override {
@@ -105,6 +103,7 @@ class ScreenVm : public Screen {
     buffer_.clear();
   }
 
+  // TODO(easy, 2022-06-06): Turn this into a LazyString? Serialize it at once?
   std::string buffer_;
   const FileDescriptor fd_;
   LineColumnDelta size_ =

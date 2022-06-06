@@ -111,6 +111,7 @@ src/insert_history_buffer.cc \
 src/insert_history_buffer.h \
 src/insert_mode.cc \
 src/language/function_traits.h \
+src/language/ghost_type.cc \
 src/language/ghost_type.h \
 src/language/gc.cc \
 src/language/gc.h \

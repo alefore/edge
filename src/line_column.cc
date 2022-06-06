@@ -90,16 +90,11 @@ bool LineColumn::operator!=(const LineColumn& other) const {
 }
 
 std::wstring LineColumn::ToString() const {
-  // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types and use
-  // it here.
-  return std::to_wstring(line.read()) + L" " + std::to_wstring(column.read());
+  return to_wstring(line) + L" " + to_wstring(column);
 }
 
 std::wstring LineColumn::Serialize() const {
-  // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types and use
-  // it here.
-  return L"LineColumn(" + std::to_wstring(line.read()) + L", " +
-         std::to_wstring(column.read()) + L")";
+  return L"LineColumn(" + to_wstring(line) + L", " + to_wstring(column) + L")";
 }
 
 /* static */ Range Range::InLine(LineNumber line, ColumnNumber column,
@@ -154,8 +149,7 @@ LineColumn LineColumn::operator+(const LineColumnDelta& value) const {
 }
 
 std::wstring LineColumn::ToCppString() const {
-  return L"LineColumn(" + std::to_wstring(line.read()) + L", " +
-         std::to_wstring(column.read()) + L")";
+  return L"LineColumn(" + to_wstring(line) + L", " + to_wstring(column) + L")";
 }
 
 namespace fuzz {

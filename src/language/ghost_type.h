@@ -76,6 +76,7 @@
 #define __AFC_EDITOR_GHOST_TYPE_H__
 
 #include <functional>
+#include <string>
 
 #define GHOST_TYPE(ClassName, VariableType)                 \
   class ClassName {                                         \
@@ -454,14 +455,24 @@
     return (value.*f)(std::forward<ContainerType::value_type>(v)); \
   }
 
-#define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable) \
-  friend std::ostream& operator<<(std::ostream& os, const ClassName& obj)
+#define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable)                      \
+  friend std::ostream& operator<<(std::ostream& os, const ClassName& obj); \
+  friend std::wstring to_wstring(const ClassName& obj);
 
 #define GHOST_TYPE_OUTPUT(ClassName, variable)                              \
   inline std::ostream& operator<<(std::ostream& os, const ClassName& obj) { \
     using ::operator<<;                                                     \
     os << "[" #ClassName ":" << obj.variable << "]";                        \
     return os;                                                              \
+  }                                                                         \
+  inline std::wstring to_wstring(const ClassName& obj) {                    \
+    using std::to_wstring;                                                  \
+    using afc::language::to_wstring;                                        \
+    return to_wstring(obj.variable);                                        \
   }
+
+namespace afc::language {
+std::wstring to_wstring(std::wstring s);
+}  // namespace afc::language
 
 #endif  //__AFC_EDITOR_GHOST_TYPE_H__

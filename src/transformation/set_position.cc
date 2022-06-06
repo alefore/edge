@@ -40,14 +40,11 @@ futures::Value<Result> ApplyBase(const SetPosition& parameters, Input input) {
 }
 
 std::wstring ToStringBase(const SetPosition& v) {
-  // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types and use
-  // it here.
   if (v.line.has_value()) {
     return L"SetPositionTransformation(LineColumn(" +
-           std::to_wstring(v.line.value().read()) + L", " +
-           std::to_wstring(v.column.read()) + L"))";
+           to_wstring(v.line.value()) + L", " + to_wstring(v.column) + L"))";
   }
-  return L"SetColumnTransformation(" + std::to_wstring(v.column.read()) + L")";
+  return L"SetColumnTransformation(" + to_wstring(v.column) + L")";
 }
 
 SetPosition OptimizeBase(SetPosition transformation) { return transformation; }

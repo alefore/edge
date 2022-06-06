@@ -52,24 +52,19 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
   if (options.buffer != nullptr &&
       options.status.GetType() != Status::Type::kWarning) {
     output.push_back('[');
-    // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types and
-    // use it here.
     if (options.buffer->current_position_line() >
         options.buffer->contents().EndLine()) {
       output += L"<EOF>";
     } else {
-      output += std::to_wstring(
-          (options.buffer->current_position_line() + LineNumberDelta(1))
-              .read());
+      output += to_wstring(options.buffer->current_position_line() +
+                           LineNumberDelta(1));
     }
-    output += L" of " +
-              std::to_wstring(
-                  (options.buffer->contents().EndLine() + LineNumberDelta(1))
-                      .read()) +
-              L", " +
-              std::to_wstring((options.buffer->current_position_col() +
-                               ColumnNumberDelta(1))
-                                  .read());
+    output +=
+        L" of " +
+        to_wstring(options.buffer->contents().EndLine() + LineNumberDelta(1)) +
+        L", " +
+        to_wstring(options.buffer->current_position_col() +
+                   ColumnNumberDelta(1));
     output += L"] ";
 
     auto marks_text = options.buffer->GetLineMarksText();

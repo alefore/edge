@@ -31,7 +31,7 @@ using language::MakeNonNullShared;
     LineNumberDelta lines_size) {
   static const ColumnNumberDelta kColon(1);
   // We don't subtract LineNumberDelta(1): humans start counting from 1.
-  return kColon + ColumnNumberDelta(std::to_wstring(lines_size.read()).size());
+  return kColon + ColumnNumberDelta(to_wstring(lines_size).size());
 }
 
 LineWithCursor::Generator::Vector LineNumberOutput(
@@ -60,12 +60,9 @@ LineWithCursor::Generator::Vector LineNumberOutput(
     output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
         [](Range range, ColumnNumberDelta width,
            HashableContainer<LineModifierSet> modifiers) {
-          // TODO(easy, 2022-06-06): Define a to_wstring version for ghost types
-          // and use it here.
           std::wstring number =
               range.begin.column.IsZero()
-                  ? std::to_wstring(
-                        (range.begin.line + LineNumberDelta(1)).read())
+                  ? to_wstring(range.begin.line + LineNumberDelta(1))
                   : L"↪";
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
           language::NonNull<std::shared_ptr<LazyString>> padding =
