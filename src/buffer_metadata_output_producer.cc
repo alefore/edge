@@ -644,60 +644,92 @@ std::vector<std::wstring> ComputePrefixLines(
     return box.box.reference < boxes[i].position;
   };
 
+  // We group them into consecutive sub-groups such that each subgroup starts
+  // with a section of non-upwards boxes, followed by a section of consecutive
+  // upward boxes. We represent each group simply by remembering its first
+  // index.
+  std::vector<BoxIndex> box_groups;
+  {
+    BoxIndex index = 0;
+    while (index < boxes.size()) {
+      box_groups.push_back(index);
+      while (index < boxes.size() && !upwards(index)) index++;
+      while (index < boxes.size() && upwards(index)) index++;
+    }
+  }
+
   std::vector<std::wstring> output(screen_size.read(), L"");
   auto get = [&](LineNumber l) -> std::wstring& {
     CHECK_LT(l.read(), output.size());
     return output[l.read()];
   };
   auto push = [&](LineNumber l, wchar_t c, size_t* indents) {
-    std::wstring& target = get(l);
-    size_t padding = target.size() < *indents ? *indents - target.size() : 0;
+    bool padding_dash = false;
     switch (c) {
-      case L'╭':
-        target += std::wstring(padding, L' ');
-        break;
       case L'╮':
-        target += std::wstring(padding, L'─');
-        break;
-      case L'│':
-        target += std::wstring(padding, L' ');
-        break;
       case L'╯':
-        target += std::wstring(padding, L'─');
+      case L'─':
+        padding_dash = true;
         break;
+      case L'╭':
+      case L'│':
       case L'╰':
-        target += std::wstring(padding, L' ');
         break;
+      default:
+        LOG(FATAL) << "Unexpected character: " << static_cast<int>(c);
     }
-    *indents = target.size();
-    target.push_back(c);
+    std::wstring& target = get(l);
+    size_t padding_size =
+        target.size() < *indents ? *indents - target.size() : 0;
+    target += std::wstring(padding_size, padding_dash ? L'─' : L' ') +
+              std::wstring(1, c);
+    *indents = target.size() - 1;
   };
-  // TODO(medium, 2022-06-06): Fix the wiring for boxes where the lines go
-  // upwards.
-  for (BoxIndex i = 0; i < boxes.size(); ++i) {
-    if (downwards(i)) {
-      LineNumber l = boxes[i].position + boxes[i].box.size - LineNumberDelta(1);
-      size_t indents = 0;
-      push(l, L'╭', &indents);
-      ++l;
-      while (l < boxes[i].box.reference) {
-        push(l, L'│', &indents);
+
+  for (BoxIndex start : box_groups) {
+    BoxIndex index = start;
+    VLOG(5) << "Inserting lines for !upwards boxes at section: " << index;
+    while (index < boxes.size() && !upwards(index)) {
+      if (downwards(index)) {
+        LineNumber l =
+            boxes[index].position + boxes[index].box.size - LineNumberDelta(1);
+        size_t indents = 0;
+        push(l, L'╭', &indents);
+        ++l;
+        while (l < boxes[index].box.reference) {
+          push(l, L'│', &indents);
+          ++l;
+        }
+        push(l, L'╯', &indents);
+      } else {
+        size_t indents = 0;
+        push(boxes[index].box.reference, L'─', &indents);
+      }
+      index++;
+    }
+
+    if (index < boxes.size()) {
+      VLOG(5)
+          << "Detecting end of consecutive set of upwards boxes starting at: "
+          << index;
+      const BoxIndex first_upwards = index;
+      while (index + 1 < boxes.size() && upwards(index + 1)) index++;
+      CHECK_GE(index, first_upwards);
+
+      VLOG(5) << "Adding lines for upwards boxes in reverse order, from "
+              << index << " to " << first_upwards;
+      for (; index >= first_upwards; index--) {
+        LineNumber l = boxes[index].position;
+        size_t indents = 0;
+        push(l, L'╰', &indents);
+        --l;
+        while (l > boxes[index].box.reference) {
+          push(l, L'│', &indents);
+          --l;
+        }
+        push(l, L'╮', &indents);
         ++l;
       }
-      push(l, L'╯', &indents);
-    } else if (upwards(i)) {
-      LineNumber l = boxes[i].box.reference;
-      size_t indents = 0;
-      push(l, L'╮', &indents);
-      ++l;
-      while (l < boxes[i].position) {
-        push(l, L'│', &indents);
-        ++l;
-      }
-      push(l, L'╰', &indents);
-    } else {
-      size_t indents = 0;
-      push(boxes[i].box.reference, L'─', &indents);
     }
   }
   for (const auto& b : boxes) {
