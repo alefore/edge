@@ -96,13 +96,14 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
             .simplified_tree = simplified_tree,
             .zoomed_out_tree = MakeNonNullShared<const ParseTree>(
                 ZoomOutTree(simplified_tree.value(), lines_size, view_size))};
-        data_ptr->lock([view_size, &output](Data& data) {
-          if (data.simplified_tree != output.simplified_tree) {
+        data_ptr->lock([view_size, &output](Data& data_nested) {
+          if (data_nested.simplified_tree != output.simplified_tree) {
             LOG(INFO) << "Parse tree changed in the meantime, discarding.";
             return;
           }
           LOG(INFO) << "Installing tree.";
-          data.zoomed_out_trees.insert_or_assign(view_size, std::move(output));
+          data_nested.zoomed_out_trees.insert_or_assign(view_size,
+                                                        std::move(output));
         });
         observers->Notify();
       });
