@@ -11,6 +11,8 @@ using language::NonNull;
 NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
     NonNull<std::shared_ptr<LazyString>> source,
     std::wstring space_characters) {
+  // TODO(easy, 2022-06-08): Add a tracker to see if we're spending too much
+  // time here. This could be optimized by turning space_characters into a set.
   return Substring(
       source, FindFirstColumnWithPredicate(source.value(), [&](ColumnNumber,
                                                                wchar_t c) {
