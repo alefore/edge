@@ -123,6 +123,8 @@ src/language/lazy_string/functional.cc \
 src/language/lazy_string/functional.h \
 src/language/lazy_string/lazy_string.cc \
 src/language/lazy_string/lazy_string.h \
+src/language/lazy_string/substring.cc \
+src/language/lazy_string/substring.h \
 src/language/lazy_string/trim.cc \
 src/language/lazy_string/trim.h \
 src/language/observers.h \
@@ -213,7 +215,6 @@ src/status.h \
 src/status_output_producer.cc \
 src/status_output_producer.h \
 src/structure.cc \
-src/substring.cc \
 src/terminal.cc \
 src/tests/benchmarks.cc \
 src/tests/benchmarks.h \

@@ -4,8 +4,8 @@
 
 #include "src/const_tree.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/line_column.h"
 
 namespace afc {
 namespace editor {

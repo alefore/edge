@@ -1,10 +1,10 @@
-#include "src/substring.h"
+#include "src/language/lazy_string/substring.h"
 
 #include <glog/logging.h>
 
 #include <algorithm>
 
-#include "src/line_column.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::editor {
 using language::MakeNonNullShared;

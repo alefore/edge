@@ -3,7 +3,6 @@
 
 #include <memory>
 
-#include "line_column.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 

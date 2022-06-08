@@ -8,8 +8,8 @@
 
 #include "src/char_buffer.h"
 #include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/substring.h"
 #include "src/language/wstring.h"
-#include "src/substring.h"
 
 namespace afc::editor {
 using language::EmptyValue;

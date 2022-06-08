@@ -3,7 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/language/lazy_string/functional.h"
-#include "src/substring.h"
+#include "src/language/lazy_string/substring.h"
 
 namespace afc::editor {
 using language::NonNull;
