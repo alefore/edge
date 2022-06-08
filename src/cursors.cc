@@ -7,8 +7,8 @@
 #include <unordered_set>
 
 #include "src/char_buffer.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string_append.h"
 #include "src/substring.h"
 
 namespace afc::editor {

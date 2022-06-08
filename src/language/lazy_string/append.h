@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_LAZY_STRING_APPEND_H__
-#define __AFC_EDITOR_LAZY_STRING_APPEND_H__
+#ifndef __AFC_LANGUAGE_LAZY_STRING_APPEND_H__
+#define __AFC_LANGUAGE_LAZY_STRING_APPEND_H__
 
 #include <memory>
 #include <vector>
@@ -24,4 +24,4 @@ language::NonNull<std::shared_ptr<LazyString>> Concatenate(
     std::vector<language::NonNull<std::shared_ptr<LazyString>>> inputs);
 }  // namespace afc::editor
 
-#endif
+#endif  // __AFC_LANGUAGE_LAZY_STRING_APPEND_H__

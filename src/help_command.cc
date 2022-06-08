@@ -9,7 +9,7 @@
 #include "src/char_buffer.h"
 #include "src/command_argument_mode.h"
 #include "src/editor.h"
-#include "src/lazy_string_append.h"
+#include "src/language/lazy_string/append.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 

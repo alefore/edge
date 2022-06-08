@@ -117,6 +117,8 @@ src/language/gc.cc \
 src/language/gc.h \
 src/language/hash.cc \
 src/language/hash.h \
+src/language/lazy_string/append.cc \
+src/language/lazy_string/append.h \
 src/language/lazy_string/functional.cc \
 src/language/lazy_string/functional.h \
 src/language/lazy_string/lazy_string.cc \
@@ -131,7 +133,6 @@ src/language/value_or_error.cc \
 src/language/value_or_error.h \
 src/language/wstring.cc \
 src/language/wstring.h \
-src/lazy_string_append.cc \
 src/line.cc \
 src/line.h \
 src/line_output.cc \

@@ -5,7 +5,6 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
-#include "src/lazy_string_append.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"

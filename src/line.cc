@@ -10,10 +10,10 @@
 #include "src/editor.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string_append.h"
 #include "src/substring.h"
 #include "src/tests/tests.h"
 

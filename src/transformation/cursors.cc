@@ -5,7 +5,7 @@
 #include "src/buffer.h"
 #include "src/editor.h"
 #include "src/futures/futures.h"
-#include "src/lazy_string_append.h"
+#include "src/language/lazy_string/append.h"
 #include "src/transformation/type.h"
 
 namespace afc::editor::transformation {

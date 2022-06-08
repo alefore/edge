@@ -15,9 +15,9 @@
 #include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/editor_variables.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string_append.h"
 #include "src/line_scroll_control.h"
 #include "src/widget.h"
 
