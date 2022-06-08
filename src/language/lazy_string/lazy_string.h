@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_LAZY_STRING_H__
-#define __AFC_EDITOR_LAZY_STRING_H__
+#ifndef __AFC_LANGUAGE_LANGUAGE_LAZY_STRING_H__
+#define __AFC_LANGUAGE_LANGUAGE_LAZY_STRING_H__
 
 #include <memory>
 #include <string>
@@ -10,8 +10,8 @@
 namespace afc::editor {
 GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
 
-// An immutable string. Implementations must ensure that methods always return
-// the same values.
+// An immutable string. Implementations must ensure that identical calls to
+// methods in a given instance always output the same values.
 class LazyString {
  public:
   virtual ~LazyString() {}
@@ -31,4 +31,4 @@ bool operator==(const LazyString& a, const LazyString& b);
 GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumber)
 GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumberDelta)
 
-#endif
+#endif  // __AFC_LANGUAGE_LANGUAGE_LAZY_STRING_H__
