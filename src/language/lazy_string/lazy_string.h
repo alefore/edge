@@ -1,5 +1,5 @@
-#ifndef __AFC_LANGUAGE_LANGUAGE_LAZY_STRING_H__
-#define __AFC_LANGUAGE_LANGUAGE_LAZY_STRING_H__
+#ifndef __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__
+#define __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__
 
 #include <memory>
 #include <string>
@@ -31,4 +31,4 @@ bool operator==(const LazyString& a, const LazyString& b);
 GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumber)
 GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumberDelta)
 
-#endif  // __AFC_LANGUAGE_LANGUAGE_LAZY_STRING_H__
+#endif  // __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__

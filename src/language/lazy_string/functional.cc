@@ -1,4 +1,4 @@
-#include "src/lazy_string_functional.h"
+#include "src/language/lazy_string/functional.h"
 
 namespace std {
 std::size_t hash<afc::editor::LazyString>::operator()(

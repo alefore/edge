@@ -12,7 +12,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
-#include "src/lazy_string_functional.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/line_marks.h"
 #include "src/line_with_cursor.h"
 #include "src/parse_tree.h"

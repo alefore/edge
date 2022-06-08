@@ -3,7 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/infrastructure/tracker.h"
-#include "src/lazy_string_functional.h"
+#include "src/language/lazy_string/functional.h"
 
 namespace afc::editor {
 using language::NonNull;

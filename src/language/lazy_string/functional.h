@@ -1,11 +1,8 @@
-#ifndef __AFC_EDITOR_LAZY_STRING_FUNCTIONAL_H__
-#define __AFC_EDITOR_LAZY_STRING_FUNCTIONAL_H__
+#ifndef __AFC_LANGUAGE_LAZY_STRING_FUNCTIONAL_H__
+#define __AFC_LANGUAGE_LAZY_STRING_FUNCTIONAL_H__
 
-#include <memory>
 #include <optional>
-#include <string>
 
-#include "line_column.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
 
@@ -43,4 +40,4 @@ struct hash<afc::editor::LazyString> {
 };
 }  // namespace std
 
-#endif  // __AFC_EDITOR_LAZY_STRING_FUNCTIONAL_H__
+#endif  // __AFC_LANGUAGE_LAZY_STRING_FUNCTIONAL_H__

@@ -1,7 +1,7 @@
 #include "src/seek.h"
 
+#include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string_functional.h"
 
 namespace afc {
 namespace editor {

@@ -3,8 +3,8 @@
 #include <glog/logging.h>
 
 #include "src/const_tree.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/safe_types.h"
-#include "src/lazy_string_functional.h"
 #include "src/line_column.h"
 
 namespace afc {

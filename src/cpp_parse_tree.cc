@@ -4,8 +4,8 @@
 
 #include "src/buffer.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/safe_types.h"
-#include "src/lazy_string_functional.h"
 #include "src/lru_cache.h"
 #include "src/parse_tools.h"
 #include "src/seek.h"

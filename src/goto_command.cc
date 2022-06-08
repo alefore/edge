@@ -10,7 +10,7 @@
 #include "src/command_argument_mode.h"
 #include "src/editor.h"
 #include "src/futures/futures.h"
-#include "src/lazy_string_functional.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"

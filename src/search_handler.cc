@@ -9,8 +9,8 @@
 #include "src/char_buffer.h"
 #include "src/concurrent/notification.h"
 #include "src/editor.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string_functional.h"
 
 namespace afc::editor {
 namespace {

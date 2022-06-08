@@ -6,7 +6,7 @@
 #include "src/buffer_contents.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
-#include "src/lazy_string_functional.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
 #include "src/tests/tests.h"

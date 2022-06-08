@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_LAZY_STRING_TRIM_H__
-#define __AFC_EDITOR_LAZY_STRING_TRIM_H__
+#ifndef __AFC_LANGUAGE_LAZY_STRING_TRIM_H__
+#define __AFC_LANGUAGE_LAZY_STRING_TRIM_H__
 
 #include <memory>
 #include <string>
@@ -13,4 +13,4 @@ language::NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
     std::wstring space_characters);
 }  // namespace afc::editor
 
-#endif  // __AFC_EDITOR_LAZY_STRING_TRIM_H__
+#endif  // __AFC_LANGUAGE_LAZY_STRING_TRIM_H__
