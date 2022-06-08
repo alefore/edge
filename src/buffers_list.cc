@@ -542,7 +542,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
     output.lines.push_back(LineWithCursor::Generator{
         std::nullopt,
         [options, prefix_width, path_components, columns_per_buffer, index]() {
-          Line::Options output;
+          Line::Options line_options_output;
           for (size_t i = 0; i < options->buffers_per_line &&
                              index + i < options->buffers.size();
                i++) {
@@ -551,8 +551,10 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
-            output.AppendString(
-                PaddingString(start.ToDelta() - output.contents->size(), L' '),
+            line_options_output.AppendString(
+                PaddingString(
+                    start.ToDelta() - line_options_output.contents->size(),
+                    L' '),
                 LineModifierSet());
 
             FilterResult filter_result =
@@ -567,10 +569,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                 GetNumberModifiers(*options, buffer, filter_result);
 
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
-            output.AppendString(
+            line_options_output.AppendString(
                 StringAppend(
-                    PaddingString(start.ToDelta() - output.contents->size(),
-                                  L' '),
+                    PaddingString(
+                        start.ToDelta() - line_options_output.contents->size(),
+                        L' '),
                     NewLazyString(number_prefix)),
                 number_modifiers);
 
@@ -593,10 +596,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             // character, we'll have to adjust this.
             CHECK_LE(progress.size(), 1ul);
 
-            output.AppendString(NewLazyString(progress),
-                                filter_result == FilterResult::kExcluded
-                                    ? LineModifierSet{LineModifier::DIM}
-                                    : progress_modifier);
+            line_options_output.AppendString(
+                NewLazyString(progress),
+                filter_result == FilterResult::kExcluded
+                    ? LineModifierSet{LineModifier::DIM}
+                    : progress_modifier);
             SelectionState selection_state;
             switch (filter_result) {
               case FilterResult::kExcluded:
@@ -610,14 +614,15 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                         ? SelectionState::kReceivingInput
                         : SelectionState::kIdle;
             }
-            AppendBufferPath(
-                columns_per_buffer, buffer,
-                buffer.dirty() ? LineModifierSet{LineModifier::ITALIC}
-                               : LineModifierSet{},
-                selection_state, path_components[index + i], &output);
+            AppendBufferPath(columns_per_buffer, buffer,
+                             buffer.dirty()
+                                 ? LineModifierSet{LineModifier::ITALIC}
+                                 : LineModifierSet{},
+                             selection_state, path_components[index + i],
+                             &line_options_output);
           }
-          return LineWithCursor{.line =
-                                    MakeNonNullShared<Line>(std::move(output))};
+          return LineWithCursor{
+              .line = MakeNonNullShared<Line>(std::move(line_options_output))};
         }});
     index += options->buffers_per_line;
   }
