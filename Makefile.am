@@ -119,6 +119,8 @@ src/language/hash.cc \
 src/language/hash.h \
 src/language/lazy_string/lazy_string.cc \
 src/language/lazy_string/lazy_string.h \
+src/language/lazy_string/trim.cc \
+src/language/lazy_string/trim.h \
 src/language/observers.h \
 src/language/observers.cc \
 src/language/observers_gc.h \
@@ -130,8 +132,6 @@ src/language/wstring.h \
 src/lazy_string_append.cc \
 src/lazy_string_functional.cc \
 src/lazy_string_functional.h \
-src/lazy_string_trim.cc \
-src/lazy_string_trim.h \
 src/line.cc \
 src/line.h \
 src/line_output.cc \

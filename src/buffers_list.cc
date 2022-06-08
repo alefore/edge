@@ -11,9 +11,9 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/lazy_string/trim.h"
 #include "src/language/overload.h"
 #include "src/lazy_string_append.h"
-#include "src/lazy_string_trim.h"
 #include "src/tests/tests.h"
 #include "src/widget.h"
 

@@ -1,4 +1,4 @@
-#include "src/lazy_string_trim.h"
+#include "src/language/lazy_string/trim.h"
 
 #include <glog/logging.h>
 
