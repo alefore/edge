@@ -12,9 +12,9 @@
 
 #include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/observers.h"
 #include "src/language/safe_types.h"
-#include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
 

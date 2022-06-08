@@ -7,7 +7,7 @@
 
 #include "line_column.h"
 #include "src/language/hash.h"
-#include "src/lazy_string.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::editor {
 // Finds the first column in a string where `predicate` returns true.

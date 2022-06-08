@@ -8,6 +8,7 @@
 
 #include "src/fuzz.h"
 #include "src/language/hash.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 
@@ -15,15 +16,10 @@ namespace afc::language::gc {
 class Pool;
 }
 namespace afc::editor {
-class LazyString;
-
 GHOST_TYPE_NUMBER_WITH_DELTA(LineNumber, size_t, LineNumberDelta, int);
-GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
 }  // namespace afc::editor
 GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumber)
 GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumberDelta)
-GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumber)
-GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumberDelta)
 namespace afc::editor {
 // Generates a string of the length specified by `this` filled up with the
 // character given.

@@ -22,8 +22,8 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string.h"
 #include "src/vm/public/escape.h"
 #include "src/vm/public/vm.h"
 

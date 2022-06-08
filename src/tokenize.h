@@ -5,8 +5,8 @@
 
 #include <vector>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/lazy_string.h"
 #include "src/line_column.h"
 
 namespace afc::editor {

@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include "lazy_string.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 namespace afc::editor {
 

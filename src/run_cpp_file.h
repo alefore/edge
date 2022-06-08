@@ -3,8 +3,8 @@
 
 #include <memory>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/lazy_string.h"
 
 namespace afc::editor {
 class EditorState;

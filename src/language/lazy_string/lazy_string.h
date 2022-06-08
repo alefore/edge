@@ -4,11 +4,11 @@
 #include <memory>
 #include <string>
 
+#include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
 
 namespace afc::editor {
-class ColumnNumber;
-class ColumnNumberDelta;
+GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
 
 // An immutable string. Implementations must ensure that methods always return
 // the same values.
@@ -27,5 +27,8 @@ language::NonNull<std::shared_ptr<LazyString>> EmptyString();
 
 bool operator==(const LazyString& a, const LazyString& b);
 }  // namespace afc::editor
+
+GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumber)
+GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumberDelta)
 
 #endif

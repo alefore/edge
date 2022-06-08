@@ -7,7 +7,7 @@
 #include <unordered_map>
 
 #include "src/buffer_name.h"
-#include "src/lazy_string.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/line_column.h"
 
 namespace afc {

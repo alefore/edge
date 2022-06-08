@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "src/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string.h"
 #include "src/line_column_vm.h"
 #include "src/vm/public/environment.h"
 

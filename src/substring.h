@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "lazy_string.h"
 #include "line_column.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 
 namespace afc::editor {

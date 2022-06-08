@@ -4,7 +4,6 @@
 #include <unordered_set>
 
 #include "src/language/hash.h"
-#include "src/lazy_string.h"
 #include "src/vm/public/environment.h"
 
 namespace afc {

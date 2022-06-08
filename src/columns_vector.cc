@@ -6,8 +6,8 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
 #include "src/line.h"
 #include "src/substring.h"

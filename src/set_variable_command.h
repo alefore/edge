@@ -5,9 +5,9 @@
 #include <string>
 
 #include "src/futures/futures.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
-#include "src/lazy_string.h"
 
 namespace afc::editor {
 class Command;

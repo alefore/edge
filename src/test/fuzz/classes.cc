@@ -18,7 +18,7 @@ extern "C" {
 #include "src/cpp_parse_tree.h"
 #include "src/editor.h"
 #include "src/fuzz.h"
-#include "src/lazy_string.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 using namespace afc::editor;
 namespace gc = afc::language::gc;

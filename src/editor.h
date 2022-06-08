@@ -23,7 +23,7 @@
 #include "src/editor_variables.h"
 #include "src/insert_history.h"
 #include "src/language/ghost_type.h"
-#include "src/lazy_string.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/line_marks.h"
 #include "src/modifiers.h"
 #include "src/status.h"

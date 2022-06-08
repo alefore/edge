@@ -14,8 +14,8 @@ extern "C" {
 #include "src/file_descriptor_reader.h"
 #include "src/fuzz.h"
 #include "src/language//safe_types.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string.h"
 
 namespace afc::editor {
 using language::FromByteString;

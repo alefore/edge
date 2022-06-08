@@ -15,9 +15,9 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/cpp_parse_tree.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/value_or_error.h"
 #include "src/language/wstring.h"
-#include "src/lazy_string.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/vm.h"
 
