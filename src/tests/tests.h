@@ -42,6 +42,7 @@ struct Test {
 bool Register(std::wstring name, std::vector<Test> tests);
 void Run();
 void List();
+void ForkAndWaitForFailure(std::function<void()> callable);
 
 }  // namespace afc::tests
 

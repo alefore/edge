@@ -1,6 +1,8 @@
 #include "src/tests/tests.h"
 
 #include <glog/logging.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include <unordered_map>
 #include <unordered_set>
@@ -52,4 +54,23 @@ void List() {
     }
   }
 }
+
+void ForkAndWaitForFailure(std::function<void()> callable) {
+  pid_t p = fork();
+  if (p == -1) LOG(FATAL) << "Fork failed.";
+
+  if (p == 0) {
+    LOG(INFO) << "Child process: starting callback.";
+    callable();
+    LOG(INFO) << "Child process didn't crash; will exit successfully.";
+    exit(0);
+  }
+
+  int wstatus;
+  LOG(INFO) << "Parent process: waiting for child: " << p;
+  if (waitpid(p, &wstatus, 0) == -1) LOG(FATAL) << "Waitpid failed.";
+
+  CHECK(!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0);
+}
+
 }  // namespace afc::tests
