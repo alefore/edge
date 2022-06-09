@@ -13,7 +13,6 @@
 
 namespace afc::editor {
 namespace {
-using concurrent::Notification;
 using futures::DeleteNotification;
 using futures::IterationControlCommand;
 using language::EmptyValue;

@@ -17,7 +17,6 @@ extern "C" {
 
 namespace afc::editor {
 namespace {
-using concurrent::Notification;
 using futures::DeleteNotification;
 using infrastructure::Path;
 using infrastructure::PathComponent;

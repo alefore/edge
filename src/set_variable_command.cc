@@ -14,7 +14,6 @@
 #include "src/line_prompt_mode.h"
 
 namespace afc::editor {
-using concurrent::Notification;
 using futures::DeleteNotification;
 using language::EmptyValue;
 using language::FromByteString;

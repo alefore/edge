@@ -13,7 +13,6 @@
 #include "src/buffer_name.h"
 #include "src/buffer_syntax_parser.h"
 #include "src/buffer_terminal.h"
-#include "src/concurrent/notification.h"
 #include "src/concurrent/work_queue.h"
 #include "src/cursors.h"
 #include "src/file_descriptor_reader.h"

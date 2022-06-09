@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "src/buffer_contents.h"
-#include "src/concurrent/notification.h"
 #include "src/futures/delete_notification.h"
 #include "src/language/safe_types.h"
 #include "src/line_column.h"
