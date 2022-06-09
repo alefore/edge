@@ -86,7 +86,7 @@ const bool work_queue_tests_registration = tests::Register(
         // We know it hasn't been deleted since it contains a reference to
         // itself (in the first scheduled callback).
         work_queue_raw->Execute();
-        notification->WaitForNotification();
+        while (!notification->HasBeenNotified()) sleep(0.01);
       }}});
 
 const bool work_queue_channel_tests_registration = tests::Register(

@@ -9,7 +9,6 @@ class Notification {
  public:
   void Notify();
   bool HasBeenNotified() const;
-  void WaitForNotification() const;
 
  private:
   enum class State { kNotified, kPending };

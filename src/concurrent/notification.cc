@@ -14,9 +14,4 @@ bool Notification::HasBeenNotified() const {
   });
 }
 
-void Notification::WaitForNotification() const {
-  return state_.wait(
-      [](const State& state) { return state == State::kNotified; });
-}
-
 }  // namespace afc::concurrent
