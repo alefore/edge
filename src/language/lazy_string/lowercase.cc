@@ -1,4 +1,4 @@
-#include "src/lowercase.h"
+#include "src/language/lazy_string/lowercase.h"
 
 #include <glog/logging.h>
 

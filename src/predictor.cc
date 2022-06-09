@@ -21,9 +21,9 @@ extern "C" {
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
-#include "src/lowercase.h"
 #include "src/predictor.h"
 #include "src/tests/tests.h"
 

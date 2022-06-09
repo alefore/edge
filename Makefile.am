@@ -125,6 +125,8 @@ src/language/lazy_string/functional.cc \
 src/language/lazy_string/functional.h \
 src/language/lazy_string/lazy_string.cc \
 src/language/lazy_string/lazy_string.h \
+src/language/lazy_string/lowercase.cc \
+src/language/lazy_string/lowercase.h \
 src/language/lazy_string/substring.cc \
 src/language/lazy_string/substring.h \
 src/language/lazy_string/trim.cc \
@@ -159,7 +161,6 @@ src/line_scroll_control.h \
 src/line_scroll_control.cc \
 src/log.cc \
 src/log.h \
-src/lowercase.cc \
 src/lru_cache.h \
 src/map_mode.cc \
 src/math/decaying_counter.cc \
