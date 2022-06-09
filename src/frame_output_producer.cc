@@ -6,6 +6,8 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/language/lazy_string/padding.h"
+
 namespace afc::editor {
 using language::lazy_string::ColumnNumberDelta;
 
@@ -42,8 +44,7 @@ Line FrameLine(FrameOutputProducerOptions options) {
   }
 
   output.AppendString(
-      PaddingString(options.width - ColumnNumberDelta(output.modifiers.size()),
-                    L'─'),
+      Padding(options.width - ColumnNumberDelta(output.modifiers.size()), L'─'),
       line_modifiers);
 
   return Line(std::move(output));

@@ -127,6 +127,8 @@ src/language/lazy_string/lazy_string.cc \
 src/language/lazy_string/lazy_string.h \
 src/language/lazy_string/lowercase.cc \
 src/language/lazy_string/lowercase.h \
+src/language/lazy_string/padding.cc \
+src/language/lazy_string/padding.h \
 src/language/lazy_string/substring.cc \
 src/language/lazy_string/substring.h \
 src/language/lazy_string/trim.cc \

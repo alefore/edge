@@ -22,14 +22,6 @@ using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 
-NonNull<std::shared_ptr<LazyString>> PaddingString(
-    const ColumnNumberDelta& length, wchar_t fill) {
-  if (length < ColumnNumberDelta(0)) {
-    return EmptyString();
-  }
-  return NewLazyString(length, fill);
-}
-
 LineColumnDelta::LineColumnDelta(LineNumberDelta input_line,
                                  ColumnNumberDelta input_column)
     : line(input_line), column(input_column) {}

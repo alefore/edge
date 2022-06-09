@@ -34,6 +34,7 @@ extern "C" {
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/observers_gc.h"
 #include "src/language/overload.h"
@@ -1168,7 +1169,7 @@ void OpenBuffer::MaybeExtendLine(LineColumn position) {
   if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
     return;
   }
-  line->Append(Line(PaddingString(
+  line->Append(Line(Padding(
       position.column - line->EndColumn() + ColumnNumberDelta(1), L' ')));
 
   contents_.set_line(position.line, NonNull(std::move(line)));

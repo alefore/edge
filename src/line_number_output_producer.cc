@@ -17,6 +17,7 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/padding.h"
 #include "src/language/wstring.h"
 #include "src/line_scroll_control.h"
 #include "src/widget.h"
@@ -69,7 +70,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
                   : L"↪";
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
           language::NonNull<std::shared_ptr<LazyString>> padding =
-              PaddingString(width - ColumnNumberDelta(number.size() + 1), L' ');
+              Padding(width - ColumnNumberDelta(number.size() + 1), L' ');
 
           Line::Options line_options;
           line_options.AppendString(

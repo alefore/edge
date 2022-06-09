@@ -21,15 +21,6 @@ GHOST_TYPE_NUMBER_WITH_DELTA(LineNumber, size_t, LineNumberDelta, int);
 GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumber)
 GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumberDelta)
 namespace afc::editor {
-// Generates a string of the length specified by `this` filled up with the
-// character given.
-//
-// If length is negative (or zero), returns an empty string.
-//
-// TODO(easy, 2022-06-05): Move this to a LazyString-related module?
-language::NonNull<std::shared_ptr<afc::language::lazy_string::LazyString>>
-PaddingString(const afc::language::lazy_string::ColumnNumberDelta& length,
-              wchar_t fill);
 
 // First adds the line, then adds the column.
 struct LineColumnDelta {

@@ -8,6 +8,7 @@
 
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/wstring.h"
 #include "src/line.h"
@@ -127,7 +128,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
                   *columns_vector->columns[i].padding[line.read()],
                   padding_needed));
             } else {
-              options.AppendString(PaddingString(padding_needed, L' '),
+              options.AppendString(Padding(padding_needed, L' '),
                                    current_modifiers);
             }
             columns_shown = initial_column;

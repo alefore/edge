@@ -12,6 +12,7 @@
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/trim.h"
 #include "src/language/overload.h"
 #include "src/tests/tests.h"
@@ -556,9 +557,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * j;
             line_options_output.AppendString(
-                PaddingString(
-                    start.ToDelta() - line_options_output.contents->size(),
-                    L' '),
+                Padding(start.ToDelta() - line_options_output.contents->size(),
+                        L' '),
                 LineModifierSet());
 
             FilterResult filter_result =
@@ -574,9 +574,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             line_options_output.AppendString(
-                Append(PaddingString(start.ToDelta() -
-                                         line_options_output.contents->size(),
-                                     L' '),
+                Append(Padding(start.ToDelta() -
+                                   line_options_output.contents->size(),
+                               L' '),
                        NewLazyString(number_prefix)),
                 number_modifiers);
 
