@@ -6,8 +6,6 @@
 #include "src/language/lazy_string/substring.h"
 
 namespace afc::language::lazy_string {
-using language::NonNull;
-
 // TODO(easy, 2022-06-09): Drop `String` from the prefix? It's implied by the
 // namespace?
 NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
