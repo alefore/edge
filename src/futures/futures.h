@@ -241,7 +241,7 @@ class ListenableValue {
  private:
   struct Data {
     std::optional<Type> value;
-    std::deque<std::function<void(const Type&)>> listeners;
+    std::vector<std::function<void(const Type&)>> listeners;
   };
   std::shared_ptr<Data> data_ = std::make_shared<Data>();
 };
