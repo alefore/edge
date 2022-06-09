@@ -6,9 +6,6 @@
 #include "src/language/lazy_string/functional.h"
 
 namespace afc::language::lazy_string {
-// TODO(easy, 2022-06-09): Get rid of all `using language::...` declarations in
-// files in language/lazy_string.
-using language::NonNull;
 namespace {
 using infrastructure::Tracker;
 
