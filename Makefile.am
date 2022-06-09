@@ -87,6 +87,8 @@ src/find_mode.cc \
 src/futures/futures.cc \
 src/futures/futures.h \
 src/futures/listenable_value.h \
+src/futures/delete_notification.cc \
+src/futures/delete_notification.h \
 src/futures/serializer.cc \
 src/futures/serializer.h \
 src/fuzz.h \
