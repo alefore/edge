@@ -8,17 +8,22 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
+
 namespace afc::infrastructure {
 using language::Error;
 using language::FromByteString;
+using language::NonNull;
 using language::overload;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrDie;
 using language::ValueOrError;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 ValueOrError<PathComponent> PathComponent::FromString(std::wstring component) {
   if (component.empty()) {
@@ -191,7 +196,13 @@ const bool path_join_tests_registration = tests::Register(
       }}});
 
 ValueOrError<Path> Path::FromString(std::wstring path) {
-  return path.empty() ? Error(L"Empty path.") : Success(Path(std::move(path)));
+  return Path::FromString(NewLazyString(std::move(path)));
+}
+
+ValueOrError<Path> Path::FromString(NonNull<std::shared_ptr<LazyString>> path) {
+  // TODO(easy, 2022-06-10): Avoid call to ToString.
+  return path->size().IsZero() ? Error(L"Empty path.")
+                               : Success(Path(path->ToString()));
 }
 
 Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {

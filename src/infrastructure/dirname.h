@@ -14,6 +14,8 @@ extern "C" {
 }
 
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/lazy_string.h"
+#include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 #include "src/language/wstring.h"
 
@@ -62,6 +64,9 @@ class Path {
 
   static Path Join(Path a, Path b);
   static language::ValueOrError<Path> FromString(std::wstring path);
+  static language::ValueOrError<Path> FromString(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          path);
   static Path ExpandHomeDirectory(const Path& home_directory, const Path& path);
 
   // If an extension was already present, replaces it with the new value.
