@@ -59,8 +59,9 @@ const bool futures_transform_tests_registration = tests::Register(
                using V = std::variant<int, double, bool>;
                Value<int> int_value = Past(5);
                Value<V> variant_value = std::move(int_value);
-               CHECK(variant_value.Get().has_value());
-               CHECK_EQ(*std::get_if<int>(&*variant_value.Get()), 5);
+               std::optional<V> immediate_value = variant_value.Get();
+               CHECK(immediate_value.has_value());
+               CHECK_EQ(*std::get_if<int>(&immediate_value.value()), 5);
              }},
         {.name = L"CanConvertToParentAndReceive",
          .callback =
@@ -70,7 +71,8 @@ const bool futures_transform_tests_registration = tests::Register(
                Value<V> variant_value = std::move(int_future.value);
                CHECK(!variant_value.Get().has_value());
                int_future.consumer(6);
-               CHECK_EQ(*std::get_if<int>(&*variant_value.Get()), 6);
+               std::optional<V> immediate_value = variant_value.Get();
+               CHECK_EQ(*std::get_if<int>(&immediate_value.value()), 6);
                std::optional<V> value_received;
                variant_value.SetConsumer([&](V v) { value_received = v; });
                CHECK(value_received.has_value());
