@@ -2,16 +2,12 @@
 
 namespace afc::concurrent {
 void Notification::Notify() {
-  state_.lock([](State& state, std::condition_variable& condition) {
-    state = State::kNotified;
-    condition.notify_all();
-  });
+  state_.lock([](State& state) { state = State::kNotified; });
 }
 
 bool Notification::HasBeenNotified() const {
-  return state_.lock([](const State& state, std::condition_variable&) {
-    return state == State::kNotified;
-  });
+  return state_.lock(
+      [](const State& state) { return state == State::kNotified; });
 }
 
 }  // namespace afc::concurrent

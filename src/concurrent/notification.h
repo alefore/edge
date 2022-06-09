@@ -12,8 +12,7 @@ class Notification {
 
  private:
   enum class State { kNotified, kPending };
-  ProtectedWithCondition<State> state_ =
-      ProtectedWithCondition<State>(State::kPending);
+  Protected<State> state_ = Protected<State>(State::kPending);
 };
 }  // namespace afc::concurrent
 #endif  // __AFC_EDITOR_NOTIFICATION_H__
