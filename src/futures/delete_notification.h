@@ -11,6 +11,8 @@ class DeleteNotification {
   using Value =
       language::NonNull<std::shared_ptr<ListenableValue<language::EmptyValue>>>;
 
+  static Value Never();
+
   DeleteNotification();
 
   ~DeleteNotification();

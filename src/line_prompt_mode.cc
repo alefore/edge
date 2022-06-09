@@ -12,10 +12,10 @@
 #include "src/command.h"
 #include "src/command_argument_mode.h"
 #include "src/command_mode.h"
-#include "src/concurrent/notification.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_link_mode.h"
+#include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
 #include "src/language/lazy_string/append.h"
@@ -36,8 +36,9 @@
 #include "src/vm/public/value.h"
 
 namespace afc::editor {
-using concurrent::Notification;
 using concurrent::WorkQueueChannelConsumeMode;
+using futures::DeleteNotification;
+using futures::ListenableValue;
 using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::EmptyValue;
@@ -358,13 +359,12 @@ struct FilterSortHistorySyncOutput {
 };
 
 FilterSortHistorySyncOutput FilterSortHistorySync(
-    NonNull<std::shared_ptr<Notification>> abort_notification,
-    std::wstring filter,
+    DeleteNotification::Value abort_value, std::wstring filter,
     NonNull<std::shared_ptr<BufferContents>> history_contents,
     std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
         features) {
   FilterSortHistorySyncOutput output;
-  if (abort_notification->HasBeenNotified()) return output;
+  if (abort_value->has_value()) return output;
   // Sets of features for each unique `prompt` value in the history.
   naive_bayes::History history_data;
   // Tokens by parsing the `prompt` value in the history.
@@ -391,7 +391,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
     if (line_keys == nullptr) {
       output.errors.push_back(std::get<Error>(line_keys_or_error));
-      return !abort_notification->HasBeenNotified();
+      return !abort_value->has_value();
     }
     auto range = line_keys->equal_range(L"prompt");
     int prompt_count = std::distance(range.first, range.second);
@@ -399,7 +399,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                 Error(L"Line is missing `prompt` section")) ||
         warn_if(prompt_count != 1,
                 Error(L"Line has multiple `prompt` sections"))) {
-      return !abort_notification->HasBeenNotified();
+      return !abort_value->has_value();
     }
 
     std::visit(
@@ -451,7 +451,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
               features_output->push_back(std::move(current_features));
             }},
         vm::EscapedString::Parse(range.first->second->ToString()));
-    return !abort_notification->HasBeenNotified();
+    return !abort_value->has_value();
   });
 
   VLOG(4) << "Matches found: " << history_data.read().size();
@@ -490,7 +490,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                 features;
             BufferContents history_contents;
             FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(MakeNonNullShared<Notification>(), L"",
+                FilterSortHistorySync(DeleteNotification::Never(), L"",
                                       history_contents.copy(), features);
             CHECK(output.lines.empty());
           }},
@@ -503,9 +503,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             BufferContents history_contents;
             history_contents.push_back(L"prompt:\"foobar\"");
             history_contents.push_back(L"prompt:\"foo\"");
-            FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                MakeNonNullShared<Notification>(), L"quux",
-                history_contents.copy(), features);
+            FilterSortHistorySyncOutput output =
+                FilterSortHistorySync(DeleteNotification::Never(), L"quux",
+                                      history_contents.copy(), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"MatchAfterEscape",
@@ -516,9 +516,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                 features;
             BufferContents history_contents;
             history_contents.push_back(L"prompt:\"foo\\\\nbardo\"");
-            FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                MakeNonNullShared<Notification>(), L"nbar",
-                history_contents.copy(), features);
+            FilterSortHistorySyncOutput output =
+                FilterSortHistorySync(DeleteNotification::Never(), L"nbar",
+                                      history_contents.copy(), features);
             CHECK_EQ(output.lines.size(), 1ul);
             Line& line = output.lines[0].value();
             CHECK(line.ToString() == L"foo\\nbardo");
@@ -549,9 +549,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                 features;
             BufferContents history_contents;
             history_contents.push_back(L"prompt:\"foo\\nbar\"");
-            FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                MakeNonNullShared<Notification>(), L"nbar",
-                history_contents.copy(), features);
+            FilterSortHistorySyncOutput output =
+                FilterSortHistorySync(DeleteNotification::Never(), L"nbar",
+                                      history_contents.copy(), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"IgnoresInvalidEntries",
@@ -566,7 +566,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             history_contents.push_back(L"prompt:\"foo\n bar\"");
             history_contents.push_back(L"prompt:\"foo \\o bar \\\"");
             FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(MakeNonNullShared<Notification>(), L"f",
+                FilterSortHistorySync(DeleteNotification::Never(), L"f",
                                       history_contents.copy(), features);
             CHECK_EQ(output.lines.size(), 1ul);
             CHECK(output.lines[0]->ToString() == L"foo");
@@ -580,7 +580,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             BufferContents history_contents;
             history_contents.push_back(L"prompt:\"ls\n\"");
             FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(MakeNonNullShared<Notification>(), L"ls",
+                FilterSortHistorySync(DeleteNotification::Never(), L"ls",
                                       history_contents.copy(), features);
             CHECK(output.lines.empty());
           }},
@@ -591,15 +591,14 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
         BufferContents history_contents;
         history_contents.push_back(L"prompt:\"ls\\n\"");
         FilterSortHistorySyncOutput output =
-            FilterSortHistorySync(MakeNonNullShared<Notification>(), L"ls",
+            FilterSortHistorySync(DeleteNotification::Never(), L"ls",
                                   history_contents.copy(), features);
         CHECK_EQ(output.lines.size(), 0ul);
       }}});
 
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
-    NonNull<std::shared_ptr<Notification>> abort_notification,
-    std::wstring filter) {
+    DeleteNotification::Value abort_value, std::wstring filter) {
   BufferName name(L"- history filter: " + history_buffer.ptr()->name().read() +
                   L": " + filter);
   gc::Root<OpenBuffer> filter_buffer_root =
@@ -614,21 +613,21 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
   return history_buffer.ptr()
       ->WaitForEndOfFile()
       .Transform([&editor_state, filter_buffer_root, history_buffer,
-                  abort_notification, filter](EmptyValue) {
+                  abort_value, filter](EmptyValue) {
         NonNull<std::shared_ptr<BufferContents>> history_contents =
             history_buffer.ptr()->contents().copy();
         return editor_state.thread_pool().Run(std::bind_front(
-            FilterSortHistorySync, abort_notification, filter, history_contents,
+            FilterSortHistorySync, abort_value, filter, history_contents,
             GetCurrentFeatures(editor_state)));
       })
-      .Transform([&editor_state, abort_notification, filter_buffer_root,
+      .Transform([&editor_state, abort_value, filter_buffer_root,
                   &filter_buffer](FilterSortHistorySyncOutput output) {
         LOG(INFO) << "Receiving output from history evaluator.";
         if (!output.errors.empty()) {
           editor_state.status().SetExpiringInformationText(
               output.errors.front().read());
         }
-        if (!abort_notification->HasBeenNotified()) {
+        if (!abort_value->has_value()) {
           for (auto& line : output.lines) {
             filter_buffer.AppendRawLine(line);
           }
@@ -863,13 +862,13 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         buffer_(std::move(buffer)) {}
 
   futures::Value<NonNull<std::unique_ptr<ScrollBehavior>>> Build(
-      NonNull<std::shared_ptr<Notification>> abort_notification) override {
+      DeleteNotification::Value abort_value) override {
     CHECK_GT(buffer_.ptr()->lines_size(), LineNumberDelta(0));
     NonNull<std::shared_ptr<LazyString>> input =
         buffer_.ptr()->contents().at(LineNumber(0))->contents();
     return futures::Past(MakeNonNullUnique<HistoryScrollBehavior>(
         futures::ListenableValue(
-            FilterHistory(editor_state_, history_, abort_notification,
+            FilterHistory(editor_state_, history_, abort_value,
                           input->ToString())
                 .Transform([input](gc::Root<OpenBuffer> history_filtered) {
                   history_filtered.ptr()->set_current_position_line(
@@ -930,7 +929,7 @@ class LinePromptCommand : public Command {
 // tokens become available.
 void ColorizePrompt(OpenBuffer& status_buffer,
                     NonNull<std::shared_ptr<PromptState>> prompt_state,
-                    NonNull<std::shared_ptr<Notification>> abort_notification,
+                    DeleteNotification::Value abort_value,
                     const NonNull<std::shared_ptr<const Line>>& original_line,
                     ColorizePromptOptions options) {
   CHECK_EQ(status_buffer.lines_size(), LineNumberDelta(1));
@@ -945,7 +944,7 @@ void ColorizePrompt(OpenBuffer& status_buffer,
     LOG(INFO) << "Prompt buffer has changed, aborting colorize prompt.";
     return;
   }
-  if (abort_notification->HasBeenNotified()) {
+  if (abort_value->has_value()) {
     LOG(INFO) << "Abort notification notified, aborting colorize prompt.";
     return;
   }
@@ -1016,8 +1015,8 @@ void Prompt(PromptOptions options) {
         // `colorize_options_provider` from modify_handler, we notify the
         // previous notification and set this to a new notification that will be
         // given to the `colorize_options_provider`.
-        auto abort_notification_ptr =
-            std::make_shared<NonNull<std::shared_ptr<Notification>>>();
+        NonNull<std::shared_ptr<NonNull<std::shared_ptr<DeleteNotification>>>>
+            abort_notification_ptr;
         InsertModeOptions insert_mode_options{
             .editor_state = editor_state,
             .buffers = {{prompt_buffer}},
@@ -1043,12 +1042,12 @@ void Prompt(PromptOptions options) {
                             extra_information.counters);
                       },
                       WorkQueueChannelConsumeMode::kAll);
-                  (*abort_notification_ptr)->Notify();
-                  *abort_notification_ptr =
-                      NonNull<std::shared_ptr<Notification>>();
+                  abort_notification_ptr.value() =
+                      MakeNonNullShared<DeleteNotification>();
                   return JoinValues(
                              FilterHistory(editor_state, history,
-                                           *abort_notification_ptr,
+                                           abort_notification_ptr.value()
+                                               ->listenable_value(),
                                            line->ToString())
                                  .Transform([prompt_render_state](
                                                 gc::Root<OpenBuffer>
@@ -1075,7 +1074,8 @@ void Prompt(PromptOptions options) {
                              options
                                  .colorize_options_provider(
                                      line, std::move(progress_channel),
-                                     *abort_notification_ptr)
+                                     abort_notification_ptr.value()
+                                         ->listenable_value())
                                  .Transform(
                                      [buffer = buffer.NewRoot(), prompt_state,
                                       abort_notification_ptr,
@@ -1085,11 +1085,12 @@ void Prompt(PromptOptions options) {
                                              colorize_prompt_options) {
                                        LOG(INFO) << "Calling ColorizePrompt "
                                                     "with results.";
-                                       ColorizePrompt(buffer.ptr().value(),
-                                                      prompt_state,
-                                                      *abort_notification_ptr,
-                                                      original_line,
-                                                      colorize_prompt_options);
+                                       ColorizePrompt(
+                                           buffer.ptr().value(), prompt_state,
+                                           abort_notification_ptr.value()
+                                               ->listenable_value(),
+                                           original_line,
+                                           colorize_prompt_options);
                                        return EmptyValue();
                                      }))
                       .Transform([](auto) { return EmptyValue(); });
@@ -1180,23 +1181,25 @@ void Prompt(PromptOptions options) {
                                           /* Nothing for now. */
                                         },
                                         WorkQueueChannelConsumeMode::kAll),
-                                    NonNull<std::shared_ptr<Notification>>())
+                                    DeleteNotification::Never())
                                 // Can't use std::bind_front: need to return
                                 // success.
-                                .Transform([buffer_root, prompt_state,
-                                            prompt_render_state,
-                                            original_line =
-                                                buffer_root.ptr()
-                                                    ->contents()
-                                                    .at(LineNumber(0))](
-                                               ColorizePromptOptions
-                                                   colorize_prompt_options) {
-                                  ColorizePrompt(
-                                      buffer_root.ptr().value(), prompt_state,
-                                      NonNull<std::shared_ptr<Notification>>(),
-                                      original_line, colorize_prompt_options);
-                                  return Success();
-                                });
+                                .Transform(
+                                    [buffer_root, prompt_state,
+                                     prompt_render_state,
+                                     original_line =
+                                         buffer_root.ptr()->contents().at(
+                                             LineNumber(0))](
+                                        ColorizePromptOptions
+                                            colorize_prompt_options) {
+                                      ColorizePrompt(
+                                          buffer_root.ptr().value(),
+                                          prompt_state,
+                                          DeleteNotification::Never(),
+                                          original_line,
+                                          colorize_prompt_options);
+                                      return Success();
+                                    });
                           }
                           return;
                         }

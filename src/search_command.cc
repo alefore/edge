@@ -4,6 +4,7 @@
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/futures/delete_notification.h"
 #include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
 #include "src/search_handler.h"
@@ -13,6 +14,7 @@
 namespace afc::editor {
 namespace {
 using concurrent::Notification;
+using futures::DeleteNotification;
 using futures::IterationControlCommand;
 using language::EmptyValue;
 using language::Error;
@@ -252,7 +254,7 @@ class SearchCommand : public Command {
                   editor_state_.active_buffers())](
                  const NonNull<std::shared_ptr<LazyString>>& line,
                  NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
-                 NonNull<std::shared_ptr<Notification>> abort_notification) {
+                 DeleteNotification::Value abort_value) {
                VLOG(5) << "Triggering async search.";
                auto results =
                    MakeNonNullShared<ValueOrError<SearchResultsSummary>>(
@@ -263,7 +265,7 @@ class SearchCommand : public Command {
                return futures::ForEach(
                           buffers,
                           [&editor_state, line, progress_aggregator,
-                           abort_notification,
+                           abort_value,
                            results](const gc::Root<OpenBuffer>& buffer_root) {
                             OpenBuffer& buffer = buffer_root.ptr().value();
                             NonNull<std::shared_ptr<ProgressChannel>>
@@ -280,7 +282,7 @@ class SearchCommand : public Command {
                               return futures::Past(Control::kContinue);
                             }
                             auto search_options = BuildPromptSearchOptions(
-                                line, buffer, abort_notification);
+                                line, buffer, abort_value);
                             if (!search_options.has_value()) {
                               VLOG(6) << "search_options has no value.";
                               return futures::Past(Control::kContinue);
@@ -291,15 +293,16 @@ class SearchCommand : public Command {
                                 .Run(BackgroundSearchCallback(
                                     search_options.value(), buffer.contents(),
                                     progress_channel.value()))
-                                .Transform([results, abort_notification, line,
-                                            buffer_root, progress_channel](
-                                               SearchResultsSummary
-                                                   current_results) {
-                                  MergeInto(current_results, results.value());
-                                  return abort_notification->HasBeenNotified()
-                                             ? Success(Control::kStop)
-                                             : Success(Control::kContinue);
-                                })
+                                .Transform(
+                                    [results, abort_value, line, buffer_root,
+                                     progress_channel](
+                                        SearchResultsSummary current_results) {
+                                      MergeInto(current_results,
+                                                results.value());
+                                      return abort_value->has_value()
+                                                 ? Success(Control::kStop)
+                                                 : Success(Control::kContinue);
+                                    })
                                 .ConsumeErrors([results](Error error) {
                                   results.value() = error;
                                   return futures::Past(Control::kStop);
@@ -317,8 +320,7 @@ class SearchCommand : public Command {
                return editor_state
                    .ForEachActiveBuffer([input](OpenBuffer& buffer) {
                      if (auto search_options = BuildPromptSearchOptions(
-                             input, buffer,
-                             NonNull<std::shared_ptr<Notification>>());
+                             input, buffer, DeleteNotification::Never());
                          search_options.has_value()) {
                        DoSearch(buffer, *search_options);
                      }
@@ -337,7 +339,7 @@ class SearchCommand : public Command {
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(
       NonNull<std::shared_ptr<LazyString>> input, OpenBuffer& buffer,
-      NonNull<std::shared_ptr<Notification>> abort_notification) {
+      DeleteNotification::Value abort_value) {
     auto& editor = buffer.editor();
     SearchOptions search_options;
     // TODO(easy, 2022-06-05): Avoid call to ToString.
@@ -362,7 +364,7 @@ class SearchCommand : public Command {
       LOG(INFO) << "Searching region: " << search_options.starting_position
                 << " to " << search_options.limit_position.value();
     }
-    search_options.abort_notification = abort_notification;
+    search_options.abort_value = abort_value;
     search_options.case_sensitive =
         buffer.Read(buffer_variables::search_case_sensitive);
     return search_options;

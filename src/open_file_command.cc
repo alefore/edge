@@ -9,16 +9,16 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 namespace {
 using concurrent::Notification;
+using futures::DeleteNotification;
 using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::EmptyValue;
@@ -130,16 +130,15 @@ futures::Value<ColorizePromptOptions> DrawPath(
 futures::Value<ColorizePromptOptions> AdjustPath(
     EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
-    NonNull<std::shared_ptr<Notification>> abort_notification) {
-  return Predict(
-             PredictOptions{
-                 .editor_state = editor,
-                 .predictor = FilePredictor,
-                 .text = line->ToString(),
-                 .input_selection_structure = StructureLine(),
-                 .source_buffers = editor.active_buffers(),
-                 .progress_channel = std::move(progress_channel.get_unique()),
-                 .abort_notification = std::move(abort_notification)})
+    DeleteNotification::Value abort_value) {
+  return Predict(PredictOptions{.editor_state = editor,
+                                .predictor = FilePredictor,
+                                .text = line->ToString(),
+                                .input_selection_structure = StructureLine(),
+                                .source_buffers = editor.active_buffers(),
+                                .progress_channel =
+                                    std::move(progress_channel.get_unique()),
+                                .abort_value = std::move(abort_value)})
       .Transform([&editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
         return DrawPath(editor, line, std::move(results.value()));
@@ -262,13 +261,7 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
                       editor.modifiers().repetitions,
                       source_buffers[0].ptr()->Read(buffer_variables::path)),
         .colorize_options_provider =
-            [&editor](
-                const NonNull<std::shared_ptr<LazyString>>& line,
-                NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
-                NonNull<std::shared_ptr<Notification>> abort_notification) {
-              return AdjustPath(editor, line, std::move(progress_channel),
-                                std::move(abort_notification));
-            },
+            std::bind_front(AdjustPath, std::ref(editor)),
         .handler = std::bind_front(OpenFileHandler, std::ref(editor)),
         .cancel_handler =
             [&editor]() {
@@ -284,5 +277,4 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
   });
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

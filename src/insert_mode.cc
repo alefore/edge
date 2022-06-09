@@ -15,11 +15,11 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_mode.h"
-#include "src/concurrent/notification.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
+#include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/substring.h"
@@ -41,7 +41,7 @@ extern "C" {
 #include "src/vm/public/value.h"
 
 namespace afc::editor {
-using concurrent::Notification;
+using futures::DeleteNotification;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
@@ -475,9 +475,9 @@ class InsertMode : public EditorMode {
     current_insertion_ = NewInsertion(options_.editor_state);
     GetScrollBehavior().AddListener(
         [buffers = buffers_, line_buffer,
-         notification = scroll_behavior_abort_notification_,
+         abort_value = scroll_behavior_abort_notification_->listenable_value(),
          method](NonNull<std::shared_ptr<ScrollBehavior>> scroll_behavior) {
-          if (notification->HasBeenNotified()) return;
+          if (abort_value->has_value()) return;
           ForEachActiveBuffer(buffers, line_buffer,
                               [scroll_behavior, method](OpenBuffer& buffer) {
                                 if (buffer.fd() == nullptr) {
@@ -500,11 +500,9 @@ class InsertMode : public EditorMode {
   futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>
   GetScrollBehavior() {
     if (!scroll_behavior_.has_value()) {
-      scroll_behavior_abort_notification_->Notify();
-      scroll_behavior_abort_notification_ =
-          NonNull<std::shared_ptr<Notification>>();
       scroll_behavior_ = futures::ListenableValue(
-          options_.scroll_behavior->Build(scroll_behavior_abort_notification_)
+          options_.scroll_behavior
+              ->Build(scroll_behavior_abort_notification_->listenable_value())
               .Transform(
                   [](NonNull<std::unique_ptr<ScrollBehavior>> scroll_behavior) {
                     return NonNull<std::shared_ptr<ScrollBehavior>>(
@@ -515,7 +513,8 @@ class InsertMode : public EditorMode {
   }
 
   void ResetScrollBehavior() {
-    scroll_behavior_abort_notification_->Notify();
+    scroll_behavior_abort_notification_ =
+        MakeNonNullUnique<DeleteNotification>();
     scroll_behavior_ = std::nullopt;
   }
 
@@ -562,7 +561,8 @@ class InsertMode : public EditorMode {
 
   // Given to ScrollBehaviorFactory::Build, and used to signal when we want to
   // abort the build of the history.
-  NonNull<std::shared_ptr<Notification>> scroll_behavior_abort_notification_;
+  NonNull<std::unique_ptr<DeleteNotification>>
+      scroll_behavior_abort_notification_;
 
   std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>
       current_insertion_;
@@ -638,7 +638,7 @@ NonNull<std::unique_ptr<Command>> NewFindCompletionCommand(
 ScrollBehaviorFactory::Default() {
   class DefaultScrollBehaviorFactory : public ScrollBehaviorFactory {
     futures::Value<NonNull<std::unique_ptr<ScrollBehavior>>> Build(
-        NonNull<std::shared_ptr<Notification>>) override {
+        DeleteNotification::Value) override {
       return futures::Past(NonNull<std::unique_ptr<ScrollBehavior>>(
           MakeNonNullUnique<DefaultScrollBehavior>()));
     }

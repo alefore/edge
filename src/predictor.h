@@ -7,8 +7,8 @@
 #include <vector>
 
 #include "src/buffer_name.h"
-#include "src/concurrent/notification.h"
 #include "src/concurrent/work_queue.h"
+#include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
 #include "src/language/safe_types.h"
 #include "src/status.h"
@@ -66,8 +66,8 @@ struct PredictorInput {
 
   ProgressChannel& progress_channel;
 
-  language::NonNull<std::shared_ptr<concurrent::Notification>>
-      abort_notification = {};
+  futures::DeleteNotification::Value abort_value =
+      futures::DeleteNotification::Never();
 };
 
 struct PredictorOutput {};
@@ -129,8 +129,8 @@ struct PredictOptions {
 
   // Notification that the caller can use to signal that it wants to stop the
   // prediction (without waiting for it to complete).
-  language::NonNull<std::shared_ptr<concurrent::Notification>>
-      abort_notification = {};
+  futures::DeleteNotification::Value abort_value =
+      futures::DeleteNotification::Never();
 };
 
 // Create a new buffer running a given predictor on the input in a given status

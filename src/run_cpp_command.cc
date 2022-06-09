@@ -10,6 +10,7 @@
 #include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/futures/delete_notification.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/overload.h"
@@ -21,7 +22,7 @@
 #include "src/vm/public/value.h"
 
 namespace afc::editor {
-using concurrent::Notification;
+using futures::DeleteNotification;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
@@ -379,7 +380,7 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
                  search_namespaces = SearchNamespaces(buffer->ptr().value())](
                     const NonNull<std::shared_ptr<LazyString>>& line,
                     NonNull<std::unique_ptr<ProgressChannel>>,
-                    NonNull<std::shared_ptr<Notification>>) {
+                    DeleteNotification::Value) {
                   return ColorizeOptionsProvider(editor_state, line,
                                                  search_namespaces);
                 };

@@ -8,12 +8,14 @@
 #include "src/buffer_variables.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
+#include "src/futures/delete_notification.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 
 namespace afc::editor {
 using concurrent::Notification;
+using futures::DeleteNotification;
 using language::EmptyValue;
 using language::FromByteString;
 using language::NonNull;
@@ -221,17 +223,17 @@ NonNull<std::unique_ptr<Command>> NewSetVariableCommand(
                 [&editor_state, variables_predictor = variables_predictor](
                     const NonNull<std::shared_ptr<LazyString>>& line,
                     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
-                    NonNull<std::shared_ptr<Notification>> abort_notification)
+                    DeleteNotification::Value abort_value)
                 -> futures::Value<ColorizePromptOptions> {
-              return Predict(PredictOptions{.editor_state = editor_state,
-                                            .predictor = variables_predictor,
-                                            .text = line->ToString(),
-                                            .source_buffers =
-                                                editor_state.active_buffers(),
-                                            .progress_channel = std::move(
-                                                progress_channel.get_unique()),
-                                            .abort_notification =
-                                                std::move(abort_notification)})
+              return Predict(
+                         PredictOptions{
+                             .editor_state = editor_state,
+                             .predictor = variables_predictor,
+                             .text = line->ToString(),
+                             .source_buffers = editor_state.active_buffers(),
+                             .progress_channel =
+                                 std::move(progress_channel.get_unique()),
+                             .abort_value = std::move(abort_value)})
                   .Transform([line](std::optional<PredictResults> results) {
                     return ColorizePromptOptions{
                         .context = results.has_value()

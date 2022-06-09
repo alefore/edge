@@ -6,16 +6,13 @@
 
 #include "src/buffer_contents.h"
 #include "src/concurrent/notification.h"
-#include "src/futures/futures.h"
+#include "src/futures/delete_notification.h"
 #include "src/language/safe_types.h"
 #include "src/line_column.h"
 #include "src/line_prompt_mode.h"
 #include "src/predictor.h"
 
 namespace afc {
-namespace concurrent {
-class Notification;
-}
 namespace editor {
 class EditorState;
 class OpenBuffer;
@@ -40,8 +37,8 @@ struct SearchOptions {
   std::optional<size_t> required_positions;
 
   // When notified, interrupts the search.
-  language::NonNull<std::shared_ptr<concurrent::Notification>>
-      abort_notification = {};
+  futures::DeleteNotification::Value abort_value =
+      futures::DeleteNotification::Never();
 
   bool case_sensitive;
 };

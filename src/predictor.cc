@@ -17,9 +17,9 @@ extern "C" {
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
-#include "src/concurrent/notification.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
+#include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -29,9 +29,9 @@ extern "C" {
 
 namespace afc::editor {
 namespace {
-using concurrent::Notification;
 using concurrent::WorkQueue;
 using concurrent::WorkQueueChannelConsumeMode;
+using futures::DeleteNotification;
 using infrastructure::FileSystemDriver;
 using infrastructure::OpenDir;
 using infrastructure::Path;
@@ -198,41 +198,39 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
         shared_options->editor_state.work_queue(), [](ProgressInformation) {},
         WorkQueueChannelConsumeMode::kLastAvailable);
   }
-  CHECK(!shared_options->abort_notification->HasBeenNotified());
+  CHECK(!shared_options->abort_value->has_value());
 
   auto input = GetPredictInput(*shared_options);
-  buffer_options.generate_contents = [shared_options =
-                                          std::move(shared_options),
-                                      input,
-                                      consumer = std::move(output.consumer)](
-                                         OpenBuffer& buffer) {
-    gc::Pool& pool = shared_options->editor_state.gc_pool();
+  buffer_options.generate_contents =
+      [shared_options = std::move(shared_options), input,
+       consumer = std::move(output.consumer)](OpenBuffer& buffer) {
+        gc::Pool& pool = shared_options->editor_state.gc_pool();
 
-    buffer.environment()->Define(kLongestPrefixEnvironmentVariable,
-                                 vm::Value::NewInt(pool, 0));
-    buffer.environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
-                                 vm::Value::NewInt(pool, 0));
-    buffer.environment()->Define(kExactMatchEnvironmentVariable,
-                                 vm::Value::NewBool(pool, false));
+        buffer.environment()->Define(kLongestPrefixEnvironmentVariable,
+                                     vm::Value::NewInt(pool, 0));
+        buffer.environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
+                                     vm::Value::NewInt(pool, 0));
+        buffer.environment()->Define(kExactMatchEnvironmentVariable,
+                                     vm::Value::NewBool(pool, false));
 
-    return shared_options
-        ->predictor({.editor = shared_options->editor_state,
-                     .input = std::move(input),
-                     .predictions = buffer,
-                     .source_buffers = shared_options->source_buffers,
-                     .progress_channel = *shared_options->progress_channel,
-                     .abort_notification = shared_options->abort_notification})
-        .Transform([shared_options, input, &buffer, consumer](PredictorOutput) {
-          buffer.set_current_cursor(LineColumn());
-          auto results = BuildResults(buffer);
-          consumer(
-              GetPredictInput(*shared_options) == input &&
-                      !shared_options->abort_notification->HasBeenNotified()
-                  ? std::optional<PredictResults>(results)
-                  : std::nullopt);
-          return Success();
-        });
-  };
+        return shared_options
+            ->predictor({.editor = shared_options->editor_state,
+                         .input = std::move(input),
+                         .predictions = buffer,
+                         .source_buffers = shared_options->source_buffers,
+                         .progress_channel = *shared_options->progress_channel,
+                         .abort_value = shared_options->abort_value})
+            .Transform(
+                [shared_options, input, &buffer, consumer](PredictorOutput) {
+                  buffer.set_current_cursor(LineColumn());
+                  auto results = BuildResults(buffer);
+                  consumer(GetPredictInput(*shared_options) == input &&
+                                   !shared_options->abort_value->has_value()
+                               ? std::optional<PredictResults>(results)
+                               : std::nullopt);
+                  return Success();
+                });
+      };
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
@@ -316,7 +314,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
 void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
                    std::wstring pattern, std::wstring prefix, int* matches,
                    ProgressChannel& progress_channel,
-                   Notification& abort_notification,
+                   DeleteNotification::Value& abort_value,
                    OpenBuffer::LockFunction get_buffer) {
   static Tracker top_tracker(L"FilePredictor::ScanDirectory");
   auto top_call = top_tracker.Call();
@@ -340,7 +338,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   };
 
   while ((entry = readdir(dir)) != nullptr) {
-    if (abort_notification.HasBeenNotified()) return;
+    if (abort_value->has_value()) return;
     std::string entry_path = entry->d_name;
     auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
                                           entry_path.begin(), entry_path.end());
@@ -415,8 +413,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
         return predictor_input.editor.thread_pool().Run(std::bind_front(
             [search_paths, path_input, get_buffer, resolve_path_options,
              noise_regex](ProgressChannel& progress_channel,
-                          const NonNull<std::shared_ptr<Notification>>&
-                              abort_notification) {
+                          DeleteNotification::Value abort_value) {
               if (!path_input.empty() && *path_input.begin() == L'/') {
                 *search_paths = {Path::Root()};
               } else {
@@ -462,10 +459,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     path_input.substr(descend_results.valid_prefix_length,
                                       path_input.size()),
                     path_input.substr(0, descend_results.valid_prefix_length),
-                    &matches, progress_channel, abort_notification.value(),
-                    get_buffer);
-                if (abort_notification->HasBeenNotified())
-                  return PredictorOutput();
+                    &matches, progress_channel, abort_value, get_buffer);
+                if (abort_value->has_value()) return PredictorOutput();
               }
               get_buffer([](OpenBuffer& buffer) {
                 LOG(INFO) << "Signaling end of file.";
@@ -474,7 +469,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               return PredictorOutput();
             },
             predictor_input.progress_channel,
-            std::move(predictor_input.abort_notification)));
+            std::move(predictor_input.abort_value)));
       });
 }
 

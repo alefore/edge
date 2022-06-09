@@ -7,6 +7,13 @@ using language::EmptyValue;
 using language::MakeNonNullShared;
 using language::NonNull;
 
+/* static */ DeleteNotification::Value DeleteNotification::Never() {
+  static const NonNull<std::shared_ptr<ListenableValue<EmptyValue>>> value =
+      MakeNonNullShared<ListenableValue<EmptyValue>>(
+          futures::Future<EmptyValue>().value);
+  return value;
+}
+
 DeleteNotification::DeleteNotification()
     : DeleteNotification(futures::Future<EmptyValue>()) {}
 

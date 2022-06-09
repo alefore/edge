@@ -3,15 +3,13 @@
 
 #include <memory>
 
+#include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
 
-namespace afc {
-namespace concurrent {
-class Notification;
-}
-namespace editor {
+namespace afc::editor {
+
 class EditorState;
 class OpenBuffer;
 class Command;
@@ -46,8 +44,7 @@ class ScrollBehaviorFactory {
   static language::NonNull<std::unique_ptr<ScrollBehaviorFactory>> Default();
   virtual ~ScrollBehaviorFactory() = default;
   virtual futures::Value<language::NonNull<std::unique_ptr<ScrollBehavior>>>
-  Build(language::NonNull<std::shared_ptr<concurrent::Notification>>
-            abort_notification) = 0;
+  Build(futures::DeleteNotification::Value abort_value) = 0;
 };
 
 struct InsertModeOptions {
@@ -83,7 +80,6 @@ struct InsertModeOptions {
 
 void EnterInsertMode(InsertModeOptions options);
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_INSERT_MODE_H__

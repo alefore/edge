@@ -7,6 +7,7 @@
 
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/futures/delete_notification.h"
 #include "src/language/ghost_type.h"
 #include "src/predictor.h"
 #include "src/tokenize.h"
@@ -55,8 +56,7 @@ struct PromptOptions {
       const language::NonNull<
           std::shared_ptr<language::lazy_string::LazyString>>& line,
       language::NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
-      language::NonNull<std::shared_ptr<concurrent::Notification>>
-          abort_notification)>;
+      futures::DeleteNotification::Value abort_value)>;
 
   // Run whenever the text in the promot changes; should return a future with
   // options to colorize it.

@@ -33,6 +33,7 @@ extern "C" {
 #include "src/vm/public/escape.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/value.h"
+#include "src/futures/delete_notification.h"
 
 namespace afc {
 using language::NonNull;
@@ -40,7 +41,7 @@ using language::NonNull;
 namespace gc = language::gc;
 namespace editor {
 namespace {
-using concurrent::Notification;
+using futures::DeleteNotification;
 using infrastructure::FileDescriptor;
 using infrastructure::GetElapsedSecondsSince;
 using infrastructure::Path;
@@ -443,7 +444,7 @@ class ForkEditorCommand : public Command {
                   ? ([prompt_state](
                          const NonNull<std::shared_ptr<LazyString>>& line,
                          NonNull<std::unique_ptr<ProgressChannel>>,
-                         NonNull<std::shared_ptr<Notification>>) {
+                         DeleteNotification::Value) {
                       return PromptChange(prompt_state.value(), line);
                     })
                   : PromptOptions::ColorizeFunction(nullptr),
