@@ -9,7 +9,7 @@
 
 namespace afc::language::lazy_string {
 // Returns a copy with all left space characters removed.
-language::NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
+language::NonNull<std::shared_ptr<LazyString>> TrimLeft(
     language::NonNull<std::shared_ptr<LazyString>> a,
     std::wstring space_characters);
 }  // namespace afc::language::lazy_string

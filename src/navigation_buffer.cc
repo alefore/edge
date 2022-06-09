@@ -36,8 +36,8 @@ const std::wstring kDepthSymbol = L"navigation_buffer_depth";
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
                  Line::Options* line_options) {
-  auto trim = StringTrimLeft(
-      input.contents(), source.Read(buffer_variables::line_prefix_characters));
+  auto trim = TrimLeft(input.contents(),
+                       source.Read(buffer_variables::line_prefix_characters));
   CHECK_LE(trim->size(), input.contents()->size());
   auto characters_trimmed =
       ColumnNumberDelta(input.contents()->size() - trim->size());
