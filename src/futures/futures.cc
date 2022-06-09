@@ -114,6 +114,25 @@ const bool futures_on_error_tests_registration = tests::Register(
           return futures::Past(value);
         });
       }}});
+
+const bool double_registration_tests_registration = tests::Register(
+    L"FuturesDoubleConsumer",
+    {{.name = L"DoubleConsumer",
+      .callback =
+          [] {
+            futures::Future<int> object;
+            object.consumer(0);
+            CHECK(object.value.Get().has_value());
+            CHECK(object.value.has_value());
+            tests::ForkAndWaitForFailure([&] { object.consumer(0); });
+          }},
+     {.name = L"DoubleConsumerWithGet", .callback = [] {
+        futures::Future<int> object;
+        object.consumer(0);
+        CHECK(object.value.Get().has_value());
+        CHECK(object.value.has_value());
+        tests::ForkAndWaitForFailure([&] { object.consumer(0); });
+      }}});
 }  // namespace
 
 }  // namespace afc::futures
