@@ -15,6 +15,7 @@
 #include "src/test/line_test.h"
 
 using namespace afc::editor;
+using afc::language::ConstTree;
 using afc::language::ToByteString;
 using afc::language::lazy_string::ColumnNumber;
 
