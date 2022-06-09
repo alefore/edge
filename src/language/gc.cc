@@ -1,6 +1,6 @@
 #include "src/language/gc.h"
 
-#include "src/concurrent/notification.h"
+#include "src/futures/delete_notification.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
@@ -225,18 +225,15 @@ std::ostream& operator<<(std::ostream& os,
 }  // namespace gc
 
 namespace {
-using concurrent::Notification;
+using futures::DeleteNotification;
 using gc::Pool;
 
 struct Node {
-  ~Node() {
-    VLOG(5) << "Deleting Node: " << this;
-    delete_notification->Notify();
-  }
+  ~Node() { VLOG(5) << "Deleting Node: " << this; }
 
   std::vector<gc::Ptr<Node>> children;
 
-  NonNull<std::shared_ptr<Notification>> delete_notification;
+  DeleteNotification delete_notification;
 };
 }  // namespace
 
@@ -278,47 +275,48 @@ bool tests_registration = tests::Register(
       .callback =
           [] {
             gc::Pool pool;
-            NonNull<std::shared_ptr<Notification>> delete_notification =
-                [&pool] {
-                  auto root = pool.NewRoot(MakeNonNullUnique<Node>());
-                  auto output = root.ptr().value().delete_notification;
-                  pool.Reclaim();
-                  CHECK(!output->HasBeenNotified());
-                  return output;
-                }();
-            CHECK(delete_notification->HasBeenNotified());
+            DeleteNotification::Value delete_notification = [&pool] {
+              auto root = pool.NewRoot(MakeNonNullUnique<Node>());
+              auto output =
+                  root.ptr().value().delete_notification.listenable_value();
+              pool.Reclaim();
+              CHECK(!output->has_value());
+              return output;
+            }();
+            CHECK(delete_notification->has_value());
           }},
      {.name = L"RootAssignment",
       .callback =
           [] {
             gc::Pool pool;
-            NonNull<std::shared_ptr<Notification>> delete_notification =
-                [&pool] {
-                  auto root = pool.NewRoot(MakeNonNullUnique<Node>());
-                  auto delete_notification_0 = root.ptr()->delete_notification;
-                  pool.Reclaim();
-                  CHECK(!delete_notification_0->HasBeenNotified());
+            DeleteNotification::Value delete_notification = [&pool] {
+              auto root = pool.NewRoot(MakeNonNullUnique<Node>());
+              auto delete_notification_0 =
+                  root.ptr()->delete_notification.listenable_value();
+              pool.Reclaim();
+              CHECK(!delete_notification_0->has_value());
 
-                  VLOG(5) << "Overriding root.";
-                  root = pool.NewRoot(MakeNonNullUnique<Node>());
+              VLOG(5) << "Overriding root.";
+              root = pool.NewRoot(MakeNonNullUnique<Node>());
 
-                  auto delete_notification_1 = root.ptr()->delete_notification;
+              auto delete_notification_1 =
+                  root.ptr()->delete_notification.listenable_value();
 
-                  CHECK(delete_notification_0->HasBeenNotified());
-                  CHECK(!delete_notification_1->HasBeenNotified());
+              CHECK(delete_notification_0->has_value());
+              CHECK(!delete_notification_1->has_value());
 
-                  VLOG(5) << "Start reclaim.";
-                  auto stats = pool.Reclaim();
-                  CHECK_EQ(stats.begin_total, 2ul);
-                  CHECK_EQ(stats.roots, 1ul);
-                  CHECK_EQ(stats.end_total, 1ul);
+              VLOG(5) << "Start reclaim.";
+              auto stats = pool.Reclaim();
+              CHECK_EQ(stats.begin_total, 2ul);
+              CHECK_EQ(stats.roots, 1ul);
+              CHECK_EQ(stats.end_total, 1ul);
 
-                  CHECK(delete_notification_0->HasBeenNotified());
-                  CHECK(!delete_notification_1->HasBeenNotified());
+              CHECK(delete_notification_0->has_value());
+              CHECK(!delete_notification_1->has_value());
 
-                  return delete_notification_1;
-                }();
-            CHECK(delete_notification->HasBeenNotified());
+              return delete_notification_1;
+            }();
+            CHECK(delete_notification->has_value());
 
             Pool::ReclaimObjectsStats stats = pool.Reclaim();
             CHECK_EQ(stats.begin_total, 1ul);
@@ -329,74 +327,76 @@ bool tests_registration = tests::Register(
       .callback =
           [] {
             gc::Pool pool;
-            NonNull<std::shared_ptr<Notification>> delete_notification =
-                [&pool] {
-                  gc::Root<Node> root = pool.NewRoot(MakeNonNullUnique<Node>());
-                  auto delete_notification_0 = root.ptr()->delete_notification;
-                  pool.Reclaim();
-                  CHECK(!delete_notification_0->HasBeenNotified());
+            DeleteNotification::Value delete_notification = [&pool] {
+              gc::Root<Node> root = pool.NewRoot(MakeNonNullUnique<Node>());
+              auto delete_notification_0 =
+                  root.ptr()->delete_notification.listenable_value();
+              pool.Reclaim();
+              CHECK(!delete_notification_0->has_value());
 
-                  auto child_notification = [&] {
-                    VLOG(5) << "Creating child.";
-                    gc::Ptr<Node> child =
-                        pool.NewRoot(MakeNonNullUnique<Node>()).ptr();
+              auto child_notification = [&] {
+                VLOG(5) << "Creating child.";
+                gc::Ptr<Node> child =
+                    pool.NewRoot(MakeNonNullUnique<Node>()).ptr();
 
-                    VLOG(5) << "Storing root in child.";
-                    child->children.push_back(root.ptr());
-                    CHECK_EQ(&child->children[0].value(), &root.ptr().value());
+                VLOG(5) << "Storing root in child.";
+                child->children.push_back(root.ptr());
+                CHECK_EQ(&child->children[0].value(), &root.ptr().value());
 
-                    VLOG(5) << "Storing child in root.";
-                    root.ptr()->children.push_back(child);
+                VLOG(5) << "Storing child in root.";
+                root.ptr()->children.push_back(child);
 
-                    VLOG(5) << "Returning (deleting child pointer).";
-                    return child->delete_notification;
-                  }();
+                VLOG(5) << "Returning (deleting child pointer).";
+                return child->delete_notification.listenable_value();
+              }();
 
-                  CHECK(!delete_notification_0->HasBeenNotified());
-                  CHECK(!child_notification->HasBeenNotified());
+              CHECK(!delete_notification_0->has_value());
+              CHECK(!child_notification->has_value());
 
-                  VLOG(5) << "Trigger Reclaim.";
-                  pool.Reclaim();
+              VLOG(5) << "Trigger Reclaim.";
+              pool.Reclaim();
 
-                  CHECK(!delete_notification_0->HasBeenNotified());
-                  CHECK(!child_notification->HasBeenNotified());
+              CHECK(!delete_notification_0->has_value());
+              CHECK(!child_notification->has_value());
 
-                  VLOG(5) << "Override root value.";
-                  root = pool.NewRoot(MakeNonNullUnique<Node>());
+              VLOG(5) << "Override root value.";
+              root = pool.NewRoot(MakeNonNullUnique<Node>());
 
-                  auto delete_notification_1 = root.ptr()->delete_notification;
+              auto delete_notification_1 =
+                  root.ptr()->delete_notification.listenable_value();
 
-                  CHECK(!child_notification->HasBeenNotified());
-                  CHECK(!delete_notification_0->HasBeenNotified());
-                  CHECK(!delete_notification_1->HasBeenNotified());
+              CHECK(!child_notification->has_value());
+              CHECK(!delete_notification_0->has_value());
+              CHECK(!delete_notification_1->has_value());
 
-                  pool.Reclaim();
+              pool.Reclaim();
 
-                  CHECK(child_notification->HasBeenNotified());
-                  CHECK(delete_notification_0->HasBeenNotified());
-                  CHECK(!delete_notification_1->HasBeenNotified());
+              CHECK(child_notification->has_value());
+              CHECK(delete_notification_0->has_value());
+              CHECK(!delete_notification_1->has_value());
 
-                  return delete_notification_1;
-                }();
-            CHECK(delete_notification->HasBeenNotified());
+              return delete_notification_1;
+            }();
+            CHECK(delete_notification->has_value());
           }},
      {.name = L"RootsReplaceLoop",
       .callback =
           [] {
             gc::Pool pool;
             gc::Root root = MakeLoop(pool, 10);
-            auto old_notification = root.ptr()->delete_notification;
+            auto old_notification =
+                root.ptr()->delete_notification.listenable_value();
 
             {
               auto stats = pool.Reclaim();
               CHECK_EQ(stats.begin_total, 10ul);
               CHECK_EQ(stats.end_total, 10ul);
-              CHECK(!old_notification->HasBeenNotified());
+              CHECK(!old_notification->has_value());
             }
 
             VLOG(5) << "Replacing loop.";
             root = MakeLoop(pool, 5);
-            CHECK(!old_notification->HasBeenNotified());
+            CHECK(!old_notification->has_value());
             {
               auto stats = pool.Reclaim();
               CHECK_EQ(stats.begin_total, 15ul);
@@ -411,12 +411,15 @@ bool tests_registration = tests::Register(
             {
               gc::Ptr<Node> split = root.ptr();
               for (int i = 0; i < 4; i++) split = split->children[0];
-              auto notification = split->children[0]->delete_notification;
-              CHECK(!notification->HasBeenNotified());
+              auto notification =
+                  split->children[0]->delete_notification.listenable_value();
+              CHECK(!notification->has_value());
               split->children.clear();
-              CHECK(notification->HasBeenNotified());
+              CHECK(notification->has_value());
             }
-            CHECK(!root.ptr()->delete_notification->HasBeenNotified());
+            CHECK(!root.ptr()
+                       ->delete_notification.listenable_value()
+                       ->has_value());
             Pool::ReclaimObjectsStats stats = pool.Reclaim();
             CHECK_EQ(stats.begin_total, 7ul);
             CHECK_EQ(stats.roots, 1ul);
