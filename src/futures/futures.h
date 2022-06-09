@@ -33,6 +33,7 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/concurrent/protected.h"
 #include "src/language/function_traits.h"
 #include "src/language/value_or_error.h"
 
@@ -118,7 +119,8 @@ class Value {
   using Consumer = std::function<void(Type)>;
   using type = Type;
 
-  const std::optional<Type>& Get() const { return data_->read(); }
+  bool has_value() const { return data_->has_value(); }
+  std::optional<Type> Get() const { return data_->read(); }
 
   void SetConsumer(Consumer consumer) {
     data_->SetConsumer(std::move(consumer));
@@ -149,38 +151,56 @@ class Value {
  private:
   friend Future<Type>;
 
+  // This class is thread-safe.
   class FutureData {
    public:
     FutureData() = default;
-    const std::optional<Type>& read() { return value_; }
+
+    std::optional<Type> read() {
+      return data_.lock([](Data& data) { return data.value; });
+    }
+
+    bool has_value() const {
+      return data_.lock(
+          [](const Data& data) { return data.value.has_value(); });
+    }
 
     void Feed(Type final_value) {
-      CHECK(!value_.has_value());
-      CHECK(!consumer_.has_value() || consumer_.value() != nullptr);
-      if (consumer_.has_value()) {
-        (*consumer_)(std::move(final_value));
-        consumer_ = nullptr;
-      } else {
-        value_.emplace(std::move(final_value));
-      }
+      Consumer consumer;
+
+      data_.lock([&](Data& data) {
+        CHECK(!data.value.has_value());
+        CHECK(!data.consumer.has_value() || data.consumer.value() != nullptr);
+        if (data.consumer.has_value()) {
+          std::swap(consumer, *data.consumer);
+        } else {
+          data.value.emplace(std::move(final_value));
+        }
+      });
+      if (consumer != nullptr) consumer(std::move(final_value));
     }
 
     void SetConsumer(Consumer final_consumer) {
-      CHECK(!consumer_.has_value());
-      if (value_.has_value()) {
-        final_consumer(std::move(*value_));
-        consumer_ = nullptr;
-        value_ = std::nullopt;
-      } else {
-        consumer_ = std::move(final_consumer);
-      }
+      data_.lock([&](Data& data) {
+        CHECK(!data.consumer.has_value());
+        if (data.value.has_value()) {
+          final_consumer(std::move(*data.value));
+          data.consumer = nullptr;
+          data.value = std::nullopt;
+        } else {
+          data.consumer = std::move(final_consumer);
+        }
+      });
     }
 
    private:
-    // std::nullopt before a consumer is set. nullptr when a consumer has
-    // already been executed.
-    std::optional<Consumer> consumer_;
-    std::optional<Type> value_;
+    struct Data {
+      // std::nullopt before a consumer is set. nullptr when a consumer has
+      // already been executed.
+      std::optional<Consumer> consumer;
+      std::optional<Type> value;
+    };
+    concurrent::Protected<Data> data_;
   };
 
   Value(std::shared_ptr<FutureData> data) : data_(std::move(data)) {}

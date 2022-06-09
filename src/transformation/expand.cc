@@ -175,9 +175,9 @@ bool predictor_transformation_tests_register = tests::Register(
         LOG(INFO) << "Signaling EOF to predictions_buffer.";
         predictions_buffer->EndOfFile();
         LOG(INFO) << "Notifying inner future";
-        CHECK(!final_value.Get().has_value());
+        CHECK(!final_value.has_value());
         inner_future.consumer(PredictorOutput());
-        CHECK(final_value.Get().has_value());
+        CHECK(final_value.has_value());
       }}});
 }
 
