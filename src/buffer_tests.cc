@@ -13,6 +13,8 @@ using language::NonNull;
 using language::Pointer;
 using language::ValueOrDie;
 using language::ValueOrError;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 namespace {

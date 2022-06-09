@@ -21,7 +21,6 @@
 namespace afc::editor {
 class EditorMode;
 class EditorState;
-class LazyString;
 class OpenBuffer;
 class LineWithCursor;
 
@@ -29,8 +28,10 @@ class LineWithCursor;
 class Line {
  public:
   struct MetadataEntry {
-    language::NonNull<std::shared_ptr<LazyString>> initial_value;
-    futures::ListenableValue<language::NonNull<std::shared_ptr<LazyString>>>
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+        initial_value;
+    futures::ListenableValue<
+        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>
         value;
   };
 
@@ -41,25 +42,32 @@ class Line {
 
   class Options {
    public:
-    Options() : Options(EmptyString()) {}
+    Options() : Options(language::lazy_string::EmptyString()) {}
 
-    Options(language::NonNull<std::shared_ptr<LazyString>> input_contents)
+    Options(
+        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+            input_contents)
         : contents(std::move(input_contents)) {}
 
-    ColumnNumber EndColumn() const;
+    language::lazy_string::ColumnNumber EndColumn() const;
 
     // Sets the character at the position given.
     //
     // `column` may be greater than size(), in which case the character will
     // just get appended (extending the line by exactly one character).
-    void SetCharacter(ColumnNumber column, int c,
+    void SetCharacter(language::lazy_string::ColumnNumber column, int c,
                       const LineModifierSet& modifiers);
 
-    void InsertCharacterAtPosition(ColumnNumber position);
+    void InsertCharacterAtPosition(
+        language::lazy_string::ColumnNumber position);
     void AppendCharacter(wchar_t c, LineModifierSet modifier);
-    void AppendString(language::NonNull<std::shared_ptr<LazyString>> suffix);
-    void AppendString(language::NonNull<std::shared_ptr<LazyString>> suffix,
-                      std::optional<LineModifierSet> modifier);
+    void AppendString(
+        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+            suffix);
+    void AppendString(
+        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+            suffix,
+        std::optional<LineModifierSet> modifier);
     void AppendString(std::wstring contents,
                       std::optional<LineModifierSet> modifier);
     void Append(Line line);
@@ -78,19 +86,21 @@ class Line {
     Options& SetMetadata(std::optional<MetadataEntry> metadata);
 
     // Delete characters in [position, position + amount).
-    Options& DeleteCharacters(ColumnNumber position, ColumnNumberDelta amount);
+    Options& DeleteCharacters(language::lazy_string::ColumnNumber position,
+                              language::lazy_string::ColumnNumberDelta amount);
 
     // Delete characters from column (included) until the end.
-    Options& DeleteSuffix(ColumnNumber column);
+    Options& DeleteSuffix(language::lazy_string::ColumnNumber column);
 
     // TODO: Make these fields private.
-    language::NonNull<std::shared_ptr<LazyString>> contents;
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+        contents;
 
     // Columns without an entry here reuse the last present value. If no
     // previous value, assume LineModifierSet(). There's no need to include
     // RESET: it is assumed implicitly. In other words, modifiers don't carry
     // over past an entry.
-    std::map<ColumnNumber, LineModifierSet> modifiers;
+    std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers;
 
     // The semantics of this is that any characters at the end of the line
     // (i.e., the space that represents the end of the line) should be rendered
@@ -118,27 +128,30 @@ class Line {
 
   Options CopyOptions() const;
 
-  language::NonNull<std::shared_ptr<LazyString>> contents() const;
-  ColumnNumber EndColumn() const;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  contents() const;
+  language::lazy_string::ColumnNumber EndColumn() const;
   bool empty() const;
 
-  wint_t get(ColumnNumber column) const;
-  language::NonNull<std::shared_ptr<LazyString>> Substring(
-      ColumnNumber column, ColumnNumberDelta length) const;
+  wint_t get(language::lazy_string::ColumnNumber column) const;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  Substring(language::lazy_string::ColumnNumber column,
+            language::lazy_string::ColumnNumberDelta length) const;
 
   // Returns the substring from pos to the end of the string.
-  language::NonNull<std::shared_ptr<LazyString>> Substring(
-      ColumnNumber column) const;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  Substring(language::lazy_string::ColumnNumber column) const;
 
   std::wstring ToString() const { return contents()->ToString(); }
 
-  std::shared_ptr<LazyString> metadata() const;
+  std::shared_ptr<language::lazy_string::LazyString> metadata() const;
 
   void SetAllModifiers(const LineModifierSet& modifiers);
-  std::map<ColumnNumber, LineModifierSet> modifiers() const {
+  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
+      const {
     return data_.lock([](const Data& data) { return data.options.modifiers; });
   }
-  std::map<ColumnNumber, LineModifierSet> modifiers() {
+  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers() {
     return data_.lock([](const Data& data) { return data.options.modifiers; });
   }
   LineModifierSet end_of_line_modifiers() const {
@@ -173,18 +186,19 @@ class Line {
   std::optional<BufferLineColumn> buffer_line_column() const;
 
   struct OutputOptions {
-    ColumnNumber initial_column;
+    language::lazy_string::ColumnNumber initial_column;
     // Total number of screen characters to consume. If the input has wide
     // characters, they have to be taken into account (in other words, the
     // number of characters consumed from the input may be smaller than the
     // width).
-    ColumnNumberDelta width;
+    language::lazy_string::ColumnNumberDelta width;
     // Maximum number of characters in the input to consume. Even if more
     // characters would fit in the output (per `width`), can stop outputting
     // when this limit is reached.
-    ColumnNumberDelta input_width;
-    std::optional<ColumnNumber> active_cursor_column = std::nullopt;
-    std::set<ColumnNumber> inactive_cursor_columns = {};
+    language::lazy_string::ColumnNumberDelta input_width;
+    std::optional<language::lazy_string::ColumnNumber> active_cursor_column =
+        std::nullopt;
+    std::set<language::lazy_string::ColumnNumber> inactive_cursor_columns = {};
     LineModifierSet modifiers_main_cursor = {};
     LineModifierSet modifiers_inactive_cursors = {};
   };
@@ -204,8 +218,9 @@ class Line {
   };
 
   static void ValidateInvariants(const Data& data);
-  static ColumnNumber EndColumn(const Data& data);
-  static wint_t Get(const Data& data, ColumnNumber column);
+  static language::lazy_string::ColumnNumber EndColumn(const Data& data);
+  static wint_t Get(const Data& data,
+                    language::lazy_string::ColumnNumber column);
 
   friend class Options;
 

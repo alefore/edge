@@ -18,6 +18,7 @@ extern "C" {
 #include "src/language/safe_types.h"
 
 using namespace afc::editor;
+using afc::language::lazy_string::NewLazyString;
 
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);

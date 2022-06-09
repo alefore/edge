@@ -7,6 +7,8 @@
 #include <iostream>
 
 namespace afc::editor {
+using language::lazy_string::ColumnNumberDelta;
+
 Line FrameLine(FrameOutputProducerOptions options) {
   LineModifierSet line_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::kInactive

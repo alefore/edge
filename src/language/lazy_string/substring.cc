@@ -6,10 +6,9 @@
 
 #include "src/language/lazy_string/lazy_string.h"
 
-namespace afc::editor {
-using language::MakeNonNullShared;
-using language::NonNull;
+namespace afc::language::lazy_string {
 
+// TODO(easy, 2022-06-09): Put this in an anonymous namespace?
 class SubstringImpl : public LazyString {
  public:
   SubstringImpl(const NonNull<std::shared_ptr<LazyString>> input,
@@ -55,4 +54,4 @@ NonNull<std::shared_ptr<LazyString>> SubstringWithRangeChecks(
   return Substring(std::move(input), column,
                    std::min(delta, length - column.ToDelta()));
 }
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string

@@ -13,12 +13,13 @@ namespace afc::editor::transformation {
 struct SetPosition {
   explicit SetPosition(LineColumn position)
       : line(position.line), column(position.column) {}
-  explicit SetPosition(ColumnNumber input_column) : column(input_column) {}
+  explicit SetPosition(language::lazy_string::ColumnNumber input_column)
+      : column(input_column) {}
 
   std::optional<LineNumber> line;
   // If column is greater than the length of the line, goes to the end of the
   // line.
-  ColumnNumber column;
+  language::lazy_string::ColumnNumber column;
 };
 
 void RegisterSetPosition(language::gc::Pool& pool,

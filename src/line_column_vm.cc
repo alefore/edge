@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/container.h"
@@ -13,6 +14,8 @@
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 
 namespace gc = afc::language::gc;
 

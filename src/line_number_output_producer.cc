@@ -26,6 +26,9 @@ namespace editor {
 using language::CaptureAndHash;
 using language::HashableContainer;
 using language::MakeNonNullShared;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 /* static */ ColumnNumberDelta LineNumberOutputWidth(
     LineNumberDelta lines_size) {

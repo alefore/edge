@@ -23,6 +23,8 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::Pointer;
 using language::VisitPointer;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
 
 namespace gc = language::gc;
 

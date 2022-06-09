@@ -9,10 +9,7 @@
 #include "src/line_column.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
-
-using language::NonNull;
-
+namespace afc::language::lazy_string {
 namespace {
 class LowerCaseImpl : public LazyString {
  public:
@@ -49,4 +46,4 @@ NonNull<std::shared_ptr<LazyString>> LowerCase(
   return MakeNonNullShared<LowerCaseImpl>(std::move(input));
 }
 
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string

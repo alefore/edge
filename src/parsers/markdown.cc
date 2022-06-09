@@ -8,11 +8,10 @@
 #include "src/parse_tools.h"
 #include "src/seek.h"
 
-namespace afc {
-namespace editor {
-namespace parsers {
-using language::NonNull;
+namespace afc::editor::parsers {
 namespace {
+using language::NonNull;
+using language::lazy_string::ColumnNumberDelta;
 
 enum State {
   DEFAULT,
@@ -292,6 +291,4 @@ class MarkdownParser : public TreeParser {
 NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser() {
   return NonNull<std::unique_ptr<MarkdownParser>>();
 }
-}  // namespace parsers
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor::parsers

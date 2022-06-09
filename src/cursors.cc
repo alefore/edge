@@ -15,6 +15,9 @@ namespace afc::editor {
 using language::EmptyValue;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+
 using ::operator<<;
 
 void CursorsSet::SetCurrentCursor(LineColumn position) {

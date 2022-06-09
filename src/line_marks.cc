@@ -12,6 +12,7 @@
 
 namespace afc::editor {
 using infrastructure::Tracker;
+using language::lazy_string::NewLazyString;
 
 void LineMarks::AddMark(Mark mark) {
   marks_by_source_target[mark.source_buffer][mark.target_buffer].marks.insert(

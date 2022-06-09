@@ -17,6 +17,7 @@ using concurrent::Notification;
 using language::EmptyValue;
 using language::FromByteString;
 using language::NonNull;
+using language::lazy_string::LazyString;
 
 namespace gc = language::gc;
 

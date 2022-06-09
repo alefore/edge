@@ -19,6 +19,7 @@ using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
+using language::lazy_string::LazyString;
 
 namespace gc = language::gc;
 

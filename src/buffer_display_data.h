@@ -12,8 +12,8 @@ class BufferDisplayData {
   const language::ObservableValue<LineColumnDelta>& view_size() const;
 
   // See max_display_width_.
-  void AddDisplayWidth(ColumnNumberDelta display_width);
-  ColumnNumberDelta max_display_width() const;
+  void AddDisplayWidth(language::lazy_string::ColumnNumberDelta display_width);
+  language::lazy_string::ColumnNumberDelta max_display_width() const;
 
   // See min_vertical_prefix_size_.
   void AddVerticalPrefixSize(LineNumberDelta vertical_prefix_size);
@@ -31,7 +31,8 @@ class BufferDisplayData {
   // jittering.
   //
   // Cleared when the buffer is reloaded.
-  ColumnNumberDelta max_display_width_ = ColumnNumberDelta(0);
+  language::lazy_string::ColumnNumberDelta max_display_width_ =
+      language::lazy_string::ColumnNumberDelta(0);
 
   // The smallest vertical prefix we've used while showing this buffer. A
   // vertical prefix is a block of empty lines.

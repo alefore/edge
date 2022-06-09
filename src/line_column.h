@@ -27,16 +27,18 @@ namespace afc::editor {
 // If length is negative (or zero), returns an empty string.
 //
 // TODO(easy, 2022-06-05): Move this to a LazyString-related module?
-language::NonNull<std::shared_ptr<LazyString>> PaddingString(
-    const ColumnNumberDelta& length, wchar_t fill);
+language::NonNull<std::shared_ptr<afc::language::lazy_string::LazyString>>
+PaddingString(const afc::language::lazy_string::ColumnNumberDelta& length,
+              wchar_t fill);
 
 // First adds the line, then adds the column.
 struct LineColumnDelta {
-  LineColumnDelta(LineNumberDelta input_line, ColumnNumberDelta input_column);
+  LineColumnDelta(LineNumberDelta input_line,
+                  afc::language::lazy_string::ColumnNumberDelta input_column);
   LineColumnDelta() = default;
 
   LineNumberDelta line;
-  ColumnNumberDelta column;
+  afc::language::lazy_string::ColumnNumberDelta column;
 };
 
 std::ostream& operator<<(std::ostream& os, const LineColumnDelta& lc);
@@ -51,20 +53,24 @@ struct Reader<LineNumber> {
 };
 
 template <>
-struct Reader<ColumnNumber> {
-  static std::optional<ColumnNumber> Read(fuzz::Stream& input_stream);
+struct Reader<afc::language::lazy_string::ColumnNumber> {
+  static std::optional<afc::language::lazy_string::ColumnNumber> Read(
+      fuzz::Stream& input_stream);
 };
 }  // namespace fuzz
 
 // A position in a text buffer.
 struct LineColumn {
   LineColumn() = default;
-  explicit LineColumn(LineNumber l) : LineColumn(l, ColumnNumber(0)) {}
-  LineColumn(LineNumber l, ColumnNumber c) : line(l), column(c) {}
+  explicit LineColumn(LineNumber l)
+      : LineColumn(l, afc::language::lazy_string::ColumnNumber(0)) {}
+  LineColumn(LineNumber l, afc::language::lazy_string::ColumnNumber c)
+      : line(l), column(c) {}
 
   static LineColumn Max() {
-    return LineColumn(std::numeric_limits<LineNumber>::max(),
-                      std::numeric_limits<ColumnNumber>::max());
+    return LineColumn(
+        std::numeric_limits<LineNumber>::max(),
+        std::numeric_limits<afc::language::lazy_string::ColumnNumber>::max());
   }
 
   bool operator!=(const LineColumn& other) const;
@@ -93,15 +99,17 @@ struct LineColumn {
   LineColumn& operator+=(const LineNumberDelta& value);
   LineColumn& operator-=(const LineNumberDelta& value);
 
-  LineColumn operator+(const ColumnNumberDelta& value) const;
-  LineColumn operator-(const ColumnNumberDelta& value) const;
+  LineColumn operator+(
+      const afc::language::lazy_string::ColumnNumberDelta& value) const;
+  LineColumn operator-(
+      const afc::language::lazy_string::ColumnNumberDelta& value) const;
 
   LineColumn operator+(const LineColumnDelta& value) const;
 
   std::wstring ToCppString() const;
 
   LineNumber line;
-  ColumnNumber column;
+  afc::language::lazy_string::ColumnNumber column;
 
   friend std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 };
@@ -121,8 +129,9 @@ struct Range {
   Range(LineColumn input_begin, LineColumn input_end)
       : begin(input_begin), end(input_end) {}
 
-  static Range InLine(LineNumber line, ColumnNumber column,
-                      ColumnNumberDelta size);
+  static Range InLine(LineNumber line,
+                      afc::language::lazy_string::ColumnNumber column,
+                      afc::language::lazy_string::ColumnNumberDelta size);
 
   template <typename Callback>
   void ForEachLine(Callback callback) {

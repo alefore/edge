@@ -10,7 +10,8 @@
 namespace afc::editor {
 
 struct FrameOutputProducerOptions {
-  ColumnNumberDelta width = ColumnNumberDelta();
+  language::lazy_string::ColumnNumberDelta width =
+      language::lazy_string::ColumnNumberDelta();
   std::wstring title;
   std::optional<size_t> position_in_parent = std::nullopt;
   enum class ActiveState { kActive, kInactive };

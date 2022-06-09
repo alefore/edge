@@ -6,11 +6,8 @@
 #include <string>
 
 #include "src/language/safe_types.h"
-#include "src/line_column.h"
 
-namespace afc::editor {
-using language::MakeNonNullUnique;
-using language::NonNull;
+namespace afc::language::lazy_string {
 namespace {
 class RepeatedChar : public LazyString {
  public:
@@ -113,4 +110,4 @@ NonNull<std::unique_ptr<LazyString>> NewLazyString(ColumnNumberDelta times,
   return MakeNonNullUnique<RepeatedChar>(times, c);
 }
 
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string

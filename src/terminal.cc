@@ -20,6 +20,9 @@ namespace afc {
 namespace editor {
 using infrastructure::Path;
 using infrastructure::Tracker;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 

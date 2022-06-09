@@ -8,8 +8,8 @@
 namespace afc::editor {
 enum class LineWrapStyle { kBreakWords, kContentBased };
 struct ColumnRange {
-  ColumnNumber begin;
-  ColumnNumber end;
+  language::lazy_string::ColumnNumber begin;
+  language::lazy_string::ColumnNumber end;
 
   bool operator==(const ColumnRange& other) const {
     return begin == other.begin && end == other.end;
@@ -18,10 +18,9 @@ struct ColumnRange {
 
 // Breaks `line` into separate ranges to be printed without overflowing a
 // desired screein width, taking into account double-width characters.
-std::list<ColumnRange> BreakLineForOutput(const Line& line,
-                                          ColumnNumberDelta screen_positions,
-                                          LineWrapStyle line_wrap_style,
-                                          std::wstring symbol_characters);
+std::list<ColumnRange> BreakLineForOutput(
+    const Line& line, language::lazy_string::ColumnNumberDelta screen_positions,
+    LineWrapStyle line_wrap_style, std::wstring symbol_characters);
 
 }  // namespace afc::editor
 

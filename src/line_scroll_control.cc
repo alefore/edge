@@ -20,6 +20,9 @@
 
 namespace afc::editor {
 namespace {
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+
 std::list<ColumnRange> ComputeBreaks(const BufferContentsWindow::Input& input,
                                      LineNumber line) {
   return BreakLineForOutput(input.contents.at(line).value(),

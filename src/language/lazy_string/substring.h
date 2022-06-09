@@ -1,12 +1,12 @@
-#ifndef __AFC_EDITOR_SUBSTRING_H__
-#define __AFC_EDITOR_SUBSTRING_H__
+#ifndef __AFC_LANGAUGE_LAZY_STRING_SUBSTRING_H__
+#define __AFC_LANGAUGE_LAZY_STRING_SUBSTRING_H__
 
 #include <memory>
 
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 
-namespace afc::editor {
+namespace afc::language::lazy_string {
 // Returns the substring from pos to the end of the string.
 //
 // Equivalent to:
@@ -31,5 +31,5 @@ language::NonNull<std::shared_ptr<LazyString>> Substring(
 language::NonNull<std::shared_ptr<LazyString>> SubstringWithRangeChecks(
     language::NonNull<std::shared_ptr<LazyString>> input, ColumnNumber column,
     ColumnNumberDelta delta);
-}  // namespace afc::editor
-#endif  // __AFC_EDITOR_SUBSTRING_H__
+}  // namespace afc::language::lazy_string
+#endif  // __AFC_LANGAUGE_LAZY_STRING_SUBSTRING_H__

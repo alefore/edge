@@ -19,6 +19,9 @@ using language::compute_hash;
 using language::MakeHashableIteratorRange;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
 
 std::optional<size_t> CombineHashes(
     const std::vector<LineWithCursor::Generator>& delegates,

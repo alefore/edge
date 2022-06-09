@@ -14,6 +14,11 @@
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::EmptyString;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 

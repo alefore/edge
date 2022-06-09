@@ -13,8 +13,7 @@
 #include "src/line_column.h"
 #include "src/line_modifier.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 class OpenBuffer;
 class BufferContents;
@@ -31,8 +30,9 @@ class BufferTerminal : public fuzz::FuzzTestable {
   LineColumn position() const;
   void SetPosition(LineColumn position);
 
-  void ProcessCommandInput(language::NonNull<std::shared_ptr<LazyString>> str,
-                           const std::function<void()>& new_line_callback);
+  void ProcessCommandInput(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      const std::function<void()>& new_line_callback);
 
   std::vector<fuzz::Handler> FuzzHandlers() override;
 
@@ -51,9 +51,10 @@ class BufferTerminal : public fuzz::FuzzTestable {
 
   static void InternalUpdateSize(Data& data);
 
-  ColumnNumber ProcessTerminalEscapeSequence(
-      language::NonNull<std::shared_ptr<LazyString>> str,
-      ColumnNumber read_index, LineModifierSet* modifiers);
+  language::lazy_string::ColumnNumber ProcessTerminalEscapeSequence(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      language::lazy_string::ColumnNumber read_index,
+      LineModifierSet* modifiers);
 
   void MoveToNextLine();
 
@@ -62,7 +63,6 @@ class BufferTerminal : public fuzz::FuzzTestable {
   const language::NonNull<std::shared_ptr<Data>> data_;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_BUFFER_TERMINAL_H__

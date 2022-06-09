@@ -17,6 +17,10 @@ using infrastructure::FileDescriptor;
 using infrastructure::Tracker;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {

@@ -14,8 +14,9 @@ class FindTransformation : public CompositeTransformation {
   futures::Value<Output> Apply(Input input) const override;
 
  private:
-  std::optional<ColumnNumber> SeekOnce(const Line& line, ColumnNumber column,
-                                       const Modifiers& modifiers) const;
+  std::optional<language::lazy_string::ColumnNumber> SeekOnce(
+      const Line& line, language::lazy_string::ColumnNumber column,
+      const Modifiers& modifiers) const;
 
   const wchar_t c_;
 };

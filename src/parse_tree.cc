@@ -16,6 +16,7 @@ using language::compute_hash;
 using language::hash_combine;
 using language::MakeHashableIteratorRange;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
 
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
   static const auto* output = new ParseTreeProperty(L"link");

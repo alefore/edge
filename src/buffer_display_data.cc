@@ -4,6 +4,7 @@
 
 namespace afc::editor {
 using language::ObservableValue;
+using language::lazy_string::ColumnNumberDelta;
 
 ObservableValue<LineColumnDelta>& BufferDisplayData::view_size() {
   return view_size_;

@@ -16,6 +16,8 @@ namespace testing {
 namespace {
 using language::MakeNonNullShared;
 using language::ToByteString;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::NewLazyString;
 
 void TestBufferContentsSnapshot() {
   BufferContents contents;

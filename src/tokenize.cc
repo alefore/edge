@@ -11,6 +11,9 @@ namespace afc::editor {
 using ::operator<<;
 
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
 
 bool operator==(const Token& a, const Token& b) {
   return a.begin == b.begin && a.end == b.end && a.value == b.value;

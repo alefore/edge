@@ -33,7 +33,7 @@ struct BufferContentsWindow {
     LineNumberDelta status_lines;
 
     // Total number of columns in the output for buffer contents.
-    ColumnNumberDelta columns_shown;
+    language::lazy_string::ColumnNumberDelta columns_shown;
 
     // Initial position in the buffer where output will begin.
     LineColumn begin;
@@ -55,7 +55,7 @@ struct BufferContentsWindow {
     // (i.e., changing the range affects only whether a given cursor is
     // returned, but once the decision is made that a cursor will be returned,
     // the value returned for it won't be affected by the range).
-    std::set<ColumnNumber> current_cursors;
+    std::set<language::lazy_string::ColumnNumber> current_cursors;
   };
   std::vector<Line> lines;
 

@@ -12,6 +12,7 @@ namespace afc {
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
 
 namespace gc = language::gc;
 

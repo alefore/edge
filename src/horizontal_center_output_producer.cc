@@ -9,6 +9,8 @@
 #include "src/columns_vector.h"
 
 namespace afc::editor {
+using language::lazy_string::ColumnNumberDelta;
+
 using V = ColumnsVector;
 namespace {
 V::Column GetPadding(LineNumberDelta lines, ColumnNumberDelta width) {

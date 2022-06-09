@@ -14,11 +14,11 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
-
 using language::FromByteString;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 

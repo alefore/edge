@@ -20,15 +20,22 @@
 namespace afc {
 namespace editor {
 
+// TODO(easy, 2022-06-09): Get rid of these declarations.
 using std::hash;
 using std::unordered_set;
 using std::wstring;
+
+namespace lazy_string = language::lazy_string;
 
 using infrastructure::Tracker;
 using language::compute_hash;
 using language::MakeHashableIteratorRange;
 using language::MakeNonNullShared;
 using language::NonNull;
+using lazy_string::ColumnNumber;
+using lazy_string::ColumnNumberDelta;
+using lazy_string::LazyString;
+using lazy_string::NewLazyString;
 
 namespace {
 const bool line_tests_registration = tests::Register(
@@ -103,10 +110,10 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
     contents = StringAppend(std::move(contents), std::move(str));
   } else {
     contents = StringAppend(
-        StringAppend(afc::editor::Substring(std::move(contents),
+        StringAppend(lazy_string::Substring(std::move(contents),
                                             ColumnNumber(0), column.ToDelta()),
                      std::move(str)),
-        afc::editor::Substring(contents, column + ColumnNumberDelta(1)));
+        lazy_string::Substring(contents, column + ColumnNumberDelta(1)));
   }
 
   metadata = std::nullopt;
@@ -130,9 +137,9 @@ void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
   contents = StringAppend(
       StringAppend(
-          afc::editor::Substring(contents, ColumnNumber(0), column.ToDelta()),
+          lazy_string::Substring(contents, ColumnNumber(0), column.ToDelta()),
           NewLazyString(L" ")),
-      afc::editor::Substring(contents, column));
+      lazy_string::Substring(contents, column));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   for (auto& m : modifiers) {
@@ -228,8 +235,8 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
   CHECK_LE(column + delta, EndColumn());
 
   contents = StringAppend(
-      afc::editor::Substring(contents, ColumnNumber(0), column.ToDelta()),
-      afc::editor::Substring(contents, column + delta));
+      lazy_string::Substring(contents, ColumnNumber(0), column.ToDelta()),
+      lazy_string::Substring(contents, column + delta));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   // TODO: We could optimize this to only set it once (rather than for every
@@ -303,12 +310,12 @@ wint_t Line::get(ColumnNumber column) const {
 
 NonNull<std::shared_ptr<LazyString>> Line::Substring(
     ColumnNumber column, ColumnNumberDelta delta) const {
-  return afc::editor::Substring(contents(), column, delta);
+  return lazy_string::Substring(contents(), column, delta);
 }
 
 NonNull<std::shared_ptr<LazyString>> Line::Substring(
     ColumnNumber column) const {
-  return afc::editor::Substring(contents(), column);
+  return lazy_string::Substring(contents(), column);
 }
 
 std::shared_ptr<LazyString> Line::metadata() const {

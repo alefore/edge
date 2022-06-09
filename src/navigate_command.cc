@@ -21,6 +21,8 @@
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+
 namespace {
 // TODO(easy, 2022-06-05): Template this by type?
 class SearchRange {

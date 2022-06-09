@@ -76,6 +76,7 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 

@@ -29,6 +29,9 @@ namespace afc {
 using language::EmptyValue;
 using language::NonNull;
 using language::VisitPointer;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 namespace vm {

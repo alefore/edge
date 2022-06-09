@@ -54,7 +54,7 @@ class WidgetListVertical : public WidgetList {
   LineNumberDelta DesiredLines() const override;
 
  private:
-  std::vector<ColumnNumberDelta> columns_per_child_;
+  std::vector<language::lazy_string::ColumnNumberDelta> columns_per_child_;
 };
 
 }  // namespace afc::editor

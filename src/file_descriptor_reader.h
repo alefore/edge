@@ -68,7 +68,8 @@ class FileDescriptorReader {
 
  private:
   futures::Value<bool> ParseAndInsertLines(
-      language::NonNull<std::shared_ptr<LazyString>> contents);
+      language::NonNull<std::shared_ptr<afc::language::lazy_string::LazyString>>
+          contents);
 
   const std::shared_ptr<const Options> options_;
 

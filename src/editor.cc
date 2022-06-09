@@ -58,6 +58,7 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
+using language::lazy_string::ColumnNumber;
 
 namespace gc = language::gc;
 

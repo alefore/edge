@@ -5,7 +5,9 @@
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/functional.h"
 
-namespace afc::editor {
+namespace afc::language::lazy_string {
+// TODO(easy, 2022-06-09): Get rid of all `using language::...` declarations in
+// files in language/lazy_string.
 using language::NonNull;
 namespace {
 using infrastructure::Tracker;
@@ -54,5 +56,4 @@ bool operator==(const LazyString& a, const LazyString& b) {
             return b.get(column) != c;
           }).has_value();
 }
-
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string

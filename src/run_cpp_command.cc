@@ -32,6 +32,10 @@ using language::overload;
 using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::EmptyString;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 using vm::VMType;
 using vm::VMTypeMapper;

@@ -16,6 +16,8 @@
 
 using namespace afc::editor;
 using afc::language::ToByteString;
+using afc::language::lazy_string::ColumnNumber;
+
 bool IsEmpty(EditorState* editor_state) {
   return editor_state->current_buffer()->ptr()->EndLine() == LineNumber(0) &&
          editor_state->current_buffer()

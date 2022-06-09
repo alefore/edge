@@ -7,10 +7,9 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 
-namespace afc {
-namespace editor {
-using language::MakeNonNullShared;
-using language::NonNull;
+namespace afc::language::lazy_string {
+// TODO(easy, 2022-06-09): GEt rid of this `using` declaration.
+using afc::editor::ConstTree;
 namespace {
 class StringAppendImpl : public LazyString {
  public:
@@ -81,5 +80,4 @@ NonNull<std::shared_ptr<LazyString>> Concatenate(
   return output;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::language::lazy_string

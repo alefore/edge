@@ -14,7 +14,11 @@ namespace afc {
 namespace editor {
 namespace testing {
 namespace {
-using afc::language::ToByteString;
+using language::ToByteString;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::NewCopyCharBuffer;
+using language::lazy_string::NewLazyString;
 
 template <typename C, typename V>
 void CheckSingleton(C const container, V value) {

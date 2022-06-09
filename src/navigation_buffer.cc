@@ -23,6 +23,11 @@ using infrastructure::Path;
 using language::MakeNonNullShared;
 using language::PossibleError;
 using language::Success;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::EmptyString;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 

@@ -7,9 +7,10 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 
-namespace afc::editor {
+namespace afc::language::lazy_string {
 class ColumnNumberDelta;
 
+// TODO(easy, 2022-06-08): Move this file to language/lazy_string.
 language::NonNull<std::unique_ptr<LazyString>> NewMoveableCharBuffer(
     const wchar_t* const* buffer, size_t size);
 language::NonNull<std::unique_ptr<LazyString>> NewCharBuffer(
@@ -26,6 +27,6 @@ language::NonNull<std::unique_ptr<LazyString>> NewLazyString(
 language::NonNull<std::unique_ptr<LazyString>> NewLazyString(
     ColumnNumberDelta times, wchar_t c);
 
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string
 
 #endif

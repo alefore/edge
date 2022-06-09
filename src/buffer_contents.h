@@ -119,7 +119,8 @@ class BufferContents : public fuzz::FuzzTestable {
   // Delete characters from position.line in range [position.column,
   // position.column + amount). Amount must not be negative and it must be in a
   // valid range.
-  void DeleteCharactersFromLine(LineColumn position, ColumnNumberDelta amount);
+  void DeleteCharactersFromLine(
+      LineColumn position, language::lazy_string::ColumnNumberDelta amount);
   // Delete characters from position.line in range [position.column, ...).
   void DeleteToLineEnd(LineColumn position);
 

@@ -12,6 +12,8 @@ namespace afc::editor {
 using infrastructure::Tracker;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
 
 namespace {
 class ScreenCurses : public Screen {

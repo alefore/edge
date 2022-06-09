@@ -8,6 +8,9 @@
 
 namespace afc::editor {
 namespace {
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::EmptyString;
+using language::lazy_string::NewLazyString;
 
 const bool tokenize_by_spaces_tests_registration = tests::Register(
     L"TokenizeBySpaces",

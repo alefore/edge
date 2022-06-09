@@ -22,6 +22,10 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Observers;
 using language::ToByteString;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::EmptyString;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 using vm::Environment;
 using vm::Expression;

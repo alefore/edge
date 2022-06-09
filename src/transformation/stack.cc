@@ -24,6 +24,8 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 namespace {

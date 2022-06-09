@@ -1,7 +1,8 @@
 #include "src/parse_tools.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
 
 /* static */ Action Action::SetFirstChildModifiers(LineModifierSet modifiers) {
   return Action(SET_FIRST_CHILD_MODIFIERS, ColumnNumber(), std::move(modifiers),
@@ -63,5 +64,4 @@ void ParseData::PushAndPop(ColumnNumberDelta rewind_column,
   PopBack();
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

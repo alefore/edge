@@ -14,6 +14,9 @@
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+
 namespace {
 class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
  public:

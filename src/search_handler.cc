@@ -27,6 +27,9 @@ using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 

@@ -16,7 +16,6 @@
 namespace afc::vm {
 using language::MakeNonNullShared;
 using language::NonNull;
-
 namespace gc = language::gc;
 
 struct BufferWrapper {
@@ -58,6 +57,7 @@ using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
+using language::lazy_string::NewLazyString;
 using vm::EvaluationOutput;
 using vm::ObjectType;
 using vm::PurityType;

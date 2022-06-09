@@ -42,7 +42,8 @@ struct LineMarks {
     const BufferName source_buffer = BufferName(L"");
 
     // The contents in the source (and line) that created this mark.
-    const language::NonNull<std::shared_ptr<LazyString>> source_line_content;
+    const language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+        source_line_content;
 
     // What buffer does this mark identify?
     const BufferName target_buffer = BufferName(L"");

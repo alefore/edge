@@ -13,6 +13,8 @@ using infrastructure::FileDescriptor;
 using language::EmptyValue;
 using language::MakeNonNullUnique;
 using language::ToByteString;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 

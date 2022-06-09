@@ -3,6 +3,9 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+
 namespace {
 ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
                                    ColumnNumberDelta screen_positions,

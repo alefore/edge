@@ -23,6 +23,8 @@ using language::NonNull;
 using language::overload;
 using language::Success;
 using language::ValueOrError;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::LazyString;
 
 using ::operator<<;
 

@@ -7,7 +7,7 @@
 #include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
 
-namespace afc::editor {
+namespace afc::language::lazy_string {
 GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
 
 // An immutable string. Implementations must ensure that identical calls to
@@ -23,12 +23,12 @@ class LazyString {
   bool operator<(const LazyString& x);
 };
 
-language::NonNull<std::shared_ptr<LazyString>> EmptyString();
+NonNull<std::shared_ptr<LazyString>> EmptyString();
 
 bool operator==(const LazyString& a, const LazyString& b);
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string
 
-GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumber)
-GHOST_TYPE_TOP_LEVEL(afc::editor::ColumnNumberDelta)
+GHOST_TYPE_TOP_LEVEL(afc::language::lazy_string::ColumnNumber)
+GHOST_TYPE_TOP_LEVEL(afc::language::lazy_string::ColumnNumberDelta)
 
 #endif  // __AFC_LANGUAGE_LAZY_STRING_LAZY_STRING_H__

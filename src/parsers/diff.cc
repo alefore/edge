@@ -8,11 +8,10 @@
 #include "src/parse_tools.h"
 #include "src/seek.h"
 
-namespace afc {
-namespace editor {
-namespace parsers {
-using language::NonNull;
+namespace afc::editor::parsers {
 namespace {
+using language::NonNull;
+using language::lazy_string::ColumnNumberDelta;
 
 enum State { DEFAULT, HEADERS, SECTION, CONTENTS };
 
@@ -129,6 +128,4 @@ class DiffParser : public TreeParser {
 NonNull<std::unique_ptr<TreeParser>> NewDiffTreeParser() {
   return NonNull<std::unique_ptr<DiffParser>>();
 }
-}  // namespace parsers
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor::parsers

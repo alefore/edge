@@ -45,15 +45,16 @@ class Terminal {
   // also contains knowledge about where the cursor will be at the end.
   struct LineDrawer {
     std::function<void(Screen&)> draw_callback;
-    std::optional<ColumnNumber> cursor;
+    std::optional<language::lazy_string::ColumnNumber> cursor;
   };
 
   void WriteLine(Screen& screen, LineNumber line,
                  LineWithCursor::Generator line_with_cursor);
 
   // Returns a DrawLine that can be used to draw a given line.
-  static LineDrawer GetLineDrawer(LineWithCursor line_with_cursor,
-                                  ColumnNumberDelta width);
+  static LineDrawer GetLineDrawer(
+      LineWithCursor line_with_cursor,
+      language::lazy_string::ColumnNumberDelta width);
 
   void AdjustPosition(Screen& screen);
 

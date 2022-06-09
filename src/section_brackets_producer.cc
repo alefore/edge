@@ -14,6 +14,8 @@
 
 namespace afc::editor {
 using language::MakeNonNullShared;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::NewLazyString;
 
 LineWithCursor::Generator::Vector SectionBrackets(
     LineNumberDelta lines, SectionBracketsSide section_brackets_side) {

@@ -5,9 +5,11 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/substring.h"
 
-namespace afc::editor {
+namespace afc::language::lazy_string {
 using language::NonNull;
 
+// TODO(easy, 2022-06-09): Drop `String` from the prefix? It's implied by the
+// namespace?
 NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
     NonNull<std::shared_ptr<LazyString>> source,
     std::wstring space_characters) {
@@ -20,4 +22,4 @@ NonNull<std::shared_ptr<LazyString>> StringTrimLeft(
               }).value_or(ColumnNumber(0) + source->size()));
 }
 
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string

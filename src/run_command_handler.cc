@@ -56,6 +56,8 @@ using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 using vm::EscapedString;
 
 using std::cerr;

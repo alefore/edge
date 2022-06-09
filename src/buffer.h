@@ -192,15 +192,23 @@ class OpenBuffer {
                   language::NonNull<std::shared_ptr<Line>> line);
 
   // Can handle \n characters, breaking it into lines.
-  void AppendLazyString(language::NonNull<std::shared_ptr<LazyString>> input);
+  void AppendLazyString(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          input);
   // line must not contain \n characters.
-  void AppendLine(language::NonNull<std::shared_ptr<LazyString>> line);
-  void AppendRawLine(language::NonNull<std::shared_ptr<LazyString>> str);
+  void AppendLine(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          line);
+  void AppendRawLine(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          str);
 
   // Insert a line at the end of the buffer.
   void AppendRawLine(language::NonNull<std::shared_ptr<Line>> line);
 
-  void AppendToLastLine(language::NonNull<std::shared_ptr<LazyString>> str);
+  void AppendToLastLine(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          str);
   void AppendToLastLine(Line line);
 
   // Adds a new line. If there's a previous line, notifies various things about
@@ -433,8 +441,8 @@ class OpenBuffer {
 
   void set_current_position_line(LineNumber line);
   LineNumber current_position_line() const;
-  ColumnNumber current_position_col() const;
-  void set_current_position_col(ColumnNumber column);
+  language::lazy_string::ColumnNumber current_position_col() const;
+  void set_current_position_col(language::lazy_string::ColumnNumber column);
 
   //////////////////////////////////////////////////////////////////////////////
   // Buffer variables
@@ -482,7 +490,8 @@ class OpenBuffer {
       transformation::Input::Mode mode);
   void UpdateTreeParser();
 
-  void ProcessCommandInput(std::shared_ptr<LazyString> str);
+  void ProcessCommandInput(
+      std::shared_ptr<language::lazy_string::LazyString> str);
 
   // Returns true if the position given is set to a value other than
   // LineColumn::Max and the buffer has read past that position.

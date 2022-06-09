@@ -42,7 +42,7 @@ class CompositeTransformation {
   class Output {
    public:
     static Output SetPosition(LineColumn position);
-    static Output SetColumn(ColumnNumber column);
+    static Output SetColumn(language::lazy_string::ColumnNumber column);
     Output();
     Output(Output&&);
     Output(transformation::Variant transformation);

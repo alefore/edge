@@ -14,6 +14,8 @@
 
 namespace afc {
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
 
 namespace gc = language::gc;
 namespace vm {

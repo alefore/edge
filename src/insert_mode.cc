@@ -49,6 +49,7 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::VisitPointer;
+using language::lazy_string::ColumnNumber;
 
 using vm::VMType;
 using vm::VMTypeMapper;

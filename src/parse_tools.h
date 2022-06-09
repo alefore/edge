@@ -7,16 +7,18 @@
 #include "src/parse_tree.h"
 #include "src/seek.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 struct Action {
-  static Action Push(ColumnNumber column, LineModifierSet modifiers,
+  static Action Push(language::lazy_string::ColumnNumber column,
+                     LineModifierSet modifiers,
                      std::unordered_set<ParseTreeProperty> properties) {
     return Action(PUSH, column, std::move(modifiers), std::move(properties));
   }
 
-  static Action Pop(ColumnNumber column) { return Action(POP, column, {}, {}); }
+  static Action Pop(language::lazy_string::ColumnNumber column) {
+    return Action(POP, column, {}, {});
+  }
 
   static Action SetFirstChildModifiers(LineModifierSet modifiers);
 
@@ -32,7 +34,7 @@ struct Action {
 
   ActionType action_type = PUSH;
 
-  ColumnNumber column;
+  language::lazy_string::ColumnNumber column;
 
   // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
   LineModifierSet modifiers;
@@ -41,7 +43,8 @@ struct Action {
   std::unordered_set<ParseTreeProperty> properties;
 
  private:
-  Action(ActionType input_action_type, ColumnNumber input_column,
+  Action(ActionType input_action_type,
+         language::lazy_string::ColumnNumber input_column,
          LineModifierSet input_modifiers,
          std::unordered_set<ParseTreeProperty> input_properties)
       : action_type(input_action_type),
@@ -86,11 +89,13 @@ class ParseData {
 
   void PopBack();
 
-  void Push(size_t nested_state, ColumnNumberDelta rewind_column,
+  void Push(size_t nested_state,
+            language::lazy_string::ColumnNumberDelta rewind_column,
             LineModifierSet modifiers,
             std::unordered_set<ParseTreeProperty> properties);
 
-  void PushAndPop(ColumnNumberDelta rewind_column, LineModifierSet modifiers);
+  void PushAndPop(language::lazy_string::ColumnNumberDelta rewind_column,
+                  LineModifierSet modifiers);
 
  private:
   const BufferContents& buffer_;
@@ -100,7 +105,6 @@ class ParseData {
   int nesting_ = 0;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_PARSE_TOOLS_H__

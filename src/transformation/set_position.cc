@@ -10,6 +10,7 @@
 namespace afc::editor::transformation {
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
 
 void RegisterSetPosition(language::gc::Pool& pool,
                          vm::Environment& environment) {

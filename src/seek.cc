@@ -3,8 +3,8 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+using language::lazy_string::ColumnNumber;
 
 Seek::Seek(const BufferContents& contents, LineColumn* position)
     : contents_(contents),
@@ -270,5 +270,4 @@ bool Seek::Advance(LineColumn* position) const {
   return false;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

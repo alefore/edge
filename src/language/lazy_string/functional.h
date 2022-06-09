@@ -6,7 +6,7 @@
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
 
-namespace afc::editor {
+namespace afc::language::lazy_string {
 // Finds the first column in a string where `predicate` returns true.
 //
 // If no such column is found, returns an empty optional; otherwise, returns the
@@ -32,11 +32,12 @@ void ForEachColumn(const LazyString& input, Callback callback) {
     return false;
   });
 }
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string
 namespace std {
 template <>
-struct hash<afc::editor::LazyString> {
-  std::size_t operator()(const afc::editor::LazyString& input) const;
+struct hash<afc::language::lazy_string::LazyString> {
+  std::size_t operator()(
+      const afc::language::lazy_string::LazyString& input) const;
 };
 }  // namespace std
 

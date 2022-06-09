@@ -30,7 +30,8 @@ struct LineWithCursor {
       Vector& RemoveCursor();
 
       std::vector<Generator> lines;
-      ColumnNumberDelta width = ColumnNumberDelta();
+      language::lazy_string::ColumnNumberDelta width =
+          language::lazy_string::ColumnNumberDelta();
     };
 
     static Generator Empty() {
@@ -57,7 +58,7 @@ struct LineWithCursor {
 
   // Output parameter. If the active cursor is found in the line, stores here
   // the column in which it was output here. May be nullptr.
-  std::optional<ColumnNumber> cursor = std::nullopt;
+  std::optional<language::lazy_string::ColumnNumber> cursor = std::nullopt;
 };
 
 LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,

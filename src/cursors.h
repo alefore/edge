@@ -119,12 +119,14 @@ class CursorsTracker {
       return *this;
     }
 
-    CursorsTracker::Transformation ColumnDelta(ColumnNumberDelta delta) {
+    CursorsTracker::Transformation ColumnDelta(
+        language::lazy_string::ColumnNumberDelta delta) {
       column_delta = delta;
       return *this;
     }
 
-    CursorsTracker::Transformation ColumnLowerBound(ColumnNumber column) {
+    CursorsTracker::Transformation ColumnLowerBound(
+        language::lazy_string::ColumnNumber column) {
       column_lower_bound = column;
       return *this;
     }
@@ -143,13 +145,15 @@ class CursorsTracker {
     LineNumber line_lower_bound = LineNumber();
 
     // Number of columns to add to a given cursor.
-    ColumnNumberDelta column_delta = ColumnNumberDelta();
+    language::lazy_string::ColumnNumberDelta column_delta =
+        language::lazy_string::ColumnNumberDelta();
 
     // If column_delta would leave the output cursor at a value smaller than
     // this one, goes with this one.
     //
     // Same as line_lower_bound but for column computations.
-    ColumnNumber column_lower_bound = ColumnNumber();
+    language::lazy_string::ColumnNumber column_lower_bound =
+        language::lazy_string::ColumnNumber();
   };
 
   CursorsTracker();

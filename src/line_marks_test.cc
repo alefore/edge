@@ -8,6 +8,7 @@
 
 namespace afc::editor {
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
 
 namespace gc = language::gc;
 namespace {

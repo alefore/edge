@@ -11,7 +11,8 @@
 
 namespace afc::editor {
 
-ColumnNumberDelta LineNumberOutputWidth(LineNumberDelta lines_size);
+language::lazy_string::ColumnNumberDelta LineNumberOutputWidth(
+    LineNumberDelta lines_size);
 
 LineWithCursor::Generator::Vector LineNumberOutput(
     const OpenBuffer& buffer,

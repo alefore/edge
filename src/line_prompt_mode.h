@@ -52,7 +52,8 @@ struct PromptOptions {
   std::wstring initial_value = L"";
 
   using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
-      const language::NonNull<std::shared_ptr<LazyString>>& line,
+      const language::NonNull<
+          std::shared_ptr<language::lazy_string::LazyString>>& line,
       language::NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
       language::NonNull<std::shared_ptr<concurrent::Notification>>
           abort_notification)>;
@@ -63,7 +64,7 @@ struct PromptOptions {
 
   // Function to run when the prompt receives the final input.
   std::function<futures::Value<language::EmptyValue>(
-      language::NonNull<std::shared_ptr<LazyString>>)>
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>)>
       handler;
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was
@@ -81,8 +82,10 @@ struct PromptOptions {
   Status status = Status::kEditor;
 };
 
-void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
-                      language::NonNull<std::shared_ptr<LazyString>> input);
+void AddLineToHistory(
+    EditorState& editor, const HistoryFile& history_file,
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+        input);
 
 void Prompt(PromptOptions options);
 

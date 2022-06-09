@@ -26,6 +26,8 @@ using language::MakeNonNullShared;
 using language::MakeWithHash;
 using language::NonNull;
 using language::WithHash;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
 
 // Use to highlight entire lines (for variable `atomic_lines`).
 LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {

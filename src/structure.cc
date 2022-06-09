@@ -14,6 +14,9 @@
 
 namespace afc::editor {
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+
 namespace {
 LineColumn MoveInRange(Range range, Modifiers modifiers) {
   CHECK_LE(range.begin, range.end);

@@ -11,8 +11,11 @@
 #include "src/vm/public/value.h"
 
 namespace afc ::editor {
+// TODO(easy, 2022-06-09): Get rid of the `using namespace` declaration:
 using namespace afc::vm;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
 
 NonNull<std::shared_ptr<std::vector<wstring>>> Justify(
     NonNull<std::shared_ptr<std::vector<wstring>>> input, int width) {

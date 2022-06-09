@@ -30,6 +30,8 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::LazyString;
 
 namespace gc = language::gc;
 

@@ -16,8 +16,8 @@ struct ColumnsVector {
   // `head` followed by repetitions of `body`.
   struct Padding {
     LineModifierSet modifiers = {};
-    language::NonNull<std::shared_ptr<LazyString>> head;
-    language::NonNull<std::shared_ptr<LazyString>> body;
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> head;
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> body;
   };
 
   struct Column {
@@ -29,7 +29,8 @@ struct ColumnsVector {
 
     // If absent, this column will be the last column produced, and it will be
     // allowed to span the entire screen.
-    std::optional<ColumnNumberDelta> width = std::nullopt;
+    std::optional<language::lazy_string::ColumnNumberDelta> width =
+        std::nullopt;
   };
 
   Column& back() {
