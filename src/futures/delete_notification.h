@@ -8,20 +8,20 @@
 namespace afc::futures {
 class DeleteNotification {
  public:
+  using Value =
+      language::NonNull<std::shared_ptr<ListenableValue<language::EmptyValue>>>;
+
   DeleteNotification();
 
   ~DeleteNotification();
 
-  language::NonNull<std::shared_ptr<ListenableValue<language::EmptyValue>>>
-  listenable_value() const;
+  Value listenable_value() const;
 
  private:
   DeleteNotification(futures::Future<language::EmptyValue> future);
 
   const futures::Value<language::EmptyValue>::Consumer consumer_;
-  const language::NonNull<
-      std::shared_ptr<futures::ListenableValue<language::EmptyValue>>>
-      listenable_value_;
+  const Value listenable_value_;
 };
 }  // namespace afc::futures
 #endif  // __AFC_FUTURES_DELETE_NOTIFICATION_H__

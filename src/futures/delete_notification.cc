@@ -12,8 +12,7 @@ DeleteNotification::DeleteNotification()
 
 DeleteNotification::~DeleteNotification() { consumer_(EmptyValue()); }
 
-NonNull<std::shared_ptr<ListenableValue<EmptyValue>>>
-DeleteNotification::listenable_value() const {
+DeleteNotification::Value DeleteNotification::listenable_value() const {
   return listenable_value_;
 }
 
