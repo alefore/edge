@@ -14,10 +14,10 @@ extern "C" {
 #include "src/args.h"
 #include "src/audio.h"
 #include "src/buffer_contents.h"
-#include "src/char_buffer.h"
 #include "src/cpp_parse_tree.h"
 #include "src/editor.h"
 #include "src/fuzz.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 
 using namespace afc::editor;

@@ -8,10 +8,10 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/line_marks.h"
 #include "src/line_with_cursor.h"

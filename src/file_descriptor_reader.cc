@@ -5,10 +5,10 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
 

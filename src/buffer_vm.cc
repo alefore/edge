@@ -2,12 +2,12 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/line_column_vm.h"

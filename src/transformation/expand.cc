@@ -2,9 +2,9 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/predictor.h"
 #include "src/run_cpp_command.h"

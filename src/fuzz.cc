@@ -4,9 +4,9 @@
 #include <unordered_set>
 
 #include "src/buffer_contents.h"
-#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/wstring.h"
 

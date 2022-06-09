@@ -1,11 +1,11 @@
 #include "src/editor_vm.h"
 
 #include "src/buffer_vm.h"
-#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/insert_history_buffer.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/value_or_error.h"
 #include "src/language/wstring.h"
 #include "src/line_column_vm.h"

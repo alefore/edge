@@ -4,9 +4,9 @@
 #include <memory>
 
 #include "src/buffer.h"
-#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"

@@ -13,7 +13,6 @@
 
 #include "src/buffer_contents_util.h"
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_argument_mode.h"
 #include "src/command_with_modifiers.h"
@@ -26,6 +25,7 @@
 #include "src/infrastructure/time.h"
 #include "src/insert_mode.h"
 #include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"

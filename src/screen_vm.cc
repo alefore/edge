@@ -4,9 +4,9 @@
 
 #include <memory>
 
-#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/line_column_vm.h"

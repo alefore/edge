@@ -12,9 +12,9 @@ extern "C" {
 }
 
 #include "src/buffer_contents.h"
-#include "src/char_buffer.h"
 #include "src/cpp_parse_tree.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/value_or_error.h"
 #include "src/language/wstring.h"

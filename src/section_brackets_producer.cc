@@ -7,7 +7,7 @@
 #include <cmath>
 #include <iostream>
 
-#include "src/char_buffer.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/line.h"
 #include "src/tests/tests.h"

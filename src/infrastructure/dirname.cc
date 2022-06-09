@@ -8,7 +8,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "src/char_buffer.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"

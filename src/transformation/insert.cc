@@ -1,8 +1,8 @@
 #include "src/transformation/insert.h"
 
 #include "src/buffer.h"
-#include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/line_column_vm.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"

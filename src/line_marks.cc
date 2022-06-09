@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "src/buffer.h"
-#include "src/char_buffer.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 
 namespace afc::editor {

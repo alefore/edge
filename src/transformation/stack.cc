@@ -2,7 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/log.h"

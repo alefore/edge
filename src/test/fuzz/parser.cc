@@ -12,8 +12,8 @@ extern "C" {
 }
 
 #include "src/buffer_contents.h"
-#include "src/char_buffer.h"
 #include "src/cpp_parse_tree.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 

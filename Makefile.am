@@ -51,7 +51,6 @@ src/command_argument_mode.h \
 src/cpp_command.cc \
 src/cpp_parse_tree.cc \
 src/cpp_parse_tree.h \
-src/char_buffer.cc \
 src/command.cc \
 src/command.h \
 src/command_mode.cc \
@@ -120,6 +119,8 @@ src/language/hash.cc \
 src/language/hash.h \
 src/language/lazy_string/append.cc \
 src/language/lazy_string/append.h \
+src/language/lazy_string/char_buffer.cc \
+src/language/lazy_string/char_buffer.h \
 src/language/lazy_string/functional.cc \
 src/language/lazy_string/functional.h \
 src/language/lazy_string/lazy_string.cc \

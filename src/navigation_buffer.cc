@@ -1,7 +1,6 @@
 #include "src/navigation_buffer.h"
 
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_argument_mode.h"
 #include "src/editor.h"
@@ -9,6 +8,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
 #include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/trim.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"

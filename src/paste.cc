@@ -1,10 +1,10 @@
 #include "src/paste.h"
 
 #include "src/buffer_name.h"
-#include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {

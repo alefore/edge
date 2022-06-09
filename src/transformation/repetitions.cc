@@ -1,6 +1,6 @@
 #include "src/transformation/repetitions.h"
 
-#include "src/char_buffer.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/server.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"

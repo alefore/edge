@@ -13,11 +13,11 @@
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
 #include "src/buffers_list.h"
-#include "src/char_buffer.h"
 #include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/editor_variables.h"
 #include "src/frame_output_producer.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/widget.h"
 

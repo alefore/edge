@@ -12,7 +12,6 @@ extern "C" {
 
 #include "src/buffer_variables.h"
 #include "src/buffer_vm.h"
-#include "src/char_buffer.h"
 #include "src/command.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
@@ -22,6 +21,7 @@ extern "C" {
 #include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
 #include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"

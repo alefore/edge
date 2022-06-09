@@ -1,8 +1,8 @@
 #include "src/args.h"
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 

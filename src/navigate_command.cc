@@ -6,11 +6,11 @@
 #include <memory>
 
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/command_argument_mode.h"
 #include "src/direction.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/set_mode_command.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"

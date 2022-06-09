@@ -20,12 +20,12 @@ extern "C" {
 
 #include "src/audio.h"
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/command_argument_mode.h"
 #include "src/editor_vm.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"

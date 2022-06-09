@@ -20,11 +20,12 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
+#include "src/futures/delete_notification.h"
 #include "src/infrastructure/time.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
@@ -33,7 +34,6 @@ extern "C" {
 #include "src/vm/public/escape.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/value.h"
-#include "src/futures/delete_notification.h"
 
 namespace afc {
 using language::NonNull;

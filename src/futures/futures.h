@@ -217,6 +217,9 @@ struct Future {
  public:
   Future() : Future(std::make_shared<FutureData>()) {}
 
+  // TODO(easy, 2022-06-10): Replace this with an instance of some class that
+  // references the FutureData. The corresponding method in that class should
+  // contain a single method with the && annotation.
   typename Value<Type>::Consumer consumer;
   Value<Type> value;
 

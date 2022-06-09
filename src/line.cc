@@ -6,11 +6,11 @@
 #include <unordered_set>
 
 #include "src/buffer_variables.h"
-#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"

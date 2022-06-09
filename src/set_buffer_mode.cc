@@ -1,6 +1,6 @@
 #include "src/set_buffer_mode.h"
 
-#include "src/char_buffer.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/search_handler.h"
 #include "src/tokenize.h"
 

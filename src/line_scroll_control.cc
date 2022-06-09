@@ -11,7 +11,6 @@
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
-#include "src/char_buffer.h"
 #include "src/columns_vector.h"
 #include "src/language/wstring.h"
 #include "src/line_output.h"
