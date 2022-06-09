@@ -12,7 +12,7 @@ class ListenableValue {
   using Listener = std::function<void(const Type&)>;
 
   ListenableValue(Value<Type> value) {
-    value.SetConsumer([shared_data = data_](Type immediate_value) {
+    std::move(value).SetConsumer([shared_data = data_](Type immediate_value) {
       std::vector<std::function<void()>> callbacks;
       shared_data->lock([&](Data& data) {
         CHECK(!data.value.has_value());

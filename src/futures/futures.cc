@@ -14,8 +14,10 @@ using language::Success;
 Value<language::ValueOrError<language::EmptyValue>> IgnoreErrors(
     Value<PossibleError> value) {
   Future<PossibleError> output;
-  value.SetConsumer([consumer = std::move(output.consumer)](
-                        const PossibleError&) { consumer(Success()); });
+  std::move(value).SetConsumer(
+      [consumer = std::move(output.consumer)](const PossibleError&) {
+        consumer(Success());
+      });
   return std::move(output.value);
 }
 
@@ -29,13 +31,14 @@ const bool futures_transform_tests_registration = tests::Register(
              [] {
                std::optional<language::ValueOrError<bool>> final_result;
                Future<language::ValueOrError<bool>> inner_value;
-               auto value = inner_value.value.Transform([](bool) {
-                 CHECK(false);
-                 return Success(true);
-               });
-               value.SetConsumer([&](language::ValueOrError<bool> result) {
-                 final_result = result;
-               });
+               std::move(inner_value.value)
+                   .Transform([](bool) {
+                     CHECK(false);
+                     return Success(true);
+                   })
+                   .SetConsumer([&](language::ValueOrError<bool> result) {
+                     final_result = result;
+                   });
                inner_value.consumer(Error(L"xyz"));
                CHECK(final_result.has_value());
              }},
@@ -44,11 +47,11 @@ const bool futures_transform_tests_registration = tests::Register(
              [] {
                std::optional<language::ValueOrError<bool>> final_result;
                Future<language::ValueOrError<bool>> inner_value;
-               auto value = inner_value.value.Transform(
-                   [](bool) { return Success(true); });
-               value.SetConsumer([&](language::ValueOrError<bool> result) {
-                 final_result = result;
-               });
+               std::move(inner_value.value)
+                   .Transform([](bool) { return Success(true); })
+                   .SetConsumer([&](language::ValueOrError<bool> result) {
+                     final_result = result;
+                   });
                inner_value.consumer(Error(L"xyz"));
                CHECK(final_result.has_value());
                CHECK_EQ(std::get<Error>(final_result.value()), Error(L"xyz"));
@@ -74,7 +77,9 @@ const bool futures_transform_tests_registration = tests::Register(
                std::optional<V> immediate_value = variant_value.Get();
                CHECK_EQ(*std::get_if<int>(&immediate_value.value()), 6);
                std::optional<V> value_received;
-               variant_value.SetConsumer([&](V v) { value_received = v; });
+               std::move(variant_value).SetConsumer([&](V v) {
+                 value_received = v;
+               });
                CHECK(value_received.has_value());
                CHECK_EQ(*std::get_if<int>(&*value_received), 6);
              }},

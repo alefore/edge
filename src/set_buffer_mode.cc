@@ -225,7 +225,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
   for (const auto& operation : data.operations) {
     switch (operation.type) {
       case Operation::Type::kForward:
-        state = state.Transform([](State state) {
+        state = std::move(state).Transform([](State state) {
           if (state.indices.empty()) {
             state.index = 0;
           } else {
@@ -236,7 +236,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
         break;
 
       case Operation::Type::kBackward:
-        state = state.Transform([](State state) {
+        state = std::move(state).Transform([](State state) {
           if (state.indices.empty()) {
             state.index = 0;
           } else if (state.index == 0) {
@@ -250,8 +250,9 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 
       case Operation::Type::kPrevious:
       case Operation::Type::kNext:
-        state = state.Transform([&buffers_list,
-                                 op_type = operation.type](State state) {
+        state = std::move(state).Transform([&buffers_list,
+                                            op_type =
+                                                operation.type](State state) {
           if (state.indices.empty()) {
             state.index = 0;
             return state;
@@ -289,7 +290,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 
       case Operation::Type::kNumber: {
         CHECK_GT(operation.number, 0ul);
-        state = state.Transform(
+        state = std::move(state).Transform(
             [number_requested = (operation.number - 1) %
                                 buffers_list.BuffersCount()](State state) {
               auto it = std::find_if(state.indices.begin(), state.indices.end(),
@@ -304,10 +305,10 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
       } break;
 
       case Operation::Type::kFilter:
-        state =
-            state.Transform([filter = TokenizeBySpaces(
-                                 NewLazyString(operation.text_input).value()),
-                             &buffers_list](State state) {
+        state = std::move(state).Transform(
+            [filter =
+                 TokenizeBySpaces(NewLazyString(operation.text_input).value()),
+             &buffers_list](State state) {
               Indices new_indices;
               for (auto& index : state.indices) {
                 gc::Root<OpenBuffer> buffer = buffers_list.GetBuffer(index);
@@ -329,9 +330,9 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
         break;  // Already handled.
 
       case Operation::Type::kSearch: {
-        state = state.Transform([&editor, &buffers_list,
-                                 text_input =
-                                     operation.text_input](State state) {
+        state = std::move(state).Transform([&editor, &buffers_list,
+                                            text_input = operation.text_input](
+                                               State state) {
           // TODO: Maybe tweak the parameters to allow more than just one to
           // run at a given time?
           auto progress_channel = std::make_shared<ProgressChannel>(
@@ -380,38 +381,39 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
     }
   }
 
-  return state.Transform([&editor, mode, &buffers_list](State state) {
-    if (state.pattern_error.has_value()) {
-      // TODO: Find a better way to show it without hiding the input, ugh.
-      editor.status().Set(
-          AugmentError(L"Pattern error", state.pattern_error.value()));
-      return EmptyValue();
-    }
-    if (state.indices.empty()) {
-      return EmptyValue();
-    }
-    state.index %= state.indices.size();
-    gc::Root<OpenBuffer> buffer =
-        buffers_list.GetBuffer(state.indices[state.index]);
-    editor.set_current_buffer(buffer, mode);
-    switch (mode) {
-      case CommandArgumentModeApplyMode::kFinal:
-        editor.buffer_tree().set_filter(std::nullopt);
-        break;
-
-      case CommandArgumentModeApplyMode::kPreview:
-        if (state.indices.size() != buffers_list.BuffersCount()) {
-          std::vector<gc::WeakPtr<OpenBuffer>> filter;
-          filter.reserve(state.indices.size());
-          for (const auto& i : state.indices) {
-            filter.push_back(buffers_list.GetBuffer(i).ptr().ToWeakPtr());
-          }
-          editor.buffer_tree().set_filter(std::move(filter));
+  return std::move(state).Transform(
+      [&editor, mode, &buffers_list](State state) {
+        if (state.pattern_error.has_value()) {
+          // TODO: Find a better way to show it without hiding the input, ugh.
+          editor.status().Set(
+              AugmentError(L"Pattern error", state.pattern_error.value()));
+          return EmptyValue();
         }
-        break;
-    }
-    return EmptyValue();
-  });
+        if (state.indices.empty()) {
+          return EmptyValue();
+        }
+        state.index %= state.indices.size();
+        gc::Root<OpenBuffer> buffer =
+            buffers_list.GetBuffer(state.indices[state.index]);
+        editor.set_current_buffer(buffer, mode);
+        switch (mode) {
+          case CommandArgumentModeApplyMode::kFinal:
+            editor.buffer_tree().set_filter(std::nullopt);
+            break;
+
+          case CommandArgumentModeApplyMode::kPreview:
+            if (state.indices.size() != buffers_list.BuffersCount()) {
+              std::vector<gc::WeakPtr<OpenBuffer>> filter;
+              filter.reserve(state.indices.size());
+              for (const auto& i : state.indices) {
+                filter.push_back(buffers_list.GetBuffer(i).ptr().ToWeakPtr());
+              }
+              editor.buffer_tree().set_filter(std::move(filter));
+            }
+            break;
+        }
+        return EmptyValue();
+      });
 }
 
 }  // namespace

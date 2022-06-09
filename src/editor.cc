@@ -391,7 +391,7 @@ futures::Value<EmptyValue> EditorState::ForEachActiveBufferWithRepetitions(
         buffer_tree().BuffersCount());
     value = callback(buffer.ptr().value());
   }
-  return value.Transform([this](EmptyValue) {
+  return std::move(value).Transform([this](EmptyValue) {
     ResetModifiers();
     return EmptyValue();
   });
@@ -740,11 +740,11 @@ void EditorState::PushPosition(LineColumn position) {
                   return buffer_root;
                 });
 
-  future_positions_buffer.SetConsumer(
-      [line_to_insert = MakeNonNullShared<Line>(
-           position.ToString() + L" " +
-           buffer->ptr()->Read(buffer_variables::name))](
-          gc::Root<OpenBuffer> positions_buffer_root) {
+  std::move(future_positions_buffer)
+      .SetConsumer([line_to_insert = MakeNonNullShared<Line>(
+                        position.ToString() + L" " +
+                        buffer->ptr()->Read(buffer_variables::name))](
+                       gc::Root<OpenBuffer> positions_buffer_root) {
         OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
         positions_buffer.CheckPosition();
         CHECK_LE(positions_buffer.position().line,

@@ -151,49 +151,49 @@ futures::Value<PossibleError> Save(
       });
   }
 
-  return path_future.Transform([stat_buffer, options,
-                                buffer = buffer.NewRoot()](Path path) {
-    return SaveContentsToFile(path, buffer.ptr()->contents().copy(),
-                              buffer.ptr()->editor().thread_pool(),
-                              buffer.ptr()->file_system_driver())
-        .Transform(
-            [buffer](EmptyValue) { return buffer.ptr()->PersistState(); })
-        .Transform([stat_buffer, options, buffer, path](EmptyValue) {
-          switch (options.save_type) {
-            case OpenBuffer::Options::SaveType::kMainFile:
-              buffer.ptr()->status().SetInformationText(L"🖫 Saved: " +
-                                                        path.read());
-              // TODO(easy): Move this to the caller, for symmetry with
-              // kBackup case.
-              // TODO: Since the save is async, what if the contents have
-              // changed in the meantime?
-              buffer.ptr()->SetDiskState(OpenBuffer::DiskState::kCurrent);
-              for (const auto& dir : buffer.ptr()->editor().edge_path()) {
-                buffer.ptr()->EvaluateFile(Path::Join(
-                    dir,
-                    ValueOrDie(Path::FromString(L"/hooks/buffer-save.cc"))));
-              }
-              if (buffer.ptr()->Read(
-                      buffer_variables::trigger_reload_on_buffer_write)) {
-                for (std::pair<BufferName, gc::Root<OpenBuffer>> entry :
-                     *buffer.ptr()->editor().buffers()) {
-                  OpenBuffer& reload_buffer = entry.second.ptr().value();
-                  if (reload_buffer.Read(
-                          buffer_variables::reload_on_buffer_write)) {
-                    LOG(INFO) << "Write of " << path << " triggers reload: "
-                              << reload_buffer.Read(buffer_variables::name);
-                    reload_buffer.Reload();
+  return std::move(path_future)
+      .Transform([stat_buffer, options, buffer = buffer.NewRoot()](Path path) {
+        return SaveContentsToFile(path, buffer.ptr()->contents().copy(),
+                                  buffer.ptr()->editor().thread_pool(),
+                                  buffer.ptr()->file_system_driver())
+            .Transform(
+                [buffer](EmptyValue) { return buffer.ptr()->PersistState(); })
+            .Transform([stat_buffer, options, buffer, path](EmptyValue) {
+              switch (options.save_type) {
+                case OpenBuffer::Options::SaveType::kMainFile:
+                  buffer.ptr()->status().SetInformationText(L"🖫 Saved: " +
+                                                            path.read());
+                  // TODO(easy): Move this to the caller, for symmetry with
+                  // kBackup case.
+                  // TODO: Since the save is async, what if the contents have
+                  // changed in the meantime?
+                  buffer.ptr()->SetDiskState(OpenBuffer::DiskState::kCurrent);
+                  for (const auto& dir : buffer.ptr()->editor().edge_path()) {
+                    buffer.ptr()->EvaluateFile(Path::Join(
+                        dir, ValueOrDie(
+                                 Path::FromString(L"/hooks/buffer-save.cc"))));
                   }
-                }
+                  if (buffer.ptr()->Read(
+                          buffer_variables::trigger_reload_on_buffer_write)) {
+                    for (std::pair<BufferName, gc::Root<OpenBuffer>> entry :
+                         *buffer.ptr()->editor().buffers()) {
+                      OpenBuffer& reload_buffer = entry.second.ptr().value();
+                      if (reload_buffer.Read(
+                              buffer_variables::reload_on_buffer_write)) {
+                        LOG(INFO) << "Write of " << path << " triggers reload: "
+                                  << reload_buffer.Read(buffer_variables::name);
+                        reload_buffer.Reload();
+                      }
+                    }
+                  }
+                  stat(ToByteString(path.read()).c_str(), stat_buffer);
+                  break;
+                case OpenBuffer::Options::SaveType::kBackup:
+                  break;
               }
-              stat(ToByteString(path.read()).c_str(), stat_buffer);
-              break;
-            case OpenBuffer::Options::SaveType::kBackup:
-              break;
-          }
-          return futures::Past(Success());
-        });
-  });
+              return futures::Past(Success());
+            });
+      });
 }
 
 static futures::Value<bool> CanStatPath(
@@ -308,7 +308,7 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
                   return buffer;
                 });
 
-  return output.Transform([](gc::Root<OpenBuffer> buffer) {
+  return std::move(output).Transform([](gc::Root<OpenBuffer> buffer) {
     return buffer.ptr()->WaitForEndOfFile().Transform(
         [buffer](EmptyValue) { return buffer; });
   });
@@ -733,7 +733,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
   auto file_system_driver =
       std::make_shared<FileSystemDriver>(editor_state.thread_pool());
 
-  return search_paths_future
+  return std::move(search_paths_future)
       .Transform([&editor_state, options, search_paths,
                   file_system_driver](EmptyValue) {
         return OpenFileResolvePath(editor_state, search_paths, options.path,

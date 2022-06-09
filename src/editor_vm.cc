@@ -318,7 +318,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
             return futures::ForEach(
                        values,
                        [values](futures::Value<EmptyValue>& future) {
-                         return future.Transform([](EmptyValue) {
+                         return std::move(future).Transform([](EmptyValue) {
                            return futures::IterationControlCommand::kContinue;
                          });
                        })

@@ -62,7 +62,7 @@ template <typename T>
 struct TransformTraitsCallableReturn<Value<T>> {
   using Type = Value<T>;
   static void Feed(Value<T> output, typename Value<T>::Consumer consumer) {
-    output.SetConsumer(std::move(consumer));
+    std::move(output).SetConsumer(std::move(consumer));
   }
 };
 
@@ -111,8 +111,8 @@ class Value {
 
   template <typename Other>
   Value(Value<Other> other) {
-    other.SetConsumer([data = data_](Other other_value) {
-      data->Feed(std::move(other_value));
+    std::move(other).SetConsumer([data = data_](Other other_immediate) {
+      data->Feed(std::move(other_immediate));
     });
   }
 
@@ -122,18 +122,19 @@ class Value {
   bool has_value() const { return data_->has_value(); }
   std::optional<Type> Get() const { return data_->read(); }
 
-  void SetConsumer(Consumer consumer) {
+  void SetConsumer(Consumer consumer) && {
     data_->SetConsumer(std::move(consumer));
   }
 
   template <typename Callable>
-  auto Transform(Callable callable) {
+  auto Transform(Callable callable) && {
     using Traits = TransformTraits<Type, Callable>;
     Future<typename Traits::ReturnType::type> output;
-    SetConsumer([consumer = output.consumer,
-                 callable = std::move(callable)](Type initial_value) mutable {
-      Traits::FeedValue(std::move(initial_value), callable, consumer);
-    });
+    std::move(*this).SetConsumer(
+        [consumer = output.consumer,
+         callable = std::move(callable)](Type initial_value) mutable {
+          Traits::FeedValue(std::move(initial_value), callable, consumer);
+        });
     return std::move(output.value);
   }
 
@@ -146,7 +147,7 @@ class Value {
   // futures::Value<int> value = futures::Past(futures::ValueOrError<int>(...))
   //     .ConsumeErrors([](Error error) { ... return 0; });
   template <typename Callable>
-  auto ConsumeErrors(Callable error_callback);
+  auto ConsumeErrors(Callable error_callback) &&;
 
  private:
   friend Future<Type>;
@@ -236,19 +237,20 @@ struct Future {
 // top level symbol, but then we won't be able to chain calls.
 template <typename Type>
 template <typename Callable>
-auto Value<Type>::ConsumeErrors(Callable error_callback) {
+auto Value<Type>::ConsumeErrors(Callable error_callback) && {
   Future<typename std::variant_alternative_t<0, Type>> output;
-  SetConsumer(
-      [consumer = std::move(output.consumer),
-       error_callback = std::move(error_callback)](Type value_or_error) {
-        if (std::holds_alternative<language::Error>(value_or_error)) {
-          error_callback(std::get<language::Error>(std::move(value_or_error)))
-              .SetConsumer(consumer);
-        } else {
-          consumer(std::get<typename std::variant_alternative_t<0, Type>>(
-              std::move(value_or_error)));
-        }
-      });
+  std::move(*this).SetConsumer([consumer = std::move(output.consumer),
+                                error_callback = std::move(error_callback)](
+                                   Type value_or_error) {
+    std::visit(language::overload{
+                   [&](language::Error error) {
+                     error_callback(error).SetConsumer(consumer);
+                   },
+                   [&](typename std::variant_alternative_t<0, Type> immediate) {
+                     consumer(std::move(immediate));
+                   }},
+               std::move(value_or_error));
+  });
   return std::move(output.value);
 }
 
@@ -330,15 +332,15 @@ Value<language::PossibleError> IgnoreErrors(
 // receive the error and should return a ValueOrError<T> to replace it. If it
 // wants to preserve the error, it can just return it.
 template <typename T, typename Callable>
-ValueOrError<T> OnError(ValueOrError<T>&& value, Callable error_callback) {
+ValueOrError<T> OnError(ValueOrError<T> value, Callable error_callback) {
   Future<language::ValueOrError<T>> future;
-  value.SetConsumer([consumer = std::move(future.consumer),
-                     error_callback = std::move(error_callback)](
-                        language::ValueOrError<T> value_or_error) {
+  std::move(value).SetConsumer([consumer = std::move(future.consumer),
+                                error_callback = std::move(error_callback)](
+                                   language::ValueOrError<T> value_or_error) {
     if (std::holds_alternative<language::Error>(value_or_error)) {
       futures::ValueOrError<T> error_callback_result =
           error_callback(std::get<language::Error>(std::move(value_or_error)));
-      error_callback_result.SetConsumer(std::move(consumer));
+      std::move(error_callback_result).SetConsumer(std::move(consumer));
     } else {
       consumer(std::move(value_or_error));
     }

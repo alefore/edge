@@ -654,81 +654,80 @@ void EnterInsertMode(InsertModeOptions options) {
     shared_options->buffers = shared_options->editor_state.active_buffers();
   }
 
-  auto anonymous_buffer_future = futures::Past(EmptyValue());
-  if (shared_options->buffers.value().empty()) {
-    anonymous_buffer_future =
-        OpenAnonymousBuffer(shared_options->editor_state)
-            .Transform([shared_options](gc::Root<OpenBuffer> buffer) {
-              shared_options->buffers.value().push_back(buffer);
-              return EmptyValue();
-            });
-  }
-
-  anonymous_buffer_future.Transform([shared_options](EmptyValue) {
-    for (gc::Root<OpenBuffer>& buffer_root : shared_options->buffers.value()) {
-      if (std::optional<Line::BufferLineColumn> line_buffer =
-              buffer_root.ptr()->current_line()->buffer_line_column();
-          line_buffer.has_value())
-        VisitPointer(
-            line_buffer->buffer.Lock(),
-            [&](gc::Root<OpenBuffer> target_buffer) {
-              buffer_root = target_buffer;
-            },
-            [] {});
-    }
-
-    if (shared_options->modify_handler == nullptr) {
-      shared_options->modify_handler = [](OpenBuffer&) {
-        return futures::Past(EmptyValue()); /* Nothing. */
-      };
-    }
-
-    if (!shared_options->escape_handler) {
-      shared_options->escape_handler = []() { /* Nothing. */ };
-    }
-
-    if (!shared_options->new_line_handler) {
-      shared_options->new_line_handler = [](OpenBuffer& buffer) {
-        return buffer.ApplyToCursors(
-            MakeNonNullUnique<NewLineTransformation>());
-      };
-    }
-
-    if (!shared_options->start_completion) {
-      shared_options->start_completion = [](OpenBuffer& buffer) {
-        LOG(INFO) << "Start default completion.";
-        buffer.ApplyToCursors(NewExpandTransformation());
-        return true;
-      };
-    }
-
-    shared_options->editor_state.status().Reset();
-    for (gc::Root<OpenBuffer>& buffer : shared_options->buffers.value()) {
-      buffer.ptr()->status().Reset();
-    }
-
-    if (shared_options->editor_state.structure() == StructureChar() ||
-        shared_options->editor_state.structure() == StructureLine()) {
-      for (gc::Root<OpenBuffer>& buffer_root :
-           shared_options->buffers.value()) {
-        OpenBuffer& buffer = buffer_root.ptr().value();
-        buffer.CheckPosition();
-        buffer.PushTransformationStack();
-        buffer.PushTransformationStack();
-      }
-      if (shared_options->editor_state.structure() == StructureLine()) {
-        for (gc::Root<OpenBuffer>& buffer : shared_options->buffers.value()) {
-          buffer.ptr()->ApplyToCursors(
-              MakeNonNullUnique<InsertEmptyLineTransformation>(
-                  shared_options->editor_state.direction()));
+  (shared_options->buffers.value().empty()
+       ? OpenAnonymousBuffer(shared_options->editor_state)
+             .Transform([shared_options](gc::Root<OpenBuffer> buffer) {
+               shared_options->buffers.value().push_back(buffer);
+               return EmptyValue();
+             })
+       : futures::Past(EmptyValue()))
+      .Transform([shared_options](EmptyValue) {
+        for (gc::Root<OpenBuffer>& buffer_root :
+             shared_options->buffers.value()) {
+          if (std::optional<Line::BufferLineColumn> line_buffer =
+                  buffer_root.ptr()->current_line()->buffer_line_column();
+              line_buffer.has_value())
+            VisitPointer(
+                line_buffer->buffer.Lock(),
+                [&](gc::Root<OpenBuffer> target_buffer) {
+                  buffer_root = target_buffer;
+                },
+                [] {});
         }
-      }
-      EnterInsertCharactersMode(*shared_options);
-    }
-    shared_options->editor_state.ResetDirection();
-    shared_options->editor_state.ResetStructure();
-    return EmptyValue();
-  });
+
+        if (shared_options->modify_handler == nullptr) {
+          shared_options->modify_handler = [](OpenBuffer&) {
+            return futures::Past(EmptyValue()); /* Nothing. */
+          };
+        }
+
+        if (!shared_options->escape_handler) {
+          shared_options->escape_handler = []() { /* Nothing. */ };
+        }
+
+        if (!shared_options->new_line_handler) {
+          shared_options->new_line_handler = [](OpenBuffer& buffer) {
+            return buffer.ApplyToCursors(
+                MakeNonNullUnique<NewLineTransformation>());
+          };
+        }
+
+        if (!shared_options->start_completion) {
+          shared_options->start_completion = [](OpenBuffer& buffer) {
+            LOG(INFO) << "Start default completion.";
+            buffer.ApplyToCursors(NewExpandTransformation());
+            return true;
+          };
+        }
+
+        shared_options->editor_state.status().Reset();
+        for (gc::Root<OpenBuffer>& buffer : shared_options->buffers.value()) {
+          buffer.ptr()->status().Reset();
+        }
+
+        if (shared_options->editor_state.structure() == StructureChar() ||
+            shared_options->editor_state.structure() == StructureLine()) {
+          for (gc::Root<OpenBuffer>& buffer_root :
+               shared_options->buffers.value()) {
+            OpenBuffer& buffer = buffer_root.ptr().value();
+            buffer.CheckPosition();
+            buffer.PushTransformationStack();
+            buffer.PushTransformationStack();
+          }
+          if (shared_options->editor_state.structure() == StructureLine()) {
+            for (gc::Root<OpenBuffer>& buffer :
+                 shared_options->buffers.value()) {
+              buffer.ptr()->ApplyToCursors(
+                  MakeNonNullUnique<InsertEmptyLineTransformation>(
+                      shared_options->editor_state.direction()));
+            }
+          }
+          EnterInsertCharactersMode(*shared_options);
+        }
+        shared_options->editor_state.ResetDirection();
+        shared_options->editor_state.ResetStructure();
+        return EmptyValue();
+      });
 }
 
 }  // namespace afc::editor

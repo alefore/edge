@@ -67,20 +67,23 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
                    return futures::Past(std::optional<gc::Root<OpenBuffer>>());
                  });
   }
-  return output.Transform([results](std::optional<gc::Root<OpenBuffer>> buffer)
-                              -> std::optional<gc::Root<OpenBuffer>> {
-    if (buffer.has_value()) return buffer;
-    if (results.predictions_buffer.ptr()->lines_size() == LineNumberDelta(1) &&
-        results.predictions_buffer.ptr()
-            ->contents()
-            .at(LineNumber())
-            ->empty()) {
-      return std::nullopt;
-    }
-    LOG(INFO) << "Setting context: "
-              << results.predictions_buffer.ptr()->Read(buffer_variables::name);
-    return results.predictions_buffer;
-  });
+  return std::move(output).Transform(
+      [results](std::optional<gc::Root<OpenBuffer>> buffer)
+          -> std::optional<gc::Root<OpenBuffer>> {
+        if (buffer.has_value()) return buffer;
+        if (results.predictions_buffer.ptr()->lines_size() ==
+                LineNumberDelta(1) &&
+            results.predictions_buffer.ptr()
+                ->contents()
+                .at(LineNumber())
+                ->empty()) {
+          return std::nullopt;
+        }
+        LOG(INFO) << "Setting context: "
+                  << results.predictions_buffer.ptr()->Read(
+                         buffer_variables::name);
+        return results.predictions_buffer;
+      });
 }
 
 futures::Value<ColorizePromptOptions> DrawPath(

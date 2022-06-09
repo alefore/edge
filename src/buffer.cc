@@ -2067,8 +2067,9 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
               return EmptyValue();
             });
   }
-  return transformation_result.value().Transform(
-      [root_this = ptr_this_->ToRoot()](EmptyValue) {
+  return std::move(transformation_result)
+      .value()
+      .Transform([root_this = ptr_this_->ToRoot()](EmptyValue) {
         // This proceeds in the background but we can only start it once the
         // transformation is evaluated (since we don't know the cursor
         // position otherwise).

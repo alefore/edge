@@ -82,8 +82,8 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
       options.final_position == Insert::FinalPosition::kStart ? start_position
                                                               : final_position);
 
-  return delayed_shared_result.Transform(
-      [position](std::shared_ptr<transformation::Result> result) {
+  return std::move(delayed_shared_result)
+      .Transform([position](std::shared_ptr<transformation::Result> result) {
         result->position = position;
         return std::move(*result);
       });
