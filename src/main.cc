@@ -24,6 +24,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/time.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -54,6 +55,7 @@ using afc::language::overload;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::NewLazyString;
 namespace gc = afc::language::gc;
 
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
@@ -119,17 +121,18 @@ std::wstring CommandsToRun(CommandLineValues args) {
           full_path = path;
       }
     }
-    commands_to_run +=
-        L"editor.OpenFile(" +
-        EscapedString::FromString(full_path).CppRepresentation() +
-        L", true);\n";
+    commands_to_run += L"editor.OpenFile(" +
+                       EscapedString::FromString(NewLazyString(full_path))
+                           .CppRepresentation() +
+                       L", true);\n";
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
         L"ForkCommandOptions options = ForkCommandOptions();\n"
         L"options.set_command(" +
-        EscapedString::FromString(command_to_fork).CppRepresentation() +
+        EscapedString::FromString(NewLazyString(command_to_fork))
+            .CppRepresentation() +
         L");\noptions.set_insertion_type(\"" +
         (args.background ? L"skip" : L"search_or_create") +
         L"\");\neditor.ForkCommand(options);";
@@ -145,7 +148,8 @@ std::wstring CommandsToRun(CommandLineValues args) {
   if (args.client.has_value()) {
     commands_to_run +=
         L"Screen screen = RemoteScreen(" +
-        EscapedString::FromString(FromByteString(getenv(kEdgeParentAddress)))
+        EscapedString::FromString(
+            NewLazyString(FromByteString(getenv(kEdgeParentAddress))))
             .CppRepresentation() +
         L");\n";
   } else if (!buffers_to_watch.empty() &&
@@ -153,9 +157,10 @@ std::wstring CommandsToRun(CommandLineValues args) {
                  CommandLineValues::NestedEdgeBehavior::kWaitForClose) {
     commands_to_run += L"SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
-      commands_to_run += L"buffers_to_watch.insert(" +
-                         EscapedString::FromString(block).CppRepresentation() +
-                         L");\n";
+      commands_to_run +=
+          L"buffers_to_watch.insert(" +
+          EscapedString::FromString(NewLazyString(block)).CppRepresentation() +
+          L");\n";
     }
     commands_to_run += L"editor.WaitForClose(buffers_to_watch);\n";
   }
@@ -383,10 +388,11 @@ int main(int argc, const char** argv) {
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
-      commands_to_run += L"editor.SendExitTo(" +
-                         afc::vm::EscapedString::FromString(server_path.read())
-                             .CppRepresentation() +
-                         L");";
+      commands_to_run +=
+          L"editor.SendExitTo(" +
+          afc::vm::EscapedString::FromString(NewLazyString(server_path.read()))
+              .CppRepresentation() +
+          L");";
     }
 
     LOG(INFO) << "Sending commands.";

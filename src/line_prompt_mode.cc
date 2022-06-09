@@ -294,8 +294,7 @@ auto parse_history_line_tests_registration = tests::Register(
 // TODO(easy, 2022-06-03): Get rid of this? Just call EscapedString directly?
 NonNull<std::shared_ptr<LazyString>> QuoteString(
     NonNull<std::shared_ptr<LazyString>> src) {
-  return NewLazyString(
-      vm::EscapedString::FromString(src->ToString()).CppRepresentation());
+  return NewLazyString(vm::EscapedString::FromString(src).CppRepresentation());
 }
 
 auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {

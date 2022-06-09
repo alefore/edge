@@ -1,6 +1,7 @@
 #include "../public/value.h"
 
 #include "../public/vm.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 #include "src/vm/public/escape.h"
@@ -11,6 +12,7 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ValueOrError;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 
@@ -109,6 +111,7 @@ double Value::get_double() const {
   return std::get<double>(value_);
 }
 
+// TODO(easy, 2022-06-10): Embrace LazyString.
 const std::wstring& Value::get_string() const {
   CHECK_EQ(type, VMType::String());
   return std::get<std::wstring>(value_);
@@ -162,7 +165,8 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
       os << value.get_int();
       break;
     case VMType::Type::kString:
-      os << EscapedString::FromString(value.get_string()).CppRepresentation();
+      os << EscapedString::FromString(NewLazyString(value.get_string()))
+                .CppRepresentation();
       break;
     case VMType::Type::kBool:
       os << (value.get_bool() ? "true" : "false");

@@ -93,7 +93,7 @@ std::wstring ToStringBase(const Insert& options) {
   std::wstring output = L"InsertTransformationBuilder()";
   output += L".set_text(" +
             vm::EscapedString::FromString(
-                options.contents_to_insert->at(LineNumber(0))->ToString())
+                options.contents_to_insert->at(LineNumber(0))->contents())
                 .CppRepresentation() +
             L")";
   output += L".set_modifiers(" + options.modifiers.Serialize() + L")";

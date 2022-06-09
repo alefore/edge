@@ -16,6 +16,7 @@ extern "C" {
 
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/server.h"
@@ -30,6 +31,7 @@ using language::FromByteString;
 using language::IgnoreErrors;
 using language::overload;
 using language::ValueOrDie;
+using language::lazy_string::NewLazyString;
 
 namespace {
 static Path GetHomeDirectory() {
@@ -122,7 +124,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Require(L"path", L"Path to file containing VM commands to run")
           .Transform([](std::wstring value) {
             return L"buffer.EvaluateFile(" +
-                   vm::EscapedString::FromString(value).CppRepresentation() +
+                   vm::EscapedString::FromString(NewLazyString(value))
+                       .CppRepresentation() +
                    L");";
           })
           .AppendTo(&CommandLineValues::commands_to_run),

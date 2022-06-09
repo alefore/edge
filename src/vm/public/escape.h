@@ -5,12 +5,16 @@
 #include <string>
 
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/lazy_string.h"
+#include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
 
 namespace afc::vm {
 class EscapedString {
  public:
-  static EscapedString FromString(std::wstring input);
+  static EscapedString FromString(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          input);
 
   static language::ValueOrError<EscapedString> Parse(std::wstring input);
 

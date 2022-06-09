@@ -393,11 +393,11 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         contents->push_back(L"// String variables");
         for (const auto& variable :
              buffer_variables::StringStruct()->variables()) {
-          contents->push_back(
-              L"buffer.set_" + variable.first + L"(" +
-              EscapedString::FromString(Read(variable.second.get()))
-                  .CppRepresentation() +
-              L");");
+          contents->push_back(L"buffer.set_" + variable.first + L"(" +
+                              EscapedString::FromString(
+                                  NewLazyString(Read(variable.second.get())))
+                                  .CppRepresentation() +
+                              L");");
         }
         contents->push_back(L"");
 

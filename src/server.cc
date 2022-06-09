@@ -22,6 +22,7 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
 #include "src/vm/public/escape.h"
@@ -41,6 +42,7 @@ using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 
@@ -103,8 +105,8 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   LOG(INFO) << "Fifo created: " << private_fifo.read();
   string command =
       "editor.ConnectTo(" +
-      ToByteString(
-          EscapedString::FromString(private_fifo.read()).CppRepresentation()) +
+      ToByteString(EscapedString::FromString(NewLazyString(private_fifo.read()))
+                       .CppRepresentation()) +
       ");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {

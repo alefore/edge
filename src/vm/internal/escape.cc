@@ -1,16 +1,22 @@
 #include "src/vm/public/escape.h"
 
-#include "../public/value.h"
-#include "../public/vm.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
+#include "src/vm/public/value.h"
+#include "src/vm/public/vm.h"
 
 namespace afc::vm {
 using language::Error;
+using language::NonNull;
 using language::ValueOrDie;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
-/* static */ EscapedString EscapedString::FromString(std::wstring input) {
-  return EscapedString(std::move(input));
+/* static */ EscapedString EscapedString::FromString(
+    NonNull<std::shared_ptr<LazyString>> input) {
+  // TODO(easy, 2022-06-10): Get rid of this call to ToString.
+  return EscapedString(input->ToString());
 }
 
 /* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
@@ -82,16 +88,16 @@ bool cpp_unescape_string_tests_registration =
     tests::Register(L"EscapedString", [] {
       using ::operator<<;
       auto t = [](std::wstring name, std::wstring input) {
-        return tests::Test{.name = name, .callback = [input] {
-                             std::wstring output =
-                                 ValueOrDie(EscapedString::Parse(
-                                                EscapedString::FromString(input)
-                                                    .EscapedRepresentation()))
-                                     .OriginalString();
-                             LOG(INFO)
-                                 << "Comparing: " << input << " to " << output;
-                             CHECK(input == output);
-                           }};
+        return tests::Test{
+            .name = name, .callback = [input] {
+              std::wstring output =
+                  ValueOrDie(EscapedString::Parse(
+                                 EscapedString::FromString(NewLazyString(input))
+                                     .EscapedRepresentation()))
+                      .OriginalString();
+              LOG(INFO) << "Comparing: " << input << " to " << output;
+              CHECK(input == output);
+            }};
       };
       auto fail = [](std::wstring name, std::wstring input) {
         return tests::Test{
