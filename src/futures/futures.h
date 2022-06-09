@@ -211,41 +211,6 @@ class Value {
 template <typename T>
 using ValueOrError = Value<language::ValueOrError<T>>;
 
-// Similar to Value, but allows us to queue multiple listeners. The listeners
-// receive the value by const-ref.
-template <typename Type>
-class ListenableValue {
- public:
-  using Listener = std::function<void(const Type&)>;
-
-  ListenableValue(Value<Type> value) {
-    value.SetConsumer([data = data_](Type immediate_value) {
-      data->value = std::move(immediate_value);
-      for (auto& l : data->listeners) {
-        l(data->value.value());
-      }
-      data->listeners.clear();
-    });
-  }
-
-  void AddListener(Listener listener) const {
-    if (data_->value.has_value()) {
-      listener(data_->value.value());
-    } else {
-      data_->listeners.push_back(listener);
-    }
-  }
-
-  const std::optional<Type>& get() const { return data_->value; }
-
- private:
-  struct Data {
-    std::optional<Type> value;
-    std::vector<std::function<void(const Type&)>> listeners;
-  };
-  std::shared_ptr<Data> data_ = std::make_shared<Data>();
-};
-
 template <typename Type>
 struct Future {
  public:

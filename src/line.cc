@@ -321,7 +321,7 @@ NonNull<std::shared_ptr<LazyString>> Line::Substring(
 std::shared_ptr<LazyString> Line::metadata() const {
   return data_.lock([](const Data& data) -> std::shared_ptr<LazyString> {
     if (const auto& metadata = data.options.metadata; metadata.has_value())
-      return metadata->value.get()
+      return metadata->value.get_copy()
           .value_or(metadata->initial_value)
           .get_shared();
     return nullptr;

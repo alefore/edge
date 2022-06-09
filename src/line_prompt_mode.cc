@@ -789,7 +789,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
-    if (delta == LineNumberDelta(+1) && !filtered_history_.get().has_value()) {
+    if (delta == LineNumberDelta(+1) && !filtered_history_.has_value()) {
       ReplaceContents(buffer, MakeNonNullShared<BufferContents>());
       return;
     }

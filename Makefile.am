@@ -86,6 +86,7 @@ src/file_descriptor_reader.h \
 src/find_mode.cc \
 src/futures/futures.cc \
 src/futures/futures.h \
+src/futures/listenable_value.h \
 src/futures/serializer.cc \
 src/futures/serializer.h \
 src/fuzz.h \
