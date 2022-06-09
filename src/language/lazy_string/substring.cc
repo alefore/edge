@@ -7,8 +7,7 @@
 #include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::language::lazy_string {
-
-// TODO(easy, 2022-06-09): Put this in an anonymous namespace?
+namespace {
 class SubstringImpl : public LazyString {
  public:
   SubstringImpl(const NonNull<std::shared_ptr<LazyString>> input,
@@ -27,6 +26,7 @@ class SubstringImpl : public LazyString {
   const ColumnNumber column_;
   const ColumnNumberDelta delta_;
 };
+}  // namespace
 
 NonNull<std::shared_ptr<LazyString>> Substring(
     NonNull<std::shared_ptr<LazyString>> input, ColumnNumber column) {
