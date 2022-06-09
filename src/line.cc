@@ -19,12 +19,6 @@
 
 namespace afc {
 namespace editor {
-
-// TODO(easy, 2022-06-09): Get rid of these declarations.
-using std::hash;
-using std::unordered_set;
-using std::wstring;
-
 namespace lazy_string = language::lazy_string;
 
 using infrastructure::Tracker;
@@ -104,7 +98,7 @@ ColumnNumber Line::Options::EndColumn() const {
 void Line::Options::SetCharacter(ColumnNumber column, int c,
                                  const LineModifierSet& c_modifiers) {
   ValidateInvariants();
-  auto str = NewLazyString(wstring(1, c));
+  auto str = NewLazyString(std::wstring(1, c));
   if (column >= EndColumn()) {
     column = EndColumn();
     contents = lazy_string::Append(std::move(contents), std::move(str));
@@ -155,8 +149,8 @@ void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(modifier.find(LineModifier::RESET) == modifier.end());
   modifiers[ColumnNumber(0) + contents->size()] = modifier;
-  contents =
-      lazy_string::Append(std::move(contents), NewLazyString(wstring(1, c)));
+  contents = lazy_string::Append(std::move(contents),
+                                 NewLazyString(std::wstring(1, c)));
   metadata = std::nullopt;
   ValidateInvariants();
 }
@@ -276,7 +270,7 @@ void Line::Options::ValidateInvariants() {}
   return MakeNonNullShared<Line>(std::move(options));
 }
 
-Line::Line(wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
+Line::Line(std::wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
 
 Line::Line(Options options)
     : data_(Data{.options = std::move(options)}, Line::ValidateInvariants) {}
@@ -461,8 +455,9 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
           VLOG(8) << "Print character: " << c;
           output_column += ColumnNumberDelta(wcwidth(c));
           if (output_column.ToDelta() <= options.width)
-            line_output.contents = lazy_string::Append(
-                std::move(line_output.contents), NewLazyString(wstring(1, c)));
+            line_output.contents =
+                lazy_string::Append(std::move(line_output.contents),
+                                    NewLazyString(std::wstring(1, c)));
       }
     }
 
