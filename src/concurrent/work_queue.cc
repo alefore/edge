@@ -1,10 +1,11 @@
 #include "src/concurrent/work_queue.h"
 
-#include "src/concurrent/notification.h"
+#include "src/futures/delete_notification.h"
 #include "src/infrastructure/time.h"
 #include "src/tests/tests.h"
 
 namespace afc::concurrent {
+using futures::DeleteNotification;
 using infrastructure::Now;
 using infrastructure::SecondsBetween;
 using language::MakeNonNullShared;
@@ -71,14 +72,16 @@ namespace {
 const bool work_queue_tests_registration = tests::Register(
     L"WorkQueue",
     {{.name = L"CallbackKeepsWorkQueueAlive", .runs = 100, .callback = [] {
-        NonNull<std::shared_ptr<Notification>> notification;
-        NonNull<WorkQueue*> work_queue_raw = [notification] {
+        auto delete_notification = std::make_unique<DeleteNotification>();
+        DeleteNotification::Value done =
+            delete_notification->listenable_value();
+        NonNull<WorkQueue*> work_queue_raw = [&delete_notification] {
           NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
           work_queue->Schedule(
               [work_queue] { LOG(INFO) << "First callback starts"; });
-          work_queue->Schedule([notification] {
+          work_queue->Schedule([&delete_notification] {
             LOG(INFO) << "Second callback starts";
-            notification->Notify();
+            delete_notification = nullptr;
           });
           LOG(INFO) << "Execute.";
           return work_queue.get();
@@ -86,7 +89,7 @@ const bool work_queue_tests_registration = tests::Register(
         // We know it hasn't been deleted since it contains a reference to
         // itself (in the first scheduled callback).
         work_queue_raw->Execute();
-        while (!notification->HasBeenNotified()) sleep(0.01);
+        while (!done->has_value()) sleep(0.01);
       }}});
 
 const bool work_queue_channel_tests_registration = tests::Register(
