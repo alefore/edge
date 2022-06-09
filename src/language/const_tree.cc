@@ -1,10 +1,10 @@
-#include "src/const_tree.h"
+#include "src/language/const_tree.h"
 
 #include "src/infrastructure/time.h"
 #include "src/tests/benchmarks.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
+namespace afc::language {
 namespace {
 using infrastructure::Now;
 using IntTree = ConstTree<int>;
@@ -223,4 +223,4 @@ const bool const_tree_tests_registration = tests::Register(
         }
       }}});
 }  // namespace
-}  // namespace afc::editor
+}  // namespace afc::language

@@ -4,10 +4,10 @@
 #include <memory>
 #include <vector>
 
-#include "src/const_tree.h"
 #include "src/cursors.h"
 #include "src/fuzz_testable.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/const_tree.h"
 #include "src/language/safe_types.h"
 #include "src/line.h"
 #include "src/line_column.h"
@@ -16,7 +16,8 @@ namespace afc {
 namespace editor {
 
 class BufferContents : public fuzz::FuzzTestable {
-  using Lines = ConstTree<language::NonNull<std::shared_ptr<const Line>>>;
+  using Lines =
+      language::ConstTree<language::NonNull<std::shared_ptr<const Line>>>;
 
  public:
   using UpdateListener =

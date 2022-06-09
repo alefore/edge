@@ -2,14 +2,12 @@
 
 #include <glog/logging.h>
 
-#include "src/const_tree.h"
+#include "src/language/const_tree.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
-// TODO(easy, 2022-06-09): GEt rid of this `using` declaration.
-using afc::editor::ConstTree;
 namespace {
 class AppendImpl : public LazyString {
  public:

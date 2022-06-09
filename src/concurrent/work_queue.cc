@@ -5,7 +5,6 @@
 #include "src/tests/tests.h"
 
 namespace afc::concurrent {
-using futures::DeleteNotification;
 using infrastructure::Now;
 using infrastructure::SecondsBetween;
 using language::MakeNonNullShared;
@@ -69,6 +68,8 @@ double WorkQueue::RecentUtilization() const {
 language::Observable& WorkQueue::OnSchedule() { return schedule_observers_; }
 
 namespace {
+using futures::DeleteNotification;
+
 const bool work_queue_tests_registration = tests::Register(
     L"WorkQueue",
     {{.name = L"CallbackKeepsWorkQueueAlive", .runs = 100, .callback = [] {

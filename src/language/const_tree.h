@@ -1,12 +1,11 @@
-#ifndef __AFC_EDITOR_CONST_TREE_H__
-#define __AFC_EDITOR_CONST_TREE_H__
+#ifndef __AFC_LANGUAGE_CONST_TREE_H__
+#define __AFC_LANGUAGE_CONST_TREE_H__
 
 #include <glog/logging.h>
 
 #include <memory>
 
-namespace afc::editor {
-
+namespace afc::language {
 // An immutable tree supporting fast `Prefix` (get initial sequence), `Suffix`,
 // and `Append` operations.
 template <typename T>
@@ -218,6 +217,6 @@ class ConstTree {
   const std::shared_ptr<ConstTree<T>> right_;
 };
 
-}  // namespace afc::editor
+}  // namespace afc::language
 
-#endif  //  __AFC_EDITOR_CONST_TREE_H__
+#endif  //  __AFC_LANGUAGE_CONST_TREE_H__

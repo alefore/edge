@@ -63,8 +63,6 @@ src/concurrent/thread_pool.cc \
 src/concurrent/thread_pool.h \
 src/concurrent/work_queue.cc \
 src/concurrent/work_queue.h \
-src/const_tree.cc \
-src/const_tree.h \
 src/cursors.cc \
 src/cursors.h \
 src/direction.cc \
@@ -111,6 +109,8 @@ src/insert_history.h \
 src/insert_history_buffer.cc \
 src/insert_history_buffer.h \
 src/insert_mode.cc \
+src/language/const_tree.cc \
+src/language/const_tree.h \
 src/language/function_traits.h \
 src/language/ghost_type.cc \
 src/language/ghost_type.h \
@@ -295,8 +295,8 @@ src/vm/internal/variable_lookup.cc \
 src/widget.h
 
 BENCHMARK_SOURCES = \
-src/const_tree.cc \
-src/const_tree.h \
+src/language/const_tree.cc \
+src/language/const_tree.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
 src/language/wstring.cc \
