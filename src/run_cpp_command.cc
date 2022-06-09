@@ -107,8 +107,7 @@ ValueOrError<ParsedCommand> Parse(
   for (const auto& n : search_namespaces.namespaces) {
     environment.CaseInsensitiveLookup(
         n,
-        StringAppend(function_name_prefix,
-                     NewLazyString(output_tokens[0].value))
+        Append(function_name_prefix, NewLazyString(output_tokens[0].value))
             ->ToString(),
         &functions);
     if (!functions.empty()) break;

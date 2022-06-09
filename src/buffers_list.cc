@@ -574,11 +574,10 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             line_options_output.AppendString(
-                StringAppend(
-                    PaddingString(
-                        start.ToDelta() - line_options_output.contents->size(),
-                        L' '),
-                    NewLazyString(number_prefix)),
+                Append(PaddingString(start.ToDelta() -
+                                         line_options_output.contents->size(),
+                                     L' '),
+                       NewLazyString(number_prefix)),
                 number_modifiers);
 
             std::wstring progress;

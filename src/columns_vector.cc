@@ -50,7 +50,7 @@ Line GeneratePadding(const ColumnsVector::Padding padding,
   CHECK(!padding.body->size().IsZero());
   NonNull<std::shared_ptr<LazyString>> contents = padding.head;
   while (contents->size() < size) {
-    contents = StringAppend(std::move(contents), padding.body);
+    contents = Append(std::move(contents), padding.body);
   }
   options.AppendString(Substring(std::move(contents), ColumnNumber(), size),
                        padding.modifiers);

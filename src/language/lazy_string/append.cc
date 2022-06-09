@@ -11,9 +11,9 @@ namespace afc::language::lazy_string {
 // TODO(easy, 2022-06-09): GEt rid of this `using` declaration.
 using afc::editor::ConstTree;
 namespace {
-class StringAppendImpl : public LazyString {
+class AppendImpl : public LazyString {
  public:
-  StringAppendImpl(ConstTree<wchar_t>::Ptr tree) : tree_(std::move(tree)) {}
+  AppendImpl(ConstTree<wchar_t>::Ptr tree) : tree_(std::move(tree)) {}
 
   wchar_t get(ColumnNumber pos) const { return tree_->Get(pos.read()); }
 
@@ -28,7 +28,7 @@ class StringAppendImpl : public LazyString {
 };
 
 ConstTree<wchar_t>::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
-  auto a_cast = dynamic_cast<StringAppendImpl*>(a.get().get());
+  auto a_cast = dynamic_cast<AppendImpl*>(a.get().get());
   if (a_cast != nullptr) {
     return a_cast->tree();
   }
@@ -40,7 +40,7 @@ ConstTree<wchar_t>::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
 }
 }  // namespace
 
-NonNull<std::shared_ptr<LazyString>> StringAppend(
+NonNull<std::shared_ptr<LazyString>> Append(
     NonNull<std::shared_ptr<LazyString>> a,
     NonNull<std::shared_ptr<LazyString>> b) {
   if (a->size() == ColumnNumberDelta()) {
@@ -50,24 +50,24 @@ NonNull<std::shared_ptr<LazyString>> StringAppend(
     return a;
   }
 
-  return MakeNonNullShared<StringAppendImpl>(
+  return MakeNonNullShared<AppendImpl>(
       ConstTree<wchar_t>::Append(TreeFrom(a), TreeFrom(b)));
 }
 
-NonNull<std::shared_ptr<LazyString>> StringAppend(
+NonNull<std::shared_ptr<LazyString>> Append(
     NonNull<std::shared_ptr<LazyString>> a,
     NonNull<std::shared_ptr<LazyString>> b,
     NonNull<std::shared_ptr<LazyString>> c) {
-  return StringAppend(std::move(a), StringAppend(std::move(b), std::move(c)));
+  return Append(std::move(a), Append(std::move(b), std::move(c)));
 }
 
-NonNull<std::shared_ptr<LazyString>> StringAppend(
+NonNull<std::shared_ptr<LazyString>> Append(
     NonNull<std::shared_ptr<LazyString>> a,
     NonNull<std::shared_ptr<LazyString>> b,
     NonNull<std::shared_ptr<LazyString>> c,
     NonNull<std::shared_ptr<LazyString>> d) {
-  return StringAppend(StringAppend(std::move(a), std::move(b)),
-                      StringAppend(std::move(c), std::move(d)));
+  return Append(Append(std::move(a), std::move(b)),
+                Append(std::move(c), std::move(d)));
 }
 
 NonNull<std::shared_ptr<LazyString>> Concatenate(
@@ -75,7 +75,7 @@ NonNull<std::shared_ptr<LazyString>> Concatenate(
   // TODO: There's probably a faster way to do this. Not sure it matters.
   NonNull<std::shared_ptr<LazyString>> output = EmptyString();
   for (auto& i : inputs) {
-    output = StringAppend(std::move(output), i);
+    output = Append(std::move(output), i);
   }
   return output;
 }

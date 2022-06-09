@@ -107,12 +107,12 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
   auto str = NewLazyString(wstring(1, c));
   if (column >= EndColumn()) {
     column = EndColumn();
-    contents = StringAppend(std::move(contents), std::move(str));
+    contents = lazy_string::Append(std::move(contents), std::move(str));
   } else {
-    contents = StringAppend(
-        StringAppend(lazy_string::Substring(std::move(contents),
-                                            ColumnNumber(0), column.ToDelta()),
-                     std::move(str)),
+    contents = lazy_string::Append(
+        lazy_string::Substring(std::move(contents), ColumnNumber(0),
+                               column.ToDelta()),
+        std::move(str),
         lazy_string::Substring(contents, column + ColumnNumberDelta(1)));
   }
 
@@ -135,11 +135,9 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
 
 void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
-  contents = StringAppend(
-      StringAppend(
-          lazy_string::Substring(contents, ColumnNumber(0), column.ToDelta()),
-          NewLazyString(L" ")),
-      lazy_string::Substring(contents, column));
+  contents = lazy_string::Append(
+      lazy_string::Substring(contents, ColumnNumber(0), column.ToDelta()),
+      NewLazyString(L" "), lazy_string::Substring(contents, column));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   for (auto& m : modifiers) {
@@ -157,7 +155,8 @@ void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(modifier.find(LineModifier::RESET) == modifier.end());
   modifiers[ColumnNumber(0) + contents->size()] = modifier;
-  contents = StringAppend(std::move(contents), NewLazyString(wstring(1, c)));
+  contents =
+      lazy_string::Append(std::move(contents), NewLazyString(wstring(1, c)));
   metadata = std::nullopt;
   ValidateInvariants();
 }
@@ -189,7 +188,8 @@ void Line::Options::Append(Line line) {
   end_of_line_modifiers = std::move(line.end_of_line_modifiers());
   if (line.empty()) return;
   auto original_length = EndColumn().ToDelta();
-  contents = StringAppend(std::move(contents), std::move(line.contents()));
+  contents =
+      lazy_string::Append(std::move(contents), std::move(line.contents()));
   metadata = std::nullopt;
 
   auto initial_modifier =
@@ -234,7 +234,7 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
   CHECK_LE(column, EndColumn());
   CHECK_LE(column + delta, EndColumn());
 
-  contents = StringAppend(
+  contents = lazy_string::Append(
       lazy_string::Substring(contents, ColumnNumber(0), column.ToDelta()),
       lazy_string::Substring(contents, column + delta));
 
@@ -344,8 +344,8 @@ void Line::Append(const Line& line) {
     data.hash = std::nullopt;
     line.data_.lock([&data](const Data& line_data) {
       auto original_length = EndColumn(data).ToDelta();
-      data.options.contents = StringAppend(std::move(data.options.contents),
-                                           line_data.options.contents);
+      data.options.contents = lazy_string::Append(
+          std::move(data.options.contents), line_data.options.contents);
       data.options.modifiers[ColumnNumber() + original_length] =
           LineModifierSet{};
       for (auto& [position, modifiers] : line_data.options.modifiers) {
@@ -461,8 +461,8 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
           VLOG(8) << "Print character: " << c;
           output_column += ColumnNumberDelta(wcwidth(c));
           if (output_column.ToDelta() <= options.width)
-            line_output.contents = StringAppend(std::move(line_output.contents),
-                                                NewLazyString(wstring(1, c)));
+            line_output.contents = lazy_string::Append(
+                std::move(line_output.contents), NewLazyString(wstring(1, c)));
       }
     }
 

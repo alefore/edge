@@ -430,11 +430,11 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
       vm::NewCallback(
           pool, vm::PurityTypeWriter, [](gc::Root<OpenBuffer> buffer) {
             for (auto& data : Tracker::GetData()) {
-              buffer.ptr()->AppendLine(StringAppend(
-                  StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
-                  NewLazyString(std::to_wstring(data.executions)),
-                  NewLazyString(L" "),
-                  NewLazyString(std::to_wstring(data.seconds))));
+              buffer.ptr()->AppendLine(
+                  Append(Append(NewLazyString(data.name), NewLazyString(L": ")),
+                         NewLazyString(std::to_wstring(data.executions)),
+                         NewLazyString(L" "),
+                         NewLazyString(std::to_wstring(data.seconds))));
             }
           }));
 

@@ -7,14 +7,14 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 namespace afc::language::lazy_string {
-language::NonNull<std::shared_ptr<LazyString>> StringAppend(
+language::NonNull<std::shared_ptr<LazyString>> Append(
     language::NonNull<std::shared_ptr<LazyString>> a,
     language::NonNull<std::shared_ptr<LazyString>> b);
-language::NonNull<std::shared_ptr<LazyString>> StringAppend(
+language::NonNull<std::shared_ptr<LazyString>> Append(
     language::NonNull<std::shared_ptr<LazyString>> a,
     language::NonNull<std::shared_ptr<LazyString>> b,
     language::NonNull<std::shared_ptr<LazyString>> c);
-language::NonNull<std::shared_ptr<LazyString>> StringAppend(
+language::NonNull<std::shared_ptr<LazyString>> Append(
     language::NonNull<std::shared_ptr<LazyString>> a,
     language::NonNull<std::shared_ptr<LazyString>> b,
     language::NonNull<std::shared_ptr<LazyString>> c,
