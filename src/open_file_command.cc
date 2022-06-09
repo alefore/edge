@@ -36,10 +36,9 @@ namespace gc = language::gc;
 
 futures::Value<EmptyValue> OpenFileHandler(
     EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> name) {
-  // TODO(easy, 2022-06-05): Get rid of ToString.
   OpenOrCreateFile(
       OpenFileOptions{.editor_state = editor_state,
-                      .path = OptionalFrom(Path::FromString(name->ToString())),
+                      .path = OptionalFrom(Path::FromString(name)),
                       .insertion_type = BuffersList::AddBufferType::kVisit});
   return futures::Past(EmptyValue());
 }
@@ -47,11 +46,11 @@ futures::Value<EmptyValue> OpenFileHandler(
 // Returns the buffer to show for context, or nullptr.
 futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
     EditorState& editor, const PredictResults& results,
-    const LazyString& line) {
+    NonNull<std::shared_ptr<LazyString>> line) {
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.found_exact_match) {
-    ValueOrError<Path> path_or_error = Path::FromString(line.ToString());
+    ValueOrError<Path> path_or_error = Path::FromString(line);
     Path* path = std::get_if<Path>(&path_or_error);
     if (path == nullptr) {
       return futures::Past(std::optional<gc::Root<OpenBuffer>>());
@@ -87,7 +86,7 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
 futures::Value<ColorizePromptOptions> DrawPath(
     EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
     PredictResults results) {
-  return StatusContext(editor, results, line.value())
+  return StatusContext(editor, results, line)
       .Transform([line,
                   results](std::optional<gc::Root<OpenBuffer>> context_buffer) {
         ColorizePromptOptions output;

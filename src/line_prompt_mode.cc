@@ -93,7 +93,7 @@ GetSyntheticFeatures(
   VLOG(5) << "Generating features from input: " << input.size();
   for (const auto& [name, value] : input) {
     if (name == L"name") {
-      ValueOrError<Path> value_path = Path::FromString(value->ToString());
+      ValueOrError<Path> value_path = Path::FromString(value);
       Path* path = std::get_if<Path>(&value_path);
       if (path == nullptr) continue;
       std::visit(overload{IgnoreErrors{},
