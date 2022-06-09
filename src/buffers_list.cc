@@ -547,14 +547,14 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
         std::nullopt,
         [options, prefix_width, path_components, columns_per_buffer, index]() {
           Line::Options line_options_output;
-          for (size_t i = 0; i < options->buffers_per_line &&
-                             index + i < options->buffers.size();
-               i++) {
+          for (size_t j = 0; j < options->buffers_per_line &&
+                             index + j < options->buffers.size();
+               j++) {
             const OpenBuffer& buffer =
-                options->buffers.at(index + i).ptr().value();
-            auto number_prefix = std::to_wstring(index + i + 1);
+                options->buffers.at(index + j).ptr().value();
+            auto number_prefix = std::to_wstring(index + j + 1);
             ColumnNumber start =
-                ColumnNumber(0) + (columns_per_buffer + prefix_width) * i;
+                ColumnNumber(0) + (columns_per_buffer + prefix_width) * j;
             line_options_output.AppendString(
                 PaddingString(
                     start.ToDelta() - line_options_output.contents->size(),
@@ -621,7 +621,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                              buffer.dirty()
                                  ? LineModifierSet{LineModifier::ITALIC}
                                  : LineModifierSet{},
-                             selection_state, path_components[index + i],
+                             selection_state, path_components[index + j],
                              &line_options_output);
           }
           return LineWithCursor{
@@ -950,9 +950,7 @@ void BuffersList::Update() {
   if (!buffers_to_show_.has_value()) {
     // Pass.
   } else if (buffers_to_show_.value() <= index_active) {
-    gc::Root<OpenBuffer> active_buffer = std::move(buffers[index_active]);
-    buffers.clear();
-    buffers.push_back(active_buffer);
+    buffers = {std::move(buffers[index_active])};
     index_active = 0;
   } else if (*buffers_to_show_ < buffers.size()) {
     buffers.erase(buffers.begin() + *buffers_to_show_, buffers.end());
