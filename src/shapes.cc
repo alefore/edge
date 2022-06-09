@@ -11,14 +11,12 @@
 #include "src/vm/public/value.h"
 
 namespace afc ::editor {
-// TODO(easy, 2022-06-09): Get rid of the `using namespace` declaration:
-using namespace afc::vm;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 
-NonNull<std::shared_ptr<std::vector<wstring>>> Justify(
-    NonNull<std::shared_ptr<std::vector<wstring>>> input, int width) {
+NonNull<std::shared_ptr<std::vector<std::wstring>>> Justify(
+    NonNull<std::shared_ptr<std::vector<std::wstring>>> input, int width) {
   LOG(INFO) << "Evaluating breaks with inputs: " << input->size();
 
   // Push back a dummy string for the end. This is the goal of our graph search.
@@ -54,7 +52,7 @@ NonNull<std::shared_ptr<std::vector<wstring>>> Justify(
   auto route = std::get<1>(options.back());
   for (size_t line = 0; line < route.size(); line++) {
     size_t previous_word = line == 0 ? 0 : route[line - 1];
-    wstring output_line;
+    std::wstring output_line;
     for (int word = previous_word; word < route[line]; word++) {
       output_line += (output_line.empty() ? L"" : L" ") + input.value()[word];
     }
@@ -204,6 +202,7 @@ void FindBoundariesBezier(
 }
 
 void InitShapes(language::gc::Pool& pool, vm::Environment& environment) {
+  using vm::PurityType;
   environment.Define(L"ShapesReflow",
                      vm::NewCallback(pool, PurityType::kUnknown, Justify));
   environment.Define(
