@@ -5,9 +5,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "src/concurrent/notification.h"
 #include "src/concurrent/protected.h"
 #include "src/concurrent/thread_pool.h"
+#include "src/futures/delete_notification.h"
 #include "src/language/observers.h"
 #include "src/language/safe_types.h"
 #include "src/parse_tree.h"
@@ -41,10 +41,10 @@ class BufferSyntaxParser {
       concurrent::ThreadPool(1, nullptr);
 
   struct Data {
-    // When the tree changes, we notify it, install a new notification, and
-    // schedule in `syntax_data_` new work.
-    language::NonNull<std::shared_ptr<concurrent::Notification>>
-        cancel_notification;
+    // When the tree changes, we replace this and schedule in `syntax_data_` new
+    // work.
+    language::NonNull<std::unique_ptr<futures::DeleteNotification>>
+        cancel_state;
 
     language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
         NewNullTreeParser();
