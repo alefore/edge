@@ -873,9 +873,7 @@ Structure* StructureBuffer() {
         *position = LineColumn();
       } else {
         CHECK_GT(buffer.lines_size(), LineNumberDelta(0));
-        position->line = buffer.EndLine();
-        // TODO(easy, 2022-04-30): Check non-null?
-        position->column = buffer.LineAt(position->line)->EndColumn();
+        *position = buffer.contents().range().end;
       }
       return false;
     }
