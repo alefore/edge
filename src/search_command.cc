@@ -96,25 +96,22 @@ static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
 
 ColorizePromptOptions SearchResultsModifiers(
     NonNull<std::shared_ptr<LazyString>> line,
-    ValueOrError<SearchResultsSummary> result) {
-  LineModifierSet modifiers;
-  std::visit(overload{[&](Error) { modifiers.insert(LineModifier::RED); },
-                      [&](const SearchResultsSummary& result) {
-                        switch (result.matches) {
-                          case 0:
-                            break;
-                          case 1:
-                            modifiers.insert(LineModifier::CYAN);
-                            break;
-                          case 2:
-                            modifiers.insert(LineModifier::YELLOW);
-                            break;
-                          default:
-                            modifiers.insert(LineModifier::GREEN);
-                            break;
-                        }
-                      }},
-             result);
+    ValueOrError<SearchResultsSummary> result_or_error) {
+  LineModifierSet modifiers = std::visit(
+      overload{[&](Error) { return LineModifierSet{LineModifier::RED}; },
+               [&](const SearchResultsSummary& result) -> LineModifierSet {
+                 switch (result.matches) {
+                   case 0:
+                     return {};
+                   case 1:
+                     return {LineModifier::CYAN};
+                   case 2:
+                     return {LineModifier::YELLOW};
+                   default:
+                     return {LineModifier::GREEN};
+                 }
+               }},
+      result_or_error);
 
   return {.tokens = {{.token = {.value = L"",
                                 .begin = ColumnNumber(0),
