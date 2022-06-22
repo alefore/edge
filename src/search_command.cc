@@ -170,8 +170,8 @@ class ProgressAggregator {
   }
 
   struct Data {
-    Data(NonNull<std::unique_ptr<ProgressChannel>> parent_channel)
-        : parent_channel(std::move(parent_channel)) {}
+    Data(NonNull<std::unique_ptr<ProgressChannel>> input_parent_channel)
+        : parent_channel(std::move(input_parent_channel)) {}
 
     const NonNull<std::unique_ptr<ProgressChannel>> parent_channel;
 
@@ -249,14 +249,15 @@ class SearchCommand : public Command {
               buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(
                   editor_state_.active_buffers())](
                  const NonNull<std::shared_ptr<LazyString>>& line,
-                 NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
+                 NonNull<std::unique_ptr<ProgressChannel>>
+                     parent_progress_channel,
                  DeleteNotification::Value abort_value) {
                VLOG(5) << "Triggering async search.";
                auto results =
                    MakeNonNullShared<ValueOrError<SearchResultsSummary>>(
                        Success(SearchResultsSummary()));
                auto progress_aggregator = MakeNonNullShared<ProgressAggregator>(
-                   std::move(progress_channel));
+                   std::move(parent_progress_channel));
                using Control = futures::IterationControlCommand;
                return futures::ForEach(
                           buffers,
