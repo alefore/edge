@@ -1428,13 +1428,13 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
                    : std::min(position, output.begin);
   bool move_start = true;
   for (size_t i = 1; i < modifiers.repetitions.value_or(1); i++) {
-    LineColumn position = output.end;
+    LineColumn start_position = output.end;
     if (!modifiers.structure->SeekToLimit(*this, forward, &output.end)) {
       move_start = false;
       break;
     }
     modifiers.structure->SeekToNext(*this, forward, &output.end);
-    if (output.end == position) {
+    if (output.end == start_position) {
       break;
     }
   }
