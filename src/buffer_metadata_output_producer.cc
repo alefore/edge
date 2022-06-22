@@ -465,11 +465,12 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     static Tracker tracker(
         L"BufferMetadataOutput::Prepare:AddMetadataForExpiredMark");
     auto call = tracker.Call();
-    if (auto contents = mark.source_line_content->ToString();
-        marks_strings.find(contents) == marks_strings.end()) {
-      output.push_back(MetadataLine{'!', LineModifier::RED,
-                                    MakeNonNullShared<Line>(L"👻 " + contents),
-                                    MetadataLine::Type::kMark});
+    if (auto mark_contents = mark.source_line_content->ToString();
+        marks_strings.find(mark_contents) == marks_strings.end()) {
+      output.push_back(
+          MetadataLine{'!', LineModifier::RED,
+                       MakeNonNullShared<Line>(L"👻 " + mark_contents),
+                       MetadataLine::Type::kMark});
     }
   }
 
