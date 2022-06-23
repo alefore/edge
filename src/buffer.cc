@@ -928,11 +928,6 @@ void OpenBuffer::AppendLazyString(NonNull<std::shared_ptr<LazyString>> input) {
   AppendLine(Substring(input, start));
 }
 
-// TODO: WTF is this?
-static void AddToParseTree(const NonNull<shared_ptr<LazyString>>& str_input) {
-  wstring str = str_input->ToString();
-}
-
 void OpenBuffer::SortContents(
     LineNumber first, LineNumber last,
     std::function<bool(const NonNull<std::shared_ptr<const Line>>&,
@@ -976,10 +971,6 @@ void OpenBuffer::AppendLine(NonNull<std::shared_ptr<LazyString>> str) {
     switch (str->get(ColumnNumber(0))) {
       case 'E':
         return AppendRawLine(Substring(str, ColumnNumber(1)));
-
-      case 'T':
-        AddToParseTree(str);
-        return;
     }
     return;
   }
