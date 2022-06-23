@@ -635,19 +635,15 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   }
 
   NonNull<std::shared_ptr<CommandData>> command_data;
-  gc::Root<OpenBuffer> buffer =
-      OpenBuffer::New({.editor = editor_state,
-                       .name = name,
-                       .generate_contents =
-                           [&editor_state, environment = options.environment,
-                            command_data](OpenBuffer& target) {
-                             return GenerateContents(editor_state, environment,
-                                                     command_data, target);
-                           },
-                       .describe_status =
-                           [command_data](const OpenBuffer& buffer) {
-                             return Flags(command_data.value(), buffer);
-                           }});
+  gc::Root<OpenBuffer> buffer = OpenBuffer::New(OpenBuffer::Options{
+      .editor = editor_state,
+      .name = name,
+      .generate_contents =
+          std::bind_front(GenerateContents, std::ref(editor_state),
+                          options.environment, command_data),
+      .describe_status = [command_data](const OpenBuffer& buffer) {
+        return Flags(command_data.value(), buffer);
+      }});
   buffer.ptr()->Set(
       buffer_variables::children_path,
       options.children_path.has_value() ? options.children_path->read() : L"");
