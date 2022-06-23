@@ -57,6 +57,7 @@ using language::PossibleError;
 using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
+using language::VisitPointer;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 using vm::EscapedString;
@@ -451,26 +452,33 @@ class ForkEditorCommand : public Command {
     } else if (editor_state_.structure() == StructureLine()) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
-      if (!buffer.has_value() || buffer->ptr()->current_line() == nullptr) {
+      if (!buffer.has_value()) {
         return;
       }
-      std::optional<Path> children_path =
-          OptionalFrom(GetChildrenPath(editor_state_));
-      std::visit(
-          overload{[&](EscapedString line) {
-                     for (size_t i = 0;
-                          i < editor_state_.repetitions().value_or(1); ++i) {
-                       // TODO(easy, 2022-06-05): Get rid of call to
-                       // NewLazyString; have OriginalString return a
-                       // LazyString.
-                       RunCommandHandler(
-                           editor_state_, i,
-                           editor_state_.repetitions().value_or(1),
-                           children_path, NewLazyString(line.OriginalString()));
-                     }
-                   },
-                   [&](Error error) { editor_state_.status().Set(error); }},
-          EscapedString::Parse(buffer->ptr()->current_line()->ToString()));
+      VisitPointer(
+          buffer->ptr()->current_line(),
+          [&](NonNull<std::shared_ptr<const Line>> current_line) {
+            std::visit(
+                overload{
+                    [&](EscapedString line) {
+                      std::optional<Path> children_path =
+                          OptionalFrom(GetChildrenPath(editor_state_));
+                      for (size_t i = 0;
+                           i < editor_state_.repetitions().value_or(1); ++i) {
+                        // TODO(easy, 2022-06-05): Get rid of call to
+                        // NewLazyString; have OriginalString return a
+                        // LazyString.
+                        RunCommandHandler(
+                            editor_state_, i,
+                            editor_state_.repetitions().value_or(1),
+                            children_path,
+                            NewLazyString(line.OriginalString()));
+                      }
+                    },
+                    [&](Error error) { editor_state_.status().Set(error); }},
+                EscapedString::Parse(current_line->contents()));
+          },
+          [] {});
     } else {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();

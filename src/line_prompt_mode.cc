@@ -449,7 +449,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
               }
               features_output->push_back(std::move(current_features));
             }},
-        vm::EscapedString::Parse(range.first->second->ToString()));
+        vm::EscapedString::Parse(range.first->second));
     return !abort_value->has_value();
   });
 

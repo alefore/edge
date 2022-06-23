@@ -10,6 +10,7 @@ namespace afc::vm {
 using language::Error;
 using language::NonNull;
 using language::ValueOrDie;
+using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 
@@ -20,30 +21,30 @@ using language::lazy_string::NewLazyString;
 }
 
 /* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
-    std::wstring input) {
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+        input) {
   std::wstring original_string;
-  original_string.reserve(input.size() * 2);
-  for (size_t i = 0; i < input.size(); ++i) {
-    switch (input[i]) {
+  for (ColumnNumber i; i.ToDelta() < input->size(); ++i) {
+    switch (input->get(i)) {
       case '\\':
-        if (++i >= input.size())
+        if ((++i).ToDelta() >= input->size())
           return Error(L"String ends in escape character.");
-        switch (input[i]) {
+        switch (input->get(i)) {
           case 'n':
             original_string += '\n';
             break;
           case '"':
           case '\\':
           case '\'':
-            original_string += input[i];
+            original_string += input->get(i);
             break;
           default:
             return Error(L"Unknown escaped character: " +
-                         std::wstring(1, input[i]));
+                         std::wstring(1, input->get(i)));
         }
         break;
       default:
-        original_string += input[i];
+        original_string += input->get(i);
     }
   }
   return EscapedString(original_string);
@@ -91,20 +92,20 @@ bool cpp_unescape_string_tests_registration =
         return tests::Test{
             .name = name, .callback = [input] {
               std::wstring output =
-                  ValueOrDie(EscapedString::Parse(
+                  ValueOrDie(EscapedString::Parse(NewLazyString(
                                  EscapedString::FromString(NewLazyString(input))
-                                     .EscapedRepresentation()))
+                                     .EscapedRepresentation())))
                       .OriginalString();
               LOG(INFO) << "Comparing: " << input << " to " << output;
               CHECK(input == output);
             }};
       };
       auto fail = [](std::wstring name, std::wstring input) {
-        return tests::Test{
-            .name = name, .callback = [input] {
-              LOG(INFO) << "Expecting failure from: " << input;
-              CHECK(std::holds_alternative<Error>(EscapedString::Parse(input)));
-            }};
+        return tests::Test{.name = name, .callback = [input] {
+                             LOG(INFO) << "Expecting failure from: " << input;
+                             CHECK(std::holds_alternative<Error>(
+                                 EscapedString::Parse(NewLazyString(input))));
+                           }};
       };
       return std::vector<tests::Test>({
           t(L"EmptyString", L""),

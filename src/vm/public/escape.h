@@ -16,7 +16,9 @@ class EscapedString {
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
           input);
 
-  static language::ValueOrError<EscapedString> Parse(std::wstring input);
+  static language::ValueOrError<EscapedString> Parse(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          input);
 
   std::wstring EscapedRepresentation() const;
   std::wstring CppRepresentation() const;
