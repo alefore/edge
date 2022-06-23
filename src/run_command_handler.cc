@@ -119,7 +119,7 @@ std::map<std::wstring, std::wstring> LoadEnvironmentVariables(
 
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
-    NonNull<CommandData*> data, OpenBuffer& target) {
+    NonNull<std::shared_ptr<CommandData>> data, OpenBuffer& target) {
   int pipefd_out[2];
   int pipefd_err[2];
   static const int parent_fd = 0;
@@ -635,19 +635,19 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   }
 
   NonNull<std::shared_ptr<CommandData>> command_data;
-  gc::Root<OpenBuffer> buffer = OpenBuffer::New(
-      {.editor = editor_state,
-       .name = name,
-       .generate_contents =
-           [&editor_state, environment = options.environment,
-            command_data](OpenBuffer& target) {
-             return GenerateContents(editor_state, environment,
-                                     command_data.get(), target);
-           },
-       .describe_status =
-           [command_data](const OpenBuffer& buffer) {
-             return Flags(command_data.value(), buffer);
-           }});
+  gc::Root<OpenBuffer> buffer =
+      OpenBuffer::New({.editor = editor_state,
+                       .name = name,
+                       .generate_contents =
+                           [&editor_state, environment = options.environment,
+                            command_data](OpenBuffer& target) {
+                             return GenerateContents(editor_state, environment,
+                                                     command_data, target);
+                           },
+                       .describe_status =
+                           [command_data](const OpenBuffer& buffer) {
+                             return Flags(command_data.value(), buffer);
+                           }});
   buffer.ptr()->Set(
       buffer_variables::children_path,
       options.children_path.has_value() ? options.children_path->read() : L"");
