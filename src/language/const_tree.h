@@ -137,6 +137,13 @@ class VectorBlock {
     return values_.at(index);
   }
 
+  template <typename LessThan>
+  size_t UpperBound(const ValueType& key, LessThan less_than) const {
+    return std::distance(
+        values_.begin(),
+        std::upper_bound(values_.begin(), values_.end(), key, less_than));
+  }
+
   VectorBlock Replace(size_t index, T new_value) const {
     CHECK_LT(index, size());
     std::vector<T> values_copy = values_;
@@ -158,7 +165,6 @@ class ConstTree {
   using ValueType = Block::ValueType;
   using Ptr = std::shared_ptr<const ConstTree>;
 
-  // Only `New` should be calling this.
   ConstTree(ConstructorAccessTag, std::shared_ptr<const Block> block,
             PtrVariant<ConstTree> left, PtrVariant<ConstTree> right)
       : block_(std::move(block)),
@@ -248,11 +254,11 @@ class ConstTree {
     return New(block_, left_, right_->Replace(index, std::move(element)));
   }
 
-  static size_t Size(const Ptr& tree) {
+  static inline size_t Size(const Ptr& tree) {
     return tree == nullptr ? 0 : tree->size_;
   }
 
-  static size_t Depth(const Ptr& tree) {
+  static inline size_t Depth(const Ptr& tree) {
     return tree == nullptr ? 0 : tree->depth_;
   }
 
@@ -324,13 +330,17 @@ class ConstTree {
   template <typename LessThan>
   static size_t UpperBound(const Ptr& tree, const ValueType& key,
                            LessThan less_than) {
-    if (tree == nullptr) {
-      return 0;
-    } else if (less_than(key, tree->block_->get(0))) {
-      return UpperBound(tree->left_, key, less_than);
+    return tree == nullptr ? 0 : tree->UpperBound(key, less_than);
+  }
+
+  template <typename LessThan>
+  size_t UpperBound(const ValueType& key, LessThan& less_than) const {
+    if (less_than(key, block_->Get(0))) {
+      return UpperBound(left_, key, less_than);
+    } else if (less_than(key, block_->Get(block_->size() - 1))) {
+      return Size(left_) + block_->UpperBound(key, less_than);
     } else {
-      // XXXX This is broken. Should binary search in the block.
-      return Size(tree->left_) + 1 + UpperBound(tree->right_, key, less_than);
+      return Size(left_) + block_->size() + UpperBound(right_, key, less_than);
     }
   }
 
