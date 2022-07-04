@@ -4,97 +4,209 @@
 #include <glog/logging.h>
 
 #include <memory>
+#include <optional>
 
 namespace afc::language {
-// An immutable tree supporting fast `Prefix` (get initial sequence), `Suffix`,
-// and `Append` operations.
-template <typename T>
-class ConstTree {
- private:
-  struct ConstructorAccessTag {
-   private:
-    ConstructorAccessTag() = default;
-    friend ConstTree<T>;
-  };
+template <typename T, size_t ExpectedSize>
+class Block {
+  struct ConstructorAccessTag {};
 
  public:
-  using Ptr = std::shared_ptr<ConstTree<T>>;
+  Block(ConstructorAccessTag, std::vector<T> v) : values_(std::move(v)) {
+    values_.reserve(ExpectedSize);
+    size();  // To validate assertions.
+  }
+
+  Block(const Block&) = delete;
+  Block(Block&&) = default;
+
+  Block Copy() const { return Block(ConstructorAccessTag(), values_); }
+
+  std::shared_ptr<const Block> Share() && {
+    return std::make_shared<Block>(std::move(*this));
+  }
+
+  static Block Leaf(T&& value) {
+    return Block(ConstructorAccessTag(), {std::forward<T>(value)});
+  }
+
+  Block Insert(size_t index, T&& value) const {
+    CHECK_LE(index, size());
+    std::vector<T> values;
+    values.insert(values.end(), values_.begin(), values_.begin() + index);
+    values.insert(values.end(), std::move(value));
+    values.insert(values.end(), values_.begin() + index, values_.end());
+    return Block(ConstructorAccessTag(), std::move(values));
+  }
+
+  Block Erase(size_t index) const {
+    CHECK_LT(index, size());
+    std::vector<T> values;
+    values.insert(values.end(), values_.begin(), values_.begin() + index);
+    values.insert(values.end(), values_.begin() + index + 1, values_.end());
+    return Block(ConstructorAccessTag(), std::move(values));
+  }
+
+  Block DropTail() {
+    const size_t split_index = size() / 2;
+    VLOG(5) << "Split block of size: " << values_.size();
+    std::vector<T> tail(std::make_move_iterator(values_.begin() + split_index),
+                        std::make_move_iterator(values_.end()));
+    values_.resize(split_index);
+    return Block(ConstructorAccessTag(), std::move(tail));
+  }
+
+  static Block Merge(Block a, Block b) {
+    std::vector<T> values = std::move(a.values_);
+    values.insert(values.end(), std::make_move_iterator(b.values_.begin()),
+                  std::make_move_iterator(b.values_.end()));
+    return Block(ConstructorAccessTag(), std::move(values));
+  }
+
+  Block Prefix(size_t len) const {
+    CHECK_LE(len, values_.size());
+    return Block(ConstructorAccessTag(),
+                 std::vector<T>(values_.begin(), values_.begin() + len));
+  }
+
+  Block Suffix(size_t len) const {
+    CHECK_LE(len, values_.size());
+    return Block(ConstructorAccessTag(),
+                 std::vector<T>(values_.begin() + len, values_.end()));
+  }
+
+  size_t size() const {
+    CHECK_GT(values_.size(), 0ul);
+    return values_.size();
+  }
+
+  const T& get(size_t index) const {
+    CHECK_LT(index, size());
+    return values_.at(index);
+  }
+
+  Block Replace(size_t index, T new_value) const {
+    CHECK_LT(index, size());
+    std::vector<T> values_copy = values_;
+    values_copy[index] = std::move(new_value);
+    return Block(ConstructorAccessTag(), std::move(values_copy));
+  }
+
+  std::vector<T> values_;
+};
+
+// An immutable tree supporting fast `Prefix` (get initial sequence), `Suffix`,
+// and `Append` operations.
+template <typename T, size_t MaxSize = 256, bool ExpensiveValidation = false>
+class ConstTree {
+  struct ConstructorAccessTag {};
+
+ public:
+  using Ptr = std::shared_ptr<ConstTree<T, MaxSize>>;
 
   // Only `New` should be calling this.
-  ConstTree(ConstructorAccessTag, T element, Ptr left, Ptr right)
+  ConstTree(ConstructorAccessTag,
+            std::shared_ptr<const Block<T, MaxSize>> block, Ptr left, Ptr right)
       : depth_(1 + std::max(Depth(left), Depth(right))),
-        size_(1 + Size(left) + Size(right)),
-        element_(std::move(element)),
+        size_(block->size() + Size(left) + Size(right)),
+        block_(std::move(block)),
         left_(std::move(left)),
         right_(std::move(right)) {
-    CHECK_LE(std::max(Depth(left), Depth(right)),
-             std::min(Depth(left), Depth(right)) + 1);
+#if 0
+    CHECK_LE(std::max(Depth(left_), Depth(right_)),
+             std::min(Depth(left_), Depth(right_)) + 1)
+        << "Imbalanced tree: " << Depth(left_) << " vs " << Depth(right_);
+#endif
+    CHECK_GE(block_->size(), 1ul);
+    CHECK_LE(block_->size(), MaxSize);
+    ValidateHalfFullInvariant(this, true);
   }
 
   static Ptr Leaf(T element) {
-    return New(std::move(element), nullptr, nullptr);
+    return New(Block<T, MaxSize>::Leaf(std::move(element)).Share(), nullptr,
+               nullptr);
   }
 
   static Ptr Append(const Ptr& a, const Ptr& b) {
     if (a == nullptr) return b;
     if (b == nullptr) return a;
-    return New(a->Last(), a->MinusLast(), b);
+    return FixBlocks(a->LastBlock(), a->MinusLastBlock(), b);
   }
 
   // Efficient construction, which runs in linear time.
+  // TODO: Get rid of this? It is no longer very efficient.
   template <typename Iterator>
   static Ptr FromRange(Iterator begin, Iterator end) {
     if (begin == end) return nullptr;
     Iterator middle = begin + std::distance(begin, end) / 2;
-    return NewFinal(*middle, FromRange(begin, middle),
-                    FromRange(middle + 1, end));
+    return FixBlocks(Block<T, MaxSize>::Leaf(std::forward<T>(*middle)).Share(),
+                     FromRange(begin, middle), FromRange(middle + 1, end));
   }
 
   static Ptr PushBack(const Ptr& a, T element) {
-    return New(std::move(element), a, nullptr);
+    return FixBlocks(Block<T, MaxSize>::Leaf(std::move(element)).Share(), a,
+                     nullptr);
   }
 
   static Ptr Insert(const Ptr& tree, size_t index, T element) {
     CHECK_LE(index, Size(tree));
     if (tree == nullptr) return Leaf(std::move(element));
-    auto size_left = Size(tree->left_);
-    if (index <= size_left)
-      return New(tree->element_, Insert(tree->left_, index, std::move(element)),
-                 tree->right_);
-    else
-      return New(
-          tree->element_, tree->left_,
-          Insert(tree->right_, index - size_left - 1, std::move(element)));
+    size_t size_left = Size(tree->left_);
+    if (index < size_left)
+      return Rebalance(tree->block_,
+                       Insert(tree->left_, index, std::move(element)),
+                       tree->right_);
+
+    index -= size_left;
+    if (index > tree->block_->size()) {
+      index -= tree->block_->size();
+      CHECK(tree->right_ != nullptr);
+      return Rebalance(tree->block_, tree->left_,
+                       Insert(tree->right_, index, std::move(element)));
+    }
+
+    CHECK_LE(index, tree->block_->size());
+    return MaybeSplitBlock(tree->block_->Insert(index, std::move(element)),
+                           tree->left_, tree->right_);
   }
 
   static Ptr Erase(const Ptr& tree, size_t index) {
     CHECK_LE(index, Size(tree));
     auto size_left = Size(tree->left_);
-    if (index < size_left) {
-      return New(tree->element_, Erase(tree->left_, index), tree->right_);
-    } else if (index > size_left) {
-      return New(tree->element_, tree->left_,
-                 Erase(tree->right_, index - size_left - 1));
-    } else if (tree->left_ == nullptr) {
-      return tree->right_;
-    } else {
-      return New(tree->left_->element_,
-                 Erase(tree->left_, Size(tree->left_->left_)), tree->right_);
+    if (index < size_left)
+      return FixBlocks(tree->block_, Erase(tree->left_, index), tree->right_);
+    index -= size_left;
+
+    if (index >= tree->block_->size()) {
+      index -= tree->block_->size();
+      return Rebalance(tree->block_, tree->left_, Erase(tree->right_, index));
     }
+
+    if (tree->block_->size() > 1) {
+      return FixBlocks(tree->block_->Erase(index).Share(), tree->left_,
+                       tree->right_);
+    }
+
+    if (tree->left_ == nullptr)
+      return tree->right_;
+    else
+      return Rebalance(tree->left_->block_, tree->left_->left_,
+                       Append(tree->left_->right_, tree->right_));
   }
 
-  Ptr Replace(size_t index, T new_element) {
+  Ptr Replace(size_t index, T element) {
+    VLOG(6) << "Replace: " << index;
     auto size_left = Size(left_);
-    if (index < size_left) {
-      return NewFinal(element_, left_->Replace(index, std::move(new_element)),
-                      right_);
-    } else if (index > size_left) {
-      return NewFinal(
-          element_, left_,
-          right_->Replace(index - size_left - 1, std::move(new_element)));
-    } else {
-      return NewFinal(new_element, left_, right_);
-    }
+    if (index < size_left)
+      return New(block_, left_->Replace(index, std::move(element)), right_);
+    index -= size_left;
+
+    if (index < block_->size())
+      return New(block_->Replace(index, std::move(element)).Share(), left_,
+                 right_);
+    index -= block_->size();
+
+    return New(block_, left_, right_->Replace(index, std::move(element)));
   }
 
   static size_t Size(const Ptr& tree) {
@@ -105,118 +217,196 @@ class ConstTree {
     return tree == nullptr ? 0 : tree->depth_;
   }
 
-  const T& Get(size_t i) {
-    CHECK_LT(i, size_);
+  const T& Get(size_t index) {
+    CHECK_LT(index, size_);
     auto size_left = Size(left_);
-    if (i < size_left) {
+    if (index < size_left) {
       CHECK(left_ != nullptr);
-      return left_->Get(i);
-    } else if (i == size_left) {
-      return element_;
-    } else {
-      CHECK(right_ != nullptr);
-      return right_->Get(i - size_left - 1);
+      return left_->Get(index);
     }
+    index -= size_left;
+
+    if (index < block_->size()) {
+      return block_->get(index);
+    }
+    index -= block_->size();
+
+    CHECK(right_ != nullptr);
+    return right_->Get(index);
   }
 
   // Returns a tree containing the first len elements. Prefix("abcde", 2) ==
   // "ab".
   static Ptr Prefix(const Ptr& a, size_t len) {
     if (len == Size(a)) return a;
+    if (len == 0) return nullptr;
     CHECK(a != nullptr);
     CHECK_LT(len, a->size_);
     auto size_left = Size(a->left_);
-    if (len <= size_left) {
-      return Prefix(a->left_, len);
-    }
-    return New(a->element_, a->left_, Prefix(a->right_, len - size_left - 1));
+    if (len <= size_left) return Prefix(a->left_, len);
+    if (len < size_left + a->block_->size())
+      return Rebalance(a->block_->Prefix(len - size_left).Share(), a->left_,
+                       nullptr);
+
+    return Rebalance(a->block_, a->left_,
+                     Prefix(a->right_, len - size_left - a->block_->size()));
   }
 
-  // Returns a tree skipping the first len elements (i.e., from element `len` to
-  // the end).
+  // Returns a tree skipping the first len elements (i.e., from element `len`
+  // to the end).
   static Ptr Suffix(const Ptr& a, size_t len) {
     if (len >= Size(a)) return nullptr;
     CHECK(a != nullptr);
-    CHECK_LT(len, a->size_);
     auto size_left = Size(a->left_);
-    if (len >= size_left + 1) {
-      return Suffix(a->right_, len - size_left - 1);
+    if (len <= size_left) {
+      return FixBlocks(a->block_, Suffix(a->left_, len), a->right_);
     }
-    return New(a->element_, Suffix(a->left_, len), a->right_);
+    len -= size_left;
+
+    if (len < a->block_->size()) {
+      return FixBlocks(a->block_->Suffix(len).Share(), nullptr, a->right_);
+    }
+    len -= a->block_->size();
+
+    return Suffix(a->right_, len);
   }
 
   // Similar to std::upper_bound(begin(), end(), val, compare). Returns the
-  // index of the first element greater than key. The elements in the tree must
-  // be sorted (according to the less_than value given).
+  // index of the first element greater than key. The elements in the tree
+  // must be sorted (according to the less_than value given).
   template <typename LessThan>
   static size_t UpperBound(const Ptr& tree, const T& key, LessThan less_than) {
     if (tree == nullptr) {
       return 0;
-    } else if (less_than(key, tree->element_)) {
+    } else if (less_than(key, tree->block_->get(0))) {
       return UpperBound(tree->left_, key, less_than);
     } else {
+      // XXXX This is broken. Should binary search in the block.
       return Size(tree->left_) + 1 + UpperBound(tree->right_, key, less_than);
     }
   }
 
   template <typename Predicate>
   static bool Every(const Ptr& tree, Predicate predicate) {
-    return tree == nullptr ||
-           (Every(tree->left_, predicate) && predicate(tree->element_) &&
-            Every(tree->right_, predicate));
+    if (tree == nullptr) return true;
+    if (!Every(tree->left_, predicate)) return false;
+    for (size_t i = 0; i < tree->block_->size(); ++i) {
+      if (!predicate(tree->block_->get(i))) return false;
+    }
+    return Every(tree->right_, predicate);
   }
 
  private:
-  T Last() { return right_ == nullptr ? element_ : right_->Last(); }
+  const std::shared_ptr<const Block<T, MaxSize>>& LastBlock() const {
+    return right_ == nullptr ? block_ : right_->LastBlock();
+  }
 
-  Ptr MinusLast() {
-    return right_ == nullptr ? left_
-                             : New(element_, left_, right_->MinusLast());
+  const std::shared_ptr<const Block<T, MaxSize>>& FirstBlock() const {
+    return left_ == nullptr ? block_ : left_->FirstBlock();
+  }
+
+  Ptr MinusLastBlock() {
+    return right_ == nullptr
+               ? left_
+               : Rebalance(block_, left_, right_->MinusLastBlock());
+  }
+
+  Ptr MinusFirstBlock() {
+    return left_ == nullptr
+               ? right_
+               : Rebalance(block_, left_->MinusFirstBlock(), right_);
   }
 
   Ptr RotateRight() {
     CHECK(left_ != nullptr);
-    return NewFinal(left_->element_, left_->left_,
-                    NewFinal(element_, left_->right_, right_));
+    return New(left_->block_, left_->left_, New(block_, left_->right_, right_));
   }
 
   Ptr RotateLeft() {
     CHECK(right_ != nullptr);
-    return NewFinal(right_->element_, NewFinal(element_, left_, right_->left_),
-                    right_->right_);
+    return New(right_->block_, New(block_, left_, right_->left_),
+               right_->right_);
   }
 
-  static Ptr New(T element, Ptr left, Ptr right) {
-    VLOG(5) << "New with depths: " << Depth(left) << ", " << Depth(right);
+  static Ptr MaybeSplitBlock(Block<T, MaxSize> block, Ptr left, Ptr right) {
+    if (block.size() <= MaxSize) {
+      return FixBlocks(std::move(block).Share(), left, right);
+    }
+    CHECK_LT(block.size(), 2 * MaxSize);
+    Block tail = block.DropTail();
+    return Rebalance(std::move(tail).Share(),
+                     Rebalance(std::move(block).Share(), left, nullptr), right);
+  }
+
+  static Ptr FixBlocks(std::shared_ptr<const Block<T, MaxSize>> block, Ptr left,
+                       Ptr right) {
+    if (left != nullptr) {
+      if (const std::shared_ptr<const Block<T, MaxSize>>& last_block_left =
+              left->LastBlock();
+          last_block_left->size() < MaxSize / 2) {
+        return MaybeSplitBlock(
+            Block<T, MaxSize>::Merge(last_block_left->Copy(), block->Copy()),
+            left->MinusLastBlock(), right);
+      }
+    }
+    if (right != nullptr && block->size() < MaxSize / 2)
+      return MaybeSplitBlock(
+          Block<T, MaxSize>::Merge(block->Copy(), right->FirstBlock()->Copy()),
+          left, right->MinusFirstBlock());
+
+    VLOG(6) << "Creating without fixing blocks.";
+    return Rebalance(std::move(block), left, right);
+  }
+
+  static Ptr Rebalance(std::shared_ptr<const Block<T, MaxSize>> block, Ptr left,
+                       Ptr right) {
+    ValidateHalfFullInvariant(left.get(), true);
+    ValidateHalfFullInvariant(right.get(), true);
     if (Depth(right) > Depth(left) + 1) {
       if (Depth(right->left_) > Depth(right->right_)) {
         right = right->RotateRight();
       }
-      return NewFinal(right->element_, New(element, left, right->left_),
-                      right->right_);
+      return New(right->block_, Rebalance(block, left, right->left_),
+                 right->right_);
     } else if (Depth(left) > Depth(right) + 1) {
       if (Depth(left->right_) > Depth(left->left_)) {
         left = left->RotateLeft();
       }
-      return NewFinal(left->element_, left->left_,
-                      New(element, left->right_, right));
+      return New(left->block_, left->left_,
+                 Rebalance(block, left->right_, right));
     }
-    return NewFinal(element, left, right);
+    return New(std::move(block), left, right);
   }
 
-  static Ptr NewFinal(T element, Ptr left, Ptr right) {
-    return std::make_shared<ConstTree<T>>(ConstructorAccessTag{}, element, left,
-                                          right);
+  static Ptr New(std::shared_ptr<const Block<T, MaxSize>> block, Ptr left,
+                 Ptr right) {
+    return std::make_shared<ConstTree<T, MaxSize>>(
+        ConstructorAccessTag{}, std::move(block), std::move(left),
+        std::move(right));
+  }
+
+  static void ValidateHalfFullInvariant(const ConstTree<T, MaxSize>* t,
+                                        bool exclude_last) {
+    if constexpr (ExpensiveValidation) {
+      if (t == nullptr) return;
+      ValidateHalfFullInvariant(t->left_.get(), false);
+      if (t->right_ != nullptr || !exclude_last) {
+        CHECK_GE(t->block_->size(), MaxSize / 2);
+      }
+      ValidateHalfFullInvariant(t->right_.get(), exclude_last);
+    }
   }
 
   const size_t depth_;
   const size_t size_;
-  const T element_;
 
-  const std::shared_ptr<ConstTree<T>> left_;
-  const std::shared_ptr<ConstTree<T>> right_;
+  // Every block in left_, right_ and block_ excluding the very last block
+  // (either the last block in `right_` or, if `right_` is nullptr, `block_`)
+  // must be at least half full.
+  const std::shared_ptr<const Block<T, MaxSize>> block_;
+  const std::shared_ptr<ConstTree<T, MaxSize>> left_;
+  const std::shared_ptr<ConstTree<T, MaxSize>> right_;
 };
-
 }  // namespace afc::language
 
 #endif  //  __AFC_LANGUAGE_CONST_TREE_H__

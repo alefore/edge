@@ -179,6 +179,15 @@ bool registration_erase =
       return SecondsBetween(start, end) / indices.size();
     });
 
+bool registration_every =
+    tests::RegisterBenchmark(L"ConstTree::Every", [](int elements) {
+      auto tree = GetTree(elements);
+      auto start = Now();
+      CHECK(IntTree::Every(tree, [](int) { return true; }));
+      auto end = Now();
+      return SecondsBetween(start, end);
+    });
+
 bool IsEqual(const std::vector<int>& v, const IntTree::Ptr& tree) {
   if (v.size() != IntTree::Size(tree)) return false;
   for (size_t i = 0; i < v.size(); ++i) {
