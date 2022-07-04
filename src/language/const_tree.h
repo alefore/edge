@@ -12,6 +12,8 @@ class VectorBlock {
   struct ConstructorAccessTag {};
 
  public:
+  using ValueType = T;
+
   VectorBlock(ConstructorAccessTag, std::vector<T> v) : values_(std::move(v)) {
     values_.reserve(ExpectedSize);
   }
