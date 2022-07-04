@@ -8,71 +8,73 @@
 
 namespace afc::language {
 template <typename T, size_t ExpectedSize>
-class Block {
+class VectorBlock {
   struct ConstructorAccessTag {};
 
  public:
-  Block(ConstructorAccessTag, std::vector<T> v) : values_(std::move(v)) {
+  VectorBlock(ConstructorAccessTag, std::vector<T> v) : values_(std::move(v)) {
     values_.reserve(ExpectedSize);
     size();  // To validate assertions.
   }
 
-  Block(const Block&) = delete;
-  Block(Block&&) = default;
+  VectorBlock(const VectorBlock&) = delete;
+  VectorBlock(VectorBlock&&) = default;
 
-  Block Copy() const { return Block(ConstructorAccessTag(), values_); }
-
-  std::shared_ptr<const Block> Share() && {
-    return std::make_shared<Block>(std::move(*this));
+  VectorBlock Copy() const {
+    return VectorBlock(ConstructorAccessTag(), values_);
   }
 
-  static Block Leaf(T&& value) {
-    return Block(ConstructorAccessTag(), {std::forward<T>(value)});
+  std::shared_ptr<const VectorBlock> Share() && {
+    return std::make_shared<VectorBlock>(std::move(*this));
   }
 
-  Block Insert(size_t index, T&& value) const {
+  static VectorBlock Leaf(T&& value) {
+    return VectorBlock(ConstructorAccessTag(), {std::forward<T>(value)});
+  }
+
+  VectorBlock Insert(size_t index, T&& value) const {
     CHECK_LE(index, size());
     std::vector<T> values;
     values.insert(values.end(), values_.begin(), values_.begin() + index);
     values.insert(values.end(), std::move(value));
     values.insert(values.end(), values_.begin() + index, values_.end());
-    return Block(ConstructorAccessTag(), std::move(values));
+    return VectorBlock(ConstructorAccessTag(), std::move(values));
   }
 
-  Block Erase(size_t index) const {
+  VectorBlock Erase(size_t index) const {
     CHECK_LT(index, size());
     std::vector<T> values;
     values.insert(values.end(), values_.begin(), values_.begin() + index);
     values.insert(values.end(), values_.begin() + index + 1, values_.end());
-    return Block(ConstructorAccessTag(), std::move(values));
+    return VectorBlock(ConstructorAccessTag(), std::move(values));
   }
 
-  Block DropTail() {
+  VectorBlock DropTail() {
     const size_t split_index = size() / 2;
     VLOG(5) << "Split block of size: " << values_.size();
     std::vector<T> tail(std::make_move_iterator(values_.begin() + split_index),
                         std::make_move_iterator(values_.end()));
     values_.resize(split_index);
-    return Block(ConstructorAccessTag(), std::move(tail));
+    return VectorBlock(ConstructorAccessTag(), std::move(tail));
   }
 
-  static Block Merge(Block a, Block b) {
+  static VectorBlock Merge(VectorBlock a, VectorBlock b) {
     std::vector<T> values = std::move(a.values_);
     values.insert(values.end(), std::make_move_iterator(b.values_.begin()),
                   std::make_move_iterator(b.values_.end()));
-    return Block(ConstructorAccessTag(), std::move(values));
+    return VectorBlock(ConstructorAccessTag(), std::move(values));
   }
 
-  Block Prefix(size_t len) const {
+  VectorBlock Prefix(size_t len) const {
     CHECK_LE(len, values_.size());
-    return Block(ConstructorAccessTag(),
-                 std::vector<T>(values_.begin(), values_.begin() + len));
+    return VectorBlock(ConstructorAccessTag(),
+                       std::vector<T>(values_.begin(), values_.begin() + len));
   }
 
-  Block Suffix(size_t len) const {
+  VectorBlock Suffix(size_t len) const {
     CHECK_LE(len, values_.size());
-    return Block(ConstructorAccessTag(),
-                 std::vector<T>(values_.begin() + len, values_.end()));
+    return VectorBlock(ConstructorAccessTag(),
+                       std::vector<T>(values_.begin() + len, values_.end()));
   }
 
   size_t size() const {
@@ -85,11 +87,11 @@ class Block {
     return values_.at(index);
   }
 
-  Block Replace(size_t index, T new_value) const {
+  VectorBlock Replace(size_t index, T new_value) const {
     CHECK_LT(index, size());
     std::vector<T> values_copy = values_;
     values_copy[index] = std::move(new_value);
-    return Block(ConstructorAccessTag(), std::move(values_copy));
+    return VectorBlock(ConstructorAccessTag(), std::move(values_copy));
   }
 
   std::vector<T> values_;
@@ -103,10 +105,11 @@ class ConstTree {
 
  public:
   using Ptr = std::shared_ptr<ConstTree<T, MaxSize>>;
+  using Block = VectorBlock<T, MaxSize>;
 
   // Only `New` should be calling this.
-  ConstTree(ConstructorAccessTag,
-            std::shared_ptr<const Block<T, MaxSize>> block, Ptr left, Ptr right)
+  ConstTree(ConstructorAccessTag, std::shared_ptr<const Block> block, Ptr left,
+            Ptr right)
       : depth_(1 + std::max(Depth(left), Depth(right))),
         size_(block->size() + Size(left) + Size(right)),
         block_(std::move(block)),
@@ -123,8 +126,7 @@ class ConstTree {
   }
 
   static Ptr Leaf(T element) {
-    return New(Block<T, MaxSize>::Leaf(std::move(element)).Share(), nullptr,
-               nullptr);
+    return New(Block::Leaf(std::move(element)).Share(), nullptr, nullptr);
   }
 
   static Ptr Append(const Ptr& a, const Ptr& b) {
@@ -139,13 +141,12 @@ class ConstTree {
   static Ptr FromRange(Iterator begin, Iterator end) {
     if (begin == end) return nullptr;
     Iterator middle = begin + std::distance(begin, end) / 2;
-    return FixBlocks(Block<T, MaxSize>::Leaf(std::forward<T>(*middle)).Share(),
+    return FixBlocks(Block::Leaf(std::forward<T>(*middle)).Share(),
                      FromRange(begin, middle), FromRange(middle + 1, end));
   }
 
   static Ptr PushBack(const Ptr& a, T element) {
-    return FixBlocks(Block<T, MaxSize>::Leaf(std::move(element)).Share(), a,
-                     nullptr);
+    return FixBlocks(Block::Leaf(std::move(element)).Share(), a, nullptr);
   }
 
   static Ptr Insert(const Ptr& tree, size_t index, T element) {
@@ -297,11 +298,11 @@ class ConstTree {
   }
 
  private:
-  const std::shared_ptr<const Block<T, MaxSize>>& LastBlock() const {
+  const std::shared_ptr<const Block>& LastBlock() const {
     return right_ == nullptr ? block_ : right_->LastBlock();
   }
 
-  const std::shared_ptr<const Block<T, MaxSize>>& FirstBlock() const {
+  const std::shared_ptr<const Block>& FirstBlock() const {
     return left_ == nullptr ? block_ : left_->FirstBlock();
   }
 
@@ -328,7 +329,7 @@ class ConstTree {
                right_->right_);
   }
 
-  static Ptr MaybeSplitBlock(Block<T, MaxSize> block, Ptr left, Ptr right) {
+  static Ptr MaybeSplitBlock(Block block, Ptr left, Ptr right) {
     if (block.size() <= MaxSize) {
       return FixBlocks(std::move(block).Share(), left, right);
     }
@@ -338,27 +339,27 @@ class ConstTree {
                      Rebalance(std::move(block).Share(), left, nullptr), right);
   }
 
-  static Ptr FixBlocks(std::shared_ptr<const Block<T, MaxSize>> block, Ptr left,
+  static Ptr FixBlocks(std::shared_ptr<const Block> block, Ptr left,
                        Ptr right) {
     if (left != nullptr) {
-      if (const std::shared_ptr<const Block<T, MaxSize>>& last_block_left =
+      if (const std::shared_ptr<const Block>& last_block_left =
               left->LastBlock();
           last_block_left->size() < MaxSize / 2) {
         return MaybeSplitBlock(
-            Block<T, MaxSize>::Merge(last_block_left->Copy(), block->Copy()),
+            Block::Merge(last_block_left->Copy(), block->Copy()),
             left->MinusLastBlock(), right);
       }
     }
     if (right != nullptr && block->size() < MaxSize / 2)
       return MaybeSplitBlock(
-          Block<T, MaxSize>::Merge(block->Copy(), right->FirstBlock()->Copy()),
-          left, right->MinusFirstBlock());
+          Block::Merge(block->Copy(), right->FirstBlock()->Copy()), left,
+          right->MinusFirstBlock());
 
     VLOG(6) << "Creating without fixing blocks.";
     return Rebalance(std::move(block), left, right);
   }
 
-  static Ptr Rebalance(std::shared_ptr<const Block<T, MaxSize>> block, Ptr left,
+  static Ptr Rebalance(std::shared_ptr<const Block> block, Ptr left,
                        Ptr right) {
     ValidateHalfFullInvariant(left.get(), true);
     ValidateHalfFullInvariant(right.get(), true);
@@ -378,8 +379,7 @@ class ConstTree {
     return New(std::move(block), left, right);
   }
 
-  static Ptr New(std::shared_ptr<const Block<T, MaxSize>> block, Ptr left,
-                 Ptr right) {
+  static Ptr New(std::shared_ptr<const Block> block, Ptr left, Ptr right) {
     return std::make_shared<ConstTree<T, MaxSize>>(
         ConstructorAccessTag{}, std::move(block), std::move(left),
         std::move(right));
@@ -403,7 +403,7 @@ class ConstTree {
   // Every block in left_, right_ and block_ excluding the very last block
   // (either the last block in `right_` or, if `right_` is nullptr, `block_`)
   // must be at least half full.
-  const std::shared_ptr<const Block<T, MaxSize>> block_;
+  const std::shared_ptr<const Block> block_;
   const std::shared_ptr<ConstTree<T, MaxSize>> left_;
   const std::shared_ptr<ConstTree<T, MaxSize>> right_;
 };
