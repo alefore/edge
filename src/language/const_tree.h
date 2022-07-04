@@ -97,13 +97,14 @@ class VectorBlock {
 
 // An immutable tree supporting fast `Prefix` (get initial sequence), `Suffix`,
 // and `Append` operations.
-template <typename T, size_t MaxSize = 256, bool ExpensiveValidation = false>
+template <typename T, size_t MaxBlockSize = 256,
+          bool ExpensiveValidation = false>
 class ConstTree {
   struct ConstructorAccessTag {};
 
  public:
-  using Ptr = std::shared_ptr<ConstTree<T, MaxSize>>;
-  using Block = VectorBlock<T, MaxSize>;
+  using Ptr = std::shared_ptr<ConstTree<T, MaxBlockSize>>;
+  using Block = VectorBlock<T, MaxBlockSize>;
 
   // Only `New` should be calling this.
   ConstTree(ConstructorAccessTag, std::shared_ptr<const Block> block, Ptr left,
@@ -119,7 +120,7 @@ class ConstTree {
         << "Imbalanced tree: " << Depth(left_) << " vs " << Depth(right_);
 #endif
     CHECK_GE(block_->size(), 1ul);
-    CHECK_LE(block_->size(), MaxSize);
+    CHECK_LE(block_->size(), MaxBlockSize);
     ValidateHalfFullInvariant(this, true);
   }
 
@@ -328,10 +329,10 @@ class ConstTree {
   }
 
   static Ptr MaybeSplitBlock(Block block, Ptr left, Ptr right) {
-    if (block.size() <= MaxSize) {
+    if (block.size() <= MaxBlockSize) {
       return FixBlocks(std::move(block).Share(), left, right);
     }
-    CHECK_LT(block.size(), 2 * MaxSize);
+    CHECK_LT(block.size(), 2 * MaxBlockSize);
     Block tail = block.DropTail();
     return Rebalance(std::move(tail).Share(),
                      Rebalance(std::move(block).Share(), left, nullptr), right);
@@ -342,13 +343,13 @@ class ConstTree {
     if (left != nullptr) {
       if (const std::shared_ptr<const Block>& last_block_left =
               left->LastBlock();
-          last_block_left->size() < MaxSize / 2) {
+          last_block_left->size() < MaxBlockSize / 2) {
         return MaybeSplitBlock(
             Block::Merge(last_block_left->Copy(), block->Copy()),
             left->MinusLastBlock(), right);
       }
     }
-    if (right != nullptr && block->size() < MaxSize / 2)
+    if (right != nullptr && block->size() < MaxBlockSize / 2)
       return MaybeSplitBlock(
           Block::Merge(block->Copy(), right->FirstBlock()->Copy()), left,
           right->MinusFirstBlock());
@@ -378,18 +379,18 @@ class ConstTree {
   }
 
   static Ptr New(std::shared_ptr<const Block> block, Ptr left, Ptr right) {
-    return std::make_shared<ConstTree<T, MaxSize>>(
+    return std::make_shared<ConstTree<T, MaxBlockSize>>(
         ConstructorAccessTag{}, std::move(block), std::move(left),
         std::move(right));
   }
 
-  static void ValidateHalfFullInvariant(const ConstTree<T, MaxSize>* t,
+  static void ValidateHalfFullInvariant(const ConstTree<T, MaxBlockSize>* t,
                                         bool exclude_last) {
     if constexpr (ExpensiveValidation) {
       if (t == nullptr) return;
       ValidateHalfFullInvariant(t->left_.get(), false);
       if (t->right_ != nullptr || !exclude_last) {
-        CHECK_GE(t->block_->size(), MaxSize / 2);
+        CHECK_GE(t->block_->size(), MaxBlockSize / 2);
       }
       ValidateHalfFullInvariant(t->right_.get(), exclude_last);
     }
@@ -402,8 +403,8 @@ class ConstTree {
   // (either the last block in `right_` or, if `right_` is nullptr, `block_`)
   // must be at least half full.
   const std::shared_ptr<const Block> block_;
-  const std::shared_ptr<ConstTree<T, MaxSize>> left_;
-  const std::shared_ptr<ConstTree<T, MaxSize>> right_;
+  const std::shared_ptr<ConstTree<T, MaxBlockSize>> left_;
+  const std::shared_ptr<ConstTree<T, MaxBlockSize>> right_;
 };
 }  // namespace afc::language
 
