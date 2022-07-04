@@ -14,7 +14,6 @@ class VectorBlock {
  public:
   VectorBlock(ConstructorAccessTag, std::vector<T> v) : values_(std::move(v)) {
     values_.reserve(ExpectedSize);
-    size();  // To validate assertions.
   }
 
   VectorBlock(const VectorBlock&) = delete;
@@ -77,10 +76,7 @@ class VectorBlock {
                        std::vector<T>(values_.begin() + len, values_.end()));
   }
 
-  size_t size() const {
-    CHECK_GT(values_.size(), 0ul);
-    return values_.size();
-  }
+  size_t size() const { return values_.size(); }
 
   const T& get(size_t index) const {
     CHECK_LT(index, size());
