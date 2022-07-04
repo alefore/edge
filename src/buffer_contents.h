@@ -16,8 +16,10 @@ namespace afc {
 namespace editor {
 
 class BufferContents : public fuzz::FuzzTestable {
-  using Lines =
-      language::ConstTree<language::NonNull<std::shared_ptr<const Line>>>;
+  using Lines = language::ConstTree<
+      language::VectorBlock<language::NonNull<std::shared_ptr<const Line>>,
+                            256>,
+      256>;
 
  public:
   using UpdateListener =

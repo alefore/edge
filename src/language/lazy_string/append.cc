@@ -11,28 +11,30 @@ namespace afc::language::lazy_string {
 namespace {
 class AppendImpl : public LazyString {
  public:
-  AppendImpl(ConstTree<wchar_t>::Ptr tree) : tree_(std::move(tree)) {}
+  using Tree = ConstTree<VectorBlock<wchar_t, 64>, 64>;
+
+  AppendImpl(Tree::Ptr tree) : tree_(std::move(tree)) {}
 
   wchar_t get(ColumnNumber pos) const { return tree_->Get(pos.read()); }
 
   ColumnNumberDelta size() const {
-    return ColumnNumberDelta(ConstTree<wchar_t>::Size(tree_));
+    return ColumnNumberDelta(Tree::Size(tree_));
   }
 
-  const ConstTree<wchar_t>::Ptr& tree() const { return tree_; }
+  const Tree::Ptr& tree() const { return tree_; }
 
  private:
-  const ConstTree<wchar_t>::Ptr tree_;
+  const Tree::Ptr tree_;
 };
 
-ConstTree<wchar_t>::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
+AppendImpl::Tree::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
   auto a_cast = dynamic_cast<AppendImpl*>(a.get().get());
   if (a_cast != nullptr) {
     return a_cast->tree();
   }
-  ConstTree<wchar_t>::Ptr output;
+  AppendImpl::Tree::Ptr output;
   ForEachColumn(a.value(), [&output](ColumnNumber, wchar_t c) {
-    output = ConstTree<wchar_t>::PushBack(output, c);
+    output = AppendImpl::Tree::PushBack(output, c);
   });
   return output;
 }
@@ -49,7 +51,7 @@ NonNull<std::shared_ptr<LazyString>> Append(
   }
 
   return MakeNonNullShared<AppendImpl>(
-      ConstTree<wchar_t>::Append(TreeFrom(a), TreeFrom(b)));
+      AppendImpl::Tree::Append(TreeFrom(a), TreeFrom(b)));
 }
 
 NonNull<std::shared_ptr<LazyString>> Append(

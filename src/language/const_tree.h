@@ -97,14 +97,15 @@ class VectorBlock {
 
 // An immutable tree supporting fast `Prefix` (get initial sequence), `Suffix`,
 // and `Append` operations.
-template <typename T, size_t MaxBlockSize = 256,
+template <typename Block, size_t MaxBlockSize = 256,
           bool ExpensiveValidation = false>
 class ConstTree {
   struct ConstructorAccessTag {};
 
  public:
-  using Ptr = std::shared_ptr<ConstTree<T, MaxBlockSize>>;
-  using Block = VectorBlock<T, MaxBlockSize>;
+  using ValueType = Block::ValueType;
+  using Ptr =
+      std::shared_ptr<ConstTree<Block, MaxBlockSize, ExpensiveValidation>>;
 
   // Only `New` should be calling this.
   ConstTree(ConstructorAccessTag, std::shared_ptr<const Block> block, Ptr left,
@@ -124,7 +125,7 @@ class ConstTree {
     ValidateHalfFullInvariant(this, true);
   }
 
-  static Ptr Leaf(T element) {
+  static Ptr Leaf(ValueType element) {
     return New(Block::Leaf(std::move(element)).Share(), nullptr, nullptr);
   }
 
@@ -140,15 +141,15 @@ class ConstTree {
   static Ptr FromRange(Iterator begin, Iterator end) {
     if (begin == end) return nullptr;
     Iterator middle = begin + std::distance(begin, end) / 2;
-    return FixBlocks(Block::Leaf(std::forward<T>(*middle)).Share(),
+    return FixBlocks(Block::Leaf(std::forward<ValueType>(*middle)).Share(),
                      FromRange(begin, middle), FromRange(middle + 1, end));
   }
 
-  static Ptr PushBack(const Ptr& a, T element) {
+  static Ptr PushBack(const Ptr& a, ValueType element) {
     return FixBlocks(Block::Leaf(std::move(element)).Share(), a, nullptr);
   }
 
-  static Ptr Insert(const Ptr& tree, size_t index, T element) {
+  static Ptr Insert(const Ptr& tree, size_t index, ValueType element) {
     CHECK_LE(index, Size(tree));
     if (tree == nullptr) return Leaf(std::move(element));
     size_t size_left = Size(tree->left_);
@@ -194,7 +195,7 @@ class ConstTree {
                        Append(tree->left_->right_, tree->right_));
   }
 
-  Ptr Replace(size_t index, T element) {
+  Ptr Replace(size_t index, ValueType element) {
     VLOG(6) << "Replace: " << index;
     auto size_left = Size(left_);
     if (index < size_left)
@@ -217,7 +218,7 @@ class ConstTree {
     return tree == nullptr ? 0 : tree->depth_;
   }
 
-  const T& Get(size_t index) {
+  const ValueType& Get(size_t index) {
     CHECK_LT(index, size_);
     auto size_left = Size(left_);
     if (index < size_left) {
@@ -275,7 +276,8 @@ class ConstTree {
   // index of the first element greater than key. The elements in the tree
   // must be sorted (according to the less_than value given).
   template <typename LessThan>
-  static size_t UpperBound(const Ptr& tree, const T& key, LessThan less_than) {
+  static size_t UpperBound(const Ptr& tree, const ValueType& key,
+                           LessThan less_than) {
     if (tree == nullptr) {
       return 0;
     } else if (less_than(key, tree->block_->get(0))) {
@@ -379,13 +381,11 @@ class ConstTree {
   }
 
   static Ptr New(std::shared_ptr<const Block> block, Ptr left, Ptr right) {
-    return std::make_shared<ConstTree<T, MaxBlockSize>>(
-        ConstructorAccessTag{}, std::move(block), std::move(left),
-        std::move(right));
+    return std::make_shared<ConstTree>(ConstructorAccessTag{}, std::move(block),
+                                       std::move(left), std::move(right));
   }
 
-  static void ValidateHalfFullInvariant(const ConstTree<T, MaxBlockSize>* t,
-                                        bool exclude_last) {
+  static void ValidateHalfFullInvariant(const ConstTree* t, bool exclude_last) {
     if constexpr (ExpensiveValidation) {
       if (t == nullptr) return;
       ValidateHalfFullInvariant(t->left_.get(), false);
@@ -403,8 +403,8 @@ class ConstTree {
   // (either the last block in `right_` or, if `right_` is nullptr, `block_`)
   // must be at least half full.
   const std::shared_ptr<const Block> block_;
-  const std::shared_ptr<ConstTree<T, MaxBlockSize>> left_;
-  const std::shared_ptr<ConstTree<T, MaxBlockSize>> right_;
+  const std::shared_ptr<ConstTree> left_;
+  const std::shared_ptr<ConstTree> right_;
 };
 }  // namespace afc::language
 

@@ -7,7 +7,7 @@
 namespace afc::language {
 namespace {
 using infrastructure::Now;
-using IntTree = ConstTree<int>;
+using IntTree = ConstTree<VectorBlock<int, 256>, 256>;
 using infrastructure::SecondsBetween;
 
 const int kNumberToInsert = 25;
