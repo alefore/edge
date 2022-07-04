@@ -207,9 +207,17 @@ class ConstTree {
   }
 
   static Ptr PushBack(const Ptr& a, ValueType element) {
-    return FixBlocks(MakePtrVariant(Block::Leaf(std::move(element))), a,
-                     nullptr)
-        .Share();
+    if (a == nullptr)
+      return New(Block::Leaf(std::move(element)).Share(), nullptr, nullptr);
+    return a->PushBack(std::move(element)).Share();
+  }
+
+  ConstTree PushBack(ValueType element) const {
+    if (right_ == nullptr)
+      return MaybeSplitBlock(block_->Insert(block_->size(), std::move(element)),
+                             left_, nullptr);
+    return Rebalance(block_, left_,
+                     right_->PushBack(std::move(element)).Share());
   }
 
   static Ptr Insert(const Ptr& tree, size_t index, ValueType element) {
