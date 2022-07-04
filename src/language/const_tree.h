@@ -92,13 +92,14 @@ class VectorBlock {
     return VectorBlock(ConstructorAccessTag(), std::move(values));
   }
 
-  VectorBlock DropTail() {
-    const size_t split_index = size() / 2;
-    VLOG(5) << "Split block of size: " << values_.size();
-    std::vector<T> tail(std::make_move_iterator(values_.begin() + split_index),
-                        std::make_move_iterator(values_.end()));
-    values_.resize(split_index);
-    return VectorBlock(ConstructorAccessTag(), std::move(tail));
+  static std::pair<VectorBlock, VectorBlock> Split(VectorBlock a) {
+    const size_t split_index = a.size() / 2;
+    VLOG(5) << "Split block of size: " << a.size();
+    std::vector<T> tail(
+        std::make_move_iterator(a.values_.begin() + split_index),
+        std::make_move_iterator(a.values_.end()));
+    a.values_.resize(split_index);
+    return {std::move(a), VectorBlock(ConstructorAccessTag(), std::move(tail))};
   }
 
   static VectorBlock Append(VectorBlock a, VectorBlock b) {
@@ -109,6 +110,7 @@ class VectorBlock {
   }
 
   VectorBlock Prefix(size_t len) const {
+    CHECK_GT(len, 0ul);
     CHECK_LE(len, values_.size());
     return VectorBlock(ConstructorAccessTag(),
                        std::vector<T>(values_.begin(), values_.begin() + len));
@@ -120,9 +122,17 @@ class VectorBlock {
                        std::vector<T>(values_.begin() + len, values_.end()));
   }
 
+  template <typename Predicate>
+  static bool Every(const std::shared_ptr<const VectorBlock>& v,
+                    Predicate& predicate) {
+    for (const auto& c : v->values_)
+      if (!predicate(c)) return false;
+    return true;
+  }
+
   size_t size() const { return values_.size(); }
 
-  const T& get(size_t index) const {
+  const T& Get(size_t index) const {
     CHECK_LT(index, size());
     return values_.at(index);
   }
@@ -164,6 +174,10 @@ class ConstTree {
     CHECK_GE(block_->size(), 1ul);
     CHECK_LE(block_->size(), MaxBlockSize);
     ValidateHalfFullInvariant(this, true);
+  }
+
+  ConstTree Copy() const {
+    return ConstTree(ConstructorAccessTag(), block_, left_, right_);
   }
 
   Ptr Share() && { return std::make_shared<ConstTree>(std::move(*this)); }
@@ -244,7 +258,7 @@ class ConstTree {
     index -= size_left;
 
     if (index < block_->size()) {
-      return block_->get(index);
+      return block_->Get(index);
     }
     index -= block_->size();
 
@@ -258,17 +272,22 @@ class ConstTree {
     if (len == Size(a)) return a;
     if (len == 0) return nullptr;
     CHECK(a != nullptr);
-    CHECK_LT(len, a->size_);
-    auto size_left = Size(a->left_);
-    if (len <= size_left) return Prefix(a->left_, len);
-    if (len < size_left + a->block_->size())
-      return std::make_shared<ConstTree>(
-          Rebalance(a->block_->Prefix(len - size_left).Share(), a->left_,
-                    std::unique_ptr<ConstTree>()));
+    return a->Prefix(len).Share();
+  }
 
-    return std::make_shared<ConstTree>(
-        Rebalance(a->block_, a->left_,
-                  Prefix(a->right_, len - size_left - a->block_->size())));
+  ConstTree Prefix(size_t len) const {
+    CHECK_LE(len, size_);
+    if (len == size_) return Copy();
+    CHECK_GT(len, 0ul);
+    auto size_left = Size(left_);
+    if (len <= size_left) return left_->Prefix(len);
+    len -= size_left;
+    if (len < block_->size())
+      return Rebalance(block_->Prefix(len).Share(), left_,
+                       std::unique_ptr<ConstTree>());
+    len -= block_->size();
+    return Rebalance(block_, left_,
+                     len == 0 ? nullptr : right_->Prefix(len).Share());
   }
 
   // Returns a tree skipping the first len elements (i.e., from element `len`
@@ -276,19 +295,19 @@ class ConstTree {
   static Ptr Suffix(const Ptr& a, size_t len) {
     if (len >= Size(a)) return nullptr;
     CHECK(a != nullptr);
-    auto size_left = Size(a->left_);
-    if (len <= size_left) {
-      return FixBlocks(a->block_, Suffix(a->left_, len), a->right_).Share();
-    }
+    return a->Suffix(len).Share();
+  }
+
+  ConstTree Suffix(size_t len) const {
+    auto size_left = Size(left_);
+    if (len < size_left)
+      return FixBlocks(block_, left_->Suffix(len).Share(), right_);
     len -= size_left;
-
-    if (len < a->block_->size()) {
-      return FixBlocks(a->block_->Suffix(len).Share(), nullptr, a->right_)
-          .Share();
-    }
-    len -= a->block_->size();
-
-    return Suffix(a->right_, len);
+    if (len == 0) return FixBlocks(block_, nullptr, right_);
+    if (len < block_->size())
+      return FixBlocks(block_->Suffix(len).Share(), nullptr, right_);
+    len -= block_->size();
+    return right_->Suffix(len);
   }
 
   // Similar to std::upper_bound(begin(), end(), val, compare). Returns the
@@ -308,23 +327,18 @@ class ConstTree {
   }
 
   template <typename Predicate>
-  static bool Every(const Ptr& tree, Predicate predicate) {
+  static bool Every(const Ptr& tree, const Predicate& predicate) {
     if (tree == nullptr) return true;
-    if (!Every(tree->left_, predicate)) return false;
-    for (size_t i = 0; i < tree->block_->size(); ++i) {
-      if (!predicate(tree->block_->get(i))) return false;
-    }
-    return Every(tree->right_, predicate);
+    return Every(tree->left_, predicate) &&
+           Block::Every(tree->block_, predicate) &&
+           Every(tree->right_, predicate);
   }
 
- private:
   inline ConstTree Insert(size_t index, ValueType element) const {
     size_t size_left = Size(left_);
     if (index < size_left)
-      return Rebalance(
-          block_,
-          std::make_shared<ConstTree>(left_->Insert(index, std::move(element))),
-          right_);
+      return Rebalance(block_, left_->Insert(index, std::move(element)).Share(),
+                       right_);
 
     index -= size_left;
     if (index > block_->size()) {
@@ -363,6 +377,15 @@ class ConstTree {
     return FixBlocks(a.LastBlock(), a.MinusLastBlock(), ConstTree(b).Share());
   }
 
+  size_t size() const { return size_; }
+
+  static std::pair<ConstTree, ConstTree> Split(ConstTree input) {
+    const size_t split_index = input.size() / 2;
+    CHECK_GT(split_index, 0ul);
+    return {input.Prefix(split_index), input.Suffix(split_index)};
+  }
+
+ private:
   const std::shared_ptr<const Block>& LastBlock() const {
     return right_ == nullptr ? block_ : right_->LastBlock();
   }
@@ -399,10 +422,11 @@ class ConstTree {
       return FixBlocks(std::move(block).Share(), left, right);
     }
     CHECK_LT(block.size(), 2 * MaxBlockSize);
-    Block tail = block.DropTail();
-    return Rebalance(std::move(tail).Share(),
-                     Rebalance(std::move(block).Share(), left, nullptr).Share(),
-                     right);
+    std::pair<Block, Block> blocks = Block::Split(std::move(block));
+    return Rebalance(
+        std::move(blocks.second).Share(),
+        Rebalance(std::move(blocks.first).Share(), left, nullptr).Share(),
+        right);
   }
 
   static ConstTree FixBlocks(PtrVariant<Block> block, Ptr left, Ptr right) {
