@@ -13,7 +13,7 @@ template <typename T>
 using PtrVariant = std::variant<std::unique_ptr<T>, std::shared_ptr<const T>>;
 
 template <typename T>
-PtrVariant<T> MakePtrVariant(T value) {
+inline PtrVariant<T> MakePtrVariant(T value) {
   return std::make_unique<T>(std::move(value));
 }
 
@@ -26,7 +26,7 @@ const T* AddressOf(const PtrVariant<T>& p) {
 }
 
 template <typename T>
-std::unique_ptr<T> ToUnique(PtrVariant<T> p) {
+inline std::unique_ptr<T> ToUnique(PtrVariant<T> p) {
   if (auto u = std::get_if<std::unique_ptr<T>>(&p); u != nullptr) {
     return std::move(*u);
   }
@@ -37,12 +37,12 @@ std::unique_ptr<T> ToUnique(PtrVariant<T> p) {
 }
 
 template <typename T>
-T ToUniqueValue(PtrVariant<T> p) {
+inline T ToUniqueValue(PtrVariant<T> p) {
   return std::move(*ToUnique(std::move(p)));
 }
 
 template <typename T>
-std::shared_ptr<const T> ToSharedConst(PtrVariant<T> p) {
+inline std::shared_ptr<const T> ToSharedConst(PtrVariant<T> p) {
   return std::visit([](auto v) -> std::shared_ptr<const T> { return v; },
                     std::move(p));
 }
@@ -101,7 +101,7 @@ class VectorBlock {
     return VectorBlock(ConstructorAccessTag(), std::move(tail));
   }
 
-  static VectorBlock Merge(VectorBlock a, VectorBlock b) {
+  static VectorBlock Append(VectorBlock a, VectorBlock b) {
     std::vector<T> values = std::move(a.values_);
     values.insert(values.end(), std::make_move_iterator(b.values_.begin()),
                   std::make_move_iterator(b.values_.end()));
@@ -177,7 +177,7 @@ class ConstTree {
   static Ptr Append(const Ptr& a, const Ptr& b) {
     if (a == nullptr) return b;
     if (b == nullptr) return a;
-    return FixBlocks(a->LastBlock(), a->MinusLastBlock(), b).Share();
+    return Append(*a, *b).Share();
   }
 
   // Efficient construction, which runs in linear time.
@@ -207,30 +207,8 @@ class ConstTree {
 
   static Ptr Erase(const Ptr& tree, size_t index) {
     CHECK_LE(index, Size(tree));
-    auto size_left = Size(tree->left_);
-    if (index < size_left)
-      return FixBlocks(tree->block_, Erase(tree->left_, index), tree->right_)
-          .Share();
-    index -= size_left;
-
-    if (index >= tree->block_->size()) {
-      index -= tree->block_->size();
-      return Rebalance(tree->block_, tree->left_, Erase(tree->right_, index))
-          .Share();
-    }
-
-    if (tree->block_->size() > 1) {
-      return FixBlocks(tree->block_->Erase(index).Share(), tree->left_,
-                       tree->right_)
-          .Share();
-    }
-
-    if (tree->left_ == nullptr)
-      return tree->right_;
-    else
-      return std::make_shared<ConstTree>(
-          Rebalance(tree->left_->block_, tree->left_->left_,
-                    Append(tree->left_->right_, tree->right_)));
+    if (Size(tree) == 1) return nullptr;
+    return tree->Erase(index).Share();
   }
 
   Ptr Replace(size_t index, ValueType element) const {
@@ -340,7 +318,7 @@ class ConstTree {
   }
 
  private:
-  ConstTree Insert(size_t index, ValueType element) const {
+  inline ConstTree Insert(size_t index, ValueType element) const {
     size_t size_left = Size(left_);
     if (index < size_left)
       return Rebalance(
@@ -359,6 +337,30 @@ class ConstTree {
     CHECK_LE(index, block_->size());
     return MaybeSplitBlock(block_->Insert(index, std::move(element)), left_,
                            right_);
+  }
+
+  inline ConstTree Erase(size_t index) const {
+    auto size_left = Size(left_);
+    if (index < size_left)
+      return FixBlocks(block_, Erase(left_, index), right_);
+    index -= size_left;
+
+    if (index >= block_->size()) {
+      index -= block_->size();
+      return Rebalance(block_, left_, Erase(right_, index));
+    }
+
+    if (block_->size() > 1) {
+      return FixBlocks(MakePtrVariant(block_->Erase(index)), left_, right_);
+    }
+
+    CHECK(left_ != nullptr);
+    return Rebalance(left_->block_, left_->left_,
+                     Append(left_->right_, right_));
+  }
+
+  static ConstTree Append(const ConstTree& a, const ConstTree& b) {
+    return FixBlocks(a.LastBlock(), a.MinusLastBlock(), ConstTree(b).Share());
   }
 
   const std::shared_ptr<const Block>& LastBlock() const {
@@ -408,14 +410,14 @@ class ConstTree {
       if (const std::shared_ptr<const Block>& last_block_left =
               left->LastBlock();
           last_block_left->size() < MaxBlockSize / 2) {
-        return MaybeSplitBlock(Block::Merge(last_block_left->Copy(),
-                                            ToUniqueValue(std::move(block))),
+        return MaybeSplitBlock(Block::Append(last_block_left->Copy(),
+                                             ToUniqueValue(std::move(block))),
                                left->MinusLastBlock(), right);
       }
     }
     if (right != nullptr && AddressOf(block)->size() < MaxBlockSize / 2)
-      return MaybeSplitBlock(Block::Merge(ToUniqueValue(std::move(block)),
-                                          right->FirstBlock()->Copy()),
+      return MaybeSplitBlock(Block::Append(ToUniqueValue(std::move(block)),
+                                           right->FirstBlock()->Copy()),
                              left, right->MinusFirstBlock());
 
     VLOG(6) << "Creating without fixing blocks.";
