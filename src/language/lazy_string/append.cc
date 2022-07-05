@@ -28,8 +28,8 @@ class AppendImpl : public LazyString {
 };
 
 AppendImpl::Tree::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
-  auto a_cast = dynamic_cast<AppendImpl*>(a.get().get());
-  if (a_cast != nullptr) {
+  if (auto a_cast = dynamic_cast<AppendImpl*>(a.get().get());
+      a_cast != nullptr) {
     return a_cast->tree();
   }
   AppendImpl::Tree::Ptr output;
