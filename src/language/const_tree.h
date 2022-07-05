@@ -9,6 +9,9 @@
 
 namespace afc::language {
 
+// Captures a pointer to an object that we may uniquely own (and thus it's safe
+// to modify) or may share with other owners (and thus retain only const
+// access).
 template <typename T>
 using PtrVariant = std::variant<std::unique_ptr<T>, std::shared_ptr<const T>>;
 
@@ -213,17 +216,9 @@ class ConstTree {
   }
 
   static Ptr PushBack(const Ptr& a, ValueType element) {
-    if (a == nullptr)
-      return New(Block::Leaf(std::move(element)).Share(), nullptr, nullptr);
-    return a->PushBack(std::move(element)).Share();
-  }
-
-  ConstTree PushBack(ValueType element) const {
-    if (right_ == nullptr)
-      return MaybeSplitBlock(block_->Insert(block_->size(), std::move(element)),
-                             left_, nullptr);
-    return Rebalance(block_, left_,
-                     right_->PushBack(std::move(element)).Share());
+    return FixBlocks(MakePtrVariant(Block::Leaf(std::move(element))), a,
+                     nullptr)
+        .Share();
   }
 
   static Ptr Insert(const Ptr& tree, size_t index, ValueType element) {
@@ -441,6 +436,8 @@ class ConstTree {
     }
     CHECK_LT(block.size(), 2 * MaxBlockSize);
     std::pair<Block, Block> blocks = Block::Split(std::move(block));
+    CHECK_LE(blocks.first.size(), MaxBlockSize);
+    CHECK_LE(blocks.second.size(), MaxBlockSize);
     return Rebalance(
         std::move(blocks.second).Share(),
         Rebalance(std::move(blocks.first).Share(), left, nullptr).Share(),
