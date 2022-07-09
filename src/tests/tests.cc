@@ -49,7 +49,7 @@ bool Register(std::wstring name, std::vector<Test> tests) {
 }
 
 void Run() {
-  size_t failures = 0;
+  std::unordered_map<std::wstring, std::vector<std::wstring>> failures;
   std::cerr << "# Test Groups" << std::endl << std::endl;
   for (const auto& [name, tests] : *tests_map()) {
     std::cerr << "## Group: " << name << std::endl << std::endl;
@@ -57,12 +57,21 @@ void Run() {
       std::cerr << "* " << test.name << std::endl;
       for (size_t i = 0; i < test.runs; ++i) {
         int wstatus = ForkAndWait(test.callback);
-        if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0) failures++;
+        if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0)
+          failures[name].push_back(test.name);
       }
     }
     std::cerr << std::endl;
   }
-  CHECK_EQ(failures, 0ul);
+  if (!failures.empty()) {
+    std::cerr << "# Failures" << std::endl << std::endl;
+    for (auto& [group, tests] : failures) {
+      std::cerr << "* " << group << std::endl;
+      for (auto& test : tests) std::cerr << "  * " << test << std::endl;
+    }
+    std::cerr << std::endl;
+  }
+  CHECK_EQ(failures.size(), 0ul);
 }
 
 void List() {
