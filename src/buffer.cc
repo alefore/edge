@@ -2289,14 +2289,14 @@ void OpenBuffer::UpdateLastAction() {
 
 EditorState& EditorForTests() {
   static audio::Player* player = audio::NewNullPlayer().get_unique().release();
-  static EditorState editor_for_tests(
+  static EditorState* const editor_for_tests = new EditorState(
       [] {
         CommandLineValues output;
         output.config_paths = {L"/home/edge-test-user/.edge/"};
         return output;
       }(),
       *player);
-  return editor_for_tests;
+  return *editor_for_tests;
 }
 
 gc::Root<OpenBuffer> NewBufferForTests() {
