@@ -212,13 +212,11 @@ NonNull<std::unique_ptr<Command>> NewCommandWithModifiers(
              .editor_state = editor_state,
              .initial_value = std::move(mutable_modifiers),
              .char_consumer = CharConsumer,
-             .status_factory = [name_function](const Modifiers& modifiers) {
-               return BuildStatus(name_function, modifiers);
-             }};
+             .status_factory = std::bind_front(BuildStatus, name_function)};
          SetOptionsForBufferTransformation<Modifiers>(
              std::move(handler),
-             [](const Modifiers& modifiers) {
-               return modifiers.cursors_affected;
+             [](const Modifiers& input_modifiers) {
+               return input_modifiers.cursors_affected;
              },
              options);
          return std::make_unique<CommandArgumentMode<Modifiers>>(
