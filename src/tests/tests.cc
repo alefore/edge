@@ -13,6 +13,23 @@ std::unordered_map<std::wstring, std::vector<Test>>* tests_map() {
   static std::unordered_map<std::wstring, std::vector<Test>> output;
   return &output;
 }
+
+int ForkAndWait(std::function<void()> callable) {
+  pid_t p = fork();
+  if (p == -1) LOG(FATAL) << "Fork failed.";
+
+  if (p == 0) {
+    LOG(INFO) << "Child process: starting callback.";
+    callable();
+    LOG(INFO) << "Child process didn't crash; will exit successfully.";
+    exit(0);
+  }
+
+  int wstatus;
+  LOG(INFO) << "Parent process: waiting for child: " << p;
+  if (waitpid(p, &wstatus, 0) == -1) LOG(FATAL) << "Waitpid failed.";
+  return wstatus;
+}
 }  // namespace
 
 bool Register(std::wstring name, std::vector<Test> tests) {
@@ -32,17 +49,20 @@ bool Register(std::wstring name, std::vector<Test> tests) {
 }
 
 void Run() {
+  size_t failures = 0;
   std::cerr << "# Test Groups" << std::endl << std::endl;
   for (const auto& [name, tests] : *tests_map()) {
     std::cerr << "## Group: " << name << std::endl << std::endl;
     for (const auto& test : tests) {
       std::cerr << "* " << test.name << std::endl;
       for (size_t i = 0; i < test.runs; ++i) {
-        test.callback();
+        int wstatus = ForkAndWait(test.callback);
+        if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0) failures++;
       }
     }
     std::cerr << std::endl;
   }
+  CHECK_EQ(failures, 0ul);
 }
 
 void List() {
@@ -56,20 +76,7 @@ void List() {
 }
 
 void ForkAndWaitForFailure(std::function<void()> callable) {
-  pid_t p = fork();
-  if (p == -1) LOG(FATAL) << "Fork failed.";
-
-  if (p == 0) {
-    LOG(INFO) << "Child process: starting callback.";
-    callable();
-    LOG(INFO) << "Child process didn't crash; will exit successfully.";
-    exit(0);
-  }
-
-  int wstatus;
-  LOG(INFO) << "Parent process: waiting for child: " << p;
-  if (waitpid(p, &wstatus, 0) == -1) LOG(FATAL) << "Waitpid failed.";
-
+  int wstatus = ForkAndWait(std::move(callable));
   CHECK(!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0);
 }
 
