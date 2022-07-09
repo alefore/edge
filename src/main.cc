@@ -59,7 +59,7 @@ using afc::language::lazy_string::NewLazyString;
 namespace gc = afc::language::gc;
 
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
-static std::unique_ptr<EditorState> global_editor_state;
+static EditorState* global_editor_state = nullptr;
 
 EditorState& editor_state() { return *global_editor_state; }
 
@@ -328,7 +328,7 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Creating editor.";
   global_editor_state =
-      std::make_unique<EditorState>(args, audio_player.value());
+      std::make_unique<EditorState>(args, audio_player.value()).release();
 
   switch (args.tests_behavior) {
     case CommandLineValues::TestsBehavior::kRunAndExit:
