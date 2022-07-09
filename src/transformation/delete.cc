@@ -231,8 +231,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
                 : options.preview_modifiers;
         input.position = range.begin;
         return Apply(std::move(insert_options), input)
-            .Transform([output](transformation::Result result) {
-              output->MergeFrom(std::move(result));
+            .Transform([output](transformation::Result input_result) {
+              output->MergeFrom(std::move(input_result));
               return std::move(*output);
             });
       });
