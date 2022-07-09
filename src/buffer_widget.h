@@ -4,9 +4,9 @@
 #include <list>
 #include <memory>
 
+#include "src/buffer_contents_view_layout.h"
 #include "src/buffer_display_data.h"
 #include "src/language/safe_types.h"
-#include "src/line_scroll_control.h"
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
 

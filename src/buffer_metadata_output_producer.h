@@ -1,8 +1,8 @@
 #ifndef __AFC_EDITOR_BUFFER_METADATA_OUTPUT_PRODUCER_H__
 #define __AFC_EDITOR_BUFFER_METADATA_OUTPUT_PRODUCER_H__
 
+#include "src/buffer_contents_view_layout.h"
 #include "src/columns_vector.h"
-#include "src/line_scroll_control.h"
 #include "src/line_with_cursor.h"
 
 namespace afc::editor {
@@ -12,7 +12,7 @@ class OpenBuffer;
 // has returned.
 struct BufferMetadataOutputOptions {
   const OpenBuffer& buffer;
-  const std::vector<BufferContentsWindow::Line>& screen_lines;
+  const std::vector<BufferContentsViewLayout::Line>& screen_lines;
   const ParseTree& zoomed_out_tree;
 };
 

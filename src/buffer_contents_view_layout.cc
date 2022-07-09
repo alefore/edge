@@ -1,4 +1,4 @@
-#include "src/line_scroll_control.h"
+#include "src/buffer_contents_view_layout.h"
 
 #include <glog/logging.h>
 
@@ -22,8 +22,8 @@ namespace {
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 
-std::list<ColumnRange> ComputeBreaks(const BufferContentsWindow::Input& input,
-                                     LineNumber line) {
+std::list<ColumnRange> ComputeBreaks(
+    const BufferContentsViewLayout::Input& input, LineNumber line) {
   return BreakLineForOutput(input.contents.at(line).value(),
                             input.columns_shown, input.line_wrap_style,
                             input.symbol_characters);
@@ -32,7 +32,7 @@ std::list<ColumnRange> ComputeBreaks(const BufferContentsWindow::Input& input,
 // If the position is before the ranges, returns 0. If the position is after
 // the ranges, returns the last line.
 LineNumber FindPositionInScreen(
-    const std::vector<BufferContentsWindow::Line>& screen_lines,
+    const std::vector<BufferContentsViewLayout::Line>& screen_lines,
     LineColumn position) {
   CHECK(!screen_lines.empty());
   if (position < screen_lines.front().range.begin) {
@@ -56,14 +56,14 @@ LineNumber FindPositionInScreen(
   return output;
 }
 
-const bool screen_lines_to_position_tests_registration = tests::Register(
+const bool find_position_in_screen_tests_registration = tests::Register(
     L"FindPositionInScreen",
     {{.name = L"BeforeFirst",
       .callback =
           [] {
             CHECK_EQ(
                 FindPositionInScreen(
-                    std::vector<BufferContentsWindow::Line>({
+                    std::vector<BufferContentsViewLayout::Line>({
                         {.range =
                              Range::InLine(LineNumber(10), ColumnNumber(20),
                                            ColumnNumberDelta(8)),
@@ -81,7 +81,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::vector<BufferContentsWindow::Line>(
+                         std::vector<BufferContentsViewLayout::Line>(
                              {{.range = Range::InLine(LineNumber(10),
                                                       ColumnNumber(20),
                                                       ColumnNumberDelta(8)),
@@ -94,7 +94,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::vector<BufferContentsWindow::Line>(
+                         std::vector<BufferContentsViewLayout::Line>(
                              {{.range = Range::InLine(LineNumber(10),
                                                       ColumnNumber(20),
                                                       ColumnNumberDelta(8)),
@@ -113,7 +113,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
           [] {
             CHECK_EQ(
                 FindPositionInScreen(
-                    std::vector<BufferContentsWindow::Line>({
+                    std::vector<BufferContentsViewLayout::Line>({
                         {.range =
                              Range::InLine(LineNumber(10), ColumnNumber(20),
                                            ColumnNumberDelta(8)),
@@ -130,7 +130,7 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
      {.name = L"AfterLast", .callback = [] {
         CHECK_EQ(
             FindPositionInScreen(
-                std::vector<BufferContentsWindow::Line>({
+                std::vector<BufferContentsViewLayout::Line>({
                     {.range = Range::InLine(LineNumber(10), ColumnNumber(20),
                                             ColumnNumberDelta(8)),
                      .has_active_cursor = false,
@@ -144,8 +144,8 @@ const bool screen_lines_to_position_tests_registration = tests::Register(
             LineNumber(1));
       }}});
 
-BufferContentsWindow::Line GetScreenLine(
-    const BufferContentsWindow::Input& options,
+BufferContentsViewLayout::Line GetScreenLine(
+    const BufferContentsViewLayout::Input& options,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
     LineNumber line, ColumnRange column_range) {
   Range range = Range::InLine(line, column_range.begin,
@@ -158,7 +158,7 @@ BufferContentsWindow::Line GetScreenLine(
     return range.end.column == options.contents.at(line)->EndColumn();
   };
 
-  BufferContentsWindow::Line output{
+  BufferContentsViewLayout::Line output{
       .range = range,
       .has_active_cursor = options.active_position.has_value() &&
                            line == options.active_position->line &&
@@ -174,11 +174,11 @@ BufferContentsWindow::Line GetScreenLine(
   return output;
 }
 
-std::vector<BufferContentsWindow::Line> PrependLines(
-    const BufferContentsWindow::Input& options,
+std::vector<BufferContentsViewLayout::Line> PrependLines(
+    const BufferContentsViewLayout::Input& options,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
     LineNumber line, LineNumberDelta lines_desired,
-    std::vector<BufferContentsWindow::Line> output) {
+    std::vector<BufferContentsViewLayout::Line> output) {
   std::list<ColumnRange> line_breaks = ComputeBreaks(options, line);
   if (line == output.front().range.begin.line) {
     line_breaks.remove_if([&](const ColumnRange& r) {
@@ -186,7 +186,7 @@ std::vector<BufferContentsWindow::Line> PrependLines(
              r.begin >= output.front().range.begin.column;
     });
   }
-  std::vector<BufferContentsWindow::Line> lines_to_insert;
+  std::vector<BufferContentsViewLayout::Line> lines_to_insert;
   for (auto& r : line_breaks) {
     lines_to_insert.push_back(GetScreenLine(options, cursors, line, r));
   }
@@ -198,10 +198,10 @@ std::vector<BufferContentsWindow::Line> PrependLines(
   return output;
 }
 
-std::vector<BufferContentsWindow::Line> AdjustToHonorMargin(
-    const BufferContentsWindow::Input& options,
+std::vector<BufferContentsViewLayout::Line> AdjustToHonorMargin(
+    const BufferContentsViewLayout::Input& options,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
-    std::vector<BufferContentsWindow::Line> output) {
+    std::vector<BufferContentsViewLayout::Line> output) {
   if (output.empty() || options.margin_lines > options.lines_shown / 2 ||
       options.begin == LineColumn()) {
     return output;
@@ -233,9 +233,9 @@ std::vector<BufferContentsWindow::Line> AdjustToHonorMargin(
 }
 
 std::optional<LineNumberDelta> GetCursorIndex(
-    const BufferContentsWindow& window) {
+    const BufferContentsViewLayout& window) {
   LineNumberDelta i;
-  for (const BufferContentsWindow::Line& screen_line : window.lines) {
+  for (const BufferContentsViewLayout::Line& screen_line : window.lines) {
     if (screen_line.has_active_cursor) return i;
     ++i;
   }
@@ -244,8 +244,8 @@ std::optional<LineNumberDelta> GetCursorIndex(
 }  // namespace
 
 /* static */
-BufferContentsWindow BufferContentsWindow::Get(
-    BufferContentsWindow::Input options) {
+BufferContentsViewLayout BufferContentsViewLayout::Get(
+    BufferContentsViewLayout::Input options) {
   CHECK_GE(options.lines_shown, LineNumberDelta());
   CHECK_GE(options.status_lines, LineNumberDelta());
   CHECK_LE(options.status_lines, options.lines_shown);
@@ -266,7 +266,7 @@ BufferContentsWindow BufferContentsWindow::Get(
   }
 
   DVLOG(4) << "Initial line: " << options.begin.line;
-  BufferContentsWindow output;
+  BufferContentsViewLayout output;
   for (LineNumber line = options.begin.line;
        LineNumberDelta(output.lines.size()) < options.lines_shown; ++line) {
     if (line > options.contents.EndLine()) {
@@ -342,20 +342,20 @@ BufferContentsWindow BufferContentsWindow::Get(
 }
 
 namespace {
-const bool line_scroll_control_tests_registration =
-    tests::Register(L"LineScrollControl", [] {
-      auto get_ranges = [](BufferContentsWindow::Input options) {
+const bool buffer_contents_view_layout_tests_registration =
+    tests::Register(L"BufferContentsViewLayout", [] {
+      auto get_ranges = [](BufferContentsViewLayout::Input options) {
         std::vector<Range> output;
-        for (const auto& l : BufferContentsWindow::Get(options).lines) {
+        for (const auto& l : BufferContentsViewLayout::Get(options).lines) {
           output.push_back(l.range);
           DVLOG(5) << "Range for testing: " << output.back();
         }
         return output;
       };
-      auto get_active_cursors = [](BufferContentsWindow::Input options) {
+      auto get_active_cursors = [](BufferContentsViewLayout::Input options) {
         std::vector<LineNumber> output;
         LineNumber i;
-        for (const auto& l : BufferContentsWindow::Get(options).lines) {
+        for (const auto& l : BufferContentsViewLayout::Get(options).lines) {
           if (l.has_active_cursor) {
             output.push_back(i);
           }
@@ -388,7 +388,7 @@ const bool line_scroll_control_tests_registration =
                     })
                  contents->push_back(s);
                static CursorsSet active_cursors;
-               BufferContentsWindow::Input options{
+               BufferContentsViewLayout::Input options{
                    .contents = *contents,
                    .active_position = LineColumn(),
                    .active_cursors = active_cursors,
@@ -404,8 +404,9 @@ const bool line_scroll_control_tests_registration =
              }});
       };
       return std::vector<tests::Test>(
-          {new_test(L"Construction",
-                    [](auto options) { BufferContentsWindow::Get(options); }),
+          {new_test(
+               L"Construction",
+               [](auto options) { BufferContentsViewLayout::Get(options); }),
            new_test(L"TopMargin",
                     [&](auto options) {
                       options.active_position =
@@ -616,7 +617,7 @@ const bool line_scroll_control_tests_registration =
                       options.status_lines = LineNumberDelta();
                       options.lines_shown = LineNumberDelta(10);
                       options.active_position = options.contents.range().end;
-                      auto output = BufferContentsWindow::Get(options);
+                      auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
                       CHECK_EQ(output.lines.back().range,
                                Range::InLine(
@@ -629,7 +630,7 @@ const bool line_scroll_control_tests_registration =
                       options.status_lines = LineNumberDelta(1);
                       options.lines_shown = LineNumberDelta(10);
                       options.active_position = options.contents.range().end;
-                      auto output = BufferContentsWindow::Get(options);
+                      auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 9ul);
                       CHECK_EQ(output.lines.back().range,
                                Range::InLine(
@@ -642,7 +643,7 @@ const bool line_scroll_control_tests_registration =
                       options.status_lines = LineNumberDelta();
                       options.lines_shown = LineNumberDelta(10);
                       options.active_position = LineColumn(LineNumber(9999));
-                      auto output = BufferContentsWindow::Get(options);
+                      auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
                       CHECK_EQ(output.lines.back().range,
                                Range::InLine(
@@ -655,7 +656,7 @@ const bool line_scroll_control_tests_registration =
                       options.status_lines = LineNumberDelta(2);
                       options.lines_shown = LineNumberDelta(10);
                       options.active_position = LineColumn(LineNumber(9999));
-                      auto output = BufferContentsWindow::Get(options);
+                      auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 8ul);
                       CHECK_EQ(output.lines.back().range,
                                Range::InLine(
@@ -670,7 +671,7 @@ const bool line_scroll_control_tests_registration =
                       options.status_lines = LineNumberDelta(1);
                       options.lines_shown = LineNumberDelta(3);
                       options.margin_lines = LineNumberDelta(2);
-                      auto output = BufferContentsWindow::Get(options);
+                      auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 2ul);
                       CHECK_EQ(output.lines.front().range,
                                Range::InLine(
@@ -683,7 +684,7 @@ const bool line_scroll_control_tests_registration =
                       options.active_position = LineColumn(LineNumber(16));
                       options.status_lines = LineNumberDelta(10);
                       options.lines_shown = LineNumberDelta(27);
-                      auto output = BufferContentsWindow::Get(options);
+                      auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 17ul);
                     }),
            new_test(L"ViewStartWithPositionAtEndShortColumns",
@@ -694,7 +695,7 @@ const bool line_scroll_control_tests_registration =
                       options.lines_shown = LineNumberDelta(3);
                       options.columns_shown = ColumnNumberDelta(3);
                       options.margin_lines = LineNumberDelta(2);
-                      auto output = BufferContentsWindow::Get(options);
+                      auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 2ul);
     // TODO: This test fails. Fix the code and make it pass.
 #if 0
@@ -712,15 +713,15 @@ namespace std {
 using afc::language::compute_hash;
 using afc::language::MakeHashableIteratorRange;
 
-std::size_t hash<afc::editor::BufferContentsWindow::Line>::operator()(
-    const afc::editor::BufferContentsWindow::Line& line) const {
+std::size_t hash<afc::editor::BufferContentsViewLayout::Line>::operator()(
+    const afc::editor::BufferContentsViewLayout::Line& line) const {
   return compute_hash(line.range, line.has_active_cursor,
                       MakeHashableIteratorRange(line.current_cursors.begin(),
                                                 line.current_cursors.end()));
 }
 
-std::size_t hash<afc::editor::BufferContentsWindow>::operator()(
-    const afc::editor::BufferContentsWindow& window) const {
+std::size_t hash<afc::editor::BufferContentsViewLayout>::operator()(
+    const afc::editor::BufferContentsViewLayout& window) const {
   using namespace afc::editor;
   return compute_hash(
       MakeHashableIteratorRange(window.lines.begin(), window.lines.end()));

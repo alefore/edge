@@ -11,10 +11,8 @@
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
 
-// TODO(easy, 2022-04-30): Rename to 'buffer_contents_view_layout' or such.
-
 namespace afc::editor {
-struct BufferContentsWindow {
+struct BufferContentsViewLayout {
   struct Input {
     const BufferContents& contents;
 
@@ -44,7 +42,7 @@ struct BufferContentsWindow {
     // - active_position is nullopt.
     LineNumberDelta margin_lines;
   };
-  static BufferContentsWindow Get(Input input);
+  static BufferContentsViewLayout Get(Input input);
 
   struct Line {
     Range range;
@@ -67,14 +65,15 @@ struct BufferContentsWindow {
 }  // namespace afc::editor
 namespace std {
 template <>
-struct hash<afc::editor::BufferContentsWindow::Line> {
+struct hash<afc::editor::BufferContentsViewLayout::Line> {
   std::size_t operator()(
-      const afc::editor::BufferContentsWindow::Line& line) const;
+      const afc::editor::BufferContentsViewLayout::Line& line) const;
 };
 
 template <>
-struct hash<afc::editor::BufferContentsWindow> {
-  std::size_t operator()(const afc::editor::BufferContentsWindow& window) const;
+struct hash<afc::editor::BufferContentsViewLayout> {
+  std::size_t operator()(
+      const afc::editor::BufferContentsViewLayout& window) const;
 };
 }  // namespace std
 #endif  // __AFC_EDITOR_LINE_SCROLL_CONTROL_H__

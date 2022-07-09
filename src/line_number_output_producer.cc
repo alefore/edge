@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "src/buffer.h"
+#include "src/buffer_contents_view_layout.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
@@ -19,7 +20,6 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/padding.h"
 #include "src/language/wstring.h"
-#include "src/line_scroll_control.h"
 #include "src/widget.h"
 
 namespace afc {
@@ -40,13 +40,13 @@ using language::lazy_string::NewLazyString;
 
 LineWithCursor::Generator::Vector LineNumberOutput(
     const OpenBuffer& buffer,
-    const std::vector<BufferContentsWindow::Line>& screen_lines) {
+    const std::vector<BufferContentsViewLayout::Line>& screen_lines) {
   ColumnNumberDelta width = std::max(
       LineNumberOutputWidth(buffer.lines_size()),
       ColumnNumberDelta(
           buffer.editor().Read(editor_variables::numbers_column_padding)));
   LineWithCursor::Generator::Vector output{.lines = {}, .width = width};
-  for (const BufferContentsWindow::Line& screen_line : screen_lines) {
+  for (const BufferContentsViewLayout::Line& screen_line : screen_lines) {
     if (screen_line.range.begin.line > buffer.EndLine()) {
       return output;  // The buffer is smaller than the screen.
     }

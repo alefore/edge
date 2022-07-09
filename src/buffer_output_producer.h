@@ -2,8 +2,8 @@
 #define __AFC_EDITOR_BUFFER_OUTPUT_PRODUCER_H__
 
 #include "src/buffer.h"
+#include "src/buffer_contents_view_layout.h"
 #include "src/line_column.h"
-#include "src/line_scroll_control.h"
 #include "src/line_with_cursor.h"
 
 namespace afc {
@@ -16,7 +16,7 @@ namespace editor {
 // lines long.
 LineWithCursor::Generator::Vector ProduceBufferView(
     const OpenBuffer& buffer,
-    const std::vector<BufferContentsWindow::Line>& lines,
+    const std::vector<BufferContentsViewLayout::Line>& lines,
     const Widget::OutputProducerOptions& output_producer_options);
 
 }  // namespace editor

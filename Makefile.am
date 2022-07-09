@@ -22,6 +22,8 @@ src/buffer_contents.cc \
 src/buffer_contents.h \
 src/buffer_contents_util.cc \
 src/buffer_contents_util.h \
+src/buffer_contents_view_layout.h \
+src/buffer_contents_view_layout.cc \
 src/buffer_display_data.cc \
 src/buffer_display_data.h \
 src/buffer_name.cc \
@@ -159,8 +161,6 @@ src/line_modifier.h \
 src/line_number_output_producer.h \
 src/line_number_output_producer.cc \
 src/line_prompt_mode.cc \
-src/line_scroll_control.h \
-src/line_scroll_control.cc \
 src/log.cc \
 src/log.h \
 src/lru_cache.h \

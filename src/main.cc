@@ -560,5 +560,7 @@ int main(int argc, const char** argv) {
     }
   }
 
-  return editor_state().exit_value().value();
+  int output = editor_state().exit_value().value();
+  delete &editor_state();
+  return output;
 }

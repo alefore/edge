@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "src/buffer.h"
+#include "src/buffer_contents_view_layout.h"
 #include "src/buffer_metadata_output_producer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
@@ -19,7 +20,6 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/line_number_output_producer.h"
-#include "src/line_scroll_control.h"
 #include "src/section_brackets_producer.h"
 #include "src/status_output_producer.h"
 #include "src/tests/tests.h"
@@ -87,7 +87,7 @@ LineWithCursor::Generator::Vector CenterVertically(
 
 LineWithCursor::Generator::Vector LinesSpanView(
     const OpenBuffer& buffer,
-    const std::vector<BufferContentsWindow::Line>& screen_lines,
+    const std::vector<BufferContentsViewLayout::Line>& screen_lines,
     const Widget::OutputProducerOptions& output_producer_options,
     const size_t sections_count) {
   static Tracker tracker(L"LinesSpanView");
@@ -237,7 +237,7 @@ std::set<Range> ExpandSections(LineNumber end_line,
 LineWithCursor::Generator::Vector ViewMultipleCursors(
     const OpenBuffer& buffer,
     const Widget::OutputProducerOptions& output_producer_options,
-    const BufferContentsWindow::Input& buffer_contents_window_input) {
+    const BufferContentsViewLayout::Input& buffer_contents_window_input) {
   std::set<Range> sections;
   for (auto& cursor : buffer.active_cursors()) {
     sections.insert(
@@ -258,7 +258,8 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
 
   LineWithCursor::Generator::Vector output;
   for (const auto& section : sections) {
-    BufferContentsWindow::Input section_input = buffer_contents_window_input;
+    BufferContentsViewLayout::Input section_input =
+        buffer_contents_window_input;
     section_input.lines_shown = section.end.line - section.begin.line;
     section_input.status_lines = LineNumberDelta();
     // TODO: Maybe take columns into account? Ugh.
@@ -269,9 +270,9 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
         section_input.lines_shown, output_producer_options.size.column);
     CHECK(section_input.active_position == std::nullopt);
     VLOG(3) << "Multiple cursors section starting at: " << section_input.begin;
-    LineWithCursor::Generator::Vector section_lines =
-        LinesSpanView(buffer, BufferContentsWindow::Get(section_input).lines,
-                      section_output_producer_options, sections.size());
+    LineWithCursor::Generator::Vector section_lines = LinesSpanView(
+        buffer, BufferContentsViewLayout::Get(section_input).lines,
+        section_output_producer_options, sections.size());
     section_lines.lines.resize(section_input.lines_shown.read(),
                                LineWithCursor::Generator::Empty());
     if (!section.Contains(buffer.position())) section_lines.RemoveCursor();
@@ -307,7 +308,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   bool paste_mode = buffer.Read(buffer_variables::paste_mode);
 
-  BufferContentsWindow::Input buffer_contents_window_input{
+  BufferContentsViewLayout::Input buffer_contents_window_input{
       .contents = buffer.contents(),
       .active_position = buffer.Read(buffer_variables::multiple_cursors)
                              ? std::optional<LineColumn>()
@@ -348,8 +349,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
 
   CHECK_GE(buffer_contents_window_input.margin_lines, LineNumberDelta(0));
 
-  BufferContentsWindow window =
-      BufferContentsWindow::Get(buffer_contents_window_input);
+  BufferContentsViewLayout window =
+      BufferContentsViewLayout::Get(buffer_contents_window_input);
   if (window.lines.empty())
     return BufferOutputProducerOutput{
         .lines = RepeatLine({}, input.output_producer_options.size.line),
@@ -381,9 +382,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     (buffer.status().GetType() == Status::Type::kPrompt ? output.lines
                                                         : status_lines)
         .RemoveCursor();
-
     output.lines.Append(std::move(status_lines));
-
     CHECK_EQ(output.lines.size(), total_size.line);
   }
   return output;

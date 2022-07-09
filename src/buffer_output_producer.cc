@@ -160,7 +160,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
 
 LineWithCursor::Generator::Vector ProduceBufferView(
     const OpenBuffer& buffer,
-    const std::vector<BufferContentsWindow::Line>& lines,
+    const std::vector<BufferContentsViewLayout::Line>& lines,
     const Widget::OutputProducerOptions& output_producer_options) {
   static Tracker tracker(L"ProduceBufferView");
   auto call = tracker.Call();
@@ -173,7 +173,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
   LineWithCursor::Generator::Vector output{
       .lines = {}, .width = output_producer_options.size.column};
 
-  for (BufferContentsWindow::Line screen_line : lines) {
+  for (BufferContentsViewLayout::Line screen_line : lines) {
     auto line = screen_line.range.begin.line;
 
     if (line > buffer.EndLine()) {
@@ -190,7 +190,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                Widget::OutputProducerOptions::MainCursorDisplay
                    main_cursor_display,
                WithHash<std::shared_ptr<const Line>> line_contents_with_hash,
-               BufferContentsWindow::Line screen_line, bool atomic_lines,
+               BufferContentsViewLayout::Line screen_line, bool atomic_lines,
                bool multiple_cursors, LineColumn position,
                EditorMode::CursorMode cursor_mode) {
               Line::OutputOptions options{
@@ -287,7 +287,7 @@ const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
   return std::vector<tests::Test>{
       {.name = L"ViewBiggerThanBuffer", .callback = [&] {
          auto buffer = NewBufferForTests();
-         std::vector<BufferContentsWindow::Line> screen_lines;
+         std::vector<BufferContentsViewLayout::Line> screen_lines;
          screen_lines.push_back(
              {.range = Range(LineColumn(), LineColumn(LineNumber(1))),
               .has_active_cursor = false,

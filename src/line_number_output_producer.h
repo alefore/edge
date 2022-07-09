@@ -4,8 +4,8 @@
 #include <list>
 #include <memory>
 
+#include "src/buffer_contents_view_layout.h"
 #include "src/line_column.h"
-#include "src/line_scroll_control.h"
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
 
@@ -16,7 +16,7 @@ language::lazy_string::ColumnNumberDelta LineNumberOutputWidth(
 
 LineWithCursor::Generator::Vector LineNumberOutput(
     const OpenBuffer& buffer,
-    const std::vector<BufferContentsWindow::Line>& screen_lines);
+    const std::vector<BufferContentsViewLayout::Line>& screen_lines);
 
 }  // namespace afc::editor
 
