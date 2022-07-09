@@ -11,7 +11,7 @@
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
 
-// TODO(easy, 2022-04-30): Rename to 'buffer_contents_window' or such.
+// TODO(easy, 2022-04-30): Rename to 'buffer_contents_view_layout' or such.
 
 namespace afc::editor {
 struct BufferContentsWindow {
@@ -63,9 +63,6 @@ struct BufferContentsWindow {
   // This may not match the beginning of `lines` because the status may have
   // obstructed part of the view.
   LineColumn view_start;
-
-  enum class StatusPosition { kTop, kBottom };
-  StatusPosition status_position = StatusPosition::kBottom;
 };
 }  // namespace afc::editor
 namespace std {

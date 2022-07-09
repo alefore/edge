@@ -232,8 +232,9 @@ std::vector<BufferContentsWindow::Line> AdjustToHonorMargin(
   return output;
 }
 
-std::optional<size_t> cursor_index(const BufferContentsWindow& window) {
-  size_t i = 0;
+std::optional<LineNumberDelta> GetCursorIndex(
+    const BufferContentsWindow& window) {
+  LineNumberDelta i;
   for (const BufferContentsWindow::Line& screen_line : window.lines) {
     if (screen_line.has_active_cursor) return i;
     ++i;
@@ -314,15 +315,22 @@ BufferContentsWindow BufferContentsWindow::Get(
   VLOG(5) << "Wrapping up: lines_shown: " << options.lines_shown
           << ", status_lines: " << options.status_lines
           << ", output.lines.size: " << output.lines.size();
+  LineNumberDelta cursor_index =
+      GetCursorIndex(output).value_or(LineNumberDelta());
   if (options.lines_shown <
           LineNumberDelta(output.lines.size()) + options.status_lines &&
-      LineNumberDelta(cursor_index(output).value_or(0)) >
-          (size_t(3) * options.lines_shown) / 5) {
+      cursor_index >= options.lines_shown - options.status_lines -
+                          std::max(options.margin_lines, LineNumberDelta(1))) {
+    output.lines.erase(
+        output.lines.begin(),
+        output.lines.begin() +
+            std::min(lines_to_drop,
+                     LineNumberDelta(1) + cursor_index -
+                         (options.lines_shown - options.status_lines -
+                          std::max(options.margin_lines, LineNumberDelta(1))))
+                .read());
     output.view_start =
         output.lines.empty() ? options.begin : output.lines.front().range.begin;
-    output.status_position = BufferContentsWindow::StatusPosition::kTop;
-    output.lines.erase(output.lines.begin(),
-                       output.lines.begin() + lines_to_drop.read());
   } else if (LineNumberDelta(output.lines.size()) <= lines_to_drop) {
     output.lines.clear();
   } else {
@@ -610,8 +618,6 @@ const bool line_scroll_control_tests_registration =
                       options.active_position = options.contents.range().end;
                       auto output = BufferContentsWindow::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
-                      CHECK(output.status_position ==
-                            BufferContentsWindow::StatusPosition::kBottom);
                       CHECK_EQ(output.lines.back().range,
                                Range::InLine(
                                    LineNumber(16), ColumnNumber(0),
@@ -625,8 +631,6 @@ const bool line_scroll_control_tests_registration =
                       options.active_position = options.contents.range().end;
                       auto output = BufferContentsWindow::Get(options);
                       CHECK_EQ(output.lines.size(), 9ul);
-                      CHECK(output.status_position ==
-                            BufferContentsWindow::StatusPosition::kTop);
                       CHECK_EQ(output.lines.back().range,
                                Range::InLine(
                                    LineNumber(16), ColumnNumber(0),
@@ -640,8 +644,6 @@ const bool line_scroll_control_tests_registration =
                       options.active_position = LineColumn(LineNumber(9999));
                       auto output = BufferContentsWindow::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
-                      CHECK(output.status_position ==
-                            BufferContentsWindow::StatusPosition::kBottom);
                       CHECK_EQ(output.lines.back().range,
                                Range::InLine(
                                    LineNumber(16), ColumnNumber(0),
@@ -655,8 +657,6 @@ const bool line_scroll_control_tests_registration =
                       options.active_position = LineColumn(LineNumber(9999));
                       auto output = BufferContentsWindow::Get(options);
                       CHECK_EQ(output.lines.size(), 8ul);
-                      CHECK(output.status_position ==
-                            BufferContentsWindow::StatusPosition::kTop);
                       CHECK_EQ(output.lines.back().range,
                                Range::InLine(
                                    LineNumber(16), ColumnNumber(0),
@@ -672,13 +672,11 @@ const bool line_scroll_control_tests_registration =
                       options.margin_lines = LineNumberDelta(2);
                       auto output = BufferContentsWindow::Get(options);
                       CHECK_EQ(output.lines.size(), 2ul);
-                      CHECK(output.status_position ==
-                            BufferContentsWindow::StatusPosition::kTop);
                       CHECK_EQ(output.lines.front().range,
                                Range::InLine(
                                    LineNumber(15), ColumnNumber(),
                                    ColumnNumberDelta(sizeof("15dog") - 1)));
-                      CHECK_EQ(output.view_start, LineColumn(LineNumber(14)));
+                      CHECK_EQ(output.view_start, LineColumn(LineNumber(15)));
                     }),
            new_test(L"StatusDownWhenFits",
                     [&](auto options) {
@@ -687,8 +685,6 @@ const bool line_scroll_control_tests_registration =
                       options.lines_shown = LineNumberDelta(27);
                       auto output = BufferContentsWindow::Get(options);
                       CHECK_EQ(output.lines.size(), 17ul);
-                      CHECK(output.status_position ==
-                            BufferContentsWindow::StatusPosition::kBottom);
                     }),
            new_test(L"ViewStartWithPositionAtEndShortColumns",
                     [&](auto options) {
@@ -702,8 +698,6 @@ const bool line_scroll_control_tests_registration =
                       CHECK_EQ(output.lines.size(), 2ul);
     // TODO: This test fails. Fix the code and make it pass.
 #if 0
-                      CHECK(output.status_position ==
-                            BufferContentsWindow::StatusPosition::kTop);
                       CHECK_EQ(output.lines.front().range,
                                Range::InLine(LineNumber(16), ColumnNumber(),
                                              ColumnNumberDelta(2)));
@@ -729,7 +723,6 @@ std::size_t hash<afc::editor::BufferContentsWindow>::operator()(
     const afc::editor::BufferContentsWindow& window) const {
   using namespace afc::editor;
   return compute_hash(
-      window.status_position,
       MakeHashableIteratorRange(window.lines.begin(), window.lines.end()));
 }
 }  // namespace std

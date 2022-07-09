@@ -69,21 +69,11 @@ LineWithCursor::Generator::Vector AddLeftFrame(
 
 LineWithCursor::Generator::Vector CenterVertically(
     LineWithCursor::Generator::Vector input, LineNumberDelta status_lines,
-    LineNumberDelta total_lines,
-    BufferContentsWindow::StatusPosition status_position,
-    BufferDisplayData& display_data) {
+    LineNumberDelta total_lines, BufferDisplayData& display_data) {
   if (input.size() + status_lines < total_lines) {
-    LineNumberDelta prefix_size;
-    switch (status_position) {
-      case BufferContentsWindow::StatusPosition::kTop:
-        prefix_size = std::max(LineNumberDelta(),
-                               (total_lines - input.size()) / 2 - status_lines);
-        break;
-      case BufferContentsWindow::StatusPosition::kBottom:
-        prefix_size = std::min((total_lines - input.size()) / 2,
-                               total_lines - status_lines - input.size());
-        break;
-    }
+    LineNumberDelta prefix_size =
+        std::min((total_lines - input.size()) / 2,
+                 total_lines - status_lines - input.size());
     prefix_size =
         std::min(display_data.min_vertical_prefix_size().value_or(prefix_size),
                  prefix_size);
@@ -379,8 +369,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                     buffer_contents_window_input)
               : LinesSpanView(buffer, window.lines,
                               input.output_producer_options, 1),
-          status_lines.size(), total_size.line, window.status_position,
-          input.buffer_display_data),
+          status_lines.size(), total_size.line, input.buffer_display_data),
       .view_start = window.view_start};
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
@@ -393,15 +382,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                                         : status_lines)
         .RemoveCursor();
 
-    switch (window.status_position) {
-      case BufferContentsWindow::StatusPosition::kTop:
-        status_lines.Append(std::move(output.lines));
-        output.lines = std::move(status_lines);
-        break;
-      case BufferContentsWindow::StatusPosition::kBottom:
-        output.lines.Append(std::move(status_lines));
-        break;
-    }
+    output.lines.Append(std::move(status_lines));
 
     CHECK_EQ(output.lines.size(), total_size.line);
   }
