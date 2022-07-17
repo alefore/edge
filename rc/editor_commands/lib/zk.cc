@@ -18,6 +18,8 @@ bool IsStartOfRelatedSection(string line) {
   return line == "Related:" || line == "## Related" || line == "## Related:";
 }
 
+bool IsStartOfPrivateSection(string line) { return line == "## Private"; }
+
 string GetNoteTitle(Buffer buffer) {
   auto line = buffer.line(0);
   if (line.substr(0, 1) == "#") {
@@ -310,47 +312,58 @@ void RemoveLocalLinks(Buffer buffer) {
 }
 
 void Expand(Buffer buffer, string path, SetString titles, int depth,
-            SetString visited) {
+            SetString visited, bool include_titles) {
   if (visited.contains(path) || visited.size() > 1000) return;
   visited.insert(path);
   Buffer sub_buffer = editor.OpenFile(path, false);
   sub_buffer.WaitForEndOfFile();
   int line = 0;
   string text = "";
-  for (int i = 0; i < min(6, depth); i++) {
-    text += "#";
+  if (include_titles) {
+    for (int i = 0; i < min(6, depth); i++) {
+      text += "#";
+    }
   }
   bool copy_contents = true;
   bool first_line = true;
   string title = "";
   while (line < sub_buffer.line_count()) {
-    if (IsStartOfRelatedSection(sub_buffer.line(line))) {
+    string line_contents = sub_buffer.line(line);
+    if (IsStartOfRelatedSection(line_contents) ||
+        IsStartOfPrivateSection(line_contents)) {
       copy_contents = false;
     }
-    auto line_contents = sub_buffer.line(line);
+    string separator = "\n";
     if (first_line) {
-      title = line_contents;
-      int candidate_index = -1;
-      for (int i = 0; i < titles.size(); i++) {
-        string candidate = titles.get(i);
-        if (line_contents.size() > candidate.size() &&
-            line_contents.substr(0, candidate.size()) == candidate) {
-          candidate_index = i;
-        }
-      }
-      if (candidate_index != -1) {
-        string candidate = titles.get(candidate_index);
-        line_contents = line_contents.substr(
-            candidate.size(), line_contents.size() - candidate.size());
-        if (!line_contents.empty() && line_contents.substr(0, 1) == ":") {
-          line_contents = "# " + SkipSpaces(line_contents.substr(
-                                     1, line_contents.size() - 1));
-        }
-      }
       first_line = false;
+      title = line_contents;
+      if (include_titles) {
+        int candidate_index = -1;
+        for (int i = 0; i < titles.size(); i++) {
+          string candidate = titles.get(i);
+          if (line_contents.size() > candidate.size() &&
+              line_contents.substr(0, candidate.size()) == candidate) {
+            candidate_index = i;
+          }
+        }
+        if (candidate_index != -1) {
+          string candidate = titles.get(candidate_index);
+          line_contents = line_contents.substr(
+              candidate.size(), line_contents.size() - candidate.size());
+          if (!line_contents.empty() && line_contents.substr(0, 1) == ":") {
+            line_contents = "# " + SkipSpaces(line_contents.substr(
+                                       1, line_contents.size() - 1));
+          }
+        }
+      } else if (buffer.line_count() == 1) {
+        line_contents = separator = "";
+      } else {
+        line_contents = "☙";
+      }
     }
-    if (copy_contents) {
-      text += line_contents + "\n";
+    if (copy_contents &&
+        ((text != "" || buffer.line_count() > 1) || line_contents != "")) {
+      text += line_contents + separator;
     }
     line++;
   }
@@ -364,7 +377,8 @@ void Expand(Buffer buffer, string path, SetString titles, int depth,
     titles.insert(title);
   }
   while (links < pending.size()) {
-    Expand(buffer, pending.get(links), titles, depth + 1, visited);
+    Expand(buffer, pending.get(links), titles, depth + 1, visited,
+           include_titles);
     links++;
   }
   if (!titles.empty()) {
@@ -391,7 +405,8 @@ SetString ParseBlacklist(string blacklist) {
   return output;
 }
 
-Buffer ExpandIntoPath(string path, string start, string blacklist) {
+Buffer ExpandIntoPath(string path, string start, bool include_titles,
+                      string blacklist) {
   auto buffer = editor.OpenFile(path + ".md", true);
   buffer.WaitForEndOfFile();
   buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
@@ -400,7 +415,8 @@ Buffer ExpandIntoPath(string path, string start, string blacklist) {
           // TODO: Add `set_buffer` and use that?
           .set_modifiers(Modifiers().set_line().set_repetitions(9999999))
           .build());
-  Expand(buffer, start + ".md", SetString(), 0, ParseBlacklist(blacklist));
+  Expand(buffer, start + ".md", SetString(), 0, ParseBlacklist(blacklist),
+         include_titles);
   RemoveLocalLinks(buffer);
   buffer.Save();
   return buffer;
@@ -587,8 +603,9 @@ void N() {  // Short for New.
   });
 }
 
-void LinkNext() { return internal::FindLink("Next"); }
-void LinkPrev() { return internal::FindLink("Prev"); }
+void Up() { return internal::FindLink("Up"); }
+void Ne() { return internal::FindLink("Next"); }
+void Pr() { return internal::FindLink("Prev"); }
 
 auto Expand = internal::ExpandIntoPath;
 }  // namespace zettelkasten
