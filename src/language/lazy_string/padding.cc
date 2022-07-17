@@ -5,9 +5,7 @@
 namespace afc::language::lazy_string {
 NonNull<std::shared_ptr<LazyString>> Padding(const ColumnNumberDelta& length,
                                              wchar_t fill) {
-  if (length < ColumnNumberDelta(0)) {
-    return EmptyString();
-  }
+  CHECK_GE(length, ColumnNumberDelta(0));
   return NewLazyString(length, fill);
 }
 }  // namespace afc::language::lazy_string

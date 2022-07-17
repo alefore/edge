@@ -18,6 +18,7 @@
 #include "src/horizontal_center_output_producer.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/padding.h"
 #include "src/language/wstring.h"
 #include "src/line_number_output_producer.h"
 #include "src/section_brackets_producer.h"
@@ -33,6 +34,7 @@ using language::NonNull;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::Padding;
 
 namespace gc = language::gc;
 
@@ -98,9 +100,10 @@ LineWithCursor::Generator::Vector LinesSpanView(
 
   if (buffer.Read(buffer_variables::paste_mode)) return buffer_output;
 
-  ColumnsVector columns_vector{.index_active = sections_count > 1 ? 2ul : 1ul};
+  ColumnsVector columns_vector;
 
   if (sections_count > 1) {
+    ++columns_vector.index_active;
     columns_vector.push_back(
         {.lines = SectionBrackets(LineNumberDelta(screen_lines.size()),
                                   SectionBracketsSide::kLeft),
@@ -109,6 +112,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
 
   LineWithCursor::Generator::Vector line_numbers =
       LineNumberOutput(buffer, screen_lines);
+  ++columns_vector.index_active;
   columns_vector.push_back(
       {.lines = line_numbers, .width = line_numbers.width});
 
@@ -125,6 +129,31 @@ LineWithCursor::Generator::Vector LinesSpanView(
           return output;
         }};
   }
+
+  if (buffer.Read(buffer_variables::view_center_lines)) {
+    const ColumnNumberDelta width = output_producer_options.size.column;
+    for (LineWithCursor::Generator& line : buffer_output.lines) {
+      line = {
+          .inputs_hash = line.inputs_hash,
+          .generate = [width, original_generator = std::move(line.generate)] {
+            LineWithCursor output = original_generator();
+            if (output.line->EndColumn().ToDelta() >= width) return output;
+            const ColumnNumberDelta padding_size =
+                (width - output.line->EndColumn().ToDelta() +
+                 ColumnNumberDelta(1)) /
+                2;
+            Line::Options line_options;
+            line_options.AppendString(Padding(padding_size, L' '));
+            if (output.cursor.has_value()) {
+              output.cursor = *output.cursor + padding_size;
+            }
+            line_options.Append(output.line.value());
+            output.line = MakeNonNullShared<Line>(std::move(line_options));
+            return output;
+          }};
+    }
+  }
+
   columns_vector.push_back({.lines = std::move(buffer_output),
                             .width = output_producer_options.size.column});
 

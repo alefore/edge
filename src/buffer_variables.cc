@@ -347,6 +347,16 @@ EdgeVariable<bool>* const vm_lines_evaluation =
             L"results of the evaluation will be shown.")
         .Build();
 
+EdgeVariable<bool>* const view_center_lines =
+    BoolStruct()
+        ->Add()
+        .Name(L"view_center_lines")
+        .Key(L"c")
+        .Description(
+            L"If true, lines will be shown centered on the screen. Ignored if "
+            L"`paste_mode` is true.")
+        .Build();
+
 EdgeStruct<std::wstring>* StringStruct() {
   static EdgeStruct<std::wstring>* output = new EdgeStruct<std::wstring>();
   return output;
@@ -605,7 +615,6 @@ EdgeVariable<int>* const buffer_list_context_lines =
     IntStruct()
         ->Add()
         .Name(L"buffer_list_context_lines")
-        .Key(L"c")
         .Description(
             L"Number of lines of context from this buffer to show in the list "
             L"of buffers.")

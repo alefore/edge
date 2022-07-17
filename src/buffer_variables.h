@@ -40,6 +40,7 @@ extern EdgeVariable<bool>* const display_progress;
 extern EdgeVariable<bool>* const persist_state;
 extern EdgeVariable<bool>* const pin;
 extern EdgeVariable<bool>* const vm_lines_evaluation;
+extern EdgeVariable<bool>* const view_center_lines;
 
 EdgeStruct<std::wstring>* StringStruct();
 extern EdgeVariable<std::wstring>* const name;
