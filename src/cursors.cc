@@ -150,9 +150,9 @@ LineColumn TransformLineColumn(
   return position;
 }
 
-Range CursorsTracker::Transformation::TransformRange(const Range& range) const {
-  return Range(TransformLineColumn(*this, range.begin, false),
-               TransformLineColumn(*this, range.end, true));
+Range CursorsTracker::Transformation::TransformRange(const Range& input) const {
+  return Range(TransformLineColumn(*this, input.begin, false),
+               TransformLineColumn(*this, input.end, true));
 }
 
 LineColumn CursorsTracker::Transformation::Transform(
@@ -165,9 +165,9 @@ Range OutputOf(const CursorsTracker::Transformation& transformation) {
 }
 
 CursorsTracker::ExtendedTransformation::ExtendedTransformation(
-    CursorsTracker::Transformation transformation,
+    CursorsTracker::Transformation input_transformation,
     ExtendedTransformation* previous)
-    : transformation(std::move(transformation)) {
+    : transformation(std::move(input_transformation)) {
   if (transformation.line_delta > LineNumberDelta(0)) {
     empty.begin = transformation.range.begin;
     empty.end = std::min(
@@ -203,16 +203,18 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
 
   // Transfer affected cursors from cursors into cursors_affected.
   CursorsSet cursors_affected;
-  auto it = cursors_set->lower_bound(transformation.range.begin);
-  auto end = cursors_set->lower_bound(transformation.range.end);
   bool transferred_active = false;
-  while (it != end) {
-    auto result = cursors_affected.insert(*it);
-    if (it == cursors_set->active() && !transferred_active) {
-      transferred_active = true;
-      cursors_affected.set_active(result);
+  {
+    auto it = cursors_set->lower_bound(transformation.range.begin);
+    auto end = cursors_set->lower_bound(transformation.range.end);
+    while (it != end) {
+      auto result = cursors_affected.insert(*it);
+      if (it == cursors_set->active() && !transferred_active) {
+        transferred_active = true;
+        cursors_affected.set_active(result);
+      }
+      cursors_set->erase(it++);
     }
-    cursors_set->erase(it++);
   }
 
   // Apply the transformation and add the cursors back.
@@ -416,7 +418,7 @@ futures::Value<EmptyValue> CursorsTracker::ApplyTransformationToCursors(
   // TODO(easy, 2022-04-30): Check that cursors.active() is valid?
   LOG(INFO) << "Applying transformation to cursors: " << cursors.size()
             << ", active is: " << *cursors.active();
-  auto apply_next = [this, data](auto apply_next) {
+  auto apply_next_parent = [this, data](auto apply_next) {
     CHECK(data->callback != nullptr);
     if (data->cursors.empty()) {
       data->cursors.swap(&already_applied_cursors_);
@@ -440,7 +442,7 @@ futures::Value<EmptyValue> CursorsTracker::ApplyTransformationToCursors(
           apply_next(apply_next);
         });
   };
-  apply_next(apply_next);
+  apply_next_parent(apply_next_parent);
   return std::move(output.value);
 }
 

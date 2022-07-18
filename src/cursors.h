@@ -132,7 +132,7 @@ class CursorsTracker {
     }
 
     LineColumn Transform(const LineColumn& position) const;
-    Range TransformRange(const Range& range) const;
+    Range TransformRange(const Range& input) const;
 
     Range range = Range(LineColumn(), LineColumn::Max());
 
