@@ -38,27 +38,29 @@ using language::lazy_string::NewLazyString;
   return kColon + ColumnNumberDelta(to_wstring(lines_size).size());
 }
 
+LineModifierSet LineModifiers(const BufferContentsViewLayout::Line& line,
+                              const OpenBuffer& buffer) {
+  if (line.current_cursors.empty()) {
+    return {LineModifier::DIM};
+  } else if (line.has_active_cursor ||
+             buffer.Read(buffer_variables::multiple_cursors)) {
+    return {LineModifier::CYAN, LineModifier::BOLD};
+  } else {
+    return {LineModifier::BLUE};
+  }
+}
+
 LineWithCursor::Generator::Vector LineNumberOutput(
     const OpenBuffer& buffer,
     const std::vector<BufferContentsViewLayout::Line>& screen_lines) {
-  ColumnNumberDelta width = std::max(
-      LineNumberOutputWidth(buffer.lines_size()),
-      ColumnNumberDelta(
-          buffer.editor().Read(editor_variables::numbers_column_padding)));
-  LineWithCursor::Generator::Vector output{.lines = {}, .width = width};
+  LineWithCursor::Generator::Vector output{
+      .lines = {},
+      .width = std::max(LineNumberOutputWidth(buffer.lines_size()),
+                        ColumnNumberDelta(buffer.editor().Read(
+                            editor_variables::numbers_column_padding)))};
   for (const BufferContentsViewLayout::Line& screen_line : screen_lines) {
     if (screen_line.range.begin.line > buffer.EndLine()) {
       return output;  // The buffer is smaller than the screen.
-    }
-
-    HashableContainer<LineModifierSet> modifiers;
-    if (screen_line.current_cursors.empty()) {
-      modifiers.container = {LineModifier::DIM};
-    } else if (screen_line.has_active_cursor ||
-               buffer.Read(buffer_variables::multiple_cursors)) {
-      modifiers.container = {LineModifier::CYAN, LineModifier::BOLD};
-    } else {
-      modifiers.container = {LineModifier::BLUE};
     }
 
     output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
@@ -79,7 +81,9 @@ LineWithCursor::Generator::Vector LineNumberOutput(
           return LineWithCursor{
               .line = MakeNonNullShared<Line>(std::move(line_options))};
         },
-        std::move(screen_line.range), width, std::move(modifiers))));
+        screen_line.range, output.width,
+        HashableContainer<LineModifierSet>(
+            LineModifiers(screen_line, buffer)))));
   }
   return output;
 }
