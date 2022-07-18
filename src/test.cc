@@ -17,7 +17,10 @@
 using namespace afc::editor;
 using afc::language::ConstTree;
 using afc::language::ToByteString;
+using afc::language::VectorBlock;
 using afc::language::lazy_string::ColumnNumber;
+
+using IntConstTree = ConstTree<VectorBlock<int, 128>, 128>;
 
 bool IsEmpty(EditorState* editor_state) {
   return editor_state->current_buffer()->ptr()->EndLine() == LineNumber(0) &&
@@ -52,8 +55,8 @@ void ShowList(std::list<int> l) {
   std::cout << "\n";
 }
 
-std::list<int> ToList(ConstTree<int>::Ptr tree) {
-  using T = ConstTree<int>;
+std::list<int> ToList(IntConstTree::Ptr tree) {
+  using T = IntConstTree;
   std::list<int> output;
   CHECK(T::Every(tree, [&](int v) {
     output.push_back(v);
@@ -66,7 +69,7 @@ std::list<int> ToList(ConstTree<int>::Ptr tree) {
 void TreeTestsLong() {
   srand(0);
   std::list<int> l;
-  using T = ConstTree<int>;
+  using T = IntConstTree;
   T::Ptr t;
   size_t elements = 500;
   for (size_t i = 0; i < elements; i++) {
@@ -93,12 +96,12 @@ void TreeTestsLong() {
 }
 
 void TreeTestsBasic() {
-  using T = ConstTree<int>;
+  using T = IntConstTree;
 
   T::Ptr t;
   CHECK_EQ(T::Size(t), 0ul);
 
-  t = T::Leaf(10);
+  t = T::Leaf(10).Share();
   CHECK_EQ(T::Size(t), 1ul);
   CHECK_EQ(t->Get(0), 10);
 
@@ -117,7 +120,7 @@ void TreeTestsBasic() {
   CHECK_EQ(t->Get(3), 40);
   CHECK_EQ(T::Size(t), 4ul);
 
-  t = T::Append(T::Leaf(5), t);
+  t = T::Append(T::Leaf(5).Share(), t);
   CHECK_EQ(t->Get(0), 5);
   CHECK_EQ(t->Get(1), 10);
   CHECK_EQ(t->Get(2), 20);
