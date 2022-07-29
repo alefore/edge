@@ -115,7 +115,10 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   if (functions.empty()) {
-    return Error(L"Unknown symbol: " + output_tokens[0].value);
+    Error error(L"Unknown symbol: " + function_name_prefix->ToString() +
+                output_tokens[0].value);
+    VLOG(5) << "Parse: " << error;
+    return error;
   }
 
   // Filter functions that match our type expectations.
@@ -264,6 +267,7 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
     EditorState& editor, NonNull<std::shared_ptr<LazyString>> line,
     const SearchNamespaces& search_namespaces) {
+  VLOG(7) << "ColorizeOptionsProvider: " << line->ToString();
   ColorizePromptOptions output;
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
   vm::Environment& environment =
@@ -284,30 +288,39 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   using BufferMapper = vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>;
   futures::Future<ColorizePromptOptions> output_future;
   std::visit(
-      overload{[&](Error) { output_future.consumer(std::move(output)); },
-               [&](ParsedCommand command) {
-                 Execute(buffer->ptr().value(), std::move(command))
-                     .SetConsumer([consumer = output_future.consumer, buffer,
-                                   output](ValueOrError<gc::Root<vm::Value>>
-                                               value_or_error) mutable {
-                       std::visit(overload{IgnoreErrors{},
-                                           [&](gc::Root<vm::Value> value) {
-                                             if (value.ptr()->type ==
-                                                 BufferMapper::vmtype) {
-                                               output.context =
-                                                   BufferMapper::get(
-                                                       value.ptr().value());
-                                             }
-                                           }},
-                                  std::move(value_or_error));
-                       consumer(output);
-                     });
-               }},
+      overload{
+          [&](Error error) {
+            VLOG(4) << "Parse preview error: " << error;
+            output_future.consumer(std::move(output));
+          },
+          [&](ParsedCommand command) {
+            VLOG(4) << "Successfully parsed Preview command: "
+                    << command.tokens[0].value
+                    << ", buffer: " << buffer->ptr()->name();
+            Execute(buffer->ptr().value(), std::move(command))
+                .SetConsumer([consumer = output_future.consumer, buffer,
+                              output](ValueOrError<gc::Root<vm::Value>>
+                                          value_or_error) mutable {
+                  std::visit(
+                      overload{
+                          IgnoreErrors{},
+                          [&](gc::Root<vm::Value> value) {
+                            VLOG(3) << "Successfully executed Preview command: "
+                                    << value.ptr().value();
+                            if (value.ptr()->type == BufferMapper::vmtype) {
+                              output.context =
+                                  BufferMapper::get(value.ptr().value());
+                            }
+                          }},
+                      std::move(value_or_error));
+                  consumer(output);
+                });
+          }},
       buffer.has_value()
-          ? ValueOrError<ParsedCommand>(Error(L"Buffer has no value"))
-          : Parse(editor.gc_pool(), line, environment,
+          ? Parse(editor.gc_pool(), line, environment,
                   NewLazyString(L"Preview"), {BufferMapper::vmtype},
-                  search_namespaces));
+                  search_namespaces)
+          : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
   return std::move(output_future.value);
 }
 
