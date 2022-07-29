@@ -63,6 +63,18 @@ Buffer RunCommand(string name, string command, string insertion_type) {
   return editor.ForkCommand(options);
 }
 
+Buffer Search(string query, string insertion_type) {
+  // It is important that the base command isn't `grep`: otherwise our hooks
+  // (buffer-reload.cc) will enable contains_line_marks in it.
+  Buffer search_buffer =
+      RunCommand("s: " + query,
+                 "echo Search: " + query.shell_escape() + " && grep -ni " +
+                     query.shell_escape() + " ???.md",
+                 insertion_type);
+  search_buffer.set_allow_dirty_delete(true);
+  return search_buffer;
+}
+
 Buffer TitleSearch(string query, string insertion_type) {
   auto buffer = RunCommand("t: " + query,
                            "awk '{if (tolower($0)~\"" + query.shell_escape() +
@@ -530,6 +542,7 @@ Buffer PreviewJournal(string days_to_generate, string start_day,
 
 // Open the index. index.md is expected to be a link to the main entry point.
 void I() { editor.OpenFile("index.md", true); }
+Buffer PreviewI(string query) { return editor.OpenFile("index.md", false); }
 
 void Ls() {
   internal::RunCommand("ls", "~/bin/zkls", "visit")
@@ -543,28 +556,18 @@ void Rev() {
     internal::RunCommand("rev: " + path,
                          "grep " + path.shell_escape() + " ???.md", "visit")
         .set_allow_dirty_delete(true);
-    ;
   });
   return;
 }
 
-void S(string query) {
-  internal::RunCommand("s: " + query,
-                       "grep -ni " + query.shell_escape() + " ???.md", "visit")
-      .set_allow_dirty_delete(true);
-}
+void S(string query) { internal::Search(query, "visit"); }
 
-Buffer PreviewS(string query) {
-  auto buffer = internal::RunCommand(
-      "s: " + query, "grep -ni " + query.shell_escape() + " ???.md", "ignore");
-  buffer.WaitForEndOfFile();
-  buffer.set_allow_dirty_delete(true);
-  return buffer;
-}
+Buffer PreviewS(string query) { return internal::Search(query, "ignore"); }
 
 // Receives a string and produces a list of all Zettel that include that string
 // in their title.
 void T(string query) { internal::TitleSearch(query, "visit"); }
+Buffer PreviewT(string query) { return internal::TitleSearch(query, "ignore"); }
 
 void Today() { internal::VisitFileWithTitleSearch(Now().format("%Y-%m-%d")); }
 
@@ -575,8 +578,6 @@ void Yesterday() {
 void Tomorrow() {
   internal::VisitFileWithTitleSearch(Now().AddDays(1).format("%Y-%m-%d"));
 }
-
-Buffer PreviewT(string query) { return internal::TitleSearch(query, "ignore"); }
 
 // Replaces a path (e.g., `03d.md`) with a link to it, extracting the text of
 // the link from the first line in the file (e.g. `[Bauhaus](03d.md)`).
