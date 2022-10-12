@@ -43,9 +43,12 @@ facts = []
 class FactData(object):
   def __init__(self, path, lines, clozes):
     lines = lines[1:]  # Drop the title.
-    index = lines.index("Related:\n")
-    if index != -1:
-      lines = lines[:index]
+    for end_line in ["Related:\n", "## Related\n"]:
+      try:
+        index = lines.index(end_line)
+        lines = lines[:index]
+      except:
+        pass
     contents = ' '.join(l.strip() for l in lines)
     contents = re.sub(r'\[([^]]*)\]....\.md.', r'\1', contents)
     for answer, hint in clozes:
