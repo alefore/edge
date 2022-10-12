@@ -372,7 +372,7 @@
   bool empty() const { return value.empty(); }
 
 #define GHOST_TYPE_SIZE \
-  bool size() const { return value.size(); }
+  size_t size() const { return value.size(); }
 
 #define GHOST_TYPE_EQ(ClassName, variable)        \
   bool operator==(const ClassName& other) const { \
