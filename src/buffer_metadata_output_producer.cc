@@ -195,7 +195,6 @@ Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   for (auto cursors_it = cursors.lower_bound(range.begin);
        cursors_it != cursors_end && count < kStopCount; ++cursors_it) {
     count++;
-    std::distance(cursors_it, cursors_end);
   }
 
   if (count == 0) {
