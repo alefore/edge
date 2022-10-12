@@ -222,6 +222,7 @@
     GHOST_TYPE_PUSH_BACK                                    \
     GHOST_TYPE_POP_BACK                                     \
     GHOST_TYPE_INSERT                                       \
+    GHOST_TYPE_LOWER_BOUND                                  \
     const VariableType& read() const { return value; }      \
                                                             \
    private:                                                 \
@@ -470,12 +471,33 @@
 
 // We use the template type V to use SFINAE to disable this expression on ghost
 // types of containers that don't include an insert method.
-#define GHOST_TYPE_INSERT                                          \
-  template <typename V = ContainerType>                            \
-  auto insert(ContainerType::value_type&& v) {                     \
-    std::pair<ContainerType::iterator, bool> (V::*f)(              \
-        ContainerType::value_type &&) = &V::insert;                \
-    return (value.*f)(std::forward<ContainerType::value_type>(v)); \
+#define GHOST_TYPE_INSERT                                                   \
+  template <typename V = ContainerType,                                     \
+            std::pair<ContainerType::iterator, bool> (V::*F)(               \
+                ContainerType::value_type &&) = &V::insert>                 \
+  auto insert(ContainerType::value_type&& v) {                              \
+    return (value.*F)(std::forward<ContainerType::value_type>(v));          \
+  }                                                                         \
+                                                                            \
+  template <typename V = ContainerType,                                     \
+            ContainerType::iterator (V::*F)(ContainerType::value_type &&) = \
+                &V::insert>                                                 \
+  auto insert(ContainerType::value_type&& v) {                              \
+    return (value.*F)(std::forward<ContainerType::value_type>(v));          \
+  }
+
+#define GHOST_TYPE_LOWER_BOUND                                       \
+  template <typename Key, typename V = ContainerType>                \
+  auto lower_bound(const Key& k) {                                   \
+    ContainerType::iterator (V::*f)(const Key& k) = &V::lower_bound; \
+    return (value.*f)(k);                                            \
+  }                                                                  \
+                                                                     \
+  template <typename Key, typename V = ContainerType>                \
+  auto lower_bound(const Key& k) const {                             \
+    ContainerType::const_iterator (V::*f)(const Key& k) const =      \
+        &V::lower_bound;                                             \
+    return (value.*f)(k);                                            \
   }
 
 #define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable)                      \
