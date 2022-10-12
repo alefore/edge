@@ -524,20 +524,24 @@ std::list<Box> Squash(std::list<Box> inputs, LineNumberDelta screen_size) {
   if (sum_sizes <= screen_size) return inputs;
   std::vector<Box> boxes(inputs.begin(), inputs.end());
   std::vector<size_t> indices;
+  VLOG(6) << "Pushing indices.";
   for (size_t i = 0; i < boxes.size(); i++) indices.push_back(i);
+  VLOG(6) << "Sorting indices.";
   std::sort(indices.begin(), indices.end(), [&](size_t a, size_t b) {
     return boxes[a].size > boxes[b].size ||
            (boxes[a].size == boxes[b].size && b > a);
   });
   CHECK_EQ(indices.size(), boxes.size());
+  VLOG(6) << "Starting reduction.";
   while (sum_sizes > screen_size) {
     LineNumberDelta current_size = boxes[indices[0]].size;
     for (size_t i = 0;
          i < indices.size() && boxes[indices[i]].size == current_size &&
          sum_sizes > screen_size;
          i++) {
+      VLOG(7) << "Shrinking box: " << indices[i];
       --boxes[indices[i]].size;
-      sum_sizes--;
+      --sum_sizes;
     }
   }
   return std::list<Box>(boxes.begin(), boxes.end());
@@ -546,11 +550,14 @@ std::list<Box> Squash(std::list<Box> inputs, LineNumberDelta screen_size) {
 namespace {
 std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
                                       LineNumberDelta screen_size) {
+  VLOG(4) << "Calling Squash: " << boxes.size();
   boxes = Squash(std::move(boxes), screen_size);
+  VLOG(4) << "Sum sizes: " << boxes.size();
   LineNumberDelta sum_sizes = SumSizes(boxes);
   CHECK_LE(sum_sizes, screen_size);
 
   std::list<BoxWithPosition> output;
+  VLOG(5) << "Adjusting boxes.";
   for (auto box_it = boxes.rbegin(); box_it != boxes.rend(); ++box_it) {
     sum_sizes -= box_it->size;
     LineNumber position = std::max(
@@ -568,7 +575,9 @@ bool find_layout_tests_registration =
                            LineNumberDelta size,
                            std::list<BoxWithPosition> expected_output) {
         return tests::Test{.name = name, .callback = [=] {
+                             LOG(INFO) << "Finding layout...";
                              auto output = FindLayout(input, size);
+                             LOG(INFO) << "Found layout: " << output.size();
                              CHECK_EQ(output.size(), expected_output.size());
                              auto it_output = output.begin();
                              auto it_expected_output = expected_output.begin();
