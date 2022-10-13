@@ -1477,6 +1477,10 @@ OpenBuffer::current_zoomed_out_parse_tree(LineNumberDelta view_size) const {
                                                              lines_size());
 }
 
+const VisualOverlayMap& OpenBuffer::visual_overlay_map() const {
+  return visual_overlay_map_;
+}
+
 std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
   return std::make_unique<BufferTerminal>(*this, contents_);
 }

@@ -31,6 +31,7 @@
 #include "src/transformation.h"
 #include "src/transformation/type.h"
 #include "src/variables.h"
+#include "src/visual_overlay.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -477,6 +478,8 @@ class OpenBuffer {
   language::NonNull<std::shared_ptr<const ParseTree>>
   current_zoomed_out_parse_tree(LineNumberDelta lines) const;
 
+  const VisualOverlayMap& visual_overlay_map() const;
+
  private:
   // Code that would normally be in the constructor, but which may require the
   // use of `shared_from_this`. This function will be called by `New` after the
@@ -544,6 +547,7 @@ class OpenBuffer {
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
   BufferContents contents_;
+  VisualOverlayMap visual_overlay_map_;
 
   DiskState disk_state_ = DiskState::kCurrent;
   DiskState backup_state_ = DiskState::kCurrent;
