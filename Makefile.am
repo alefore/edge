@@ -262,6 +262,7 @@ src/transformation.h \
 src/url.cc \
 src/url.h \
 src/variables.h \
+src/visual_overlay.h \
 src/vm/public/container.h \
 src/vm/public/escape.h \
 src/vm/public/optional.h \
