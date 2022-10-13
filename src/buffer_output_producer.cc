@@ -29,6 +29,66 @@ using language::WithHash;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 
+LineWithCursor::Generator ApplyVisualOverlay(
+    VisualOverlayMap overlays, LineWithCursor::Generator generator) {
+  return LineWithCursor::Generator{
+      std::nullopt, [overlays, generator]() {
+        auto output = generator.generate();
+        Line::Options line_options = output.line->CopyOptions();
+        std::map<ColumnNumber, LineModifierSet> output_modifiers;
+        auto original_it = line_options.modifiers.begin();
+        auto overlays_it = overlays.begin();
+        while (original_it != line_options.modifiers.end() ||
+               (overlays_it != overlays.end() &&
+                overlays_it->first.column <= line_options.EndColumn())) {
+          if (overlays_it == overlays.end() ||
+              (original_it != line_options.modifiers.end() &&
+               original_it->first < overlays_it->first.column)) {
+            output_modifiers[original_it->first] = original_it->second;
+            ++original_it;
+            continue;
+          }
+
+          ColumnNumber end = overlays_it->first.column +
+                             (overlays_it->second.content == nullptr
+                                  ? ColumnNumberDelta(1)
+                                  : overlays_it->second.content->size());
+          output_modifiers[overlays_it->first.column] =
+              overlays_it->second.modifiers;
+          if (end <= line_options.EndColumn()) {
+            // The largest greater than or equal to end.
+            auto previous_it = line_options.modifiers.lower_bound(end);
+            if (previous_it == line_options.modifiers.end() &&
+                !line_options.modifiers.empty()) {
+              previous_it--;  // All are smaller than end. Pick the very last.
+            } else if (previous_it->first == end) {
+              // We found an exact switch, we're all set.
+            } else if (previous_it == line_options.modifiers.begin()) {
+              CHECK_GT(previous_it->first, end);
+              // Nothing before what we found; don't apply any modifiers.
+              previous_it = line_options.modifiers.end();
+            } else {
+              // Go back to the preceding one.
+              previous_it--;
+            }
+            CHECK(previous_it == line_options.modifiers.end() ||
+                  previous_it->first <= end);
+
+            output_modifiers[end] = previous_it == line_options.modifiers.end()
+                                        ? LineModifierSet{}
+                                        : previous_it->second;
+          }
+          while (original_it != line_options.modifiers.end() &&
+                 original_it->first < end)
+            ++original_it;
+          ++overlays_it;
+        }
+        line_options.modifiers = output_modifiers;
+        output.line = MakeNonNullShared<Line>(std::move(line_options));
+        return output;
+      }};
+}
+
 // Use to highlight entire lines (for variable `atomic_lines`).
 LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
@@ -274,6 +334,23 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     if (buffer.Read(buffer_variables::atomic_lines) &&
         buffer.active_cursors().cursors_in_line(line)) {
       generator = LineHighlighter(std::move(generator));
+    }
+
+    if (auto overlay_it =
+            buffer.visual_overlay_map().lower_bound(screen_line.range.begin);
+        overlay_it != buffer.visual_overlay_map().end() &&
+        overlay_it->first < screen_line.range.end) {
+      VisualOverlayMap overlays;
+      while (overlay_it != buffer.visual_overlay_map().end() &&
+             overlay_it->first < screen_line.range.end) {
+        CHECK_EQ(overlay_it->first.line, screen_line.range.end.line);
+        CHECK_GE(overlay_it->first.column, screen_line.range.begin.column);
+        overlays.insert(std::make_pair(
+            overlay_it->first - screen_line.range.begin.column.ToDelta(),
+            overlay_it->second));
+        ++overlay_it;
+      }
+      generator = ApplyVisualOverlay(std::move(overlays), std::move(generator));
     }
 
     output.lines.push_back(generator);
