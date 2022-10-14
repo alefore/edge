@@ -144,9 +144,8 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
                   .content =
                       std::move(NewLazyString(ColumnNumberDelta(1), match.first)
                                     .get_unique()),
-                  .modifiers = LineModifierSet{LineModifier::UNDERLINE,
-                                               LineModifier::REVERSE,
-                                               LineModifier::CYAN}}));
+                  .modifiers = LineModifierSet{LineModifier::REVERSE,
+                                               LineModifier::WHITE}}));
         }
       }
       return futures::Past(Output(VisualOverlay(std::move(overlays))));
