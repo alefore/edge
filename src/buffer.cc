@@ -1481,6 +1481,12 @@ const VisualOverlayMap& OpenBuffer::visual_overlay_map() const {
   return visual_overlay_map_;
 }
 
+VisualOverlayMap OpenBuffer::SetVisualOverlayMap(VisualOverlayMap value) {
+  VisualOverlayMap previous_value = std::move(visual_overlay_map_);
+  visual_overlay_map_ = std::move(value);
+  return previous_value;
+}
+
 std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
   return std::make_unique<BufferTerminal>(*this, contents_);
 }

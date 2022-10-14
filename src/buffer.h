@@ -479,6 +479,8 @@ class OpenBuffer {
   current_zoomed_out_parse_tree(LineNumberDelta lines) const;
 
   const VisualOverlayMap& visual_overlay_map() const;
+  // Returns the previous value.
+  VisualOverlayMap SetVisualOverlayMap(VisualOverlayMap value);
 
  private:
   // Code that would normally be in the constructor, but which may require the
