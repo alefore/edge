@@ -134,6 +134,8 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
         }
         return futures::Past(std::move(output));
       }
+      if (input.mode == transformation::Input::Mode::kFinal)
+        return futures::Past(Output());
       VisualOverlayMap overlays;
       for (std::pair<Identifier, std::map<Identifier, LineColumn>> group :
            matches) {

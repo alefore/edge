@@ -475,7 +475,7 @@ bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
 }
 
 bool ReceiveInput(CommandReachQuery* output, wint_t c, State*) {
-  if (c == '\n') return false;
+  if (c == '\n' || c == Terminal::ESCAPE) return false;
   if (static_cast<int>(c) == Terminal::BACKSPACE) {
     if (output->query.empty()) return false;
     output->query.pop_back();
