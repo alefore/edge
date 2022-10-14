@@ -22,10 +22,11 @@ class ModifiersAndComposite;
 class Repetitions;
 class Stack;
 class SwapActiveCursor;
+class VisualOverlay;
 
-using Variant =
-    std::variant<Delete, ModifiersAndComposite, CompositePtr, Cursors, Insert,
-                 Repetitions, SetPosition, Stack, SwapActiveCursor>;
+using Variant = std::variant<Delete, ModifiersAndComposite, CompositePtr,
+                             Cursors, Insert, Repetitions, SetPosition, Stack,
+                             SwapActiveCursor, VisualOverlay>;
 }  // namespace transformation
 }  // namespace afc::editor
 
@@ -33,6 +34,7 @@ using Variant =
 #include "src/transformation/composite.h"
 #include "src/transformation/repetitions.h"
 #include "src/transformation/stack.h"
+#include "src/transformation/visual_overlay.h"
 
 namespace afc::editor::transformation {
 void Register(vm::Environment* environment);

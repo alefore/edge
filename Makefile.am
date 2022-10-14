@@ -243,6 +243,8 @@ src/transformation/move.cc \
 src/transformation/move.h \
 src/transformation/noop.cc \
 src/transformation/noop.h \
+src/transformation/reach_query.cc \
+src/transformation/reach_query.h \
 src/transformation/repetitions.cc \
 src/transformation/repetitions.h \
 src/transformation/set_position.cc \
@@ -255,6 +257,8 @@ src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
 src/transformation/type.cc \
 src/transformation/type.h \
+src/transformation/visual_overlay.cc \
+src/transformation/visual_overlay.h \
 src/transformation/vm.cc \
 src/transformation/vm.h \
 src/transformation.cc \
