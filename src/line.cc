@@ -128,6 +128,28 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
   }
 }
 
+namespace {
+const bool line_set_character_tests_registration = tests::Register(
+    L"LineTestsSetCharacter",
+    {{.name = L"ConsecutiveSets", .callback = [] {
+        Line::Options options;
+        options.AppendString(std::wstring(L"ALEJANDRO"), std::nullopt);
+        CHECK(options.contents->ToString() == L"ALEJANDRO");
+        CHECK(options.modifiers.empty());
+
+        options.SetCharacter(ColumnNumber(0), L'a',
+                             LineModifierSet{LineModifier::BOLD});
+        options.SetCharacter(ColumnNumber(1), L'l',
+                             LineModifierSet{LineModifier::BOLD});
+        CHECK(options.contents->ToString() == L"alEJANDRO");
+        CHECK_EQ(options.modifiers.size(), 2ul);
+        CHECK_EQ(options.modifiers.find(ColumnNumber(0))->second,
+                 LineModifierSet{LineModifier::BOLD});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(2))->second,
+                 LineModifierSet{});
+      }}});
+}  // namespace
+
 void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
   contents = lazy_string::Append(
