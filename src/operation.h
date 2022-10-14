@@ -78,14 +78,13 @@ struct CommandReachPage {
   CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(0);
 };
 
-// Finds occurrences of a given character in the current line.
-struct CommandReachChar {
-  std::optional<wchar_t> c = std::nullopt;
-  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(1);
+// Finds occurrences of a given string.
+struct CommandReachQuery {
+  std::wstring query;
 };
 
 using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
-                             CommandReachPage, CommandReachChar>;
+                             CommandReachPage, CommandReachQuery>;
 
 language::NonNull<std::unique_ptr<afc::editor::Command>> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,

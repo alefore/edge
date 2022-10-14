@@ -15,6 +15,7 @@
 #include "src/transformation/delete.h"
 #include "src/transformation/move.h"
 #include "src/transformation/noop.h"
+#include "src/transformation/reach_query.h"
 #include "src/transformation/stack.h"
 
 namespace afc::editor::operation {
@@ -81,9 +82,8 @@ std::wstring ToStatus(const CommandReachPage& reach_line) {
                        {reach_line.repetitions.ToString()});
 }
 
-std::wstring ToStatus(const CommandReachChar& c) {
-  return SerializeCall(
-      L"Char", {std::wstring(1, c.c.value_or(L'…')), c.repetitions.ToString()});
+std::wstring ToStatus(const CommandReachQuery& c) {
+  return SerializeCall(L"Query", {c.query.empty() ? L"…" : c.query});
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -169,16 +169,12 @@ transformation::Stack GetTransformation(CommandReachPage reach_page) {
   return transformation;
 }
 
-transformation::Stack GetTransformation(CommandReachChar reach_char) {
+transformation::Stack GetTransformation(CommandReachQuery reach_query) {
+  if (reach_query.query.empty()) return transformation::Stack{};
   transformation::Stack transformation;
-  if (!reach_char.c.has_value()) return transformation;
-  for (int repetitions : reach_char.repetitions.get_list()) {
-    transformation.PushBack(transformation::ModifiersAndComposite{
-        .modifiers =
-            GetModifiers(StructureChar(), repetitions, Direction::kForwards),
-        .transformation =
-            MakeNonNullUnique<FindTransformation>(reach_char.c.value())});
-  }
+  transformation.PushBack(
+      MakeNonNullUnique<transformation::ReachQueryTransformation>(
+          reach_query.query));
   return transformation;
 }
 
@@ -478,18 +474,18 @@ bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
   return false;
 }
 
-bool ReceiveInput(CommandReachChar* output, wint_t c, State* state) {
+bool ReceiveInput(CommandReachQuery* output, wint_t c, State*) {
   if (c == '\n') return false;
-  if (!output->c.has_value()) {
-    output->c = c;
+  if (static_cast<int>(c) == Terminal::BACKSPACE) {
+    if (output->query.empty()) return false;
+    output->query.pop_back();
     return true;
   }
-  if (c == L' ') {
-    state->Push(CommandReach());
+  if (output->query.size() < 3) {
+    output->query.push_back(c);
     return true;
   }
-  return CheckIncrementsChar(c, &output->repetitions) ||
-         CheckRepetitionsChar(c, &output->repetitions);
+  return false;
 }
 
 class OperationMode : public EditorMode {
@@ -613,11 +609,7 @@ class OperationMode : public EditorMode {
         state_.set_top_command(top_command);
         return true;
       case L'f':
-        state_.Push(CommandReachChar{});
-        return true;
-      case L'F':
-        state_.Push(CommandReachChar{
-            .repetitions = operation::CommandArgumentRepetitions(-1)});
+        state_.Push(CommandReachQuery{});
         return true;
       case Terminal::PAGE_DOWN:
       case Terminal::PAGE_UP:

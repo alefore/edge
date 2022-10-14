@@ -705,17 +705,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                           L"reaches the next occurrence of a specific "
                           L"character in the current line",
                           operation::TopCommand(), editor_state,
-                          {operation::CommandReachChar{}}));
-  commands->Add(
-      L"F",
-      operation::NewTopLevelCommand(
-          L"find",
-          L"reaches the previous occurrence of a specific "
-          L"character in the current line",
-          operation::TopCommand(), editor_state,
-          {operation::CommandReachChar{
-              .repetitions = operation::CommandArgumentRepetitions(-1)}}));
-
+                          {operation::CommandReachQuery{}}));
   commands->Add(L"r", operation::NewTopLevelCommand(
                           L"reach", L"starts a new reach command",
                           operation::TopCommand(), editor_state, {}));
