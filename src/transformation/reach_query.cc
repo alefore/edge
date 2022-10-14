@@ -5,12 +5,14 @@
 #include "src/buffer_variables.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/wstring.h"
 #include "src/visual_overlay.h"
 
 namespace afc::editor::transformation {
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
+using ::operator<<;
 
 namespace {
 static const ColumnNumberDelta kQueryLength = ColumnNumberDelta(2);
@@ -59,15 +61,18 @@ bool FindSyntheticIdentifier(LineColumn position, const OpenBuffer& buffer,
       L"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const Line& line = GetLine(position, buffer);
   const Identifier first_identifier =
-      line.get(position.column + ColumnNumberDelta(1));
+      std::tolower(line.get(position.column + ColumnNumberDelta(1)));
   const Identifier desired_identifier =
       line.get(position.column + ColumnNumberDelta(2));
   size_t start_position = kIdentifiers.find_first_of(desired_identifier);
   for (size_t i = 0; i < kIdentifiers.size(); i++) {
     Identifier candidate =
         kIdentifiers[(start_position + i) % kIdentifiers.size()];
-    if (output[first_identifier].insert({candidate, position}).second)
+    if (output[first_identifier].insert({candidate, position}).second) {
+      VLOG(5) << "Found synthetic identifier: " << static_cast<int>(candidate)
+              << ": " << position;
       return true;
+    }
   }
   return false;
 }
@@ -120,8 +125,10 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
       if (ColumnNumberDelta(query_.size()) ==
           kQueryLength + ColumnNumberDelta(1)) {
         Output output(VisualOverlay(VisualOverlayMap{}));
-        if (auto it = matches[query_[1]].find(query_[kQueryLength.read()]);
-            it != matches[query_[1]].end()) {
+        VLOG(4) << "Searching for: " << query_;
+        if (auto it = matches[std::tolower(query_[1])].find(
+                query_[kQueryLength.read()]);
+            it != matches[std::tolower(query_[1])].end()) {
           LOG(INFO) << "Found destination:  " << it->second;
           output.Push(SetPosition(it->second));
         }
