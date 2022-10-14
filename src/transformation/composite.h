@@ -48,6 +48,7 @@ class CompositeTransformation {
     Output(transformation::Variant transformation);
     void Push(transformation::Variant transformation);
 
+    // TODO(easy, 2022-10-13): Why is this a unique_ptr? Inline.
     std::unique_ptr<transformation::Stack> stack;
   };
   virtual futures::Value<Output> Apply(Input input) const = 0;
