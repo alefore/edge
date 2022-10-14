@@ -114,23 +114,32 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
 
   metadata = std::nullopt;
 
-  // Modifiers that would be used at column (before this call to SetCharacter).
-  // We may need to make sure they get applied at column + 1.
-  LineModifierSet previous_modifiers;
-  if (!modifiers.empty() && modifiers.begin()->first <= column) {
-    // Smallest entry greater than or equal to column.
-    auto it = modifiers.lower_bound(column);
-    if (it == modifiers.end() || it->first > column) --it;
-    previous_modifiers = it->second;
-  }
-  if (c_modifiers != previous_modifiers) {
-    modifiers[column] = c_modifiers;
-    if (column + ColumnNumberDelta(1) < EndColumn()) {
-      // We only insert if no value was already present.
-      modifiers.insert({column + ColumnNumberDelta(1), previous_modifiers});
-    }
-    ValidateInvariants();
-  }
+  // Return the modifiers that are effective at a given position.
+  auto Read = [&](ColumnNumber position) -> LineModifierSet {
+    if (modifiers.empty() || modifiers.begin()->first > position) return {};
+    auto it = modifiers.lower_bound(position);
+    if (it == modifiers.end() || it->first > position) --it;
+    return it->second;
+  };
+
+  auto Set = [&](ColumnNumber position, LineModifierSet value) {
+    LineModifierSet previous_value =
+        position.IsZero() ? LineModifierSet{}
+                          : Read(position - ColumnNumberDelta(1));
+    if (previous_value == value)
+      modifiers.erase(position);
+    else
+      modifiers[position] = value;
+  };
+
+  ColumnNumber after_column = column + ColumnNumberDelta(1);
+  LineModifierSet modifiers_after_column = Read(after_column);
+
+  Set(column, c_modifiers);
+
+  if (after_column < EndColumn()) Set(after_column, modifiers_after_column);
+
+  ValidateInvariants();
 
   for (std::pair<ColumnNumber, LineModifierSet> entry : modifiers)
     VLOG(5) << "Modifiers: " << entry.first << ": " << entry.second;
@@ -145,71 +154,78 @@ const bool line_set_character_tests_registration = tests::Register(
         CHECK(options.contents->ToString() == L"ALEJANDRO");
         CHECK(options.modifiers.empty());
 
-        options.SetCharacter(ColumnNumber(0), L'a',
-                             LineModifierSet{LineModifier::BOLD});
-        CHECK(options.contents->ToString() == L"aLEJANDRO");
-        CHECK_EQ(options.modifiers.size(), 2ul);
-        CHECK_EQ(options.modifiers.find(ColumnNumber(0))->second,
-                 LineModifierSet{LineModifier::BOLD});
-        CHECK_EQ(options.modifiers.find(ColumnNumber(1))->second,
-                 LineModifierSet{});
-
         options.SetCharacter(ColumnNumber(1), L'l',
                              LineModifierSet{LineModifier::BOLD});
-        CHECK(options.contents->ToString() == L"alEJANDRO");
-        CHECK_EQ(options.modifiers.size(), 3ul);
-        CHECK_EQ(options.modifiers.find(ColumnNumber(0))->second,
-                 LineModifierSet{LineModifier::BOLD});
+        CHECK(options.contents->ToString() == L"AlEJANDRO");
+        CHECK_EQ(options.modifiers.size(), 2ul);
         CHECK_EQ(options.modifiers.find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::BOLD});
         CHECK_EQ(options.modifiers.find(ColumnNumber(2))->second,
                  LineModifierSet{});
 
         options.SetCharacter(ColumnNumber(2), L'e',
-                             LineModifierSet{LineModifier::UNDERLINE});
-        CHECK(options.contents->ToString() == L"aleJANDRO");
-        CHECK_EQ(options.modifiers.size(), 4ul);
-        CHECK_EQ(options.modifiers.find(ColumnNumber(0))->second,
-                 LineModifierSet{LineModifier::BOLD});
+                             LineModifierSet{LineModifier::BOLD});
+        CHECK(options.contents->ToString() == L"AleJANDRO");
+        CHECK_EQ(options.modifiers.size(), 2ul);
         CHECK_EQ(options.modifiers.find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::BOLD});
-        CHECK_EQ(options.modifiers.find(ColumnNumber(2))->second,
-                 LineModifierSet{LineModifier::UNDERLINE});
         CHECK_EQ(options.modifiers.find(ColumnNumber(3))->second,
-                 LineModifierSet{});
-
-        options.SetCharacter(ColumnNumber(4), L'a',
-                             LineModifierSet{LineModifier::BLUE});
-        CHECK(options.contents->ToString() == L"aleJaNDRO");
-        CHECK_EQ(options.modifiers.size(), 6ul);
-        CHECK_EQ(options.modifiers.find(ColumnNumber(0))->second,
-                 LineModifierSet{LineModifier::BOLD});
-        CHECK_EQ(options.modifiers.find(ColumnNumber(1))->second,
-                 LineModifierSet{LineModifier::BOLD});
-        CHECK_EQ(options.modifiers.find(ColumnNumber(2))->second,
-                 LineModifierSet{LineModifier::UNDERLINE});
-        CHECK_EQ(options.modifiers.find(ColumnNumber(3))->second,
-                 LineModifierSet{});
-        CHECK_EQ(options.modifiers.find(ColumnNumber(4))->second,
-                 LineModifierSet{LineModifier::BLUE});
-        CHECK_EQ(options.modifiers.find(ColumnNumber(5))->second,
                  LineModifierSet{});
 
         options.SetCharacter(ColumnNumber(3), L'j',
-                             LineModifierSet{LineModifier::RED});
-        CHECK(options.contents->ToString() == L"alejaNDRO");
-        CHECK_EQ(options.modifiers.size(), 6ul);
-        CHECK_EQ(options.modifiers.find(ColumnNumber(0))->second,
-                 LineModifierSet{LineModifier::BOLD});
+                             LineModifierSet{LineModifier::UNDERLINE});
+        CHECK(options.contents->ToString() == L"AlejANDRO");
+        CHECK_EQ(options.modifiers.size(), 3ul);
         CHECK_EQ(options.modifiers.find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::BOLD});
-        CHECK_EQ(options.modifiers.find(ColumnNumber(2))->second,
-                 LineModifierSet{LineModifier::UNDERLINE});
         CHECK_EQ(options.modifiers.find(ColumnNumber(3))->second,
-                 LineModifierSet{LineModifier::RED});
+                 LineModifierSet{LineModifier::UNDERLINE});
         CHECK_EQ(options.modifiers.find(ColumnNumber(4))->second,
-                 LineModifierSet{LineModifier::BLUE});
+                 LineModifierSet{});
+
+        options.SetCharacter(ColumnNumber(5), L'n',
+                             LineModifierSet{LineModifier::BLUE});
+        CHECK(options.contents->ToString() == L"AlejAnDRO");
+        CHECK_EQ(options.modifiers.size(), 5ul);
+        CHECK_EQ(options.modifiers.find(ColumnNumber(1))->second,
+                 LineModifierSet{LineModifier::BOLD});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(3))->second,
+                 LineModifierSet{LineModifier::UNDERLINE});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(4))->second,
+                 LineModifierSet{});
         CHECK_EQ(options.modifiers.find(ColumnNumber(5))->second,
+                 LineModifierSet{LineModifier::BLUE});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(6))->second,
+                 LineModifierSet{});
+
+        options.SetCharacter(ColumnNumber(4), L'a',
+                             LineModifierSet{LineModifier::RED});
+        CHECK(options.contents->ToString() == L"AlejanDRO");
+        CHECK_EQ(options.modifiers.size(), 5ul);
+        CHECK_EQ(options.modifiers.find(ColumnNumber(1))->second,
+                 LineModifierSet{LineModifier::BOLD});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(3))->second,
+                 LineModifierSet{LineModifier::UNDERLINE});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(4))->second,
+                 LineModifierSet{LineModifier::RED});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(5))->second,
+                 LineModifierSet{LineModifier::BLUE});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(6))->second,
+                 LineModifierSet{});
+
+        options.SetCharacter(ColumnNumber(0), L'a',
+                             LineModifierSet{LineModifier::BOLD});
+        CHECK(options.contents->ToString() == L"alejanDRO");
+        CHECK_EQ(options.modifiers.size(), 5ul);
+        CHECK_EQ(options.modifiers.find(ColumnNumber(0))->second,
+                 LineModifierSet{LineModifier::BOLD});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(3))->second,
+                 LineModifierSet{LineModifier::UNDERLINE});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(4))->second,
+                 LineModifierSet{LineModifier::RED});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(5))->second,
+                 LineModifierSet{LineModifier::BLUE});
+        CHECK_EQ(options.modifiers.find(ColumnNumber(6))->second,
                  LineModifierSet{});
       }}});
 }  // namespace
