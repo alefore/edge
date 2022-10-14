@@ -11,6 +11,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
+#include "src/language/lazy_string/substring.h"
 #include "src/line.h"
 #include "src/line_column.h"
 #include "src/parse_tree.h"
@@ -25,9 +26,11 @@ using language::hash_combine;
 using language::MakeNonNullShared;
 using language::MakeWithHash;
 using language::NonNull;
+using language::VisitPointer;
 using language::WithHash;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
 
 LineWithCursor::Generator ApplyVisualOverlay(
     VisualOverlayMap overlays, LineWithCursor::Generator generator) {
@@ -35,55 +38,22 @@ LineWithCursor::Generator ApplyVisualOverlay(
       std::nullopt, [overlays, generator]() {
         auto output = generator.generate();
         Line::Options line_options = output.line->CopyOptions();
-        std::map<ColumnNumber, LineModifierSet> output_modifiers;
-        auto original_it = line_options.modifiers.begin();
-        auto overlays_it = overlays.begin();
-        while (original_it != line_options.modifiers.end() ||
-               (overlays_it != overlays.end() &&
-                overlays_it->first.column <= line_options.EndColumn())) {
-          if (overlays_it == overlays.end() ||
-              (original_it != line_options.modifiers.end() &&
-               original_it->first < overlays_it->first.column)) {
-            output_modifiers[original_it->first] = original_it->second;
-            ++original_it;
-            continue;
+        for (std::pair<LineColumn, VisualOverlay> overlay : overlays) {
+          ColumnNumber column = overlay.first.column;
+          NonNull<std::shared_ptr<LazyString>> content = VisitPointer(
+              overlay.second.content,
+              [](NonNull<std::shared_ptr<LazyString>> input) { return input; },
+              [&] {
+                return Substring(line_options.contents, column,
+                                 ColumnNumberDelta(1));
+              });
+          for (ColumnNumberDelta i; i < content->size(); ++i) {
+            line_options.SetCharacter(column + i,
+                                      content->get(ColumnNumber() + i),
+                                      overlay.second.modifiers);
           }
-
-          ColumnNumber end = overlays_it->first.column +
-                             (overlays_it->second.content == nullptr
-                                  ? ColumnNumberDelta(1)
-                                  : overlays_it->second.content->size());
-          output_modifiers[overlays_it->first.column] =
-              overlays_it->second.modifiers;
-          if (end <= line_options.EndColumn()) {
-            // The largest greater than or equal to end.
-            auto previous_it = line_options.modifiers.lower_bound(end);
-            if (previous_it == line_options.modifiers.end() &&
-                !line_options.modifiers.empty()) {
-              previous_it--;  // All are smaller than end. Pick the very last.
-            } else if (previous_it->first == end) {
-              // We found an exact switch, we're all set.
-            } else if (previous_it == line_options.modifiers.begin()) {
-              CHECK_GT(previous_it->first, end);
-              // Nothing before what we found; don't apply any modifiers.
-              previous_it = line_options.modifiers.end();
-            } else {
-              // Go back to the preceding one.
-              previous_it--;
-            }
-            CHECK(previous_it == line_options.modifiers.end() ||
-                  previous_it->first <= end);
-
-            output_modifiers[end] = previous_it == line_options.modifiers.end()
-                                        ? LineModifierSet{}
-                                        : previous_it->second;
-          }
-          while (original_it != line_options.modifiers.end() &&
-                 original_it->first < end)
-            ++original_it;
-          ++overlays_it;
         }
-        line_options.modifiers = output_modifiers;
+
         output.line = MakeNonNullShared<Line>(std::move(line_options));
         return output;
       }};
