@@ -27,7 +27,7 @@ std::vector<LineColumn> FindPositions(const std::wstring& query,
       buffer.display_data().view_size().Get();
   if (view_size == std::nullopt) return output;
   LineNumber end_line = view_start.line + view_size->line;
-  while (view_start.line <= end_line) {
+  while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
     const Line& line = GetLine(view_start, buffer);
     while (view_start.column + std::max(kQueryLength + ColumnNumberDelta(1),
                                         ColumnNumberDelta(query.size())) <=
