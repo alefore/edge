@@ -641,8 +641,8 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
       .generate_contents =
           std::bind_front(GenerateContents, std::ref(editor_state),
                           options.environment, command_data),
-      .describe_status = [command_data](const OpenBuffer& buffer) {
-        return Flags(command_data.value(), buffer);
+      .describe_status = [command_data](const OpenBuffer& buffer_arg) {
+        return Flags(command_data.value(), buffer_arg);
       }});
   buffer.ptr()->Set(
       buffer_variables::children_path,
