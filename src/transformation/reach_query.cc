@@ -9,6 +9,7 @@
 #include "src/visual_overlay.h"
 
 namespace afc::editor::transformation {
+using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
@@ -90,7 +91,7 @@ PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
     const Line& line = GetLine(position, buffer);
     const Identifier desired_identifier =
         line.get(position.column + kQueryLength);
-    if (!output[line.get(position.column + ColumnNumberDelta(1))]
+    if (!output[std::tolower(line.get(position.column + ColumnNumberDelta(1)))]
              .insert({desired_identifier, position})
              .second)
       pending.push_back(position);
@@ -113,54 +114,74 @@ std::wstring ReachQueryTransformation::Serialize() const {
   return L"ReachQueryTransformation()";
 }
 
+futures::Value<CompositeTransformation::Output> GoTo(
+    std::optional<LineColumn> position) {
+  CompositeTransformation::Output output(VisualOverlay{VisualOverlayMap{}});
+  VisitPointer(
+      position, [&](LineColumn value) { output.Push(SetPosition(value)); },
+      [] {});
+  return futures::Past(std::move(output));
+}
+
 futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     CompositeTransformation::Input input) const {
-  if (query_.empty()) return futures::Past(Output());
+  if (query_.empty() ||
+      ColumnNumberDelta(query_.size()) > kQueryLength + ColumnNumberDelta(1))
+    return futures::Past(Output());
 
-  if (ColumnNumberDelta(query_.size()) <= kQueryLength + ColumnNumberDelta(1)) {
-    if (PositionIdentifierMap matches = FindIdentifiers(
-            FindPositions(query_.substr(0, kQueryLength.read()), input.buffer),
-            input.buffer);
-        !matches.empty()) {
-      if (ColumnNumberDelta(query_.size()) ==
-          kQueryLength + ColumnNumberDelta(1)) {
-        Output output(VisualOverlay(VisualOverlayMap{}));
-        VLOG(4) << "Searching for: " << query_;
-        if (auto it = matches[std::tolower(query_[1])].find(
-                query_[kQueryLength.read()]);
-            it != matches[std::tolower(query_[1])].end()) {
-          LOG(INFO) << "Found destination:  " << it->second;
-          output.Push(SetPosition(it->second));
-        }
-        return futures::Past(std::move(output));
-      }
-      if (input.mode == transformation::Input::Mode::kFinal)
-        return futures::Past(Output());
-      VisualOverlayMap overlays;
-      for (std::pair<Identifier, std::map<Identifier, LineColumn>> group :
-           matches) {
-        for (std::pair<Identifier, LineColumn> match : group.second) {
-          const Line& line = GetLine(match.second, input.buffer);
-          overlays.insert(std::make_pair(
-              match.second,
-              afc::editor::VisualOverlay{
-                  .content = line.Substring(match.second.column, kQueryLength)
-                                 .get_shared(),
-                  .modifiers = {LineModifier::UNDERLINE}}));
-          overlays.insert(std::make_pair(
-              match.second + kQueryLength,
-              afc::editor::VisualOverlay{
-                  .content =
-                      std::move(NewLazyString(ColumnNumberDelta(1), match.first)
-                                    .get_unique()),
-                  .modifiers = LineModifierSet{LineModifier::REVERSE,
-                                               LineModifier::WHITE}}));
-        }
-      }
-      return futures::Past(Output(VisualOverlay(std::move(overlays))));
-    }
+  PositionIdentifierMap matches = FindIdentifiers(
+      FindPositions(query_.substr(0, kQueryLength.read()), input.buffer),
+      input.buffer);
+
+  LOG(INFO) << "Found matches: " << matches.size();
+
+  if (matches.empty()) return futures::Past(Output());
+
+  if (matches.size() == 1 && matches.begin()->second.size() == 1) {
+    return GoTo(matches.begin()->second.begin()->second);
   }
 
-  return futures::Past(Output());
+  if (ColumnNumberDelta(query_.size()) == kQueryLength + ColumnNumberDelta(1)) {
+    std::map<Identifier, LineColumn>& dictionary =
+        matches[std::tolower(query_[1])];
+    LOG(INFO) << "Query is done, possibilities: " << dictionary.size();
+    Identifier id = query_[kQueryLength.read()];
+    auto it = dictionary.find(id);
+    if (it == dictionary.end()) {
+      Identifier replace_id =
+          std::isupper(id) ? std::tolower(id) : std::toupper(id);
+      it = dictionary.find(replace_id);
+      LOG(INFO) << "Looking for suplemental match: "
+                << std::wstring(1, replace_id) << ": "
+                << (it == dictionary.end() ? "fail" : "success");
+    }
+    return GoTo(it == dictionary.end() ? std::nullopt
+                                       : std::make_optional(it->second));
+  }
+
+  if (input.mode == transformation::Input::Mode::kFinal)
+    return futures::Past(Output());
+  VisualOverlayMap overlays;
+  for (std::pair<Identifier, std::map<Identifier, LineColumn>> group :
+       matches) {
+    for (std::pair<Identifier, LineColumn> match : group.second) {
+      const Line& line = GetLine(match.second, input.buffer);
+      overlays.insert(std::make_pair(
+          match.second,
+          afc::editor::VisualOverlay{
+              .content = line.Substring(match.second.column, kQueryLength)
+                             .get_shared(),
+              .modifiers = {LineModifier::UNDERLINE}}));
+      overlays.insert(std::make_pair(
+          match.second + kQueryLength,
+          afc::editor::VisualOverlay{
+              .content =
+                  std::move(NewLazyString(ColumnNumberDelta(1), match.first)
+                                .get_unique()),
+              .modifiers = LineModifierSet{LineModifier::REVERSE,
+                                           LineModifier::WHITE}}));
+    }
+  }
+  return futures::Past(Output(VisualOverlay(std::move(overlays))));
 }
 }  // namespace afc::editor::transformation
