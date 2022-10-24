@@ -127,7 +127,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
               options.Append(GeneratePadding(
                   *columns_vector->columns[i].padding[line.read()],
                   padding_needed));
-            } else {
+            } else if (padding_needed > ColumnNumberDelta(0)) {
               options.AppendString(Padding(padding_needed, L' '),
                                    current_modifiers);
             }
