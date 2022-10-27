@@ -57,6 +57,7 @@ using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
+using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 using vm::EvaluationOutput;
 using vm::ObjectType;
@@ -465,6 +466,39 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                 });
           }));
 
+  buffer_object_type->AddField(
+      L"LineMetadataString",
+      vm::Value::NewFunction(
+          pool, PurityType::kPure,
+          {VMType::String(), buffer_object_type->type(), VMType::Int()},
+          [&pool](std::vector<gc::Root<vm::Value>> args,
+                  Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
+            CHECK_EQ(args.size(), 2ul);
+            auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
+                args[0].ptr().value());
+            language::NonNull<std::shared_ptr<const Line>> line =
+                buffer.ptr()->contents().at(
+                    LineNumber(args[1].ptr()->get_int()));
+            return std::visit(
+                overload{
+                    [](Error error) -> futures::ValueOrError<EvaluationOutput> {
+                      return futures::Past(
+                          ValueOrError<EvaluationOutput>(std::move(error)));
+                    },
+                    [&pool](
+                        futures::ListenableValue<
+                            NonNull<std::shared_ptr<LazyString>>>
+                            value) -> futures::ValueOrError<EvaluationOutput> {
+                      return value.ToFuture().Transform(
+                          [&pool](
+                              NonNull<std::shared_ptr<LazyString>> str_value) {
+                            return futures::Past(Success(
+                                EvaluationOutput::Return(vm::Value::NewString(
+                                    pool, str_value->ToString()))));
+                          });
+                    }},
+                line->metadata_future());
+          }));
   return buffer_object_type;
 }
 }  // namespace afc::editor
