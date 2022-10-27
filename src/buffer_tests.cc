@@ -21,14 +21,23 @@ namespace {
 std::wstring GetMetadata(std::wstring line) {
   gc::Root<OpenBuffer> buffer = NewBufferForTests();
   buffer.ptr()->Set(buffer_variables::name, L"tests");
+
+  // We add this so that tests can refer to it.
+  buffer.ptr()->AppendToLastLine(NewLazyString(L"5.0/2.0"));
+  buffer.ptr()->AppendEmptyLine();
+  buffer.ptr()->AppendToLastLine(NewLazyString(L"5.0/ does not compile"));
+  buffer.ptr()->AppendEmptyLine();
+
   buffer.ptr()->AppendToLastLine(NewLazyString(line));
 
   // Gives it a chance to execute:
   buffer.ptr()->editor().work_queue()->Execute();
 
-  auto metadata = buffer.ptr()->LineAt(LineNumber())->metadata();
+  auto line_in_buffer = buffer.ptr()->LineAt(buffer.ptr()->EndLine());
+  auto metadata = line_in_buffer->metadata();
   auto output = metadata == nullptr ? L"" : metadata->ToString();
-  VLOG(5) << "GetMetadata output: " << output;
+  VLOG(5) << "GetMetadata output: " << line_in_buffer->ToString() << ": "
+          << output;
   return output;
 }
 
@@ -125,6 +134,20 @@ const bool buffer_tests_registration = tests::Register(
                        .value();
                CHECK(IsError(result));
              }},
+        {.name = L"LineMetadataString",
+         .callback =
+             [] {
+               CHECK(GetMetadata(L"buffer.LineMetadataString(0)") ==
+                     L"\"2.5\"");
+             }},
+        {.name = L"LineMetadataStringRuntimeError",
+         .callback =
+             [] {
+               CHECK(
+                   GetMetadata(L"buffer.LineMetadataString(1)").substr(0, 3) ==
+                   L"E: ");
+             }},
+
     });
 
 const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
