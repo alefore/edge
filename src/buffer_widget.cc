@@ -403,10 +403,12 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .view_start = window.view_start};
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
-  input.buffer_display_data.AddDisplayWidth(output.lines.width);
+  if (!buffer.Read(buffer_variables::paste_mode))
+    input.buffer_display_data.AddDisplayWidth(output.lines.width);
 
   if (!status_lines.size().IsZero()) {
-    output.lines.width = input.buffer_display_data.max_display_width();
+    output.lines.width = std::max(
+        output.lines.width, input.buffer_display_data.max_display_width());
     output.lines = CenterOutput(std::move(output.lines), total_size.column);
     (buffer.status().GetType() == Status::Type::kPrompt ? output.lines
                                                         : status_lines)
