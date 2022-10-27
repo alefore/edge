@@ -24,6 +24,7 @@ namespace lazy_string = language::lazy_string;
 
 using infrastructure::Tracker;
 using language::compute_hash;
+using language::Error;
 using language::MakeHashableIteratorRange;
 using language::MakeNonNullShared;
 using language::NonNull;
@@ -423,6 +424,21 @@ std::shared_ptr<LazyString> Line::metadata() const {
           .get_shared();
     return nullptr;
   });
+}
+
+language::ValueOrError<futures::ListenableValue<
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
+Line::metadata_future() const {
+  return data_.lock(
+      [](const Data& data)
+          -> language::ValueOrError<
+              futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>>> {
+        if (const auto& metadata = data.options.metadata;
+            metadata.has_value()) {
+          return metadata.value().value;
+        }
+        return Error(L"Line has no value.");
+      });
 }
 
 void Line::SetAllModifiers(const LineModifierSet& modifiers) {

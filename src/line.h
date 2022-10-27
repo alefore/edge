@@ -146,6 +146,9 @@ class Line {
   std::wstring ToString() const { return contents()->ToString(); }
 
   std::shared_ptr<language::lazy_string::LazyString> metadata() const;
+  language::ValueOrError<futures::ListenableValue<
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
+  metadata_future() const;
 
   void SetAllModifiers(const LineModifierSet& modifiers);
   std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
