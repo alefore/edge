@@ -51,6 +51,13 @@ class ListenableValue {
     return data_->lock([&](const Data& data) { return data.value; });
   }
 
+  template <typename T = Type>
+  Value<Type> ToFuture() const {
+    Future<T> output;
+    AddListener(std::move(output.consumer));
+    return std::move(output.value);
+  }
+
  private:
   struct Data {
     // Once it becomes set, never changes.
