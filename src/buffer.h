@@ -30,6 +30,7 @@
 #include "src/status.h"
 #include "src/transformation.h"
 #include "src/transformation/type.h"
+#include "src/undo_state.h"
 #include "src/variables.h"
 #include "src/visual_overlay.h"
 #include "src/vm/public/environment.h"
@@ -44,6 +45,7 @@ class UnixSignal;
 class BufferDisplayData;
 class MapMode;
 class MapModeCommands;
+class UndoState;
 
 class OpenBuffer {
   struct ConstructorAccessTag {};
@@ -311,15 +313,8 @@ class OpenBuffer {
     return !last_transformation_stack_.empty();
   }
 
-  enum class UndoMode {
-    // Iterate the history, undoing transformations, until the buffer is
-    // actually modified.
-    kLoop,
-    // Only undo the last transformation (whether or not that causes any
-    // modifications).
-    kOnlyOne
-  };
-  futures::Value<language::EmptyValue> Undo(UndoMode undo_mode);
+  futures::Value<language::EmptyValue> Undo(
+      UndoState::ApplyOptions::Mode undo_mode);
 
   void set_filter(language::gc::Root<vm::Value> filter);
 
@@ -561,12 +556,7 @@ class OpenBuffer {
   EdgeStructInstance<double> double_variables_;
   EdgeStructInstance<LineColumn> line_column_variables_;
 
-  // When a transformation is done, we append its result to
-  // transformations_past_, so that it can be undone.
-  std::list<language::NonNull<std::shared_ptr<transformation::Stack>>>
-      undo_past_;
-  std::list<language::NonNull<std::shared_ptr<transformation::Stack>>>
-      undo_future_;
+  UndoState undo_state_;
 
   std::list<language::gc::Root<vm::Value>> keyboard_text_transformers_;
   const language::gc::Ptr<vm::Environment> environment_;

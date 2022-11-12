@@ -450,8 +450,7 @@ void OpenBuffer::ClearContents(
   if (terminal_ != nullptr) {
     terminal_->SetPosition(LineColumn());
   }
-  undo_past_.clear();
-  undo_future_.clear();
+  undo_state_.Clear();
 }
 
 void OpenBuffer::AppendEmptyLine() {
@@ -2023,23 +2022,14 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     transformation::Input::Mode mode) {
   auto trace = log_->NewChild(L"ApplyToCursors transformation.");
   trace->Append(L"Transformation: " + transformation::ToString(transformation));
-  undo_future_.clear();
 
   if (!last_transformation_stack_.empty()) {
     last_transformation_stack_.back()->PushBack(transformation);
-    if (undo_past_.empty()) {
-      VLOG(5) << "last_transformation_stack_ has values but undo_past_ is "
-                 "empty. This is expected to be very rare. Most likely this "
-                 "means that contents were cleared while the stack wasn't "
-                 "empty (perhaps because the buffer was reloaded while some "
-                 "active transformation/mode was being executed.";
-      undo_past_.push_back(MakeNonNullUnique<transformation::Stack>());
-    }
   } else {
-    undo_past_.push_back(MakeNonNullUnique<transformation::Stack>());
+    undo_state_.StartNewStep();
   }
 
-  undo_past_.back()->PushFront(transformation::Cursors{
+  undo_state_.GetLastStep()->PushFront(transformation::Cursors{
       .cursors = active_cursors(), .active = position()});
 
   std::optional<futures::Value<EmptyValue>> transformation_result;
@@ -2083,9 +2073,8 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 futures::Value<typename transformation::Result> OpenBuffer::Apply(
     transformation::Variant transformation, LineColumn position,
     transformation::Input::Mode mode) {
-  CHECK(!undo_past_.empty());
   const std::weak_ptr<transformation::Stack> undo_stack_weak =
-      undo_past_.back().get_shared();
+      undo_state_.GetLastStep().get_shared();
 
   transformation::Input input(*this);
   input.mode = mode;
@@ -2153,7 +2142,7 @@ futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
 
 void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
-    undo_past_.push_back(MakeNonNullUnique<transformation::Stack>());
+    undo_state_.StartNewStep();
   }
   last_transformation_stack_.push_back({});
 }
@@ -2172,44 +2161,22 @@ void OpenBuffer::PopTransformationStack() {
   }
 }
 
-futures::Value<EmptyValue> OpenBuffer::Undo(UndoMode undo_mode) {
-  struct Data {
-    std::list<NonNull<std::shared_ptr<transformation::Stack>>>* source;
-    std::list<NonNull<std::shared_ptr<transformation::Stack>>>* target;
-    size_t repetitions = 0;
-  };
-  auto data = std::make_shared<Data>();
-  if (editor().direction() == Direction::kForwards) {
-    data->source = &undo_past_;
-    data->target = &undo_future_;
-  } else {
-    data->source = &undo_future_;
-    data->target = &undo_past_;
-  }
-  return futures::While([this, undo_mode, data] {
-           if (data->repetitions == editor().repetitions().value_or(1) ||
-               data->source->empty()) {
-             return futures::Past(IterationControlCommand::kStop);
-           }
-           transformation::Input input(*this);
-           input.position = position();
-           // We've undone the entire changes, so...
-           last_transformation_stack_.clear();
-           VLOG(5) << "Undo transformation: "
-                   << ToStringBase(data->source->back().value());
-           return transformation::Apply(data->source->back().value(), input)
-               .Transform(
-                   [this, undo_mode, data](transformation::Result result) {
-                     data->target->push_back(std::move(result.undo_stack));
-                     data->source->pop_back();
-                     if (result.modified_buffer ||
-                         undo_mode == OpenBuffer::UndoMode::kOnlyOne) {
-                       data->repetitions++;
-                     }
-                     return IterationControlCommand::kContinue;
-                   });
-         })
-      .Transform([root_this = ptr_this_->ToRoot()](IterationControlCommand) {
+futures::Value<EmptyValue> OpenBuffer::Undo(
+    UndoState::ApplyOptions::Mode undo_mode) {
+  return undo_state_
+      .Apply(UndoState::ApplyOptions{
+          .mode = undo_mode,
+          .direction = editor().direction(),
+          .repetitions = editor().repetitions().value_or(1),
+          .callback =
+              [this](transformation::Variant t) {
+                transformation::Input input(*this);
+                input.position = position();
+                // We've undone the entire changes, so...
+                last_transformation_stack_.clear();
+                return transformation::Apply(t, input);
+              }})
+      .Transform([root_this = ptr_this_->ToRoot()](EmptyValue) {
         StartAdjustingStatusContext(root_this);
         return EmptyValue();
       });

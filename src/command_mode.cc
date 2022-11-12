@@ -100,7 +100,7 @@ class UndoCommand : public Command {
     }
     editor_state_
         .ForEachActiveBuffer([](OpenBuffer& buffer) {
-          return buffer.Undo(OpenBuffer::UndoMode::kLoop);
+          return buffer.Undo(UndoState::ApplyOptions::Mode::kLoop);
         })
         .SetConsumer([&editor_state = editor_state_](EmptyValue) {
           editor_state.ResetRepetitions();

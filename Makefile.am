@@ -263,6 +263,8 @@ src/transformation/vm.cc \
 src/transformation/vm.h \
 src/transformation.cc \
 src/transformation.h \
+src/undo_state.cc \
+src/undo_state.h \
 src/url.cc \
 src/url.h \
 src/variables.h \

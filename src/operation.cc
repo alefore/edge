@@ -118,7 +118,7 @@ futures::Value<UndoCallback> ExecuteTransformation(
                      buffers_transformed->begin(), buffers_transformed->end(),
                      [buffers_transformed](gc::Root<OpenBuffer> buffer) {
                        return buffer.ptr()
-                           ->Undo(OpenBuffer::UndoMode::kOnlyOne)
+                           ->Undo(UndoState::ApplyOptions::Mode::kOnlyOne)
                            .Transform([](auto) {
                              return futures::IterationControlCommand::kContinue;
                            });
