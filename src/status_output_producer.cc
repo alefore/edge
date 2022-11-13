@@ -84,7 +84,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
                 L"/" + std::to_wstring(active_cursors.size()) + L" ";
     }
 
-    auto flags = options.buffer->Flags();
+    std::map<std::wstring, std::wstring> flags = options.buffer->Flags();
     if (options.modifiers.repetitions.has_value()) {
       flags.insert(
           {std::to_wstring(options.modifiers.repetitions.value()), L""});
