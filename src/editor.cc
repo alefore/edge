@@ -106,7 +106,7 @@ void EditorState::NotifyInternalEvent() {
 }
 
 void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
-  pool.Reclaim();
+  if (pool.WantsReclaim()) pool.Reclaim();
   work_queue.ScheduleAt(AddSeconds(Now(), 10), [&pool, &work_queue] {
     ReclaimAndSchedule(pool, work_queue);
   });

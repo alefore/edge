@@ -72,6 +72,16 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
   return stats;
 }
 
+bool Pool::WantsReclaim() const {
+  size_t survivors_size = survivors_.lock([&](const Survivors& survivors) {
+    return survivors.object_metadata.size();
+  });
+  size_t eden_size =
+      eden_.lock([&](const Eden& eden) { return eden.object_metadata.size(); });
+  LOG(INFO) << "Wants reclaim: " << eden_size << " vs " << survivors_size;
+  return eden_size > std::max(1024ul, survivors_size);
+}
+
 void Pool::InstallFrozenEden(Survivors& survivors, Eden& eden) {
   VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
   for (const Eden::RootDeleted& d : eden.roots_deleted)
@@ -452,5 +462,106 @@ bool tests_registration = tests::Register(
         pool.Reclaim();
         CHECK(!weak_ptr.Lock().has_value());
       }}});
+
+bool wants_reclaim_tests_registration = tests::Register(
+    L"GC::WantsReclaim",
+    {
+        {.name = L"OnEmpty",
+         .callback = [] { CHECK(!gc::Pool().WantsReclaim()); }},
+        {.name = L"NotAfterAHundred",
+         .callback =
+             [] {
+               gc::Pool pool;
+               MakeLoop(pool, 100);
+               CHECK(!pool.WantsReclaim());
+             }},
+        {.name = L"YesAfterEnough",
+         .callback =
+             [] {
+               gc::Pool pool;
+               MakeLoop(pool, 1000);
+               CHECK(!pool.WantsReclaim());
+               MakeLoop(pool, 1000);
+               CHECK(pool.WantsReclaim());
+             }},
+        {.name = L"NotAfterReclaim",
+         .callback =
+             [] {
+               gc::Pool pool;
+               MakeLoop(pool, 1000);
+               CHECK(!pool.WantsReclaim());
+               MakeLoop(pool, 1000);
+               CHECK(pool.WantsReclaim());
+               pool.Reclaim();
+               CHECK(!pool.WantsReclaim());
+             }},
+        {.name = L"NotAfterReclaimBeforeFills",
+         .callback =
+             [] {
+               gc::Pool pool;
+               MakeLoop(pool, 1000);
+               CHECK(!pool.WantsReclaim());
+               MakeLoop(pool, 1000);
+               CHECK(pool.WantsReclaim());
+               pool.Reclaim();
+               CHECK(!pool.WantsReclaim());
+               MakeLoop(pool, 1000);
+               CHECK(!pool.WantsReclaim());
+               MakeLoop(pool, 1000);
+               CHECK(pool.WantsReclaim());
+             }},
+        {.name = L"SomeSurvivingObjects",
+         .callback =
+             [] {
+               gc::Pool pool;
+               std::optional<gc::Root<Node>> root = MakeLoop(pool, 2048);
+               MakeLoop(pool, 1000);
+               CHECK(pool.WantsReclaim());
+               pool.Reclaim();  // Survivors: 2048
+               CHECK(!pool.WantsReclaim());
+
+               MakeLoop(pool, 1024);
+               CHECK(!pool.WantsReclaim());
+
+               MakeLoop(pool, 1024 + 4);
+               CHECK(pool.WantsReclaim());
+               root = std::nullopt;
+               CHECK(pool.WantsReclaim());
+               pool.Reclaim();
+               CHECK(!pool.WantsReclaim());
+
+               MakeLoop(pool, 900);
+               CHECK(!pool.WantsReclaim());
+             }},
+        {.name = L"LargeTest",
+         .callback =
+             [] {
+               gc::Pool pool;
+               std::optional<gc::Root<Node>> root_big = MakeLoop(pool, 8000);
+               std::optional<gc::Root<Node>> root_small = MakeLoop(pool, 2000);
+               CHECK(pool.WantsReclaim());
+               pool.Reclaim();
+               CHECK(!pool.WantsReclaim());
+
+               MakeLoop(pool, 9000);
+               CHECK(!pool.WantsReclaim());
+
+               MakeLoop(pool, 2000);
+               CHECK(pool.WantsReclaim());
+               pool.Reclaim();
+               CHECK(!pool.WantsReclaim());
+
+               MakeLoop(pool, 11000);
+               CHECK(pool.WantsReclaim());
+               root_big = std::nullopt;
+               pool.Reclaim();
+
+               MakeLoop(pool, 1900);
+               CHECK(!pool.WantsReclaim());
+               MakeLoop(pool, 200);
+               CHECK(pool.WantsReclaim());
+             }},
+    });
+
 }  // namespace
 }  // namespace afc::language

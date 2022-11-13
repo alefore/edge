@@ -90,6 +90,10 @@ class Pool {
   };
   ReclaimObjectsStats Reclaim();
 
+  // Returns true if the pool has enough new object that it would like to
+  // perform a Pool::Reclaim.
+  bool WantsReclaim() const;
+
   using RootRegistration = std::shared_ptr<bool>;
 
  private:
@@ -105,7 +109,7 @@ class Pool {
   struct Eden {
     ObjectMetadataList object_metadata;
 
-    // This is a unique_ptr to allow us to move it into Ancestors preserving all
+    // This is a unique_ptr to allow us to move it into Survivors preserving all
     // iterators.
     language::NonNull<std::unique_ptr<ObjectMetadataList>> roots;
 
