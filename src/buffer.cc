@@ -1874,6 +1874,12 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     output = options_.describe_status(*this);
   }
 
+  if (size_t size = undo_state_.UndoStackSize(); size > 0)
+    output.insert({L"↶", to_wstring(size)});
+
+  if (size_t size = undo_state_.RedoStackSize(); size > 0)
+    output.insert({L"↷", to_wstring(size)});
+
   if (disk_state() == DiskState::kStale) {
     output.insert({L"🐾", L""});
   }
@@ -2025,11 +2031,9 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 
   if (!last_transformation_stack_.empty()) {
     last_transformation_stack_.back()->PushBack(transformation);
-  } else {
-    undo_state_.StartNewStep();
   }
 
-  undo_state_.GetLastStep()->PushFront(transformation::Cursors{
+  undo_state_.Current()->PushFront(transformation::Cursors{
       .cursors = active_cursors(), .active = position()});
 
   std::optional<futures::Value<EmptyValue>> transformation_result;
@@ -2062,6 +2066,8 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   return std::move(transformation_result)
       .value()
       .Transform([root_this = ptr_this_->ToRoot()](EmptyValue) {
+        if (root_this.ptr()->last_transformation_stack_.empty())
+          root_this.ptr()->undo_state_.CommitCurrent();
         // This proceeds in the background but we can only start it once the
         // transformation is evaluated (since we don't know the cursor
         // position otherwise).
@@ -2074,7 +2080,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
     transformation::Variant transformation, LineColumn position,
     transformation::Input::Mode mode) {
   const std::weak_ptr<transformation::Stack> undo_stack_weak =
-      undo_state_.GetLastStep().get_shared();
+      undo_state_.Current().get_shared();
 
   transformation::Input input(*this);
   input.mode = mode;
@@ -2127,6 +2133,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
               transformation::Stack{.stack = result.undo_stack->stack});
           *undo_stack = transformation::Stack{
               .stack = {OptimizeBase(std::move(*undo_stack))}};
+          if (result.modified_buffer) undo_state_.SetCurrentModifiedBuffer();
         }
         return result;
       });
@@ -2141,9 +2148,6 @@ futures::Value<EmptyValue> OpenBuffer::RepeatLastTransformation() {
 }
 
 void OpenBuffer::PushTransformationStack() {
-  if (last_transformation_stack_.empty()) {
-    undo_state_.StartNewStep();
-  }
   last_transformation_stack_.push_back({});
 }
 
@@ -2158,14 +2162,18 @@ void OpenBuffer::PopTransformationStack() {
   last_transformation_stack_.pop_back();
   if (!last_transformation_stack_.empty()) {
     last_transformation_stack_.back()->PushBack(last_transformation_);
+  } else {
+    undo_state_.CommitCurrent();
   }
 }
 
 futures::Value<EmptyValue> OpenBuffer::Undo(
-    UndoState::ApplyOptions::Mode undo_mode) {
+    UndoState::ApplyOptions::Mode undo_mode,
+    UndoState::ApplyOptions::RedoMode redo_mode) {
   return undo_state_
       .Apply(UndoState::ApplyOptions{
           .mode = undo_mode,
+          .redo_mode = redo_mode,
           .direction = editor().direction(),
           .repetitions = editor().repetitions().value_or(1),
           .callback =
@@ -2174,6 +2182,7 @@ futures::Value<EmptyValue> OpenBuffer::Undo(
                 input.position = position();
                 // We've undone the entire changes, so...
                 last_transformation_stack_.clear();
+                undo_state_.AbandonCurrent();
                 return transformation::Apply(t, input);
               }})
       .Transform([root_this = ptr_this_->ToRoot()](EmptyValue) {

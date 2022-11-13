@@ -86,10 +86,13 @@ class UndoCommand : public Command {
       : editor_state_(editor_state), direction_(direction) {}
 
   std::wstring Description() const override {
-    if (direction_.value_or(Direction::kForwards) == Direction::kBackwards) {
-      return L"re-does the last change to the current buffer";
+    switch (direction_.value_or(Direction::kForwards)) {
+      case Direction::kBackwards:
+        return L"re-does the last change to the current buffer";
+      case Direction::kForwards:
+        return L"un-does the last change to the current buffer";
     }
-    return L"un-does the last change to the current buffer";
+    LOG(FATAL) << "Invalid direction value.";
   }
 
   std::wstring Category() const override { return L"Edit"; }
@@ -100,7 +103,8 @@ class UndoCommand : public Command {
     }
     editor_state_
         .ForEachActiveBuffer([](OpenBuffer& buffer) {
-          return buffer.Undo(UndoState::ApplyOptions::Mode::kLoop);
+          return buffer.Undo(UndoState::ApplyOptions::Mode::kLoop,
+                             UndoState::ApplyOptions::RedoMode::kPopulate);
         })
         .SetConsumer([&editor_state = editor_state_](EmptyValue) {
           editor_state.ResetRepetitions();

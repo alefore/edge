@@ -137,7 +137,8 @@ void SetOptionsForBufferTransformation(
   options.undo = [for_each_buffer] {
     return for_each_buffer([](const gc::Root<OpenBuffer>& buffer) {
       return buffer.ptr()
-          ->Undo(UndoState::ApplyOptions::Mode::kOnlyOne)
+          ->Undo(UndoState::ApplyOptions::Mode::kOnlyOne,
+                 UndoState::ApplyOptions::RedoMode::kIgnore)
           .Transform([](language::EmptyValue) {
             return futures::IterationControlCommand::kContinue;
           });

@@ -314,7 +314,8 @@ class OpenBuffer {
   }
 
   futures::Value<language::EmptyValue> Undo(
-      UndoState::ApplyOptions::Mode undo_mode);
+      UndoState::ApplyOptions::Mode undo_mode,
+      UndoState::ApplyOptions::RedoMode redo_mode);
 
   void set_filter(language::gc::Root<vm::Value> filter);
 

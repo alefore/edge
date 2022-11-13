@@ -216,10 +216,10 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
             .final_position =
                 options.modifiers.direction == Direction::kForwards
                     ? Insert::FinalPosition::kEnd
-                    : Insert::FinalPosition::kStart};
-        output->undo_stack->PushFront(insert_options);
+                    : Insert::FinalPosition::kStart,
+            .position = range.begin};
         output->undo_stack->PushFront(transformation::SetPosition(range.begin));
-
+        output->undo_stack->PushFront(insert_options);
         if (input.mode != Input::Mode::kPreview) {
           return futures::Past(std::move(*output));
         }
@@ -238,7 +238,13 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       });
 }
 
-std::wstring ToStringBase(const Delete&) { return L"Delete(...);"; }
+std::wstring ToStringBase(const Delete& options) {
+  std::wstring output = L"DeleteTransformationBuilder()";
+  output += L".set_modifiers(" + options.modifiers.Serialize() + L")";
+  if (options.range.has_value()) output += L".set_range(...)";
+  output += L".build()";
+  return output;
+}
 
 Delete OptimizeBase(Delete transformation) { return transformation; }
 

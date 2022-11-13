@@ -11,8 +11,14 @@ class UndoState {
   UndoState() = default;
 
   void Clear();
-  void StartNewStep();
-  language::NonNull<std::shared_ptr<transformation::Stack>> GetLastStep();
+
+  void CommitCurrent();
+  void AbandonCurrent();
+  language::NonNull<std::shared_ptr<transformation::Stack>> Current();
+  void SetCurrentModifiedBuffer();
+
+  size_t UndoStackSize() const;
+  size_t RedoStackSize() const;
 
   struct ApplyOptions {
     enum class Mode {
@@ -25,18 +31,40 @@ class UndoState {
     };
 
     Mode mode;
+
+    enum class RedoMode { kIgnore, kPopulate };
+    RedoMode redo_mode;
     Direction direction;
     size_t repetitions;
     std::function<futures::Value<transformation::Result>(
-        transformation::Variant&)>
+        transformation::Variant)>
         callback;
   };
   futures::Value<language::EmptyValue> Apply(ApplyOptions apply_options);
 
  private:
-  // When a transformation is done, we append its result to undo_past_, so that
-  // it can be undone.
-  std::list<language::NonNull<std::shared_ptr<transformation::Stack>>> past_;
-  std::list<language::NonNull<std::shared_ptr<transformation::Stack>>> future_;
+  // undo_stack_ contains a list of "undo" transformations for all changes to
+  // the buffer. The last entry corresponds to the last transformation to the
+  // buffer.
+  std::list<language::NonNull<std::shared_ptr<transformation::Stack>>>
+      undo_stack_;
+
+  struct RedoStackEntry {
+    // The original entry from undo_stack_.
+    language::NonNull<std::shared_ptr<transformation::Stack>> undo;
+
+    // A transformation that results in undoing the undo transformation.
+    language::NonNull<std::shared_ptr<transformation::Stack>> redo;
+  };
+
+  // When we are applying undo transformations, we push into redo_stack_.
+  std::list<RedoStackEntry> redo_stack_;
+
+  // As we go applying a set of transformations that should be undone
+  // atomically,, we start pushing into current_ their corresponding "undo"
+  // transformations. Once the atom is commited, we move from current_ into
+  // past_.
+  language::NonNull<std::shared_ptr<transformation::Stack>> current_;
+  bool current_modified_buffer_ = false;
 };
 }  // namespace afc::editor
