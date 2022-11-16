@@ -106,10 +106,14 @@ void EditorState::NotifyInternalEvent() {
 }
 
 void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
-  if (pool.WantsReclaim()) pool.Reclaim();
-  work_queue.ScheduleAt(AddSeconds(Now(), 10), [&pool, &work_queue] {
-    ReclaimAndSchedule(pool, work_queue);
-  });
+  if (pool.WantsReclaim()) {
+    pool.CleanEden();
+    if (pool.WantsReclaim()) pool.Reclaim();
+  }
+  static constexpr size_t kSecondsBetweenGc = 1;
+  work_queue.ScheduleAt(
+      AddSeconds(Now(), kSecondsBetweenGc),
+      [&pool, &work_queue] { ReclaimAndSchedule(pool, work_queue); });
 }
 
 EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
