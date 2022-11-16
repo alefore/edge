@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/substring.h"
@@ -22,7 +23,9 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::EmptyString;
 using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 std::optional<size_t> CombineHashes(
     const std::vector<LineWithCursor::Generator>& delegates,
@@ -122,7 +125,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
           ColumnNumber columns_shown;
           for (size_t i = 0; i < line_input.size(); i++) {
             ColumnNumberDelta padding_needed = initial_column - columns_shown;
-            if (columns_vector->columns[i].padding.size() > i &&
+            if (columns_vector->columns[i].padding.size() > line.read() &&
                 columns_vector->columns[i].padding[line.read()].has_value()) {
               options.Append(GeneratePadding(
                   *columns_vector->columns[i].padding[line.read()],
@@ -163,50 +166,61 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
 namespace {
 const bool buffer_tests_registration = tests::Register(
     L"OutputFromColumnsVector",
-    {
-        {.name = L"UseAfterDelete",
-         .callback =
-             [] {
-               ColumnsVector columns_vector;
-               for (int i = 0; i < 5; i++)
-                 columns_vector.push_back(
-                     {.lines = RepeatLine(
-                          {.line = MakeNonNullShared<Line>(L"foo bar")},
-                          LineNumberDelta(5)),
-                      .width = ColumnNumberDelta(10)});
-               LineWithCursor::Generator::Vector produce =
-                   OutputFromColumnsVector(std::move(columns_vector));
-               columns_vector.columns = {};
-               CHECK_EQ(produce.size(), LineNumberDelta(5));
-               CHECK(produce.lines[0].generate().line->ToString() ==
-                     L"foo bar   "
-                     L"foo bar   "
-                     L"foo bar   "
-                     L"foo bar   "
-                     L"foo bar");
-             }},
-        {.name = L"ShortColumns",
-         .callback =
-             [] {
-               ColumnsVector columns_vector;
-               columns_vector.push_back(
-                   {.lines =
-                        RepeatLine({.line = MakeNonNullShared<Line>(L"foo")},
-                                   LineNumberDelta(1)),
-                    .width = ColumnNumberDelta(3)});
-               columns_vector.push_back(
-                   {.lines =
-                        RepeatLine({.line = MakeNonNullShared<Line>(L"bar")},
-                                   LineNumberDelta(10)),
-                    .width = ColumnNumberDelta(10)});
-               LineWithCursor::Generator::Vector output =
-                   OutputFromColumnsVector(std::move(columns_vector));
-               CHECK_EQ(output.size(), LineNumberDelta(10));
-               CHECK(output.lines[0].generate().line->ToString() == L"foobar");
-               CHECK(output.lines[1].generate().line->ToString() == L"   bar");
-               CHECK(output.lines[9].generate().line->ToString() == L"   bar");
-             }},
-    });
+    {{.name = L"UseAfterDelete",
+      .callback =
+          [] {
+            ColumnsVector columns_vector;
+            for (int i = 0; i < 5; i++)
+              columns_vector.push_back(
+                  {.lines =
+                       RepeatLine({.line = MakeNonNullShared<Line>(L"foo bar")},
+                                  LineNumberDelta(5)),
+                   .width = ColumnNumberDelta(10)});
+            LineWithCursor::Generator::Vector produce =
+                OutputFromColumnsVector(std::move(columns_vector));
+            columns_vector.columns = {};
+            CHECK_EQ(produce.size(), LineNumberDelta(5));
+            CHECK(produce.lines[0].generate().line->ToString() ==
+                  L"foo bar   "
+                  L"foo bar   "
+                  L"foo bar   "
+                  L"foo bar   "
+                  L"foo bar");
+          }},
+     {.name = L"ShortColumns",
+      .callback =
+          [] {
+            ColumnsVector columns_vector;
+            columns_vector.push_back(
+                {.lines = RepeatLine({.line = MakeNonNullShared<Line>(L"foo")},
+                                     LineNumberDelta(1)),
+                 .width = ColumnNumberDelta(3)});
+            columns_vector.push_back(
+                {.lines = RepeatLine({.line = MakeNonNullShared<Line>(L"bar")},
+                                     LineNumberDelta(10)),
+                 .width = ColumnNumberDelta(10)});
+            LineWithCursor::Generator::Vector output =
+                OutputFromColumnsVector(std::move(columns_vector));
+            CHECK_EQ(output.size(), LineNumberDelta(10));
+            CHECK(output.lines[0].generate().line->ToString() == L"foobar");
+            CHECK(output.lines[1].generate().line->ToString() == L"   bar");
+            CHECK(output.lines[9].generate().line->ToString() == L"   bar");
+          }},
+     {.name = L"ShortPadding", .callback = [] {
+        ColumnsVector columns_vector;
+        columns_vector.push_back(
+            ColumnsVector::Column{.lines = {}, .width = ColumnNumberDelta(5)});
+        columns_vector.push_back(ColumnsVector::Column{
+            .lines = RepeatLine({.line = MakeNonNullShared<Line>(L"bar")},
+                                LineNumberDelta(10)),
+            .padding = {std::vector<std::optional<ColumnsVector::Padding>>(
+                5, ColumnsVector::Padding{.modifiers = {},
+                                          .head = EmptyString(),
+                                          .body = NewLazyString(L"Foo")})}});
+        LineWithCursor::Generator::Vector output =
+            OutputFromColumnsVector(std::move(columns_vector));
+        for (auto& entry : output.lines) entry.generate();
+      }}});
 
 }
 }  // namespace afc::editor
