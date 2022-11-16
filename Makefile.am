@@ -26,6 +26,8 @@ src/buffer_contents_view_layout.h \
 src/buffer_contents_view_layout.cc \
 src/buffer_display_data.cc \
 src/buffer_display_data.h \
+src/buffer_flags.cc \
+src/buffer_flags.h \
 src/buffer_name.cc \
 src/buffer_name.h \
 src/buffer_metadata_output_producer.cc \
@@ -187,6 +189,8 @@ src/parsers/markdown.cc \
 src/parsers/markdown.h \
 src/paste.cc \
 src/paste.h \
+src/path_flags.cc \
+src/path_flags.h \
 src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \

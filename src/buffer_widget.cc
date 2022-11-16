@@ -9,6 +9,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_contents_view_layout.h"
+#include "src/buffer_flags.h"
 #include "src/buffer_metadata_output_producer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
@@ -393,28 +394,28 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   input.view_start = window.view_start;
 
   BufferOutputProducerOutput output{
-      .lines = CenterVertically(
-          buffer.Read(buffer_variables::multiple_cursors)
-              ? ViewMultipleCursors(buffer, input.output_producer_options,
-                                    buffer_contents_window_input)
-              : LinesSpanView(buffer, window.lines,
-                              input.output_producer_options, 1),
-          status_lines.size(), total_size.line, input.buffer_display_data),
+      .lines = buffer.Read(buffer_variables::multiple_cursors)
+                   ? ViewMultipleCursors(buffer, input.output_producer_options,
+                                         buffer_contents_window_input)
+                   : LinesSpanView(buffer, window.lines,
+                                   input.output_producer_options, 1),
       .view_start = window.view_start};
-  CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
-
   if (!buffer.Read(buffer_variables::paste_mode))
     input.buffer_display_data.AddDisplayWidth(output.lines.width);
+
+  output.lines = CenterOutput(std::move(output.lines), total_size.column,
+                              GetBufferFlag(buffer));
+  output.lines = CenterVertically(std::move(output.lines), status_lines.size(),
+                                  total_size.line, input.buffer_display_data);
+  CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
   if (!status_lines.size().IsZero()) {
     output.lines.width = std::max(
         output.lines.width, input.buffer_display_data.max_display_width());
-    output.lines = CenterOutput(std::move(output.lines), total_size.column);
     (buffer.status().GetType() == Status::Type::kPrompt ? output.lines
                                                         : status_lines)
         .RemoveCursor();
     output.lines.Append(std::move(status_lines));
-    CHECK_EQ(output.lines.size(), total_size.line);
   }
   return output;
 }
