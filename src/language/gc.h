@@ -82,6 +82,8 @@ class Pool {
 
   ~Pool();
 
+  void CleanEden();
+
   struct ReclaimObjectsStats {
     size_t roots = 0;
     size_t begin_total = 0;

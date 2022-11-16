@@ -27,6 +27,18 @@ Pool::~Pool() {
   Reclaim();
 }
 
+void Pool::CleanEden() {
+  static Tracker tracker(L"gc::Pool::CleanEden");
+  eden_.lock([&](Eden& eden) {
+    LOG(INFO) << "CleanEden starts with size: " << eden.object_metadata.size();
+    eden.object_metadata.remove_if(
+        [](std::weak_ptr<ObjectMetadata>& object_metadata) {
+          return object_metadata.expired();
+        });
+    LOG(INFO) << "CleanEden ends with size: " << eden.object_metadata.size();
+  });
+}
+
 Pool::ReclaimObjectsStats Pool::Reclaim() {
   static Tracker tracker(L"gc::Pool::Reclaim");
   auto call = tracker.Call();
