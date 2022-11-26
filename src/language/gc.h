@@ -134,9 +134,9 @@ class Pool {
       const std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>>&
           object_metadata);
 
-  static void RegisterRoots(
-      const ObjectMetadataList& roots,
-      std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>& output);
+  static void AddReachable(
+      NonNull<std::shared_ptr<ObjectMetadata>> object_metadata,
+      std::list<NonNull<std::shared_ptr<ObjectMetadata>>>& output);
 
   static void MarkReachable(
       std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> expand);

@@ -1,5 +1,7 @@
 #include "src/language/gc.h"
 
+#include <utility>
+
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/safe_types.h"
@@ -114,6 +116,16 @@ void Pool::InstallFrozenEden(Survivors& survivors, Eden& eden) {
       });
 }
 
+/* static */ void Pool::AddReachable(
+    NonNull<std::shared_ptr<ObjectMetadata>> object_metadata,
+    std::list<NonNull<std::shared_ptr<ObjectMetadata>>>& output) {
+  if (!object_metadata->data_.lock([&](ObjectMetadata::Data& data) {
+        CHECK(data.expand_callback != nullptr);
+        return std::exchange(data.reached, true);
+      }))
+    output.push_back(std::move(object_metadata));
+}
+
 std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
 Pool::RegisterAllRoots(
     const std::list<NonNull<std::unique_ptr<ObjectMetadataList>>>&
@@ -122,29 +134,19 @@ Pool::RegisterAllRoots(
   static Tracker tracker(L"gc::Pool::Reclaim::RegisterAllRoots");
   auto call = tracker.Call();
 
-  std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> output;
+  std::list<NonNull<std::shared_ptr<ObjectMetadata>>> output;
   for (const NonNull<std::unique_ptr<ObjectMetadataList>>& l : object_metadata)
-    RegisterRoots(l.value(), output);
+    for (const std::weak_ptr<ObjectMetadata>& root_weak : l.value()) {
+      VisitPointer(
+          root_weak,
+          [&output](NonNull<std::shared_ptr<ObjectMetadata>> root) {
+            AddReachable(root, output);
+          },
+          [] { LOG(FATAL) << "Root was dead. Should never happen."; });
+    }
 
   VLOG(5) << "Roots registered: " << output.size();
   return output;
-}
-
-void Pool::RegisterRoots(
-    const ObjectMetadataList& roots,
-    std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>& output) {
-  for (const std::weak_ptr<ObjectMetadata>& root_weak : roots) {
-    VisitPointer(
-        root_weak,
-        [&output](language::NonNull<std::shared_ptr<ObjectMetadata>> root) {
-          root->data_.lock([&](ObjectMetadata::Data& object_data) {
-            CHECK(!object_data.reached);
-            CHECK(object_data.expand_callback != nullptr);
-          });
-          output.push_back(root);
-        },
-        [] { LOG(FATAL) << "Root was dead. Should never happen."; });
-  }
 }
 
 void Pool::MarkReachable(
@@ -161,20 +163,13 @@ void Pool::MarkReachable(
     VLOG(5) << "Considering obj: " << front.get_shared();
     auto expansion = front->data_.lock([&](ObjectMetadata::Data& object_data) {
       CHECK(object_data.expand_callback != nullptr);
-      if (object_data.reached)
-        return std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>();
-      object_data.reached = true;
+      CHECK(object_data.reached);
       return object_data.expand_callback();
     });
     VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
             << expansion.size();
-    for (language::NonNull<std::shared_ptr<ObjectMetadata>> obj : expansion) {
-      obj->data_.lock([&](ObjectMetadata::Data& object_data) {
-        CHECK(object_data.expand_callback != nullptr);
-        if (!object_data.reached) {
-          expand.push_back(std::move(obj));
-        }
-      });
+    for (NonNull<std::shared_ptr<ObjectMetadata>> obj : expansion) {
+      AddReachable(obj, expand);
     }
   }
 }
