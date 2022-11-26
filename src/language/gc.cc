@@ -29,6 +29,8 @@ Pool::~Pool() {
 
 void Pool::CleanEden() {
   static Tracker tracker(L"gc::Pool::CleanEden");
+  auto call = tracker.Call();
+
   eden_.lock([&](Eden& eden) {
     LOG(INFO) << "CleanEden starts with size: " << eden.object_metadata.size();
     eden.object_metadata.remove_if(
