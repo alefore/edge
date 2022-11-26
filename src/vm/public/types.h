@@ -107,6 +107,8 @@ class ObjectType {
   }
 
   void ForEachField(std::function<void(const wstring&, Value&)> callback);
+  void ForEachField(
+      std::function<void(const wstring&, const Value&)> callback) const;
 
  private:
   VMType type_;

@@ -207,4 +207,9 @@ void ObjectType::ForEachField(
   for (auto& it : fields_) callback(it.first, it.second.ptr().value());
 }
 
+void ObjectType::ForEachField(
+    std::function<void(const wstring&, const Value&)> callback) const {
+  for (const auto& it : fields_) callback(it.first, it.second.ptr().value());
+}
+
 }  // namespace afc::vm

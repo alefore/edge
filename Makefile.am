@@ -293,6 +293,8 @@ src/vm/internal/class_expression.cc \
 src/vm/internal/class_expression.h \
 src/vm/internal/compilation.h \
 src/vm/internal/compilation.cc \
+src/vm/internal/filter_similar_names.cc \
+src/vm/internal/filter_similar_names.h \
 src/vm/internal/if_expression.cc \
 src/vm/internal/return_expression.cc \
 src/vm/internal/types_promotion.cc \

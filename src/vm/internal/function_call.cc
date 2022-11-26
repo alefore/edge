@@ -8,6 +8,7 @@
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/vm/internal/compilation.h"
+#include "src/vm/internal/filter_similar_names.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
@@ -256,9 +257,20 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
           auto field = object_type->LookupField(method_name);
           if (field == nullptr) {
+            std::vector<std::wstring> alternatives;
+            object_type->ForEachField(
+                [&](const std::wstring& name, const Value&) {
+                  alternatives.push_back(name);
+                });
+            std::vector<std::wstring> close_alternatives =
+                FilterSimilarNames(method_name, std::move(alternatives));
             errors.push_back(Error(L"Unknown method: \"" +
                                    object_type->ToString() + L"::" +
-                                   method_name + L"\""));
+                                   method_name + L"\"" +
+                                   (close_alternatives.empty()
+                                        ? L""
+                                        : (L" (did you mean \"" +
+                                           close_alternatives[0] + L"\"?)"))));
             continue;
           }
 
