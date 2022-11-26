@@ -217,9 +217,14 @@ struct Future {
  public:
   Future() : Future(std::make_shared<FutureData>()) {}
 
-  // TODO(easy, 2022-06-10): Replace this with an instance of some class that
+  // TODO(2022-06-10): Replace this with an instance of some class that
   // references the FutureData. The corresponding method in that class should
   // contain a single method with the && annotation.
+  //
+  // This is hard: many functions capture consumers; the requirement on
+  // std::function to be copyable makes that difficult. It may become easier
+  // once std::move_only_function (from C++23) becomes available; once that's
+  // in, we can use that for the callbacks.
   typename Value<Type>::Consumer consumer;
   Value<Type> value;
 
