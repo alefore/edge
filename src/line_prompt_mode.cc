@@ -412,7 +412,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
               VLOG(8) << "Considering history value: "
                       << cpp_string.EscapedRepresentation();
               NonNull<std::shared_ptr<LazyString>> prompt_value =
-                  NewLazyString(cpp_string.OriginalString());
+                  cpp_string.OriginalString();
               if (FindFirstColumnWithPredicate(
                       prompt_value.value(),
                       [](ColumnNumber, wchar_t c) { return c == L'\n'; })
@@ -422,7 +422,9 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
               }
               std::vector<Token> line_tokens = ExtendTokensToEndOfString(
                   prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-              naive_bayes::Event event_key(cpp_string.OriginalString());
+              // TODO(easy, 2022-11-26): Get rid of call ToString.
+              naive_bayes::Event event_key(
+                  cpp_string.OriginalString()->ToString());
               std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
               if (filter_tokens.empty()) {
                 VLOG(6) << "Accepting value (empty filters): "

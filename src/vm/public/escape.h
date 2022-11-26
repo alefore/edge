@@ -24,7 +24,8 @@ class EscapedString {
   std::wstring CppRepresentation() const;
 
   // Returns the original (unescaped) string.
-  std::wstring OriginalString() const;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  OriginalString() const;
 
  private:
   EscapedString(std::wstring original_string);

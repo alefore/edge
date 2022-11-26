@@ -465,14 +465,10 @@ class ForkEditorCommand : public Command {
                           OptionalFrom(GetChildrenPath(editor_state_));
                       for (size_t i = 0;
                            i < editor_state_.repetitions().value_or(1); ++i) {
-                        // TODO(easy, 2022-06-05): Get rid of call to
-                        // NewLazyString; have OriginalString return a
-                        // LazyString.
                         RunCommandHandler(
                             editor_state_, i,
                             editor_state_.repetitions().value_or(1),
-                            children_path,
-                            NewLazyString(line.OriginalString()));
+                            children_path, line.OriginalString());
                       }
                     },
                     [&](Error error) { editor_state_.status().Set(error); }},

@@ -80,7 +80,11 @@ std::wstring EscapedString::CppRepresentation() const {
 }
 
 // Returns the original (unescaped) string.
-std::wstring EscapedString::OriginalString() const { return input_; }
+NonNull<std::shared_ptr<LazyString>> EscapedString::OriginalString() const {
+  // TODO(easy, 2022-11-26): Get rid of NewLazyString here; store the lazy
+  // string directly.
+  return NewLazyString(input_);
+}
 
 EscapedString::EscapedString(std::wstring input) : input_(std::move(input)) {}
 
@@ -95,7 +99,8 @@ bool cpp_unescape_string_tests_registration =
                   ValueOrDie(EscapedString::Parse(NewLazyString(
                                  EscapedString::FromString(NewLazyString(input))
                                      .EscapedRepresentation())))
-                      .OriginalString();
+                      .OriginalString()
+                      ->ToString();
               LOG(INFO) << "Comparing: " << input << " to " << output;
               CHECK(input == output);
             }};
