@@ -30,6 +30,7 @@ class Tracker {
 
     size_t executions = 0;
     double seconds = 0;
+    double longest_seconds = 0;
   };
 
   static std::list<Data> GetData();

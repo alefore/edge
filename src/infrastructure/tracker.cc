@@ -43,7 +43,10 @@ std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
       new bool(), [this, start](bool* value) {
         double seconds = GetElapsedSecondsSince(start);
         delete value;
-        data_.lock([start, seconds](Data& data) { data.seconds += seconds; });
+        data_.lock([start, seconds](Data& data) {
+          data.seconds += seconds;
+          data.longest_seconds = std::max(data.longest_seconds, seconds);
+        });
       });
 }
 }  // namespace afc::infrastructure
