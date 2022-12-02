@@ -106,10 +106,7 @@ void EditorState::NotifyInternalEvent() {
 }
 
 void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
-  if (pool.WantsReclaim()) {
-    pool.CleanEden();
-    if (pool.WantsReclaim()) pool.Reclaim();
-  }
+  pool.Reclaim();
   static constexpr size_t kSecondsBetweenGc = 1;
   work_queue.ScheduleAt(
       AddSeconds(Now(), kSecondsBetweenGc),

@@ -6,6 +6,7 @@
 #include <list>
 #include <memory>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 #include "src/concurrent/protected.h"
@@ -82,25 +83,26 @@ class Pool {
 
   ~Pool();
 
-  void CleanEden();
-
-  struct ReclaimObjectsStats {
+  struct FullReclaimStats {
     size_t roots = 0;
     size_t begin_total = 0;
     size_t end_total = 0;
     size_t generations = 0;
   };
-  ReclaimObjectsStats Reclaim();
-
-  // Returns true if the pool has enough new object that it would like to
-  // perform a Pool::Reclaim.
-  bool WantsReclaim() const;
+  struct LightReclaimStats {
+    size_t begin_eden_size = 0;
+    size_t end_eden_size = 0;
+  };
+  std::variant<FullReclaimStats, LightReclaimStats> Reclaim();
+  FullReclaimStats FullReclaim();
 
   using RootRegistration = std::shared_ptr<bool>;
 
  private:
   template <typename T>
   friend class Root;
+
+  std::variant<FullReclaimStats, LightReclaimStats> Reclaim(bool full);
 
   language::NonNull<std::shared_ptr<ObjectMetadata>> NewObjectMetadata(
       ObjectMetadata::ExpandCallback expand_callback);
@@ -150,8 +152,9 @@ class Pool {
   concurrent::Protected<Survivors> survivors_;
 };
 
+std::ostream& operator<<(std::ostream& os, const Pool::FullReclaimStats& stats);
 std::ostream& operator<<(std::ostream& os,
-                         const Pool::ReclaimObjectsStats& stats);
+                         const Pool::LightReclaimStats& stats);
 
 // A mutable pointer with shared ownership of a managed object. Behaves very
 // much like `std::shared_ptr<T>`: when the number of references drops to 0, the

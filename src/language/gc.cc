@@ -26,39 +26,60 @@ bool ObjectMetadata::IsAlive() const {
 Pool::~Pool() {
   // TODO(gc, 2022-05-11): Enable this validation:
   // CHECK(roots_.empty());
-  Reclaim();
+  FullReclaim();
 }
 
-void Pool::CleanEden() {
-  static Tracker tracker(L"gc::Pool::CleanEden");
-  auto call = tracker.Call();
-
-  eden_.lock([&](Eden& eden) {
-    LOG(INFO) << "CleanEden starts with size: " << eden.object_metadata.size();
-    eden.object_metadata.remove_if(
-        [](std::weak_ptr<ObjectMetadata>& object_metadata) {
-          return object_metadata.expired();
-        });
-    LOG(INFO) << "CleanEden ends with size: " << eden.object_metadata.size();
-  });
+std::variant<Pool::FullReclaimStats, Pool::LightReclaimStats> Pool::Reclaim() {
+  return Reclaim(false);
 }
 
-Pool::ReclaimObjectsStats Pool::Reclaim() {
+Pool::FullReclaimStats Pool::FullReclaim() {
+  return std::get<FullReclaimStats>(Reclaim(true));
+}
+
+std::variant<Pool::FullReclaimStats, Pool::LightReclaimStats> Pool::Reclaim(
+    bool full) {
   static Tracker tracker(L"gc::Pool::Reclaim");
   auto call = tracker.Call();
+
+  size_t survivors_size = survivors_.lock([&](const Survivors& survivors) {
+    return survivors.object_metadata.size();
+  });
+
+  LightReclaimStats light_stats;
+  std::optional<Eden> frozen_eden =
+      eden_.lock([&](Eden& eden) -> std::optional<Eden> {
+        if (!full) {
+          static Tracker clean_tracker(L"gc::Pool::CleanEden");
+          auto clean_call = clean_tracker.Call();
+          LOG(INFO) << "CleanEden starts with size: "
+                    << eden.object_metadata.size();
+          light_stats.begin_eden_size = eden.object_metadata.size();
+          eden.object_metadata.remove_if(
+              [](std::weak_ptr<ObjectMetadata>& object_metadata) {
+                return object_metadata.expired();
+              });
+          light_stats.end_eden_size = eden.object_metadata.size();
+          LOG(INFO) << "CleanEden ends with size: "
+                    << eden.object_metadata.size();
+          if (eden.object_metadata.size() <= std::max(1024ul, survivors_size))
+            return std::nullopt;
+        }
+        return std::exchange(eden, Eden());
+      });
+
+  if (frozen_eden == std::nullopt) {
+    return light_stats;
+  }
 
   // We collect expired objects here and explicitly delete them once we have
   // unlocked data_.
   std::vector<ObjectMetadata::ExpandCallback> expired_objects_callbacks;
 
-  ReclaimObjectsStats stats;
-
-  Eden frozen_eden;
-  eden_.lock([&](Eden& eden) { std::swap(eden, frozen_eden); });
-
+  FullReclaimStats stats;
   survivors_.lock([&](Survivors& survivors) {
     VLOG(3) << "Starting with generations: " << survivors.roots.size();
-    InstallFrozenEden(survivors, frozen_eden);
+    InstallFrozenEden(survivors, *frozen_eden);
 
     stats.generations = survivors.roots.size();
     stats.begin_total = survivors.object_metadata.size();
@@ -88,22 +109,14 @@ Pool::ReclaimObjectsStats Pool::Reclaim() {
   return stats;
 }
 
-bool Pool::WantsReclaim() const {
-  size_t survivors_size = survivors_.lock([&](const Survivors& survivors) {
-    return survivors.object_metadata.size();
-  });
-  size_t eden_size =
-      eden_.lock([&](const Eden& eden) { return eden.object_metadata.size(); });
-  LOG(INFO) << "Wants reclaim: " << eden_size << " vs " << survivors_size;
-  return eden_size > std::max(1024ul, survivors_size);
-}
-
 void Pool::InstallFrozenEden(Survivors& survivors, Eden& eden) {
   VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
   for (const Eden::RootDeleted& d : eden.roots_deleted)
     d.roots_list->erase(d.it);
 
   VLOG(4) << "Installing objects from frozen eden.";
+  // TODO(easy, 2022-12-02): This has N complexity. Make it constant. Probalby
+  // requires changing survivors.object_metadata to be a list of lists.
   survivors.object_metadata.insert(survivors.object_metadata.end(),
                                    eden.object_metadata.begin(),
                                    eden.object_metadata.end());
@@ -234,10 +247,17 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         const Pool::ReclaimObjectsStats& stats) {
+                         const Pool::FullReclaimStats& stats) {
   os << "[roots: " << stats.roots << ", begin_total: " << stats.begin_total
      << ", end_total: " << stats.end_total
      << ", generations: " << stats.generations << "]";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const Pool::LightReclaimStats& stats) {
+  os << "[begin_eden_size: " << stats.begin_eden_size
+     << ", end_eden_size: " << stats.end_eden_size << "]";
   return os;
 }
 
@@ -285,10 +305,10 @@ bool tests_registration = tests::Register(
     {{.name = L"ReclaimOnEmpty",
       .callback =
           [] {
-            Pool::ReclaimObjectsStats stats = gc::Pool().Reclaim();
-            CHECK_EQ(stats.begin_total, 0ul);
-            CHECK_EQ(stats.end_total, 0ul);
-            CHECK_EQ(stats.roots, 0ul);
+            Pool::LightReclaimStats stats =
+                std::get<Pool::LightReclaimStats>(gc::Pool().Reclaim());
+            CHECK_EQ(stats.begin_eden_size, 0ul);
+            CHECK_EQ(stats.end_eden_size, 0ul);
           }},
      {.name = L"PreservesRoots",
       .callback =
@@ -325,7 +345,7 @@ bool tests_registration = tests::Register(
               CHECK(!delete_notification_1->has_value());
 
               VLOG(5) << "Start reclaim.";
-              auto stats = pool.Reclaim();
+              auto stats = pool.FullReclaim();
               CHECK_EQ(stats.begin_total, 2ul);
               CHECK_EQ(stats.roots, 1ul);
               CHECK_EQ(stats.end_total, 1ul);
@@ -337,7 +357,7 @@ bool tests_registration = tests::Register(
             }();
             CHECK(delete_notification->has_value());
 
-            Pool::ReclaimObjectsStats stats = pool.Reclaim();
+            Pool::FullReclaimStats stats = pool.FullReclaim();
             CHECK_EQ(stats.begin_total, 1ul);
             CHECK_EQ(stats.roots, 0ul);
             CHECK_EQ(stats.end_total, 0ul);
@@ -388,7 +408,7 @@ bool tests_registration = tests::Register(
               CHECK(!delete_notification_0->has_value());
               CHECK(!delete_notification_1->has_value());
 
-              pool.Reclaim();
+              pool.FullReclaim();
 
               CHECK(child_notification->has_value());
               CHECK(delete_notification_0->has_value());
@@ -407,7 +427,7 @@ bool tests_registration = tests::Register(
                 root.ptr()->delete_notification.listenable_value();
 
             {
-              auto stats = pool.Reclaim();
+              auto stats = pool.FullReclaim();
               CHECK_EQ(stats.begin_total, 10ul);
               CHECK_EQ(stats.end_total, 10ul);
               CHECK(!old_notification->has_value());
@@ -417,7 +437,7 @@ bool tests_registration = tests::Register(
             root = MakeLoop(pool, 5);
             CHECK(!old_notification->has_value());
             {
-              auto stats = pool.Reclaim();
+              auto stats = pool.FullReclaim();
               CHECK_EQ(stats.begin_total, 15ul);
               CHECK_EQ(stats.end_total, 5ul);
             }
@@ -439,7 +459,7 @@ bool tests_registration = tests::Register(
             CHECK(!root.ptr()
                        ->delete_notification.listenable_value()
                        ->has_value());
-            Pool::ReclaimObjectsStats stats = pool.Reclaim();
+            Pool::FullReclaimStats stats = pool.FullReclaim();
             CHECK_EQ(stats.begin_total, 7ul);
             CHECK_EQ(stats.roots, 1ul);
             CHECK_EQ(stats.end_total, 5ul);
@@ -451,11 +471,11 @@ bool tests_registration = tests::Register(
             std::optional<gc::Root<Node>> root = MakeLoop(pool, 7);
             gc::WeakPtr<Node> weak_ptr = root->ptr().ToWeakPtr();
 
-            pool.Reclaim();
+            pool.FullReclaim();
             CHECK(weak_ptr.Lock().has_value());
 
             root = std::nullopt;
-            pool.Reclaim();
+            pool.FullReclaim();
             CHECK(!weak_ptr.Lock().has_value());
           }},
      {.name = L"WeakPtrWithPtrRef", .callback = [] {
@@ -464,60 +484,62 @@ bool tests_registration = tests::Register(
         gc::Ptr<Node> ptr = root->ptr();
         gc::WeakPtr<Node> weak_ptr = ptr.ToWeakPtr();
 
-        pool.Reclaim();
+        pool.FullReclaim();
         CHECK(weak_ptr.Lock().has_value());
 
         root = std::nullopt;
-        pool.Reclaim();
+        pool.FullReclaim();
         CHECK(!weak_ptr.Lock().has_value());
       }}});
 
 bool wants_reclaim_tests_registration = tests::Register(
-    L"GC::WantsReclaim",
+    L"GC::FullVsLightReclaim",
     {
         {.name = L"OnEmpty",
-         .callback = [] { CHECK(!gc::Pool().WantsReclaim()); }},
+         .callback =
+             [] { std::get<Pool::LightReclaimStats>(gc::Pool().Reclaim()); }},
+        {.name = L"FullOnEmpty", .callback = [] { gc::Pool().FullReclaim(); }},
         {.name = L"NotAfterAHundred",
          .callback =
              [] {
                gc::Pool pool;
                MakeLoop(pool, 100);
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
              }},
         {.name = L"YesAfterEnough",
          .callback =
              [] {
                gc::Pool pool;
-               MakeLoop(pool, 1000);
-               CHECK(!pool.WantsReclaim());
-               MakeLoop(pool, 1000);
-               CHECK(pool.WantsReclaim());
+               std::optional<gc::Root<Node>> obj_0 = MakeLoop(pool, 1000);
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
+               std::optional<gc::Root<Node>> obj_1 = MakeLoop(pool, 1000);
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
+               obj_0 = std::nullopt;
+               obj_1 = std::nullopt;
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
+               MakeLoop(pool, 1500);
              }},
         {.name = L"NotAfterReclaim",
          .callback =
              [] {
                gc::Pool pool;
                MakeLoop(pool, 1000);
-               CHECK(!pool.WantsReclaim());
                MakeLoop(pool, 1000);
-               CHECK(pool.WantsReclaim());
-               pool.Reclaim();
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
              }},
         {.name = L"NotAfterReclaimBeforeFills",
          .callback =
              [] {
                gc::Pool pool;
                MakeLoop(pool, 1000);
-               CHECK(!pool.WantsReclaim());
                MakeLoop(pool, 1000);
-               CHECK(pool.WantsReclaim());
-               pool.Reclaim();
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
                MakeLoop(pool, 1000);
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
                MakeLoop(pool, 1000);
-               CHECK(pool.WantsReclaim());
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
              }},
         {.name = L"SomeSurvivingObjects",
          .callback =
@@ -525,22 +547,19 @@ bool wants_reclaim_tests_registration = tests::Register(
                gc::Pool pool;
                std::optional<gc::Root<Node>> root = MakeLoop(pool, 2048);
                MakeLoop(pool, 1000);
-               CHECK(pool.WantsReclaim());
-               pool.Reclaim();  // Survivors: 2048
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::FullReclaimStats>(
+                   pool.Reclaim());  // Survivors: 2048
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
 
                MakeLoop(pool, 1024);
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
 
                MakeLoop(pool, 1024 + 4);
-               CHECK(pool.WantsReclaim());
                root = std::nullopt;
-               CHECK(pool.WantsReclaim());
-               pool.Reclaim();
-               CHECK(!pool.WantsReclaim());
-
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
                MakeLoop(pool, 900);
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
              }},
         {.name = L"LargeTest",
          .callback =
@@ -548,27 +567,27 @@ bool wants_reclaim_tests_registration = tests::Register(
                gc::Pool pool;
                std::optional<gc::Root<Node>> root_big = MakeLoop(pool, 8000);
                std::optional<gc::Root<Node>> root_small = MakeLoop(pool, 2000);
-               CHECK(pool.WantsReclaim());
-               pool.Reclaim();
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
 
                MakeLoop(pool, 9000);
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
 
                MakeLoop(pool, 2000);
-               CHECK(pool.WantsReclaim());
-               pool.Reclaim();
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
 
                MakeLoop(pool, 11000);
-               CHECK(pool.WantsReclaim());
                root_big = std::nullopt;
-               pool.Reclaim();
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
 
                MakeLoop(pool, 1900);
-               CHECK(!pool.WantsReclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
+
                MakeLoop(pool, 200);
-               CHECK(pool.WantsReclaim());
+               std::get<Pool::FullReclaimStats>(pool.Reclaim());
+               std::get<Pool::LightReclaimStats>(pool.Reclaim());
              }},
     });
 
