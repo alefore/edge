@@ -86,6 +86,7 @@ class Pool {
   struct FullReclaimStats {
     size_t roots = 0;
     size_t begin_total = 0;
+    size_t eden_size = 0;
     size_t end_total = 0;
     size_t generations = 0;
   };
@@ -118,7 +119,7 @@ class Pool {
     language::NonNull<std::unique_ptr<ObjectMetadataList>> roots;
 
     struct RootDeleted {
-      language::NonNull<ObjectMetadataList*> roots_list;
+      ObjectMetadataList& roots_list;
       ObjectMetadataList::iterator it;
     };
     std::vector<RootDeleted> roots_deleted;
@@ -129,7 +130,7 @@ class Pool {
     std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>> roots;
   };
 
-  static void InstallFrozenEden(Survivors& survivors, Eden& eden);
+  static void UpdateRoots(Survivors& survivors, Eden& eden);
 
   static std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
   RegisterAllRoots(
@@ -143,9 +144,10 @@ class Pool {
   static void MarkReachable(
       std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> expand);
 
-  static ObjectMetadataList BuildSurvivorList(
+  static void AddSurvivors(
       ObjectMetadataList input,
-      std::vector<ObjectMetadata::ExpandCallback>& expired_object_callbacks);
+      std::vector<ObjectMetadata::ExpandCallback>& expired_object_callbacks,
+      ObjectMetadataList& output);
 
   concurrent::Protected<Eden> eden_;
 

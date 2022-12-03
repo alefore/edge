@@ -47,28 +47,29 @@ std::variant<Pool::FullReclaimStats, Pool::LightReclaimStats> Pool::Reclaim(
   });
 
   LightReclaimStats light_stats;
-  std::optional<Eden> frozen_eden =
-      eden_.lock([&](Eden& eden) -> std::optional<Eden> {
+  std::optional<Eden> eden =
+      eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
         if (!full) {
           static Tracker clean_tracker(L"gc::Pool::CleanEden");
           auto clean_call = clean_tracker.Call();
           LOG(INFO) << "CleanEden starts with size: "
-                    << eden.object_metadata.size();
-          light_stats.begin_eden_size = eden.object_metadata.size();
-          eden.object_metadata.remove_if(
+                    << eden_data.object_metadata.size();
+          light_stats.begin_eden_size = eden_data.object_metadata.size();
+          eden_data.object_metadata.remove_if(
               [](std::weak_ptr<ObjectMetadata>& object_metadata) {
                 return object_metadata.expired();
               });
-          light_stats.end_eden_size = eden.object_metadata.size();
+          light_stats.end_eden_size = eden_data.object_metadata.size();
           LOG(INFO) << "CleanEden ends with size: "
-                    << eden.object_metadata.size();
-          if (eden.object_metadata.size() <= std::max(1024ul, survivors_size))
+                    << eden_data.object_metadata.size();
+          if (eden_data.object_metadata.size() <=
+              std::max(1024ul, survivors_size))
             return std::nullopt;
         }
-        return std::exchange(eden, Eden());
+        return std::exchange(eden_data, Eden());
       });
 
-  if (frozen_eden == std::nullopt) {
+  if (eden == std::nullopt) {
     return light_stats;
   }
 
@@ -79,10 +80,11 @@ std::variant<Pool::FullReclaimStats, Pool::LightReclaimStats> Pool::Reclaim(
   FullReclaimStats stats;
   survivors_.lock([&](Survivors& survivors) {
     VLOG(3) << "Starting with generations: " << survivors.roots.size();
-    InstallFrozenEden(survivors, *frozen_eden);
+    UpdateRoots(survivors, *eden);
 
     stats.generations = survivors.roots.size();
     stats.begin_total = survivors.object_metadata.size();
+    stats.eden_size = eden->object_metadata.size();
 
     for (const NonNull<std::unique_ptr<ObjectMetadataList>>& l :
          survivors.roots)
@@ -91,10 +93,15 @@ std::variant<Pool::FullReclaimStats, Pool::LightReclaimStats> Pool::Reclaim(
     MarkReachable(RegisterAllRoots(survivors.roots));
 
     VLOG(3) << "Building survivor list.";
-    survivors.object_metadata = BuildSurvivorList(
-        std::move(survivors.object_metadata), expired_objects_callbacks);
+    ObjectMetadataList object_metadata;
+    AddSurvivors(std::move(eden->object_metadata), expired_objects_callbacks,
+                 object_metadata);
+    AddSurvivors(std::move(survivors.object_metadata),
+                 expired_objects_callbacks, object_metadata);
+    survivors.object_metadata = std::move(object_metadata);
+
     stats.end_total = survivors.object_metadata.size();
-    VLOG(3) << "Survivers: " << stats.end_total;
+    VLOG(3) << "Survivors: " << stats.end_total;
   });
 
   VLOG(3) << "Allowing unreachable object to be deleted: "
@@ -109,17 +116,10 @@ std::variant<Pool::FullReclaimStats, Pool::LightReclaimStats> Pool::Reclaim(
   return stats;
 }
 
-void Pool::InstallFrozenEden(Survivors& survivors, Eden& eden) {
+void Pool::UpdateRoots(Survivors& survivors, Eden& eden) {
   VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
   for (const Eden::RootDeleted& d : eden.roots_deleted)
-    d.roots_list->erase(d.it);
-
-  VLOG(4) << "Installing objects from frozen eden.";
-  // TODO(easy, 2022-12-02): This has N complexity. Make it constant. Probalby
-  // requires changing survivors.object_metadata to be a list of lists.
-  survivors.object_metadata.insert(survivors.object_metadata.end(),
-                                   eden.object_metadata.begin(),
-                                   eden.object_metadata.end());
+    d.roots_list.erase(d.it);
 
   VLOG(3) << "Removing empty lists of roots.";
   survivors.roots.push_back(std::move(eden.roots));
@@ -170,31 +170,30 @@ void Pool::MarkReachable(
   auto call = tracker.Call();
 
   while (!expand.empty()) {
-    language::NonNull<std::shared_ptr<ObjectMetadata>> front =
-        std::move(expand.front());
-    expand.pop_front();
-    VLOG(5) << "Considering obj: " << front.get_shared();
-    auto expansion = front->data_.lock([&](ObjectMetadata::Data& object_data) {
-      CHECK(object_data.expand_callback != nullptr);
-      CHECK(object_data.reached);
-      return object_data.expand_callback();
-    });
-    VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
+    VLOG(5) << "Considering obj: " << expand.front().get_shared();
+    auto expansion =
+        expand.front()->data_.lock([&](ObjectMetadata::Data& object_data) {
+          CHECK(object_data.expand_callback != nullptr);
+          CHECK(object_data.reached);
+          return object_data.expand_callback();
+        });
+    VLOG(6) << "Installing expansion of " << expand.front().get_shared() << ": "
             << expansion.size();
+    expand.pop_front();
     for (NonNull<std::shared_ptr<ObjectMetadata>> obj : expansion) {
       AddReachable(obj, expand);
     }
   }
 }
 
-Pool::ObjectMetadataList Pool::BuildSurvivorList(
+void Pool::AddSurvivors(
     Pool::ObjectMetadataList input,
-    std::vector<ObjectMetadata::ExpandCallback>& expired_objects_callbacks) {
-  static Tracker tracker(L"gc::Pool::Reclaim::Build Survivor List");
+    std::vector<ObjectMetadata::ExpandCallback>& expired_objects_callbacks,
+    Pool::ObjectMetadataList& output) {
+  static Tracker tracker(L"gc::Pool::Reclaim::AddSurvivors");
   auto call = tracker.Call();
 
-  ObjectMetadataList output;
-  for (std::weak_ptr<ObjectMetadata>& obj_weak : input) {
+  for (std::weak_ptr<ObjectMetadata>& obj_weak : input)
     VisitPointer(
         obj_weak,
         [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
@@ -209,8 +208,6 @@ Pool::ObjectMetadataList Pool::BuildSurvivorList(
           });
         },
         [] {});
-  }
-  return output;
 }
 
 Pool::RootRegistration Pool::AddRoot(
@@ -221,8 +218,7 @@ Pool::RootRegistration Pool::AddRoot(
     return RootRegistration(
         new bool(false),
         [this, root_deleted = Eden::RootDeleted{
-                   .roots_list = NonNull<ObjectMetadataList*>::AddressOf(
-                       eden.roots.value()),
+                   .roots_list = eden.roots.value(),
                    .it = std::prev(eden.roots->end())}](bool* value) {
           delete value;
           eden_.lock([&root_deleted](Eden& input_eden) {
@@ -346,7 +342,8 @@ bool tests_registration = tests::Register(
 
               VLOG(5) << "Start reclaim.";
               auto stats = pool.FullReclaim();
-              CHECK_EQ(stats.begin_total, 2ul);
+              CHECK_EQ(stats.begin_total, 0ul);
+              CHECK_EQ(stats.eden_size, 2ul);
               CHECK_EQ(stats.roots, 1ul);
               CHECK_EQ(stats.end_total, 1ul);
 
@@ -428,7 +425,8 @@ bool tests_registration = tests::Register(
 
             {
               auto stats = pool.FullReclaim();
-              CHECK_EQ(stats.begin_total, 10ul);
+              CHECK_EQ(stats.eden_size, 10ul);
+              CHECK_EQ(stats.begin_total, 0ul);
               CHECK_EQ(stats.end_total, 10ul);
               CHECK(!old_notification->has_value());
             }
@@ -438,7 +436,8 @@ bool tests_registration = tests::Register(
             CHECK(!old_notification->has_value());
             {
               auto stats = pool.FullReclaim();
-              CHECK_EQ(stats.begin_total, 15ul);
+              CHECK_EQ(stats.eden_size, 5ul);
+              CHECK_EQ(stats.begin_total, 10ul);
               CHECK_EQ(stats.end_total, 5ul);
             }
           }},
@@ -460,7 +459,8 @@ bool tests_registration = tests::Register(
                        ->delete_notification.listenable_value()
                        ->has_value());
             Pool::FullReclaimStats stats = pool.FullReclaim();
-            CHECK_EQ(stats.begin_total, 7ul);
+            CHECK_EQ(stats.eden_size, 7ul);
+            CHECK_EQ(stats.begin_total, 0ul);
             CHECK_EQ(stats.roots, 1ul);
             CHECK_EQ(stats.end_total, 5ul);
           }},
