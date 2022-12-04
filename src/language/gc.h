@@ -1,3 +1,66 @@
+// Module implementing incremental garbage collection.
+//
+// The main motivation is to support hierarchies of objects that may contain
+// loops. By (1) explicitly keeping track of "roots" (entry points that should
+// not be collected), and (2) requiring that contained types can be queried
+// about their references, we can detect unreachable objects (including cycles)
+// and collect them. In the absence of cycles, objects are deleted as soon as
+// they become unreachable.
+//
+// Exposes the following public types:
+//
+// * `Pool`: A container for pointers, through which collection can be triggered
+//   through `Pool::Collect`. References inside objects can't cross pool
+//   boundaries: they should only refer to objects in the same pool.
+//
+// * `Ptr<>`: A pointer to a managed object. The value can be obtained through
+//   `Ptr::value` or the `->` operator. This is similar to `std::shared_ptr<>`.
+//
+// * `Root<>`: Similar to `Ptr`, but ensures that objects pointed to by roots
+//   are always kept alive, even if they aren't otherwise reachable. A `Root`
+//   for a `Ptr` can be created through `Ptr::ToRoot`; conversely, the `Ptr`
+//   corresponding to a `Root` retrieved through `Root::Ptr`.
+//
+// * `WeakPtr<>: Similar to `Ptr`, but won't keep objects alive (i.e., if all
+//   references to an object are of this type, allows the object to be deleted).
+//   A `WeakPtr` corresponding to a given Ptr through `Ptr::ToWeakPtr`. To read
+//   the value, the customer must call `WeakPtr::Lock` to attempt to obtain a
+//   `Root` for the object.
+//
+// The expected usage is that values in the stack should be stored as `Root`
+// pointers. When a reference to an object is stored inside another object, the
+// reference should be stored as a `Ptr` or `WeakPtr`.
+//
+// There are two requirements on a type T for managed objects:
+//
+// 1. An "expand callback" function must be defined, which receives a T instance
+//    t and returns a vector with an ObjectMetadata instance for each object
+//    referenced by t. For example:
+//
+//    class T {
+//     public:
+//      std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand() const {
+//        std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output;
+//        for (auto& foo : dependencies_)
+//          output.push_back(foo.object_metadata());
+//        return output;
+//      }
+//
+//     private:
+//      // The dependencies of this instance. This example assumes that `Foo`
+//      // instances may themselves contain references back to this T.
+//      std::vector<Ptr<Foo>> dependencies_;
+//    };
+//
+//    std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(const T& t) {
+//      return t.Expand();
+//    }
+//
+// 2. When a new reference is added, we must call `Protect` in it. This is
+//    needed in order to support incremental collection (i.e., allow a
+//    long-running collection to be interrupted and resumed). In the example
+//    above, we'd do this whenever we insert items into `dependencies_`. See
+//    the notes on `Ptr::Protect`.
 #ifndef __AFC_LANGUAGE_GC_H__
 #define __AFC_LANGUAGE_GC_H__
 #include <glog/logging.h>
@@ -27,7 +90,7 @@ class Pool;
 
 // The object metadata, allocated once per object managed. This is an internal
 // class; the reason we expose it here is to allow implementation of the
-// `ExpandCallback` functions for the types of the managed objects.
+// `Expand` functions for the types of the managed objects.
 //
 // This is agnostic to the type of the contained value. In fact, it can't even
 // retrieve the contained value.
@@ -60,7 +123,7 @@ class ObjectMetadata {
 
  private:
   Pool& pool_;
-  enum State { kReached, kScheduled, kLost };
+  enum State { kExpanded, kScheduled, kLost };
   struct Data {
     ExpandCallback expand_callback;
     State state = State::kLost;
@@ -114,7 +177,7 @@ class Pool {
 
   CollectOutput Collect(bool full);
 
-  void Visit(
+  void MaybeScheduleExpandInEden(
       language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata);
 
   language::NonNull<std::shared_ptr<ObjectMetadata>> NewObjectMetadata(
@@ -123,7 +186,14 @@ class Pool {
   RootRegistration AddRoot(std::weak_ptr<ObjectMetadata> object_metadata);
 
   using ObjectMetadataList = std::list<std::weak_ptr<ObjectMetadata>>;
+  using ObjectExpandList =
+      std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
+
+  // The eden area holds information about recent activity. This is optimized to
+  // be locked only briefly, so as to avoid blocking progress.
   struct Eden {
+    static Eden NewWithExpandList();
+
     ObjectMetadataList object_metadata = {};
 
     // This is a unique_ptr to allow us to move it into Survivors preserving all
@@ -138,23 +208,30 @@ class Pool {
     };
     std::vector<RootDeleted> roots_deleted = {};
 
-    std::optional<std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>>
-        visit_list = std::nullopt;
+    // Normally is absent. If a `Collect` operation is interrupted, set to a
+    // list to which `MaybeScheduleExpandInEden` will add objects, so that when
+    // the collection is resumed, those expansions happen. See the notes on
+    // `ObjectMetadata::Protect`.
+    std::optional<ObjectExpandList> expand_list = std::nullopt;
   };
 
+  // Survivors holds all the information of objects that have survived a
+  // collection. This should only be locked by `Collect` (and may be held for
+  // a long interval, as collection progresses). Should never be locked while
+  // holding eden locked.
   struct Survivors {
     ObjectMetadataList object_metadata;
     std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>> roots;
 
-    // After inserting from the Eden and updating roots, we copy all objects
-    // from roots into expansion_list (in AddRootsForExpansion). We then
+    // After inserting from the eden and updating roots, we copy objects from
+    // `roots` into `expand_list` (in `ScheduleExpandRoots`). We then
     // recursively visit all objects here. Once the list is empty, we'll know
-    // the set of reachable objects.
+    // a set of unreachable objects.
     //
-    // If we reach a deadline while generating the expansion, we stop. The next
-    // execution will avoid (most of) the work we've done.
-    std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
-        expansion_list;
+    // If we reach a deadline while traversing this list, we stop. The next
+    // execution will avoid (most of) the work we've done (because it will
+    // quickly skip already scheduled or expanded objects).
+    ObjectExpandList expand_list;
   };
 
   // Insert new roots from Eden::roots; removes expired roots from
@@ -164,13 +241,19 @@ class Pool {
   static bool IsEmpty(const Eden& eden);
 
   // Inserts all not-yet-reached objects from survivors.roots into
-  // survivors.expansion_list.
-  static void AddRootsForExpansion(Survivors& survivors);
+  // survivors.expand_list.
+  static void ScheduleExpandRoots(Survivors& survivors);
 
-  static bool OfferExpansion(
-      language::NonNull<std::shared_ptr<ObjectMetadata>>& child);
+  // If the object's state is kLost, appends it to `expand_list`. The caller
+  // must ensure that `expand_list` will eventually be expanded (before allowing
+  // unexpanded objects to be deleted).
+  static void MaybeScheduleExpand(
+      ObjectExpandList& expand_list,
+      language::NonNull<std::shared_ptr<ObjectMetadata>> object);
 
-  static void Expand(Survivors& survivors, bool full);
+  // Recursively expand all objects in `survivors.expand_list`. May stop early
+  // if the timeout is reached.
+  static void Expand(Survivors& survivors, std::optional<double> timeout);
   static void UpdateSurvivorsList(
       Survivors& survivors,
       std::vector<ObjectMetadata::ExpandCallback>& expired_objects_callbacks);
@@ -232,17 +315,18 @@ class Ptr {
     return object_metadata_;
   }
 
-  // When an object C0 (that implements an `ExpandCallback` function) receives
-  // and stores a Ptr<> I instance, it must call Visit on it. This will ensure
-  // that if a collection is ongoing, I gets scheduled to be expanded.
+  // When an object C0 (that implements an `Expand` function) receives and
+  // stores a Ptr<> P instance, it must call `Protect` on it. This will ensure
+  // that if a collection is ongoing, P is "protected": gets scheduled to be
+  // expanded.
   //
-  // If we didn't do this, there could be races where the ownership of I could
-  // be transfered from a yet-to-be-visited container C1 to an already-visited
-  // container C0, which would allow I to be incorrectly dropped (when C1 gets
-  // visited, I is no longer reached).
-  void Visit() const {
+  // If we didn't do this, there could be races where the ownership of P could
+  // be transfered from a yet-to-be-expanded container C1 to an already-expanded
+  // container C0, which would allow P to be incorrectly dropped (when C1 gets
+  // expanded, P is no longer reached).
+  void Protect() const {
     CHECK(value_.lock() != nullptr);
-    return pool().Visit(object_metadata_);
+    return pool().MaybeScheduleExpandInEden(object_metadata_);
   }
 
  private:

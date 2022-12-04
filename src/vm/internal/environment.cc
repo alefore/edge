@@ -131,7 +131,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
   auto [_, inserted] =
       parent.ptr()->namespaces_.insert({name, namespace_env.ptr()});
   CHECK(inserted);
-  namespace_env.ptr().Visit();
+  namespace_env.ptr().Protect();
   return namespace_env;
 }
 
@@ -237,7 +237,7 @@ void Environment::CaseInsensitiveLookup(const Namespace& symbol_namespace,
 void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
   VMType type = value.ptr()->type;
   table_[symbol].insert_or_assign(type, value.ptr());
-  value.ptr().Visit();
+  value.ptr().Protect();
 }
 
 void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
@@ -253,7 +253,7 @@ void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
     return;
   }
   it->second.insert_or_assign(value.ptr()->type, value.ptr());
-  value.ptr().Visit();
+  value.ptr().Protect();
 }
 
 void Environment::Remove(const wstring& symbol, VMType type) {
