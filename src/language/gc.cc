@@ -335,8 +335,7 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
 }
 
 /* static */ Pool::Eden Pool::Eden::NewWithExpandList() {
-  return Eden{.expand_list =
-                  std::list<NonNull<std::shared_ptr<ObjectMetadata>>>()};
+  return Eden{.expand_list = ObjectExpandList{}};
 }
 
 std::ostream& operator<<(std::ostream& os,
