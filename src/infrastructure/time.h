@@ -28,6 +28,16 @@ std::optional<double> UpdateIfMillisecondsHavePassed(
 Time AddSeconds(Time time, double seconds_duration);
 
 language::ValueOrError<std::wstring> HumanReadableTime(const Time& time);
+
+class CountDownTimer {
+ public:
+  CountDownTimer(double seconds);
+  bool IsDone() const;
+
+ private:
+  const Time alarm_;
+};
+
 }  // namespace afc::infrastructure
 
 bool operator==(const afc::infrastructure::Time& a,

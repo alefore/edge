@@ -88,6 +88,10 @@ language::ValueOrError<std::wstring> HumanReadableTime(
   return Success(language::FromByteString(std::string(buffer, strlen(buffer))));
 }
 
+CountDownTimer::CountDownTimer(double seconds)
+    : alarm_(AddSeconds(Now(), seconds)) {}
+
+bool CountDownTimer::IsDone() const { return Now() >= alarm_; }
 }  // namespace afc::infrastructure
 
 bool operator==(const struct timespec& a, const struct timespec& b) {
