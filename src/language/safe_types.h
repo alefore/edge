@@ -252,7 +252,7 @@ NonNull<std::shared_ptr<T>> MakeNonNullShared(Arg&&... arg) {
 }
 
 template <typename T, typename Callable, typename NullCallable>
-decltype(std::declval<Callable>()(NonNull<T>::Unsafe(T()))) VisitPointer(
+decltype(std::declval<Callable>()(std::declval<NonNull<T>>())) VisitPointer(
     T t, Callable callable, NullCallable null_callable) {
   // Most of the time the non-null case returns a more generic type (typically a
   // ValueOrError vs an Error), so we assume that VisitPointer will return the
