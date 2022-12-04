@@ -48,6 +48,7 @@ class Environment {
       language::gc::Pool& pool, const Namespace& symbol_namespace,
       const std::wstring& symbol, VMType expected_type);
 
+  // TODO(easy, 2022-12-03): Why isn't it const? Same for CaseInsensitiveLookup.
   void PolyLookup(const Namespace& symbol_namespace, const std::wstring& symbol,
                   std::vector<language::gc::Root<Value>>* output);
   // Same as `PolyLookup` but ignores case and thus is much slower (runtime
