@@ -149,6 +149,8 @@ class Pool {
 
   ~Pool();
 
+  size_t count_objects() const;
+
   struct FullCollectStats {
     size_t roots = 0;
     size_t begin_total = 0;

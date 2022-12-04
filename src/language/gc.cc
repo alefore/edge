@@ -31,6 +31,14 @@ Pool::~Pool() {
   FullCollect();
 }
 
+size_t Pool::count_objects() const {
+  return eden_.lock([](const Eden& eden) {
+    return eden.object_metadata.size();
+  }) + survivors_.lock([](const Survivors& survivors) {
+    return survivors.object_metadata.size();
+  });
+}
+
 Pool::CollectOutput Pool::Collect() { return Collect(false); }
 
 Pool::FullCollectStats Pool::FullCollect() {
@@ -49,7 +57,8 @@ Pool::CollectOutput Pool::Collect(bool full) {
       eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
         if (!full && eden_data.expand_list == std::nullopt) {
           auto done = [&] {
-            return eden_data.object_metadata.size() <=
+            return eden_data.object_metadata.size() +
+                       eden_data.roots_deleted.size() <=
                    std::max(1024ul, survivors_size);
           };
           light_stats.begin_eden_size = eden_data.object_metadata.size();
@@ -592,14 +601,29 @@ bool full_vs_light_collect_tests_registration = tests::Register(
          .callback =
              [] {
                gc::Pool pool;
-               std::optional<gc::Root<Node>> obj_0 = MakeLoop(pool, 1000);
-               std::get<Pool::LightCollectStats>(pool.Collect());
-               std::optional<gc::Root<Node>> obj_1 = MakeLoop(pool, 1000);
-               std::get<Pool::FullCollectStats>(pool.Collect());
+               std::optional<gc::Root<Node>> obj_0 = MakeLoop(pool, 500);
+               CHECK_EQ(pool.count_objects(), 500ul);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 500ul);
+
+               std::optional<gc::Root<Node>> obj_1 = MakeLoop(pool, 500);
+               CHECK_EQ(pool.count_objects(), 1000ul);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 1000ul);
+
                obj_0 = std::nullopt;
                obj_1 = std::nullopt;
-               std::get<Pool::LightCollectStats>(pool.Collect());
-               MakeLoop(pool, 1500);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 1000ul);
+
+               MakeLoop(pool, 1000);
+               CHECK_EQ(pool.count_objects(), 2000ul);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 0ul);
              }},
         {.name = L"LightAfterCollect",
          .callback =
@@ -607,8 +631,9 @@ bool full_vs_light_collect_tests_registration = tests::Register(
                gc::Pool pool;
                MakeLoop(pool, 1000);
                MakeLoop(pool, 1000);
-               std::get<Pool::FullCollectStats>(pool.Collect());
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               CHECK_EQ(pool.count_objects(), 2000ul);
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 0ul);
              }},
         {.name = L"LightAfterCollectBeforeFills",
          .callback =
@@ -616,12 +641,22 @@ bool full_vs_light_collect_tests_registration = tests::Register(
                gc::Pool pool;
                MakeLoop(pool, 1000);
                MakeLoop(pool, 1000);
-               std::get<Pool::FullCollectStats>(pool.Collect());
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               CHECK_EQ(pool.count_objects(), 2000ul);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 0ul);
+
+               MakeLoop(pool, 500);
+               CHECK_EQ(pool.count_objects(), 500ul);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 500ul);
+
                MakeLoop(pool, 1000);
-               std::get<Pool::LightCollectStats>(pool.Collect());
-               MakeLoop(pool, 1000);
-               std::get<Pool::FullCollectStats>(pool.Collect());
+               CHECK_EQ(pool.count_objects(), 1500ul);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 0ul);
              }},
         {.name = L"SomeSurvivingObjects",
          .callback =
@@ -629,19 +664,26 @@ bool full_vs_light_collect_tests_registration = tests::Register(
                gc::Pool pool;
                std::optional<gc::Root<Node>> root = MakeLoop(pool, 2048);
                MakeLoop(pool, 1000);
-               std::get<Pool::FullCollectStats>(
-                   pool.Collect());  // Survivors: 2048
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               CHECK_EQ(pool.count_objects(), 3048ul);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 2048ul);
 
                MakeLoop(pool, 1024);
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               CHECK_EQ(pool.count_objects(), 3072ul);
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 3072ul);
 
                MakeLoop(pool, 1024 + 4);
                root = std::nullopt;
-               std::get<Pool::FullCollectStats>(pool.Collect());
-               std::get<Pool::LightCollectStats>(pool.Collect());
-               MakeLoop(pool, 900);
-               std::get<Pool::LightCollectStats>(pool.Collect());
+
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 0ul);
+
+               MakeLoop(pool, 500);
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 500ul);
              }},
         {.name = L"LargeTest",
          .callback =
@@ -649,27 +691,40 @@ bool full_vs_light_collect_tests_registration = tests::Register(
                gc::Pool pool;
                std::optional<gc::Root<Node>> root_big = MakeLoop(pool, 8000);
                std::optional<gc::Root<Node>> root_small = MakeLoop(pool, 2000);
-               std::get<Pool::FullCollectStats>(pool.Collect());
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               CHECK_EQ(pool.count_objects(), 10000ul);
+               pool.Collect();
 
                MakeLoop(pool, 9000);
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               CHECK_EQ(pool.count_objects(), 19000ul);
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 10000ul);
 
                MakeLoop(pool, 2000);
-               std::get<Pool::FullCollectStats>(pool.Collect());
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               CHECK_EQ(pool.count_objects(), 12000ul);
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 12000ul);
 
                MakeLoop(pool, 11000);
+               CHECK_EQ(pool.count_objects(), 23000ul);
                root_big = std::nullopt;
-               std::get<Pool::FullCollectStats>(pool.Collect());
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 2000ul);
 
-               MakeLoop(pool, 1900);
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               MakeLoop(pool, 100);
+               CHECK_EQ(pool.count_objects(), 2100ul);
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 2100ul);
+               pool.FullCollect();
+               CHECK_EQ(pool.count_objects(), 2000ul);
 
-               MakeLoop(pool, 200);
-               std::get<Pool::FullCollectStats>(pool.Collect());
-               std::get<Pool::LightCollectStats>(pool.Collect());
+               MakeLoop(pool, 1000);
+               CHECK_EQ(pool.count_objects(), 3000ul);
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 3000ul);
+               MakeLoop(pool, 1000);
+               CHECK_EQ(pool.count_objects(), 4000ul);
+               pool.Collect();
+               CHECK_EQ(pool.count_objects(), 2000ul);
              }},
     });
 
