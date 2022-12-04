@@ -27,13 +27,13 @@ class Pool;
 
 // The object metadata, allocated once per object managed. This is an internal
 // class; the reason we expose it here is to allow implementation of the
-// `Expand` functions.
+// `ExpandCallback` functions for the types of the managed objects.
 //
 // This is agnostic to the type of the contained value. In fact, it can't even
-// retrieve the original value.
+// retrieve the contained value.
 //
 // The only `std::shared_ptr<>` reference (in the entire hierarchy of classes in
-// afc::language::gc) to the objects managed is kept inside
+// this module, `afc::language::gc`) to the objects managed is kept inside
 // `ObjectMetadata::expand_callback`. Everything else just keeps
 // `std::weak_ptr<>` references. By clearing up the `expand_callback`, we
 // effectively allow objects to be deleted.
@@ -60,13 +60,16 @@ class ObjectMetadata {
 
  private:
   Pool& pool_;
+  enum State { kReached, kScheduled, kLost };
   struct Data {
     ExpandCallback expand_callback;
-    bool reached = false;
+    State state = State::kLost;
   };
   concurrent::Protected<Data> data_;
 };
 
+// All the objects managed must be allocated within a given pool. Objects in a
+// given pool may only reference objects in the same pool.
 class Pool {
  public:
   template <typename T>
@@ -83,19 +86,22 @@ class Pool {
 
   ~Pool();
 
-  struct FullReclaimStats {
+  struct FullCollectStats {
     size_t roots = 0;
     size_t begin_total = 0;
     size_t eden_size = 0;
     size_t end_total = 0;
     size_t generations = 0;
   };
-  struct LightReclaimStats {
+  struct LightCollectStats {
     size_t begin_eden_size = 0;
     size_t end_eden_size = 0;
   };
-  std::variant<FullReclaimStats, LightReclaimStats> Reclaim();
-  FullReclaimStats FullReclaim();
+  struct UnfinishedCollectStats {};
+  using CollectOutput =
+      std::variant<FullCollectStats, LightCollectStats, UnfinishedCollectStats>;
+  CollectOutput Collect();
+  FullCollectStats FullCollect();
 
   using RootRegistration = std::shared_ptr<bool>;
 
@@ -103,7 +109,13 @@ class Pool {
   template <typename T>
   friend class Root;
 
-  std::variant<FullReclaimStats, LightReclaimStats> Reclaim(bool full);
+  template <typename T>
+  friend class Ptr;
+
+  CollectOutput Collect(bool full);
+
+  void Visit(
+      language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata);
 
   language::NonNull<std::shared_ptr<ObjectMetadata>> NewObjectMetadata(
       ObjectMetadata::ExpandCallback expand_callback);
@@ -112,55 +124,69 @@ class Pool {
 
   using ObjectMetadataList = std::list<std::weak_ptr<ObjectMetadata>>;
   struct Eden {
-    ObjectMetadataList object_metadata;
+    ObjectMetadataList object_metadata = {};
 
     // This is a unique_ptr to allow us to move it into Survivors preserving all
     // iterators.
-    language::NonNull<std::unique_ptr<ObjectMetadataList>> roots;
+    language::NonNull<std::unique_ptr<ObjectMetadataList>> roots = {};
 
+    // A set of roots that have been deleted recently. This will allow us to
+    // update Survivors::roots (in UpdateRoots).
     struct RootDeleted {
       ObjectMetadataList& roots_list;
       ObjectMetadataList::iterator it;
     };
-    std::vector<RootDeleted> roots_deleted;
+    std::vector<RootDeleted> roots_deleted = {};
+
+    std::optional<std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>>
+        visit_list = std::nullopt;
   };
 
   struct Survivors {
     ObjectMetadataList object_metadata;
     std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>> roots;
+
+    // After inserting from the Eden and updating roots, we copy all objects
+    // from roots into expansion_list (in AddRootsForExpansion). We then
+    // recursively visit all objects here. Once the list is empty, we'll know
+    // the set of reachable objects.
+    //
+    // If we reach a deadline while generating the expansion, we stop. The next
+    // execution will avoid (most of) the work we've done.
+    std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
+        expansion_list;
   };
 
-  static void UpdateRoots(Survivors& survivors, Eden& eden);
+  // Insert new roots from Eden::roots; removes expired roots from
+  // Eden::roots_deleted; and inserts from Eden::object_metadata into
+  // Survivors::object_metadata.
+  static void ConsumeEden(Eden eden, Survivors& survivors);
+  static bool IsEmpty(const Eden& eden);
 
-  static std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>
-  RegisterAllRoots(
-      const std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>>&
-          object_metadata);
+  // Inserts all not-yet-reached objects from survivors.roots into
+  // survivors.expansion_list.
+  static void AddRootsForExpansion(Survivors& survivors);
 
-  static void AddReachable(
-      NonNull<std::shared_ptr<ObjectMetadata>> object_metadata,
-      std::list<NonNull<std::shared_ptr<ObjectMetadata>>>& output);
+  static bool OfferExpansion(
+      language::NonNull<std::shared_ptr<ObjectMetadata>>& child);
 
-  static void MarkReachable(
-      std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>> expand);
-
-  static void AddSurvivors(
-      ObjectMetadataList input,
-      std::vector<ObjectMetadata::ExpandCallback>& expired_object_callbacks,
-      ObjectMetadataList& output);
+  static void Expand(Survivors& survivors, bool full);
+  static void UpdateSurvivorsList(
+      Survivors& survivors,
+      std::vector<ObjectMetadata::ExpandCallback>& expired_objects_callbacks);
 
   concurrent::Protected<Eden> eden_;
 
   concurrent::Protected<Survivors> survivors_;
 };
 
-std::ostream& operator<<(std::ostream& os, const Pool::FullReclaimStats& stats);
+std::ostream& operator<<(std::ostream& os, const Pool::FullCollectStats& stats);
 std::ostream& operator<<(std::ostream& os,
-                         const Pool::LightReclaimStats& stats);
+                         const Pool::LightCollectStats& stats);
 
 // A mutable pointer with shared ownership of a managed object. Behaves very
 // much like `std::shared_ptr<T>`: when the number of references drops to 0, the
-// object is reclaimed. The object will also be reclaimed by Pool::Reclaim when
+// object is reclaimed. The object will also be reclaimed by Pool::Collect when
 // it's not reachable from a root.
 //
 // One notable difference with `std::shared_ptr` is that we deliberately don't
@@ -200,10 +226,23 @@ class Ptr {
   }
   T& value() const { return language::Pointer(value_.lock()).Reference(); }
 
-  // This is only exposed in order to allow implementation of `Expand`
+  // This is only exposed in order to allow implementation of `ExpandCallback`
   // functions.
   language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata() const {
     return object_metadata_;
+  }
+
+  // When an object C0 (that implements an `ExpandCallback` function) receives
+  // and stores a Ptr<> I instance, it must call Visit on it. This will ensure
+  // that if a collection is ongoing, I gets scheduled to be expanded.
+  //
+  // If we didn't do this, there could be races where the ownership of I could
+  // be transfered from a yet-to-be-visited container C1 to an already-visited
+  // container C0, which would allow I to be incorrectly dropped (when C1 gets
+  // visited, I is no longer reached).
+  void Visit() const {
+    CHECK(value_.lock() != nullptr);
+    return pool().Visit(object_metadata_);
   }
 
  private:

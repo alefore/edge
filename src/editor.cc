@@ -106,10 +106,13 @@ void EditorState::NotifyInternalEvent() {
 }
 
 void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
-  pool.Reclaim();
+  gc::Pool::CollectOutput collect_output = pool.Collect();
   static constexpr size_t kSecondsBetweenGc = 1;
   work_queue.ScheduleAt(
-      AddSeconds(Now(), kSecondsBetweenGc),
+      AddSeconds(Now(), std::get_if<gc::Pool::UnfinishedCollectStats>(
+                            &collect_output) == nullptr
+                            ? kSecondsBetweenGc
+                            : 0.0),
       [&pool, &work_queue] { ReclaimAndSchedule(pool, work_queue); });
 }
 
@@ -203,7 +206,7 @@ EditorState::~EditorState() {
   buffers_.clear();
 
   LOG(INFO) << "Reclaim GC pool.";
-  gc_pool_.Reclaim();
+  gc_pool_.FullCollect();
 }
 
 const bool& EditorState::Read(const EdgeVariable<bool>* variable) const {

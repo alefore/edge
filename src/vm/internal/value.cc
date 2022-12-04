@@ -218,19 +218,19 @@ bool value_gc_tests_registration = tests::Register(
           nested = nullptr;
           CHECK(nested_weak.lock() != nullptr);
 
-          pool.Reclaim();
+          pool.FullCollect();
           CHECK(nested_weak.lock() != nullptr);
 
           return parent.ptr()->LockCallback();
         }();
 
         CHECK(nested_weak.lock() != nullptr);
-        pool.Reclaim();
+        pool.FullCollect();
 
         CHECK(nested_weak.lock() != nullptr);
 
         callback = nullptr;
-        pool.Reclaim();
+        pool.FullCollect();
         CHECK(nested_weak.lock() == nullptr);
       }}});
 }

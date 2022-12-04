@@ -71,6 +71,8 @@ language::gc::Root<Environment> Environment::NewDefault(
   return environment;
 }
 
+// TODO(easy, 2022-12-03): Get rid of this? Now that we have GC, shouldn't be
+// needed.
 void Environment::Clear() {
   object_types_.clear();
   table_.clear();
@@ -129,6 +131,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
   auto [_, inserted] =
       parent.ptr()->namespaces_.insert({name, namespace_env.ptr()});
   CHECK(inserted);
+  namespace_env.ptr().Visit();
   return namespace_env;
 }
 
@@ -233,7 +236,8 @@ void Environment::CaseInsensitiveLookup(const Namespace& symbol_namespace,
 
 void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
   VMType type = value.ptr()->type;
-  table_[symbol].insert_or_assign(type, std::move(value.ptr()));
+  table_[symbol].insert_or_assign(type, value.ptr());
+  value.ptr().Visit();
 }
 
 void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
@@ -249,6 +253,7 @@ void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
     return;
   }
   it->second.insert_or_assign(value.ptr()->type, value.ptr());
+  value.ptr().Visit();
 }
 
 void Environment::Remove(const wstring& symbol, VMType type) {

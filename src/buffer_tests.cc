@@ -162,8 +162,8 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
             // them).
             std::optional<size_t> end_total;
             while (true) {
-              gc::Pool::FullReclaimStats stats =
-                  EditorForTests().gc_pool().FullReclaim();
+              gc::Pool::FullCollectStats stats =
+                  EditorForTests().gc_pool().FullCollect();
               if (end_total == stats.end_total) return stats;
               end_total = stats.end_total;
             }
