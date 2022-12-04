@@ -19,7 +19,7 @@ using language::NonNull;
 namespace gc = language::gc;
 
 struct BufferWrapper {
-  gc::Ptr<editor::OpenBuffer> buffer;
+  const gc::Ptr<editor::OpenBuffer> buffer;
 };
 
 gc::Root<editor::OpenBuffer>
