@@ -38,8 +38,7 @@ Pool::FullCollectStats Pool::FullCollect() {
 }
 
 Pool::CollectOutput Pool::Collect(bool full) {
-  static Tracker tracker(L"gc::Pool::Collect");
-  auto call = tracker.Call();
+  TRACK_OPERATION(gc_Pool_Collect);
 
   size_t survivors_size = survivors_.lock([&](const Survivors& survivors) {
     return survivors.object_metadata.size();
@@ -55,8 +54,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
           };
           light_stats.begin_eden_size = eden_data.object_metadata.size();
           if (!done()) {
-            static Tracker clean_tracker(L"gc::Pool::CleanEden");
-            auto clean_call = clean_tracker.Call();
+            TRACK_OPERATION(gc_Pool_Collect_CleanEden);
             VLOG(3) << "CleanEden starts: " << eden_data.object_metadata.size();
             eden_data.object_metadata.remove_if(
                 [](std::weak_ptr<ObjectMetadata>& object_metadata) {
@@ -110,9 +108,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
               return std::nullopt;
             }
 
-            static Tracker eden_changed_tracker(
-                L"gc::Pool::Collect::EdenChanged");
-            auto eden_changed_call = eden_changed_tracker.Call();
+            TRACK_OPERATION(gc_Pool_Collect_EdenChanged);
             return std::exchange(eden_data, Eden::NewWithExpandList());
           });
         }
@@ -120,8 +116,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
         VLOG(3) << "Survivors: " << stats.end_total;
         return true;
       })) {
-    static Tracker interrupted_tracker(L"gc::Pool::Collect::Interrupted");
-    auto interrupted_call = interrupted_tracker.Call();
+    TRACK_OPERATION(gc_Pool_Collect_Interrupted);
     CHECK(!full);
     CHECK(expired_objects_callbacks.empty());
     return UnfinishedCollectStats();
@@ -130,8 +125,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
   VLOG(3) << "Allowing lost object to be deleted: "
           << expired_objects_callbacks.size();
   {
-    static Tracker delete_tracker(L"gc::Pool::Collect::Delete lost");
-    auto delete_call = delete_tracker.Call();
+    TRACK_OPERATION(gc_Pool_Collect_DeleteLost);
     expired_objects_callbacks.clear();
   }
 
@@ -140,12 +134,14 @@ Pool::CollectOutput Pool::Collect(bool full) {
 }
 
 void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
-  static Tracker tracker(L"gc::Pool::ConsumeEden");
-  auto call = tracker.Call();
+  TRACK_OPERATION(gc_Pool_ConsumeEden);
 
-  VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
-  for (const Eden::RootDeleted& d : eden.roots_deleted)
-    d.roots_list.erase(d.it);
+  {
+    TRACK_OPERATION(gc_Pool_ConsumeEden_roots_deleted);
+    VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
+    for (const Eden::RootDeleted& d : eden.roots_deleted)
+      d.roots_list.erase(d.it);
+  }
 
   VLOG(3) << "Removing empty lists of roots.";
   survivors.roots.push_back(std::move(eden.roots));
@@ -154,15 +150,19 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
         return l->empty();
       });
 
-  survivors.object_metadata.insert(survivors.object_metadata.end(),
-                                   eden.object_metadata.begin(),
-                                   eden.object_metadata.end());
+  {
+    TRACK_OPERATION(gc_Pool_ConsumeEden_object_metadata);
+    survivors.object_metadata.insert(survivors.object_metadata.end(),
+                                     eden.object_metadata.begin(),
+                                     eden.object_metadata.end());
+  }
 
-  // TODO(gc, 2022-12-03): Use forward_list and splice_after for constant time.
-  if (eden.expand_list.has_value())
+  if (eden.expand_list.has_value()) {
+    TRACK_OPERATION(gc_Pool_ConsumeEden_expand_list);
     survivors.expand_list.insert(survivors.expand_list.end(),
                                  eden.expand_list->begin(),
                                  eden.expand_list->end());
+  }
 }
 
 /*  static */ bool Pool::IsEmpty(const Eden& eden) {
@@ -173,17 +173,12 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
 
 /* static */ void Pool::ScheduleExpandRoots(Survivors& survivors) {
   VLOG(3) << "Registering roots.";
-  static Tracker tracker(L"gc::Pool::ScheduleExpandRoots");
-  auto call = tracker.Call();
+  TRACK_OPERATION(gc_Pool_ScheduleExpandRoots);
 
   for (const NonNull<std::unique_ptr<ObjectMetadataList>>& l : survivors.roots)
     for (const std::weak_ptr<ObjectMetadata>& root_weak : l.value()) {
       VisitPointer(
           root_weak,
-          /*          [&](NonNull<std::shared_ptr<ObjectMetadata>> object) {
-                      return MaybeScheduleExpand(survivors.expand_list,
-                                                 std::move(object));
-                    },*/
           std::bind_front(MaybeScheduleExpand, std::ref(survivors.expand_list)),
           [] { LOG(FATAL) << "Root was dead. Should never happen."; });
     }
@@ -213,8 +208,7 @@ void Pool::Expand(Survivors& survivors, std::optional<double> timeout) {
   VLOG(3) << "Starting recursive expand (expand_list: "
           << survivors.expand_list.size() << ")";
 
-  static Tracker tracker(L"gc::Pool::Expand");
-  auto call = tracker.Call();
+  TRACK_OPERATION(gc_Pool_Expand);
 
   std::optional<CountDownTimer> timer = timeout.has_value()
                                             ? CountDownTimer(*timeout)
@@ -222,8 +216,7 @@ void Pool::Expand(Survivors& survivors, std::optional<double> timeout) {
 
   while (!survivors.expand_list.empty() &&
          !(timer.has_value() && timer->IsDone())) {
-    static Tracker nested_tracker(L"gc::Pool::Expand::Step");
-    auto nested_call = nested_tracker.Call();
+    TRACK_OPERATION(gc_Pool_Expand_Step);
 
     auto& front = survivors.expand_list.front();
     VLOG(5) << "Considering obj: " << front.get_shared();
@@ -236,9 +229,7 @@ void Pool::Expand(Survivors& survivors, std::optional<double> timeout) {
               return {};
             case ObjectMetadata::State::kScheduled: {
               object_data.state = ObjectMetadata::State::kExpanded;
-              static Tracker expand_callback_tracker(
-                  L"gc::Pool::Expand::expand_callback");
-              auto expand_callback_call = expand_callback_tracker.Call();
+              TRACK_OPERATION(gc_Pool_Expand_Step_call);
               return object_data.expand_callback();
             }
             case ObjectMetadata::State::kLost:
@@ -265,8 +256,7 @@ void Pool::Expand(Survivors& survivors, std::optional<double> timeout) {
   // TODO(gc, 2022-12-03): Add a timer and find a way to allow this function
   // to be interrupted.
 
-  static Tracker tracker(L"gc::Pool::Collect::AddSurvivors");
-  auto call = tracker.Call();
+  TRACK_OPERATION(gc_Pool_UpdateSurvivorsList);
 
   for (std::weak_ptr<ObjectMetadata>& obj_weak : survivors.object_metadata)
     VisitPointer(
