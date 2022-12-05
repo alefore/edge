@@ -2,40 +2,42 @@
 //
 // The main motivation is to support hierarchies of objects that may contain
 // loops. By (1) explicitly keeping track of "roots" (entry points that should
-// not be collected), and (2) requiring that contained types can be queried
-// about their references, we can detect unreachable objects (including cycles)
-// and collect them. In the absence of cycles, objects are deleted as soon as
-// they become unreachable.
+// not be collected), and (2) requiring managed "container" types to be
+// queryable about their outgoing references, we can detect unreachable objects
+// (including cycles) and collect them. In the absence of cycles, objects are
+// deleted as soon as they become unreachable (like regular `std::shared_ptr`).
 //
 // Exposes the following public types:
 //
 // * `Pool`: A container for pointers, through which collection can be triggered
 //   through `Pool::Collect`. References inside objects can't cross pool
-//   boundaries: they should only refer to objects in the same pool.
+//   boundaries: they should only refer to objects in the same pool. We expect a
+//   single pool to be enough for most programs.
 //
 // * `Ptr<>`: A pointer to a managed object. The value can be obtained through
-//   `Ptr::value` or the `->` operator. This is similar to `std::shared_ptr<>`.
+//   `Ptr::value` or the `->` operator. This is similar to `std::shared_ptr`.
 //
 // * `Root<>`: Similar to `Ptr`, but ensures that objects pointed to by roots
 //   are always kept alive, even if they aren't otherwise reachable. A `Root`
 //   for a `Ptr` can be created through `Ptr::ToRoot`; conversely, the `Ptr`
-//   corresponding to a `Root` retrieved through `Root::Ptr`.
+//   corresponding to a `Root` can be read through `Root::Ptr`.
 //
 // * `WeakPtr<>: Similar to `Ptr`, but won't keep objects alive (i.e., if all
 //   references to an object are of this type, allows the object to be deleted).
 //   A `WeakPtr` corresponding to a given Ptr through `Ptr::ToWeakPtr`. To read
 //   the value, the customer must call `WeakPtr::Lock` to attempt to obtain a
-//   `Root` for the object.
+//   `Root` for the object. This is similar to `std::weak_ptr`.
 //
-// The expected usage is that values in the stack should be stored as `Root`
-// pointers. When a reference to an object is stored inside another object, the
-// reference should be stored as a `Ptr` or `WeakPtr`.
+// The expected usage is that values in the stack and in a few special entry
+// points should be stored as `Root` pointers. Reference inside managed types
+// should be stored as a `Ptr` or `WeakPtr`.
 //
-// There are two requirements on a type T for managed objects:
+// There are two requirements on a type `T` for managed objects:
 //
-// 1. An "expand callback" function must be defined, which receives a T instance
-//    t and returns a vector with an ObjectMetadata instance for each object
-//    referenced by t. For example:
+// 1. An "expand callback" function must be defined, which receives a `T`
+//    instance `t` and returns a vector with an `ObjectMetadata` instance for
+//    each managed object directly reachable from `t`. For example (here `Foo`
+//    would be another managed type):
 //
 //    class T {
 //     public:
@@ -61,6 +63,22 @@
 //    long-running collection to be interrupted and resumed). In the example
 //    above, we'd do this whenever we insert items into `dependencies_`. See
 //    the notes on `Ptr::Protect`.
+//
+// To trigger collection, just call `Pool::Collect` or `Pool::FullCollect`.
+//
+// To create new managed instances, use `Pool::NewRoot`. It is slightly more
+// accurate to say that the life management of existing objects is *transferred*
+// to the pool. For example:
+//
+//   Root<Foo> my_foo = pool.NewRoot(language::MakeNonNullUnique<Foo>(...));
+//
+// We would then typically either:
+//
+// 1. Store a corresponding `Ptr` in a managed container object. For example:
+//
+//    t.AddFoo(my_foo.ptr());
+//
+// 2. Retain the root in the stack or in the heap inside a non-managed object.
 #ifndef __AFC_LANGUAGE_GC_H__
 #define __AFC_LANGUAGE_GC_H__
 #include <glog/logging.h>
@@ -76,7 +94,6 @@
 #include "src/language/safe_types.h"
 
 namespace afc::language::gc {
-
 template <typename T>
 class Ptr;
 
@@ -179,7 +196,7 @@ class Pool {
 
   CollectOutput Collect(bool full);
 
-  void MaybeScheduleExpandInEden(
+  void AddToEdenExpandList(
       language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata);
 
   language::NonNull<std::shared_ptr<ObjectMetadata>> NewObjectMetadata(
@@ -192,7 +209,7 @@ class Pool {
       std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
 
   // The eden area holds information about recent activity. This is optimized to
-  // be locked only briefly, so as to avoid blocking progress.
+  // be locked only very briefly, to avoid blocking progress.
   struct Eden {
     static Eden NewWithExpandList();
 
@@ -204,15 +221,15 @@ class Pool {
 
     // A set of roots that have been deleted recently. This will allow us to
     // update Survivors::roots (in UpdateRoots).
-    struct RootDeleted {
+    struct RootIterator {
       ObjectMetadataList& roots_list;
-      ObjectMetadataList::iterator it;
+      const ObjectMetadataList::iterator it;
     };
-    std::vector<RootDeleted> roots_deleted = {};
+    std::vector<RootIterator> roots_deleted = {};
 
     // Normally is absent. If a `Collect` operation is interrupted, set to a
-    // list to which `MaybeScheduleExpandInEden` will add objects, so that when
-    // the collection is resumed, those expansions happen. See the notes on
+    // list to which `AddToEdenExpandList` will add objects (so that when the
+    // collection is resumed, those expansions happen). See
     // `ObjectMetadata::Protect`.
     std::optional<ObjectExpandList> expand_list = std::nullopt;
   };
@@ -328,7 +345,7 @@ class Ptr {
   // expanded, P is no longer reached).
   void Protect() const {
     CHECK(value_.lock() != nullptr);
-    return pool().MaybeScheduleExpandInEden(object_metadata_);
+    return pool().AddToEdenExpandList(object_metadata_);
   }
 
  private:

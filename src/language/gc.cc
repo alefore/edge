@@ -148,7 +148,7 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
   {
     TRACK_OPERATION(gc_Pool_ConsumeEden_roots_deleted);
     VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
-    for (const Eden::RootDeleted& d : eden.roots_deleted)
+    for (const Eden::RootIterator& d : eden.roots_deleted)
       d.roots_list.erase(d.it);
   }
 
@@ -300,7 +300,7 @@ Pool::RootRegistration Pool::AddRoot(
     eden.roots->push_back(object_metadata);
     return RootRegistration(
         new bool(false),
-        [this, root_deleted = Eden::RootDeleted{
+        [this, root_deleted = Eden::RootIterator{
                    .roots_list = eden.roots.value(),
                    .it = std::prev(eden.roots->end())}](bool* value) {
           delete value;
@@ -312,7 +312,7 @@ Pool::RootRegistration Pool::AddRoot(
   });
 }
 
-void Pool::MaybeScheduleExpandInEden(
+void Pool::AddToEdenExpandList(
     language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata) {
   eden_.lock([&](Eden& eden) {
     if (eden.expand_list.has_value())
