@@ -43,6 +43,7 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value);
 // depends on both.
 PurityType CombinePurityType(PurityType a, PurityType b);
 
+// TODO(easy, 2022-12-07): Turn this into an std::variant.
 struct VMType {
   enum class Type {
     kVoid,
@@ -79,7 +80,7 @@ struct VMType {
   vector<VMType> type_arguments;
   PurityType function_purity = PurityType::kUnknown;
 
-  VMTypeObjectTypeName object_type = VMTypeObjectTypeName(L"");
+  VMTypeObjectTypeName object_type;
 };
 
 wstring TypesToString(const std::vector<VMType>& types);
@@ -92,9 +93,7 @@ struct Value;
 
 class ObjectType {
  public:
-  ObjectType(const VMType& type);
   ObjectType(VMTypeObjectTypeName type_name);
-  ~ObjectType(){};
 
   const VMType& type() const { return type_; }
   wstring ToString() const { return type_.ToString(); }
@@ -111,6 +110,8 @@ class ObjectType {
       std::function<void(const wstring&, const Value&)> callback) const;
 
  private:
+  ObjectType(const VMType& type);
+
   VMType type_;
   std::map<std::wstring, language::gc::Root<Value>> fields_;
 };

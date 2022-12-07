@@ -66,7 +66,8 @@ void Modifiers::Register(language::gc::Pool& pool,
   using vm::PurityType;
 
   auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(
-      vm::VMTypeMapper<NonNull<std::shared_ptr<Modifiers>>>::vmtype);
+      vm::VMTypeMapper<NonNull<std::shared_ptr<Modifiers>>>::vmtype
+          .object_type);
 
   environment.Define(
       L"Modifiers",

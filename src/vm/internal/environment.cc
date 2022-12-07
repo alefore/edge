@@ -37,7 +37,7 @@ language::gc::Root<Environment> Environment::NewDefault(
   RegisterStringType(pool, environment_value);
   RegisterNumberFunctions(pool, environment_value);
   RegisterTimeType(pool, environment_value);
-  auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool());
+  auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool().object_type);
   bool_type->AddField(L"tostring",
                       NewCallback(pool, PurityType::kPure,
                                   std::function<wstring(bool)>([](bool v) {
@@ -45,7 +45,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                                   })));
   environment_value.DefineType(std::move(bool_type));
 
-  auto int_type = MakeNonNullUnique<ObjectType>(VMType::Int());
+  auto int_type = MakeNonNullUnique<ObjectType>(VMType::Int().object_type);
   int_type->AddField(
       L"tostring", NewCallback(pool, PurityType::kPure,
                                std::function<std::wstring(int)>([](int value) {
@@ -53,7 +53,8 @@ language::gc::Root<Environment> Environment::NewDefault(
                                })));
   environment_value.DefineType(std::move(int_type));
 
-  auto double_type = MakeNonNullUnique<ObjectType>(VMType::Double());
+  auto double_type =
+      MakeNonNullUnique<ObjectType>(VMType::Double().object_type);
   double_type->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure,

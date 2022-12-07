@@ -39,7 +39,8 @@ void AddMethod(const wstring& name, language::gc::Pool& pool,
 }
 
 void RegisterStringType(gc::Pool& pool, Environment& environment) {
-  auto string_type = MakeNonNullUnique<ObjectType>(VMType::String());
+  auto string_type =
+      MakeNonNullUnique<ObjectType>(VMType::String().object_type);
   AddMethod<int>(L"size", pool,
                  std::function<int(const wstring&)>(
                      [](const wstring& str) { return str.size(); }),

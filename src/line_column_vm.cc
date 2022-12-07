@@ -85,8 +85,8 @@ using vm::VMTypeMapper;
 using vm::VMTypeObjectTypeName;
 
 void LineColumnRegister(gc::Pool& pool, Environment& environment) {
-  auto line_column =
-      MakeNonNullUnique<ObjectType>(VMTypeMapper<LineColumn>::vmtype);
+  auto line_column = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<LineColumn>::vmtype.object_type);
 
   // Methods for LineColumn.
   environment.Define(L"LineColumn",
@@ -119,8 +119,8 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
 }
 
 void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
-  auto line_column_delta =
-      MakeNonNullUnique<ObjectType>(VMTypeMapper<LineColumnDelta>::vmtype);
+  auto line_column_delta = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<LineColumnDelta>::vmtype.object_type);
 
   // Methods for LineColumn.
   environment.Define(L"LineColumnDelta",
@@ -155,7 +155,8 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
 }
 
 void RangeRegister(gc::Pool& pool, Environment& environment) {
-  auto range = MakeNonNullUnique<ObjectType>(VMTypeMapper<Range>::vmtype);
+  auto range =
+      MakeNonNullUnique<ObjectType>(VMTypeMapper<Range>::vmtype.object_type);
 
   // Methods for Range.
   environment.Define(L"Range",

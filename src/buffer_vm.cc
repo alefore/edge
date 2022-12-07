@@ -103,7 +103,7 @@ void RegisterBufferFields(
 
 NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
   auto buffer_object_type = MakeNonNullUnique<ObjectType>(
-      vm::VMTypeMapper<gc::Root<OpenBuffer>>::vmtype);
+      vm::VMTypeMapper<gc::Root<OpenBuffer>>::vmtype.object_type);
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(
       pool, buffer_variables::BoolStruct(), buffer_object_type.value(),

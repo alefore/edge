@@ -134,8 +134,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   value.Define(L"terminal_control_u",
                vm::Value::NewString(pool, {Terminal::CTRL_U}));
 
-  auto editor_type =
-      MakeNonNullUnique<ObjectType>(VMTypeMapper<editor::EditorState>::vmtype);
+  auto editor_type = MakeNonNullUnique<ObjectType>(
+      VMTypeMapper<editor::EditorState>::vmtype.object_type);
 
   // Methods for Editor.
   RegisterVariableFields<EdgeStruct<bool>, bool>(

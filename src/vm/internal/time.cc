@@ -71,7 +71,8 @@ void AddMethod(const wstring& name, gc::Pool& pool,
 }
 
 void RegisterTimeType(gc::Pool& pool, Environment& environment) {
-  auto time_type = MakeNonNullUnique<ObjectType>(VMTypeMapper<Time>::vmtype);
+  auto time_type =
+      MakeNonNullUnique<ObjectType>(VMTypeMapper<Time>::vmtype.object_type);
   time_type->AddField(
       L"tostring",
       vm::NewCallback(pool, PurityType::kPure,
@@ -155,7 +156,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           }));
 
   auto duration_type =
-      MakeNonNullUnique<ObjectType>(VMTypeMapper<Duration>::vmtype);
+      MakeNonNullUnique<ObjectType>(VMTypeMapper<Duration>::vmtype.object_type);
   duration_type->AddField(
       L"days", vm::NewCallback(pool, PurityType::kPure,
                                std::function<int(Duration)>([](Duration input) {

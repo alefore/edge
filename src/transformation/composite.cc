@@ -121,7 +121,8 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
 
   auto input_type = MakeNonNullUnique<vm::ObjectType>(
       VMTypeMapper<NonNull<
-          std::shared_ptr<editor::CompositeTransformation::Input>>>::vmtype);
+          std::shared_ptr<editor::CompositeTransformation::Input>>>::vmtype
+          .object_type);
 
   input_type->AddField(
       L"position",
@@ -149,7 +150,8 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
 
   auto output_type = MakeNonNullUnique<ObjectType>(
       VMTypeMapper<NonNull<
-          std::shared_ptr<editor::CompositeTransformation::Output>>>::vmtype);
+          std::shared_ptr<editor::CompositeTransformation::Output>>>::vmtype
+          .object_type);
 
   environment.Define(
       output_type->type().object_type.read(),

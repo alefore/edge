@@ -94,7 +94,8 @@ PossibleError FinishClassDeclaration(
                        NewVoidExpression(compilation.pool))));
   auto class_type = std::move(compilation.current_class.back());
   compilation.current_class.pop_back();
-  auto class_object_type = MakeNonNullUnique<ObjectType>(class_type);
+  auto class_object_type =
+      MakeNonNullUnique<ObjectType>(class_type.object_type);
 
   gc::Root<Environment> class_environment = compilation.environment;
   // This is safe because StartClassDeclaration creates a sub-environment.

@@ -110,7 +110,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   using vm::PurityType;
   using vm::VMTypeMapper;
   auto builder = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::vmtype);
+      VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::vmtype.object_type);
   environment.Define(
       builder->type().object_type.read(),
       vm::NewCallback(pool, PurityType::kPure, MakeNonNullShared<Insert>));

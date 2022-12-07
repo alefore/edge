@@ -122,7 +122,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
   gc::Pool& pool = editor.gc_pool();
 
   auto screen_type = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype);
+      VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype.object_type);
 
   // Constructors.
   environment.Define(

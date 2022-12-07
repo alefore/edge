@@ -40,9 +40,9 @@ struct VMTypeMapper<std::optional<T>*> {
   static const VMType vmtype;
 
   static void Export(Environment* environment) {
-    auto optional_type = std::make_unique<ObjectType>(vmtype);
-
     auto name = vmtype.object_type;
+    auto optional_type = std::make_unique<ObjectType>(name);
+
     environment->Define(
         name, Value::NewFunction(
                   {VMType::ObjectType(optional_type.get())},

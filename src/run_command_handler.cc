@@ -556,7 +556,8 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   using vm::VMType;
   using vm::VMTypeMapper;
   auto fork_command_options = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<ForkCommandOptions>>>::vmtype);
+      VMTypeMapper<NonNull<std::shared_ptr<ForkCommandOptions>>>::vmtype
+          .object_type);
 
   environment.Define(L"ForkCommandOptions",
                      NewCallback(pool, vm::PurityType::kPure,

@@ -253,7 +253,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
   using vm::VMTypeMapper;
 
   auto builder = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::vmtype);
+      VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::vmtype.object_type);
 
   environment.Define(
       builder->type().object_type.read(),
