@@ -30,8 +30,10 @@ class ThreadPool {
     Schedule([shared_callable = std::move(shared_callable),
               consumer = output.consumer, work_queue = completion_work_queue_] {
       CHECK(work_queue != nullptr);
-      work_queue->Schedule(
-          [consumer, value = (*shared_callable)()] { consumer(value); });
+      work_queue->Schedule(WorkQueue::Callback{
+          .callback = [consumer, value = (*shared_callable)()] {
+            consumer(value);
+          }});
     });
     return std::move(output.value);
   }

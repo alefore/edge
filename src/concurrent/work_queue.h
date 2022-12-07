@@ -44,8 +44,12 @@ class WorkQueue {
 
   explicit WorkQueue(ConstructorAccessTag);
 
-  void Schedule(std::function<void()> callback);
-  void ScheduleAt(struct timespec when, std::function<void()> callback);
+  struct Callback {
+    struct timespec time = infrastructure::Now();
+    std::function<void()> callback;
+  };
+
+  void Schedule(Callback callback);
 
   // Takes all the scheduled callbacks at a time in the past and executes them.
   // Any new callbacks that they transitively schedule may not (and typically
@@ -64,11 +68,6 @@ class WorkQueue {
 
  private:
   struct MutableData {
-    struct Callback {
-      struct timespec time;
-      std::function<void()> callback;
-    };
-
     using Queue = std::priority_queue<
         Callback, std::vector<Callback>,
         std::function<bool(const Callback&, const Callback&)>>;
@@ -123,10 +122,10 @@ class WorkQueueChannel {
   void Push(T value) {
     switch (consume_mode_) {
       case WorkQueueChannelConsumeMode::kAll:
-        work_queue_->Schedule(
-            [data = data_, value = std::move(value)]() mutable {
+        work_queue_->Schedule(WorkQueue::Callback{
+            .callback = [data = data_, value = std::move(value)]() mutable {
               data->consume_callback(std::move(value));
-            });
+            }});
         break;
 
       case WorkQueueChannelConsumeMode::kLastAvailable:
@@ -136,12 +135,12 @@ class WorkQueueChannel {
         value_lock = nullptr;
         if (already_scheduled) return;
 
-        work_queue_->Schedule([data = data_] {
+        work_queue_->Schedule(WorkQueue::Callback{.callback = [data = data_] {
           std::optional<T> optional_value;
           data->value.lock()->swap(optional_value);
           CHECK(optional_value.has_value());
           data->consume_callback(*optional_value);
-        });
+        }});
         break;
     }
   }

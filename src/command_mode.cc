@@ -16,6 +16,7 @@
 #include "src/command.h"
 #include "src/command_argument_mode.h"
 #include "src/command_with_modifiers.h"
+#include "src/concurrent/work_queue.h"
 #include "src/cpp_command.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
@@ -64,6 +65,7 @@
 namespace afc::editor {
 namespace {
 
+using concurrent::WorkQueue;
 using infrastructure::AddSeconds;
 using infrastructure::Now;
 using language::EmptyValue;
@@ -510,10 +512,11 @@ class ResetStateCommand : public Command {
   void ProcessInput(wint_t) override {
     editor_state_.status().Reset();
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
-      auto when = AddSeconds(Now(), 0.2);
-      buffer.work_queue()->ScheduleAt(
-          when, [status_expiration = std::shared_ptr<StatusExpirationControl>(
-                     buffer.status().SetExpiringInformationText(L"ESC"))] {});
+      buffer.work_queue()->Schedule(WorkQueue::Callback{
+          .time = AddSeconds(Now(), 0.2),
+          .callback =
+              [status_expiration = std::shared_ptr<StatusExpirationControl>(
+                   buffer.status().SetExpiringInformationText(L"ESC"))] {}});
       return futures::Past(EmptyValue());
     });
     editor_state_.set_modifiers(Modifiers());

@@ -130,10 +130,11 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
             line->CopyOptions().SetMetadata(std::nullopt));
       }
       futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
-      buffer.work_queue()->Schedule(
-          [buffer = buffer.NewRoot(),
-           expr = NonNull<std::shared_ptr<vm::Expression>>(std::move(expr)),
-           sub_environment, consumer = metadata_future.consumer] {
+      buffer.work_queue()->Schedule(WorkQueue::Callback{
+          .callback = [buffer = buffer.NewRoot(),
+                       expr = NonNull<std::shared_ptr<vm::Expression>>(
+                           std::move(expr)),
+                       sub_environment, consumer = metadata_future.consumer] {
             buffer.ptr()
                 ->EvaluateExpression(expr.value(), sub_environment)
                 .Transform([](gc::Root<vm::Value> value) {
@@ -152,7 +153,7 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
                       consumer(output);
                       return Success();
                     });
-          });
+          }});
       metadata_value = std::move(metadata_future.value);
     } break;
     case vm::PurityType::kUnknown:
@@ -183,14 +184,15 @@ Observers::State MaybeScheduleNextWorkQueueExecution(
   if (auto next = work_queue->NextExecution();
       next.has_value() && next != next_scheduled_execution.value()) {
     next_scheduled_execution.value() = next;
-    parent_work_queue->ScheduleAt(
-        next.value(),
-        [work_queue, parent_work_queue, next_scheduled_execution]() mutable {
+    parent_work_queue->Schedule(WorkQueue::Callback{
+        .time = next.value(),
+        .callback = [work_queue, parent_work_queue,
+                     next_scheduled_execution]() mutable {
           next_scheduled_execution.value() = std::nullopt;
           work_queue->Execute();
           MaybeScheduleNextWorkQueueExecution(work_queue, parent_work_queue,
                                               next_scheduled_execution);
-        });
+        }});
   }
   return Observers::State::kAlive;
 }
@@ -591,7 +593,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   buffer_syntax_parser_.ObserveTrees().Add(
       WeakPtrLockingObserver(weak_this, [](OpenBuffer& buffer) {
         // Trigger a wake up alarm.
-        buffer.work_queue()->Schedule([] {});
+        buffer.work_queue()->Schedule(WorkQueue::Callback{.callback = [] {}});
       }));
 
   UpdateTreeParser();
@@ -615,15 +617,16 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                   futures::Future<ValueOrError<EvaluationOutput>> future;
                   EvaluationOutput output = vm::EvaluationOutput::Return(
                       vm::Value::NewVoid(root_this.ptr()->editor().gc_pool()));
-                  root_this.ptr()->work_queue()->ScheduleAt(
-                      AddSeconds(Now(), delay_seconds),
-                      [weak_this, consumer = std::move(future.consumer),
-                       output] {
+                  root_this.ptr()->work_queue()->Schedule(WorkQueue::Callback{
+                      .time = AddSeconds(Now(), delay_seconds),
+                      .callback = [weak_this,
+                                   consumer = std::move(future.consumer),
+                                   output] {
                         VisitPointer(
                             weak_this.Lock(),
                             [&](gc::Root<OpenBuffer>) { consumer(output); },
                             [] {});
-                      });
+                      }});
                   return std::move(future.value);
                 },
                 [&] {
@@ -676,14 +679,15 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
       [weak_this](const CursorsTracker::Transformation& transformation) {
         std::optional<gc::Root<OpenBuffer>> root_this = weak_this.Lock();
         if (!root_this.has_value()) return;
-        root_this->ptr()->work_queue_->Schedule([weak_this] {
-          VisitPointer(
-              weak_this.Lock(),
-              [](gc::Root<OpenBuffer> root_this_inner) {
-                root_this_inner.ptr()->MaybeStartUpdatingSyntaxTrees();
-              },
-              [] {});
-        });
+        root_this->ptr()->work_queue_->Schedule(
+            WorkQueue::Callback{.callback = [weak_this] {
+              VisitPointer(
+                  weak_this.Lock(),
+                  [](gc::Root<OpenBuffer> root_this_inner) {
+                    root_this_inner.ptr()->MaybeStartUpdatingSyntaxTrees();
+                  },
+                  [] {});
+            }});
         root_this->ptr()->SetDiskState(DiskState::kStale);
         if (root_this->ptr()->Read(buffer_variables::persist_state)) {
           switch (root_this->ptr()->backup_state_) {
@@ -691,9 +695,10 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
               root_this->ptr()->backup_state_ = DiskState::kStale;
               auto flush_backup_time = Now();
               flush_backup_time.tv_sec += 30;
-              root_this->ptr()->work_queue_->ScheduleAt(
-                  flush_backup_time,
-                  [root_this] { root_this->ptr()->UpdateBackup(); });
+              root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
+                  .time = flush_backup_time, .callback = [root_this] {
+                    root_this->ptr()->UpdateBackup();
+                  }});
             } break;
 
             case DiskState::kStale:
@@ -1026,7 +1031,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
   return Evaluate(expr, editor().gc_pool(), environment,
                   [work_queue = work_queue(), root_this = ptr_this_->ToRoot()](
                       std::function<void()> callback) {
-                    work_queue->Schedule(std::move(callback));
+                    work_queue->Schedule(
+                        WorkQueue::Callback{.callback = std::move(callback)});
                   });
 }
 
@@ -1053,25 +1059,25 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
   return std::visit(
-      overload{[&](Error error) {
-                 error =
-                     AugmentError(path.read() + L": error: ", std::move(error));
-                 status_.Set(error);
-                 return futures::Past(ValueOrError<gc::Root<Value>>(error));
-               },
-               [&](NonNull<std::unique_ptr<Expression>> expression) {
-                 LOG(INFO) << Read(buffer_variables::path) << " ("
-                           << Read(buffer_variables::name)
-                           << "): Evaluating file: " << path;
-                 return Evaluate(expression.value(), editor().gc_pool(),
-                                 environment_.ToRoot(),
-                                 [path, work_queue = work_queue()](
-                                     std::function<void()> resume) {
-                                   LOG(INFO)
-                                       << "Evaluation of file yields: " << path;
-                                   work_queue->Schedule(std::move(resume));
-                                 });
-               }},
+      overload{
+          [&](Error error) {
+            error = AugmentError(path.read() + L": error: ", std::move(error));
+            status_.Set(error);
+            return futures::Past(ValueOrError<gc::Root<Value>>(error));
+          },
+          [&](NonNull<std::unique_ptr<Expression>> expression) {
+            LOG(INFO) << Read(buffer_variables::path) << " ("
+                      << Read(buffer_variables::name)
+                      << "): Evaluating file: " << path;
+            return Evaluate(
+                expression.value(), editor().gc_pool(), environment_.ToRoot(),
+                [path,
+                 work_queue = work_queue()](std::function<void()> resume) {
+                  LOG(INFO) << "Evaluation of file yields: " << path;
+                  work_queue->Schedule(
+                      WorkQueue::Callback{.callback = std::move(resume)});
+                });
+          }},
       CompileFile(path, editor().gc_pool(), environment_.ToRoot()));
 }
 
@@ -1082,10 +1088,10 @@ const NonNull<std::shared_ptr<WorkQueue>>& OpenBuffer::work_queue() const {
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
   return [root_this =
               ptr_this_->ToRoot()](std::function<void(OpenBuffer&)> callback) {
-    root_this.ptr()->work_queue()->Schedule(
-        [root_this, callback = std::move(callback)]() {
+    root_this.ptr()->work_queue()->Schedule(WorkQueue::Callback{
+        .callback = [root_this, callback = std::move(callback)]() {
           callback(root_this.ptr().value());
-        });
+        }});
   };
 }
 
@@ -1553,7 +1559,8 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
                return Call(pool, t.ptr().value(), std::move(args),
                            [work_queue =
                                 work_queue()](std::function<void()> callback) {
-                             work_queue->Schedule(std::move(callback));
+                             work_queue->Schedule(WorkQueue::Callback{
+                                 .callback = std::move(callback)});
                            })
                    .Transform([input_shared](const gc::Root<Value>& value) {
                      *input_shared = value.ptr()->get_string();
@@ -1788,12 +1795,13 @@ OpenBuffer::OpenBufferForCurrentPosition(
                    case RemoteURLBehavior::kIgnore:
                      break;
                    case RemoteURLBehavior::kLaunchBrowser:
-                     editor.work_queue()->ScheduleAt(
-                         AddSeconds(Now(), 1.0),
-                         [status_expiration =
-                              std::shared_ptr<StatusExpirationControl>(
+                     editor.work_queue()->Schedule(WorkQueue::Callback{
+                         .time = AddSeconds(Now(), 1.0),
+                         .callback =
+                             [status_expiration = std::shared_ptr<
+                                  StatusExpirationControl>(
                                   editor.status().SetExpiringInformationText(
-                                      L"Open: " + url.ToString()))] {});
+                                      L"Open: " + url.ToString()))] {}});
                      ForkCommand(editor,
                                  ForkCommandOptions{
                                      .command = L"xdg-open " +
@@ -2256,9 +2264,10 @@ void OpenBuffer::UpdateLastAction() {
   last_action_ = now;
   if (double idle_seconds = Read(buffer_variables::close_after_idle_seconds);
       idle_seconds >= 0.0) {
-    work_queue_->ScheduleAt(
-        AddSeconds(Now(), idle_seconds),
-        [weak_this = ptr_this_->ToWeakPtr(), last_action = last_action_] {
+    work_queue_->Schedule(WorkQueue::Callback{
+        .time = AddSeconds(Now(), idle_seconds),
+        .callback = [weak_this = ptr_this_->ToWeakPtr(),
+                     last_action = last_action_] {
           VisitPointer(
               weak_this.Lock(),
               [last_action](gc::Root<OpenBuffer> buffer_root) {
@@ -2269,7 +2278,7 @@ void OpenBuffer::UpdateLastAction() {
                 buffer.editor().CloseBuffer(buffer);
               },
               [] {});
-        });
+        }});
   }
 }
 

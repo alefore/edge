@@ -108,12 +108,14 @@ void EditorState::NotifyInternalEvent() {
 void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
   gc::Pool::CollectOutput collect_output = pool.Collect();
   static constexpr size_t kSecondsBetweenGc = 1;
-  work_queue.ScheduleAt(
-      AddSeconds(Now(), std::get_if<gc::Pool::UnfinishedCollectStats>(
-                            &collect_output) == nullptr
-                            ? kSecondsBetweenGc
-                            : 0.0),
-      [&pool, &work_queue] { ReclaimAndSchedule(pool, work_queue); });
+  work_queue.Schedule(WorkQueue::Callback{
+      .time = AddSeconds(Now(), std::get_if<gc::Pool::UnfinishedCollectStats>(
+                                    &collect_output) == nullptr
+                                    ? kSecondsBetweenGc
+                                    : 0.0),
+      .callback = [&pool, &work_queue] {
+        ReclaimAndSchedule(pool, work_queue);
+      }});
 }
 
 EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
@@ -164,7 +166,8 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
                                   std::function<void()> resume) {
                                 LOG(INFO)
                                     << "Evaluation of file yields: " << path;
-                                work_queue->Schedule(std::move(resume));
+                                work_queue->Schedule(WorkQueue::Callback{
+                                    .callback = std::move(resume)});
                               })
                   .Transform([](gc::Root<vm::Value>) {
                     // TODO(2022-04-26): Figure out a way to get rid of
@@ -685,7 +688,8 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
     // This is enough to cause the main loop to wake up; it'll attempt to do a
     // redraw then. Multiple attempts may be scheduled, but that's fine (just
     // a bit wasteful of memory).
-    work_queue_->ScheduleAt(next_screen_update_, [] {});
+    work_queue_->Schedule(
+        WorkQueue::Callback{.time = next_screen_update_, .callback = [] {}});
     return {};
   }
   next_screen_update_ = AddSeconds(now, 1.0 / frames_per_second_);

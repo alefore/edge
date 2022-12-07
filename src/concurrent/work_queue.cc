@@ -16,15 +16,9 @@ using language::NonNull;
 
 WorkQueue::WorkQueue(ConstructorAccessTag) {}
 
-void WorkQueue::Schedule(std::function<void()> callback) {
-  CHECK(callback != nullptr);
-  ScheduleAt(Now(), std::move(callback));
-}
-
-void WorkQueue::ScheduleAt(struct timespec time,
-                           std::function<void()> callback) {
-  CHECK(callback != nullptr);
-  data_.lock()->callbacks.push({std::move(time), std::move(callback)});
+void WorkQueue::Schedule(WorkQueue::Callback callback) {
+  CHECK(callback.callback != nullptr);
+  data_.lock()->callbacks.push(std::move(callback));
   schedule_observers_.Notify();
 }
 
@@ -78,12 +72,14 @@ const bool work_queue_tests_registration = tests::Register(
             delete_notification->listenable_value();
         NonNull<WorkQueue*> work_queue_raw = [&delete_notification] {
           NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
+          work_queue->Schedule(WorkQueue::Callback{.callback = [work_queue] {
+            LOG(INFO) << "First callback starts";
+          }});
           work_queue->Schedule(
-              [work_queue] { LOG(INFO) << "First callback starts"; });
-          work_queue->Schedule([&delete_notification] {
-            LOG(INFO) << "Second callback starts";
-            delete_notification = nullptr;
-          });
+              WorkQueue::Callback{.callback = [&delete_notification] {
+                LOG(INFO) << "Second callback starts";
+                delete_notification = nullptr;
+              }});
           LOG(INFO) << "Execute.";
           return work_queue.get();
         }();

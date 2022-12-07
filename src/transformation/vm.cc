@@ -35,6 +35,7 @@ const VMType VMTypeMapper<
 namespace editor {
 using language::MakeNonNullUnique;
 namespace {
+using concurrent::WorkQueue;
 using language::Error;
 using language::Success;
 using vm::PurityType;
@@ -59,7 +60,8 @@ class FunctionTransformation : public CompositeTransformation {
     return vm::Call(pool_, function_, std::move(args),
                     [work_queue = input.buffer.work_queue()](
                         std::function<void()> callback) {
-                      work_queue->Schedule(std::move(callback));
+                      work_queue->Schedule(
+                          WorkQueue::Callback{.callback = std::move(callback)});
                     })
         .Transform([](gc::Root<vm::Value> value) {
           return Success(

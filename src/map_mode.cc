@@ -16,6 +16,7 @@
 #include "src/vm/public/vm.h"
 
 namespace afc::editor {
+using concurrent::WorkQueue;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using vm::Expression;
@@ -101,10 +102,12 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
               [&editor_state = editor_state_, environment](
                   NonNull<std::unique_ptr<vm::Expression>>& expression) {
                 LOG(INFO) << "Evaluating expression from Value...";
-                Evaluate(expression.value(), environment.pool(), environment,
-                         [&editor_state](std::function<void()> callback) {
-                           editor_state.work_queue()->Schedule(callback);
-                         });
+                Evaluate(
+                    expression.value(), environment.pool(), environment,
+                    [&editor_state](std::function<void()> callback) {
+                      editor_state.work_queue()->Schedule(
+                          WorkQueue::Callback{.callback = std::move(callback)});
+                    });
               },
               NewFunctionCall(NewConstantExpression(std::move(value)), {})),
           description));

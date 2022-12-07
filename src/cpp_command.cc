@@ -5,11 +5,13 @@
 #include <memory>
 
 #include "src/command.h"
+#include "src/concurrent/work_queue.h"
 #include "src/editor.h"
 #include "src/language/wstring.h"
 #include "src/vm/public/vm.h"
 
 namespace afc::editor {
+using concurrent::WorkQueue;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::ValueOrError;
@@ -65,7 +67,8 @@ class CppCommand : public Command {
              editor_state_.environment(),
              [work_queue =
                   editor_state_.work_queue()](std::function<void()> callback) {
-               work_queue->Schedule(std::move(callback));
+               work_queue->Schedule(
+                   WorkQueue::Callback{.callback = std::move(callback)});
              });
   }
 
