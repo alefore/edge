@@ -85,8 +85,9 @@ class CppCommand : public Command {
 ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
     EditorState& editor_state, gc::Root<afc::vm::Environment> environment,
     wstring code) {
-  ASSIGN_OR_RETURN(auto result, vm::CompileString(code, editor_state.gc_pool(),
-                                                  std::move(environment)));
+  ASSIGN_OR_RETURN(
+      NonNull<std::unique_ptr<vm::Expression>> result,
+      vm::CompileString(code, editor_state.gc_pool(), std::move(environment)));
   return NonNull<std::unique_ptr<Command>>(MakeNonNullUnique<CppCommand>(
       editor_state, std::move(result), std::move(code)));
 }
