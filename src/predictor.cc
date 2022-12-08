@@ -410,7 +410,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 ? std::wregex()
                 : std::wregex(predictor_input.source_buffers[0].ptr()->Read(
                       buffer_variables::directory_noise));
-        return predictor_input.editor.thread_pool().Run(std::bind_front(
+        predictor_input.editor.thread_pool().Run(std::bind_front(
             [search_paths, path_input, get_buffer, resolve_path_options,
              noise_regex](ProgressChannel& progress_channel,
                           DeleteNotification::Value abort_value) {
@@ -460,16 +460,18 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                       path_input.size()),
                     path_input.substr(0, descend_results.valid_prefix_length),
                     &matches, progress_channel, abort_value, get_buffer);
-                if (abort_value->has_value()) return PredictorOutput();
+                if (abort_value->has_value()) return EmptyValue();
               }
               get_buffer([](OpenBuffer& buffer) {
                 LOG(INFO) << "Signaling end of file.";
                 buffer.EndOfFile();
               });
-              return PredictorOutput();
+              return EmptyValue();
             },
             predictor_input.progress_channel,
             std::move(predictor_input.abort_value)));
+        return predictor_input.predictions.WaitForEndOfFile().Transform(
+            [](EmptyValue) { return futures::Past(PredictorOutput()); });
       });
 }
 
