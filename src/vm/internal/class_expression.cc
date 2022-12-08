@@ -88,14 +88,14 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
 PossibleError FinishClassDeclaration(
     Compilation& compilation,
     NonNull<std::unique_ptr<Expression>> constructor_expression_input) {
+  gc::Pool& pool = compilation.pool;
   ASSIGN_OR_RETURN(NonNull<std::shared_ptr<Expression>> constructor_expression,
                    compilation.RegisterErrors(NewAppendExpression(
                        std::move(constructor_expression_input),
                        NewVoidExpression(compilation.pool))));
   auto class_type = std::move(compilation.current_class.back());
   compilation.current_class.pop_back();
-  auto class_object_type =
-      MakeNonNullUnique<ObjectType>(class_type.object_type);
+  gc::Root<ObjectType> class_object_type = ObjectType::New(pool, class_type);
 
   gc::Root<Environment> class_environment = compilation.environment;
   // This is safe because StartClassDeclaration creates a sub-environment.
@@ -103,18 +103,17 @@ PossibleError FinishClassDeclaration(
   compilation.environment =
       class_environment.ptr()->parent_environment()->ToRoot();
 
-  gc::Pool& pool = compilation.pool;
-
   std::map<std::wstring, Value> values;
   class_environment.ptr()->ForEachNonRecursive(
       [&values, &class_object_type, class_type, &pool](
           std::wstring name, const gc::Ptr<Value>& value) {
-        class_object_type->AddField(
-            name, BuildGetter(pool, class_type, value->type, name));
-        class_object_type->AddField(
-            L"set_" + name, BuildSetter(pool, class_type, value->type, name));
+        class_object_type.ptr()->AddField(
+            name, BuildGetter(pool, class_type, value->type, name).ptr());
+        class_object_type.ptr()->AddField(
+            L"set_" + name,
+            BuildSetter(pool, class_type, value->type, name).ptr());
       });
-  compilation.environment.ptr()->DefineType(std::move(class_object_type));
+  compilation.environment.ptr()->DefineType(class_object_type.ptr());
   auto purity = constructor_expression->purity();
   gc::Root<Value> constructor = Value::NewFunction(
       pool, PurityType::kPure, {class_type},

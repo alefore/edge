@@ -555,15 +555,14 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   using vm::Value;
   using vm::VMType;
   using vm::VMTypeMapper;
-  auto fork_command_options = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<ForkCommandOptions>>>::vmtype
-          .object_type);
+  gc::Root<ObjectType> fork_command_options = ObjectType::New(
+      pool, VMTypeMapper<NonNull<std::shared_ptr<ForkCommandOptions>>>::vmtype);
 
   environment.Define(L"ForkCommandOptions",
                      NewCallback(pool, vm::PurityType::kPure,
                                  MakeNonNullShared<ForkCommandOptions>));
 
-  fork_command_options->AddField(
+  fork_command_options.ptr()->AddField(
       L"set_command",
       NewCallback(
           pool, vm::PurityType::kUnknown,
@@ -572,9 +571,10 @@ void ForkCommandOptions::Register(gc::Pool& pool,
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                  std::wstring command) {
                 options->command = std::move(command);
-              })));
+              }))
+          .ptr());
 
-  fork_command_options->AddField(
+  fork_command_options.ptr()->AddField(
       L"set_name",
       NewCallback(
           pool, vm::PurityType::kUnknown,
@@ -583,9 +583,10 @@ void ForkCommandOptions::Register(gc::Pool& pool,
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                  std::wstring name) {
                 options->name = BufferName(std::move(name));
-              })));
+              }))
+          .ptr());
 
-  fork_command_options->AddField(
+  fork_command_options.ptr()->AddField(
       L"set_insertion_type",
       NewCallback(
           pool, vm::PurityType::kUnknown,
@@ -601,9 +602,10 @@ void ForkCommandOptions::Register(gc::Pool& pool,
                 } else if (insertion_type == L"ignore") {
                   options->insertion_type = BuffersList::AddBufferType::kIgnore;
                 }
-              })));
+              }))
+          .ptr());
 
-  fork_command_options->AddField(
+  fork_command_options.ptr()->AddField(
       L"set_children_path",
       NewCallback(
           pool, vm::PurityType::kUnknown,
@@ -613,9 +615,10 @@ void ForkCommandOptions::Register(gc::Pool& pool,
                  std::wstring children_path) {
                 options->children_path =
                     OptionalFrom(Path::FromString(std::move(children_path)));
-              })));
+              }))
+          .ptr());
 
-  environment.DefineType(std::move(fork_command_options));
+  environment.DefineType(fork_command_options.ptr());
 }
 
 gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,

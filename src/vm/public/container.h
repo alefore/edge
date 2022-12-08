@@ -20,14 +20,12 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
-namespace afc::language::gc {
-class Pool;
-}
 namespace afc::vm::container {
 
 struct TraitsBase {
@@ -86,8 +84,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   using T = Traits<Container>;
   using ContainerPtr = T::ContainerPtr;
   const VMType& vmtype = VMTypeMapper<ContainerPtr>::vmtype;
-  auto object_type =
-      language::MakeNonNullUnique<ObjectType>(vmtype.object_type);
+  language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
   environment.Define(
       vmtype.object_type.read(),
@@ -99,14 +96,16 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                                language::MakeNonNullShared<Container>());
                          }));
 
-  object_type->AddField(
-      L"empty", vm::NewCallback(pool, PurityType::kPure,
-                                [](ContainerPtr c) { return c->empty(); }));
-  object_type->AddField(L"size", vm::NewCallback(pool, PurityType::kPure,
-                                                 [](ContainerPtr v) -> int {
-                                                   return v->size();
-                                                 }));
-  object_type->AddField(
+  object_type.ptr()->AddField(
+      L"empty", vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr c) {
+                  return c->empty();
+                }).ptr());
+  object_type.ptr()->AddField(
+      L"size",
+      vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr v) -> int {
+        return v->size();
+      }).ptr());
+  object_type.ptr()->AddField(
       L"get",
       Value::NewFunction(
           pool, PurityType::kPure,
@@ -127,30 +126,36 @@ void Export(language::gc::Pool& pool, Environment& environment) {
             return futures::Past(language::Success(EvaluationOutput::New(
                 VMTypeMapper<typename Container::value_type>::New(
                     trampoline.pool(), T::Get(v.value(), index)))));
-          }));
+          })
+          .ptr());
 
   if constexpr (T::has_contains)
-    object_type->AddField(
-        L"contains", vm::NewCallback(pool, PurityType::kPure, T::Contains));
+    object_type.ptr()->AddField(
+        L"contains",
+        vm::NewCallback(pool, PurityType::kPure, T::Contains).ptr());
 
   if constexpr (T::has_erase_by_index) {
-    object_type->AddField(
-        L"erase", vm::NewCallback(pool, PurityType::kUnknown, T::EraseByIndex));
+    object_type.ptr()->AddField(
+        L"erase",
+        vm::NewCallback(pool, PurityType::kUnknown, T::EraseByIndex).ptr());
   }
 
   if constexpr (T::has_erase_by_element)
-    object_type->AddField(L"erase", vm::NewCallback(pool, PurityType::kUnknown,
-                                                    T::EraseByElement));
+    object_type.ptr()->AddField(
+        L"erase",
+        vm::NewCallback(pool, PurityType::kUnknown, T::EraseByElement).ptr());
 
   if constexpr (T::has_insert)
-    object_type->AddField(
-        L"insert", vm::NewCallback(pool, PurityType::kUnknown, T::Insert));
+    object_type.ptr()->AddField(
+        L"insert",
+        vm::NewCallback(pool, PurityType::kUnknown, T::Insert).ptr());
 
   if constexpr (T::has_push_back)
-    object_type->AddField(
-        L"push_back", vm::NewCallback(pool, PurityType::kUnknown, T::PushBack));
+    object_type.ptr()->AddField(
+        L"push_back",
+        vm::NewCallback(pool, PurityType::kUnknown, T::PushBack).ptr());
 
-  environment.DefineType(std::move(object_type));
+  environment.DefineType(object_type.ptr());
 }
 }  // namespace afc::vm::container
 

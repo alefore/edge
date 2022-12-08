@@ -42,7 +42,7 @@ class Environment {
 
   const ObjectType* LookupObjectType(const VMTypeObjectTypeName& symbol);
   const VMType* LookupType(const std::wstring& symbol);
-  void DefineType(language::NonNull<std::unique_ptr<ObjectType>> value);
+  void DefineType(language::gc::Ptr<ObjectType> value);
 
   std::optional<language::gc::Root<Value>> Lookup(
       language::gc::Pool& pool, const Namespace& symbol_namespace,
@@ -73,8 +73,7 @@ class Environment {
   Expand() const;
 
  private:
-  std::map<VMTypeObjectTypeName, language::NonNull<std::unique_ptr<ObjectType>>>
-      object_types_;
+  std::map<VMTypeObjectTypeName, language::gc::Ptr<ObjectType>> object_types_;
 
   std::map<std::wstring, std::unordered_map<VMType, language::gc::Ptr<Value>>>
       table_;

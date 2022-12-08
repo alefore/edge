@@ -252,24 +252,25 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
   using vm::PurityType;
   using vm::VMTypeMapper;
 
-  auto builder = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::vmtype.object_type);
+  gc::Root<ObjectType> builder = ObjectType::New(
+      pool, VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::vmtype);
 
   environment.Define(
-      builder->type().object_type.read(),
+      builder.ptr()->type().object_type.read(),
       vm::NewCallback(pool, PurityType::kPure,
                       MakeNonNullShared<transformation::Delete>));
 
-  builder->AddField(
+  builder.ptr()->AddField(
       L"set_modifiers",
       vm::NewCallback(pool, vm::PurityTypeWriter,
                       [](NonNull<std::shared_ptr<Delete>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
                         options->modifiers = modifiers.value();
                         return options;
-                      }));
+                      })
+          .ptr());
 
-  builder->AddField(
+  builder.ptr()->AddField(
       L"set_line_end_behavior",
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
@@ -280,23 +281,26 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
               options->line_end_behavior = Delete::LineEndBehavior::kDelete;
             }
             return options;
-          }));
-  builder->AddField(L"set_range",
-                    vm::NewCallback(pool, vm::PurityTypeWriter,
+          })
+          .ptr());
+  builder.ptr()->AddField(
+      L"set_range", vm::NewCallback(pool, vm::PurityTypeWriter,
                                     [](NonNull<std::shared_ptr<Delete>> options,
                                        Range range) {
                                       options->range = range;
                                       return options;
-                                    }));
+                                    })
+                        .ptr());
 
-  builder->AddField(
+  builder.ptr()->AddField(
       L"build",
       vm::NewCallback(pool, PurityType::kPure,
                       [](NonNull<std::shared_ptr<Delete>> options) {
                         return MakeNonNullShared<Variant>(options.value());
-                      }));
+                      })
+          .ptr());
 
-  environment.DefineType(std::move(builder));
+  environment.DefineType(builder.ptr());
 }
 }  // namespace transformation
 }  // namespace editor

@@ -121,14 +121,15 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
 
   gc::Pool& pool = editor.gc_pool();
 
-  auto screen_type = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype.object_type);
+  gc::Root<ObjectType> screen_type = ObjectType::New(
+      pool, VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype);
 
   // Constructors.
   environment.Define(
       L"RemoteScreen",
       Value::NewFunction(
-          pool, PurityType::kUnknown, {screen_type->type(), VMType::String()},
+          pool, PurityType::kUnknown,
+          {screen_type.ptr()->type(), VMType::String()},
           [&pool, &editor](std::vector<gc::Root<Value>> args, Trampoline&)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
@@ -148,32 +149,36 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           }));
 
   // Methods for Screen.
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"Flush", vm::NewCallback(pool, PurityType::kUnknown,
                                 [](NonNull<std::shared_ptr<Screen>> screen) {
                                   screen->Flush();
-                                }));
+                                })
+                    .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"HardRefresh",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen) {
                         screen->HardRefresh();
-                      }));
+                      })
+          .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"Refresh", vm::NewCallback(pool, PurityType::kUnknown,
                                   [](NonNull<std::shared_ptr<Screen>> screen) {
                                     screen->Refresh();
-                                  }));
+                                  })
+                      .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"Clear", vm::NewCallback(pool, PurityType::kUnknown,
                                 [](NonNull<std::shared_ptr<Screen>> screen) {
                                   screen->Clear();
-                                }));
+                                })
+                    .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"SetCursorVisibility",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen,
@@ -181,15 +186,17 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
                         screen->SetCursorVisibility(
                             Screen::CursorVisibilityFromString(
                                 ToByteString(cursor_visibility)));
-                      }));
+                      })
+          .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"Move",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen,
-                         LineColumn position) { screen->Move(position); }));
+                         LineColumn position) { screen->Move(position); })
+          .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"WriteString",
       vm::NewCallback(
           pool, PurityType::kUnknown,
@@ -197,21 +204,23 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
             using ::operator<<;
             DVLOG(5) << "Writing string: " << str;
             screen->WriteString(NewLazyString(std::move(str)));
-          }));
+          })
+          .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"SetModifier",
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
             screen->SetModifier(ModifierFromString(ToByteString(str)));
-          }));
+          })
+          .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"set_size",
       Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), screen_type->type(),
+          {VMType::Void(), screen_type.ptr()->type(),
            VMTypeMapper<LineColumnDelta>::vmtype},
           [&pool](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2ul);
@@ -230,15 +239,17 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
                   return Error(
                       L"Screen type does not support set_size method.");
                 }));
-          }));
+          })
+          .ptr());
 
-  screen_type->AddField(
+  screen_type.ptr()->AddField(
       L"size", vm::NewCallback(pool, PurityType::kReader,
                                [](NonNull<std::shared_ptr<Screen>> screen) {
                                  return screen->size();
-                               }));
+                               })
+                   .ptr());
 
-  environment.DefineType(std::move(screen_type));
+  environment.DefineType(screen_type.ptr());
 }
 
 std::unique_ptr<Screen> NewScreenVm(FileDescriptor fd) {

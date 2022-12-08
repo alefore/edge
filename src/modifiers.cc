@@ -63,33 +63,35 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary) {
 
 void Modifiers::Register(language::gc::Pool& pool,
                          vm::Environment& environment) {
+  using vm::ObjectType;
   using vm::PurityType;
 
-  auto modifiers_type = MakeNonNullUnique<vm::ObjectType>(
-      vm::VMTypeMapper<NonNull<std::shared_ptr<Modifiers>>>::vmtype
-          .object_type);
+  gc::Root<ObjectType> modifiers_type = ObjectType::New(
+      pool, vm::VMTypeMapper<NonNull<std::shared_ptr<Modifiers>>>::vmtype);
 
   environment.Define(
       L"Modifiers",
       vm::NewCallback(pool, PurityType::kPure, MakeNonNullShared<Modifiers>));
 
-  modifiers_type->AddField(
+  modifiers_type.ptr()->AddField(
       L"set_backwards",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->direction = Direction::kBackwards;
                         return output;
-                      }));
+                      })
+          .ptr());
 
-  modifiers_type->AddField(
+  modifiers_type.ptr()->AddField(
       L"set_line",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->structure = StructureLine();
                         return output;
-                      }));
+                      })
+          .ptr());
 
-  modifiers_type->AddField(
+  modifiers_type.ptr()->AddField(
       L"set_delete_behavior",
       vm::NewCallback(
           pool, PurityType::kUnknown,
@@ -98,9 +100,10 @@ void Modifiers::Register(language::gc::Pool& pool,
                 delete_behavior ? Modifiers::TextDeleteBehavior::kDelete
                                 : Modifiers::TextDeleteBehavior::kKeep;
             return output;
-          }));
+          })
+          .ptr());
 
-  modifiers_type->AddField(
+  modifiers_type.ptr()->AddField(
       L"set_paste_buffer_behavior",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output,
@@ -110,26 +113,29 @@ void Modifiers::Register(language::gc::Pool& pool,
                                 ? Modifiers::PasteBufferBehavior::kDeleteInto
                                 : Modifiers::PasteBufferBehavior::kDoNothing;
                         return output;
-                      }));
+                      })
+          .ptr());
 
-  modifiers_type->AddField(
+  modifiers_type.ptr()->AddField(
       L"set_repetitions",
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](NonNull<std::shared_ptr<Modifiers>> output, int repetitions) {
             output->repetitions = repetitions;
             return output;
-          }));
+          })
+          .ptr());
 
-  modifiers_type->AddField(
+  modifiers_type.ptr()->AddField(
       L"set_boundary_end_neighbor",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->boundary_end = LIMIT_NEIGHBOR;
                         return output;
-                      }));
+                      })
+          .ptr());
 
-  environment.DefineType(std::move(modifiers_type));
+  environment.DefineType(modifiers_type.ptr());
 }
 
 std::wstring Modifiers::Serialize() const {

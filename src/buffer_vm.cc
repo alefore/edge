@@ -69,11 +69,11 @@ namespace gc = language::gc;
 namespace {
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
-    gc::Pool& pool, EdgeStruct* edge_struct, afc::vm::ObjectType& object_type,
+    gc::Pool& pool, EdgeStruct* edge_struct, gc::Root<ObjectType>& object_type,
     const FieldValue& (OpenBuffer::*reader)(const EdgeVariable<FieldValue>*)
         const,
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
-  VMType buffer_type = object_type.type();
+  VMType buffer_type = object_type.ptr()->type();
 
   std::vector<std::wstring> variable_names;
   edge_struct->RegisterVariableNames(&variable_names);
@@ -81,82 +81,90 @@ void RegisterBufferFields(
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     // Getter.
-    object_type.AddField(
+    object_type.ptr()->AddField(
         variable->name(),
         vm::NewCallback(pool, PurityType::kReader,
                         [reader, variable](gc::Root<OpenBuffer> buffer) {
                           DVLOG(4) << "Buffer field reader is returning.";
                           return (buffer.ptr().value().*reader)(variable);
-                        }));
+                        })
+            .ptr());
 
     // Setter.
-    object_type.AddField(
+    object_type.ptr()->AddField(
         L"set_" + variable->name(),
         vm::NewCallback(
             pool, PurityType::kUnknown,
             [variable, setter](gc::Root<OpenBuffer> buffer, FieldValue value) {
               (buffer.ptr().value().*setter)(variable, value);
-            }));
+            })
+            .ptr());
   }
 }
 }  // namespace
 
-NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
-  auto buffer_object_type = MakeNonNullUnique<ObjectType>(
-      vm::VMTypeMapper<gc::Root<OpenBuffer>>::vmtype.object_type);
+gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
+  gc::Root<ObjectType> buffer_object_type =
+      ObjectType::New(pool, vm::VMTypeMapper<gc::Root<OpenBuffer>>::vmtype);
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(
-      pool, buffer_variables::BoolStruct(), buffer_object_type.value(),
+      pool, buffer_variables::BoolStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<std::wstring>, std::wstring>(
-      pool, buffer_variables::StringStruct(), buffer_object_type.value(),
+      pool, buffer_variables::StringStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<int>, int>(
-      pool, buffer_variables::IntStruct(), buffer_object_type.value(),
+      pool, buffer_variables::IntStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<double>, double>(
-      pool, buffer_variables::DoubleStruct(), buffer_object_type.value(),
+      pool, buffer_variables::DoubleStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<LineColumn>, LineColumn>(
-      pool, buffer_variables::LineColumnStruct(), buffer_object_type.value(),
+      pool, buffer_variables::LineColumnStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"SetStatus",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer, std::wstring s) {
                         buffer.ptr()->status().SetInformationText(s);
-                      }));
+                      })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"SetWarningStatus",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer, std::wstring s) {
                         buffer.ptr()->status().SetWarningText(s);
-                      }));
+                      })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"line_count",
-      vm::NewCallback(
-          pool, PurityType::kReader, [](gc::Root<OpenBuffer> buffer) {
-            return static_cast<int>(buffer.ptr()->contents().size().read());
-          }));
+      vm::NewCallback(pool, PurityType::kReader,
+                      [](gc::Root<OpenBuffer> buffer) {
+                        return static_cast<int>(
+                            buffer.ptr()->contents().size().read());
+                      })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"set_position",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer, LineColumn position) {
                         buffer.ptr()->set_position(position);
-                      }));
+                      })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"position",
       vm::NewCallback(pool, PurityType::kReader,
                       [](gc::Root<OpenBuffer> buffer) {
                         return LineColumn(buffer.ptr()->position());
-                      }));
+                      })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"line",
       vm::NewCallback(pool, PurityType::kReader,
                       [](gc::Root<OpenBuffer> buffer, int line_input) {
@@ -165,13 +173,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                             LineNumber(0) + buffer.ptr()->lines_size() -
                                 LineNumberDelta(1));
                         return buffer.ptr()->contents().at(line)->ToString();
-                      }));
+                      })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"ApplyTransformation",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), buffer_object_type->type(),
+          {VMType::Void(), buffer_object_type.ptr()->type(),
            vm::VMTypeMapper<NonNull<
                std::shared_ptr<editor::transformation::Variant>>>::vmtype},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
@@ -187,13 +196,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                 .Transform([&pool](EmptyValue) {
                   return EvaluationOutput::Return(vm::Value::NewVoid(pool));
                 });
-          }));
+          })
+          .ptr());
 
 #if 0
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"GetRegion",
       vm::Value::NewFunction(
-          {VMType::ObjectType(L"Range"), buffer_object_type->type(),
+          {VMType::ObjectType(L"Range"), buffer_object_type.ptr()->type(),
            VMType::String()},
           [](vector<gc::Root<vm::Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2u);
@@ -232,28 +242,30 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                   }
                 })
                 ->ProcessInput(L'\n', editor_state);
-          }));
+          }).ptr());
 #endif
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"PushTransformationStack",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer) {
                         buffer.ptr()->PushTransformationStack();
-                      }));
+                      })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"PopTransformationStack",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer) {
                         buffer.ptr()->PopTransformationStack();
-                      }));
+                      })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"AddKeyboardTextTransformer",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Bool(), buffer_object_type->type(),
+          {VMType::Bool(), buffer_object_type.ptr()->type(),
            VMType::Function({VMType::String(), VMType::String()})},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
@@ -262,12 +274,13 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
             return vm::Value::NewBool(
                 pool,
                 buffer.ptr()->AddKeyboardTextTransformer(std::move(args[1])));
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"Filter", vm::Value::NewFunction(
                      pool, PurityType::kUnknown,
-                     {VMType::Void(), buffer_object_type->type(),
+                     {VMType::Void(), buffer_object_type.ptr()->type(),
                       VMType::Function({VMType::Bool(), VMType::String()})},
                      [&pool](std::vector<gc::Root<vm::Value>> args) {
                        CHECK_EQ(args.size(), size_t(2));
@@ -276,12 +289,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                                args[0].ptr().value());
                        buffer.ptr()->set_filter(std::move(args[1]));
                        return vm::Value::NewVoid(pool);
-                     }));
+                     })
+                     .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"Reload",
       vm::NewCallback(
-          pool, PurityType::kUnknown, [](gc::Root<OpenBuffer> buffer) {
+          pool, PurityType::kUnknown,
+          [](gc::Root<OpenBuffer> buffer) {
             if (buffer.ptr()->editor().structure() == StructureLine()) {
               auto target_buffer =
                   buffer.ptr()->current_line()->buffer_line_column();
@@ -296,12 +311,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
             }
             buffer.ptr()->Reload();
             buffer.ptr()->editor().ResetModifiers();
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"SendEndOfFileToProcess",
       vm::NewCallback(
-          pool, PurityType::kUnknown, [](gc::Root<OpenBuffer> buffer) {
+          pool, PurityType::kUnknown,
+          [](gc::Root<OpenBuffer> buffer) {
             if (buffer.ptr()->editor().structure() == StructureLine()) {
               auto target_buffer =
                   buffer.ptr()->current_line()->buffer_line_column();
@@ -316,13 +333,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
             }
             buffer.ptr()->SendEndOfFileToProcess();
             buffer.ptr()->editor().ResetModifiers();
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"Save",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), buffer_object_type->type()},
+          {VMType::Void(), buffer_object_type.ptr()->type()},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
@@ -356,12 +374,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                 });
             buffer.ptr()->editor().ResetModifiers();
             return std::move(future.value);
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"Close",
       vm::NewCallback(
-          pool, vm::PurityTypeWriter, [](gc::Root<OpenBuffer> buffer) {
+          pool, vm::PurityTypeWriter,
+          [](gc::Root<OpenBuffer> buffer) {
             if (buffer.ptr()->editor().structure() == StructureLine()) {
               auto target_buffer =
                   buffer.ptr()->current_line()->buffer_line_column();
@@ -376,13 +396,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
             }
             buffer.ptr()->editor().CloseBuffer(buffer.ptr().value());
             buffer.ptr()->editor().ResetModifiers();
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"AddBinding",
       vm::Value::NewFunction(
           pool, vm::PurityTypeWriter,
-          {VMType::Void(), buffer_object_type->type(), VMType::String(),
+          {VMType::Void(), buffer_object_type.ptr()->type(), VMType::String(),
            VMType::String(), VMType::Function({VMType::Void()})},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 4u);
@@ -393,9 +414,10 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                 args[1].ptr()->get_string(), args[2].ptr()->get_string(),
                 std::move(args[3]), buffer.ptr()->environment().ToRoot());
             return vm::Value::NewVoid(pool);
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"AddBindingToFile",
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
@@ -424,12 +446,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                       });
                 },
                 L"Load file: " + path);
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"ShowTrackers",
       vm::NewCallback(
-          pool, vm::PurityTypeWriter, [](gc::Root<OpenBuffer> buffer) {
+          pool, vm::PurityTypeWriter,
+          [](gc::Root<OpenBuffer> buffer) {
             for (auto& data : Tracker::GetData()) {
               buffer.ptr()->AppendLine(
                   Append(Append(NewLazyString(data.name), NewLazyString(L": "),
@@ -439,9 +463,10 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                          NewLazyString(L" "),
                          NewLazyString(std::to_wstring(data.longest_seconds))));
             }
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"EvaluateFile",
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
@@ -451,13 +476,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                                   buffer.ptr()->EvaluateFile(std::move(path));
                                 }},
                        Path::FromString(path_str));
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"WaitForEndOfFile",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), buffer_object_type->type()},
+          {VMType::Void(), buffer_object_type.ptr()->type()},
           [](std::vector<gc::Root<vm::Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
@@ -466,13 +492,14 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                 [&pool = trampoline.pool()](EmptyValue) {
                   return EvaluationOutput::Return(vm::Value::NewVoid(pool));
                 });
-          }));
+          })
+          .ptr());
 
-  buffer_object_type->AddField(
+  buffer_object_type.ptr()->AddField(
       L"LineMetadataString",
       vm::Value::NewFunction(
           pool, PurityType::kPure,
-          {VMType::String(), buffer_object_type->type(), VMType::Int()},
+          {VMType::String(), buffer_object_type.ptr()->type(), VMType::Int()},
           [&pool](std::vector<gc::Root<vm::Value>> args,
                   Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
@@ -500,7 +527,8 @@ NonNull<std::unique_ptr<ObjectType>> BuildBufferType(gc::Pool& pool) {
                           });
                     }},
                 line->metadata_future());
-          }));
+          })
+          .ptr());
   return buffer_object_type;
 }
 }  // namespace afc::editor

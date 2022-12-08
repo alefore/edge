@@ -641,10 +641,22 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
         });
     A = nullptr;
     B = nullptr;
+  } else if (A->IsDouble() && B->IsDouble()) {
+    OUT = new BinaryOperator(
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(B)),
+        VMType::Bool(),
+        [](gc::Pool& pool, const Value& a, const Value& b) {
+          return Value::NewBool(pool, a.get_double() == b.get_double());
+        });
+    A = nullptr;
+    B = nullptr;
   } else {
     compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L"."));
+        + L" == " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -676,10 +688,22 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
         });
     A = nullptr;
     B = nullptr;
+  } else if (A->IsDouble() && B->IsDouble()) {
+    OUT = new BinaryOperator(
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(A)),
+        NonNull<std::unique_ptr<Expression>>::Unsafe(
+            std::unique_ptr<Expression>(B)),
+        VMType::Bool(),
+        [](gc::Pool& pool, const Value& a, const Value& b) {
+          return Value::NewBool(pool, a.get_double() != b.get_double());
+        });
+    A = nullptr;
+    B = nullptr;
   } else {
     compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L"."));
+        + L" != " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -707,7 +731,7 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
   } else {
     compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L"."));
+        + L" < " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -735,7 +759,7 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
   } else {
     compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L"."));
+        + L" <= " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -763,7 +787,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
   } else {
     compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L"."));
+        + L" > " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -791,7 +815,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
   } else {
     compilation->AddError(Error(
         L"Unable to compare types: " + TypesToString(A->Types())
-        + L" and " + TypesToString(B->Types()) + L"."));
+        + L" >= " + TypesToString(B->Types()) + L"."));
     OUT = nullptr;
   }
 }

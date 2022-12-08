@@ -92,28 +92,33 @@ std::ostream& operator<<(std::ostream& os, const VMType& value);
 struct Value;
 
 class ObjectType {
+ private:
+  struct ConstructorAccessKey {};
+
  public:
-  ObjectType(VMTypeObjectTypeName type_name);
+  ObjectType(const VMType& type, ConstructorAccessKey);
+
+  static language::gc::Root<ObjectType> New(afc::language::gc::Pool& pool,
+                                            VMType type_name);
 
   const VMType& type() const { return type_; }
   wstring ToString() const { return type_.ToString(); }
 
-  void AddField(const wstring& name, language::gc::Root<Value> field);
+  void AddField(const wstring& name, language::gc::Ptr<Value> field);
 
-  Value* LookupField(const wstring& name) const {
-    auto it = fields_.find(name);
-    return it == fields_.end() ? nullptr : &it->second.ptr().value();
-  }
+  Value* LookupField(const wstring& name) const;
 
   void ForEachField(std::function<void(const wstring&, Value&)> callback);
   void ForEachField(
       std::function<void(const wstring&, const Value&)> callback) const;
 
- private:
-  ObjectType(const VMType& type);
+  std::vector<afc::language::NonNull<
+      std::shared_ptr<afc::language::gc::ObjectMetadata>>>
+  Expand() const;
 
+ private:
   VMType type_;
-  std::map<std::wstring, language::gc::Root<Value>> fields_;
+  std::map<std::wstring, language::gc::Ptr<Value>> fields_;
 };
 
 }  // namespace afc::vm

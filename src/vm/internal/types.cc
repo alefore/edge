@@ -18,6 +18,7 @@ size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
 }  // namespace std
 namespace afc::vm {
 using language::FromByteString;
+using language::MakeNonNullUnique;
 using language::NonNull;
 
 namespace gc = language::gc;
@@ -193,23 +194,45 @@ wstring VMType::ToString() const {
   return output;
 }
 
-ObjectType::ObjectType(const VMType& type) : type_(type) {}
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
+    const {
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
+  for (auto& p : fields_) output.push_back(p.second.object_metadata());
+  return output;
+}
 
-ObjectType::ObjectType(VMTypeObjectTypeName type_name)
-    : ObjectType(VMType::ObjectType(type_name)) {}
+/* static */ language::gc::Root<ObjectType> ObjectType::New(gc::Pool& pool,
+                                                            VMType type) {
+  return pool.NewRoot(
+      MakeNonNullUnique<ObjectType>(std::move(type), ConstructorAccessKey()));
+}
 
-void ObjectType::AddField(const wstring& name, gc::Root<Value> field) {
+ObjectType::ObjectType(const VMType& type, ConstructorAccessKey)
+    : type_(type) {}
+
+void ObjectType::AddField(const wstring& name, gc::Ptr<Value> field) {
   fields_.insert({name, std::move(field)});
+}
+
+Value* ObjectType::LookupField(const wstring& name) const {
+  auto it = fields_.find(name);
+  return it == fields_.end() ? nullptr : &it->second.value();
 }
 
 void ObjectType::ForEachField(
     std::function<void(const wstring&, Value&)> callback) {
-  for (auto& it : fields_) callback(it.first, it.second.ptr().value());
+  for (auto& it : fields_) callback(it.first, it.second.value());
 }
 
 void ObjectType::ForEachField(
     std::function<void(const wstring&, const Value&)> callback) const {
-  for (const auto& it : fields_) callback(it.first, it.second.ptr().value());
+  for (const auto& it : fields_) callback(it.first, it.second.value());
 }
 
 }  // namespace afc::vm
+namespace afc::language::gc {
+std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
+    const afc::vm::ObjectType& t) {
+  return t.Expand();
+}
+}  // namespace afc::language::gc

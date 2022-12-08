@@ -8,13 +8,9 @@
 namespace afc::vm {
 class ObjectType;
 }
-namespace afc::language::gc {
-class Pool;
-}
 namespace afc::editor {
 class OpenBuffer;
-language::NonNull<std::unique_ptr<vm::ObjectType>> BuildBufferType(
-    language::gc::Pool& pool);
+language::gc::Root<vm::ObjectType> BuildBufferType(language::gc::Pool& pool);
 }  // namespace afc::editor
 namespace afc::vm {
 template <>

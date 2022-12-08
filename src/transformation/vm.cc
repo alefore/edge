@@ -78,9 +78,11 @@ class FunctionTransformation : public CompositeTransformation {
 };
 }  // namespace
 void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
-  environment.DefineType(MakeNonNullUnique<vm::ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<editor::transformation::Variant>>>::
-          vmtype.object_type));
+  environment.DefineType(
+      vm::ObjectType::New(
+          pool, VMTypeMapper<NonNull<
+                    std::shared_ptr<editor::transformation::Variant>>>::vmtype)
+          .ptr());
 
   environment.Define(
       L"FunctionTransformation",

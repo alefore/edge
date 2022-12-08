@@ -119,46 +119,49 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
   using vm::PurityType;
   using vm::VMTypeMapper;
 
-  auto input_type = MakeNonNullUnique<vm::ObjectType>(
+  gc::Root<ObjectType> input_type = ObjectType::New(
+      pool,
       VMTypeMapper<NonNull<
-          std::shared_ptr<editor::CompositeTransformation::Input>>>::vmtype
-          .object_type);
+          std::shared_ptr<editor::CompositeTransformation::Input>>>::vmtype);
 
-  input_type->AddField(
+  input_type.ptr()->AddField(
       L"position",
       vm::NewCallback(
           pool, PurityType::kPure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
             return input->position;
-          }));
-  input_type->AddField(
+          })
+          .ptr());
+  input_type.ptr()->AddField(
       L"range",
       vm::NewCallback(
           pool, PurityType::kPure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
             return input->range;
-          }));
+          })
+          .ptr());
 
-  input_type->AddField(
+  input_type.ptr()->AddField(
       L"final_mode",
       vm::NewCallback(
           pool, PurityType::kPure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
             return input->mode == transformation::Input::Mode::kFinal;
-          }));
-  environment.DefineType(std::move(input_type));
+          })
+          .ptr());
+  environment.DefineType(input_type.ptr());
 
-  auto output_type = MakeNonNullUnique<ObjectType>(
+  gc::Root<ObjectType> output_type = ObjectType::New(
+      pool,
       VMTypeMapper<NonNull<
-          std::shared_ptr<editor::CompositeTransformation::Output>>>::vmtype
-          .object_type);
+          std::shared_ptr<editor::CompositeTransformation::Output>>>::vmtype);
 
   environment.Define(
-      output_type->type().object_type.read(),
+      output_type.ptr()->type().object_type.read(),
       vm::NewCallback(pool, PurityType::kPure,
                       MakeNonNullShared<CompositeTransformation::Output>));
 
-  output_type->AddField(
+  output_type.ptr()->AddField(
       L"push",
       vm::NewCallback(
           pool, PurityType::kUnknown,
@@ -166,9 +169,10 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
              NonNull<std::shared_ptr<transformation::Variant>> transformation) {
             output->Push(transformation.value());
             return output;
-          }));
+          })
+          .ptr());
 
-  environment.DefineType(std::move(output_type));
+  environment.DefineType(output_type.ptr());
 }
 }  // namespace editor
 }  // namespace afc

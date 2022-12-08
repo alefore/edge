@@ -37,35 +37,38 @@ language::gc::Root<Environment> Environment::NewDefault(
   RegisterStringType(pool, environment_value);
   RegisterNumberFunctions(pool, environment_value);
   RegisterTimeType(pool, environment_value);
-  auto bool_type = MakeNonNullUnique<ObjectType>(VMType::Bool().object_type);
-  bool_type->AddField(L"tostring",
-                      NewCallback(pool, PurityType::kPure,
-                                  std::function<wstring(bool)>([](bool v) {
-                                    return v ? L"true" : L"false";
-                                  })));
-  environment_value.DefineType(std::move(bool_type));
+  gc::Root<ObjectType> bool_type = ObjectType::New(pool, VMType::Bool());
+  bool_type.ptr()->AddField(
+      L"tostring", NewCallback(pool, PurityType::kPure,
+                               std::function<wstring(bool)>([](bool v) {
+                                 return v ? L"true" : L"false";
+                               }))
+                       .ptr());
+  environment_value.DefineType(bool_type.ptr());
 
-  auto int_type = MakeNonNullUnique<ObjectType>(VMType::Int().object_type);
-  int_type->AddField(
+  gc::Root<ObjectType> int_type = ObjectType::New(pool, VMType::Int());
+  int_type.ptr()->AddField(
       L"tostring", NewCallback(pool, PurityType::kPure,
                                std::function<std::wstring(int)>([](int value) {
                                  return std::to_wstring(value);
-                               })));
-  environment_value.DefineType(std::move(int_type));
+                               }))
+                       .ptr());
+  environment_value.DefineType(int_type.ptr());
 
-  auto double_type =
-      MakeNonNullUnique<ObjectType>(VMType::Double().object_type);
-  double_type->AddField(
+  gc::Root<ObjectType> double_type = ObjectType::New(pool, VMType::Double());
+  double_type.ptr()->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure,
                   std::function<std::wstring(double)>(
-                      [](double value) { return std::to_wstring(value); })));
-  double_type->AddField(
+                      [](double value) { return std::to_wstring(value); }))
+          .ptr());
+  double_type.ptr()->AddField(
       L"round", NewCallback(pool, PurityType::kPure,
                             std::function<int(double)>([](double value) {
                               return static_cast<int>(value);
-                            })));
-  environment_value.DefineType(std::move(double_type));
+                            }))
+                    .ptr());
+  environment_value.DefineType(double_type.ptr());
 
   container::Export<std::vector<int>>(pool, environment_value);
   container::Export<std::set<int>>(pool, environment_value);
@@ -87,7 +90,7 @@ std::optional<language::gc::Ptr<Environment>> Environment::parent_environment()
 const ObjectType* Environment::LookupObjectType(
     const VMTypeObjectTypeName& name) {
   if (auto it = object_types_.find(name); it != object_types_.end()) {
-    return it->second.get().get();
+    return &it->second.value();
   }
   if (parent_environment_.has_value()) {
     return (*parent_environment_)->LookupObjectType(name);
@@ -159,8 +162,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
   return std::nullopt;
 }
 
-void Environment::DefineType(
-    language::NonNull<std::unique_ptr<ObjectType>> value) {
+void Environment::DefineType(gc::Ptr<ObjectType> value) {
   VMTypeObjectTypeName name = value->type().object_type;
   object_types_.insert_or_assign(name, std::move(value));
 }
@@ -268,8 +270,7 @@ void Environment::ForEachType(
   if (parent_environment_.has_value()) {
     (*parent_environment_)->ForEachType(callback);
   }
-  for (const std::pair<const VMTypeObjectTypeName,
-                       NonNull<std::unique_ptr<ObjectType>>>& entry :
+  for (const std::pair<const VMTypeObjectTypeName, gc::Ptr<ObjectType>>& entry :
        object_types_) {
     callback(entry.first, entry.second.value());
   }
@@ -305,6 +306,10 @@ Environment::Expand() const {
         output.push_back(value.object_metadata());
       });
   for (std::pair<std::wstring, gc::Ptr<Environment>> entry : namespaces_) {
+    output.push_back(entry.second.object_metadata());
+  }
+  for (const std::pair<const VMTypeObjectTypeName, gc::Ptr<ObjectType>>& entry :
+       object_types_) {
     output.push_back(entry.second.object_metadata());
   }
   return output;

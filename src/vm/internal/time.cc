@@ -67,13 +67,13 @@ template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, gc::Pool& pool,
                std::function<ReturnType(wstring, Args...)> callback,
                ObjectType* string_type) {
-  string_type->AddField(name, NewCallback(pool, callback));
+  string_type->AddField(name, NewCallback(pool, callback).ptr());
 }
 
 void RegisterTimeType(gc::Pool& pool, Environment& environment) {
-  auto time_type =
-      MakeNonNullUnique<ObjectType>(VMTypeMapper<Time>::vmtype.object_type);
-  time_type->AddField(
+  gc::Root<ObjectType> time_type =
+      ObjectType::New(pool, VMTypeMapper<Time>::vmtype);
+  time_type.ptr()->AddField(
       L"tostring",
       vm::NewCallback(pool, PurityType::kPure,
                       std::function<wstring(Time)>([](Time t) {
@@ -81,9 +81,10 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                         if (decimal.length() < 9)
                           decimal.insert(0, 9 - decimal.length(), L'0');
                         return std::to_wstring(t.tv_sec) + L"." + decimal;
-                      })));
+                      }))
+          .ptr());
   // TODO: Correctly handle errors (abort evaluation).
-  time_type->AddField(
+  time_type.ptr()->AddField(
       L"AddDays",
       vm::NewCallback(pool, PurityType::kPure,
                       std::function<Time(Time, int)>([](Time input, int days) {
@@ -93,12 +94,13 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                         t.tm_mday += days;
                         return Time{.tv_sec = mktime(&t),
                                     .tv_nsec = input.tv_nsec};
-                      })));
-  time_type->AddField(
+                      }))
+          .ptr());
+  time_type.ptr()->AddField(
       L"format",
       Value::NewFunction(
           pool, PurityType::kPure,
-          {VMType::String(), time_type->type(), VMType::String()},
+          {VMType::String(), time_type.ptr()->type(), VMType::String()},
           [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
@@ -114,16 +116,17 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
             }
             return futures::Past(Success(EvaluationOutput::Return(
                 Value::NewString(trampoline.pool(), FromByteString(buffer)))));
-          }));
-  time_type->AddField(L"year",
-                      vm::NewCallback(pool, PurityType::kPure,
-                                      std::function<int(Time)>([](Time input) {
-                                        struct tm t;
-                                        // TODO: Don't ignore return value.
-                                        localtime_r(&(input.tv_sec), &t);
-                                        return t.tm_year;
-                                      })));
-  auto time_type_name = time_type->type().object_type;
+          })
+          .ptr());
+  time_type.ptr()->AddField(
+      L"year", vm::NewCallback(pool, PurityType::kPure,
+                               std::function<int(Time)>([](Time input) {
+                                 struct tm t;
+                                 // TODO: Don't ignore return value.
+                                 localtime_r(&(input.tv_sec), &t);
+                                 return t.tm_year;
+                               }))
+                   .ptr());
   environment.Define(L"Now", vm::NewCallback(pool, PurityType::kUnknown, []() {
                        Time output;
                        CHECK_NE(clock_gettime(0, &output), -1);
@@ -133,7 +136,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       L"ParseTime",
       vm::Value::NewFunction(
           pool, PurityType::kPure,
-          {time_type->type(), VMType::String(), VMType::String()},
+          {time_type.ptr()->type(), VMType::String(), VMType::String()},
           [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
@@ -155,13 +158,14 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                     trampoline.pool(), Time{.tv_sec = output, .tv_nsec = 0}))));
           }));
 
-  auto duration_type =
-      MakeNonNullUnique<ObjectType>(VMTypeMapper<Duration>::vmtype.object_type);
-  duration_type->AddField(
+  gc::Root<ObjectType> duration_type =
+      ObjectType::New(pool, VMTypeMapper<Duration>::vmtype);
+  duration_type.ptr()->AddField(
       L"days", vm::NewCallback(pool, PurityType::kPure,
                                std::function<int(Duration)>([](Duration input) {
                                  return input.value.tv_sec / (24 * 60 * 60);
-                               })));
+                               }))
+                   .ptr());
   environment.Define(L"Seconds",
                      vm::NewCallback(pool, PurityType::kPure, [](int input) {
                        return Duration{.value{.tv_sec = input, .tv_nsec = 0}};
@@ -180,8 +184,8 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
         return Duration{.value = b};
       }));
 
-  environment.DefineType(std::move(time_type));
-  environment.DefineType(std::move(duration_type));
+  environment.DefineType(time_type.ptr());
+  environment.DefineType(duration_type.ptr());
 }
 
 }  // namespace afc::vm

@@ -109,13 +109,13 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   using vm::ObjectType;
   using vm::PurityType;
   using vm::VMTypeMapper;
-  auto builder = MakeNonNullUnique<ObjectType>(
-      VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::vmtype.object_type);
+  gc::Root<ObjectType> builder = ObjectType::New(
+      pool, VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::vmtype);
   environment.Define(
-      builder->type().object_type.read(),
+      builder.ptr()->type().object_type.read(),
       vm::NewCallback(pool, PurityType::kPure, MakeNonNullShared<Insert>));
 
-  builder->AddField(
+  builder.ptr()->AddField(
       L"set_text",
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
@@ -137,33 +137,37 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
                                BufferContents::CursorsBehavior::kUnmodified);
             options->contents_to_insert = std::move(buffer);
             return options;
-          }));
+          })
+          .ptr());
 
-  builder->AddField(
+  builder.ptr()->AddField(
       L"set_modifiers",
       vm::NewCallback(pool, vm::PurityTypeWriter,
                       [](NonNull<std::shared_ptr<Insert>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
                         options->modifiers = modifiers.value();
                         return options;
-                      }));
+                      })
+          .ptr());
 
-  builder->AddField(L"set_position",
-                    NewCallback(pool, vm::PurityTypeWriter,
-                                [](NonNull<std::shared_ptr<Insert>> options,
-                                   LineColumn position) {
-                                  options->position = position;
-                                  return options;
-                                }));
+  builder.ptr()->AddField(
+      L"set_position", NewCallback(pool, vm::PurityTypeWriter,
+                                   [](NonNull<std::shared_ptr<Insert>> options,
+                                      LineColumn position) {
+                                     options->position = position;
+                                     return options;
+                                   })
+                           .ptr());
 
-  builder->AddField(
+  builder.ptr()->AddField(
       L"build",
       NewCallback(pool, PurityType::kPure,
                   [](NonNull<std::shared_ptr<Insert>> options) {
                     return MakeNonNullShared<Variant>(options.value());
-                  }));
+                  })
+          .ptr());
 
-  environment.DefineType(std::move(builder));
+  environment.DefineType(builder.ptr());
 }
 }  // namespace editor::transformation
 }  // namespace afc
