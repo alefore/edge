@@ -208,8 +208,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
            VMType::Function(
                {VMType::Void(),
                 VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype})},
-          [&pool = pool](std::vector<gc::Root<vm::Value>> input,
-                         Trampoline& trampoline) {
+          [&pool](std::vector<gc::Root<vm::Value>> input,
+                  Trampoline& trampoline) {
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(input[0].ptr().value());
             NonNull<std::shared_ptr<PossibleError>> output;
@@ -249,8 +249,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
            VMType::Function(
                {VMType::Void(),
                 VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype})},
-          [&pool = pool](std::vector<gc::Root<vm::Value>> input,
-                         Trampoline& trampoline) {
+          [&pool](std::vector<gc::Root<vm::Value>> input,
+                  Trampoline& trampoline) {
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(input[0].ptr().value());
             return editor_arg
@@ -287,8 +287,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
           {VMType::Void(), VMTypeMapper<EditorState>::vmtype, VMType::String()},
-          [&pool = pool](std::vector<gc::Root<vm::Value>> args, Trampoline&)
-              -> futures::ValueOrError<EvaluationOutput> {
+          [&pool](std::vector<gc::Root<vm::Value>> args,
+                  Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
@@ -310,7 +310,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           {VMType::Void(), VMTypeMapper<EditorState>::vmtype,
            VMTypeMapper<
                NonNull<std::shared_ptr<std::set<std::wstring>>>>::vmtype},
-          [&pool = pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
+          [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2u);
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
@@ -419,7 +419,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           pool, PurityType::kUnknown,
           {VMTypeMapper<gc::Root<OpenBuffer>>::vmtype,
            VMTypeMapper<EditorState>::vmtype, VMType::String(), VMType::Bool()},
-          [&pool = pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
+          [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
@@ -450,7 +450,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           pool, PurityType::kUnknown,
           {VMType::Void(), VMTypeMapper<EditorState>::vmtype, VMType::String(),
            VMType::String(), VMType::Function({VMType::Void()})},
-          [&pool = pool](std::vector<gc::Root<vm::Value>> args) {
+          [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 4u);
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
