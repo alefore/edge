@@ -25,22 +25,20 @@ class ThreadPool {
   template <typename Callable>
   auto Run(Callable callable) {
     futures::Future<decltype(callable())> output;
-    // We copy callable into a shared pointer in case it's not copyable.
-    auto shared_callable = std::make_shared<Callable>(std::move(callable));
-    Schedule([shared_callable = std::move(shared_callable),
-              consumer = output.consumer, work_queue = completion_work_queue_] {
+    RunIgnoringResult([callable, consumer = output.consumer,
+                       work_queue = completion_work_queue_] {
       CHECK(work_queue != nullptr);
       work_queue->Schedule(WorkQueue::Callback{
-          .callback = [consumer, value = (*shared_callable)()] {
-            consumer(value);
-          }});
+          .callback = std::bind_front(consumer, callable())});
     });
     return std::move(output.value);
   }
 
   template <typename Callable>
   void RunIgnoringResult(Callable callable) {
-    Schedule([callable = std::move(callable)] { callable(); });
+    // We copy callable into a shared pointer in case it's not copyable.
+    Schedule([shared_callable = std::make_shared<Callable>(
+                  std::move(callable))] { (*shared_callable)(); });
   }
 
  private:
