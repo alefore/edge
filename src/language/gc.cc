@@ -2,6 +2,10 @@
 
 #include <utility>
 
+extern "C" {
+#include "execinfo.h"
+}
+
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
@@ -26,9 +30,15 @@ bool ObjectMetadata::IsAlive() const {
 }
 
 Pool::~Pool() {
-  // TODO(gc, 2022-05-11): Enable this validation:
-  // CHECK(roots_.empty());
   FullCollect();
+  survivors_.lock([](const Survivors& survivors) {
+  // TODO(gc, 2022-12-08): Enable this validation.
+#if 0
+    CHECK(survivors.roots.empty())
+        << "Found roots (start: " << survivors.roots.front()->front().lock()
+        << ")";
+#endif
+  });
 }
 
 size_t Pool::count_objects() const {
@@ -295,17 +305,30 @@ void Pool::Expand(Survivors& survivors, std::optional<double> timeout) {
 
 Pool::RootRegistration Pool::AddRoot(
     std::weak_ptr<ObjectMetadata> object_metadata) {
-  VLOG(5) << "Adding root: " << object_metadata.lock();
+  bool* ptr = new bool(false);
+  VLOG(5) << "Adding root: " << object_metadata.lock() << " at " << ptr;
+  if (VLOG_IS_ON(10)) {
+    int nptrs;
+    static const size_t kBufferSize = 128;
+    void* buffer[kBufferSize];
+    nptrs = backtrace(buffer, kBufferSize);
+    VLOG(10) << "backtrace():";
+    char** strings = backtrace_symbols(buffer, nptrs);
+    CHECK(strings != nullptr);
+    for (size_t i = 0; i < nptrs; i++) {
+      VLOG(10) << "  " << strings[i];
+    }
+    free(strings);
+  }
   return eden_.lock([&](Eden& eden) {
     eden.roots->push_back(object_metadata);
     return RootRegistration(
-        new bool(false),
-        [this, root_deleted = Eden::RootIterator{
-                   .roots_list = eden.roots.value(),
-                   .it = std::prev(eden.roots->end())}](bool* value) {
+        ptr, [this, root_deleted = Eden::RootIterator{
+                        .roots_list = eden.roots.value(),
+                        .it = std::prev(eden.roots->end())}](bool* value) {
           delete value;
+          VLOG(5) << "Erasing root: " << value;
           eden_.lock([&root_deleted](Eden& input_eden) {
-            VLOG(5) << "Erasing root.";
             input_eden.roots_deleted.push_back(root_deleted);
           });
         });
