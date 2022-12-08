@@ -680,14 +680,10 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
         std::optional<gc::Root<OpenBuffer>> root_this = weak_this.Lock();
         if (!root_this.has_value()) return;
         root_this->ptr()->work_queue_->Schedule(
-            WorkQueue::Callback{.callback = [weak_this] {
-              VisitPointer(
-                  weak_this.Lock(),
-                  [](gc::Root<OpenBuffer> root_this_inner) {
-                    root_this_inner.ptr()->MaybeStartUpdatingSyntaxTrees();
-                  },
-                  [] {});
-            }});
+            WorkQueue::Callback{.callback = WeakPtrLockingObserver(
+                                    weak_this, [](OpenBuffer& buffer) {
+                                      buffer.MaybeStartUpdatingSyntaxTrees();
+                                    })});
         root_this->ptr()->SetDiskState(DiskState::kStale);
         if (root_this->ptr()->Read(buffer_variables::persist_state)) {
           switch (root_this->ptr()->backup_state_) {
