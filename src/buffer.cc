@@ -2207,8 +2207,7 @@ language::gc::Root<OpenBuffer> OpenBuffer::NewRoot() {
 
 language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
   CHECK(ptr_this_.has_value());
-  language::gc::Root<const OpenBuffer> output = ptr_this_->ToRoot();
-  return output;
+  return language::gc::Root<const OpenBuffer>(ptr_this_->ToRoot());
 }
 
 const std::multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks()
