@@ -171,12 +171,12 @@ bool predictor_transformation_tests_register = tests::Register(
         predictions_buffer->AppendLine(NewLazyString(L"footer"));
         predictions_buffer->AppendLine(NewLazyString(L"foxtrot"));
         predictions_buffer->EraseLines(LineNumber(), LineNumber().next());
-        RegisterPredictorPrefixMatch(2, *predictions_buffer);
         LOG(INFO) << "Signaling EOF to predictions_buffer.";
         predictions_buffer->EndOfFile();
         LOG(INFO) << "Notifying inner future";
         CHECK(!final_value.has_value());
-        inner_future.consumer(PredictorOutput());
+        inner_future.consumer(
+            PredictorOutput{.longest_prefix = ColumnNumberDelta(2)});
         CHECK(final_value.has_value());
       }}});
 }

@@ -70,7 +70,22 @@ struct PredictorInput {
       futures::DeleteNotification::Never();
 };
 
-struct PredictorOutput {};
+struct PredictorOutput {
+  // The size of the longest prefix in the input that matched at least one item.
+  // Typically, when the input matches at least one item, this will be the size
+  // of the input.
+  language::lazy_string::ColumnNumberDelta longest_prefix =
+      language::lazy_string::ColumnNumberDelta();
+
+  // The size of the longest prefix in the input that matched a directory and
+  // that is shorter than the entire input (i.e., if the input is `foo/bar` and
+  // that directory exists, the longest directory will be `foo`).
+  language::lazy_string::ColumnNumberDelta longest_directory_match =
+      language::lazy_string::ColumnNumberDelta();
+
+  // Did the input match a file exactly?
+  bool found_exact_match = false;
+};
 
 using Predictor =
     std::function<futures::Value<PredictorOutput>(PredictorInput)>;
@@ -87,18 +102,18 @@ struct PredictResults {
 
   int matches = 0;
 
-  // The size of the longest prefix in the input that matched at least one item.
-  // Typically, when the input matches at least one item, this will be the size
-  // of the input.
+  // TODO(easy, 2022-12-11): Just nest PredictorOutput here, rather than
+  // redundantly copying its fields.
+
+  // See `PredictorOutput::longest_prefix`.
   language::lazy_string::ColumnNumberDelta longest_prefix =
       language::lazy_string::ColumnNumberDelta();
-  // The size of the longest prefix in the input that matched a directory and
-  // that is shorter than the entire input (i.e., if the input is `foo/bar` and
-  // that directory exists, the longest directory will be `foo`).
+
+  // See `PredictorOutput::longest_directory_match`.
   language::lazy_string::ColumnNumberDelta longest_directory_match =
       language::lazy_string::ColumnNumberDelta();
 
-  // Did the input match a file exactly?
+  // See `PredictorOutput::found_exact_match`.
   bool found_exact_match = false;
 };
 
