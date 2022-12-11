@@ -49,7 +49,7 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
     NonNull<std::shared_ptr<LazyString>> line) {
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
-  if (results.found_exact_match) {
+  if (results.predictor_output.found_exact_match) {
     ValueOrError<Path> path_or_error = Path::FromString(line);
     Path* path = std::get_if<Path>(&path_or_error);
     if (path == nullptr) {
@@ -104,12 +104,13 @@ futures::Value<ColorizePromptOptions> DrawPath(
               modifiers.insert(LineModifier::DIM);
               break;
             default:
-              if (i.ToDelta() >= results.longest_directory_match) {
-                if (results.found_exact_match) {
+              if (i.ToDelta() >=
+                  results.predictor_output.longest_directory_match) {
+                if (results.predictor_output.found_exact_match) {
                   modifiers.insert(LineModifier::BOLD);
                 }
                 if (results.matches == 0 &&
-                    i.ToDelta() >= results.longest_prefix) {
+                    i.ToDelta() >= results.predictor_output.longest_prefix) {
                   modifiers.insert(LineModifier::RED);
                 } else if (results.matches == 1) {
                   modifiers.insert(LineModifier::GREEN);

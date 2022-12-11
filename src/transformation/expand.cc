@@ -92,8 +92,10 @@ class PredictorTransformation : public CompositeTransformation {
           }
           if (!results->common_prefix.has_value() ||
               results->common_prefix.value().size() < text.size()) {
-            CHECK_LE(results->longest_prefix, ColumnNumberDelta(text.size()));
-            auto prefix = text.substr(0, results->longest_prefix.read());
+            CHECK_LE(results->predictor_output.longest_prefix,
+                     ColumnNumberDelta(text.size()));
+            auto prefix =
+                text.substr(0, results->predictor_output.longest_prefix.read());
             if (!prefix.empty()) {
               VLOG(5) << "Setting buffer status.";
               buffer.status().SetInformationText(

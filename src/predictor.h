@@ -87,6 +87,8 @@ struct PredictorOutput {
   bool found_exact_match = false;
 };
 
+std::ostream& operator<<(std::ostream& os, const PredictorOutput& lc);
+
 using Predictor =
     std::function<futures::Value<PredictorOutput>(PredictorInput)>;
 
@@ -102,19 +104,7 @@ struct PredictResults {
 
   int matches = 0;
 
-  // TODO(easy, 2022-12-11): Just nest PredictorOutput here, rather than
-  // redundantly copying its fields.
-
-  // See `PredictorOutput::longest_prefix`.
-  language::lazy_string::ColumnNumberDelta longest_prefix =
-      language::lazy_string::ColumnNumberDelta();
-
-  // See `PredictorOutput::longest_directory_match`.
-  language::lazy_string::ColumnNumberDelta longest_directory_match =
-      language::lazy_string::ColumnNumberDelta();
-
-  // See `PredictorOutput::found_exact_match`.
-  bool found_exact_match = false;
+  PredictorOutput predictor_output;
 };
 
 std::ostream& operator<<(std::ostream& os, const PredictResults& lc);

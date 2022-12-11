@@ -108,16 +108,10 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
           })) {
   }
 
-  PredictResults predict_results{
-      .common_prefix = common_prefix,
-      .predictions_buffer = predictions_buffer.NewRoot()};
-
-  predict_results.longest_prefix = predictor_output.longest_prefix;
-  predict_results.longest_directory_match =
-      predictor_output.longest_directory_match;
-  predict_results.found_exact_match = predictor_output.found_exact_match;
-  predict_results.matches = predictions_buffer.lines_size().read() - 1;
-  return predict_results;
+  return PredictResults{.common_prefix = common_prefix,
+                        .predictions_buffer = predictions_buffer.NewRoot(),
+                        .matches = predictions_buffer.lines_size().read() - 1,
+                        .predictor_output = predictor_output};
 }
 
 std::wstring GetPredictInput(const PredictOptions& options) {
@@ -147,6 +141,14 @@ std::wstring GetPredictInput(const PredictOptions& options) {
       ->ToString();
 }
 }  // namespace
+
+std::ostream& operator<<(std::ostream& os, const PredictorOutput& lc) {
+  os << "[PredictorOutput longest_prefix: " << lc.longest_prefix;
+  os << " longest_directory_match: " << lc.longest_directory_match;
+  os << " found_exact_match: " << lc.found_exact_match << "]";
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
   os << "[PredictResults";
   if (lc.common_prefix.has_value()) {
@@ -154,9 +156,7 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
   }
 
   os << " matches: " << lc.matches;
-  os << " longest_prefix: " << lc.longest_prefix;
-  os << " longest_directory_match: " << lc.longest_directory_match;
-  os << " found_exact_match: " << lc.found_exact_match;
+  os << " predictor_output: " << lc.predictor_output;
   os << "]";
   return os;
 }
