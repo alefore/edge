@@ -56,20 +56,20 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
                             PredictorOutput predictor_output) {
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
             << predictions_buffer.contents().size();
-  predictions_buffer.SortContents(
-      LineNumber(0), predictions_buffer.EndLine(),
-      [](const NonNull<std::shared_ptr<const Line>>& a,
-         const NonNull<std::shared_ptr<const Line>>& b) {
-        return LowerCase(a->contents()).value() <
-               LowerCase(b->contents()).value();
-      });
+  if (predictions_buffer.lines_size() > LineNumberDelta(1))
+    predictions_buffer.SortContents(
+        LineNumber(0), predictions_buffer.EndLine() - LineNumberDelta(1),
+        [](const NonNull<std::shared_ptr<const Line>>& a,
+           const NonNull<std::shared_ptr<const Line>>& b) {
+          return LowerCase(a->contents()).value() <
+                 LowerCase(b->contents()).value();
+        });
 
   LOG(INFO) << "Removing duplicates.";
-  for (auto line = LineNumber(0);
+  for (auto line = LineNumber(1);
        line.ToDelta() < predictions_buffer.contents().size();) {
-    if (line == LineNumber(0) ||
-        predictions_buffer.contents().at(line.previous())->ToString() !=
-            predictions_buffer.contents().at(line)->ToString()) {
+    if (predictions_buffer.contents().at(line.previous())->ToString() !=
+        predictions_buffer.contents().at(line)->ToString()) {
       line++;
     } else {
       predictions_buffer.EraseLines(line, line.next());
@@ -78,36 +78,33 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
 
   std::wstring common_prefix =
       predictions_buffer.contents().front()->contents()->ToString();
-  if (predictions_buffer.contents().EveryLine(
-          [&common_prefix](LineNumber, const Line& line) {
-            if (line.empty()) {
-              return true;
-            }
-            VLOG(5) << "Considering prediction: " << line.ToString()
-                    << " (end column: " << line.EndColumn() << ")";
-            size_t current_size =
-                std::min(common_prefix.size(), line.EndColumn().read());
-            std::wstring current =
-                line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
-                    ->ToString();
+  predictions_buffer.contents().EveryLine(
+      [&common_prefix](LineNumber, const Line& line) {
+        if (line.empty()) {
+          return true;
+        }
+        VLOG(5) << "Considering prediction: " << line.ToString()
+                << " (end column: " << line.EndColumn() << ")";
+        size_t current_size =
+            std::min(common_prefix.size(), line.EndColumn().read());
+        std::wstring current =
+            line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
+                ->ToString();
 
-            auto prefix_end = mismatch(
-                common_prefix.begin(), common_prefix.end(), current.begin(),
-                [](wchar_t common_c, wchar_t current_c) {
-                  return towlower(common_c) == towlower(current_c);
-                });
-            if (prefix_end.first != common_prefix.end()) {
-              if (prefix_end.first == common_prefix.begin()) {
-                LOG(INFO) << "Aborting completion.";
-                return false;
-              }
-              common_prefix =
-                  std::wstring(common_prefix.begin(), prefix_end.first);
-            }
-            return true;
-          })) {
-  }
-
+        auto prefix_end =
+            mismatch(common_prefix.begin(), common_prefix.end(),
+                     current.begin(), [](wchar_t common_c, wchar_t current_c) {
+                       return towlower(common_c) == towlower(current_c);
+                     });
+        if (prefix_end.first != common_prefix.end()) {
+          if (prefix_end.first == common_prefix.begin()) {
+            LOG(INFO) << "Aborting completion.";
+            return false;
+          }
+          common_prefix = std::wstring(common_prefix.begin(), prefix_end.first);
+        }
+        return true;
+      });
   return PredictResults{.common_prefix = common_prefix,
                         .predictions_buffer = predictions_buffer.NewRoot(),
                         .matches = predictions_buffer.lines_size().read() - 1,
@@ -273,7 +270,8 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
       static Tracker tracker(L"FilePredictor::ScanDirectory::FlushPredictions");
       auto call = tracker.Call();
       for (NonNull<std::shared_ptr<Line>>& prediction : batch) {
-        buffer.StartNewLine(std::move(prediction));
+        buffer.AppendToLastLine(std::move(prediction.value()));
+        buffer.AppendRawLine(NonNull<std::shared_ptr<Line>>());
       }
     });
     predictions.clear();
@@ -314,20 +312,17 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
                     std::to_wstring(*matches)}}});
   }
   FlushPredictions();
-  get_buffer([prefix_match = prefix.size() + longest_pattern_match, pattern,
-              &predictor_output](OpenBuffer& buffer) {
-    if (buffer.lines_size() > LineNumberDelta() &&
-        buffer.LineAt(LineNumber())->empty()) {
-      buffer.EraseLines(LineNumber(), LineNumber().next());
-    }
+  progress_channel.Push(
+      ProgressInformation{.values = {{StatusPromptExtraInformationKey(L"files"),
+                                      std::to_wstring(*matches)}}});
 
-    predictor_output.lock([&](PredictorOutput& output) {
-      output.longest_prefix =
-          std::max(output.longest_prefix, ColumnNumberDelta(prefix_match));
-      if (pattern.empty()) {
-        output.found_exact_match = true;
-      }
-    });
+  predictor_output.lock([&](PredictorOutput& output) {
+    output.longest_prefix =
+        std::max(output.longest_prefix,
+                 ColumnNumberDelta(prefix.size() + longest_pattern_match));
+    if (pattern.empty()) {
+      output.found_exact_match = true;
+    }
   });
 }
 
@@ -521,6 +516,22 @@ const bool buffer_tests_registration =
         VLOG(5) << "Contents: " << buffer.ptr()->contents().ToString();
         return buffer.ptr()->contents().ToString();
       };
+      auto test_predict = [&](std::wstring input,
+                              std::function<void(PredictResults)> callback) {
+        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        bool executed = false;
+        Predict(PredictOptions{.editor_state = buffer.ptr()->editor(),
+                               .predictor = test_predictor,
+                               .text = input,
+                               .source_buffers = {}})
+            .Transform([&](std::optional<PredictResults> predict_results) {
+              CHECK(!std::exchange(executed, true));
+              callback(predict_results.value());
+              return futures::Past(EmptyValue());
+            });
+        CHECK(executed);
+      };
+
       return std::vector<tests::Test>(
           {{.name = L"CallNoPredictions",
             .callback = [&] { CHECK(predict(L"quux") == L""); }},
@@ -528,8 +539,27 @@ const bool buffer_tests_registration =
             .callback = [&] { CHECK(predict(L"o") == L""); }},
            {.name = L"CallExactPrediction",
             .callback = [&] { CHECK(predict(L"ale") == L"alejo\n"); }},
-           {.name = L"CallTokenPrediction", .callback = [&] {
-              CHECK(predict(L"bar") == L"bar\nbard\nfoo_bar\n");
+           {.name = L"CallTokenPrediction",
+            .callback =
+                [&] { CHECK(predict(L"bar") == L"bar\nbard\nfoo_bar\n"); }},
+           {.name = L"NoMatchesCheckOutput",
+            .callback =
+                [&] {
+                  test_predict(L"xxx", [&](PredictResults output) {
+                    CHECK_EQ(output.matches, 0);
+                  });
+                }},
+           {.name = L"SingleMatchCheckOutput",
+            .callback =
+                [&] {
+                  test_predict(L"alej", [&](PredictResults output) {
+                    CHECK_EQ(output.matches, 1);
+                  });
+                }},
+           {.name = L"TwoMatchesCheckOutput", .callback = [&] {
+              test_predict(L"fo", [&](PredictResults output) {
+                CHECK_EQ(output.matches, 2);
+              });
             }}});
     }());
 }  // namespace
@@ -561,11 +591,6 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
       input.predictions.AppendRawLine(line_contents->contents());
 
       ++line;
-    }
-
-    if (input.predictions.lines_size() > LineNumberDelta() &&
-        input.predictions.LineAt(LineNumber())->empty()) {
-      input.predictions.EraseLines(LineNumber(), LineNumber().next());
     }
 
     input.predictions.EndOfFile();
