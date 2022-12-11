@@ -105,10 +105,11 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
         }
         return true;
       });
-  return PredictResults{.common_prefix = common_prefix,
-                        .predictions_buffer = predictions_buffer.NewRoot(),
-                        .matches = predictions_buffer.lines_size().read() - 1,
-                        .predictor_output = predictor_output};
+  return PredictResults{
+      .common_prefix = common_prefix,
+      .predictions_buffer = predictions_buffer.NewRoot(),
+      .matches = (predictions_buffer.lines_size() - LineNumberDelta(1)).read(),
+      .predictor_output = predictor_output};
 }
 
 std::wstring GetPredictInput(const PredictOptions& options) {
