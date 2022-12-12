@@ -181,6 +181,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   buffer_options.generate_contents =
       [shared_options = std::move(shared_options), input,
        consumer = std::move(output.consumer)](OpenBuffer& buffer) {
+        CHECK(shared_options->progress_channel != nullptr);
         return shared_options
             ->predictor({.editor = shared_options->editor_state,
                          .input = std::move(input),
@@ -190,6 +191,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                          .abort_value = shared_options->abort_value})
             .Transform([shared_options, input, &buffer,
                         consumer](PredictorOutput predictor_output) {
+              shared_options->progress_channel = nullptr;
               buffer.set_current_cursor(LineColumn());
               auto results = BuildResults(buffer, predictor_output);
               consumer(GetPredictInput(*shared_options) == input &&
