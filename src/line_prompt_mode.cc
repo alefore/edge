@@ -685,20 +685,23 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   }
 
   PromptState(PromptOptions options, ConstructorAccessKey)
-      : editor_state_(options.editor_state),
+      : options_(std::move(options)),
         status_buffer_([&]() -> std::optional<gc::Root<OpenBuffer>> {
           if (options.status == PromptOptions::Status::kEditor)
             return std::nullopt;
-          auto active_buffers = editor_state_.active_buffers();
+          auto active_buffers = editor_state().active_buffers();
           return active_buffers.size() == 1
                      ? active_buffers[0]
                      : std::optional<gc::Root<OpenBuffer>>();
         }()),
         status_(status_buffer_.has_value() ? status_buffer_->ptr()->status()
-                                           : editor_state_.status()),
-        original_modifiers_(editor_state_.modifiers()) {
-    editor_state_.set_modifiers(Modifiers());
+                                           : editor_state().status()),
+        original_modifiers_(editor_state().modifiers()) {
+    editor_state().set_modifiers(Modifiers());
   }
+
+  const PromptOptions& options() const { return options_; }
+  EditorState& editor_state() const { return options_.editor_state; }
 
   // The prompt has disappeared.
   bool IsGone() const { return status().GetType() != Status::Type::kPrompt; }
@@ -707,13 +710,13 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
 
   void Reset() {
     status().Reset();
-    editor_state_.set_modifiers(original_modifiers_);
+    editor_state().set_modifiers(original_modifiers_);
   }
 
   std::weak_ptr<StatusValueViewer> NewStatusValue();
 
  private:
-  EditorState& editor_state_;
+  PromptOptions options_;
   // If the status is associated with a buffer, we capture it here; that allows
   // us to ensure that the status won't be deallocated under our feet (when the
   // buffer is ephemeral).
@@ -1047,11 +1050,11 @@ void Prompt(PromptOptions options) {
             .editor_state = editor_state,
             .buffers = {{prompt_buffer}},
             .modify_handler =
-                [&editor_state, history, prompt_state,
-                 options](OpenBuffer& buffer) {
+                [&editor_state, history, prompt_state](OpenBuffer& buffer) {
                   NonNull<std::shared_ptr<LazyString>> line =
                       buffer.contents().at(LineNumber())->contents();
-                  if (options.colorize_options_provider == nullptr ||
+                  if (prompt_state->options().colorize_options_provider ==
+                          nullptr ||
                       prompt_state->status().GetType() !=
                           Status::Type::kPrompt) {
                     return futures::Past(EmptyValue());
@@ -1106,7 +1109,7 @@ void Prompt(PromptOptions options) {
                                    }
                                    return EmptyValue();
                                  }),
-                             options
+                             prompt_state->options()
                                  .colorize_options_provider(
                                      line, std::move(progress_channel),
                                      abort_notification)
@@ -1145,29 +1148,31 @@ void Prompt(PromptOptions options) {
                   editor_state.set_keyboard_redirect(nullptr);
                 },
             .new_line_handler =
-                [&editor_state, options, prompt_state](OpenBuffer& buffer) {
+                [&editor_state, prompt_state](OpenBuffer& buffer) {
                   NonNull<std::shared_ptr<LazyString>> input =
                       buffer.current_line()->contents();
-                  AddLineToHistory(editor_state, options.history_file, input);
+                  AddLineToHistory(editor_state,
+                                   prompt_state->options().history_file, input);
                   auto ensure_survival_of_current_closure =
                       editor_state.set_keyboard_redirect(nullptr);
                   prompt_state->Reset();
-                  return options.handler(input);
+                  return prompt_state->options().handler(input);
                 },
             .start_completion =
-                [&editor_state, options, prompt_state](OpenBuffer& buffer) {
+                [&editor_state, prompt_state](OpenBuffer& buffer) {
                   auto input = buffer.current_line()->contents()->ToString();
                   LOG(INFO) << "Triggering predictions from: " << input;
                   CHECK(prompt_state->status().prompt_extra_information() !=
                         nullptr);
                   gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
                   Predict({.editor_state = editor_state,
-                           .predictor = options.predictor,
+                           .predictor = prompt_state->options().predictor,
                            .input_buffer = buffer_root,
                            .input_selection_structure = StructureLine(),
-                           .source_buffers = options.source_buffers})
-                      .SetConsumer([&editor_state, options, buffer_root,
-                                    prompt_state, input](
+                           .source_buffers =
+                               prompt_state->options().source_buffers})
+                      .SetConsumer([&editor_state, buffer_root, prompt_state,
+                                    input](
                                        std::optional<PredictResults> results) {
                         if (!results.has_value()) return;
                         if (results.value().common_prefix.has_value() &&
@@ -1198,11 +1203,12 @@ void Prompt(PromptOptions options) {
                                   {.contents_to_insert =
                                        MakeNonNullUnique<BufferContents>(
                                            MakeNonNullShared<Line>(line))}));
-                          if (options.colorize_options_provider != nullptr) {
+                          if (prompt_state->options()
+                                  .colorize_options_provider != nullptr) {
                             CHECK(prompt_state->status().GetType() ==
                                   Status::Type::kPrompt);
                             prompt_state->NewStatusValue();
-                            options
+                            prompt_state->options()
                                 .colorize_options_provider(
                                     line,
                                     MakeNonNullUnique<ProgressChannel>(
