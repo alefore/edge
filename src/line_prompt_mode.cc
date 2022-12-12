@@ -680,6 +680,10 @@ gc::Root<OpenBuffer> GetPromptBuffer(const PromptOptions& options) {
   auto insert_results = options.editor_state.buffers()->insert_or_assign(
       BufferName(L"- prompt"), buffer_root);
   CHECK(insert_results.second);
+
+  buffer.ApplyToCursors(transformation::Insert(
+      {.contents_to_insert = MakeNonNullUnique<BufferContents>(
+           MakeNonNullShared<Line>(options.initial_value))}));
   return buffer_root;
 }
 
@@ -700,6 +704,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
               ConstructorAccessKey)
       : options_(std::move(options)),
         history_(std::move(history)),
+        prompt_buffer_(GetPromptBuffer(options_)),
         status_buffer_([&]() -> std::optional<gc::Root<OpenBuffer>> {
           if (options.status == PromptOptions::Status::kEditor)
             return std::nullopt;
@@ -716,6 +721,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
 
   const PromptOptions& options() const { return options_; }
   const gc::Root<OpenBuffer>& history() const { return history_; }
+  const gc::Root<OpenBuffer>& prompt_buffer() const { return prompt_buffer_; }
   EditorState& editor_state() const { return options_.editor_state; }
 
   // The prompt has disappeared.
@@ -728,26 +734,25 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     editor_state().set_modifiers(original_modifiers_);
   }
 
-  futures::Value<EmptyValue> MaybeStartColorize(
-      const gc::Root<OpenBuffer>& buffer_root);
+  futures::Value<EmptyValue> MaybeStartColorize();
 
  private:
   // status_buffer is the buffer with the contents of the prompt. tokens_future
   // is received as a future so that we can detect if the prompt input changes
   // between the time when `ColorizePrompt` is executed and the time when the
   // tokens become available.
-  void ColorizePrompt(OpenBuffer& status_buffer,
-                      DeleteNotification::Value abort_value,
+  void ColorizePrompt(DeleteNotification::Value abort_value,
                       const NonNull<std::shared_ptr<const Line>>& original_line,
                       ColorizePromptOptions options) {
-    CHECK_EQ(status_buffer.lines_size(), LineNumberDelta(1));
+    CHECK_EQ(prompt_buffer_.ptr()->lines_size(), LineNumberDelta(1));
     if (IsGone()) {
       LOG(INFO) << "Status is no longer a prompt, aborting colorize prompt.";
       return;
     }
 
     if (status().prompt_buffer().has_value() &&
-        &status().prompt_buffer()->ptr().value() != &status_buffer) {
+        &status().prompt_buffer()->ptr().value() !=
+            &prompt_buffer_.ptr().value()) {
       LOG(INFO) << "Prompt buffer has changed, aborting colorize prompt.";
       return;
     }
@@ -756,16 +761,16 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
       return;
     }
 
-    CHECK_EQ(status_buffer.lines_size(), LineNumberDelta(1));
-    auto line = status_buffer.LineAt(LineNumber(0));
+    CHECK_EQ(prompt_buffer_.ptr()->lines_size(), LineNumberDelta(1));
+    auto line = prompt_buffer_.ptr()->LineAt(LineNumber(0));
     if (original_line->ToString() != line->ToString()) {
       LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
       return;
     }
 
-    status_buffer.AppendRawLine(
+    prompt_buffer_.ptr()->AppendRawLine(
         ColorizeLine(line->contents(), std::move(options.tokens)));
-    status_buffer.EraseLines(LineNumber(0), LineNumber(1));
+    prompt_buffer_.ptr()->EraseLines(LineNumber(0), LineNumber(1));
     if (options.context.has_value()) {
       status().set_context(options.context.value());
     }
@@ -773,6 +778,10 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
 
   PromptOptions options_;
   const gc::Root<OpenBuffer> history_;
+
+  // The buffer we create to hold the prompt.
+  const gc::Root<OpenBuffer> prompt_buffer_;
+
   // If the status is associated with a buffer, we capture it here; that allows
   // us to ensure that the status won't be deallocated under our feet (when the
   // buffer is ephemeral).
@@ -833,14 +842,13 @@ class StatusValueViewer {
   DeleteNotification abort_notification_;
 };
 
-futures::Value<EmptyValue> PromptState::MaybeStartColorize(
-    const gc::Root<OpenBuffer>& buffer_root) {
+futures::Value<EmptyValue> PromptState::MaybeStartColorize() {
   if (options().colorize_options_provider == nullptr ||
       status().GetType() != Status::Type::kPrompt)
     return futures::Past(EmptyValue());
 
   NonNull<std::shared_ptr<const Line>> line =
-      buffer_root.ptr()->contents().at(LineNumber());
+      prompt_buffer_.ptr()->contents().at(LineNumber());
 
   status_value_viewer_ = std::make_shared<StatusValueViewer>(
       NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()));
@@ -851,7 +859,7 @@ futures::Value<EmptyValue> PromptState::MaybeStartColorize(
       status_value_viewer_->get_abort_notification();
 
   NonNull<std::unique_ptr<ProgressChannel>> progress_channel(
-      buffer_root.ptr()->work_queue(),
+      prompt_buffer_.ptr()->work_queue(),
       [weak_status_value_viewer](ProgressInformation extra_information) {
         if (auto status_value_viewer = weak_status_value_viewer.lock();
             status_value_viewer != nullptr) {
@@ -887,15 +895,14 @@ futures::Value<EmptyValue> PromptState::MaybeStartColorize(
                  .colorize_options_provider(line->contents(),
                                             std::move(progress_channel),
                                             abort_notification)
-                 .Transform([buffer_root, shared_this = shared_from_this(),
-                             abort_notification, line](
-                                ColorizePromptOptions colorize_prompt_options) {
-                   LOG(INFO) << "Calling ColorizePrompt with results.";
-                   shared_this->ColorizePrompt(buffer_root.ptr().value(),
-                                               abort_notification, line,
-                                               colorize_prompt_options);
-                   return EmptyValue();
-                 }))
+                 .Transform(
+                     [shared_this = shared_from_this(), abort_notification,
+                      line](ColorizePromptOptions colorize_prompt_options) {
+                       LOG(INFO) << "Calling ColorizePrompt with results.";
+                       shared_this->ColorizePrompt(abort_notification, line,
+                                                   colorize_prompt_options);
+                       return EmptyValue();
+                     }))
       .Transform([](auto) { return EmptyValue(); });
 }
 
@@ -1001,15 +1008,15 @@ class HistoryScrollBehavior : public ScrollBehavior {
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  public:
   HistoryScrollBehaviorFactory(
-      NonNull<std::shared_ptr<PromptState>> prompt_state,
-      gc::Root<OpenBuffer> buffer)
-      : prompt_state_(std::move(prompt_state)), buffer_(std::move(buffer)) {}
+      NonNull<std::shared_ptr<PromptState>> prompt_state)
+      : prompt_state_(std::move(prompt_state)) {}
 
   futures::Value<NonNull<std::unique_ptr<ScrollBehavior>>> Build(
       DeleteNotification::Value abort_value) override {
-    CHECK_GT(buffer_.ptr()->lines_size(), LineNumberDelta(0));
+    OpenBuffer& buffer = prompt_state_->prompt_buffer().ptr().value();
+    CHECK_GT(buffer.lines_size(), LineNumberDelta(0));
     NonNull<std::shared_ptr<LazyString>> input =
-        buffer_.ptr()->contents().at(LineNumber(0))->contents();
+        buffer.contents().at(LineNumber(0))->contents();
     return futures::Past(MakeNonNullUnique<HistoryScrollBehavior>(
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),
@@ -1026,7 +1033,6 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
  private:
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
-  const gc::Root<OpenBuffer> buffer_;
 };
 
 class LinePromptCommand : public Command {
@@ -1092,22 +1098,19 @@ void Prompt(PromptOptions options) {
         history.ptr()->set_current_position_line(
             LineNumber(0) + history.ptr()->contents().size());
 
-        gc::Root<OpenBuffer> prompt_buffer = GetPromptBuffer(options);
-        prompt_buffer.ptr()->ApplyToCursors(transformation::Insert(
-            {.contents_to_insert = MakeNonNullUnique<BufferContents>(
-                 MakeNonNullShared<Line>(options.initial_value))}));
-
         auto prompt_state = PromptState::New(options, history);
 
         InsertModeOptions insert_mode_options{
             .editor_state = editor_state,
-            .buffers = {{prompt_buffer}},
+            .buffers = {{prompt_state->prompt_buffer()}},
             .modify_handler =
                 [prompt_state](OpenBuffer& buffer) {
-                  return prompt_state->MaybeStartColorize(buffer.NewRoot());
+                  CHECK_EQ(&buffer,
+                           &prompt_state->prompt_buffer().ptr().value());
+                  return prompt_state->MaybeStartColorize();
                 },
-            .scroll_behavior = MakeNonNullShared<HistoryScrollBehaviorFactory>(
-                prompt_state, prompt_buffer),
+            .scroll_behavior =
+                MakeNonNullShared<HistoryScrollBehaviorFactory>(prompt_state),
             .escape_handler =
                 [prompt_state]() {
                   LOG(INFO) << "Running escape_handler from Prompt.";
@@ -1140,14 +1143,13 @@ void Prompt(PromptOptions options) {
                   LOG(INFO) << "Triggering predictions from: " << input;
                   CHECK(prompt_state->status().prompt_extra_information() !=
                         nullptr);
-                  gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
                   Predict({.editor_state = prompt_state->editor_state(),
                            .predictor = prompt_state->options().predictor,
-                           .input_buffer = buffer_root,
+                           .input_buffer = buffer.NewRoot(),
                            .input_selection_structure = StructureLine(),
                            .source_buffers =
                                prompt_state->options().source_buffers})
-                      .SetConsumer([buffer_root, prompt_state, input](
+                      .SetConsumer([prompt_state, input](
                                        std::optional<PredictResults> results) {
                         if (!results.has_value()) return;
                         if (results.value().common_prefix.has_value() &&
@@ -1156,7 +1158,7 @@ void Prompt(PromptOptions options) {
                           LOG(INFO) << "Prediction advanced from " << input
                                     << " to " << results.value();
 
-                          buffer_root.ptr()->ApplyToCursors(
+                          prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                               transformation::Delete{
                                   .modifiers =
                                       {.structure = StructureLine(),
@@ -1173,12 +1175,12 @@ void Prompt(PromptOptions options) {
                               NewLazyString(
                                   results.value().common_prefix.value());
 
-                          buffer_root.ptr()->ApplyToCursors(
+                          prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                               transformation::Insert(
                                   {.contents_to_insert =
                                        MakeNonNullUnique<BufferContents>(
                                            MakeNonNullShared<Line>(line))}));
-                          prompt_state->MaybeStartColorize(buffer_root);
+                          prompt_state->MaybeStartColorize();
                           return;
                         }
                         LOG(INFO) << "Prediction didn't advance.";
@@ -1210,8 +1212,10 @@ void Prompt(PromptOptions options) {
 
         // We do this after `EnterInsertMode` because `EnterInsertMode` resets
         // the status.
-        prompt_state->status().set_prompt(options.prompt, prompt_buffer);
-        insert_mode_options.modify_handler(prompt_buffer.ptr().value());
+        prompt_state->status().set_prompt(options.prompt,
+                                          prompt_state->prompt_buffer());
+        insert_mode_options.modify_handler(
+            prompt_state->prompt_buffer().ptr().value());
       });
 }
 
