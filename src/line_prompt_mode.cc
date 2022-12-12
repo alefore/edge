@@ -687,7 +687,7 @@ gc::Root<OpenBuffer> GetPromptBuffer(const PromptOptions& options) {
   return buffer_root;
 }
 
-class StatusValueViewer;
+class StatusVersionAdapter;
 
 // Holds the state required to show and update a prompt.
 class PromptState : public std::enable_shared_from_this<PromptState> {
@@ -789,33 +789,32 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   Status& status_;
   const Modifiers original_modifiers_;
 
-  // Notification that can be used by a StatusValueViewer (and its customers)
+  // Notification that can be used by a StatusVersionAdapter (and its customers)
   // to detect that the corresponding version is stale.
   NonNull<std::shared_ptr<DeleteNotification>> abort_notification_;
 };
 
-// Holds the state for rendering information from asynchronous operations given
-// a frozen state of the status. This is used by those asynchronous operations
-// to (1) insert outputs from their scans, and (2) detect if the version they
-// are expanding has become stale (and thus they should just give up).
-class StatusValueViewer {
+// Allows asynchronous operations to augment the information displayed in the
+// status. Uses abort_notification_value to detect when the version is stale.
+class StatusVersionAdapter {
  public:
-  StatusValueViewer(NonNull<std::shared_ptr<PromptState>> prompt_state,
-                    DeleteNotification::Value abort_notification_value)
+  StatusVersionAdapter(NonNull<std::shared_ptr<PromptState>> prompt_state)
       : prompt_state_(std::move(prompt_state)),
-        abort_notification_value_(std::move(abort_notification_value)),
         status_version_(prompt_state_->status()
                             .prompt_extra_information()
                             ->StartNewVersion()) {}
 
-  ~StatusValueViewer() {
+  ~StatusVersionAdapter() {
     auto consumer = prompt_state_->status().prompt_extra_information();
     if (consumer != nullptr) consumer->MarkVersionDone(status_version_);
   }
 
   // The prompt has disappeared.
   bool Expired() const {
-    return prompt_state_->IsGone() || abort_notification_value_.has_value();
+    if (prompt_state_->IsGone()) return true;
+    auto consumer = prompt_state_->status().prompt_extra_information();
+    return consumer == nullptr ||
+           consumer->current_version() != status_version_;
   }
 
   template <typename T>
@@ -833,10 +832,8 @@ class StatusValueViewer {
 
  private:
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
-  const DeleteNotification::Value abort_notification_value_;
 
-  // The version of the status for which we're collecting information. This is
-  // incremented by the PromptState constructor.
+  // The version of the status for which we're collecting information.
   const int status_version_;
 };
 
@@ -848,11 +845,11 @@ futures::Value<EmptyValue> PromptState::MaybeStartColorize() {
   NonNull<std::shared_ptr<const Line>> line =
       prompt_buffer_.ptr()->contents().at(LineNumber());
 
+  auto status_value_viewer = MakeNonNullShared<StatusVersionAdapter>(
+      NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()));
+
   abort_notification_ = MakeNonNullShared<DeleteNotification>();
   auto abort_notification_value = abort_notification_->listenable_value();
-  auto status_value_viewer = MakeNonNullShared<StatusValueViewer>(
-      NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()),
-      abort_notification_value);
 
   NonNull<std::unique_ptr<ProgressChannel>> progress_channel(
       prompt_buffer_.ptr()->work_queue(),
