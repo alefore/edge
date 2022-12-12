@@ -76,37 +76,42 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
     }
   }
 
-  std::wstring common_prefix =
-      predictions_buffer.contents().front()->contents()->ToString();
-  predictions_buffer.contents().EveryLine(
-      [&common_prefix](LineNumber, const Line& line) {
-        if (line.empty()) {
-          return true;
-        }
-        VLOG(5) << "Considering prediction: " << line.ToString()
-                << " (end column: " << line.EndColumn() << ")";
-        size_t current_size =
-            std::min(common_prefix.size(), line.EndColumn().read());
-        std::wstring current =
-            line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
-                ->ToString();
+  std::optional<std::wstring> common_prefix;
+  predictions_buffer.contents().EveryLine([&common_prefix](LineNumber,
+                                                           const Line& line) {
+    if (line.empty()) {
+      return true;
+    }
+    VLOG(5) << "Considering prediction: " << line.ToString()
+            << " (end column: " << line.EndColumn() << ")";
+    if (!common_prefix.has_value()) {
+      common_prefix = line.ToString();
+      return true;
+    }
 
-        auto prefix_end =
-            mismatch(common_prefix.begin(), common_prefix.end(),
-                     current.begin(), [](wchar_t common_c, wchar_t current_c) {
-                       return towlower(common_c) == towlower(current_c);
-                     });
-        if (prefix_end.first != common_prefix.end()) {
-          if (prefix_end.first == common_prefix.begin()) {
-            LOG(INFO) << "Aborting completion.";
-            return false;
-          }
-          common_prefix = std::wstring(common_prefix.begin(), prefix_end.first);
-        }
-        return true;
-      });
+    ColumnNumberDelta current_size =
+        std::min(ColumnNumberDelta(common_prefix.value().size()),
+                 line.EndColumn().ToDelta());
+    std::wstring current =
+        line.Substring(ColumnNumber(0), current_size)->ToString();
+
+    auto prefix_end =
+        mismatch(common_prefix->begin(), common_prefix->end(), current.begin(),
+                 [](wchar_t common_c, wchar_t current_c) {
+                   return towlower(common_c) == towlower(current_c);
+                 });
+    if (prefix_end.first != common_prefix->end()) {
+      if (prefix_end.first == common_prefix->begin()) {
+        LOG(INFO) << "Aborting completion.";
+        common_prefix = L"";
+        return false;
+      }
+      common_prefix = std::wstring(common_prefix->begin(), prefix_end.first);
+    }
+    return true;
+  });
   return PredictResults{
-      .common_prefix = common_prefix,
+      .common_prefix = common_prefix.value_or(L""),
       .predictions_buffer = predictions_buffer.NewRoot(),
       .matches = (predictions_buffer.lines_size() - LineNumberDelta(1)).read(),
       .predictor_output = predictor_output};
