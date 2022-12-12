@@ -111,7 +111,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
     return true;
   });
   return PredictResults{
-      .common_prefix = common_prefix.value_or(L""),
+      .common_prefix = common_prefix,
       .predictions_buffer = predictions_buffer.NewRoot(),
       .matches = (predictions_buffer.lines_size() - LineNumberDelta(1)).read(),
       .predictor_output = predictor_output};
@@ -553,6 +553,7 @@ const bool buffer_tests_registration =
                 [&] {
                   test_predict(L"xxx", [&](PredictResults output) {
                     CHECK_EQ(output.matches, 0);
+                    CHECK(!output.common_prefix.has_value());
                   });
                 }},
            {.name = L"SingleMatchCheckOutput",
@@ -560,11 +561,13 @@ const bool buffer_tests_registration =
                 [&] {
                   test_predict(L"alej", [&](PredictResults output) {
                     CHECK_EQ(output.matches, 1);
+                    CHECK(output.common_prefix == L"alejo");
                   });
                 }},
            {.name = L"TwoMatchesCheckOutput", .callback = [&] {
               test_predict(L"fo", [&](PredictResults output) {
                 CHECK_EQ(output.matches, 2);
+                CHECK(output.common_prefix.value() == L"foo");
               });
             }}});
     }());
