@@ -96,6 +96,8 @@ int StatusPromptExtraInformation::StartNewVersion() {
   return version_;
 }
 
+int StatusPromptExtraInformation::current_version() const { return version_; }
+
 void StatusPromptExtraInformation::SetValue(Key key, int version,
                                             std::wstring value) {
   auto& entry = information_[key];

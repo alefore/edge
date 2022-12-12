@@ -49,6 +49,7 @@ class StatusPromptExtraInformation {
 
  public:
   int StartNewVersion();
+  int current_version() const;
   void SetValue(Key key, int version, std::wstring value);
   void SetValue(Key key, int version, int value);
 
