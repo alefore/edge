@@ -93,7 +93,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
           progress_channel->Push(ProgressInformation{
               .counters = {{StatusPromptExtraInformationKey(L"matches"),
                             positions.size()}}});
-        return !options.abort_value->has_value() &&
+        return !options.abort_value.has_value() &&
                (!options.required_positions.has_value() ||
                 options.required_positions.value() > positions.size());
       });

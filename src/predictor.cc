@@ -170,7 +170,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
         shared_options->editor_state.work_queue(), [](ProgressInformation) {},
         WorkQueueChannelConsumeMode::kLastAvailable);
   }
-  CHECK(!shared_options->abort_value->has_value());
+  CHECK(!shared_options->abort_value.has_value());
 
   auto input = GetPredictInput(*shared_options);
   buffer_options.generate_contents =
@@ -188,7 +188,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
               buffer.set_current_cursor(LineColumn());
               auto results = BuildResults(buffer, predictor_output);
               consumer(GetPredictInput(*shared_options) == input &&
-                               !shared_options->abort_value->has_value()
+                               !shared_options->abort_value.has_value()
                            ? std::optional<PredictResults>(results)
                            : std::nullopt);
               return Success();
@@ -279,7 +279,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   };
 
   while ((entry = readdir(dir)) != nullptr) {
-    if (abort_value->has_value()) return;
+    if (abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
     auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
                                           entry_path.begin(), entry_path.end());
@@ -411,7 +411,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     path_input.substr(0, descend_results.valid_prefix_length),
                     &matches, progress_channel, abort_value, get_buffer,
                     predictor_output);
-                if (abort_value->has_value()) return;
+                if (abort_value.has_value()) return;
               }
               get_buffer([](OpenBuffer& buffer) {
                 LOG(INFO) << "Signaling end of file.";

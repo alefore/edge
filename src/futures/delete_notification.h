@@ -14,8 +14,7 @@ namespace afc::futures {
 // original value.
 class DeleteNotification {
  public:
-  using Value =
-      language::NonNull<std::shared_ptr<ListenableValue<language::EmptyValue>>>;
+  using Value = ListenableValue<language::EmptyValue>;
 
   static Value Never();
 
@@ -29,7 +28,7 @@ class DeleteNotification {
   DeleteNotification(futures::Future<language::EmptyValue> future);
 
   const futures::Value<language::EmptyValue>::Consumer consumer_;
-  const Value listenable_value_;
+  const ListenableValue<language::EmptyValue> listenable_value_;
 };
 }  // namespace afc::futures
 #endif  // __AFC_FUTURES_DELETE_NOTIFICATION_H__

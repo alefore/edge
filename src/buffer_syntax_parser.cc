@@ -50,14 +50,14 @@ void BufferSyntaxParser::Parse(
               L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
           auto tracker_call = tracker.Call();
           VLOG(3) << "Executing parse tree update.";
-          if (cancel_value->has_value()) return;
+          if (cancel_value.has_value()) return;
           NonNull<std::shared_ptr<const ParseTree>> tree =
               MakeNonNullShared<const ParseTree>(parser->FindChildren(
                   shared_contents.value(), shared_contents->range()));
           data_ptr->lock([cancel_value, tree,
                           simplified_tree = MakeNonNullShared<const ParseTree>(
                               SimplifyTree(tree.value()))](Data& data_nested) {
-            if (cancel_value->has_value()) return;
+            if (cancel_value.has_value()) return;
             data_nested.tree = std::move(tree);
             data_nested.simplified_tree = std::move(simplified_tree);
           });
@@ -91,7 +91,7 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
             static Tracker tracker(
                 L"OpenBuffer::current_zoomed_out_parse_tree::produce");
             auto tracker_call = tracker.Call();
-            if (cancel_value->has_value()) return;
+            if (cancel_value.has_value()) return;
 
             Data::ZoomedOutTreeData output = {
                 .simplified_tree = simplified_tree,

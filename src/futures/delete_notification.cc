@@ -8,10 +8,7 @@ using language::MakeNonNullShared;
 using language::NonNull;
 
 /* static */ DeleteNotification::Value DeleteNotification::Never() {
-  static const NonNull<std::shared_ptr<ListenableValue<EmptyValue>>> value =
-      MakeNonNullShared<ListenableValue<EmptyValue>>(
-          futures::Future<EmptyValue>().value);
-  return value;
+  return futures::Future<EmptyValue>().value;
 }
 
 DeleteNotification::DeleteNotification()
@@ -25,6 +22,5 @@ DeleteNotification::Value DeleteNotification::listenable_value() const {
 
 DeleteNotification::DeleteNotification(futures::Future<EmptyValue> future)
     : consumer_(std::move(future.consumer)),
-      listenable_value_(MakeNonNullShared<ListenableValue<EmptyValue>>(
-          std::move(future.value))) {}
+      listenable_value_(std::move(future.value)) {}
 }  // namespace afc::futures

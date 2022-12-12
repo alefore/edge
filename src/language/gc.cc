@@ -433,10 +433,10 @@ bool tests_registration = tests::Register(
               auto output =
                   root.ptr().value().delete_notification.listenable_value();
               pool.Collect();
-              CHECK(!output->has_value());
+              CHECK(!output.has_value());
               return output;
             }();
-            CHECK(delete_notification->has_value());
+            CHECK(delete_notification.has_value());
           }},
      {.name = L"RootAssignment",
       .callback =
@@ -447,7 +447,7 @@ bool tests_registration = tests::Register(
               auto delete_notification_0 =
                   root.ptr()->delete_notification.listenable_value();
               pool.Collect();
-              CHECK(!delete_notification_0->has_value());
+              CHECK(!delete_notification_0.has_value());
 
               VLOG(5) << "Overriding root.";
               root = pool.NewRoot(MakeNonNullUnique<Node>());
@@ -455,8 +455,8 @@ bool tests_registration = tests::Register(
               auto delete_notification_1 =
                   root.ptr()->delete_notification.listenable_value();
 
-              CHECK(delete_notification_0->has_value());
-              CHECK(!delete_notification_1->has_value());
+              CHECK(delete_notification_0.has_value());
+              CHECK(!delete_notification_1.has_value());
 
               VLOG(5) << "Start collect.";
               auto stats = pool.FullCollect();
@@ -464,12 +464,12 @@ bool tests_registration = tests::Register(
               CHECK_EQ(stats.roots, 1ul);
               CHECK_EQ(stats.end_total, 1ul);
 
-              CHECK(delete_notification_0->has_value());
-              CHECK(!delete_notification_1->has_value());
+              CHECK(delete_notification_0.has_value());
+              CHECK(!delete_notification_1.has_value());
 
               return delete_notification_1;
             }();
-            CHECK(delete_notification->has_value());
+            CHECK(delete_notification.has_value());
 
             Pool::FullCollectStats stats = pool.FullCollect();
             CHECK_EQ(stats.begin_total, 1ul);
@@ -485,7 +485,7 @@ bool tests_registration = tests::Register(
               auto delete_notification_0 =
                   root.ptr()->delete_notification.listenable_value();
               pool.Collect();
-              CHECK(!delete_notification_0->has_value());
+              CHECK(!delete_notification_0.has_value());
 
               auto child_notification = [&] {
                 VLOG(5) << "Creating child.";
@@ -503,14 +503,14 @@ bool tests_registration = tests::Register(
                 return child->delete_notification.listenable_value();
               }();
 
-              CHECK(!delete_notification_0->has_value());
-              CHECK(!child_notification->has_value());
+              CHECK(!delete_notification_0.has_value());
+              CHECK(!child_notification.has_value());
 
               VLOG(5) << "Trigger collect.";
               pool.Collect();
 
-              CHECK(!delete_notification_0->has_value());
-              CHECK(!child_notification->has_value());
+              CHECK(!delete_notification_0.has_value());
+              CHECK(!child_notification.has_value());
 
               VLOG(5) << "Override root value.";
               root = pool.NewRoot(MakeNonNullUnique<Node>());
@@ -518,19 +518,19 @@ bool tests_registration = tests::Register(
               auto delete_notification_1 =
                   root.ptr()->delete_notification.listenable_value();
 
-              CHECK(!child_notification->has_value());
-              CHECK(!delete_notification_0->has_value());
-              CHECK(!delete_notification_1->has_value());
+              CHECK(!child_notification.has_value());
+              CHECK(!delete_notification_0.has_value());
+              CHECK(!delete_notification_1.has_value());
 
               pool.FullCollect();
 
-              CHECK(child_notification->has_value());
-              CHECK(delete_notification_0->has_value());
-              CHECK(!delete_notification_1->has_value());
+              CHECK(child_notification.has_value());
+              CHECK(delete_notification_0.has_value());
+              CHECK(!delete_notification_1.has_value());
 
               return delete_notification_1;
             }();
-            CHECK(delete_notification->has_value());
+            CHECK(delete_notification.has_value());
           }},
      {.name = L"RootsReplaceLoop",
       .callback =
@@ -544,12 +544,12 @@ bool tests_registration = tests::Register(
               auto stats = pool.FullCollect();
               CHECK_EQ(stats.begin_total + stats.eden_size, 10ul);
               CHECK_EQ(stats.end_total, 10ul);
-              CHECK(!old_notification->has_value());
+              CHECK(!old_notification.has_value());
             }
 
             VLOG(5) << "Replacing loop.";
             root = MakeLoop(pool, 5);
-            CHECK(!old_notification->has_value());
+            CHECK(!old_notification.has_value());
             {
               auto stats = pool.FullCollect();
               CHECK_EQ(stats.begin_total + stats.eden_size, 15ul);
@@ -566,13 +566,13 @@ bool tests_registration = tests::Register(
               for (int i = 0; i < 4; i++) split = split->children[0];
               auto notification =
                   split->children[0]->delete_notification.listenable_value();
-              CHECK(!notification->has_value());
+              CHECK(!notification.has_value());
               split->children.clear();
-              CHECK(notification->has_value());
+              CHECK(notification.has_value());
             }
             CHECK(!root.ptr()
                        ->delete_notification.listenable_value()
-                       ->has_value());
+                       .has_value());
             Pool::FullCollectStats stats = pool.FullCollect();
             CHECK_EQ(stats.begin_total + stats.eden_size, 7ul);
             CHECK_EQ(stats.roots, 1ul);

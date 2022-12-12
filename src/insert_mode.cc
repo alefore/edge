@@ -477,7 +477,7 @@ class InsertMode : public EditorMode {
         [buffers = buffers_, line_buffer,
          abort_value = scroll_behavior_abort_notification_->listenable_value(),
          method](NonNull<std::shared_ptr<ScrollBehavior>> scroll_behavior) {
-          if (abort_value->has_value()) return;
+          if (abort_value.has_value()) return;
           ForEachActiveBuffer(buffers, line_buffer,
                               [scroll_behavior, method](OpenBuffer& buffer) {
                                 if (buffer.fd() == nullptr) {

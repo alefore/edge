@@ -296,7 +296,7 @@ class SearchCommand : public Command {
                                         SearchResultsSummary current_results) {
                                       MergeInto(current_results,
                                                 results.value());
-                                      return abort_value->has_value()
+                                      return abort_value.has_value()
                                                  ? Success(Control::kStop)
                                                  : Success(Control::kContinue);
                                     })

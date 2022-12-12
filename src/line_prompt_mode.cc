@@ -363,7 +363,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
     std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
         features) {
   FilterSortHistorySyncOutput output;
-  if (abort_value->has_value()) return output;
+  if (abort_value.has_value()) return output;
   // Sets of features for each unique `prompt` value in the history.
   naive_bayes::History history_data;
   // Tokens by parsing the `prompt` value in the history.
@@ -390,7 +390,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
     if (line_keys == nullptr) {
       output.errors.push_back(std::get<Error>(line_keys_or_error));
-      return !abort_value->has_value();
+      return !abort_value.has_value();
     }
     auto range = line_keys->equal_range(L"prompt");
     int prompt_count = std::distance(range.first, range.second);
@@ -398,7 +398,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                 Error(L"Line is missing `prompt` section")) ||
         warn_if(prompt_count != 1,
                 Error(L"Line has multiple `prompt` sections"))) {
-      return !abort_value->has_value();
+      return !abort_value.has_value();
     }
 
     std::visit(
@@ -452,7 +452,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
               features_output->push_back(std::move(current_features));
             }},
         vm::EscapedString::Parse(range.first->second));
-    return !abort_value->has_value();
+    return !abort_value.has_value();
   });
 
   VLOG(4) << "Matches found: " << history_data.read().size();
@@ -628,7 +628,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
           editor_state.status().SetExpiringInformationText(
               output.errors.front().read());
         }
-        if (!abort_value->has_value()) {
+        if (!abort_value.has_value()) {
           for (auto& line : output.lines) {
             filter_buffer.AppendRawLine(line);
           }
@@ -945,7 +945,7 @@ void ColorizePrompt(OpenBuffer& status_buffer,
     LOG(INFO) << "Prompt buffer has changed, aborting colorize prompt.";
     return;
   }
-  if (abort_value->has_value()) {
+  if (abort_value.has_value()) {
     LOG(INFO) << "Abort notification notified, aborting colorize prompt.";
     return;
   }
