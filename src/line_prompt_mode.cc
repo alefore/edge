@@ -789,15 +789,21 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   Status& status_;
   const Modifiers original_modifiers_;
 
-  std::shared_ptr<StatusValueViewer> status_value_viewer_;
+  // Notification that can be used by a StatusValueViewer (and its customers)
+  // to detect that the corresponding version is stale.
+  NonNull<std::shared_ptr<DeleteNotification>> abort_notification_;
 };
 
 // Holds the state for rendering information from asynchronous operations given
-// a frozen state of the status.
+// a frozen state of the status. This is used by those asynchronous operations
+// to (1) insert outputs from their scans, and (2) detect if the version they
+// are expanding has become stale (and thus they should just give up).
 class StatusValueViewer {
  public:
-  StatusValueViewer(NonNull<std::shared_ptr<PromptState>> prompt_state)
+  StatusValueViewer(NonNull<std::shared_ptr<PromptState>> prompt_state,
+                    DeleteNotification::Value abort_notification_value)
       : prompt_state_(std::move(prompt_state)),
+        abort_notification_value_(std::move(abort_notification_value)),
         status_version_(prompt_state_->status()
                             .prompt_extra_information()
                             ->StartNewVersion()) {}
@@ -808,7 +814,9 @@ class StatusValueViewer {
   }
 
   // The prompt has disappeared.
-  bool IsGone() const { return prompt_state_->IsGone(); }
+  bool Expired() const {
+    return prompt_state_->IsGone() || abort_notification_value_.has_value();
+  }
 
   template <typename T>
   void SetStatusValue(StatusPromptExtraInformationKey key, T value) {
@@ -819,27 +827,17 @@ class StatusValueViewer {
 
   template <typename T>
   void SetStatusValues(T container) {
-    if (IsGone()) return;
+    if (Expired()) return;
     for (const auto& [key, value] : container) SetStatusValue(key, value);
-  }
-
-  DeleteNotification::Value get_abort_notification() {
-    return abort_notification_.listenable_value();
   }
 
  private:
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
+  const DeleteNotification::Value abort_notification_value_;
 
   // The version of the status for which we're collecting information. This is
   // incremented by the PromptState constructor.
   const int status_version_;
-
-  // Notification that can be used to detect that the StatusValueViewer has been
-  // erased. In theory, customers could just hold a weak_ptr to the
-  // StatusValueViewer and check if it can still be locked; however, that would
-  // require coupling those customers to StatusValueViewer, rather than allowing
-  // them to depend on the more generic `DeleteNotification::Value` type.
-  DeleteNotification abort_notification_;
 };
 
 futures::Value<EmptyValue> PromptState::MaybeStartColorize() {
@@ -850,19 +848,16 @@ futures::Value<EmptyValue> PromptState::MaybeStartColorize() {
   NonNull<std::shared_ptr<const Line>> line =
       prompt_buffer_.ptr()->contents().at(LineNumber());
 
-  status_value_viewer_ = std::make_shared<StatusValueViewer>(
-      NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()));
-
-  std::weak_ptr<StatusValueViewer> weak_status_value_viewer =
-      status_value_viewer_;
-  DeleteNotification::Value abort_notification =
-      status_value_viewer_->get_abort_notification();
+  abort_notification_ = MakeNonNullShared<DeleteNotification>();
+  auto abort_notification_value = abort_notification_->listenable_value();
+  auto status_value_viewer = MakeNonNullShared<StatusValueViewer>(
+      NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()),
+      abort_notification_value);
 
   NonNull<std::unique_ptr<ProgressChannel>> progress_channel(
       prompt_buffer_.ptr()->work_queue(),
-      [weak_status_value_viewer](ProgressInformation extra_information) {
-        if (auto status_value_viewer = weak_status_value_viewer.lock();
-            status_value_viewer != nullptr) {
+      [status_value_viewer](ProgressInformation extra_information) {
+        if (!status_value_viewer->Expired()) {
           status_value_viewer->SetStatusValues(extra_information.values);
           status_value_viewer->SetStatusValues(extra_information.counters);
         }
@@ -870,15 +865,12 @@ futures::Value<EmptyValue> PromptState::MaybeStartColorize() {
       WorkQueueChannelConsumeMode::kAll);
 
   return JoinValues(
-             FilterHistory(editor_state(), history(), abort_notification,
+             FilterHistory(editor_state(), history(), abort_notification_value,
                            line->ToString())
-                 .Transform([weak_status_value_viewer](
+                 .Transform([status_value_viewer](
                                 gc::Root<OpenBuffer> filtered_history) {
                    LOG(INFO) << "Propagating history information to status.";
-                   if (auto status_value_viewer =
-                           weak_status_value_viewer.lock();
-                       status_value_viewer != nullptr &&
-                       !status_value_viewer->IsGone()) {
+                   if (!status_value_viewer->Expired()) {
                      bool last_line_empty =
                          filtered_history.ptr()
                              ->LineAt(filtered_history.ptr()->EndLine())
@@ -890,19 +882,18 @@ futures::Value<EmptyValue> PromptState::MaybeStartColorize() {
                    }
                    return EmptyValue();
                  }),
-
              options()
                  .colorize_options_provider(line->contents(),
                                             std::move(progress_channel),
-                                            abort_notification)
-                 .Transform(
-                     [shared_this = shared_from_this(), abort_notification,
-                      line](ColorizePromptOptions colorize_prompt_options) {
-                       LOG(INFO) << "Calling ColorizePrompt with results.";
-                       shared_this->ColorizePrompt(abort_notification, line,
-                                                   colorize_prompt_options);
-                       return EmptyValue();
-                     }))
+                                            abort_notification_value)
+                 .Transform([shared_this = shared_from_this(),
+                             abort_notification_value, line](
+                                ColorizePromptOptions colorize_prompt_options) {
+                   LOG(INFO) << "Calling ColorizePrompt with results.";
+                   shared_this->ColorizePrompt(abort_notification_value, line,
+                                               colorize_prompt_options);
+                   return EmptyValue();
+                 }))
       .Transform([](auto) { return EmptyValue(); });
 }
 
