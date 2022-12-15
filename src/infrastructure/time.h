@@ -36,7 +36,7 @@ class CountDownTimer {
   bool IsDone() const;
 
  private:
-  const Time alarm_;
+  Time alarm_;
 };
 
 }  // namespace afc::infrastructure

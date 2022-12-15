@@ -238,7 +238,7 @@ class Pool {
   // The eden area holds information about recent activity. This is optimized to
   // be locked only very briefly, to avoid blocking progress.
   struct Eden {
-    static Eden NewWithExpandList();
+    static Eden NewWithExpandList(size_t consecutive_unfinished_collect_calls);
 
     ObjectMetadataList object_metadata = {};
 
@@ -259,6 +259,11 @@ class Pool {
     // collection is resumed, those expansions happen). See
     // `ObjectMetadata::Protect`.
     std::optional<ObjectExpandList> expand_list = std::nullopt;
+
+    // Incremented each time a call to `Collect` stops without finishing, and
+    // reset as soon as the call finishes. Used to adjust the execution
+    // threshold dynamically.
+    size_t consecutive_unfinished_collect_calls = 0;
   };
 
   // Survivors holds all the information of objects that have survived a

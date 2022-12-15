@@ -1,5 +1,6 @@
 #include "src/language/gc.h"
 
+#include <cmath>
 #include <utility>
 
 extern "C" {
@@ -58,10 +59,7 @@ Pool::FullCollectStats Pool::FullCollect() {
 Pool::CollectOutput Pool::Collect(bool full) {
   TRACK_OPERATION(gc_Pool_Collect);
 
-  std::optional<CountDownTimer> timer =
-      !full && options_.collect_duration_threshold.has_value()
-          ? CountDownTimer(options_.collect_duration_threshold.value())
-          : std::optional<CountDownTimer>();
+  std::optional<CountDownTimer> timer;
 
   size_t survivors_size = survivors_.lock([&](const Survivors& survivors) {
     return survivors.object_metadata.size();
@@ -70,6 +68,11 @@ Pool::CollectOutput Pool::Collect(bool full) {
   LightCollectStats light_stats;
   std::optional<Eden> eden =
       eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
+        if (!full && options_.collect_duration_threshold.has_value())
+          timer = CountDownTimer(
+              std::exp2(eden_data.consecutive_unfinished_collect_calls) *
+              options_.collect_duration_threshold.value());
+
         if (!full && eden_data.expand_list == std::nullopt) {
           auto done = [&] {
             return eden_data.object_metadata.size() +
@@ -87,10 +90,15 @@ Pool::CollectOutput Pool::Collect(bool full) {
             VLOG(4) << "CleanEden ends: " << eden_data.object_metadata.size();
           }
           light_stats.end_eden_size = eden_data.object_metadata.size();
-          if (done()) return std::nullopt;
+          if (done()) {
+            eden_data.consecutive_unfinished_collect_calls = 0;
+            return std::nullopt;
+          }
         }
 
-        return std::exchange(eden_data, Eden::NewWithExpandList());
+        return std::exchange(
+            eden_data, Eden::NewWithExpandList(
+                           eden_data.consecutive_unfinished_collect_calls + 1));
       });
 
   if (eden == std::nullopt) {
@@ -128,11 +136,14 @@ Pool::CollectOutput Pool::Collect(bool full) {
               VLOG(4) << "New eden is empty.";
               UpdateSurvivorsList(survivors, expired_objects_callbacks);
               eden_data.expand_list = std::nullopt;
+              eden_data.consecutive_unfinished_collect_calls = 0;
               return std::nullopt;
             }
 
             TRACK_OPERATION(gc_Pool_Collect_EdenChanged);
-            return std::exchange(eden_data, Eden::NewWithExpandList());
+            return std::exchange(
+                eden_data, Eden::NewWithExpandList(
+                               eden_data.consecutive_unfinished_collect_calls));
           });
         }
         stats.end_total = survivors.object_metadata.size();
@@ -309,16 +320,15 @@ Pool::RootRegistration Pool::AddRoot(
   bool* ptr = new bool(false);
   VLOG(5) << "Adding root: " << object_metadata.lock() << " at " << ptr;
   if (VLOG_IS_ON(10)) {
-    int nptrs;
     static const size_t kBufferSize = 128;
     void* buffer[kBufferSize];
-    nptrs = backtrace(buffer, kBufferSize);
+    int nptrs = backtrace(buffer, kBufferSize);
     VLOG(10) << "backtrace():";
+    CHECK_GE(nptrs, 0);
     char** strings = backtrace_symbols(buffer, nptrs);
     CHECK(strings != nullptr);
-    for (size_t i = 0; i < nptrs; i++) {
+    for (size_t i = 0; i < static_cast<size_t>(nptrs); i++)
       VLOG(10) << "  " << strings[i];
-    }
     free(strings);
   }
   return eden_.lock([&](Eden& eden) {
@@ -357,8 +367,11 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
   return object_metadata;
 }
 
-/* static */ Pool::Eden Pool::Eden::NewWithExpandList() {
-  return Eden{.expand_list = ObjectExpandList{}};
+/* static */ Pool::Eden Pool::Eden::NewWithExpandList(
+    size_t consecutive_unfinished_collect_calls) {
+  return Eden{.expand_list = ObjectExpandList{},
+              .consecutive_unfinished_collect_calls =
+                  consecutive_unfinished_collect_calls};
 }
 
 std::ostream& operator<<(std::ostream& os,
