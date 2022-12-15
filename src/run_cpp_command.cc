@@ -206,7 +206,7 @@ bool tests_parse_registration = tests::Register(
       .callback =
           [] {
             gc::Root<OpenBuffer> buffer = NewBufferForTests();
-            gc::Pool pool;
+            gc::Pool pool({});
             vm::Environment environment;
             ValueOrError<ParsedCommand> output =
                 Parse(pool, EmptyString(), environment, EmptyString(),
@@ -218,7 +218,7 @@ bool tests_parse_registration = tests::Register(
       .callback =
           [] {
             gc::Root<OpenBuffer> buffer = NewBufferForTests();
-            gc::Pool pool;
+            gc::Pool pool({});
             vm::Environment environment;
             ValueOrError<ParsedCommand> output =
                 Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
@@ -232,7 +232,7 @@ bool tests_parse_registration = tests::Register(
           }},
      {.name = L"CommandMatch", .callback = [] {
         gc::Root<OpenBuffer> buffer = NewBufferForTests();
-        gc::Pool pool;
+        gc::Pool pool({});
         vm::Environment environment;
         environment.Define(L"foo", vm::Value::NewString(pool, L"bar"));
         ValueOrError<ParsedCommand> output =

@@ -119,7 +119,8 @@ void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
 }
 
 EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
-    : string_variables_(editor_variables::StringStruct()->NewInstance()),
+    : gc_pool_({.collect_duration_threshold = 0.05}),
+      string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),

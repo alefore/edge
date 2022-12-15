@@ -1,26 +1,31 @@
 // Module implementing incremental garbage collection.
 //
-// The main motivation is to support hierarchies of objects that may contain
-// loops. By (1) explicitly keeping track of "roots" (entry points that should
-// not be collected), and (2) requiring managed "container" types to be
-// queryable about their outgoing references, we can detect unreachable objects
-// (including cycles) and collect them. In the absence of cycles, objects are
-// deleted as soon as they become unreachable (like regular `std::shared_ptr`).
+// The main motivation is to support cyclic directed graphs of managed objects.
+// By (1) explicitly tracking "roots" (entry points that should not be
+// collected), and (2) requiring each managed type to expose a function listing
+// all outgoing edges from a given object, this module can detect unreachable
+// objects (including cycles) and collect them.
 //
-// Exposes the following public types:
+// Objects are deleted as soon as they have no incoming references (like regular
+// `std::shared_ptr`) or, if they still have incoming references but aren't
+// transitively reachable from a root, during garbage collection.
 //
-// * `Pool`: A container for pointers, through which collection can be triggered
-//   through `Pool::Collect`. References inside objects can't cross pool
-//   boundaries: they should only refer to objects in the same pool. We expect a
-//   single pool to be enough for most programs.
+// The following public types are defined:
+//
+// * `Pool`: A managed graph. Destruction of unreachable cycles can be triggered
+//   through `Pool::Collect` or `Pool::FullCollect`. References inside objects
+//   can't cross pool boundaries: they should only refer to objects in the same
+//   pool. We expect a single pool to be enough for most programs.
 //
 // * `Ptr<>`: A pointer to a managed object. The value can be obtained through
 //   `Ptr::value` or the `->` operator. This is similar to `std::shared_ptr`.
 //
-// * `Root<>`: Similar to `Ptr`, but ensures that objects pointed to by roots
-//   are always kept alive, even if they aren't otherwise reachable. A `Root`
-//   for a `Ptr` can be created through `Ptr::ToRoot`; conversely, the `Ptr`
-//   corresponding to a `Root` can be read through `Root::Ptr`.
+// * `Root<>`: Similar to `Ptr`, but objects pointed to by roots (and their
+//   transitive set of reachable objects) are always kept alive, even if they
+//   aren't otherwise reachable. Roots are usually created by handling
+//   management to the pool of an existing object through `Pool::NewRoot`. A
+//   `Root` for a `Ptr` can be created through `Ptr::ToRoot`; conversely, the
+//   `Ptr` corresponding to a `Root` can be read through `Root::Ptr`.
 //
 // * `WeakPtr<>: Similar to `Ptr`, but won't keep objects alive (i.e., if all
 //   references to an object are of this type, allows the object to be deleted).
@@ -31,6 +36,12 @@
 // The expected usage is that values in the stack and in a few special entry
 // points should be stored as `Root` pointers. Reference inside managed types
 // should be stored as a `Ptr` or `WeakPtr`.
+//
+// The collection is incremental: `Pool::Collect` will return
+// `UnfinishedCollectStats` occasionally. When this happens, the caller should
+// try to call `Pool::Collect` again to resume the operation.
+//
+// DEFINING MANAGED TYPES
 //
 // There are two requirements on a type `T` for managed objects:
 //
@@ -64,7 +75,7 @@
 //    above, we'd do this whenever we insert items into `dependencies_`. See
 //    the notes on `Ptr::Protect`.
 //
-// To trigger collection, just call `Pool::Collect` or `Pool::FullCollect`.
+// CREATING MANAGED INSTANCES
 //
 // To create new managed instances, use `Pool::NewRoot`. It is slightly more
 // accurate to say that the life management of existing objects is *transferred*
@@ -91,6 +102,7 @@
 #include <vector>
 
 #include "src/concurrent/protected.h"
+#include "src/infrastructure/time.h"
 #include "src/language/safe_types.h"
 
 namespace afc::language::gc {
@@ -152,6 +164,21 @@ class ObjectMetadata {
 // given pool may only reference objects in the same pool.
 class Pool {
  public:
+  struct Options {
+    // If a call to `Collect` runs longer than this duration, we abort it (and
+    // return `UnfinishedCollectStats`). A subsequent call to `Collect` will
+    // resume it.
+    //
+    // When this happens, `Collect` is likely to actually run for slightly
+    // longer than this threshold. This may be because some operations, such as
+    // generating the set of references from an object, may take significantly
+    // longer, or because we deliberately increase the threshold as collections
+    // keep getting interrupted (in order to ensure that we make progress).
+    std::optional<afc::infrastructure::Duration> collect_duration_threshold;
+  };
+
+  Pool(Options options) : options_(std::move(options)) {}
+
   template <typename T>
   Root<T> NewRoot(language::NonNull<std::unique_ptr<T>> value_unique) {
     language::NonNull<std::shared_ptr<T>> value = std::move(value_unique);
@@ -272,13 +299,15 @@ class Pool {
 
   // Recursively expand all objects in `survivors.expand_list`. May stop early
   // if the timeout is reached.
-  static void Expand(Survivors& survivors, std::optional<double> timeout);
+  static void Expand(Survivors& survivors,
+                     const std::optional<afc::infrastructure::CountDownTimer>&
+                         count_down_timer);
   static void UpdateSurvivorsList(
       Survivors& survivors,
       std::vector<ObjectMetadata::ExpandCallback>& expired_objects_callbacks);
 
+  const Options options_;
   concurrent::Protected<Eden> eden_;
-
   concurrent::Protected<Survivors> survivors_;
 };
 

@@ -8,6 +8,7 @@
 
 namespace afc::infrastructure {
 using Time = struct timespec;
+using Duration = double;  // Seconds.
 
 Time Now();
 

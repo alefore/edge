@@ -58,6 +58,11 @@ Pool::FullCollectStats Pool::FullCollect() {
 Pool::CollectOutput Pool::Collect(bool full) {
   TRACK_OPERATION(gc_Pool_Collect);
 
+  std::optional<CountDownTimer> timer =
+      !full && options_.collect_duration_threshold.has_value()
+          ? CountDownTimer(options_.collect_duration_threshold.value())
+          : std::optional<CountDownTimer>();
+
   size_t survivors_size = survivors_.lock([&](const Survivors& survivors) {
     return survivors.object_metadata.size();
   });
@@ -112,8 +117,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
             stats.roots += l->size();
 
           ScheduleExpandRoots(survivors);
-          Expand(survivors,
-                 full ? std::optional<double>() : std::make_optional(0.05));
+          Expand(survivors, timer);
           if (!survivors.expand_list.empty()) {
             VLOG(3) << "Expansion didn't finish. Interrupting.";
             return false;
@@ -223,18 +227,15 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
 }
 
 /* static */
-void Pool::Expand(Survivors& survivors, std::optional<double> timeout) {
+void Pool::Expand(Survivors& survivors,
+                  const std::optional<CountDownTimer>& count_down_timer) {
   VLOG(3) << "Starting recursive expand (expand_list: "
           << survivors.expand_list.size() << ")";
 
   TRACK_OPERATION(gc_Pool_Expand);
 
-  std::optional<CountDownTimer> timer = timeout.has_value()
-                                            ? CountDownTimer(*timeout)
-                                            : std::optional<CountDownTimer>();
-
   while (!survivors.expand_list.empty() &&
-         !(timer.has_value() && timer->IsDone())) {
+         !(count_down_timer.has_value() && count_down_timer->IsDone())) {
     TRACK_OPERATION(gc_Pool_Expand_Step);
 
     auto& front = survivors.expand_list.front();
@@ -420,14 +421,14 @@ bool tests_registration = tests::Register(
       .callback =
           [] {
             Pool::LightCollectStats stats =
-                std::get<Pool::LightCollectStats>(gc::Pool().Collect());
+                std::get<Pool::LightCollectStats>(gc::Pool({}).Collect());
             CHECK_EQ(stats.begin_eden_size, 0ul);
             CHECK_EQ(stats.end_eden_size, 0ul);
           }},
      {.name = L"PreservesRoots",
       .callback =
           [] {
-            gc::Pool pool;
+            gc::Pool pool({});
             DeleteNotification::Value delete_notification = [&pool] {
               auto root = pool.NewRoot(MakeNonNullUnique<Node>());
               auto output =
@@ -441,7 +442,7 @@ bool tests_registration = tests::Register(
      {.name = L"RootAssignment",
       .callback =
           [] {
-            gc::Pool pool;
+            gc::Pool pool({});
             DeleteNotification::Value delete_notification = [&pool] {
               auto root = pool.NewRoot(MakeNonNullUnique<Node>());
               auto delete_notification_0 =
@@ -479,7 +480,7 @@ bool tests_registration = tests::Register(
      {.name = L"BreakLoop",
       .callback =
           [] {
-            gc::Pool pool;
+            gc::Pool pool({});
             DeleteNotification::Value delete_notification = [&pool] {
               gc::Root<Node> root = pool.NewRoot(MakeNonNullUnique<Node>());
               auto delete_notification_0 =
@@ -535,7 +536,7 @@ bool tests_registration = tests::Register(
      {.name = L"RootsReplaceLoop",
       .callback =
           [] {
-            gc::Pool pool;
+            gc::Pool pool({});
             gc::Root root = MakeLoop(pool, 10);
             auto old_notification =
                 root.ptr()->delete_notification.listenable_value();
@@ -559,7 +560,7 @@ bool tests_registration = tests::Register(
      {.name = L"BreakLoopHalfway",
       .callback =
           [] {
-            gc::Pool pool;
+            gc::Pool pool({});
             gc::Root<Node> root = MakeLoop(pool, 7);
             {
               gc::Ptr<Node> split = root.ptr();
@@ -581,7 +582,7 @@ bool tests_registration = tests::Register(
      {.name = L"WeakPtrNoRefs",
       .callback =
           [] {
-            gc::Pool pool;
+            gc::Pool pool({});
             std::optional<gc::Root<Node>> root = MakeLoop(pool, 7);
             gc::WeakPtr<Node> weak_ptr = root->ptr().ToWeakPtr();
 
@@ -593,7 +594,7 @@ bool tests_registration = tests::Register(
             CHECK(!weak_ptr.Lock().has_value());
           }},
      {.name = L"WeakPtrWithPtrRef", .callback = [] {
-        gc::Pool pool;
+        gc::Pool pool({});
         std::optional<gc::Root<Node>> root = MakeLoop(pool, 7);
         gc::Ptr<Node> ptr = root->ptr();
         gc::WeakPtr<Node> weak_ptr = ptr.ToWeakPtr();
@@ -611,19 +612,20 @@ bool full_vs_light_collect_tests_registration = tests::Register(
     {
         {.name = L"OnEmpty",
          .callback =
-             [] { std::get<Pool::LightCollectStats>(gc::Pool().Collect()); }},
-        {.name = L"FullOnEmpty", .callback = [] { gc::Pool().FullCollect(); }},
+             [] { std::get<Pool::LightCollectStats>(gc::Pool({}).Collect()); }},
+        {.name = L"FullOnEmpty",
+         .callback = [] { gc::Pool({}).FullCollect(); }},
         {.name = L"NotAfterAHundred",
          .callback =
              [] {
-               gc::Pool pool;
+               gc::Pool pool({});
                MakeLoop(pool, 100);
                std::get<Pool::LightCollectStats>(pool.Collect());
              }},
         {.name = L"YesAfterEnough",
          .callback =
              [] {
-               gc::Pool pool;
+               gc::Pool pool({});
                std::optional<gc::Root<Node>> obj_0 = MakeLoop(pool, 500);
                CHECK_EQ(pool.count_objects(), 500ul);
 
@@ -651,7 +653,7 @@ bool full_vs_light_collect_tests_registration = tests::Register(
         {.name = L"LightAfterCollect",
          .callback =
              [] {
-               gc::Pool pool;
+               gc::Pool pool({});
                MakeLoop(pool, 1000);
                MakeLoop(pool, 1000);
                CHECK_EQ(pool.count_objects(), 2000ul);
@@ -661,7 +663,7 @@ bool full_vs_light_collect_tests_registration = tests::Register(
         {.name = L"LightAfterCollectBeforeFills",
          .callback =
              [] {
-               gc::Pool pool;
+               gc::Pool pool({});
                MakeLoop(pool, 1000);
                MakeLoop(pool, 1000);
                CHECK_EQ(pool.count_objects(), 2000ul);
@@ -684,7 +686,7 @@ bool full_vs_light_collect_tests_registration = tests::Register(
         {.name = L"SomeSurvivingObjects",
          .callback =
              [] {
-               gc::Pool pool;
+               gc::Pool pool({});
                std::optional<gc::Root<Node>> root = MakeLoop(pool, 2048);
                MakeLoop(pool, 1000);
                CHECK_EQ(pool.count_objects(), 3048ul);
@@ -711,7 +713,7 @@ bool full_vs_light_collect_tests_registration = tests::Register(
         {.name = L"LargeTest",
          .callback =
              [] {
-               gc::Pool pool;
+               gc::Pool pool({});
                std::optional<gc::Root<Node>> root_big = MakeLoop(pool, 8000);
                std::optional<gc::Root<Node>> root_small = MakeLoop(pool, 2000);
                CHECK_EQ(pool.count_objects(), 10000ul);

@@ -185,7 +185,7 @@ bool value_gc_tests_registration = tests::Register(
     L"ValueVMMemory",
     {{.name = L"Dependency", .callback = [] {
         using vm::Value;
-        gc::Pool pool;
+        gc::Pool pool({});
         // We use `nested_weak` to validate whether all the dependencies are
         // being preserved correctly.
         std::shared_ptr<bool> nested = std::make_shared<bool>();
