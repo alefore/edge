@@ -101,7 +101,9 @@
 #include <variant>
 #include <vector>
 
+#include "src/concurrent/bag.h"
 #include "src/concurrent/protected.h"
+#include "src/concurrent/thread_pool.h"
 #include "src/infrastructure/time.h"
 #include "src/language/safe_types.h"
 
@@ -175,9 +177,11 @@ class Pool {
     // longer, or because we deliberately increase the threshold as collections
     // keep getting interrupted (in order to ensure that we make progress).
     std::optional<afc::infrastructure::Duration> collect_duration_threshold;
+
+    std::shared_ptr<concurrent::ThreadPool> thread_pool;
   };
 
-  Pool(Options options) : options_(std::move(options)) {}
+  Pool(Options options);
 
   template <typename T>
   Root<T> NewRoot(language::NonNull<std::unique_ptr<T>> value_unique) {
@@ -231,7 +235,7 @@ class Pool {
 
   RootRegistration AddRoot(std::weak_ptr<ObjectMetadata> object_metadata);
 
-  using ObjectMetadataList = std::list<std::weak_ptr<ObjectMetadata>>;
+  using ObjectMetadataBag = concurrent::Bag<std::weak_ptr<ObjectMetadata>>;
   using ObjectExpandList =
       std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
 
@@ -240,17 +244,20 @@ class Pool {
   struct Eden {
     static Eden NewWithExpandList(size_t consecutive_unfinished_collect_calls);
 
-    ObjectMetadataList object_metadata = {};
+    ObjectMetadataBag object_metadata =
+        ObjectMetadataBag(concurrent::BagOptions{.shards = 64});
 
     // This is a unique_ptr to allow us to move it into Survivors preserving all
     // iterators.
-    language::NonNull<std::unique_ptr<ObjectMetadataList>> roots = {};
+    language::NonNull<std::unique_ptr<ObjectMetadataBag>> roots =
+        language::MakeNonNullUnique<ObjectMetadataBag>(
+            concurrent::BagOptions{.shards = 64});
 
     // A set of roots that have been deleted recently. This will allow us to
     // update Survivors::roots (in UpdateRoots).
     struct RootIterator {
-      ObjectMetadataList& roots_list;
-      const ObjectMetadataList::iterator it;
+      ObjectMetadataBag& roots_list;
+      const ObjectMetadataBag::iterator it;
     };
     std::vector<RootIterator> roots_deleted = {};
 
@@ -271,8 +278,9 @@ class Pool {
   // a long interval, as collection progresses). Should never be locked while
   // holding eden locked.
   struct Survivors {
-    ObjectMetadataList object_metadata;
-    std::list<language::NonNull<std::unique_ptr<ObjectMetadataList>>> roots;
+    ObjectMetadataBag object_metadata =
+        ObjectMetadataBag(concurrent::BagOptions{.shards = 64});
+    std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>> roots;
 
     // After inserting from the eden and updating roots, we copy objects from
     // `roots` into `expand_list` (in `ScheduleExpandRoots`). We then
@@ -288,7 +296,7 @@ class Pool {
   // Insert new roots from Eden::roots; removes expired roots from
   // Eden::roots_deleted; and inserts from Eden::object_metadata into
   // Survivors::object_metadata.
-  static void ConsumeEden(Eden eden, Survivors& survivors);
+  void ConsumeEden(Eden eden, Survivors& survivors);
   static bool IsEmpty(const Eden& eden);
 
   // Inserts all not-yet-reached objects from survivors.roots into
@@ -307,9 +315,9 @@ class Pool {
   static void Expand(Survivors& survivors,
                      const std::optional<afc::infrastructure::CountDownTimer>&
                          count_down_timer);
-  static void UpdateSurvivorsList(
-      Survivors& survivors,
-      std::vector<ObjectMetadata::ExpandCallback>& expired_objects_callbacks);
+  void UpdateSurvivorsList(Survivors& survivors,
+                           concurrent::Bag<ObjectMetadata::ExpandCallback>&
+                               expired_objects_callbacks);
 
   const Options options_;
   concurrent::Protected<Eden> eden_;

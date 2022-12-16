@@ -61,6 +61,10 @@ src/command_mode.cc \
 src/command_mode.h \
 src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
+src/concurrent/bag.cc \
+src/concurrent/bag.h \
+src/concurrent/operation.cc \
+src/concurrent/operation.h \
 src/concurrent/protected.h \
 src/concurrent/thread_pool.cc \
 src/concurrent/thread_pool.h \

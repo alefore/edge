@@ -225,15 +225,15 @@ class EditorState {
  private:
   void NotifyInternalEvent();
 
+  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
+  language::NonNull<std::shared_ptr<concurrent::ThreadPool>> thread_pool_;
+
   language::gc::Pool gc_pool_;
 
   EdgeStructInstance<std::wstring> string_variables_;
   EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;
-
-  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
-  concurrent::ThreadPool thread_pool_;
 
   std::map<BufferName, afc::language::gc::Root<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;

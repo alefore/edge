@@ -15,6 +15,9 @@ extern "C" {
 
 namespace afc::language {
 namespace gc {
+using concurrent::Bag;
+using concurrent::BagOptions;
+using concurrent::ThreadPool;
 using infrastructure::CountDownTimer;
 using infrastructure::Tracker;
 using language::NonNull;
@@ -30,9 +33,16 @@ bool ObjectMetadata::IsAlive() const {
       [](const Data& data) { return data.expand_callback != nullptr; });
 }
 
+Pool::Pool(Options options)
+    : options_([&] {
+        if (options.thread_pool == nullptr)
+          options.thread_pool = std::make_shared<ThreadPool>(8, nullptr);
+        return std::move(options);
+      }()) {}
+
 Pool::~Pool() {
   FullCollect();
-  survivors_.lock([](const Survivors& survivors) {
+  survivors_.lock([](const Survivors&) {
   // TODO(gc, 2022-12-08): Enable this validation.
 #if 0
     CHECK(survivors.roots.empty())
@@ -84,6 +94,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
             TRACK_OPERATION(gc_Pool_Collect_CleanEden);
             VLOG(3) << "CleanEden starts: " << eden_data.object_metadata.size();
             eden_data.object_metadata.remove_if(
+                *options_.thread_pool,
                 [](std::weak_ptr<ObjectMetadata>& object_metadata) {
                   return object_metadata.expired();
                 });
@@ -108,19 +119,20 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
   // We collect expired objects here and explicitly delete them once we have
   // unlocked data_.
-  std::vector<ObjectMetadata::ExpandCallback> expired_objects_callbacks;
+  Bag<ObjectMetadata::ExpandCallback> expired_objects_callbacks(
+      BagOptions{.shards = 64});
 
   FullCollectStats stats;
   if (!survivors_.lock([&](Survivors& survivors) {
         while (eden.has_value()) {
           VLOG(3) << "Starting with generations: " << survivors.roots.size();
+          stats.eden_size = eden->object_metadata.size();
           ConsumeEden(std::move(*eden), survivors);
 
           stats.generations = survivors.roots.size();
           stats.begin_total = survivors.object_metadata.size();
-          stats.eden_size = eden->object_metadata.size();
 
-          for (const NonNull<std::unique_ptr<ObjectMetadataList>>& l :
+          for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l :
                survivors.roots)
             stats.roots += l->size();
 
@@ -160,7 +172,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
           << expired_objects_callbacks.size();
   {
     TRACK_OPERATION(gc_Pool_Collect_DeleteLost);
-    expired_objects_callbacks.clear();
+    expired_objects_callbacks.Clear(*options_.thread_pool);
   }
 
   LOG(INFO) << "Garbage collection results: " << stats;
@@ -180,15 +192,14 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
   VLOG(3) << "Removing empty lists of roots.";
   survivors.roots.push_back(std::move(eden.roots));
   survivors.roots.remove_if(
-      [](const NonNull<std::unique_ptr<ObjectMetadataList>>& l) {
+      [](const NonNull<std::unique_ptr<ObjectMetadataBag>>& l) {
         return l->empty();
       });
 
   {
     TRACK_OPERATION(gc_Pool_ConsumeEden_object_metadata);
-    survivors.object_metadata.insert(survivors.object_metadata.end(),
-                                     eden.object_metadata.begin(),
-                                     eden.object_metadata.end());
+    survivors.object_metadata.Consume(*options_.thread_pool,
+                                      std::move(eden.object_metadata));
   }
 
   if (eden.expand_list.has_value()) {
@@ -209,13 +220,14 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
   VLOG(3) << "Registering roots.";
   TRACK_OPERATION(gc_Pool_ScheduleExpandRoots);
 
-  for (const NonNull<std::unique_ptr<ObjectMetadataList>>& l : survivors.roots)
-    for (const std::weak_ptr<ObjectMetadata>& root_weak : l.value()) {
+  for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l : survivors.roots)
+    l->ForEachSerial([&survivors](
+                         const std::weak_ptr<ObjectMetadata>& root_weak) {
       VisitPointer(
           root_weak,
           std::bind_front(MaybeScheduleExpand, std::ref(survivors.expand_list)),
           [] { LOG(FATAL) << "Root was dead. Should never happen."; });
-    }
+    });
 
   VLOG(5) << "Roots registered: " << survivors.expand_list.size();
 }
@@ -278,39 +290,45 @@ void Pool::Expand(Survivors& survivors,
   }
 }
 
-/* static */ void Pool::UpdateSurvivorsList(
+void Pool::UpdateSurvivorsList(
     Survivors& survivors,
-    std::vector<ObjectMetadata::ExpandCallback>& expired_objects_callbacks) {
+    Bag<ObjectMetadata::ExpandCallback>& expired_objects_callbacks) {
   VLOG(3) << "Building survivor list.";
-  ObjectMetadataList surviving_objects;
 
   // TODO(gc, 2022-12-03): Add a timer and find a way to allow this function
   // to be interrupted.
 
   TRACK_OPERATION(gc_Pool_UpdateSurvivorsList);
 
-  for (std::weak_ptr<ObjectMetadata>& obj_weak : survivors.object_metadata)
-    VisitPointer(
-        obj_weak,
-        [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
-          obj->data_.lock([&](ObjectMetadata::Data& object_data) {
-            switch (object_data.state) {
-              case ObjectMetadata::State::kLost:
-                expired_objects_callbacks.push_back(
-                    std::move(object_data.expand_callback));
-                break;
-              case ObjectMetadata::State::kExpanded:
-                object_data.state = ObjectMetadata::State::kLost;
-                surviving_objects.push_back(obj.get_shared());
-                break;
-              case ObjectMetadata::State::kScheduled:
-                LOG(FATAL) << "Invalid State: Adding survivors while some "
-                              "objects are scheduled for expansion.";
-            }
-          });
-        },
-        [] {});
-  survivors.object_metadata = std::move(surviving_objects);
+  survivors.object_metadata.ForEachShard(
+      *options_.thread_pool, [&](std::list<std::weak_ptr<ObjectMetadata>>& l) {
+        std::list<std::weak_ptr<ObjectMetadata>> surviving_objects;
+        // TODO(easy, 2022-12-15): Lots of spurious locking adding objects to
+        // expired_objects_callbacks could be dropped.
+        for (std::weak_ptr<ObjectMetadata>& obj_weak : l)
+          VisitPointer(
+              obj_weak,
+              [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
+                obj->data_.lock([&](ObjectMetadata::Data& object_data) {
+                  switch (object_data.state) {
+                    case ObjectMetadata::State::kLost:
+                      expired_objects_callbacks.Add(
+                          std::move(object_data.expand_callback));
+                      break;
+                    case ObjectMetadata::State::kExpanded:
+                      object_data.state = ObjectMetadata::State::kLost;
+                      surviving_objects.push_back(obj.get_shared());
+                      break;
+                    case ObjectMetadata::State::kScheduled:
+                      LOG(FATAL)
+                          << "Invalid State: Adding survivors while some "
+                             "objects are scheduled for expansion.";
+                  }
+                });
+              },
+              [] {});
+        l = std::move(surviving_objects);
+      });
   VLOG(4) << "Done building survivor list: "
           << survivors.object_metadata.size();
 }
@@ -332,11 +350,10 @@ Pool::RootRegistration Pool::AddRoot(
     free(strings);
   }
   return eden_.lock([&](Eden& eden) {
-    eden.roots->push_back(object_metadata);
     return RootRegistration(
         ptr, [this, root_deleted = Eden::RootIterator{
                         .roots_list = eden.roots.value(),
-                        .it = std::prev(eden.roots->end())}](bool* value) {
+                        .it = eden.roots->Add(object_metadata)}](bool* value) {
           delete value;
           VLOG(5) << "Erasing root: " << value;
           eden_.lock([&root_deleted](Eden& input_eden) {
@@ -360,7 +377,7 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
       MakeNonNullShared<ObjectMetadata>(ObjectMetadata::ConstructorAccessKey(),
                                         *this, std::move(expand_callback));
   eden_.lock([&](Eden& eden) {
-    eden.object_metadata.push_back(object_metadata.get_shared());
+    eden.object_metadata.Add(object_metadata.get_shared());
     VLOG(5) << "Added object: " << object_metadata.get_shared()
             << " (eden total: " << eden.object_metadata.size() << ")";
   });
@@ -369,7 +386,10 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
 
 /* static */ Pool::Eden Pool::Eden::NewWithExpandList(
     size_t consecutive_unfinished_collect_calls) {
-  return Eden{.expand_list = ObjectExpandList{},
+  return Eden{.object_metadata = ObjectMetadataBag(BagOptions{.shards = 64}),
+              .roots = language::MakeNonNullUnique<ObjectMetadataBag>(
+                  BagOptions{.shards = 64}),
+              .expand_list = ObjectExpandList{},
               .consecutive_unfinished_collect_calls =
                   consecutive_unfinished_collect_calls};
 }
@@ -474,7 +494,7 @@ bool tests_registration = tests::Register(
 
               VLOG(5) << "Start collect.";
               auto stats = pool.FullCollect();
-              CHECK_EQ(stats.begin_total + stats.eden_size, 2ul);
+              CHECK_EQ(stats.begin_total, 2ul);
               CHECK_EQ(stats.roots, 1ul);
               CHECK_EQ(stats.end_total, 1ul);
 
@@ -556,7 +576,7 @@ bool tests_registration = tests::Register(
 
             {
               auto stats = pool.FullCollect();
-              CHECK_EQ(stats.begin_total + stats.eden_size, 10ul);
+              CHECK_EQ(stats.begin_total, 10ul);
               CHECK_EQ(stats.end_total, 10ul);
               CHECK(!old_notification.has_value());
             }
@@ -566,7 +586,7 @@ bool tests_registration = tests::Register(
             CHECK(!old_notification.has_value());
             {
               auto stats = pool.FullCollect();
-              CHECK_EQ(stats.begin_total + stats.eden_size, 15ul);
+              CHECK_EQ(stats.begin_total, 15ul);
               CHECK_EQ(stats.end_total, 5ul);
             }
           }},
@@ -588,7 +608,7 @@ bool tests_registration = tests::Register(
                        ->delete_notification.listenable_value()
                        .has_value());
             Pool::FullCollectStats stats = pool.FullCollect();
-            CHECK_EQ(stats.begin_total + stats.eden_size, 7ul);
+            CHECK_EQ(stats.begin_total, 7ul);
             CHECK_EQ(stats.roots, 1ul);
             CHECK_EQ(stats.end_total, 5ul);
           }},

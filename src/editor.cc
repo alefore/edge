@@ -81,7 +81,7 @@ const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
   return work_queue_;
 }
 
-ThreadPool& EditorState::thread_pool() { return thread_pool_; }
+ThreadPool& EditorState::thread_pool() { return thread_pool_.value(); }
 
 void EditorState::ResetInternalEventNotifications() {
   char buffer[4096];
@@ -119,13 +119,14 @@ void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
 }
 
 EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
-    : gc_pool_({.collect_duration_threshold = 0.05}),
+    : work_queue_(WorkQueue::New()),
+      thread_pool_(MakeNonNullShared<ThreadPool>(32, work_queue_.get_shared())),
+      gc_pool_({.collect_duration_threshold = 0.05,
+                .thread_pool = thread_pool_.get_shared()}),
       string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
-      work_queue_(WorkQueue::New()),
-      thread_pool_(32, work_queue_.get_shared()),
       home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;
