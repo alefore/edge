@@ -24,25 +24,27 @@ class Protected {
   }
 
   Protected() = default;
+  Protected(Protected&&) = default;
+  Protected& operator=(Protected&&) = default;
 
   ~Protected() {
-    std::unique_lock<std::mutex> lock(mutex_);
+    std::unique_lock<std::mutex> lock(*mutex_);
     validator_(data_);
   }
 
   Lock lock() {
-    mutex_.lock();
+    mutex_->lock();
     return Lock(&data_, [this](T*) {
       validator_(data_);
-      mutex_.unlock();
+      mutex_->unlock();
     });
   }
 
   ConstLock lock() const {
-    mutex_.lock();
+    mutex_->lock();
     return ConstLock(&data_, [this](const T*) {
       // No need to validate; we only gave constant access.
-      mutex_.unlock();
+      mutex_->unlock();
     });
   }
 
@@ -57,9 +59,9 @@ class Protected {
   }
 
  protected:
-  mutable std::mutex mutex_;
+  mutable std::unique_ptr<std::mutex> mutex_ = std::make_unique<std::mutex>();
   T data_;
-  const Validator validator_ = Validator{};
+  Validator validator_ = Validator{};
 };
 
 template <typename T, typename Validator = EmptyValidator<T>>
@@ -81,7 +83,7 @@ class ProtectedWithCondition : public Protected<T, Validator> {
 
   template <typename Callable>
   void wait(Callable callable) {
-    std::unique_lock<std::mutex> mutex_lock(Protected<T, Validator>::mutex_);
+    std::unique_lock<std::mutex> mutex_lock(*Protected<T, Validator>::mutex_);
     condition_.wait(mutex_lock, [this, &callable] {
       return callable(Protected<T, Validator>::data_);
     });
@@ -90,7 +92,7 @@ class ProtectedWithCondition : public Protected<T, Validator> {
 
   template <typename Callable>
   void wait(Callable callable) const {
-    std::unique_lock<std::mutex> mutex_lock(Protected<T, Validator>::mutex_);
+    std::unique_lock<std::mutex> mutex_lock(*Protected<T, Validator>::mutex_);
     condition_.wait(mutex_lock, [this, &callable] {
       return callable(Protected<T, Validator>::data_);
     });
