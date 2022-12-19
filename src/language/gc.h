@@ -255,11 +255,9 @@ class Pool {
 
     // A set of roots that have been deleted recently. This will allow us to
     // update Survivors::roots (in UpdateRoots).
-    struct RootIterator {
-      ObjectMetadataBag& roots_list;
-      const ObjectMetadataBag::iterator it;
-    };
-    std::vector<RootIterator> roots_deleted = {};
+    std::unordered_map<ObjectMetadataBag*,
+                       std::vector<ObjectMetadataBag::iterator>>
+        roots_deleted = {};
 
     // Normally is absent. If a `Collect` operation is interrupted, set to a
     // list to which `AddToEdenExpandList` will add objects (so that when the

@@ -7,6 +7,7 @@ extern "C" {
 #include "execinfo.h"
 }
 
+#include "src/concurrent/operation.h"
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
@@ -85,8 +86,10 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
         if (!full && eden_data.expand_list == std::nullopt) {
           auto done = [&] {
-            return eden_data.object_metadata.size() +
-                       eden_data.roots_deleted.size() <=
+            size_t roots_size = 0;
+            for (const auto& [bag, it] : eden_data.roots_deleted)
+              roots_size += bag->size();
+            return eden_data.object_metadata.size() + roots_size <=
                    std::max(1024ul, survivors_size);
           };
           light_stats.begin_eden_size = eden_data.object_metadata.size();
@@ -185,8 +188,13 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
   {
     TRACK_OPERATION(gc_Pool_ConsumeEden_roots_deleted);
     VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
-    for (const Eden::RootIterator& d : eden.roots_deleted)
-      d.roots_list.erase(d.it);
+    concurrent::Operation operation(*options_.thread_pool);
+    for (std::pair<ObjectMetadataBag* const,
+                   std::vector<ObjectMetadataBag::iterator>>& entry :
+         eden.roots_deleted)
+      operation.Add([bag = entry.first, iterators = std::move(entry.second)] {
+        for (auto& i : iterators) bag->erase(i);
+      });
   }
 
   VLOG(3) << "Removing empty lists of roots.";
@@ -351,13 +359,12 @@ Pool::RootRegistration Pool::AddRoot(
   }
   return eden_.lock([&](Eden& eden) {
     return RootRegistration(
-        ptr, [this, root_deleted = Eden::RootIterator{
-                        .roots_list = eden.roots.value(),
-                        .it = eden.roots->Add(object_metadata)}](bool* value) {
+        ptr, [this, &roots_list = eden.roots.value(),
+              it = eden.roots->Add(object_metadata)](bool* value) {
           delete value;
           VLOG(5) << "Erasing root: " << value;
-          eden_.lock([&root_deleted](Eden& input_eden) {
-            input_eden.roots_deleted.push_back(root_deleted);
+          eden_.lock([&](Eden& input_eden) {
+            input_eden.roots_deleted[&roots_list].push_back(it);
           });
         });
   });
