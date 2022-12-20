@@ -17,6 +17,7 @@ extern "C" {
 namespace afc::language {
 namespace gc {
 using concurrent::Bag;
+using concurrent::BagIterators;
 using concurrent::BagOptions;
 using concurrent::ThreadPool;
 using infrastructure::CountDownTimer;
@@ -87,8 +88,10 @@ Pool::CollectOutput Pool::Collect(bool full) {
         if (!full && eden_data.expand_list == std::nullopt) {
           auto done = [&] {
             size_t roots_size = 0;
-            for (const auto& [bag, it] : eden_data.roots_deleted)
-              roots_size += bag->size();
+            for (const std::pair<ObjectMetadataBag* const,
+                                 ObjectMetadataBag::Iterators>& entry :
+                 eden_data.roots_deleted)
+              roots_size += entry.second.size();
             return eden_data.object_metadata.size() + roots_size <=
                    std::max(1024ul, survivors_size);
           };
@@ -189,12 +192,9 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
     TRACK_OPERATION(gc_Pool_ConsumeEden_roots_deleted);
     VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
     concurrent::Operation operation(*options_.thread_pool);
-    for (std::pair<ObjectMetadataBag* const,
-                   std::vector<ObjectMetadataBag::iterator>>& entry :
-         eden.roots_deleted)
-      operation.Add([bag = entry.first, iterators = std::move(entry.second)] {
-        for (auto& i : iterators) bag->erase(i);
-      });
+    for (std::pair<ObjectMetadataBag* const, ObjectMetadataBag::Iterators>&
+             entry : eden.roots_deleted)
+      std::move(entry.second).erase(operation);
   }
 
   VLOG(3) << "Removing empty lists of roots.";
@@ -364,7 +364,14 @@ Pool::RootRegistration Pool::AddRoot(
           delete value;
           VLOG(5) << "Erasing root: " << value;
           eden_.lock([&](Eden& input_eden) {
-            input_eden.roots_deleted[&roots_list].push_back(it);
+            auto position = input_eden.roots_deleted.find(&roots_list);
+            if (position == input_eden.roots_deleted.end()) {
+              auto insert_results = input_eden.roots_deleted.insert(
+                  {&roots_list, BagIterators(roots_list)});
+              CHECK(insert_results.second);
+              position = insert_results.first;
+            }
+            position->second.Add(it);
           });
         });
   });

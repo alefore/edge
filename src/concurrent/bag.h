@@ -1,5 +1,5 @@
-// Unordered container of objects. Optimized to allow concurrent operations
-// across a thread-pool.
+// Unordered container of objects, optimized to allow concurrent operations
+// spread across a thread-pool.
 
 #ifndef __AFC_EDITOR_CONCURRENT_BAG_H__
 #define __AFC_EDITOR_CONCURRENT_BAG_H__
@@ -15,9 +15,17 @@ struct BagOptions {
   size_t shards = 64;
 };
 
+// BagIterators is similar to Bag: an unsorted container of iterators into a
+// Bag. This is provided to allow efficient concurrent removal of large sets of
+// iterators at once.
+template <typename T>
+class BagIterators;
+
 template <typename T>
 class Bag {
  public:
+  using Iterators = BagIterators<T>;
+
   Bag(BagOptions options)
       : options_(std::move(options)), shards_(options_.shards) {
     CHECK_EQ(options_.shards, shards_.size());
@@ -116,6 +124,8 @@ class Bag {
   }
 
  private:
+  friend class BagIterators<T>;
+
   template <typename Callable>
   void ForEachShardSerial(Callable callable) {
     CHECK_EQ(options_.shards, shards_.size());
@@ -140,5 +150,55 @@ class Bag {
   std::vector<Protected<language::NonNull<std::unique_ptr<std::list<T>>>>>
       shards_;
 };
+
+template <typename T>
+class BagIterators {
+ public:
+  BagIterators(Bag<T>& bag)
+      : bag_(bag), iterator_shards_(bag_.shards_.size()) {}
+  BagIterators(BagIterators&&) = default;
+
+  void Add(Bag<T>::iterator it) {
+    CHECK_EQ(iterator_shards_.size(), bag_.shards_.size());
+    CHECK_LT(it.shard, iterator_shards_.size());
+
+    iterator_shards_[it.shard].lock(
+        [&](std::vector<typename std::list<T>::iterator>& shard) {
+          shard.push_back(it.it);
+        });
+  }
+
+  size_t size() const {
+    size_t output = 0;
+    for (const auto& s : iterator_shards_)
+      output += s.lock(
+          [](const std::vector<typename std::list<T>::iterator>& iterators) {
+            return iterators.size();
+          });
+    return output;
+  }
+
+  void erase(Operation& operation) && {
+    CHECK_EQ(iterator_shards_.size(), bag_.shards_.size());
+    for (size_t i = 0; i < iterator_shards_.size(); i++)
+      iterator_shards_[i].lock(
+          [&](std::vector<typename std::list<T>::iterator>& iterators) {
+            operation.Add([this, i, iterators = std::move(iterators)] {
+              bag_.shards_[i].lock(
+                  [&iterators](
+                      language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
+                    for (auto& it : iterators) shard->erase(it);
+                  });
+            });
+          });
+  }
+
+ private:
+  Bag<T>& bag_;
+
+  std::vector<Protected<std::vector<typename std::list<T>::iterator>>>
+      iterator_shards_;
+};
+
 }  // namespace afc::concurrent
 #endif

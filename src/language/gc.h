@@ -255,8 +255,7 @@ class Pool {
 
     // A set of roots that have been deleted recently. This will allow us to
     // update Survivors::roots (in UpdateRoots).
-    std::unordered_map<ObjectMetadataBag*,
-                       std::vector<ObjectMetadataBag::iterator>>
+    std::unordered_map<ObjectMetadataBag*, ObjectMetadataBag::Iterators>
         roots_deleted = {};
 
     // Normally is absent. If a `Collect` operation is interrupted, set to a
