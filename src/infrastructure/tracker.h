@@ -48,10 +48,10 @@ class Tracker {
 
 #define LSTR(x) L##x
 
-#define TRACK_OPERATION(tracker_name)                     \
-  auto tracker_name##_call = [] {                         \
-    static Tracker internal_tracker(LSTR(#tracker_name)); \
-    return internal_tracker.Call();                       \
+#define TRACK_OPERATION(tracker_name)                                          \
+  auto tracker_name##_call = [] {                                              \
+    static afc::infrastructure::Tracker internal_tracker(LSTR(#tracker_name)); \
+    return internal_tracker.Call();                                            \
   }()
 
 }  // namespace afc::infrastructure
