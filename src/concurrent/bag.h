@@ -9,6 +9,7 @@
 #include "src/concurrent/operation.h"
 #include "src/concurrent/protected.h"
 #include "src/concurrent/thread_pool.h"
+#include "src/infrastructure/tracker.h"
 
 namespace afc::concurrent {
 struct BagOptions {
@@ -188,6 +189,7 @@ class BagIterators {
             bag_.shards_[i].lock(
                 [&iterators](
                     language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
+                  TRACK_OPERATION(BagIterators_erase);
                   for (auto& it : iterators) shard->erase(it);
                 });
           });
