@@ -190,6 +190,11 @@ class BagIterators {
                 [&iterators](
                     language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
                   TRACK_OPERATION(BagIterators_erase);
+                  if (iterators.size() == shard->size()) {
+                    TRACK_OPERATION(BagIterators_erase_optimized_path);
+                    shard->clear();
+                    return;
+                  }
                   for (auto& it : iterators) shard->erase(it);
                 });
           });
