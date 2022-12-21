@@ -181,16 +181,17 @@ class BagIterators {
   void erase(Operation& operation) && {
     CHECK_EQ(iterator_shards_.size(), bag_.shards_.size());
     for (size_t i = 0; i < iterator_shards_.size(); i++)
-      iterator_shards_[i].lock(
-          [&](std::vector<typename std::list<T>::iterator>& iterators) {
-            operation.Add([this, i, iterators = std::move(iterators)] {
-              bag_.shards_[i].lock(
-                  [&iterators](
-                      language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
-                    for (auto& it : iterators) shard->erase(it);
-                  });
-            });
+      iterator_shards_[i].lock([&](std::vector<typename std::list<T>::iterator>&
+                                       iterators) {
+        if (!iterators.empty())
+          operation.Add([this, i, iterators = std::move(iterators)] {
+            bag_.shards_[i].lock(
+                [&iterators](
+                    language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
+                  for (auto& it : iterators) shard->erase(it);
+                });
           });
+      });
   }
 
  private:
