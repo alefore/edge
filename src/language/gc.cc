@@ -243,12 +243,12 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
 /* static */ void Pool::MaybeScheduleExpand(
     ObjectExpandList& output, NonNull<std::shared_ptr<ObjectMetadata>> object) {
   if (object->data_.lock([](ObjectMetadata::Data& data) {
-        switch (data.state) {
-          case ObjectMetadata::State::kExpanded:
-          case ObjectMetadata::State::kScheduled:
+        switch (data.expand_state) {
+          case ObjectMetadata::ExpandState::kDone:
+          case ObjectMetadata::ExpandState::kScheduled:
             return false;
-          case ObjectMetadata::State::kLost:
-            data.state = ObjectMetadata::State::kScheduled;
+          case ObjectMetadata::ExpandState::kUnreached:
+            data.expand_state = ObjectMetadata::ExpandState::kScheduled;
             return true;
         }
         LOG(FATAL) << "Invalid state";
@@ -275,15 +275,15 @@ void Pool::Expand(Survivors& survivors,
         [&](ObjectMetadata::Data& object_data)
             -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
           CHECK(object_data.expand_callback != nullptr);
-          switch (object_data.state) {
-            case ObjectMetadata::State::kExpanded:
+          switch (object_data.expand_state) {
+            case ObjectMetadata::ExpandState::kDone:
               return {};
-            case ObjectMetadata::State::kScheduled: {
-              object_data.state = ObjectMetadata::State::kExpanded;
+            case ObjectMetadata::ExpandState::kScheduled: {
+              object_data.expand_state = ObjectMetadata::ExpandState::kDone;
               TRACK_OPERATION(gc_Pool_Expand_Step_call);
               return object_data.expand_callback();
             }
-            case ObjectMetadata::State::kLost:
+            case ObjectMetadata::ExpandState::kUnreached:
               LOG(FATAL) << "Invalid state.";
           }
           LOG(FATAL) << "Invalid state.";
@@ -318,16 +318,17 @@ void Pool::UpdateSurvivorsList(
               obj_weak,
               [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
                 obj->data_.lock([&](ObjectMetadata::Data& object_data) {
-                  switch (object_data.state) {
-                    case ObjectMetadata::State::kLost:
+                  switch (object_data.expand_state) {
+                    case ObjectMetadata::ExpandState::kUnreached:
                       expired_objects_callbacks.Add(
                           std::move(object_data.expand_callback));
                       break;
-                    case ObjectMetadata::State::kExpanded:
-                      object_data.state = ObjectMetadata::State::kLost;
+                    case ObjectMetadata::ExpandState::kDone:
+                      object_data.expand_state =
+                          ObjectMetadata::ExpandState::kUnreached;
                       surviving_objects.push_back(obj.get_shared());
                       break;
-                    case ObjectMetadata::State::kScheduled:
+                    case ObjectMetadata::ExpandState::kScheduled:
                       LOG(FATAL)
                           << "Invalid State: Adding survivors while some "
                              "objects are scheduled for expansion.";

@@ -154,10 +154,25 @@ class ObjectMetadata {
 
  private:
   Pool& pool_;
-  enum State { kExpanded, kScheduled, kLost };
+
+  // The state of this object during a garbage collection operation.
+  enum ExpandState {
+    // This is the initial state that all objects have before the garbage
+    // operation starts. At the end, when the collection finishes, all objects
+    // remaining in this state will be deleted (and the state of all surviving
+    // objects will be switched to this).
+    kUnreached,
+
+    // The object has been reached and has been scheduled for expansion.
+    kScheduled,
+
+    // The object has been reached and expanded: all its outgoing references
+    // have been scheduled.
+    kDone
+  };
   struct Data {
     ExpandCallback expand_callback;
-    State state = State::kLost;
+    ExpandState expand_state = ExpandState::kUnreached;
   };
   concurrent::Protected<Data> data_;
 };
