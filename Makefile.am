@@ -65,6 +65,7 @@ src/concurrent/bag.cc \
 src/concurrent/bag.h \
 src/concurrent/operation.cc \
 src/concurrent/operation.h \
+src/concurrent/protected.cc \
 src/concurrent/protected.h \
 src/concurrent/thread_pool.cc \
 src/concurrent/thread_pool.h \

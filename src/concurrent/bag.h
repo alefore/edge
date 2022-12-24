@@ -182,22 +182,24 @@ class BagIterators {
   void erase(Operation& operation) && {
     CHECK_EQ(iterator_shards_.size(), bag_.shards_.size());
     for (size_t i = 0; i < iterator_shards_.size(); i++)
-      iterator_shards_[i].lock([&](std::vector<typename std::list<T>::iterator>&
-                                       iterators) {
-        if (!iterators.empty())
-          operation.Add([this, i, iterators = std::move(iterators)] {
-            bag_.shards_[i].lock(
-                [&iterators](
-                    language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
-                  TRACK_OPERATION(BagIterators_erase);
-                  if (iterators.size() == shard->size()) {
-                    TRACK_OPERATION(BagIterators_erase_optimized_path);
-                    shard->clear();
-                    return;
-                  }
-                  for (auto& it : iterators) shard->erase(it);
-                });
-          });
+      operation.Add([&bag = bag_, i,
+                     iterator_shard =
+                         std::move(iterator_shards_[i])]() mutable {
+        iterator_shard.lock(
+            [&](std::vector<typename std::list<T>::iterator>& iterators) {
+              if (iterators.empty()) return;  // Optimization: avoid lock.
+              bag.shards_[i].lock(
+                  [&iterators](
+                      language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
+                    TRACK_OPERATION(BagIterators_erase);
+                    if (iterators.size() == shard->size()) {
+                      TRACK_OPERATION(BagIterators_erase_optimized_path);
+                      shard->clear();
+                      return;
+                    }
+                    for (auto& it : iterators) shard->erase(it);
+                  });
+            });
       });
   }
 
