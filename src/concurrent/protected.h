@@ -28,8 +28,10 @@ class Protected {
   Protected& operator=(Protected&&) = default;
 
   ~Protected() {
-    std::unique_lock<std::mutex> lock(*mutex_);
-    validator_(data_);
+    if (mutex_ != nullptr) {
+      std::unique_lock<std::mutex> lock(*mutex_);
+      validator_(data_);
+    }
   }
 
   Lock lock() {
