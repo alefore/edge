@@ -39,6 +39,7 @@ extern "C" {
 #include "src/vm/public/value.h"
 
 namespace afc::editor {
+using language::MakeNonNullShared;
 using language::NonNull;
 using language::VisitPointer;
 namespace {
@@ -299,33 +300,35 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
 }
 }  // namespace
 
-futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
-                                          std::vector<Path>* output) {
-  output->push_back(Path::LocalDirectory());
+futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
+  auto search_paths = MakeNonNullShared<std::vector<Path>>(
+      std::vector<Path>({Path::LocalDirectory()}));
 
   auto paths = editor_state.edge_path();
   return futures::ForEachWithCopy(
              paths.begin(), paths.end(),
-             [&editor_state, output](Path edge_path) {
+             [&editor_state, search_paths](Path edge_path) {
                return GetSearchPathsBuffer(editor_state, edge_path)
-                   .Transform([&editor_state, output,
+                   .Transform([&editor_state, search_paths,
                                edge_path](gc::Root<OpenBuffer> buffer) {
                      buffer.ptr()->contents().ForEach(
-                         [&editor_state, output](std::wstring line) {
+                         [&editor_state, search_paths](std::wstring line) {
                            std::visit(
                                overload{[](Error) {},
                                         [&](Path path) {
-                                          output->push_back(
+                                          search_paths->push_back(
                                               editor_state.expand_path(path));
                                           LOG(INFO) << "Pushed search path: "
-                                                    << output->back();
+                                                    << search_paths->back();
                                         }},
                                Path::FromString(line));
                          });
                      return futures::IterationControlCommand::kContinue;
                    });
              })
-      .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
+      .Transform([search_paths](futures::IterationControlCommand) mutable {
+        return std::move(search_paths.value());
+      });
 }
 
 template <typename T>
@@ -514,19 +517,19 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
             return futures::Past(Success(input.validator_output));
           }),
       [options](Error) {
-        auto search_paths = std::make_shared<std::vector<Path>>(
-            std::move(options.initial_search_paths));
-        return (options.use_search_paths
-                    ? GetSearchPaths(options.editor_state, search_paths.get())
-                    : futures::Past(EmptyValue()))
-            .Transform([options, search_paths](EmptyValue)
+        return (options.use_search_paths ? GetSearchPaths(options.editor_state)
+                                         : futures::Past(std::vector<Path>()))
+            .Transform([options](std::vector<Path> search_paths)
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+              search_paths.insert(search_paths.begin(),
+                                  options.initial_search_paths.begin(),
+                                  options.initial_search_paths.end());
               return ResolvePath(
                          ResolvePathOptions<EmptyValue>{
                              .path = options.path.has_value()
                                          ? options.path->read()
                                          : L"",
-                             .search_paths = *search_paths,
+                             .search_paths = std::move(search_paths),
                              .home_directory =
                                  options.editor_state.home_directory(),
                              .validator = std::bind_front(

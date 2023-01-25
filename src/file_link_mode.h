@@ -38,8 +38,8 @@ struct OpenFileOptions {
   std::vector<infrastructure::Path> initial_search_paths = {};
 };
 
-futures::Value<language::EmptyValue> GetSearchPaths(
-    EditorState& editor_state, std::vector<infrastructure::Path>* output);
+futures::Value<std::vector<infrastructure::Path>> GetSearchPaths(
+    EditorState& editor_state);
 
 // Takes a specification of a path (which can be absolute or relative) and, if
 // relative, looks it up in the search paths. If a file is found, returns an
@@ -47,19 +47,23 @@ futures::Value<language::EmptyValue> GetSearchPaths(
 template <typename ValidatorOutput>
 struct ResolvePathOptions {
  public:
-  static ResolvePathOptions New(
+  static futures::Value<ResolvePathOptions> New(
       EditorState& editor_state,
       std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver) {
-    auto output =
-        NewWithEmptySearchPaths(editor_state, std::move(file_system_driver));
-    GetSearchPaths(editor_state, &output.search_paths);
-    return output;
+    return GetSearchPaths(editor_state)
+        .Transform([&editor_state, file_system_driver](
+                       std::vector<infrastructure::Path> search_paths) {
+          return NewWithSearchPaths(editor_state, file_system_driver,
+                                    std::move(search_paths));
+        });
   }
 
-  static ResolvePathOptions NewWithEmptySearchPaths(
+  static ResolvePathOptions NewWithSearchPaths(
       EditorState& editor_state,
-      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver) {
+      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver,
+      std::vector<infrastructure::Path> search_paths = {}) {
     return ResolvePathOptions{
+        .search_paths = std::move(search_paths),
         .home_directory = editor_state.home_directory(),
         .validator = [file_system_driver](const infrastructure::Path& path) {
           return CanStatPath(file_system_driver, path);

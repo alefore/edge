@@ -336,13 +336,13 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
-  auto search_paths = std::make_shared<std::vector<Path>>();
   // TODO(easy, 2022-12-11, non-copyable-function): Change to MakeNonNullUnique.
   auto predictor_output =
       MakeNonNullShared<concurrent::Protected<PredictorOutput>>();
-  return GetSearchPaths(predictor_input.editor, search_paths.get())
-      .Transform([predictor_input, search_paths,
-                  &predictor_output = predictor_output.value()](EmptyValue) {
+  return GetSearchPaths(predictor_input.editor)
+      .Transform([predictor_input,
+                  &predictor_output = predictor_output.value()](
+                     std::vector<Path> search_paths) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
         std::wstring path_input = std::visit(
@@ -354,11 +354,6 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
 
         OpenBuffer::LockFunction get_buffer =
             predictor_input.predictions.GetLockFunction();
-        ResolvePathOptions resolve_path_options =
-            ResolvePathOptions<EmptyValue>::New(
-                predictor_input.editor,
-                std::make_shared<FileSystemDriver>(
-                    predictor_input.editor.thread_pool()));
 
         // TODO: Don't use sources_buffers[0], ignoring the other buffers.
         std::wregex noise_regex =
@@ -367,36 +362,35 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 : std::wregex(predictor_input.source_buffers[0].ptr()->Read(
                       buffer_variables::directory_noise));
         predictor_input.editor.thread_pool().RunIgnoringResult(std::bind_front(
-            [search_paths, &predictor_output, path_input, get_buffer,
-             resolve_path_options,
+            [&predictor_output, path_input, get_buffer, search_paths,
              noise_regex](ProgressChannel& progress_channel,
-                          DeleteNotification::Value abort_value) {
+                          DeleteNotification::Value abort_value) mutable {
               if (!path_input.empty() && *path_input.begin() == L'/') {
-                *search_paths = {Path::Root()};
+                search_paths = {Path::Root()};
               } else {
                 std::vector<Path> resolved_paths;
-                for (Path& search_path : *search_paths) {
+                for (Path& search_path : search_paths) {
                   std::visit(overload{IgnoreErrors{},
                                       [&](Path path) {
                                         resolved_paths.push_back(path);
                                       }},
                              search_path.Resolve());
                 }
-                *search_paths = std::move(resolved_paths);
+                search_paths = std::move(resolved_paths);
 
                 std::set<Path> unique_paths_set;
                 std::vector<Path> unique_paths;
-                for (const auto& search_path : *search_paths) {
+                for (const auto& search_path : search_paths) {
                   if (unique_paths_set.insert(search_path).second) {
                     unique_paths.push_back(search_path);
                   }
                 }
 
-                *search_paths = std::move(unique_paths);
+                search_paths = std::move(unique_paths);
               }
 
               int matches = 0;
-              for (const auto& search_path : *search_paths) {
+              for (const auto& search_path : search_paths) {
                 VLOG(4) << "Considering search path: " << search_path;
                 DescendDirectoryTreeOutput descend_results =
                     DescendDirectoryTree(search_path, path_input);

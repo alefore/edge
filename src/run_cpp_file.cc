@@ -42,18 +42,20 @@ futures::Value<PossibleError> RunCppFileHandler(
   }
 
   buffer->ptr()->ResetMode();
-  auto options = ResolvePathOptions<EmptyValue>::New(
-      editor_state,
-      std::make_shared<FileSystemDriver>(editor_state.thread_pool()));
-  // TODO(easy, 2022-06-05): Get rid of ToString.
-  options.path = input->ToString();
-  return OnError(ResolvePath(std::move(options)),
-                 [buffer, input](Error error) {
-                   // TODO(easy, 2022-06-05): Get rid of ToString.
-                   buffer->ptr()->status().SetWarningText(
-                       L"🗱  File not found: " + input->ToString());
-                   return futures::Past(error);
-                 })
+  return OnError(
+             ResolvePathOptions<EmptyValue>::New(
+                 editor_state,
+                 std::make_shared<FileSystemDriver>(editor_state.thread_pool()))
+                 .Transform([input](ResolvePathOptions<EmptyValue> options) {
+                   options.path = input->ToString();
+                   return ResolvePath(std::move(options));
+                 }),
+             [buffer, input](Error error) {
+               // TODO(easy, 2022-06-05): Get rid of ToString.
+               buffer->ptr()->status().SetWarningText(L"🗱  File not found: " +
+                                                      input->ToString());
+               return futures::Past(error);
+             })
       .Transform([buffer, &editor_state,
                   input](ResolvePathOutput<EmptyValue> resolved_path)
                      -> futures::Value<PossibleError> {
