@@ -506,40 +506,33 @@ gc::Root<OpenBuffer> CreateBuffer(
 
 futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options) {
-  EditorState& editor_state = options.editor_state;
-
-  auto search_paths = std::make_shared<std::vector<Path>>(
-      std::move(options.initial_search_paths));
-  // TODO(easy, 2023-01-25): Only use search_paths if needed (i.e., if
-  // FindAlreadyOpenBuffer fails).
-  futures::Value<EmptyValue> search_paths_future = futures::Past(EmptyValue());
-  if (options.use_search_paths) {
-    search_paths_future = GetSearchPaths(editor_state, search_paths.get());
-  }
-
-  return std::move(search_paths_future)
-      .Transform([&editor_state, options, search_paths](EmptyValue) {
-        return OnError(
-            FindAlreadyOpenBuffer(editor_state, options.path)
-                .Transform(
-                    [options](ResolvePathOutput<gc::Root<OpenBuffer>> input) {
-                      options.editor_state.AddBuffer(input.validator_output,
-                                                     options.insertion_type);
-                      return futures::Past(Success(input.validator_output));
-                    }),
-            [&editor_state, options, search_paths](
-                Error) -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+  return OnError(
+      FindAlreadyOpenBuffer(options.editor_state, options.path)
+          .Transform([options](ResolvePathOutput<gc::Root<OpenBuffer>> input) {
+            options.editor_state.AddBuffer(input.validator_output,
+                                           options.insertion_type);
+            return futures::Past(Success(input.validator_output));
+          }),
+      [options](Error) {
+        auto search_paths = std::make_shared<std::vector<Path>>(
+            std::move(options.initial_search_paths));
+        return (options.use_search_paths
+                    ? GetSearchPaths(options.editor_state, search_paths.get())
+                    : futures::Past(EmptyValue()))
+            .Transform([options, search_paths](EmptyValue)
+                           -> futures::ValueOrError<gc::Root<OpenBuffer>> {
               return ResolvePath(
                          ResolvePathOptions<EmptyValue>{
                              .path = options.path.has_value()
                                          ? options.path->read()
                                          : L"",
                              .search_paths = *search_paths,
-                             .home_directory = editor_state.home_directory(),
+                             .home_directory =
+                                 options.editor_state.home_directory(),
                              .validator = std::bind_front(
                                  ResolvePathOptions<EmptyValue>::CanStatPath,
                                  std::make_shared<FileSystemDriver>(
-                                     editor_state.thread_pool()))})
+                                     options.editor_state.thread_pool()))})
                   .Transform([options](ResolvePathOutput<EmptyValue> input) {
                     return futures::Past(Success(CreateBuffer(options, input)));
                   });
