@@ -57,8 +57,13 @@ void Run() {
       std::cerr << "* " << test.name << std::endl;
       for (size_t i = 0; i < test.runs; ++i) {
         int wstatus = ForkAndWait(test.callback);
-        if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0)
+        if (!WIFEXITED(wstatus)) {
           failures[name].push_back(test.name);
+          std::cerr << "Didn't exit" << std::endl;
+        } else if (WEXITSTATUS(wstatus) != 0) {
+          failures[name].push_back(test.name);
+          std::cerr << "Exit status: " << WEXITSTATUS(wstatus) << std::endl;
+        }
       }
     }
     std::cerr << std::endl;
