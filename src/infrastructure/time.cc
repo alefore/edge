@@ -11,7 +11,8 @@ namespace afc::infrastructure {
 
 struct timespec Now() {
   struct timespec output;
-  CHECK_NE(clock_gettime(0, &output), -1);
+  CHECK_NE(clock_gettime(0, &output), -1)
+      << "clock_gettime failed: " << errno << ": " << strerror(errno);
   return output;
 }
 
