@@ -328,152 +328,6 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
       .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
 }
 
-futures::ValueOrError<ResolvePathOutput<EmptyValue>> ResolvePath(
-    ResolvePathOptions<EmptyValue> input) {
-  if (find(input.search_paths.begin(), input.search_paths.end(),
-           Path::LocalDirectory()) == input.search_paths.end()) {
-    input.search_paths.push_back(Path::LocalDirectory());
-  }
-
-  std::visit(
-      overload{
-          IgnoreErrors{},
-          [&](Path path) {
-            input.path =
-                Path::ExpandHomeDirectory(input.home_directory, path).read();
-          }},
-      Path::FromString(input.path));
-  if (!input.path.empty() && input.path[0] == L'/') {
-    input.search_paths = {Path::Root()};
-  }
-
-  NonNull<std::shared_ptr<
-      std::optional<ValueOrError<ResolvePathOutput<EmptyValue>>>>>
-      output;
-  using futures::IterationControlCommand;
-  using futures::Past;
-  return futures::ForEachWithCopy(
-             input.search_paths.begin(), input.search_paths.end(),
-             [input, output](Path search_path) {
-               struct State {
-                 const Path search_path;
-                 size_t str_end;
-               };
-               auto state = std::make_shared<State>(
-                   State{.search_path = std::move(search_path),
-                         .str_end = input.path.size()});
-               return futures::While([input, output, state]() {
-                        if (state->str_end == input.path.npos ||
-                            state->str_end == 0) {
-                          return Past(IterationControlCommand::kStop);
-                        }
-
-                        auto input_path = Path::FromString(
-                            input.path.substr(0, state->str_end));
-                        if (IsError(input_path)) {
-                          state->str_end =
-                              input.path.find_last_of(':', state->str_end - 1);
-                          return Past(IterationControlCommand::kContinue);
-                        }
-                        auto path_with_prefix = Path::Join(
-                            state->search_path, ValueOrDie(input_path));
-                        CHECK(input.validator != nullptr);
-                        return input.validator(path_with_prefix)
-                            .Transform([input, output, state,
-                                        path_with_prefix](EmptyValue) {
-                              std::wstring output_pattern = L"";
-                              std::optional<LineColumn> output_position;
-                              for (size_t i = 0; i < 2; i++) {
-                                while (state->str_end < input.path.size() &&
-                                       ':' == input.path[state->str_end]) {
-                                  state->str_end++;
-                                }
-                                if (state->str_end == input.path.size()) {
-                                  break;
-                                }
-                                size_t next_str_end =
-                                    input.path.find(':', state->str_end);
-                                const std::wstring arg = input.path.substr(
-                                    state->str_end, next_str_end);
-                                if (i == 0 && arg.size() > 0 && arg[0] == '/') {
-                                  output_pattern = arg.substr(1);
-                                  break;
-                                } else {
-                                  size_t value;
-                                  try {
-                                    value = stoi(arg);
-                                    if (value > 0) {
-                                      value--;
-                                    }
-                                  } catch (const std::invalid_argument& ia) {
-                                    LOG(INFO)
-                                        << "stoi failed: invalid argument: "
-                                        << arg;
-                                    break;
-                                  } catch (const std::out_of_range& ia) {
-                                    LOG(INFO)
-                                        << "stoi failed: out of range: " << arg;
-                                    break;
-                                  }
-                                  if (!output_position.has_value()) {
-                                    output_position = LineColumn();
-                                  }
-                                  if (i == 0) {
-                                    output_position->line = LineNumber(value);
-                                  } else {
-                                    output_position->column =
-                                        ColumnNumber(value);
-                                  }
-                                }
-                                state->str_end = next_str_end;
-                                if (state->str_end == input.path.npos) {
-                                  break;
-                                }
-                              }
-                              std::optional<Path> resolved_path =
-                                  OptionalFrom(path_with_prefix.Resolve());
-                              Path final_resolved_path =
-                                  resolved_path.value_or(path_with_prefix);
-                              output.value() = ResolvePathOutput<EmptyValue>{
-                                  .path = final_resolved_path,
-                                  .position = output_position,
-                                  .pattern = output_pattern,
-                                  .validator_output = EmptyValue()};
-                              VLOG(4)
-                                  << "Resolved path: " << final_resolved_path;
-                              return Success(IterationControlCommand::kStop);
-                            })
-                            .ConsumeErrors([state, input](Error) {
-                              state->str_end = input.path.find_last_of(
-                                  ':', state->str_end - 1);
-                              return futures::Past(
-                                  IterationControlCommand::kContinue);
-                            });
-                      })
-                   .Transform([output](IterationControlCommand) {
-                     return output->has_value()
-                                ? IterationControlCommand::kStop
-                                : IterationControlCommand::kContinue;
-                   });
-             })
-      .Transform([output](IterationControlCommand)
-                     -> ValueOrError<ResolvePathOutput<EmptyValue>> {
-        if (output->has_value()) return output->value();
-
-        // TODO(easy): Give a better error. Perhaps include the paths in
-        // which we searched? Perhaps the last result of the validator?
-        return Error(L"Unable to resolve file.");
-      });
-}
-
-struct OpenFileResolvePathOutput {
-  // If set, this is the buffer to open.
-  std::optional<gc::Root<OpenBuffer>> buffer = std::nullopt;
-  std::optional<Path> path = std::nullopt;
-  std::optional<LineColumn> position = std::nullopt;
-  std::wstring pattern = L"";
-};
-
 template <typename T>
 bool EndsIn(std::list<T> suffix, std::list<T> candidate) {
   if (candidate.size() < suffix.size()) return false;
@@ -521,82 +375,50 @@ const bool ends_in_registration = tests::Register(
              }},
     });
 
-futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
-    EditorState& editor_state, std::shared_ptr<std::vector<Path>> search_paths,
-    std::optional<Path> path,
-    std::shared_ptr<FileSystemDriver> file_system_driver) {
-  ResolvePathOptions<EmptyValue> resolve_path_options =
-      ResolvePathOptions<EmptyValue>::NewWithEmptySearchPaths(
-          editor_state, file_system_driver);
-  const NonNull<std::shared_ptr<OpenFileResolvePathOutput>> output;
-  resolve_path_options.validator =
-      [&editor_state, output](
-          const Path& path_to_validate) -> futures::ValueOrError<EmptyValue> {
-    return futures::Past(path_to_validate.DirectorySplit())
-        .Transform([&](std::list<PathComponent> path_components)
-                       -> futures::ValueOrError<EmptyValue> {
-          for (std::pair<BufferName, gc::Root<OpenBuffer>> buffer_pair :
-               *editor_state.buffers()) {
-            gc::Root<OpenBuffer> buffer = buffer_pair.second;
-            auto buffer_path =
-                Path::FromString(buffer.ptr()->Read(buffer_variables::path));
-            if (IsError(buffer_path)) continue;
-            ValueOrError<std::list<PathComponent>> buffer_components =
-                std::get<Path>(buffer_path).DirectorySplit();
-            if (IsError(buffer_components)) continue;
-            if (EndsIn(path_components, std::get<0>(buffer_components))) {
-              output->buffer = buffer;
-              return futures::Past(Success());
-            }
-          }
-          return futures::Past(Error(L"Unable to find buffer"));
-        });
-  };
+futures::ValueOrError<ResolvePathOutput<gc::Root<OpenBuffer>>>
+FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
+  ResolvePathOptions<gc::Root<OpenBuffer>> resolve_path_options{
+      .home_directory = editor_state.home_directory(),
+      .validator = [&editor_state](const Path& path_to_validate)
+          -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+        return futures::Past(path_to_validate.DirectorySplit())
+            .Transform([&](std::list<PathComponent> path_components)
+                           -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+              for (std::pair<BufferName, gc::Root<OpenBuffer>> buffer_pair :
+                   *editor_state.buffers()) {
+                gc::Root<OpenBuffer> buffer = buffer_pair.second;
+                auto buffer_path = Path::FromString(
+                    buffer.ptr()->Read(buffer_variables::path));
+                if (IsError(buffer_path)) continue;
+                ValueOrError<std::list<PathComponent>> buffer_components =
+                    std::get<Path>(buffer_path).DirectorySplit();
+                if (IsError(buffer_components)) continue;
+                if (EndsIn(path_components, std::get<0>(buffer_components))) {
+                  return futures::Past(buffer);
+                }
+              }
+              return futures::Past(Error(L"Unable to find buffer"));
+            });
+      }};
   if (path.has_value()) {
     resolve_path_options.path = path.value().read();
   }
 
-  return OnError(
-      ResolvePath(resolve_path_options)
-          .Transform([output](ResolvePathOutput<EmptyValue> input)
-                         -> futures::ValueOrError<OpenFileResolvePathOutput> {
-            // If we're here, ResolvePath must have succeeded (otherwise this
-            // would have been an error). This only succeeded if the validator
-            // returned true. The validator only returns true if it sets
-            // output->buffer.
-            //
-            // TODO(2022-05-01): The above is ugly. Try to use types to ensure
-            // correctness.
-            CHECK(output->buffer.has_value());
-
-            if (input.position.has_value()) {
-              output->buffer->ptr()->set_position(input.position.value());
-            }
-            // TODO: Apply pattern.
-            return futures::Past(Success(std::move(output.value())));
-          }),
-      [&editor_state, path, output, resolve_path_options, search_paths,
-       file_system_driver](
-          Error) -> futures::ValueOrError<OpenFileResolvePathOutput> {
-        CHECK(!output->buffer.has_value());
-        auto resolve_path_options_copy = resolve_path_options;
-        resolve_path_options_copy.search_paths = *search_paths;
-        resolve_path_options_copy.validator = std::bind_front(
-            ResolvePathOptions<EmptyValue>::CanStatPath, file_system_driver);
-        return ResolvePath(resolve_path_options_copy)
-            .Transform([path, resolve_path_options_copy = resolve_path_options](
-                           ResolvePathOutput<EmptyValue> input) {
-              return futures::Past(Success(OpenFileResolvePathOutput{
-                  .path = input.path,
-                  .position = input.position,
-                  .pattern = input.pattern.value_or(L"")}));
-            });
+  return ResolvePath(resolve_path_options)
+      .Transform([](ResolvePathOutput<gc::Root<OpenBuffer>> input)
+                     -> futures::ValueOrError<
+                         ResolvePathOutput<gc::Root<OpenBuffer>>> {
+        if (input.position.has_value()) {
+          input.validator_output.ptr()->set_position(input.position.value());
+        }
+        // TODO: Apply pattern.
+        return futures::Past(Success(std::move(input)));
       });
 }
 
 gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
-    std::optional<OpenFileResolvePathOutput> resolve_path_output) {
+    std::optional<ResolvePathOutput<EmptyValue>> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
   auto buffer_options = std::make_shared<OpenBuffer::Options>(
       OpenBuffer::Options{.editor = options.editor_state});
@@ -632,9 +454,8 @@ gc::Root<OpenBuffer> CreateBuffer(
               return futures::Past(error);
             });
       };
-  if (resolve_path_output.has_value() &&
-      resolve_path_output->path.has_value()) {
-    buffer_options->path = *resolve_path_output->path;
+  if (resolve_path_output.has_value()) {
+    buffer_options->path = resolve_path_output->path;
   } else if (options.path.has_value()) {
     buffer_options->path = options.path.value();
   }
@@ -673,10 +494,11 @@ gc::Root<OpenBuffer> CreateBuffer(
   options.editor_state.AddBuffer(buffer, options.insertion_type);
 
   if (resolve_path_output.has_value() &&
-      !resolve_path_output->pattern.empty()) {
+      resolve_path_output->pattern.has_value() &&
+      !resolve_path_output->pattern->empty()) {
     SearchOptions search_options;
     search_options.starting_position = buffer.ptr()->position();
-    search_options.search_query = resolve_path_output->pattern;
+    search_options.search_query = resolve_path_output->pattern.value();
     JumpToNextMatch(options.editor_state, search_options, buffer.ptr().value());
   }
   return buffer;
@@ -688,29 +510,40 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
 
   auto search_paths = std::make_shared<std::vector<Path>>(
       std::move(options.initial_search_paths));
+  // TODO(easy, 2023-01-25): Only use search_paths if needed (i.e., if
+  // FindAlreadyOpenBuffer fails).
   futures::Value<EmptyValue> search_paths_future = futures::Past(EmptyValue());
   if (options.use_search_paths) {
     search_paths_future = GetSearchPaths(editor_state, search_paths.get());
   }
 
-  auto file_system_driver =
-      std::make_shared<FileSystemDriver>(editor_state.thread_pool());
-
   return std::move(search_paths_future)
-      .Transform([&editor_state, options, search_paths,
-                  file_system_driver](EmptyValue) {
-        return OpenFileResolvePath(editor_state, search_paths, options.path,
-                                   file_system_driver);
-      })
-      .Transform([options,
-                  file_system_driver](OpenFileResolvePathOutput input) {
-        return Success(VisitPointer(
-            input.buffer,
-            [&options](gc::Root<OpenBuffer> buffer) {
-              options.editor_state.AddBuffer(buffer, options.insertion_type);
-              return buffer;
-            },
-            [&options, &input] { return CreateBuffer(options, input); }));
+      .Transform([&editor_state, options, search_paths](EmptyValue) {
+        return OnError(
+            FindAlreadyOpenBuffer(editor_state, options.path)
+                .Transform(
+                    [options](ResolvePathOutput<gc::Root<OpenBuffer>> input) {
+                      options.editor_state.AddBuffer(input.validator_output,
+                                                     options.insertion_type);
+                      return futures::Past(Success(input.validator_output));
+                    }),
+            [&editor_state, options, search_paths](
+                Error) -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+              return ResolvePath(
+                         ResolvePathOptions<EmptyValue>{
+                             .path = options.path.has_value()
+                                         ? options.path->read()
+                                         : L"",
+                             .search_paths = *search_paths,
+                             .home_directory = editor_state.home_directory(),
+                             .validator = std::bind_front(
+                                 ResolvePathOptions<EmptyValue>::CanStatPath,
+                                 std::make_shared<FileSystemDriver>(
+                                     editor_state.thread_pool()))})
+                  .Transform([options](ResolvePathOutput<EmptyValue> input) {
+                    return futures::Past(Success(CreateBuffer(options, input)));
+                  });
+            });
       });
 }
 
