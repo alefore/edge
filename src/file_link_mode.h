@@ -44,14 +44,27 @@ futures::Value<language::EmptyValue> GetSearchPaths(
 // Takes a specification of a path (which can be absolute or relative) and, if
 // relative, looks it up in the search paths. If a file is found, returns an
 // absolute path pointing to it.
+template <typename ValidatorOutput>
 struct ResolvePathOptions {
  public:
   static ResolvePathOptions New(
       EditorState& editor_state,
-      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver);
+      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver) {
+    auto output =
+        NewWithEmptySearchPaths(editor_state, std::move(file_system_driver));
+    GetSearchPaths(editor_state, &output.search_paths);
+    return output;
+  }
+
   static ResolvePathOptions NewWithEmptySearchPaths(
       EditorState& editor_state,
-      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver);
+      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver) {
+    return ResolvePathOptions(
+        editor_state.home_directory(),
+        [file_system_driver](const infrastructure::Path& path) {
+          return CanStatPath(file_system_driver, path);
+        });
+  }
 
   // This is not a Path because it may contain various embedded tokens such as
   // a ':LINE:COLUMN' suffix. A Path will be extracted from it.
@@ -59,16 +72,28 @@ struct ResolvePathOptions {
   std::vector<infrastructure::Path> search_paths = {};
   infrastructure::Path home_directory;
 
-  using Validator =
-      std::function<futures::Value<bool>(const infrastructure::Path&)>;
+  using Validator = std::function<futures::ValueOrError<ValidatorOutput>(
+      const infrastructure::Path&)>;
   Validator validator = nullptr;
+
+  static futures::Value<language::PossibleError> CanStatPath(
+      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver,
+      const infrastructure::Path& path) {
+    VLOG(5) << "Considering path: " << path;
+    return file_system_driver->Stat(path).Transform(
+        [](struct stat) { return language::Success(); });
+  }
 
  private:
   ResolvePathOptions(infrastructure::Path input_home_directory,
-                     Validator input_validator);
+                     Validator input_validator)
+      : home_directory(std::move(input_home_directory)),
+        validator(std::move(input_validator)) {}
+
   ResolvePathOptions() = default;
 };
 
+template <typename ValidatorOutput>
 struct ResolvePathOutput {
   // The absolute path pointing to the file.
   infrastructure::Path path;
@@ -78,10 +103,12 @@ struct ResolvePathOutput {
 
   // The pattern to jump to (after jumping to `position`).
   std::optional<std::wstring> pattern;
+
+  ValidatorOutput validator_output;
 };
 
-futures::ValueOrError<ResolvePathOutput> ResolvePath(
-    ResolvePathOptions options);
+futures::ValueOrError<ResolvePathOutput<language::EmptyValue>> ResolvePath(
+    ResolvePathOptions<language::EmptyValue> options);
 
 futures::ValueOrError<language::gc::Root<OpenBuffer>> OpenFileIfFound(
     const OpenFileOptions& options);

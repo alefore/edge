@@ -428,17 +428,19 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                 keys,
                 [buffer, path]() {
                   std::wstring resolved_path;
-                  auto options = ResolvePathOptions::New(
+                  auto options = ResolvePathOptions<EmptyValue>::New(
                       buffer.ptr()->editor(),
                       std::make_shared<FileSystemDriver>(
                           buffer.ptr()->editor().thread_pool()));
                   options.path = path;
                   futures::OnError(
                       ResolvePath(std::move(options))
-                          .Transform([buffer, path](ResolvePathOutput results) {
-                            buffer.ptr()->EvaluateFile(results.path);
-                            return Success();
-                          }),
+                          .Transform(
+                              [buffer,
+                               path](ResolvePathOutput<EmptyValue> results) {
+                                buffer.ptr()->EvaluateFile(results.path);
+                                return Success();
+                              }),
                       [buffer, path](Error error) {
                         buffer.ptr()->status().Set(AugmentError(
                             L"Unable to resolve: " + path, std::move(error)));

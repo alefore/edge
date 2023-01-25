@@ -42,7 +42,7 @@ futures::Value<PossibleError> RunCppFileHandler(
   }
 
   buffer->ptr()->ResetMode();
-  auto options = ResolvePathOptions::New(
+  auto options = ResolvePathOptions<EmptyValue>::New(
       editor_state,
       std::make_shared<FileSystemDriver>(editor_state.thread_pool()));
   // TODO(easy, 2022-06-05): Get rid of ToString.
@@ -54,7 +54,8 @@ futures::Value<PossibleError> RunCppFileHandler(
                        L"🗱  File not found: " + input->ToString());
                    return futures::Past(error);
                  })
-      .Transform([buffer, &editor_state, input](ResolvePathOutput resolved_path)
+      .Transform([buffer, &editor_state,
+                  input](ResolvePathOutput<EmptyValue> resolved_path)
                      -> futures::Value<PossibleError> {
         using futures::IterationControlCommand;
         auto index = std::make_shared<size_t>(0);

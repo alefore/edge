@@ -196,22 +196,6 @@ futures::Value<PossibleError> Save(
       });
 }
 
-static futures::Value<bool> CanStatPath(
-    std::shared_ptr<FileSystemDriver> file_system_driver, const Path& path) {
-  VLOG(5) << "Considering path: " << path;
-  futures::Future<bool> output;
-  file_system_driver->Stat(path).SetConsumer(
-      VisitCallback(overload{[path, consumer = output.consumer](Error error) {
-                               VLOG(6) << path << ": stat failed: " << error;
-                               consumer(false);
-                             },
-                             [path, consumer = output.consumer](struct stat) {
-                               VLOG(4) << "Stat succeeded: " << path;
-                               consumer(true);
-                             }}));
-  return std::move(output.value);
-}
-
 futures::Value<PossibleError> SaveContentsToOpenFile(
     ThreadPool& thread_pool, Path path, FileDescriptor fd,
     NonNull<std::shared_ptr<const BufferContents>> contents) {
@@ -344,31 +328,8 @@ futures::Value<EmptyValue> GetSearchPaths(EditorState& editor_state,
       .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
 }
 
-/* static */
-ResolvePathOptions ResolvePathOptions::New(
-    EditorState& editor_state,
-    std::shared_ptr<FileSystemDriver> file_system_driver) {
-  auto output =
-      NewWithEmptySearchPaths(editor_state, std::move(file_system_driver));
-  GetSearchPaths(editor_state, &output.search_paths);
-  return output;
-}
-
-/* static */ ResolvePathOptions ResolvePathOptions::NewWithEmptySearchPaths(
-    EditorState& editor_state,
-    std::shared_ptr<FileSystemDriver> file_system_driver) {
-  return ResolvePathOptions(editor_state.home_directory(),
-                            [file_system_driver](const Path& path) {
-                              return CanStatPath(file_system_driver, path);
-                            });
-}
-
-ResolvePathOptions::ResolvePathOptions(Path input_home_directory,
-                                       Validator input_validator)
-    : home_directory(std::move(input_home_directory)),
-      validator(std::move(input_validator)) {}
-
-futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
+futures::ValueOrError<ResolvePathOutput<EmptyValue>> ResolvePath(
+    ResolvePathOptions<EmptyValue> input) {
   if (find(input.search_paths.begin(), input.search_paths.end(),
            Path::LocalDirectory()) == input.search_paths.end()) {
     input.search_paths.push_back(Path::LocalDirectory());
@@ -386,7 +347,8 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
     input.search_paths = {Path::Root()};
   }
 
-  NonNull<std::shared_ptr<std::optional<ValueOrError<ResolvePathOutput>>>>
+  NonNull<std::shared_ptr<
+      std::optional<ValueOrError<ResolvePathOutput<EmptyValue>>>>>
       output;
   using futures::IterationControlCommand;
   using futures::Past;
@@ -415,15 +377,10 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                         }
                         auto path_with_prefix = Path::Join(
                             state->search_path, ValueOrDie(input_path));
+                        CHECK(input.validator != nullptr);
                         return input.validator(path_with_prefix)
                             .Transform([input, output, state,
-                                        path_with_prefix](bool validator_output)
-                                           -> IterationControlCommand {
-                              if (!validator_output) {
-                                state->str_end = input.path.find_last_of(
-                                    ':', state->str_end - 1);
-                                return IterationControlCommand::kContinue;
-                              }
+                                        path_with_prefix](EmptyValue) {
                               std::wstring output_pattern = L"";
                               std::optional<LineColumn> output_position;
                               for (size_t i = 0; i < 2; i++) {
@@ -477,13 +434,20 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                                   OptionalFrom(path_with_prefix.Resolve());
                               Path final_resolved_path =
                                   resolved_path.value_or(path_with_prefix);
-                              output.value() =
-                                  ResolvePathOutput{.path = final_resolved_path,
-                                                    .position = output_position,
-                                                    .pattern = output_pattern};
+                              output.value() = ResolvePathOutput<EmptyValue>{
+                                  .path = final_resolved_path,
+                                  .position = output_position,
+                                  .pattern = output_pattern,
+                                  .validator_output = EmptyValue()};
                               VLOG(4)
                                   << "Resolved path: " << final_resolved_path;
-                              return IterationControlCommand::kStop;
+                              return Success(IterationControlCommand::kStop);
+                            })
+                            .ConsumeErrors([state, input](Error) {
+                              state->str_end = input.path.find_last_of(
+                                  ':', state->str_end - 1);
+                              return futures::Past(
+                                  IterationControlCommand::kContinue);
                             });
                       })
                    .Transform([output](IterationControlCommand) {
@@ -492,14 +456,14 @@ futures::ValueOrError<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
                                 : IterationControlCommand::kContinue;
                    });
              })
-      .Transform(
-          [output](IterationControlCommand) -> ValueOrError<ResolvePathOutput> {
-            if (output->has_value()) return output->value();
+      .Transform([output](IterationControlCommand)
+                     -> ValueOrError<ResolvePathOutput<EmptyValue>> {
+        if (output->has_value()) return output->value();
 
-            // TODO(easy): Give a better error. Perhaps include the paths in
-            // which we searched? Perhaps the last result of the validator?
-            return Error(L"Unable to resolve file.");
-          });
+        // TODO(easy): Give a better error. Perhaps include the paths in
+        // which we searched? Perhaps the last result of the validator?
+        return Error(L"Unable to resolve file.");
+      });
 }
 
 struct OpenFileResolvePathOutput {
@@ -561,33 +525,32 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
     EditorState& editor_state, std::shared_ptr<std::vector<Path>> search_paths,
     std::optional<Path> path,
     std::shared_ptr<FileSystemDriver> file_system_driver) {
-  ResolvePathOptions resolve_path_options =
-      ResolvePathOptions::NewWithEmptySearchPaths(editor_state,
-                                                  file_system_driver);
+  ResolvePathOptions<EmptyValue> resolve_path_options =
+      ResolvePathOptions<EmptyValue>::NewWithEmptySearchPaths(
+          editor_state, file_system_driver);
   const NonNull<std::shared_ptr<OpenFileResolvePathOutput>> output;
-  resolve_path_options.validator = [&editor_state,
-                                    output](const Path& path_to_validate) {
-    return std::visit(
-        overload{
-            [](Error) { return futures::Past(false); },
-            [&](std::list<PathComponent> path_components) {
-              for (std::pair<BufferName, gc::Root<OpenBuffer>> buffer_pair :
-                   *editor_state.buffers()) {
-                gc::Root<OpenBuffer> buffer = buffer_pair.second;
-                auto buffer_path = Path::FromString(
-                    buffer.ptr()->Read(buffer_variables::path));
-                if (IsError(buffer_path)) continue;
-                ValueOrError<std::list<PathComponent>> buffer_components =
-                    std::get<Path>(buffer_path).DirectorySplit();
-                if (IsError(buffer_components)) continue;
-                if (EndsIn(path_components, std::get<0>(buffer_components))) {
-                  output->buffer = buffer;
-                  return futures::Past(true);
-                }
-              }
-              return futures::Past(false);
-            }},
-        path_to_validate.DirectorySplit());
+  resolve_path_options.validator =
+      [&editor_state, output](
+          const Path& path_to_validate) -> futures::ValueOrError<EmptyValue> {
+    return futures::Past(path_to_validate.DirectorySplit())
+        .Transform([&](std::list<PathComponent> path_components)
+                       -> futures::ValueOrError<EmptyValue> {
+          for (std::pair<BufferName, gc::Root<OpenBuffer>> buffer_pair :
+               *editor_state.buffers()) {
+            gc::Root<OpenBuffer> buffer = buffer_pair.second;
+            auto buffer_path =
+                Path::FromString(buffer.ptr()->Read(buffer_variables::path));
+            if (IsError(buffer_path)) continue;
+            ValueOrError<std::list<PathComponent>> buffer_components =
+                std::get<Path>(buffer_path).DirectorySplit();
+            if (IsError(buffer_components)) continue;
+            if (EndsIn(path_components, std::get<0>(buffer_components))) {
+              output->buffer = buffer;
+              return futures::Past(Success());
+            }
+          }
+          return futures::Past(Error(L"Unable to find buffer"));
+        });
   };
   if (path.has_value()) {
     resolve_path_options.path = path.value().read();
@@ -595,7 +558,7 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
 
   return OnError(
       ResolvePath(resolve_path_options)
-          .Transform([output](ResolvePathOutput input)
+          .Transform([output](ResolvePathOutput<EmptyValue> input)
                          -> futures::ValueOrError<OpenFileResolvePathOutput> {
             // If we're here, ResolvePath must have succeeded (otherwise this
             // would have been an error). This only succeeded if the validator
@@ -618,11 +581,11 @@ futures::ValueOrError<OpenFileResolvePathOutput> OpenFileResolvePath(
         CHECK(!output->buffer.has_value());
         auto resolve_path_options_copy = resolve_path_options;
         resolve_path_options_copy.search_paths = *search_paths;
-        resolve_path_options_copy.validator =
-            std::bind_front(CanStatPath, file_system_driver);
+        resolve_path_options_copy.validator = std::bind_front(
+            ResolvePathOptions<EmptyValue>::CanStatPath, file_system_driver);
         return ResolvePath(resolve_path_options_copy)
             .Transform([path, resolve_path_options_copy = resolve_path_options](
-                           ResolvePathOutput input) {
+                           ResolvePathOutput<EmptyValue> input) {
               return futures::Past(Success(OpenFileResolvePathOutput{
                   .path = input.path,
                   .position = input.position,
