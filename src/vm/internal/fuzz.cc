@@ -1,5 +1,6 @@
 #include <glog/logging.h>
 
+#include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
@@ -19,7 +20,10 @@ int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
 
   std::wstring error;
-  gc::Pool pool;
+  afc::language::gc::Pool pool(afc::language::gc::Pool::Options{
+      .collect_duration_threshold = std::nullopt,
+      .thread_pool =
+          std::make_shared<afc::concurrent::ThreadPool>(6, nullptr)});
   gc::Root<afc::vm::Environment> environment =
       pool.NewRoot(MakeNonNullUnique<afc::vm::Environment>());
   auto expr = afc::vm::CompileFile(
