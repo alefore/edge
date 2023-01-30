@@ -16,10 +16,13 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
     case VMType::Type::kVariant:
       if (std::get_if<types::Int>(&original.variant) != nullptr) {
         switch (desired.type) {
-          case VMType::Type::kDouble:
-            return [](gc::Pool& pool, gc::Root<Value> value) {
-              return Value::NewDouble(pool, value.ptr()->get_int());
-            };
+          case VMType::Type::kVariant:
+            if (std::get_if<types::Double>(&desired.variant) != nullptr) {
+              return [](gc::Pool& pool, gc::Root<Value> value) {
+                return Value::NewDouble(pool, value.ptr()->get_int());
+              };
+            }
+            return nullptr;
           default:
             return nullptr;
         }

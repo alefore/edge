@@ -159,10 +159,11 @@ ValueOrError<double> Value::ToDouble() const {
                    },
                    [&](const types::Symbol&) -> ValueOrError<double> {
                      return Error(L"Unable to convert to double: symbol");
+                   },
+                   [&](const types::Double&) -> ValueOrError<double> {
+                     return Success(get_double());
                    }},
           type.variant);
-    case VMType::Type::kDouble:
-      return Success(get_double());
     default:
       return Error(L"Unexpected value of type: " + type.ToString());
   }  // namespace afc::vm
@@ -179,9 +180,6 @@ Value::expand() const {
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   using ::operator<<;
   switch (value.type.type) {
-    case VMType::Type::kDouble:
-      os << value.get_double();
-      break;
     case VMType::Type::kVariant:
       std::visit(
           overload{[&](const types::Void&) { os << L"<void>"; },
@@ -194,7 +192,8 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                                NewLazyString(value.get_string()))
                                .CppRepresentation();
                    },
-                   [&](const types::Symbol&) { os << value.type.ToString(); }},
+                   [&](const types::Symbol&) { os << value.type.ToString(); },
+                   [&](const types::Double&) { os << value.get_double(); }},
           value.type.variant);
       break;
     default:

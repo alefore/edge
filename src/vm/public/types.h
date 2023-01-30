@@ -49,22 +49,24 @@ struct Bool {};
 struct Int {};
 struct String {};
 struct Symbol {};
+struct Double {};
 
 bool operator==(const Void&, const Void&);
 bool operator==(const Bool&, const Bool&);
 bool operator==(const Int&, const Int&);
 bool operator==(const String&, const String&);
 bool operator==(const Symbol&, const Symbol&);
+bool operator==(const Double&, const Double&);
 }  // namespace types
 
 using Type = std::variant<types::Void, types::Bool, types::Int, types::String,
-                          types::Symbol>;
+                          types::Symbol, types::Double>;
 
 VMTypeObjectTypeName NameForType(Type variant_type);
 
 // TODO(easy, 2022-12-07): Turn this into an std::variant.
 struct VMType {
-  enum class Type { kDouble, kFunction, kObject, kVariant };
+  enum class Type { kFunction, kObject, kVariant };
 
   VMType() = default;
   explicit VMType(const Type& t) : type(t) {}

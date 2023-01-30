@@ -80,17 +80,21 @@ VMTypeObjectTypeName NameForType(Type variant_type) {
                [](types::Bool) { return VMTypeObjectTypeName(L"bool"); },
                [](types::Int) { return VMTypeObjectTypeName(L"int"); },
                [](types::String) { return VMTypeObjectTypeName(L"string"); },
-               [](types::Symbol) { return VMTypeObjectTypeName(L"symbol"); }},
+               [](types::Symbol) { return VMTypeObjectTypeName(L"symbol"); },
+               [](types::Double) { return VMTypeObjectTypeName(L"double"); }},
       variant_type);
 }
 
 namespace types {
 bool operator==(const Void&, const Void&) { return true; }
 bool operator==(const Bool&, const Bool&) { return true; }
+bool operator==(const Int&, const Int&) { return true; }
+bool operator==(const String&, const String&) { return true; }
+bool operator==(const Symbol&, const Symbol&) { return true; }
+bool operator==(const Double&, const Double&) { return true; }
 }  // namespace types
 
 bool operator==(const VMType& lhs, const VMType& rhs) {
-  return types::Void() == types::Void();
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments &&
          lhs.function_purity == rhs.function_purity &&
          lhs.object_type == rhs.object_type && (lhs.variant == rhs.variant);
@@ -153,7 +157,8 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 
 /* static */ const VMType& VMType::Double() {
   static const VMType type = [] {
-    VMType output(VMType::Type::kDouble);
+    VMType output(VMType::Type::kVariant);
+    output.variant = types::Double();
     output.object_type = VMTypeObjectTypeName(L"double");
     return output;
   }();
@@ -182,8 +187,6 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
 
 wstring VMType::ToString() const {
   switch (type) {
-    case Type::kDouble:
-      return L"double";
     case Type::kFunction: {
       CHECK(!type_arguments.empty());
       const std::unordered_map<PurityType, std::wstring> function_purity_types =
@@ -208,7 +211,8 @@ wstring VMType::ToString() const {
                    [](const types::Bool&) { return L"bool"; },
                    [](const types::Int&) { return L"int"; },
                    [](const types::String&) { return L"string"; },
-                   [](const types::Symbol&) { return L"symbol"; }},
+                   [](const types::Symbol&) { return L"symbol"; },
+                   [](const types::Double&) { return L"double"; }},
           variant);
   }
   return L"unknown";
