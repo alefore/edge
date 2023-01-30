@@ -45,14 +45,19 @@ PurityType CombinePurityType(PurityType a, PurityType b);
 
 namespace types {
 struct Void {};
+struct Bool {};
+
+bool operator==(const Void&, const Void&);
+bool operator==(const Bool&, const Bool&);
 }  // namespace types
 
-using Type = std::variant<types::Void>;
+using Type = std::variant<types::Void, types::Bool>;
+
+VMTypeObjectTypeName NameForType(Type variant_type);
 
 // TODO(easy, 2022-12-07): Turn this into an std::variant.
 struct VMType {
   enum class Type {
-    kBool,
     kInt,
     kString,
     kSymbol,

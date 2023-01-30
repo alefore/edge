@@ -226,9 +226,6 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             case VMType::Type::kString:
               object_type_name = VMTypeObjectTypeName(L"string");
               break;
-            case VMType::Type::kBool:
-              object_type_name = VMTypeObjectTypeName(L"bool");
-              break;
             case VMType::Type::kDouble:
               object_type_name = VMTypeObjectTypeName(L"double");
               break;
@@ -237,6 +234,9 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
               break;
             case VMType::Type::kObject:
               object_type_name = type.object_type;
+              break;
+            case VMType::Type::kVariant:
+              object_type_name = NameForType(type.variant);
               break;
             default:
               errors.push_back(

@@ -158,6 +158,12 @@ Value::expand() const {
              : expand_callback();
 }
 
+std::wstring ToString(const types::Void&, const Value&) { return L"<void>"; }
+
+std::wstring ToString(const types::Bool&, const Value& value) {
+  return (value.get_bool() ? L"true" : L"false");
+}
+
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   using ::operator<<;
   switch (value.type.type) {
@@ -168,11 +174,12 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
       os << EscapedString::FromString(NewLazyString(value.get_string()))
                 .CppRepresentation();
       break;
-    case VMType::Type::kBool:
-      os << (value.get_bool() ? "true" : "false");
-      break;
     case VMType::Type::kDouble:
       os << value.get_double();
+      break;
+    case VMType::Type::kVariant:
+      os << std::visit([&](const auto& type) { return ToString(type, value); },
+                       value.type.variant);
       break;
     default:
       os << value.type.ToString();

@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "../public/value.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
@@ -20,6 +21,7 @@ namespace afc::vm {
 using language::FromByteString;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 
 namespace gc = language::gc;
 
@@ -72,10 +74,23 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value) {
   return os;
 }
 
+VMTypeObjectTypeName NameForType(Type variant_type) {
+  return std::visit(
+      overload{[](types::Bool) { return VMTypeObjectTypeName(L"bool"); },
+               [](types::Void) { return VMTypeObjectTypeName(L"void"); }},
+      variant_type);
+}
+
+namespace types {
+bool operator==(const Void&, const Void&) { return true; }
+bool operator==(const Bool&, const Bool&) { return true; }
+}  // namespace types
+
 bool operator==(const VMType& lhs, const VMType& rhs) {
+  return types::Void() == types::Void();
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments &&
          lhs.function_purity == rhs.function_purity &&
-         lhs.object_type == rhs.object_type;
+         lhs.object_type == rhs.object_type && (lhs.variant == rhs.variant);
 }
 
 std::ostream& operator<<(std::ostream& os, const VMType& type) {
@@ -85,6 +100,7 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Void() {
+  // TODO(trivial, 2023-01-30): Make `type` const.
   static VMType type(VMType::Type::kVariant);
   type.variant = types::Void();
   return type;
@@ -92,7 +108,8 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 
 /* static */ const VMType& VMType::Bool() {
   static VMType type = [] {
-    VMType output(VMType::Type::kBool);
+    VMType output(VMType::Type::kVariant);
+    type.variant = types::Bool();
     output.object_type = VMTypeObjectTypeName(L"bool");
     return output;
   }();
@@ -151,12 +168,8 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
   return output;
 }
 
-wstring ToStringBase(const types::Void&) { return L"void"; }
-
 wstring VMType::ToString() const {
   switch (type) {
-    case Type::kBool:
-      return L"bool";
     case Type::kInt:
       return L"int";
     case Type::kString:
@@ -184,7 +197,9 @@ wstring VMType::ToString() const {
     case Type::kObject:
       return object_type.read();
     case Type::kVariant:
-      return std::visit([](const auto& t) { return ToStringBase(t); }, variant);
+      return std::visit(overload{[](const types::Void&) { return L"void"; },
+                                 [](const types::Bool&) { return L"bool"; }},
+                        variant);
   }
   return L"unknown";
 }
