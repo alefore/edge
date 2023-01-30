@@ -102,16 +102,18 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Void() {
-  // TODO(trivial, 2023-01-30): Make `type` const.
-  static VMType type(VMType::Type::kVariant);
-  type.variant = types::Void();
+  static const VMType type = [] {
+    VMType output(VMType::Type::kVariant);
+    output.variant = types::Void();
+    return output;
+  }();
   return type;
 }
 
 /* static */ const VMType& VMType::Bool() {
-  static VMType type = [] {
+  static const VMType type = [] {
     VMType output(VMType::Type::kVariant);
-    type.variant = types::Bool();
+    output.variant = types::Bool();
     output.object_type = VMTypeObjectTypeName(L"bool");
     return output;
   }();
@@ -119,9 +121,9 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Int() {
-  static VMType type = [] {
+  static const VMType type = [] {
     VMType output(VMType::Type::kVariant);
-    type.variant = types::Int();
+    output.variant = types::Int();
     output.object_type = VMTypeObjectTypeName(L"int");
     return output;
   }();
@@ -129,9 +131,9 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::String() {
-  static VMType type = [] {
+  static const VMType type = [] {
     VMType output(VMType::Type::kVariant);
-    type.variant = types::String();
+    output.variant = types::String();
     output.object_type = VMTypeObjectTypeName(L"string");
     return output;
   }();
@@ -139,12 +141,12 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Symbol() {
-  static VMType type(VMType::Type::kSymbol);
+  static const VMType type(VMType::Type::kSymbol);
   return type;
 }
 
 /* static */ const VMType& VMType::Double() {
-  static VMType type = [] {
+  static const VMType type = [] {
     VMType output(VMType::Type::kDouble);
     output.object_type = VMTypeObjectTypeName(L"double");
     return output;
