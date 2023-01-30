@@ -2,6 +2,7 @@
 
 #include "../public/vm.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 #include "src/vm/public/escape.h"
@@ -10,6 +11,7 @@ namespace afc::vm {
 using language::Error;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::Success;
 using language::ValueOrError;
 using language::lazy_string::NewLazyString;
@@ -141,13 +143,23 @@ Value::Callback Value::LockCallback() {
 
 ValueOrError<double> Value::ToDouble() const {
   switch (type.type) {
-    case VMType::Type::kInt:
-      return Success(static_cast<double>(get_int()));
+    case VMType::Type::kVariant:
+      return std::visit(
+          overload{[](const types::Void&) -> ValueOrError<double> {
+                     return Error(L"Unable to convert to double: void");
+                   },
+                   [](const types::Bool&) -> ValueOrError<double> {
+                     return Error(L"Unable to convert to double: book");
+                   },
+                   [&](const types::Int&) -> ValueOrError<double> {
+                     return Success(static_cast<double>(get_int()));
+                   }},
+          type.variant);
     case VMType::Type::kDouble:
       return Success(get_double());
     default:
       return Error(L"Unexpected value of type: " + type.ToString());
-  }
+  }  // namespace afc::vm
 }
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
@@ -158,18 +170,9 @@ Value::expand() const {
              : expand_callback();
 }
 
-std::wstring ToString(const types::Void&, const Value&) { return L"<void>"; }
-
-std::wstring ToString(const types::Bool&, const Value& value) {
-  return (value.get_bool() ? L"true" : L"false");
-}
-
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   using ::operator<<;
   switch (value.type.type) {
-    case VMType::Type::kInt:
-      os << value.get_int();
-      break;
     case VMType::Type::kString:
       os << EscapedString::FromString(NewLazyString(value.get_string()))
                 .CppRepresentation();
@@ -178,8 +181,14 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
       os << value.get_double();
       break;
     case VMType::Type::kVariant:
-      os << std::visit([&](const auto& type) { return ToString(type, value); },
-                       value.type.variant);
+      std::visit(overload{
+                     [&](const types::Void&) { os << L"<void>"; },
+                     [&](const types::Bool&) {
+                       os << (value.get_bool() ? L"true" : L"false");
+                     },
+                     [&](const types::Int&) { os << value.get_int(); },
+                 },
+                 value.type.variant);
       break;
     default:
       os << value.type.ToString();

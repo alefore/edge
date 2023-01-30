@@ -229,9 +229,6 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             case VMType::Type::kDouble:
               object_type_name = VMTypeObjectTypeName(L"double");
               break;
-            case VMType::Type::kInt:
-              object_type_name = VMTypeObjectTypeName(L"int");
-              break;
             case VMType::Type::kObject:
               object_type_name = type.object_type;
               break;
