@@ -149,10 +149,13 @@ ValueOrError<double> Value::ToDouble() const {
                      return Error(L"Unable to convert to double: void");
                    },
                    [](const types::Bool&) -> ValueOrError<double> {
-                     return Error(L"Unable to convert to double: book");
+                     return Error(L"Unable to convert to double: bool");
                    },
                    [&](const types::Int&) -> ValueOrError<double> {
                      return Success(static_cast<double>(get_int()));
+                   },
+                   [&](const types::String&) -> ValueOrError<double> {
+                     return Error(L"Unable to convert to double: string");
                    }},
           type.variant);
     case VMType::Type::kDouble:
@@ -173,21 +176,20 @@ Value::expand() const {
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   using ::operator<<;
   switch (value.type.type) {
-    case VMType::Type::kString:
-      os << EscapedString::FromString(NewLazyString(value.get_string()))
-                .CppRepresentation();
-      break;
     case VMType::Type::kDouble:
       os << value.get_double();
       break;
     case VMType::Type::kVariant:
-      std::visit(overload{
-                     [&](const types::Void&) { os << L"<void>"; },
-                     [&](const types::Bool&) {
-                       os << (value.get_bool() ? L"true" : L"false");
-                     },
-                     [&](const types::Int&) { os << value.get_int(); },
-                 },
+      std::visit(overload{[&](const types::Void&) { os << L"<void>"; },
+                          [&](const types::Bool&) {
+                            os << (value.get_bool() ? L"true" : L"false");
+                          },
+                          [&](const types::Int&) { os << value.get_int(); },
+                          [&](const types::String&) {
+                            os << EscapedString::FromString(
+                                      NewLazyString(value.get_string()))
+                                      .CppRepresentation();
+                          }},
                  value.type.variant);
       break;
     default:

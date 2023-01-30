@@ -78,7 +78,8 @@ VMTypeObjectTypeName NameForType(Type variant_type) {
   return std::visit(
       overload{[](types::Void) { return VMTypeObjectTypeName(L"void"); },
                [](types::Bool) { return VMTypeObjectTypeName(L"bool"); },
-               [](types::Int) { return VMTypeObjectTypeName(L"int"); }},
+               [](types::Int) { return VMTypeObjectTypeName(L"int"); },
+               [](types::String) { return VMTypeObjectTypeName(L"string"); }},
       variant_type);
 }
 
@@ -129,7 +130,8 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 
 /* static */ const VMType& VMType::String() {
   static VMType type = [] {
-    VMType output(VMType::Type::kString);
+    VMType output(VMType::Type::kVariant);
+    type.variant = types::String();
     output.object_type = VMTypeObjectTypeName(L"string");
     return output;
   }();
@@ -172,8 +174,6 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
 
 wstring VMType::ToString() const {
   switch (type) {
-    case Type::kString:
-      return L"string";
     case Type::kSymbol:
       return L"symbol";
     case Type::kDouble:
@@ -197,10 +197,12 @@ wstring VMType::ToString() const {
     case Type::kObject:
       return object_type.read();
     case Type::kVariant:
-      return std::visit(overload{[](const types::Void&) { return L"void"; },
-                                 [](const types::Bool&) { return L"bool"; },
-                                 [](const types::Int&) { return L"int"; }},
-                        variant);
+      return std::visit(
+          overload{[](const types::Void&) { return L"void"; },
+                   [](const types::Bool&) { return L"bool"; },
+                   [](const types::Int&) { return L"int"; },
+                   [](const types::String&) { return L"string"; }},
+          variant);
   }
   return L"unknown";
 }

@@ -47,19 +47,21 @@ namespace types {
 struct Void {};
 struct Bool {};
 struct Int {};
+struct String {};
 
 bool operator==(const Void&, const Void&);
 bool operator==(const Bool&, const Bool&);
 bool operator==(const Int&, const Int&);
+bool operator==(const String&, const String&);
 }  // namespace types
 
-using Type = std::variant<types::Void, types::Bool, types::Int>;
+using Type = std::variant<types::Void, types::Bool, types::Int, types::String>;
 
 VMTypeObjectTypeName NameForType(Type variant_type);
 
 // TODO(easy, 2022-12-07): Turn this into an std::variant.
 struct VMType {
-  enum class Type { kString, kSymbol, kDouble, kFunction, kObject, kVariant };
+  enum class Type { kSymbol, kDouble, kFunction, kObject, kVariant };
 
   VMType() = default;
   explicit VMType(const Type& t) : type(t) {}
