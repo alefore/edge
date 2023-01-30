@@ -156,6 +156,9 @@ ValueOrError<double> Value::ToDouble() const {
                    },
                    [&](const types::String&) -> ValueOrError<double> {
                      return Error(L"Unable to convert to double: string");
+                   },
+                   [&](const types::Symbol&) -> ValueOrError<double> {
+                     return Error(L"Unable to convert to double: symbol");
                    }},
           type.variant);
     case VMType::Type::kDouble:
@@ -180,17 +183,19 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
       os << value.get_double();
       break;
     case VMType::Type::kVariant:
-      std::visit(overload{[&](const types::Void&) { os << L"<void>"; },
-                          [&](const types::Bool&) {
-                            os << (value.get_bool() ? L"true" : L"false");
-                          },
-                          [&](const types::Int&) { os << value.get_int(); },
-                          [&](const types::String&) {
-                            os << EscapedString::FromString(
-                                      NewLazyString(value.get_string()))
-                                      .CppRepresentation();
-                          }},
-                 value.type.variant);
+      std::visit(
+          overload{[&](const types::Void&) { os << L"<void>"; },
+                   [&](const types::Bool&) {
+                     os << (value.get_bool() ? L"true" : L"false");
+                   },
+                   [&](const types::Int&) { os << value.get_int(); },
+                   [&](const types::String&) {
+                     os << EscapedString::FromString(
+                               NewLazyString(value.get_string()))
+                               .CppRepresentation();
+                   },
+                   [&](const types::Symbol&) { os << value.type.ToString(); }},
+          value.type.variant);
       break;
     default:
       os << value.type.ToString();
