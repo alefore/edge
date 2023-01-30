@@ -43,17 +43,23 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value);
 // depends on both.
 PurityType CombinePurityType(PurityType a, PurityType b);
 
+namespace types {
+struct Void {};
+}  // namespace types
+
+using Type = std::variant<types::Void>;
+
 // TODO(easy, 2022-12-07): Turn this into an std::variant.
 struct VMType {
   enum class Type {
-    kVoid,
     kBool,
     kInt,
     kString,
     kSymbol,
     kDouble,
     kFunction,
-    kObject
+    kObject,
+    kVariant
   };
 
   VMType() = default;
@@ -73,7 +79,7 @@ struct VMType {
 
   wstring ToString() const;
 
-  Type type = Type::kVoid;
+  Type type = Type::kVariant;
   // When type is FUNCTION, this contains the types. The first element is the
   // return type of the callback. Subsequent elements are the types of the
   // elements expected by the callback.
@@ -81,6 +87,7 @@ struct VMType {
   PurityType function_purity = PurityType::kUnknown;
 
   VMTypeObjectTypeName object_type;
+  vm::Type variant = types::Void{};
 };
 
 wstring TypesToString(const std::vector<VMType>& types);

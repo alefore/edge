@@ -85,7 +85,8 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Void() {
-  static VMType type(VMType::Type::kVoid);
+  static VMType type(VMType::Type::kVariant);
+  type.variant = types::Void();
   return type;
 }
 
@@ -150,10 +151,10 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
   return output;
 }
 
+wstring ToStringBase(const types::Void&) { return L"void"; }
+
 wstring VMType::ToString() const {
   switch (type) {
-    case Type::kVoid:
-      return L"void";
     case Type::kBool:
       return L"bool";
     case Type::kInt:
@@ -182,6 +183,8 @@ wstring VMType::ToString() const {
     }
     case Type::kObject:
       return object_type.read();
+    case Type::kVariant:
+      return std::visit([](const auto& t) { return ToStringBase(t); }, variant);
   }
   return L"unknown";
 }
