@@ -15,10 +15,9 @@ using language::NonNull;
 namespace gc = language::gc;
 namespace vm {
 template <>
-const VMType VMTypeMapper<
-    NonNull<std::shared_ptr<editor::transformation::Repetitions>>>::vmtype =
-    VMType::ObjectType(
-        VMTypeObjectTypeName(L"RepetitionsTransformationBuilder"));
+const VMTypeObjectTypeName VMTypeMapper<NonNull<
+    std::shared_ptr<editor::transformation::Repetitions>>>::object_type_name =
+    VMTypeObjectTypeName(L"RepetitionsTransformationBuilder");
 }  // namespace vm
 namespace editor::transformation {
 futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {

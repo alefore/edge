@@ -4,9 +4,10 @@
 // module:
 //
 //     template <>
-//     const VMType
-//     VMTypeMapper<NonNull<std::shared_ptr<std::vector<MyType>>>>::vmtype =
-//         VMType::ObjectType(L"VectorMyType");
+//     const VMTypeObjectTypeName
+//     VMTypeMapper<NonNull<std::shared_ptr<std::vector<MyType>>>>
+//         ::object_type_name =
+//         VMTypeObjectTypeName(L"VectorMyType");
 //
 // Then initialize it in an environment:
 //
@@ -22,6 +23,7 @@
 
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
+#include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -83,16 +85,18 @@ template <typename Container>
 void Export(language::gc::Pool& pool, Environment& environment) {
   using T = Traits<Container>;
   using ContainerPtr = T::ContainerPtr;
-  const VMType& vmtype = VMTypeMapper<ContainerPtr>::vmtype;
+  const VMTypeObjectTypeName& object_type_name =
+      VMTypeMapper<ContainerPtr>::object_type_name;
+  const VMType vmtype = VMType::ObjectType(object_type_name);
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
   environment.Define(
-      vmtype.object_type.read(),
+      object_type_name.read(),
       Value::NewFunction(pool, PurityType::kPure, {vmtype},
                          [&pool](std::vector<language::gc::Root<Value>> args) {
                            CHECK(args.empty());
                            return Value::NewObject(
-                               pool, vmtype.object_type,
+                               pool, object_type_name,
                                language::MakeNonNullShared<Container>());
                          }));
 
@@ -109,19 +113,19 @@ void Export(language::gc::Pool& pool, Environment& environment) {
       L"get",
       Value::NewFunction(
           pool, PurityType::kPure,
-          {VMTypeMapper<typename Container::value_type>::vmtype, vmtype,
+          {GetVMType<typename Container::value_type>::vmtype(), vmtype,
            VMType::Int()},
-          [](std::vector<language::gc::Root<Value>> args,
-             Trampoline& trampoline)
+          [object_type_name](std::vector<language::gc::Root<Value>> args,
+                             Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
             auto v = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
             int index = args[1].ptr()->get_int();
             if (index < 0 || static_cast<size_t>(index) >= v->size()) {
-              return futures::Past(
-                  language::Error(vmtype.ToString() + L": Index out of range " +
-                                  std::to_wstring(index) + L" (size: " +
-                                  std::to_wstring(v->size()) + L")"));
+              return futures::Past(language::Error(
+                  object_type_name.read() + L": Index out of range " +
+                  std::to_wstring(index) + L" (size: " +
+                  std::to_wstring(v->size()) + L")"));
             }
             return futures::Past(language::Success(EvaluationOutput::New(
                 VMTypeMapper<typename Container::value_type>::New(

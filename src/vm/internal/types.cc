@@ -8,9 +8,52 @@
 #include "src/tests/tests.h"
 
 namespace std {
+template <>
+struct hash<afc::vm::types::Void> {
+  size_t operator()(const afc::vm::types::Void&) const { return 0; }
+};
+
+template <>
+struct hash<afc::vm::types::Bool> {
+  size_t operator()(const afc::vm::types::Bool&) const { return 0; }
+};
+
+template <>
+struct hash<afc::vm::types::Int> {
+  size_t operator()(const afc::vm::types::Int&) const { return 0; }
+};
+
+template <>
+struct hash<afc::vm::types::String> {
+  size_t operator()(const afc::vm::types::String&) const { return 0; }
+};
+
+template <>
+struct hash<afc::vm::types::Symbol> {
+  size_t operator()(const afc::vm::types::Symbol&) const { return 0; }
+};
+
+template <>
+struct hash<afc::vm::types::Double> {
+  size_t operator()(const afc::vm::types::Double&) const { return 0; }
+};
+
+template <>
+struct hash<afc::vm::types::Object> {
+  size_t operator()(const afc::vm::types::Object& object) const {
+    return std::hash<afc::vm::VMTypeObjectTypeName>()(object.object_type_name);
+  }
+};
+
 size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
-  size_t output = hash<size_t>()(static_cast<size_t>(x.type)) ^
-                  hash<afc::vm::VMTypeObjectTypeName>()(x.object_type);
+  size_t output =
+      hash<size_t>()(static_cast<size_t>(x.type)) ^
+      std::visit(
+          [](const auto& t) {
+            return hash<typename std::remove_const<
+                typename std::remove_reference<decltype(t)>::type>::type>()(t);
+          },
+          x.variant);
   for (const auto& a : x.type_arguments) {
     output ^= hash()(a);
   }
@@ -76,12 +119,15 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value) {
 
 VMTypeObjectTypeName NameForType(Type variant_type) {
   return std::visit(
-      overload{[](types::Void) { return VMTypeObjectTypeName(L"void"); },
-               [](types::Bool) { return VMTypeObjectTypeName(L"bool"); },
-               [](types::Int) { return VMTypeObjectTypeName(L"int"); },
-               [](types::String) { return VMTypeObjectTypeName(L"string"); },
-               [](types::Symbol) { return VMTypeObjectTypeName(L"symbol"); },
-               [](types::Double) { return VMTypeObjectTypeName(L"double"); }},
+      overload{
+          [](const types::Void&) { return VMTypeObjectTypeName(L"void"); },
+          [](const types::Bool&) { return VMTypeObjectTypeName(L"bool"); },
+          [](const types::Int&) { return VMTypeObjectTypeName(L"int"); },
+          [](const types::String&) { return VMTypeObjectTypeName(L"string"); },
+          [](const types::Symbol&) { return VMTypeObjectTypeName(L"symbol"); },
+          [](const types::Double&) { return VMTypeObjectTypeName(L"double"); },
+          [](const types::Object& object) { return object.object_type_name; },
+      },
       variant_type);
 }
 
@@ -92,12 +138,22 @@ bool operator==(const Int&, const Int&) { return true; }
 bool operator==(const String&, const String&) { return true; }
 bool operator==(const Symbol&, const Symbol&) { return true; }
 bool operator==(const Double&, const Double&) { return true; }
+bool operator==(const Object& a, const Object& b) {
+  return a.object_type_name == b.object_type_name;
+}
 }  // namespace types
 
 bool operator==(const VMType& lhs, const VMType& rhs) {
-  return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments &&
-         lhs.function_purity == rhs.function_purity &&
-         lhs.object_type == rhs.object_type && (lhs.variant == rhs.variant);
+  if (lhs.type != rhs.type) return false;
+  switch (lhs.type) {
+    case VMType::Type::kFunction:
+      return lhs.type_arguments == rhs.type_arguments &&
+             lhs.function_purity == rhs.function_purity;
+    case VMType::Type::kVariant:
+      return lhs.variant == rhs.variant;
+  }
+  LOG(FATAL) << "Invalid type";
+  return false;
 }
 
 std::ostream& operator<<(std::ostream& os, const VMType& type) {
@@ -119,7 +175,6 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   static const VMType type = [] {
     VMType output(VMType::Type::kVariant);
     output.variant = types::Bool();
-    output.object_type = VMTypeObjectTypeName(L"bool");
     return output;
   }();
   return type;
@@ -129,7 +184,6 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   static const VMType type = [] {
     VMType output(VMType::Type::kVariant);
     output.variant = types::Int();
-    output.object_type = VMTypeObjectTypeName(L"int");
     return output;
   }();
   return type;
@@ -139,7 +193,6 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   static const VMType type = [] {
     VMType output(VMType::Type::kVariant);
     output.variant = types::String();
-    output.object_type = VMTypeObjectTypeName(L"string");
     return output;
   }();
   return type;
@@ -149,7 +202,6 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   static const VMType type = [] {
     VMType output(VMType::Type::kVariant);
     output.variant = types::Symbol();
-    output.object_type = VMTypeObjectTypeName(L"symbol");
     return output;
   }();
   return type;
@@ -159,7 +211,6 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   static const VMType type = [] {
     VMType output(VMType::Type::kVariant);
     output.variant = types::Double();
-    output.object_type = VMTypeObjectTypeName(L"double");
     return output;
   }();
   return type;
@@ -180,8 +231,8 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
 }
 
 /* static */ VMType VMType::ObjectType(VMTypeObjectTypeName name) {
-  VMType output(VMType::Type::kObject);
-  output.object_type = name;
+  VMType output(VMType::Type::kVariant);
+  output.variant = types::Object{.object_type_name = std::move(name)};
   return output;
 }
 
@@ -203,16 +254,18 @@ wstring VMType::ToString() const {
       output += L")>";
       return output;
     }
-    case Type::kObject:
-      return object_type.read();
     case Type::kVariant:
       return std::visit(
-          overload{[](const types::Void&) { return L"void"; },
-                   [](const types::Bool&) { return L"bool"; },
-                   [](const types::Int&) { return L"int"; },
-                   [](const types::String&) { return L"string"; },
-                   [](const types::Symbol&) { return L"symbol"; },
-                   [](const types::Double&) { return L"double"; }},
+          overload{
+              [](const types::Void&) -> std::wstring { return L"void"; },
+              [](const types::Bool&) -> std::wstring { return L"bool"; },
+              [](const types::Int&) -> std::wstring { return L"int"; },
+              [](const types::String&) -> std::wstring { return L"string"; },
+              [](const types::Symbol&) -> std::wstring { return L"symbol"; },
+              [](const types::Double&) -> std::wstring { return L"double"; },
+              [](const types::Object& object) -> std::wstring {
+                return object.object_type_name.read();
+              }},
           variant);
   }
   return L"unknown";
@@ -233,10 +286,14 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
   return output;
 }
 
-/* static */ language::gc::Root<ObjectType> ObjectType::New(gc::Pool& pool,
-                                                            VMType type) {
+/* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, VMType type) {
   return pool.NewRoot(
       MakeNonNullUnique<ObjectType>(std::move(type), ConstructorAccessKey()));
+}
+
+/* static */ gc::Root<ObjectType> ObjectType::New(
+    gc::Pool& pool, VMTypeObjectTypeName object_type_name) {
+  return New(pool, VMType::ObjectType(object_type_name));
 }
 
 ObjectType::ObjectType(const VMType& type, ConstructorAccessKey)

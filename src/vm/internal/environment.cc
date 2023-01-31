@@ -21,12 +21,14 @@ using language::NonNull;
 namespace gc = language::gc;
 
 template <>
-const VMType VMTypeMapper<NonNull<std::shared_ptr<std::vector<int>>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"VectorInt"));
+const VMTypeObjectTypeName
+    VMTypeMapper<NonNull<std::shared_ptr<std::vector<int>>>>::object_type_name =
+        VMTypeObjectTypeName(L"VectorInt");
 
 template <>
-const VMType VMTypeMapper<NonNull<std::shared_ptr<std::set<int>>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"SetInt"));
+const VMTypeObjectTypeName
+    VMTypeMapper<NonNull<std::shared_ptr<std::set<int>>>>::object_type_name =
+        VMTypeObjectTypeName(L"SetInt");
 }  // namespace
 
 language::gc::Root<Environment> Environment::NewDefault(
@@ -163,8 +165,8 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
 }
 
 void Environment::DefineType(gc::Ptr<ObjectType> value) {
-  VMTypeObjectTypeName name = value->type().object_type;
-  object_types_.insert_or_assign(name, std::move(value));
+  object_types_.insert_or_assign(NameForType(value->type().variant),
+                                 std::move(value));
 }
 
 std::optional<gc::Root<Value>> Environment::Lookup(

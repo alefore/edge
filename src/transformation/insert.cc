@@ -20,9 +20,9 @@ using language::lazy_string::ColumnNumberDelta;
 namespace gc = language::gc;
 namespace vm {
 template <>
-const VMType VMTypeMapper<
-    NonNull<std::shared_ptr<editor::transformation::Insert>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"InsertTransformationBuilder"));
+const VMTypeObjectTypeName VMTypeMapper<NonNull<
+    std::shared_ptr<editor::transformation::Insert>>>::object_type_name =
+    VMTypeObjectTypeName(L"InsertTransformationBuilder");
 }  // namespace vm
 namespace editor::transformation {
 using language::MakeNonNullShared;
@@ -110,9 +110,9 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   using vm::PurityType;
   using vm::VMTypeMapper;
   gc::Root<ObjectType> builder = ObjectType::New(
-      pool, VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::vmtype);
+      pool, VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name);
   environment.Define(
-      builder.ptr()->type().object_type.read(),
+      VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name.read(),
       vm::NewCallback(pool, PurityType::kPure, MakeNonNullShared<Insert>));
 
   builder.ptr()->AddField(

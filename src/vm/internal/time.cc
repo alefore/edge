@@ -33,35 +33,35 @@ struct Duration {
 template <>
 struct VMTypeMapper<Time> {
   static Time get(Value& value) {
-    return value.get_user_value<Time>(vmtype).value();
+    return value.get_user_value<Time>(object_type_name).value();
   }
 
   static gc::Root<Value> New(language::gc::Pool& pool, Time value) {
-    return Value::NewObject(pool, vmtype.object_type,
+    return Value::NewObject(pool, object_type_name,
                             MakeNonNullShared<Time>(value));
   }
 
-  static const VMType vmtype;
+  static const VMTypeObjectTypeName object_type_name;
 };
 
 template <>
 struct VMTypeMapper<Duration> {
   static Duration get(Value& value) {
-    return value.get_user_value<Duration>(vmtype).value();
+    return value.get_user_value<Duration>(object_type_name).value();
   }
 
   static gc::Root<Value> New(language::gc::Pool& pool, Duration value) {
-    return Value::NewObject(pool, vmtype.object_type,
+    return Value::NewObject(pool, object_type_name,
                             MakeNonNullShared<Duration>(value));
   }
 
-  static const VMType vmtype;
+  static const VMTypeObjectTypeName object_type_name;
 };
 
-const VMType VMTypeMapper<Time>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"Time"));
-const VMType VMTypeMapper<Duration>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"Duration"));
+const VMTypeObjectTypeName VMTypeMapper<Time>::object_type_name =
+    VMTypeObjectTypeName(L"Time");
+const VMTypeObjectTypeName VMTypeMapper<Duration>::object_type_name =
+    VMTypeObjectTypeName(L"Duration");
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, gc::Pool& pool,
@@ -72,7 +72,7 @@ void AddMethod(const wstring& name, gc::Pool& pool,
 
 void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> time_type =
-      ObjectType::New(pool, VMTypeMapper<Time>::vmtype);
+      ObjectType::New(pool, VMTypeMapper<Time>::object_type_name);
   time_type.ptr()->AddField(
       L"tostring",
       vm::NewCallback(pool, PurityType::kPure,
@@ -159,7 +159,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           }));
 
   gc::Root<ObjectType> duration_type =
-      ObjectType::New(pool, VMTypeMapper<Duration>::vmtype);
+      ObjectType::New(pool, VMTypeMapper<Duration>::object_type_name);
   duration_type.ptr()->AddField(
       L"days", vm::NewCallback(pool, PurityType::kPure,
                                std::function<int(Duration)>([](Duration input) {

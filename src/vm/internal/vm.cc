@@ -651,6 +651,7 @@ bool Expression::SupportsType(const VMType& type) {
     return true;
   }
   for (auto& source : types) {
+    CHECK(!(source == type));
     if (GetImplicitPromotion(source, type) != nullptr) return true;
   }
   return false;

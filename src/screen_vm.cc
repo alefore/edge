@@ -30,8 +30,9 @@ namespace gc = language::gc;
 
 namespace vm {
 template <>
-const VMType VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"Screen"));
+const VMTypeObjectTypeName
+    VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::object_type_name =
+        VMTypeObjectTypeName(L"Screen");
 }  // namespace vm
 namespace editor {
 using infrastructure::FileDescriptor;
@@ -122,7 +123,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
   gc::Pool& pool = editor.gc_pool();
 
   gc::Root<ObjectType> screen_type = ObjectType::New(
-      pool, VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::vmtype);
+      pool, VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::object_type_name);
 
   // Constructors.
   environment.Define(
@@ -138,13 +139,11 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
             return editor.thread_pool()
                 .Run([path] { return SyncConnectToServer(path); })
                 .Transform([&pool](FileDescriptor fd) {
-                  return futures::Past(
-                      Success(EvaluationOutput::Return(Value::NewObject(
-                          pool,
-                          VMTypeMapper<
-                              NonNull<std::shared_ptr<editor::Screen>>>::vmtype
-                              .object_type,
-                          MakeNonNullShared<ScreenVm>(fd)))));
+                  return futures::Past(Success(EvaluationOutput::Return(
+                      Value::NewObject(pool,
+                                       VMTypeMapper<NonNull<std::shared_ptr<
+                                           editor::Screen>>>::object_type_name,
+                                       MakeNonNullShared<ScreenVm>(fd)))));
                 });
           }));
 
@@ -221,7 +220,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       Value::NewFunction(
           pool, PurityType::kUnknown,
           {VMType::Void(), screen_type.ptr()->type(),
-           VMTypeMapper<LineColumnDelta>::vmtype},
+           VMType::ObjectType(VMTypeMapper<LineColumnDelta>::object_type_name)},
           [&pool](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2ul);
             return futures::Past(VisitPointer(
@@ -256,8 +255,9 @@ std::unique_ptr<Screen> NewScreenVm(FileDescriptor fd) {
   return std::make_unique<ScreenVm>(fd);
 }
 
-const VMType& GetScreenVmType() {
-  return vm::VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::vmtype;
+const vm::VMTypeObjectTypeName& GetScreenVmType() {
+  return vm::VMTypeMapper<
+      NonNull<std::shared_ptr<editor::Screen>>>::object_type_name;
 }
 
 }  // namespace editor

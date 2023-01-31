@@ -18,14 +18,14 @@ namespace gc = language::gc;
 
 namespace vm {
 template <>
-const VMType VMTypeMapper<
-    NonNull<std::shared_ptr<editor::CompositeTransformation::Output>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"TransformationOutput"));
+const VMTypeObjectTypeName VMTypeMapper<NonNull<std::shared_ptr<
+    editor::CompositeTransformation::Output>>>::object_type_name =
+    VMTypeObjectTypeName(L"TransformationOutput");
 
 template <>
-const VMType VMTypeMapper<
-    NonNull<std::shared_ptr<editor::CompositeTransformation::Input>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"TransformationInput"));
+const VMTypeObjectTypeName VMTypeMapper<NonNull<std::shared_ptr<
+    editor::CompositeTransformation::Input>>>::object_type_name =
+    VMTypeObjectTypeName(L"TransformationInput");
 }  // namespace vm
 namespace editor {
 namespace transformation {
@@ -120,9 +120,8 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
   using vm::VMTypeMapper;
 
   gc::Root<ObjectType> input_type = ObjectType::New(
-      pool,
-      VMTypeMapper<NonNull<
-          std::shared_ptr<editor::CompositeTransformation::Input>>>::vmtype);
+      pool, VMTypeMapper<NonNull<std::shared_ptr<
+                editor::CompositeTransformation::Input>>>::object_type_name);
 
   input_type.ptr()->AddField(
       L"position",
@@ -152,12 +151,12 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
   environment.DefineType(input_type.ptr());
 
   gc::Root<ObjectType> output_type = ObjectType::New(
-      pool,
-      VMTypeMapper<NonNull<
-          std::shared_ptr<editor::CompositeTransformation::Output>>>::vmtype);
+      pool, VMTypeMapper<NonNull<std::shared_ptr<
+                editor::CompositeTransformation::Output>>>::object_type_name);
 
   environment.Define(
-      output_type.ptr()->type().object_type.read(),
+      VMTypeMapper<NonNull<std::shared_ptr<
+          editor::CompositeTransformation::Output>>>::object_type_name.read(),
       vm::NewCallback(pool, PurityType::kPure,
                       MakeNonNullShared<CompositeTransformation::Output>));
 

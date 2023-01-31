@@ -136,7 +136,9 @@ PossibleError FinishClassDeclaration(
                       L"Unexpected: return (inside class declaration).");
                 case EvaluationOutput::OutputType::kContinue:
                   return Success(EvaluationOutput::New(Value::NewObject(
-                      trampoline.pool(), class_type.object_type,
+                      trampoline.pool(),
+                      std::get<types::Object>(class_type.variant)
+                          .object_type_name,
                       MakeNonNullShared<Instance>(
                           Instance{.environment = instance_environment}))));
               }
@@ -147,8 +149,9 @@ PossibleError FinishClassDeclaration(
       });
   constructor.ptr()->type.function_purity = purity;
 
-  compilation.environment.ptr()->Define(class_type.object_type.read(),
-                                        std::move(constructor));
+  compilation.environment.ptr()->Define(
+      std::get<types::Object>(class_type.variant).object_type_name.read(),
+      std::move(constructor));
   return Success();
 }
 

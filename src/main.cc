@@ -284,10 +284,12 @@ void RedrawScreens(const CommandLineValues& args,
   for (auto& buffer : *editor_state().buffers()) {
     static const afc::vm::Namespace kEmptyNamespace;
     std::optional<gc::Root<afc::vm::Value>> value =
-        buffer.second.ptr()->environment()->Lookup(editor_state().gc_pool(),
-                                                   kEmptyNamespace, L"screen",
-                                                   GetScreenVmType());
-    if (!value.has_value() || value.value().ptr()->type != GetScreenVmType()) {
+        buffer.second.ptr()->environment()->Lookup(
+            editor_state().gc_pool(), kEmptyNamespace, L"screen",
+            afc::vm::VMType::ObjectType(GetScreenVmType()));
+    if (!value.has_value() ||
+        value.value().ptr()->type !=
+            afc::vm::VMType::ObjectType(GetScreenVmType())) {
       continue;
     }
     auto buffer_screen =
@@ -372,9 +374,9 @@ int main(int argc, const char** argv) {
       screen_curses,
       [](NonNull<std::shared_ptr<Screen>> input_screen_curses) {
         editor_state().environment().ptr()->Define(
-            L"screen", afc::vm::Value::NewObject(editor_state().gc_pool(),
-                                                 GetScreenVmType().object_type,
-                                                 input_screen_curses));
+            L"screen",
+            afc::vm::Value::NewObject(editor_state().gc_pool(),
+                                      GetScreenVmType(), input_screen_curses));
       },
       [] {});
 

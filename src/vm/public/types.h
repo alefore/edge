@@ -50,6 +50,9 @@ struct Int {};
 struct String {};
 struct Symbol {};
 struct Double {};
+struct Object {
+  VMTypeObjectTypeName object_type_name;
+};
 
 bool operator==(const Void&, const Void&);
 bool operator==(const Bool&, const Bool&);
@@ -57,16 +60,17 @@ bool operator==(const Int&, const Int&);
 bool operator==(const String&, const String&);
 bool operator==(const Symbol&, const Symbol&);
 bool operator==(const Double&, const Double&);
+bool operator==(const Object&, const Object&);
 }  // namespace types
 
 using Type = std::variant<types::Void, types::Bool, types::Int, types::String,
-                          types::Symbol, types::Double>;
+                          types::Symbol, types::Double, types::Object>;
 
 VMTypeObjectTypeName NameForType(Type variant_type);
 
 // TODO(easy, 2022-12-07): Turn this into an std::variant.
 struct VMType {
-  enum class Type { kFunction, kObject, kVariant };
+  enum class Type { kFunction, kVariant };
 
   VMType() = default;
   explicit VMType(const Type& t) : type(t) {}
@@ -92,7 +96,6 @@ struct VMType {
   vector<VMType> type_arguments;
   PurityType function_purity = PurityType::kUnknown;
 
-  VMTypeObjectTypeName object_type;
   vm::Type variant = types::Void{};
 };
 
@@ -111,8 +114,12 @@ class ObjectType {
  public:
   ObjectType(const VMType& type, ConstructorAccessKey);
 
+  // TODO(easy, 2023-01-31): Convert all callers to the version that takes the
+  // VMTypeObjectTypeName.
   static language::gc::Root<ObjectType> New(afc::language::gc::Pool& pool,
                                             VMType type_name);
+  static language::gc::Root<ObjectType> New(
+      afc::language::gc::Pool& pool, VMTypeObjectTypeName object_type_name);
 
   const VMType& type() const { return type_; }
   wstring ToString() const { return type_.ToString(); }

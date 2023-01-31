@@ -85,13 +85,21 @@ class Value {
 
   template <typename T>
   language::NonNull<std::shared_ptr<T>> get_user_value(
+      const VMTypeObjectTypeName& expected_type) const {
+    CHECK_EQ(std::get<types::Object>(type.variant).object_type_name,
+             expected_type);
+    return language::NonNull<std::shared_ptr<T>>::UnsafeStaticCast(
+        std::get<ObjectInstance>(value_).value);
+  }
+
+  template <typename T>
+  language::NonNull<std::shared_ptr<T>> get_user_value(
       const VMType& expected_type) const {
-    CHECK_EQ(type, expected_type);
     CHECK(std::holds_alternative<ObjectInstance>(value_))
         << "Invalid call to get_user_value, expected type: " << expected_type
         << ", index was: " << value_.index();
-    return language::NonNull<std::shared_ptr<T>>::UnsafeStaticCast(
-        std::get<ObjectInstance>(value_).value);
+    return get_user_value<T>(
+        std::get<types::Object>(type.variant).object_type_name);
   }
 
   Callback LockCallback();

@@ -21,60 +21,62 @@ namespace gc = afc::language::gc;
 
 namespace afc::vm {
 template <>
-const VMType VMTypeMapper<
-    NonNull<std::shared_ptr<std::vector<editor::LineColumn>>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"VectorLineColumn"));
+const VMTypeObjectTypeName VMTypeMapper<NonNull<
+    std::shared_ptr<std::vector<editor::LineColumn>>>>::object_type_name =
+    VMTypeObjectTypeName(L"VectorLineColumn");
 
 template <>
-const VMType VMTypeMapper<
-    NonNull<std::shared_ptr<std::set<editor::LineColumn>>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"SetLineColumn"));
+const VMTypeObjectTypeName VMTypeMapper<
+    NonNull<std::shared_ptr<std::set<editor::LineColumn>>>>::object_type_name =
+    VMTypeObjectTypeName(L"SetLineColumn");
 
 /* static */
 editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
-  return value.get_user_value<editor::LineColumn>(vmtype).value();
+  return value.get_user_value<editor::LineColumn>(object_type_name).value();
 }
 
 /* static */
 gc::Root<Value> VMTypeMapper<editor::LineColumn>::New(
     gc::Pool& pool, editor::LineColumn value) {
-  return Value::NewObject(pool, vmtype.object_type,
+  return Value::NewObject(pool, object_type_name,
                           MakeNonNullShared<editor::LineColumn>(value));
 }
 
-const VMType VMTypeMapper<editor::LineColumn>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"LineColumn"));
+const VMTypeObjectTypeName VMTypeMapper<editor::LineColumn>::object_type_name =
+    VMTypeObjectTypeName(L"LineColumn");
 
 /* static */
 editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
     Value& value) {
-  return value.get_user_value<editor::LineColumnDelta>(vmtype).value();
+  return value.get_user_value<editor::LineColumnDelta>(object_type_name)
+      .value();
 }
 
 /* static */
 gc::Root<Value> VMTypeMapper<editor::LineColumnDelta>::New(
     gc::Pool& pool, editor::LineColumnDelta value) {
-  return Value::NewObject(pool, vmtype.object_type,
+  return Value::NewObject(pool, object_type_name,
                           MakeNonNullShared<editor::LineColumnDelta>(value));
 }
 
-const VMType VMTypeMapper<editor::LineColumnDelta>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"LineColumnDelta"));
+const VMTypeObjectTypeName
+    VMTypeMapper<editor::LineColumnDelta>::object_type_name =
+        VMTypeObjectTypeName(L"LineColumnDelta");
 
 /* static */
 editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
-  return value.get_user_value<editor::Range>(vmtype).value();
+  return value.get_user_value<editor::Range>(object_type_name).value();
 }
 
 /* static */
 gc::Root<Value> VMTypeMapper<editor::Range>::New(gc::Pool& pool,
                                                  editor::Range range) {
-  return Value::NewObject(pool, vmtype.object_type,
+  return Value::NewObject(pool, object_type_name,
                           MakeNonNullShared<editor::Range>(range));
 }
 
-const VMType VMTypeMapper<editor::Range>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"Range"));
+const VMTypeObjectTypeName VMTypeMapper<editor::Range>::object_type_name =
+    VMTypeObjectTypeName(L"Range");
 }  // namespace afc::vm
 namespace afc::editor {
 using vm::Environment;
@@ -86,7 +88,7 @@ using vm::VMTypeObjectTypeName;
 
 void LineColumnRegister(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> line_column =
-      ObjectType::New(pool, VMTypeMapper<LineColumn>::vmtype);
+      ObjectType::New(pool, VMTypeMapper<LineColumn>::object_type_name);
 
   // Methods for LineColumn.
   environment.Define(L"LineColumn",
@@ -120,7 +122,7 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
 
 void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> line_column_delta =
-      ObjectType::New(pool, VMTypeMapper<LineColumnDelta>::vmtype);
+      ObjectType::New(pool, VMTypeMapper<LineColumnDelta>::object_type_name);
 
   // Methods for LineColumn.
   environment.Define(L"LineColumnDelta",
@@ -160,7 +162,7 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
 
 void RangeRegister(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> range =
-      ObjectType::New(pool, VMTypeMapper<Range>::vmtype);
+      ObjectType::New(pool, VMTypeMapper<Range>::object_type_name);
 
   // Methods for Range.
   environment.Define(L"Range",

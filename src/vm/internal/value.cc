@@ -91,12 +91,22 @@ namespace gc = language::gc;
       });
 }
 
-bool Value::IsVoid() const { return type == VMType::Void(); };
-bool Value::IsInt() const { return type == VMType::Int(); };
-bool Value::IsString() const { return type == VMType::String(); };
-bool Value::IsSymbol() const { return type == VMType::Symbol(); };
+bool Value::IsVoid() const {
+  return std::holds_alternative<types::Void>(type.variant);
+};
+bool Value::IsInt() const {
+  return std::holds_alternative<types::Int>(type.variant);
+};
+bool Value::IsString() const {
+  return std::holds_alternative<types::String>(type.variant);
+}
+bool Value::IsSymbol() const {
+  return std::holds_alternative<types::Symbol>(type.variant);
+}
 bool Value::IsFunction() const { return type.type == VMType::Type::kFunction; };
-bool Value::IsObject() const { return type.type == VMType::Type::kObject; };
+bool Value::IsObject() const {
+  return std::holds_alternative<types::Object>(type.variant);
+};
 
 bool Value::get_bool() const {
   CHECK_EQ(type, VMType::Bool());
@@ -162,6 +172,10 @@ ValueOrError<double> Value::ToDouble() const {
                    },
                    [&](const types::Double&) -> ValueOrError<double> {
                      return Success(get_double());
+                   },
+                   [&](const types::Object& object) -> ValueOrError<double> {
+                     return Error(L"Unable to convert to double: " +
+                                  object.object_type_name.read());
                    }},
           type.variant);
     default:
@@ -193,7 +207,8 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                                .CppRepresentation();
                    },
                    [&](const types::Symbol&) { os << value.type.ToString(); },
-                   [&](const types::Double&) { os << value.get_double(); }},
+                   [&](const types::Double&) { os << value.get_double(); },
+                   [&](const types::Object&) { os << value.type.ToString(); }},
           value.type.variant);
       break;
     default:

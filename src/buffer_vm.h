@@ -18,6 +18,6 @@ struct VMTypeMapper<language::gc::Root<editor::OpenBuffer>> {
   static language::gc::Root<editor::OpenBuffer> get(Value& value);
   static language::gc::Root<Value> New(
       language::gc::Pool& pool, language::gc::Root<editor::OpenBuffer> value);
-  static const VMType vmtype;
+  static const VMTypeObjectTypeName object_type_name;
 };
 }  // namespace afc::vm

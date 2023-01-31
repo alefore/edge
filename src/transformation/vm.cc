@@ -28,9 +28,9 @@ using language::NonNull;
 namespace gc = language::gc;
 namespace vm {
 template <>
-const VMType VMTypeMapper<
-    NonNull<std::shared_ptr<editor::transformation::Variant>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"Transformation"));
+const VMTypeObjectTypeName VMTypeMapper<NonNull<
+    std::shared_ptr<editor::transformation::Variant>>>::object_type_name =
+    VMTypeObjectTypeName(L"Transformation");
 }  // namespace vm
 namespace editor {
 using language::MakeNonNullUnique;
@@ -80,21 +80,24 @@ class FunctionTransformation : public CompositeTransformation {
 void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
   environment.DefineType(
       vm::ObjectType::New(
-          pool, VMTypeMapper<NonNull<
-                    std::shared_ptr<editor::transformation::Variant>>>::vmtype)
+          pool, VMTypeMapper<NonNull<std::shared_ptr<
+                    editor::transformation::Variant>>>::object_type_name)
           .ptr());
 
   environment.Define(
       L"FunctionTransformation",
       vm::Value::NewFunction(
           pool, PurityType::kPure,
-          {VMTypeMapper<NonNull<
-               std::shared_ptr<editor::transformation::Variant>>>::vmtype,
+          {VMType::ObjectType(
+               VMTypeMapper<NonNull<std::shared_ptr<
+                   editor::transformation::Variant>>>::object_type_name),
            VMType::Function(
-               {VMTypeMapper<NonNull<
-                    std::shared_ptr<CompositeTransformation::Output>>>::vmtype,
-                VMTypeMapper<NonNull<std::shared_ptr<
-                    CompositeTransformation::Input>>>::vmtype})},
+               {VMType::ObjectType(
+                    VMTypeMapper<NonNull<std::shared_ptr<
+                        CompositeTransformation::Output>>>::object_type_name),
+                VMType::ObjectType(
+                    VMTypeMapper<NonNull<std::shared_ptr<
+                        CompositeTransformation::Input>>>::object_type_name)})},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
             gc::Ptr<vm::Value> callback = args[0].ptr();
@@ -102,9 +105,8 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
                 expansion = {callback.object_metadata()};
             return vm::Value::NewObject(
                 pool,
-                VMTypeMapper<NonNull<
-                    std::shared_ptr<editor::transformation::Variant>>>::vmtype
-                    .object_type,
+                VMTypeMapper<NonNull<std::shared_ptr<
+                    editor::transformation::Variant>>>::object_type_name,
                 MakeNonNullUnique<transformation::Variant>(
                     MakeNonNullUnique<FunctionTransformation>(
                         pool, callback.value())),

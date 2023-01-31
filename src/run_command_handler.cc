@@ -543,9 +543,9 @@ class ForkEditorCommand : public Command {
 }  // namespace editor
 namespace vm {
 template <>
-const VMType
-    VMTypeMapper<NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::vmtype =
-        VMType::ObjectType(VMTypeObjectTypeName(L"ForkCommandOptions"));
+const VMTypeObjectTypeName VMTypeMapper<
+    NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::object_type_name =
+    VMTypeObjectTypeName(L"ForkCommandOptions");
 }  // namespace vm
 namespace editor {
 /* static */
@@ -556,7 +556,9 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   using vm::VMType;
   using vm::VMTypeMapper;
   gc::Root<ObjectType> fork_command_options = ObjectType::New(
-      pool, VMTypeMapper<NonNull<std::shared_ptr<ForkCommandOptions>>>::vmtype);
+      pool,
+      VMTypeMapper<
+          NonNull<std::shared_ptr<ForkCommandOptions>>>::object_type_name);
 
   environment.Define(L"ForkCommandOptions",
                      NewCallback(pool, vm::PurityType::kPure,

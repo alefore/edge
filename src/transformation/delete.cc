@@ -36,9 +36,9 @@ using language::lazy_string::NewLazyString;
 namespace gc = language::gc;
 namespace vm {
 template <>
-const VMType VMTypeMapper<
-    NonNull<std::shared_ptr<editor::transformation::Delete>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"DeleteTransformationBuilder"));
+const VMTypeObjectTypeName VMTypeMapper<NonNull<
+    std::shared_ptr<editor::transformation::Delete>>>::object_type_name =
+    VMTypeObjectTypeName(L"DeleteTransformationBuilder");
 
 }  // namespace vm
 namespace editor {
@@ -253,10 +253,10 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
   using vm::VMTypeMapper;
 
   gc::Root<ObjectType> builder = ObjectType::New(
-      pool, VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::vmtype);
+      pool, VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name);
 
   environment.Define(
-      builder.ptr()->type().object_type.read(),
+      VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name.read(),
       vm::NewCallback(pool, PurityType::kPure,
                       MakeNonNullShared<transformation::Delete>));
 

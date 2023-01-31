@@ -69,21 +69,42 @@ struct VMTypeMapper<wstring> {
 template <typename T>
 struct VMTypeMapper<language::NonNull<std::shared_ptr<T>>> {
   static language::NonNull<std::shared_ptr<T>> get(const Value& value) {
-    return value.get_user_value<T>(vmtype);
+    return value.get_user_value<T>(object_type_name);
   }
   static language::gc::Root<Value> New(
       language::gc::Pool& pool, language::NonNull<std::shared_ptr<T>> value) {
-    return Value::NewObject(pool, vmtype.object_type, value);
+    return Value::NewObject(pool, object_type_name, value);
   }
-  static const VMType vmtype;
+  static const VMTypeObjectTypeName object_type_name;
+};
+
+template <typename>
+struct GetVMType;
+
+template <typename T>
+struct GetVMType {
+ public:
+  static VMType vmtype() { return vmtype_internal<VMTypeMapper<T>>(nullptr); }
+
+ private:
+  template <typename C>
+  static VMType vmtype_internal(decltype(C::vmtype)*) {
+    return C::vmtype;
+  };
+
+  template <typename C>
+  static VMType vmtype_internal(decltype(C::object_type_name)*) {
+    return VMType::ObjectType(C::object_type_name);
+  };
 };
 
 template <typename Tuple, size_t N>
 void AddArgs(std::vector<VMType>* output) {
   if constexpr (N < std::tuple_size<Tuple>::value) {
     output->push_back(
-        VMTypeMapper<typename std::remove_const<typename std::remove_reference<
-            typename std::tuple_element<N, Tuple>::type>::type>::type>::vmtype);
+        GetVMType<typename std::remove_const<typename std::remove_reference<
+            typename std::tuple_element<N, Tuple>::type>::type>::type>::
+            vmtype());
     AddArgs<Tuple, N + 1>(output);
   }
 };
@@ -119,7 +140,7 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
                                       Callable callback) {
   using ft = language::function_traits<Callable>;
   std::vector<VMType> type_arguments;
-  type_arguments.push_back(VMTypeMapper<typename ft::ReturnType>().vmtype);
+  type_arguments.push_back(GetVMType<typename ft::ReturnType>::vmtype());
   AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
 
   language::gc::Root<Value> callback_wrapper = Value::NewFunction(

@@ -223,9 +223,6 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         for (const auto& type : object->Types()) {
           std::optional<VMTypeObjectTypeName> object_type_name;
           switch (type.type) {
-            case VMType::Type::kObject:
-              object_type_name = type.object_type;
-              break;
             case VMType::Type::kVariant:
               object_type_name = NameForType(type.variant);
               break;

@@ -18,21 +18,21 @@ struct VMTypeMapper<editor::LineColumn> {
   static editor::LineColumn get(Value& value);
   static language::gc::Root<Value> New(language::gc::Pool& pool,
                                        editor::LineColumn value);
-  static const VMType vmtype;
+  static const VMTypeObjectTypeName object_type_name;
 };
 template <>
 struct VMTypeMapper<editor::LineColumnDelta> {
   static editor::LineColumnDelta get(Value& value);
   static language::gc::Root<Value> New(language::gc::Pool& pool,
                                        editor::LineColumnDelta value);
-  static const VMType vmtype;
+  static const VMTypeObjectTypeName object_type_name;
 };
 template <>
 struct VMTypeMapper<editor::Range> {
   static editor::Range get(Value& value);
   static language::gc::Root<Value> New(language::gc::Pool& pool,
                                        editor::Range value);
-  static const VMType vmtype;
+  static const VMTypeObjectTypeName object_type_name;
 };
 }  // namespace afc::vm
 namespace afc::editor {

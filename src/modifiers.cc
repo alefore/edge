@@ -67,7 +67,8 @@ void Modifiers::Register(language::gc::Pool& pool,
   using vm::PurityType;
 
   gc::Root<ObjectType> modifiers_type = ObjectType::New(
-      pool, vm::VMTypeMapper<NonNull<std::shared_ptr<Modifiers>>>::vmtype);
+      pool,
+      vm::VMTypeMapper<NonNull<std::shared_ptr<Modifiers>>>::object_type_name);
 
   environment.Define(
       L"Modifiers",
@@ -163,6 +164,7 @@ using language::NonNull;
 namespace gc = language::gc;
 
 template <>
-const VMType VMTypeMapper<NonNull<std::shared_ptr<editor::Modifiers>>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"Modifiers"));
+const VMTypeObjectTypeName VMTypeMapper<
+    NonNull<std::shared_ptr<editor::Modifiers>>>::object_type_name =
+    VMTypeObjectTypeName(L"Modifiers");
 }  // namespace afc::vm

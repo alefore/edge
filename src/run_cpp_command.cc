@@ -142,9 +142,10 @@ ValueOrError<ParsedCommand> Parse(
     if (all_arguments_are_strings) {
       type_match_functions.push_back(candidate);
     } else if (arguments.size() == 2 &&
-               arguments[1] ==
-                   VMTypeMapper<NonNull<
-                       std::shared_ptr<std::vector<std::wstring>>>>::vmtype) {
+               arguments[1].variant ==
+                   vm::Type(
+                       vm::types::Object{VMTypeMapper<NonNull<std::shared_ptr<
+                           std::vector<std::wstring>>>>::object_type_name})) {
       function_vector = candidate;
     }
   }
@@ -307,7 +308,9 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                           [&](gc::Root<vm::Value> value) {
                             VLOG(3) << "Successfully executed Preview command: "
                                     << value.ptr().value();
-                            if (value.ptr()->type == BufferMapper::vmtype) {
+                            if (value.ptr()->type ==
+                                VMType::ObjectType(
+                                    BufferMapper::object_type_name)) {
                               output.context =
                                   BufferMapper::get(value.ptr().value());
                             }
@@ -318,7 +321,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
           }},
       buffer.has_value()
           ? Parse(editor.gc_pool(), line, environment,
-                  NewLazyString(L"Preview"), {BufferMapper::vmtype},
+                  NewLazyString(L"Preview"),
+                  {VMType::ObjectType(BufferMapper::object_type_name)},
                   search_namespaces)
           : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
   return std::move(output_future.value);

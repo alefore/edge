@@ -24,7 +24,8 @@ struct BufferWrapper {
 
 gc::Root<editor::OpenBuffer>
 vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(Value& value) {
-  BufferWrapper wrapper = value.get_user_value<BufferWrapper>(vmtype).value();
+  BufferWrapper wrapper =
+      value.get_user_value<BufferWrapper>(object_type_name).value();
   return wrapper.buffer.ToRoot();
 }
 
@@ -32,7 +33,7 @@ vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(Value& value) {
 VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
     gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
   return vm::Value::NewObject(
-      pool, vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype.object_type,
+      pool, vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::object_type_name,
       MakeNonNullShared<BufferWrapper>(BufferWrapper{.buffer = value.ptr()}),
       [object_metadata = value.ptr().object_metadata()] {
         return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
@@ -40,8 +41,9 @@ VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
       });
 }
 
-const VMType vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::vmtype =
-    VMType::ObjectType(VMTypeObjectTypeName(L"Buffer"));
+const VMTypeObjectTypeName
+    vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::object_type_name =
+        VMTypeObjectTypeName(L"Buffer");
 }  // namespace afc::vm
 
 namespace afc::editor {
@@ -104,8 +106,8 @@ void RegisterBufferFields(
 }  // namespace
 
 gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
-  gc::Root<ObjectType> buffer_object_type =
-      ObjectType::New(pool, vm::VMTypeMapper<gc::Root<OpenBuffer>>::vmtype);
+  gc::Root<ObjectType> buffer_object_type = ObjectType::New(
+      pool, vm::VMTypeMapper<gc::Root<OpenBuffer>>::object_type_name);
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(
       pool, buffer_variables::BoolStruct(), buffer_object_type,
@@ -181,8 +183,9 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
           {VMType::Void(), buffer_object_type.ptr()->type(),
-           vm::VMTypeMapper<NonNull<
-               std::shared_ptr<editor::transformation::Variant>>>::vmtype},
+           VMType::ObjectType(
+               vm::VMTypeMapper<NonNull<std::shared_ptr<
+                   editor::transformation::Variant>>>::object_type_name)},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
