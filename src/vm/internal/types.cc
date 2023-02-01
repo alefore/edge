@@ -41,8 +41,7 @@ struct hash<afc::vm::types::Double> {
 template <>
 struct hash<afc::vm::types::Function> {
   size_t operator()(const afc::vm::types::Function& object) const {
-    // TODO(trivial, 2023-02-01): Hash in the purity?
-    size_t output = 0;
+    size_t output = hash<afc::vm::PurityType>()(object.function_purity);
     for (const auto& a : object.type_arguments) {
       output ^= hash<afc::vm::Type>()(a);
     }
