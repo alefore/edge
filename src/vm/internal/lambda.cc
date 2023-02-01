@@ -42,8 +42,8 @@ class LambdaExpression : public Expression {
             GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
       return Error(L"Expected a return type of `" +
-                   expected_return_type.ToString() + L"` but found `" +
-                   deduced_types.cbegin()->ToString() + L"`.");
+                   ToString(expected_return_type) + L"` but found `" +
+                   ToString(*deduced_types.cbegin()) + L"`.");
     }
     return MakeNonNullUnique<LambdaExpression>(
         std::move(lambda_type), std::move(argument_names), std::move(body),

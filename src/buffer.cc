@@ -1590,7 +1590,7 @@ bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
           function_type->type_arguments[1].variant)) {
     status_.SetWarningText(
         L": Unexpected type for keyboard text transformer: " +
-        transformer.ptr()->type.ToString());
+        vm::ToString(transformer.ptr()->type));
     return false;
   }
   keyboard_text_transformers_.push_back(std::move(transformer));

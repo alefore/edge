@@ -584,9 +584,8 @@ ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
   if (a.empty()) return Success(b);
   if (b.empty()) return Success(a);
   if (a != b) {
-    return Error(L"Incompatible return types found: `" +
-                 a.cbegin()->ToString() + L"` and `" + b.cbegin()->ToString() +
-                 L"`.");
+    return Error(L"Incompatible return types found: `" + ToString(*a.cbegin()) +
+                 L"` and `" + ToString(*b.cbegin()) + L"`.");
   }
   return Success(a);
 }

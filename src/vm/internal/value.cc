@@ -214,10 +214,10 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                            NewLazyString(value.get_string()))
                            .CppRepresentation();
                },
-               [&](const types::Symbol&) { os << value.type.ToString(); },
+               [&](const types::Symbol&) { os << ToString(value.type); },
                [&](const types::Double&) { os << value.get_double(); },
-               [&](const types::Object&) { os << value.type.ToString(); },
-               [&](const types::Function&) { os << value.type.ToString(); }},
+               [&](const types::Object&) { os << ToString(value.type); },
+               [&](const types::Function&) { os << ToString(value.type); }},
       value.type.variant);
   return os;
 }

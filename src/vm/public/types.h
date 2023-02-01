@@ -78,10 +78,10 @@ VMTypeObjectTypeName NameForType(Type variant_type);
 
 // TODO(easy, 2022-12-07): Unnest the std::variant.
 struct VMType {
-  wstring ToString() const;
-
   vm::Type variant = types::Void{};
 };
+
+std::wstring ToString(const VMType&);
 
 wstring TypesToString(const std::vector<VMType>& types);
 wstring TypesToString(const std::unordered_set<VMType>& types);
@@ -106,7 +106,7 @@ class ObjectType {
       afc::language::gc::Pool& pool, VMTypeObjectTypeName object_type_name);
 
   const VMType& type() const { return type_; }
-  wstring ToString() const { return type_.ToString(); }
+  std::wstring ToString() const { return vm::ToString(type_); }
 
   void AddField(const wstring& name, language::gc::Ptr<Value> field);
 

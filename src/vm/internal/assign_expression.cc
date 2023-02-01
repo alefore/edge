@@ -123,7 +123,7 @@ std::unique_ptr<Expression> NewDefineExpression(
   if (!value->SupportsType(*vmtype)) {
     compilation->AddError(
         Error(L"Unable to assign a value to a variable of type \"" +
-              vmtype->ToString() + L"\". Value types: " +
+              ToString(*vmtype) + L"\". Value types: " +
               TypesToString(value->Types())));
     return nullptr;
   }

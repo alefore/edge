@@ -161,7 +161,7 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
 
 std::ostream& operator<<(std::ostream& os, const VMType& type) {
   using ::operator<<;
-  os << type.ToString();
+  os << ToString(type);
   return os;
 }
 
@@ -169,7 +169,7 @@ wstring TypesToString(const std::vector<VMType>& types) {
   wstring output;
   wstring separator = L"";
   for (auto& t : types) {
-    output += separator + L"\"" + t.ToString() + L"\"";
+    output += separator + L"\"" + ToString(t) + L"\"";
     separator = L", ";
   }
   return output;
@@ -179,7 +179,7 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
   return TypesToString(std::vector<VMType>(types.cbegin(), types.cend()));
 }
 
-wstring VMType::ToString() const {
+std::wstring ToString(const VMType& type) {
   return std::visit(
       overload{
           [](const types::Void&) -> std::wstring { return L"void"; },
@@ -200,16 +200,16 @@ wstring VMType::ToString() const {
             wstring output =
                 function_purity_types.find(function_type.function_purity)
                     ->second +
-                L"<" + function_type.type_arguments[0].ToString() + L"(";
+                L"<" + ToString(function_type.type_arguments[0]) + L"(";
             wstring separator = L"";
             for (size_t i = 1; i < function_type.type_arguments.size(); i++) {
-              output += separator + function_type.type_arguments[i].ToString();
+              output += separator + ToString(function_type.type_arguments[i]);
               separator = L", ";
             }
             output += L")>";
             return output;
           }},
-      variant);
+      type.variant);
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()

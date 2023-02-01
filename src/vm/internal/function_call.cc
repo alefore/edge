@@ -35,7 +35,7 @@ PossibleError CheckFunctionArguments(
   const types::Function* function_type =
       std::get_if<types::Function>(&type.variant);
   if (function_type == nullptr) {
-    return Error(L"Expected function but found: `" + type.ToString() + L"`.");
+    return Error(L"Expected function but found: `" + ToString(type) + L"`.");
   }
 
   if (function_type->type_arguments.size() != args.size() + 1) {
@@ -49,7 +49,7 @@ PossibleError CheckFunctionArguments(
             function_type->type_arguments[1 + argument])) {
       return Error(L"Type mismatch in argument " + std::to_wstring(argument) +
                    L": Expected `" +
-                   function_type->type_arguments[1 + argument].ToString() +
+                   ToString(function_type->type_arguments[1 + argument]) +
                    L"` but found " + TypesToString(args[argument]->Types()));
     }
   }
@@ -236,7 +236,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
           if (object_type == nullptr) {
             errors.push_back(
-                Error(L"Unknown type: \"" + type.ToString() + L"\""));
+                Error(L"Unknown type: \"" + ToString(type) + L"\""));
             continue;
           }
 
