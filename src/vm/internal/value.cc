@@ -93,20 +93,22 @@ namespace gc = language::gc;
 
 bool Value::IsVoid() const {
   return std::holds_alternative<types::Void>(type.variant);
-};
+}
 bool Value::IsInt() const {
   return std::holds_alternative<types::Int>(type.variant);
-};
+}
 bool Value::IsString() const {
   return std::holds_alternative<types::String>(type.variant);
 }
 bool Value::IsSymbol() const {
   return std::holds_alternative<types::Symbol>(type.variant);
 }
-bool Value::IsFunction() const { return type.type == VMType::Type::kFunction; };
+bool Value::IsFunction() const {
+  return std::holds_alternative<types::Function>(type.variant);
+}
 bool Value::IsObject() const {
   return std::holds_alternative<types::Object>(type.variant);
-};
+}
 
 bool Value::get_bool() const {
   CHECK_EQ(type, VMType::Bool());
@@ -152,35 +154,33 @@ Value::Callback Value::LockCallback() {
 }
 
 ValueOrError<double> Value::ToDouble() const {
-  switch (type.type) {
-    case VMType::Type::kVariant:
-      return std::visit(
-          overload{[](const types::Void&) -> ValueOrError<double> {
-                     return Error(L"Unable to convert to double: void");
-                   },
-                   [](const types::Bool&) -> ValueOrError<double> {
-                     return Error(L"Unable to convert to double: bool");
-                   },
-                   [&](const types::Int&) -> ValueOrError<double> {
-                     return Success(static_cast<double>(get_int()));
-                   },
-                   [&](const types::String&) -> ValueOrError<double> {
-                     return Error(L"Unable to convert to double: string");
-                   },
-                   [&](const types::Symbol&) -> ValueOrError<double> {
-                     return Error(L"Unable to convert to double: symbol");
-                   },
-                   [&](const types::Double&) -> ValueOrError<double> {
-                     return Success(get_double());
-                   },
-                   [&](const types::Object& object) -> ValueOrError<double> {
-                     return Error(L"Unable to convert to double: " +
-                                  object.object_type_name.read());
-                   }},
-          type.variant);
-    default:
-      return Error(L"Unexpected value of type: " + type.ToString());
-  }  // namespace afc::vm
+  return std::visit(
+      overload{[](const types::Void&) -> ValueOrError<double> {
+                 return Error(L"Unable to convert to double: void");
+               },
+               [](const types::Bool&) -> ValueOrError<double> {
+                 return Error(L"Unable to convert to double: bool");
+               },
+               [&](const types::Int&) -> ValueOrError<double> {
+                 return Success(static_cast<double>(get_int()));
+               },
+               [&](const types::String&) -> ValueOrError<double> {
+                 return Error(L"Unable to convert to double: string");
+               },
+               [&](const types::Symbol&) -> ValueOrError<double> {
+                 return Error(L"Unable to convert to double: symbol");
+               },
+               [&](const types::Double&) -> ValueOrError<double> {
+                 return Success(get_double());
+               },
+               [&](const types::Object& object) -> ValueOrError<double> {
+                 return Error(L"Unable to convert to double: " +
+                              object.object_type_name.read());
+               },
+               [](const types::Function&) -> ValueOrError<double> {
+                 return Error(L"Unable to convert to double: function");
+               }},
+      type.variant);
 }
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
@@ -193,27 +193,22 @@ Value::expand() const {
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   using ::operator<<;
-  switch (value.type.type) {
-    case VMType::Type::kVariant:
-      std::visit(
-          overload{[&](const types::Void&) { os << L"<void>"; },
-                   [&](const types::Bool&) {
-                     os << (value.get_bool() ? L"true" : L"false");
-                   },
-                   [&](const types::Int&) { os << value.get_int(); },
-                   [&](const types::String&) {
-                     os << EscapedString::FromString(
-                               NewLazyString(value.get_string()))
-                               .CppRepresentation();
-                   },
-                   [&](const types::Symbol&) { os << value.type.ToString(); },
-                   [&](const types::Double&) { os << value.get_double(); },
-                   [&](const types::Object&) { os << value.type.ToString(); }},
-          value.type.variant);
-      break;
-    default:
-      os << value.type.ToString();
-  }
+  std::visit(
+      overload{[&](const types::Void&) { os << L"<void>"; },
+               [&](const types::Bool&) {
+                 os << (value.get_bool() ? L"true" : L"false");
+               },
+               [&](const types::Int&) { os << value.get_int(); },
+               [&](const types::String&) {
+                 os << EscapedString::FromString(
+                           NewLazyString(value.get_string()))
+                           .CppRepresentation();
+               },
+               [&](const types::Symbol&) { os << value.type.ToString(); },
+               [&](const types::Double&) { os << value.get_double(); },
+               [&](const types::Object&) { os << value.type.ToString(); },
+               [&](const types::Function&) { os << value.type.ToString(); }},
+      value.type.variant);
   return os;
 }
 

@@ -32,21 +32,24 @@ namespace gc = language::gc;
 PossibleError CheckFunctionArguments(
     const VMType& type,
     const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
-  if (type.type != VMType::Type::kFunction) {
+  const types::Function* function_type =
+      std::get_if<types::Function>(&type.variant);
+  if (function_type == nullptr) {
     return Error(L"Expected function but found: `" + type.ToString() + L"`.");
   }
 
-  if (type.type_arguments.size() != args.size() + 1) {
+  if (function_type->type_arguments.size() != args.size() + 1) {
     return Error(L"Invalid number of arguments: Expected " +
-                 std::to_wstring(type.type_arguments.size() - 1) +
+                 std::to_wstring(function_type->type_arguments.size() - 1) +
                  L" but found " + std::to_wstring(args.size()));
   }
 
   for (size_t argument = 0; argument < args.size(); argument++) {
-    if (!args[argument]->SupportsType(type.type_arguments[1 + argument])) {
+    if (!args[argument]->SupportsType(
+            function_type->type_arguments[1 + argument])) {
       return Error(L"Type mismatch in argument " + std::to_wstring(argument) +
                    L": Expected `" +
-                   type.type_arguments[1 + argument].ToString() +
+                   function_type->type_arguments[1 + argument].ToString() +
                    L"` but found " + TypesToString(args[argument]->Types()));
     }
   }
@@ -61,7 +64,7 @@ std::vector<VMType> DeduceTypes(
   for (auto& type : func.Types()) {
     if (std::holds_alternative<EmptyValue>(
             CheckFunctionArguments(type, args))) {
-      output.insert(type.type_arguments[0]);
+      output.insert(std::get<types::Function>(type.variant).type_arguments[0]);
     }
   }
   return std::vector<VMType>(output.begin(), output.end());
@@ -89,8 +92,9 @@ class FunctionCall : public Expression {
       if (output == PurityType::kUnknown) return output;  // Optimization.
     }
     for (const auto& callback_type : func_->Types()) {
-      CHECK(callback_type.type == VMType::Type::kFunction);
-      output = CombinePurityType(callback_type.function_purity, output);
+      output = CombinePurityType(
+          std::get<types::Function>(callback_type.variant).function_purity,
+          output);
       if (output == PurityType::kUnknown) return output;  // Optimization.
     }
     return output;
@@ -112,7 +116,8 @@ class FunctionCall : public Expression {
               if (callback.type == EvaluationOutput::OutputType::kReturn)
                 return futures::Past(Success(std::move(callback)));
               DVLOG(6) << "Got function: " << callback.value.ptr().value();
-              CHECK(callback.value.ptr()->type.type == VMType::Type::kFunction);
+              CHECK(std::holds_alternative<types::Function>(
+                  callback.value.ptr()->type.variant));
               futures::Future<ValueOrError<EvaluationOutput>> output;
               CaptureArgs(trampoline, std::move(output.consumer), args_types,
                           MakeNonNullShared<std::vector<gc::Root<Value>>>(),
@@ -221,21 +226,11 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         // TODO: Support polymorphism.
         std::vector<Error> errors;
         for (const auto& type : object->Types()) {
-          std::optional<VMTypeObjectTypeName> object_type_name;
-          switch (type.type) {
-            case VMType::Type::kVariant:
-              object_type_name = NameForType(type.variant);
-              break;
-            default:
-              errors.push_back(
-                  Error(L"Unable to find methods on primitive type: \"" +
-                        type.ToString() + L"\""));
-              continue;
-          }
+          VMTypeObjectTypeName object_type_name = NameForType(type.variant);
 
           const ObjectType* object_type =
               compilation->environment.ptr()->LookupObjectType(
-                  *object_type_name);
+                  object_type_name);
 
           if (object_type == nullptr) {
             errors.push_back(
@@ -271,8 +266,10 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                                  Value* delegate)
                 : type_([=]() {
                     auto output = std::make_shared<VMType>(delegate->type);
-                    output->type_arguments.erase(
-                        output->type_arguments.begin() + 1);
+                    auto& output_function_type =
+                        std::get<types::Function>(output->variant);
+                    output_function_type.type_arguments.erase(
+                        output_function_type.type_arguments.begin() + 1);
                     return output;
                   }()),
                   obj_expr_(std::move(obj_expr)),
@@ -289,8 +286,9 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             }
 
             PurityType purity() override {
-              return CombinePurityType(obj_expr_->purity(),
-                                       delegate_->type.function_purity);
+              return CombinePurityType(
+                  obj_expr_->purity(),
+                  delegate_function_type()->function_purity);
             }
 
             futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
@@ -298,7 +296,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
               return trampoline.Bounce(obj_expr_.value(), obj_expr_->Types()[0])
                   .Transform([type, shared_type = type_,
                               callback = delegate_->LockCallback(),
-                              purity_type = delegate_->type.function_purity,
+                              purity_type =
+                                  delegate_function_type()->function_purity,
                               &pool =
                                   trampoline.pool()](EvaluationOutput output)
                                  -> ValueOrError<EvaluationOutput> {
@@ -307,7 +306,9 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                         return Success(std::move(output));
                       case EvaluationOutput::OutputType::kContinue:
                         return Success(EvaluationOutput::New(Value::NewFunction(
-                            pool, purity_type, shared_type->type_arguments,
+                            pool, purity_type,
+                            std::get<types::Function>(shared_type->variant)
+                                .type_arguments,
                             [obj = std::move(output.value), callback](
                                 std::vector<gc::Root<Value>> args,
                                 Trampoline& trampoline) {
@@ -322,14 +323,20 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             }
 
            private:
+            types::Function* delegate_function_type() {
+              return &std::get<types::Function>(delegate_->type.variant);
+            }
             const std::shared_ptr<VMType> type_;
             const NonNull<std::shared_ptr<Expression>> obj_expr_;
             Value* const delegate_;
           };
 
-          CHECK(field->type.type == VMType::Type::kFunction);
-          CHECK_GE(field->type.type_arguments.size(), 2ul);
-          CHECK_EQ(field->type.type_arguments[1], type);
+          CHECK_GE(std::get<types::Function>(field->type.variant)
+                       .type_arguments.size(),
+                   2ul);
+          CHECK_EQ(
+              std::get<types::Function>(field->type.variant).type_arguments[1],
+              type);
 
           return std::make_unique<BindObjectExpression>(std::move(object),
                                                         field);
@@ -345,7 +352,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(std::function<void()>)> yield_callback) {
-  CHECK(func.type.type == VMType::Type::kFunction);
+  CHECK(std::holds_alternative<types::Function>(func.type.variant));
   std::vector<NonNull<std::unique_ptr<Expression>>> args_expr;
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));

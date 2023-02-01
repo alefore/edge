@@ -42,7 +42,7 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value);
 // Given two purity type values, return the purity type of an expression that
 // depends on both.
 PurityType CombinePurityType(PurityType a, PurityType b);
-
+struct VMType;
 namespace types {
 struct Void {};
 struct Bool {};
@@ -53,6 +53,12 @@ struct Double {};
 struct Object {
   VMTypeObjectTypeName object_type_name;
 };
+struct Function {
+  // The first element is the return type of the callback. Subsequent elements
+  // are the types of the elements expected by the callback.
+  vector<VMType> type_arguments;
+  PurityType function_purity = PurityType::kUnknown;
+};
 
 bool operator==(const Void&, const Void&);
 bool operator==(const Bool&, const Bool&);
@@ -61,20 +67,17 @@ bool operator==(const String&, const String&);
 bool operator==(const Symbol&, const Symbol&);
 bool operator==(const Double&, const Double&);
 bool operator==(const Object&, const Object&);
+bool operator==(const Function&, const Function&);
 }  // namespace types
 
-using Type = std::variant<types::Void, types::Bool, types::Int, types::String,
-                          types::Symbol, types::Double, types::Object>;
+using Type =
+    std::variant<types::Void, types::Bool, types::Int, types::String,
+                 types::Symbol, types::Double, types::Object, types::Function>;
 
 VMTypeObjectTypeName NameForType(Type variant_type);
 
-// TODO(easy, 2022-12-07): Turn this into an std::variant.
+// TODO(easy, 2022-12-07): Unnest the std::variant.
 struct VMType {
-  enum class Type { kFunction, kVariant };
-
-  VMType() = default;
-  explicit VMType(const Type& t) : type(t) {}
-
   static const VMType& Void();
   static const VMType& Bool();
   static const VMType& Int();
@@ -88,13 +91,6 @@ struct VMType {
                          PurityType function_purity = PurityType::kUnknown);
 
   wstring ToString() const;
-
-  Type type = Type::kVariant;
-  // When type is FUNCTION, this contains the types. The first element is the
-  // return type of the callback. Subsequent elements are the types of the
-  // elements expected by the callback.
-  vector<VMType> type_arguments;
-  PurityType function_purity = PurityType::kUnknown;
 
   vm::Type variant = types::Void{};
 };

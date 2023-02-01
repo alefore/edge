@@ -55,7 +55,8 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
             Success(EvaluationOutput::New(std::move(args[0]))));
       });
 
-  output.ptr()->type.function_purity = PurityType::kUnknown;
+  std::get<types::Function>(output.ptr()->type.variant).function_purity =
+      PurityType::kUnknown;
   return output;
 }
 
@@ -80,7 +81,8 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
                            field_name);
             }));
       });
-  output.ptr()->type.function_purity = PurityType::kPure;
+  std::get<types::Function>(output.ptr()->type.variant).function_purity =
+      PurityType::kPure;
   return output;
 }
 }  // namespace
@@ -147,7 +149,8 @@ PossibleError FinishClassDeclaration(
               return error;
             });
       });
-  constructor.ptr()->type.function_purity = purity;
+  std::get<types::Function>(constructor.ptr()->type.variant).function_purity =
+      purity;
 
   compilation.environment.ptr()->Define(
       std::get<types::Object>(class_type.variant).object_type_name.read(),

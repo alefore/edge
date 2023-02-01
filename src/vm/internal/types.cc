@@ -45,19 +45,25 @@ struct hash<afc::vm::types::Object> {
   }
 };
 
-size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
-  size_t output =
-      hash<size_t>()(static_cast<size_t>(x.type)) ^
-      std::visit(
-          [](const auto& t) {
-            return hash<typename std::remove_const<
-                typename std::remove_reference<decltype(t)>::type>::type>()(t);
-          },
-          x.variant);
-  for (const auto& a : x.type_arguments) {
-    output ^= hash()(a);
+template <>
+struct hash<afc::vm::types::Function> {
+  size_t operator()(const afc::vm::types::Function& object) const {
+    // TODO(trivial, 2023-02-01): Hash in the purity?
+    size_t output = 0;
+    for (const auto& a : object.type_arguments) {
+      output ^= hash<afc::vm::VMType>()(a);
+    }
+    return output;
   }
-  return output;
+};
+
+size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
+  return std::visit(
+      [](const auto& t) {
+        return hash<typename std::remove_const<
+            typename std::remove_reference<decltype(t)>::type>::type>()(t);
+      },
+      x.variant);
 }
 }  // namespace std
 namespace afc::vm {
@@ -127,7 +133,9 @@ VMTypeObjectTypeName NameForType(Type variant_type) {
           [](const types::Symbol&) { return VMTypeObjectTypeName(L"symbol"); },
           [](const types::Double&) { return VMTypeObjectTypeName(L"double"); },
           [](const types::Object& object) { return object.object_type_name; },
-      },
+          [](const types::Function&) {
+            return VMTypeObjectTypeName(L"function");
+          }},
       variant_type);
 }
 
@@ -141,19 +149,14 @@ bool operator==(const Double&, const Double&) { return true; }
 bool operator==(const Object& a, const Object& b) {
   return a.object_type_name == b.object_type_name;
 }
+bool operator==(const Function& a, const Function& b) {
+  return a.type_arguments == b.type_arguments &&
+         a.function_purity == b.function_purity;
+}
 }  // namespace types
 
 bool operator==(const VMType& lhs, const VMType& rhs) {
-  if (lhs.type != rhs.type) return false;
-  switch (lhs.type) {
-    case VMType::Type::kFunction:
-      return lhs.type_arguments == rhs.type_arguments &&
-             lhs.function_purity == rhs.function_purity;
-    case VMType::Type::kVariant:
-      return lhs.variant == rhs.variant;
-  }
-  LOG(FATAL) << "Invalid type";
-  return false;
+  return lhs.variant == rhs.variant;
 }
 
 std::ostream& operator<<(std::ostream& os, const VMType& type) {
@@ -163,56 +166,32 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
 }
 
 /* static */ const VMType& VMType::Void() {
-  static const VMType type = [] {
-    VMType output(VMType::Type::kVariant);
-    output.variant = types::Void();
-    return output;
-  }();
+  static const VMType type{.variant = types::Void()};
   return type;
 }
 
 /* static */ const VMType& VMType::Bool() {
-  static const VMType type = [] {
-    VMType output(VMType::Type::kVariant);
-    output.variant = types::Bool();
-    return output;
-  }();
+  static const VMType type{.variant = types::Bool()};
   return type;
 }
 
 /* static */ const VMType& VMType::Int() {
-  static const VMType type = [] {
-    VMType output(VMType::Type::kVariant);
-    output.variant = types::Int();
-    return output;
-  }();
+  static const VMType type{.variant = types::Int()};
   return type;
 }
 
 /* static */ const VMType& VMType::String() {
-  static const VMType type = [] {
-    VMType output(VMType::Type::kVariant);
-    output.variant = types::String();
-    return output;
-  }();
+  static const VMType type{.variant = types::String()};
   return type;
 }
 
 /* static */ const VMType& VMType::Symbol() {
-  static const VMType type = [] {
-    VMType output(VMType::Type::kVariant);
-    output.variant = types::Symbol();
-    return output;
-  }();
+  static const VMType type{.variant = types::Symbol()};
   return type;
 }
 
 /* static */ const VMType& VMType::Double() {
-  static const VMType type = [] {
-    VMType output(VMType::Type::kVariant);
-    output.variant = types::Double();
-    return output;
-  }();
+  static const VMType type{.variant = types::Double()};
   return type;
 }
 
@@ -231,52 +210,47 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
 }
 
 /* static */ VMType VMType::ObjectType(VMTypeObjectTypeName name) {
-  VMType output(VMType::Type::kVariant);
-  output.variant = types::Object{.object_type_name = std::move(name)};
-  return output;
+  return VMType{.variant = types::Object{.object_type_name = std::move(name)}};
 }
 
 wstring VMType::ToString() const {
-  switch (type) {
-    case Type::kFunction: {
-      CHECK(!type_arguments.empty());
-      const std::unordered_map<PurityType, std::wstring> function_purity_types =
-          {{PurityType::kPure, L"function"},
-           {PurityType::kReader, L"Function"},
-           {PurityType::kUnknown, L"FUNCTION"}};
-      wstring output = function_purity_types.find(function_purity)->second +
-                       L"<" + type_arguments[0].ToString() + L"(";
-      wstring separator = L"";
-      for (size_t i = 1; i < type_arguments.size(); i++) {
-        output += separator + type_arguments[i].ToString();
-        separator = L", ";
-      }
-      output += L")>";
-      return output;
-    }
-    case Type::kVariant:
-      return std::visit(
-          overload{
-              [](const types::Void&) -> std::wstring { return L"void"; },
-              [](const types::Bool&) -> std::wstring { return L"bool"; },
-              [](const types::Int&) -> std::wstring { return L"int"; },
-              [](const types::String&) -> std::wstring { return L"string"; },
-              [](const types::Symbol&) -> std::wstring { return L"symbol"; },
-              [](const types::Double&) -> std::wstring { return L"double"; },
-              [](const types::Object& object) -> std::wstring {
-                return object.object_type_name.read();
-              }},
-          variant);
-  }
-  return L"unknown";
+  return std::visit(
+      overload{
+          [](const types::Void&) -> std::wstring { return L"void"; },
+          [](const types::Bool&) -> std::wstring { return L"bool"; },
+          [](const types::Int&) -> std::wstring { return L"int"; },
+          [](const types::String&) -> std::wstring { return L"string"; },
+          [](const types::Symbol&) -> std::wstring { return L"symbol"; },
+          [](const types::Double&) -> std::wstring { return L"double"; },
+          [](const types::Object& object) -> std::wstring {
+            return object.object_type_name.read();
+          },
+          [](const types::Function& function_type) -> std::wstring {
+            CHECK(!function_type.type_arguments.empty());
+            const std::unordered_map<PurityType, std::wstring>
+                function_purity_types = {{PurityType::kPure, L"function"},
+                                         {PurityType::kReader, L"Function"},
+                                         {PurityType::kUnknown, L"FUNCTION"}};
+            wstring output =
+                function_purity_types.find(function_type.function_purity)
+                    ->second +
+                L"<" + function_type.type_arguments[0].ToString() + L"(";
+            wstring separator = L"";
+            for (size_t i = 1; i < function_type.type_arguments.size(); i++) {
+              output += separator + function_type.type_arguments[i].ToString();
+              separator = L", ";
+            }
+            output += L")>";
+            return output;
+          }},
+      variant);
 }
 
 /* static */ VMType VMType::Function(vector<VMType> arguments,
                                      PurityType function_purity) {
-  VMType output(VMType::Type::kFunction);
-  output.type_arguments = arguments;
-  output.function_purity = function_purity;
-  return output;
+  return VMType{.variant =
+                    types::Function{.type_arguments = std::move(arguments),
+                                    .function_purity = function_purity}};
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()

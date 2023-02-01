@@ -26,8 +26,9 @@ class LambdaExpression : public Expression {
       VMType lambda_type,
       NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body) {
-    lambda_type.function_purity = body->purity();
-    VMType expected_return_type = *lambda_type.type_arguments.cbegin();
+    auto& lambda_function_type = std::get<types::Function>(lambda_type.variant);
+    lambda_function_type.function_purity = body->purity();
+    VMType expected_return_type = *lambda_function_type.type_arguments.cbegin();
     auto deduced_types = body->ReturnTypes();
     if (deduced_types.empty()) {
       deduced_types.insert(VMType::Void());
@@ -59,8 +60,9 @@ class LambdaExpression : public Expression {
         argument_names_(std::move(argument_names)),
         body_(std::move(body)),
         promotion_function_(std::move(promotion_function)) {
-    CHECK(type_.type == VMType::Type::kFunction);
-    CHECK(type_.function_purity == body_->purity());
+    CHECK(std::holds_alternative<types::Function>(type_.variant));
+    CHECK(std::get<types::Function>(type_.variant).function_purity ==
+          body_->purity());
   }
 
   std::vector<VMType> Types() { return {type_}; }
@@ -81,7 +83,8 @@ class LambdaExpression : public Expression {
                              gc::Root<Environment> parent_environment_root) {
     gc::Ptr<Environment> parent_environment = parent_environment_root.ptr();
     return Value::NewFunction(
-        pool, body_->purity(), type_.type_arguments,
+        pool, body_->purity(),
+        std::get<types::Function>(type_.variant).type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
@@ -139,12 +142,13 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
 
   auto output = std::make_unique<UserFunction>();
-  output->type.type = VMType::Type::kFunction;
-  output->type.type_arguments.push_back(*return_type_def);
+  types::Function function_type;
+  function_type.type_arguments.push_back(*return_type_def);
   for (pair<VMType, wstring> arg : *args) {
-    output->type.type_arguments.push_back(arg.first);
+    function_type.type_arguments.push_back(arg.first);
     output->argument_names->push_back(arg.second);
   }
+  output->type.variant = std::move(function_type);
   if (name.has_value()) {
     output->name = name.value();
     compilation.environment.ptr()->Define(

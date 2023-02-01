@@ -92,9 +92,9 @@ void MapModeCommands::Add(std::wstring name,
 void MapModeCommands::Add(std::wstring name, std::wstring description,
                           gc::Root<Value> value,
                           gc::Root<vm::Environment> environment) {
-  CHECK(value.ptr()->type.type == VMType::Type::kFunction);
-  CHECK(value.ptr()->type.type_arguments ==
-        std::vector<VMType>({VMType::Void()}));
+  CHECK(
+      std::get<vm::types::Function>(value.ptr()->type.variant).type_arguments ==
+      std::vector<VMType>({VMType::Void()}));
 
   Add(name,
       MakeCommandFromFunction(

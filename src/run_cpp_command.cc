@@ -128,24 +128,26 @@ ValueOrError<ParsedCommand> Parse(
     if (!candidate.ptr()->IsFunction()) {
       continue;
     }
-    const auto& arguments = candidate.ptr()->type.type_arguments;
-    if (accepted_return_types.find(arguments[0]) ==
-        accepted_return_types.end()) {
+    const vm::types::Function* function_type =
+        std::get_if<vm::types::Function>(&candidate.ptr()->type.variant);
+    if (function_type == nullptr ||
+        accepted_return_types.find(function_type->type_arguments[0]) ==
+            accepted_return_types.end()) {
       continue;
     }
 
     bool all_arguments_are_strings = true;
-    for (auto it = arguments.begin() + 1;
-         all_arguments_are_strings && it != arguments.end(); ++it) {
+    for (auto it = function_type->type_arguments.begin() + 1;
+         all_arguments_are_strings && it != function_type->type_arguments.end();
+         ++it) {
       all_arguments_are_strings = *it == VMType::String();
     }
     if (all_arguments_are_strings) {
       type_match_functions.push_back(candidate);
-    } else if (arguments.size() == 2 &&
-               arguments[1].variant ==
-                   vm::Type(
-                       vm::types::Object{VMTypeMapper<NonNull<std::shared_ptr<
-                           std::vector<std::wstring>>>>::object_type_name})) {
+    } else if (function_type->type_arguments.size() == 2 &&
+               function_type->type_arguments[1] ==
+                   vm::GetVMType<NonNull<
+                       std::shared_ptr<std::vector<std::wstring>>>>::vmtype()) {
       function_vector = candidate;
     }
   }
@@ -165,10 +167,10 @@ ValueOrError<ParsedCommand> Parse(
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output_function = type_match_functions[0];
-    CHECK_GE(output_function.value().ptr()->type.type_arguments.size(),
-             1ul /* return type */);
-    size_t expected_arguments =
-        output_function.value().ptr()->type.type_arguments.size() - 1;
+    const vm::types::Function* function_type = std::get_if<vm::types::Function>(
+        &output_function.value().ptr()->type.variant);
+    CHECK_GE(function_type->type_arguments.size(), 1ul /* return type */);
+    size_t expected_arguments = function_type->type_arguments.size() - 1;
     if (output_tokens.size() - 1 > expected_arguments) {
       return Error(L"Too many arguments given for `" + output_tokens[0].value +
                    L"` (expected: " + std::to_wstring(expected_arguments) +
