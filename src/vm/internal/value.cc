@@ -61,11 +61,9 @@ namespace gc = language::gc;
 }
 
 /* static */ gc::Root<Value> Value::NewObject(
-    gc::Pool& pool, VMTypeObjectTypeName name,
+    gc::Pool& pool, types::ObjectName name,
     NonNull<std::shared_ptr<void>> value, ExpandCallback expand_callback) {
-  gc::Root<Value> output = New(
-      pool,
-      VMType{.variant = types::Object{.object_type_name = std::move(name)}});
+  gc::Root<Value> output = New(pool, VMType{.variant = std::move(name)});
   output.ptr()->value_ = ObjectInstance{.value = std::move(value)};
   output.ptr()->expand_callback = std::move(expand_callback);
   return output;
@@ -117,7 +115,7 @@ bool Value::IsFunction() const {
   return std::holds_alternative<types::Function>(type.variant);
 }
 bool Value::IsObject() const {
-  return std::holds_alternative<types::Object>(type.variant);
+  return std::holds_alternative<types::ObjectName>(type.variant);
 }
 
 bool Value::get_bool() const {
@@ -183,9 +181,8 @@ ValueOrError<double> Value::ToDouble() const {
                [&](const types::Double&) -> ValueOrError<double> {
                  return Success(get_double());
                },
-               [&](const types::Object& object) -> ValueOrError<double> {
-                 return Error(L"Unable to convert to double: " +
-                              object.object_type_name.read());
+               [&](const types::ObjectName& object) -> ValueOrError<double> {
+                 return Error(L"Unable to convert to double: " + object.read());
                },
                [](const types::Function&) -> ValueOrError<double> {
                  return Error(L"Unable to convert to double: function");
@@ -216,7 +213,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                },
                [&](const types::Symbol&) { os << ToString(value.type); },
                [&](const types::Double&) { os << value.get_double(); },
-               [&](const types::Object&) { os << ToString(value.type); },
+               [&](const types::ObjectName&) { os << ToString(value.type); },
                [&](const types::Function&) { os << ToString(value.type); }},
       value.type.variant);
   return os;

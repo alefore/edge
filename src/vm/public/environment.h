@@ -15,8 +15,9 @@ namespace afc::vm {
 struct Value;
 struct VMType;
 class ObjectType;
-class VMTypeObjectTypeName;
-
+namespace types {
+class ObjectName;
+}
 GHOST_TYPE_CONTAINER(Namespace, std::vector<std::wstring>)
 
 class Environment {
@@ -40,7 +41,7 @@ class Environment {
 
   static language::gc::Root<Environment> NewDefault(language::gc::Pool& pool);
 
-  const ObjectType* LookupObjectType(const VMTypeObjectTypeName& symbol);
+  const ObjectType* LookupObjectType(const types::ObjectName& symbol);
   const VMType* LookupType(const std::wstring& symbol);
   void DefineType(language::gc::Ptr<ObjectType> value);
 
@@ -60,7 +61,7 @@ class Environment {
   void Remove(const std::wstring& symbol, VMType type);
 
   void ForEachType(
-      std::function<void(const VMTypeObjectTypeName&, ObjectType&)> callback);
+      std::function<void(const types::ObjectName&, ObjectType&)> callback);
   void ForEach(
       std::function<void(const std::wstring&, const language::gc::Ptr<Value>&)>
           callback) const;
@@ -72,7 +73,7 @@ class Environment {
   Expand() const;
 
  private:
-  std::map<VMTypeObjectTypeName, language::gc::Ptr<ObjectType>> object_types_;
+  std::map<types::ObjectName, language::gc::Ptr<ObjectType>> object_types_;
 
   std::map<std::wstring, std::unordered_map<VMType, language::gc::Ptr<Value>>>
       table_;

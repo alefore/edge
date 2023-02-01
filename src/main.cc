@@ -286,12 +286,10 @@ void RedrawScreens(const CommandLineValues& args,
     std::optional<gc::Root<afc::vm::Value>> value =
         buffer.second.ptr()->environment()->Lookup(
             editor_state().gc_pool(), kEmptyNamespace, L"screen",
-            afc::vm::VMType{.variant = afc::vm::types::Object{
-                                .object_type_name = GetScreenVmType()}});
+            afc::vm::VMType{.variant = GetScreenVmType()});
     if (!value.has_value() ||
         value.value().ptr()->type !=
-            afc::vm::VMType{.variant = afc::vm::types::Object{
-                                .object_type_name = GetScreenVmType()}}) {
+            afc::vm::VMType{.variant = GetScreenVmType()}) {
       continue;
     }
     auto buffer_screen =

@@ -36,9 +36,9 @@ using language::lazy_string::NewLazyString;
 namespace gc = language::gc;
 namespace vm {
 template <>
-const VMTypeObjectTypeName VMTypeMapper<NonNull<
+const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<editor::transformation::Delete>>>::object_type_name =
-    VMTypeObjectTypeName(L"DeleteTransformationBuilder");
+    types::ObjectName(L"DeleteTransformationBuilder");
 
 }  // namespace vm
 namespace editor {

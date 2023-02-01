@@ -22,14 +22,14 @@ using language::NonNull;
 namespace gc = language::gc;
 
 template <>
-const VMTypeObjectTypeName VMTypeMapper<
+const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<std::vector<std::wstring>>>>::object_type_name =
-    VMTypeObjectTypeName(L"VectorString");
+    types::ObjectName(L"VectorString");
 
 template <>
-const VMTypeObjectTypeName VMTypeMapper<
+const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<std::set<std::wstring>>>>::object_type_name =
-    VMTypeObjectTypeName(L"SetString");
+    types::ObjectName(L"SetString");
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, language::gc::Pool& pool,

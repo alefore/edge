@@ -41,7 +41,7 @@ struct VMTypeMapper<Time> {
                             MakeNonNullShared<Time>(value));
   }
 
-  static const VMTypeObjectTypeName object_type_name;
+  static const vm::types::ObjectName object_type_name;
 };
 
 template <>
@@ -55,13 +55,13 @@ struct VMTypeMapper<Duration> {
                             MakeNonNullShared<Duration>(value));
   }
 
-  static const VMTypeObjectTypeName object_type_name;
+  static const vm::types::ObjectName object_type_name;
 };
 
-const VMTypeObjectTypeName VMTypeMapper<Time>::object_type_name =
-    VMTypeObjectTypeName(L"Time");
-const VMTypeObjectTypeName VMTypeMapper<Duration>::object_type_name =
-    VMTypeObjectTypeName(L"Duration");
+const vm::types::ObjectName VMTypeMapper<Time>::object_type_name =
+    vm::types::ObjectName(L"Time");
+const vm::types::ObjectName VMTypeMapper<Duration>::object_type_name =
+    vm::types::ObjectName(L"Duration");
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name, gc::Pool& pool,

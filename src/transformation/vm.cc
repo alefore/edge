@@ -28,9 +28,9 @@ using language::NonNull;
 namespace gc = language::gc;
 namespace vm {
 template <>
-const VMTypeObjectTypeName VMTypeMapper<NonNull<
+const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<editor::transformation::Variant>>>::object_type_name =
-    VMTypeObjectTypeName(L"Transformation");
+    types::ObjectName(L"Transformation");
 }  // namespace vm
 namespace editor {
 using language::MakeNonNullUnique;

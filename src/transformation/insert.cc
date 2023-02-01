@@ -20,9 +20,9 @@ using language::lazy_string::ColumnNumberDelta;
 namespace gc = language::gc;
 namespace vm {
 template <>
-const VMTypeObjectTypeName VMTypeMapper<NonNull<
+const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<editor::transformation::Insert>>>::object_type_name =
-    VMTypeObjectTypeName(L"InsertTransformationBuilder");
+    types::ObjectName(L"InsertTransformationBuilder");
 }  // namespace vm
 namespace editor::transformation {
 using language::MakeNonNullShared;

@@ -164,7 +164,7 @@ using language::NonNull;
 namespace gc = language::gc;
 
 template <>
-const VMTypeObjectTypeName VMTypeMapper<
+const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<editor::Modifiers>>>::object_type_name =
-    VMTypeObjectTypeName(L"Modifiers");
+    types::ObjectName(L"Modifiers");
 }  // namespace afc::vm

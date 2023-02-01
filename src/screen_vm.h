@@ -18,7 +18,7 @@ namespace afc::editor {
 class EditorState;
 void RegisterScreenType(EditorState& editor, vm::Environment& environment);
 std::unique_ptr<Screen> NewScreenVm(infrastructure::FileDescriptor fd);
-const vm::VMTypeObjectTypeName& GetScreenVmType();
+const vm::types::ObjectName& GetScreenVmType();
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_SCREEN_VM_H__

@@ -228,7 +228,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         // TODO: Support polymorphism.
         std::vector<Error> errors;
         for (const auto& type : object->Types()) {
-          VMTypeObjectTypeName object_type_name = NameForType(type.variant);
+          types::ObjectName object_type_name = NameForType(type.variant);
 
           const ObjectType* object_type =
               compilation->environment.ptr()->LookupObjectType(

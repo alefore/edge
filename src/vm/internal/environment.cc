@@ -21,14 +21,14 @@ using language::NonNull;
 namespace gc = language::gc;
 
 template <>
-const VMTypeObjectTypeName
+const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<std::vector<int>>>>::object_type_name =
-        VMTypeObjectTypeName(L"VectorInt");
+        types::ObjectName(L"VectorInt");
 
 template <>
-const VMTypeObjectTypeName
+const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<std::set<int>>>>::object_type_name =
-        VMTypeObjectTypeName(L"SetInt");
+        types::ObjectName(L"SetInt");
 }  // namespace
 
 language::gc::Root<Environment> Environment::NewDefault(
@@ -92,8 +92,7 @@ std::optional<language::gc::Ptr<Environment>> Environment::parent_environment()
   return parent_environment_;
 }
 
-const ObjectType* Environment::LookupObjectType(
-    const VMTypeObjectTypeName& name) {
+const ObjectType* Environment::LookupObjectType(const types::ObjectName& name) {
   if (auto it = object_types_.find(name); it != object_types_.end()) {
     return &it->second.value();
   }
@@ -118,7 +117,7 @@ const VMType* Environment::LookupType(const wstring& symbol) {
     return &output;
   }
 
-  auto object_type = LookupObjectType(VMTypeObjectTypeName(symbol));
+  auto object_type = LookupObjectType(types::ObjectName(symbol));
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 
@@ -275,11 +274,11 @@ void Environment::Remove(const wstring& symbol, VMType type) {
 }
 
 void Environment::ForEachType(
-    std::function<void(const VMTypeObjectTypeName&, ObjectType&)> callback) {
+    std::function<void(const types::ObjectName&, ObjectType&)> callback) {
   if (parent_environment_.has_value()) {
     (*parent_environment_)->ForEachType(callback);
   }
-  for (const std::pair<const VMTypeObjectTypeName, gc::Ptr<ObjectType>>& entry :
+  for (const std::pair<const types::ObjectName, gc::Ptr<ObjectType>>& entry :
        object_types_) {
     callback(entry.first, entry.second.value());
   }
@@ -317,7 +316,7 @@ Environment::Expand() const {
   for (std::pair<std::wstring, gc::Ptr<Environment>> entry : namespaces_) {
     output.push_back(entry.second.object_metadata());
   }
-  for (const std::pair<const VMTypeObjectTypeName, gc::Ptr<ObjectType>>& entry :
+  for (const std::pair<const types::ObjectName, gc::Ptr<ObjectType>>& entry :
        object_types_) {
     output.push_back(entry.second.object_metadata());
   }

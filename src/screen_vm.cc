@@ -30,9 +30,9 @@ namespace gc = language::gc;
 
 namespace vm {
 template <>
-const VMTypeObjectTypeName
+const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::object_type_name =
-        VMTypeObjectTypeName(L"Screen");
+        types::ObjectName(L"Screen");
 }  // namespace vm
 namespace editor {
 using infrastructure::FileDescriptor;
@@ -256,7 +256,7 @@ std::unique_ptr<Screen> NewScreenVm(FileDescriptor fd) {
   return std::make_unique<ScreenVm>(fd);
 }
 
-const vm::VMTypeObjectTypeName& GetScreenVmType() {
+const vm::types::ObjectName& GetScreenVmType() {
   return vm::VMTypeMapper<
       NonNull<std::shared_ptr<editor::Screen>>>::object_type_name;
 }

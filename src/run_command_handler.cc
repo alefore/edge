@@ -547,9 +547,9 @@ class ForkEditorCommand : public Command {
 }  // namespace editor
 namespace vm {
 template <>
-const VMTypeObjectTypeName VMTypeMapper<
+const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::object_type_name =
-    VMTypeObjectTypeName(L"ForkCommandOptions");
+    types::ObjectName(L"ForkCommandOptions");
 }  // namespace vm
 namespace editor {
 /* static */

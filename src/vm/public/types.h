@@ -22,8 +22,6 @@ using std::wstring;
 
 class ObjectType;
 
-GHOST_TYPE(VMTypeObjectTypeName, std::wstring);
-
 enum class PurityType {
   // Expression is completely pure: will always evaluate to the same value.
   kPure,
@@ -50,9 +48,7 @@ struct Int {};
 struct String {};
 struct Symbol {};
 struct Double {};
-struct Object {
-  VMTypeObjectTypeName object_type_name;
-};
+GHOST_TYPE(ObjectName, std::wstring);
 struct Function {
   // The first element is the return type of the callback. Subsequent elements
   // are the types of the elements expected by the callback.
@@ -66,15 +62,14 @@ bool operator==(const Int&, const Int&);
 bool operator==(const String&, const String&);
 bool operator==(const Symbol&, const Symbol&);
 bool operator==(const Double&, const Double&);
-bool operator==(const Object&, const Object&);
 bool operator==(const Function&, const Function&);
 }  // namespace types
 
-using Type =
-    std::variant<types::Void, types::Bool, types::Int, types::String,
-                 types::Symbol, types::Double, types::Object, types::Function>;
+using Type = std::variant<types::Void, types::Bool, types::Int, types::String,
+                          types::Symbol, types::Double, types::ObjectName,
+                          types::Function>;
 
-VMTypeObjectTypeName NameForType(Type variant_type);
+types::ObjectName NameForType(Type variant_type);
 
 // TODO(easy, 2022-12-07): Unnest the std::variant.
 struct VMType {
@@ -99,11 +94,11 @@ class ObjectType {
   ObjectType(const VMType& type, ConstructorAccessKey);
 
   // TODO(easy, 2023-01-31): Convert all callers to the version that takes the
-  // VMTypeObjectTypeName.
+  // ObjectName.
   static language::gc::Root<ObjectType> New(afc::language::gc::Pool& pool,
                                             VMType type_name);
-  static language::gc::Root<ObjectType> New(
-      afc::language::gc::Pool& pool, VMTypeObjectTypeName object_type_name);
+  static language::gc::Root<ObjectType> New(afc::language::gc::Pool& pool,
+                                            types::ObjectName object_type_name);
 
   const VMType& type() const { return type_; }
   std::wstring ToString() const { return vm::ToString(type_); }
@@ -134,6 +129,6 @@ struct hash<afc::vm::VMType> {
 };
 }  // namespace std
 
-GHOST_TYPE_TOP_LEVEL(afc::vm::VMTypeObjectTypeName);
+GHOST_TYPE_TOP_LEVEL(afc::vm::types::ObjectName);
 
 #endif  // __AFC_VM_PUBLIC_TYPES_H__

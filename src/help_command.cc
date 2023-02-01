@@ -189,7 +189,7 @@ class HelpCommand : public Command {
         L"available methods is given.");
     output.push_back(L"");
 
-    environment->ForEachType([&](const vm::VMTypeObjectTypeName& name,
+    environment->ForEachType([&](const vm::types::ObjectName& name,
                                  vm::ObjectType& type) {
       StartSection(L"#### " + name.read(), output);
       type.ForEachField([&](const std::wstring& field_name, vm::Value& value) {

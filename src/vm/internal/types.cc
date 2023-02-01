@@ -39,13 +39,6 @@ struct hash<afc::vm::types::Double> {
 };
 
 template <>
-struct hash<afc::vm::types::Object> {
-  size_t operator()(const afc::vm::types::Object& object) const {
-    return std::hash<afc::vm::VMTypeObjectTypeName>()(object.object_type_name);
-  }
-};
-
-template <>
 struct hash<afc::vm::types::Function> {
   size_t operator()(const afc::vm::types::Function& object) const {
     // TODO(trivial, 2023-02-01): Hash in the purity?
@@ -123,18 +116,18 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value) {
   return os;
 }
 
-VMTypeObjectTypeName NameForType(Type variant_type) {
+types::ObjectName NameForType(Type variant_type) {
   return std::visit(
       overload{
-          [](const types::Void&) { return VMTypeObjectTypeName(L"void"); },
-          [](const types::Bool&) { return VMTypeObjectTypeName(L"bool"); },
-          [](const types::Int&) { return VMTypeObjectTypeName(L"int"); },
-          [](const types::String&) { return VMTypeObjectTypeName(L"string"); },
-          [](const types::Symbol&) { return VMTypeObjectTypeName(L"symbol"); },
-          [](const types::Double&) { return VMTypeObjectTypeName(L"double"); },
-          [](const types::Object& object) { return object.object_type_name; },
+          [](const types::Void&) { return types::ObjectName(L"void"); },
+          [](const types::Bool&) { return types::ObjectName(L"bool"); },
+          [](const types::Int&) { return types::ObjectName(L"int"); },
+          [](const types::String&) { return types::ObjectName(L"string"); },
+          [](const types::Symbol&) { return types::ObjectName(L"symbol"); },
+          [](const types::Double&) { return types::ObjectName(L"double"); },
+          [](const types::ObjectName& object) { return object; },
           [](const types::Function&) {
-            return VMTypeObjectTypeName(L"function");
+            return types::ObjectName(L"function");
           }},
       variant_type);
 }
@@ -146,9 +139,6 @@ bool operator==(const Int&, const Int&) { return true; }
 bool operator==(const String&, const String&) { return true; }
 bool operator==(const Symbol&, const Symbol&) { return true; }
 bool operator==(const Double&, const Double&) { return true; }
-bool operator==(const Object& a, const Object& b) {
-  return a.object_type_name == b.object_type_name;
-}
 bool operator==(const Function& a, const Function& b) {
   return a.type_arguments == b.type_arguments &&
          a.function_purity == b.function_purity;
@@ -188,8 +178,8 @@ std::wstring ToString(const VMType& type) {
           [](const types::String&) -> std::wstring { return L"string"; },
           [](const types::Symbol&) -> std::wstring { return L"symbol"; },
           [](const types::Double&) -> std::wstring { return L"double"; },
-          [](const types::Object& object) -> std::wstring {
-            return object.object_type_name.read();
+          [](const types::ObjectName& object) -> std::wstring {
+            return object.read();
           },
           [](const types::Function& function_type) -> std::wstring {
             CHECK(!function_type.type_arguments.empty());
@@ -225,9 +215,8 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
 }
 
 /* static */ gc::Root<ObjectType> ObjectType::New(
-    gc::Pool& pool, VMTypeObjectTypeName object_type_name) {
-  return New(pool, VMType{.variant = types::Object{.object_type_name =
-                                                       object_type_name}});
+    gc::Pool& pool, types::ObjectName object_type_name) {
+  return New(pool, VMType{.variant = object_type_name});
 }
 
 ObjectType::ObjectType(const VMType& type, ConstructorAccessKey)

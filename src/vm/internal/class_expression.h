@@ -9,9 +9,11 @@
 
 namespace afc::vm {
 class Compilation;
-class VMTypeObjectTypeName;
+namespace types {
+class ObjectName;
+}
 void StartClassDeclaration(Compilation& compilation,
-                           const VMTypeObjectTypeName& name);
+                           const types::ObjectName& name);
 language::PossibleError FinishClassDeclaration(
     Compilation& compilation,
     language::NonNull<std::unique_ptr<Expression>> body);

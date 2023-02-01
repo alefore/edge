@@ -32,9 +32,8 @@ struct Instance {
 };
 
 void StartClassDeclaration(Compilation& compilation,
-                           const VMTypeObjectTypeName& name) {
-  compilation.current_class.push_back(
-      VMType{.variant = types::Object{.object_type_name = name}});
+                           const types::ObjectName& name) {
+  compilation.current_class.push_back(VMType{.variant = name});
   compilation.environment = compilation.pool.NewRoot<Environment>(
       MakeNonNullUnique<Environment>(compilation.environment.ptr()));
 }
@@ -141,8 +140,7 @@ PossibleError FinishClassDeclaration(
                 case EvaluationOutput::OutputType::kContinue:
                   return Success(EvaluationOutput::New(Value::NewObject(
                       trampoline.pool(),
-                      std::get<types::Object>(class_type.variant)
-                          .object_type_name,
+                      std::get<types::ObjectName>(class_type.variant),
                       MakeNonNullShared<Instance>(
                           Instance{.environment = instance_environment}))));
               }
@@ -155,7 +153,7 @@ PossibleError FinishClassDeclaration(
       purity;
 
   compilation.environment.ptr()->Define(
-      std::get<types::Object>(class_type.variant).object_type_name.read(),
+      std::get<types::ObjectName>(class_type.variant).read(),
       std::move(constructor));
   return Success();
 }

@@ -30,11 +30,11 @@ struct VMTypeMapper<editor::EditorState> {
     return value.get_user_value<editor::EditorState>(object_type_name).value();
   }
 
-  static const VMTypeObjectTypeName object_type_name;
+  static const types::ObjectName object_type_name;
 };
 
-const VMTypeObjectTypeName VMTypeMapper<editor::EditorState>::object_type_name =
-    VMTypeObjectTypeName(L"Editor");
+const types::ObjectName VMTypeMapper<editor::EditorState>::object_type_name =
+    types::ObjectName(L"Editor");
 }  // namespace afc::vm
 
 namespace afc::editor {

@@ -41,9 +41,9 @@ VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
       });
 }
 
-const VMTypeObjectTypeName
+const vm::types::ObjectName
     vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::object_type_name =
-        VMTypeObjectTypeName(L"Buffer");
+        vm::types::ObjectName(L"Buffer");
 }  // namespace afc::vm
 
 namespace afc::editor {

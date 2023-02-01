@@ -75,7 +75,7 @@ struct VMTypeMapper<language::NonNull<std::shared_ptr<T>>> {
       language::gc::Pool& pool, language::NonNull<std::shared_ptr<T>> value) {
     return Value::NewObject(pool, object_type_name, value);
   }
-  static const VMTypeObjectTypeName object_type_name;
+  static const types::ObjectName object_type_name;
 };
 
 template <typename>
@@ -94,8 +94,7 @@ struct GetVMType {
 
   template <typename C>
   static VMType vmtype_internal(decltype(C::object_type_name)*) {
-    return VMType{.variant =
-                      types::Object{.object_type_name = C::object_type_name}};
+    return VMType{.variant = C::object_type_name};
   };
 };
 

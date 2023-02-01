@@ -46,7 +46,7 @@ class Value {
   static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
                                              std::wstring value);
   static language::gc::Root<Value> NewObject(
-      language::gc::Pool& pool, VMTypeObjectTypeName name,
+      language::gc::Pool& pool, types::ObjectName name,
       language::NonNull<std::shared_ptr<void>> value,
       ExpandCallback expand_callback = [] {
         return std::vector<
@@ -87,9 +87,8 @@ class Value {
 
   template <typename T>
   language::NonNull<std::shared_ptr<T>> get_user_value(
-      const VMTypeObjectTypeName& expected_type) const {
-    CHECK_EQ(std::get<types::Object>(type.variant).object_type_name,
-             expected_type);
+      const types::ObjectName& expected_type) const {
+    CHECK_EQ(std::get<types::ObjectName>(type.variant), expected_type);
     return language::NonNull<std::shared_ptr<T>>::UnsafeStaticCast(
         std::get<ObjectInstance>(value_).value);
   }
@@ -100,8 +99,7 @@ class Value {
     CHECK(std::holds_alternative<ObjectInstance>(value_))
         << "Invalid call to get_user_value, expected type: " << expected_type
         << ", index was: " << value_.index();
-    return get_user_value<T>(
-        std::get<types::Object>(type.variant).object_type_name);
+    return get_user_value<T>(std::get<types::ObjectName>(type.variant));
   }
 
   Callback LockCallback();

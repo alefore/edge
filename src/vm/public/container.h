@@ -85,7 +85,7 @@ template <typename Container>
 void Export(language::gc::Pool& pool, Environment& environment) {
   using T = Traits<Container>;
   using ContainerPtr = T::ContainerPtr;
-  const VMTypeObjectTypeName& object_type_name =
+  const types::ObjectName& object_type_name =
       VMTypeMapper<ContainerPtr>::object_type_name;
   const VMType vmtype = GetVMType<ContainerPtr>::vmtype();
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);

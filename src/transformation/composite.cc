@@ -18,14 +18,14 @@ namespace gc = language::gc;
 
 namespace vm {
 template <>
-const VMTypeObjectTypeName VMTypeMapper<NonNull<std::shared_ptr<
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     editor::CompositeTransformation::Output>>>::object_type_name =
-    VMTypeObjectTypeName(L"TransformationOutput");
+    types::ObjectName(L"TransformationOutput");
 
 template <>
-const VMTypeObjectTypeName VMTypeMapper<NonNull<std::shared_ptr<
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     editor::CompositeTransformation::Input>>>::object_type_name =
-    VMTypeObjectTypeName(L"TransformationInput");
+    types::ObjectName(L"TransformationInput");
 }  // namespace vm
 namespace editor {
 namespace transformation {

@@ -21,14 +21,14 @@ namespace gc = afc::language::gc;
 
 namespace afc::vm {
 template <>
-const VMTypeObjectTypeName VMTypeMapper<NonNull<
+const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<std::vector<editor::LineColumn>>>>::object_type_name =
-    VMTypeObjectTypeName(L"VectorLineColumn");
+    types::ObjectName(L"VectorLineColumn");
 
 template <>
-const VMTypeObjectTypeName VMTypeMapper<
+const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<std::set<editor::LineColumn>>>>::object_type_name =
-    VMTypeObjectTypeName(L"SetLineColumn");
+    types::ObjectName(L"SetLineColumn");
 
 /* static */
 editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
@@ -42,8 +42,8 @@ gc::Root<Value> VMTypeMapper<editor::LineColumn>::New(
                           MakeNonNullShared<editor::LineColumn>(value));
 }
 
-const VMTypeObjectTypeName VMTypeMapper<editor::LineColumn>::object_type_name =
-    VMTypeObjectTypeName(L"LineColumn");
+const types::ObjectName VMTypeMapper<editor::LineColumn>::object_type_name =
+    types::ObjectName(L"LineColumn");
 
 /* static */
 editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
@@ -59,9 +59,9 @@ gc::Root<Value> VMTypeMapper<editor::LineColumnDelta>::New(
                           MakeNonNullShared<editor::LineColumnDelta>(value));
 }
 
-const VMTypeObjectTypeName
+const types::ObjectName
     VMTypeMapper<editor::LineColumnDelta>::object_type_name =
-        VMTypeObjectTypeName(L"LineColumnDelta");
+        types::ObjectName(L"LineColumnDelta");
 
 /* static */
 editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
@@ -75,8 +75,8 @@ gc::Root<Value> VMTypeMapper<editor::Range>::New(gc::Pool& pool,
                           MakeNonNullShared<editor::Range>(range));
 }
 
-const VMTypeObjectTypeName VMTypeMapper<editor::Range>::object_type_name =
-    VMTypeObjectTypeName(L"Range");
+const types::ObjectName VMTypeMapper<editor::Range>::object_type_name =
+    types::ObjectName(L"Range");
 }  // namespace afc::vm
 namespace afc::editor {
 using vm::Environment;
@@ -84,7 +84,7 @@ using vm::NewCallback;
 using vm::ObjectType;
 using vm::PurityType;
 using vm::VMTypeMapper;
-using vm::VMTypeObjectTypeName;
+using vm::types::ObjectName;
 
 void LineColumnRegister(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> line_column =
