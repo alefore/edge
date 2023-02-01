@@ -38,6 +38,7 @@ namespace {
 using concurrent::WorkQueue;
 using language::Error;
 using language::Success;
+using vm::GetVMType;
 using vm::PurityType;
 using vm::VMType;
 using vm::VMTypeMapper;
@@ -88,16 +89,12 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
       L"FunctionTransformation",
       vm::Value::NewFunction(
           pool, PurityType::kPure,
-          {VMType::ObjectType(
-               VMTypeMapper<NonNull<std::shared_ptr<
-                   editor::transformation::Variant>>>::object_type_name),
-           VMType::Function(
-               {VMType::ObjectType(
-                    VMTypeMapper<NonNull<std::shared_ptr<
-                        CompositeTransformation::Output>>>::object_type_name),
-                VMType::ObjectType(
-                    VMTypeMapper<NonNull<std::shared_ptr<
-                        CompositeTransformation::Input>>>::object_type_name)})},
+          {GetVMType<NonNull<
+               std::shared_ptr<editor::transformation::Variant>>>::vmtype(),
+           VMType::Function({GetVMType<NonNull<std::shared_ptr<
+                                 CompositeTransformation::Output>>>::vmtype(),
+                             GetVMType<NonNull<std::shared_ptr<
+                                 CompositeTransformation::Input>>>::vmtype()})},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
             gc::Ptr<vm::Value> callback = args[0].ptr();

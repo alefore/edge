@@ -220,7 +220,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       Value::NewFunction(
           pool, PurityType::kUnknown,
           {VMType::Void(), screen_type.ptr()->type(),
-           VMType::ObjectType(VMTypeMapper<LineColumnDelta>::object_type_name)},
+           vm::GetVMType<LineColumnDelta>::vmtype()},
           [&pool](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2ul);
             return futures::Past(VisitPointer(

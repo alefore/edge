@@ -33,7 +33,8 @@ struct Instance {
 
 void StartClassDeclaration(Compilation& compilation,
                            const VMTypeObjectTypeName& name) {
-  compilation.current_class.push_back(VMType::ObjectType(name));
+  compilation.current_class.push_back(
+      VMType{.variant = types::Object{.object_type_name = name}});
   compilation.environment = compilation.pool.NewRoot<Environment>(
       MakeNonNullUnique<Environment>(compilation.environment.ptr()));
 }

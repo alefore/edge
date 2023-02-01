@@ -87,7 +87,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   using ContainerPtr = T::ContainerPtr;
   const VMTypeObjectTypeName& object_type_name =
       VMTypeMapper<ContainerPtr>::object_type_name;
-  const VMType vmtype = VMType::ObjectType(object_type_name);
+  const VMType vmtype = GetVMType<ContainerPtr>::vmtype();
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
   environment.Define(

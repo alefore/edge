@@ -94,7 +94,8 @@ struct GetVMType {
 
   template <typename C>
   static VMType vmtype_internal(decltype(C::object_type_name)*) {
-    return VMType::ObjectType(C::object_type_name);
+    return VMType{.variant =
+                      types::Object{.object_type_name = C::object_type_name}};
   };
 };
 

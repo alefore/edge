@@ -209,10 +209,6 @@ std::wstring TypesToString(const std::unordered_set<VMType>& types) {
   return TypesToString(std::vector<VMType>(types.cbegin(), types.cend()));
 }
 
-/* static */ VMType VMType::ObjectType(VMTypeObjectTypeName name) {
-  return VMType{.variant = types::Object{.object_type_name = std::move(name)}};
-}
-
 wstring VMType::ToString() const {
   return std::visit(
       overload{
@@ -267,7 +263,8 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
 
 /* static */ gc::Root<ObjectType> ObjectType::New(
     gc::Pool& pool, VMTypeObjectTypeName object_type_name) {
-  return New(pool, VMType::ObjectType(object_type_name));
+  return New(pool, VMType{.variant = types::Object{.object_type_name =
+                                                       object_type_name}});
 }
 
 ObjectType::ObjectType(const VMType& type, ConstructorAccessKey)

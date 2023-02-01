@@ -85,8 +85,6 @@ struct VMType {
   static const VMType& Symbol();
   static const VMType& Double();
 
-  static VMType ObjectType(VMTypeObjectTypeName name);
-
   static VMType Function(vector<VMType> arguments,
                          PurityType function_purity = PurityType::kUnknown);
 

@@ -63,7 +63,9 @@ namespace gc = language::gc;
 /* static */ gc::Root<Value> Value::NewObject(
     gc::Pool& pool, VMTypeObjectTypeName name,
     NonNull<std::shared_ptr<void>> value, ExpandCallback expand_callback) {
-  gc::Root<Value> output = New(pool, VMType::ObjectType(std::move(name)));
+  gc::Root<Value> output = New(
+      pool,
+      VMType{.variant = types::Object{.object_type_name = std::move(name)}});
   output.ptr()->value_ = ObjectInstance{.value = std::move(value)};
   output.ptr()->expand_callback = std::move(expand_callback);
   return output;

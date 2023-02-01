@@ -183,9 +183,8 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
           {VMType::Void(), buffer_object_type.ptr()->type(),
-           VMType::ObjectType(
-               vm::VMTypeMapper<NonNull<std::shared_ptr<
-                   editor::transformation::Variant>>>::object_type_name)},
+           vm::GetVMType<NonNull<
+               std::shared_ptr<editor::transformation::Variant>>>::vmtype()},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2ul);
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(

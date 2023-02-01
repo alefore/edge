@@ -311,8 +311,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                             VLOG(3) << "Successfully executed Preview command: "
                                     << value.ptr().value();
                             if (value.ptr()->type ==
-                                VMType::ObjectType(
-                                    BufferMapper::object_type_name)) {
+                                vm::GetVMType<
+                                    gc::Root<editor::OpenBuffer>>::vmtype()) {
                               output.context =
                                   BufferMapper::get(value.ptr().value());
                             }
@@ -324,7 +324,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
       buffer.has_value()
           ? Parse(editor.gc_pool(), line, environment,
                   NewLazyString(L"Preview"),
-                  {VMType::ObjectType(BufferMapper::object_type_name)},
+                  {vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()},
                   search_namespaces)
           : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
   return std::move(output_future.value);
