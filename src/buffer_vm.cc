@@ -270,8 +270,11 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           pool, PurityType::kUnknown,
           {VMType{.variant = vm::types::Bool()},
            buffer_object_type.ptr()->type(),
-           VMType::Function({VMType{.variant = vm::types::String()},
-                             VMType{.variant = vm::types::String()}})},
+           VMType{.variant =
+                      vm::types::Function{
+                          .type_arguments =
+                              {VMType{.variant = vm::types::String()},
+                               VMType{.variant = vm::types::String()}}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
@@ -288,8 +291,11 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           pool, PurityType::kUnknown,
           {{.variant = vm::types::Void{}},
            buffer_object_type.ptr()->type(),
-           VMType::Function({VMType{.variant = vm::types::Bool{}},
-                             VMType{.variant = vm::types::String()}})},
+           VMType{.variant =
+                      vm::types::Function{
+                          .type_arguments =
+                              {VMType{.variant = vm::types::Bool{}},
+                               VMType{.variant = vm::types::String()}}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
@@ -407,25 +413,27 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      L"AddBinding", vm::Value::NewFunction(
-                         pool, vm::PurityTypeWriter,
-                         {{.variant = vm::types::Void{}},
-                          buffer_object_type.ptr()->type(),
-                          {.variant = vm::types::String{}},
-                          {.variant = vm::types::String{}},
-                          VMType::Function({{.variant = vm::types::Void{}}})},
-                         [&pool](std::vector<gc::Root<vm::Value>> args) {
-                           CHECK_EQ(args.size(), 4u);
-                           gc::Root<OpenBuffer> buffer =
-                               vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
-                                   args[0].ptr().value());
-                           buffer.ptr()->default_commands()->Add(
-                               args[1].ptr()->get_string(),
-                               args[2].ptr()->get_string(), std::move(args[3]),
-                               buffer.ptr()->environment().ToRoot());
-                           return vm::Value::NewVoid(pool);
-                         })
-                         .ptr());
+      L"AddBinding",
+      vm::Value::NewFunction(
+          pool, vm::PurityTypeWriter,
+          {{.variant = vm::types::Void{}},
+           buffer_object_type.ptr()->type(),
+           {.variant = vm::types::String{}},
+           {.variant = vm::types::String{}},
+           VMType{.variant =
+                      vm::types::Function{
+                          .type_arguments = {{.variant = vm::types::Void{}}}}}},
+          [&pool](std::vector<gc::Root<vm::Value>> args) {
+            CHECK_EQ(args.size(), 4u);
+            gc::Root<OpenBuffer> buffer =
+                vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
+                    args[0].ptr().value());
+            buffer.ptr()->default_commands()->Add(
+                args[1].ptr()->get_string(), args[2].ptr()->get_string(),
+                std::move(args[3]), buffer.ptr()->environment().ToRoot());
+            return vm::Value::NewVoid(pool);
+          })
+          .ptr());
 
   buffer_object_type.ptr()->AddField(
       L"AddBindingToFile",

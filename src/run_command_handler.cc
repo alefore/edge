@@ -426,9 +426,12 @@ class ForkEditorCommand : public Command {
               .context_command_callback =
                   original_buffer->ptr()->environment()->Lookup(
                       pool, kEmptyNamespace, L"GetShellPromptContextProgram",
-                      vm::VMType::Function(
-                          {vm::VMType{.variant = vm::types::String{}},
-                           vm::VMType{.variant = vm::types::String{}}}))});
+                      vm::VMType{
+                          .variant = vm::types::Function{
+                              .type_arguments = {
+                                  vm::VMType{.variant = vm::types::String{}},
+                                  vm::VMType{.variant =
+                                                 vm::types::String{}}}}})});
 
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       Prompt(PromptOptions{

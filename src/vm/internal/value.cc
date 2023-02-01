@@ -75,8 +75,10 @@ namespace gc = language::gc;
     gc::Pool& pool, PurityType purity_type, std::vector<VMType> arguments,
     Value::Callback callback, ExpandCallback expand_callback) {
   CHECK(callback != nullptr);
-  gc::Root<Value> output =
-      New(pool, VMType::Function(std::move(arguments), purity_type));
+  gc::Root<Value> output = New(
+      pool,
+      VMType{.variant = types::Function{.type_arguments = std::move(arguments),
+                                        .function_purity = purity_type}});
   output.ptr()->value_ = std::move(callback);
   output.ptr()->expand_callback = std::move(expand_callback);
   return output;

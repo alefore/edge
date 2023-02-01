@@ -208,9 +208,12 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           pool, PurityType::kUnknown,
           {{.variant = vm::types::Void{}},
            GetVMType<EditorState>::vmtype(),
-           VMType::Function(
-               {{.variant = vm::types::Void{}},
-                vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()})},
+           VMType{.variant =
+                      vm::types::Function{
+                          .type_arguments =
+                              {{.variant = vm::types::Void{}},
+                               vm::GetVMType<
+                                   gc::Root<editor::OpenBuffer>>::vmtype()}}}},
           [&pool](std::vector<gc::Root<vm::Value>> input,
                   Trampoline& trampoline) {
             EditorState& editor_arg =
@@ -250,9 +253,12 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           pool, PurityType::kUnknown,
           {{.variant = vm::types::Void{}},
            GetVMType<EditorState>::vmtype(),
-           VMType::Function(
-               {{.variant = vm::types::Void{}},
-                GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()})},
+           VMType{.variant =
+                      vm::types::Function{
+                          .type_arguments =
+                              {{.variant = vm::types::Void{}},
+                               GetVMType<
+                                   gc::Root<editor::OpenBuffer>>::vmtype()}}}},
           [&pool](std::vector<gc::Root<vm::Value>> input,
                   Trampoline& trampoline) {
             EditorState& editor_arg =
@@ -461,7 +467,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
            GetVMType<EditorState>::vmtype(),
            {.variant = vm::types::String{}},
            {.variant = vm::types::String{}},
-           VMType::Function({{.variant = vm::types::Void{}}})},
+           VMType{.variant =
+                      vm::types::Function{
+                          .type_arguments = {{.variant = vm::types::Void{}}}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 4u);
             EditorState& editor_arg =

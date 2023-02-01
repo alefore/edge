@@ -110,7 +110,9 @@ class FunctionCall : public Expression {
 
     return trampoline
         .Bounce(func_.value(),
-                VMType::Function(std::move(type_arguments), purity()))
+                VMType{.variant = types::Function{.type_arguments =
+                                                      std::move(type_arguments),
+                                                  .function_purity = purity()}})
         .Transform(
             [&trampoline, args_types = args_](EvaluationOutput callback) {
               if (callback.type == EvaluationOutput::OutputType::kReturn)

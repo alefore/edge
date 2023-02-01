@@ -212,13 +212,6 @@ wstring VMType::ToString() const {
       variant);
 }
 
-/* static */ VMType VMType::Function(vector<VMType> arguments,
-                                     PurityType function_purity) {
-  return VMType{.variant =
-                    types::Function{.type_arguments = std::move(arguments),
-                                    .function_purity = function_purity}};
-}
-
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
     const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
