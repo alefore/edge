@@ -78,8 +78,6 @@ VMTypeObjectTypeName NameForType(Type variant_type);
 
 // TODO(easy, 2022-12-07): Unnest the std::variant.
 struct VMType {
-  static const VMType& Void();
-
   static VMType Function(vector<VMType> arguments,
                          PurityType function_purity = PurityType::kUnknown);
 

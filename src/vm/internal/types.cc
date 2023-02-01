@@ -165,11 +165,6 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   return os;
 }
 
-/* static */ const VMType& VMType::Void() {
-  static const VMType type{.variant = types::Void()};
-  return type;
-}
-
 wstring TypesToString(const std::vector<VMType>& types) {
   wstring output;
   wstring separator = L"";

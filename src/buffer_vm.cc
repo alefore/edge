@@ -347,7 +347,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       L"Save",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), buffer_object_type.ptr()->type()},
+          {{.variant = vm::types::Void{}}, buffer_object_type.ptr()->type()},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(

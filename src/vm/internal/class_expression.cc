@@ -127,7 +127,8 @@ PossibleError FinishClassDeclaration(
                 class_environment.ptr()->parent_environment()));
         auto original_environment = trampoline.environment();
         trampoline.SetEnvironment(instance_environment);
-        return trampoline.Bounce(constructor_expression.value(), VMType::Void())
+        return trampoline
+            .Bounce(constructor_expression.value(), {.variant = types::Void{}})
             .Transform([constructor_expression, original_environment,
                         class_type, instance_environment,
                         &trampoline](EvaluationOutput constructor_evaluation)

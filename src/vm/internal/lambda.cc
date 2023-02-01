@@ -31,7 +31,7 @@ class LambdaExpression : public Expression {
     VMType expected_return_type = *lambda_function_type.type_arguments.cbegin();
     auto deduced_types = body->ReturnTypes();
     if (deduced_types.empty()) {
-      deduced_types.insert(VMType::Void());
+      deduced_types.insert({.variant = types::Void{}});
     }
     if (deduced_types.size() > 1) {
       return Error(L"Found multiple return types: " +

@@ -219,7 +219,8 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       L"set_size",
       Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), screen_type.ptr()->type(),
+          {{.variant = vm::types::Void{}},
+           screen_type.ptr()->type(),
            vm::GetVMType<LineColumnDelta>::vmtype()},
           [&pool](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2ul);
