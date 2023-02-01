@@ -93,10 +93,10 @@ class Expression {
 
   bool SupportsType(const VMType& type);
 
-  bool IsBool() { return SupportsType(VMType::Bool()); }
-  bool IsInt() { return SupportsType(VMType::Int()); };
-  bool IsDouble() { return SupportsType(VMType::Double()); };
-  bool IsString() { return SupportsType(VMType::String()); };
+  bool IsBool() { return SupportsType({.variant = types::Bool()}); }
+  bool IsInt() { return SupportsType({.variant = types::Int()}); };
+  bool IsDouble() { return SupportsType({.variant = types::Double()}); };
+  bool IsString() { return SupportsType({.variant = types::String()}); };
 
   virtual PurityType purity() = 0;
 

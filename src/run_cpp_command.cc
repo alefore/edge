@@ -140,7 +140,8 @@ ValueOrError<ParsedCommand> Parse(
     for (auto it = function_type->type_arguments.begin() + 1;
          all_arguments_are_strings && it != function_type->type_arguments.end();
          ++it) {
-      all_arguments_are_strings = *it == VMType::String();
+      all_arguments_are_strings =
+          std::holds_alternative<vm::types::String>(it->variant);
     }
     if (all_arguments_are_strings) {
       type_match_functions.push_back(candidate);
@@ -199,7 +200,9 @@ ValueOrError<ParsedCommand> Parse(gc::Pool& pool,
                                   vm::Environment& environment,
                                   const SearchNamespaces& search_namespaces) {
   return Parse(pool, std::move(command), environment, EmptyString(),
-               {VMType::Void(), VMType::String()}, search_namespaces);
+               {VMType{.variant = vm::types::Void{}},
+                VMType{.variant = vm::types::String{}}},
+               search_namespaces);
 }
 
 namespace {
@@ -211,10 +214,10 @@ bool tests_parse_registration = tests::Register(
             gc::Root<OpenBuffer> buffer = NewBufferForTests();
             gc::Pool pool({});
             vm::Environment environment;
-            ValueOrError<ParsedCommand> output =
-                Parse(pool, EmptyString(), environment, EmptyString(),
-                      std::unordered_set<VMType>({VMType::String()}),
-                      SearchNamespaces(buffer.ptr().value()));
+            ValueOrError<ParsedCommand> output = Parse(
+                pool, EmptyString(), environment, EmptyString(),
+                std::unordered_set<VMType>({{.variant = vm::types::String{}}}),
+                SearchNamespaces(buffer.ptr().value()));
             CHECK_EQ(std::get<Error>(output), Error(L""));
           }},
      {.name = L"NonEmptyCommandNoMatch",
@@ -223,10 +226,10 @@ bool tests_parse_registration = tests::Register(
             gc::Root<OpenBuffer> buffer = NewBufferForTests();
             gc::Pool pool({});
             vm::Environment environment;
-            ValueOrError<ParsedCommand> output =
-                Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
-                      std::unordered_set<VMType>({VMType::String()}),
-                      SearchNamespaces(buffer.ptr().value()));
+            ValueOrError<ParsedCommand> output = Parse(
+                pool, NewLazyString(L"foo"), environment, EmptyString(),
+                std::unordered_set<VMType>({{.variant = vm::types::String{}}}),
+                SearchNamespaces(buffer.ptr().value()));
             Error error = std::get<Error>(output);
             LOG(INFO) << "Error: " << error;
             CHECK_GT(error.read().size(), sizeof("Unknown "));
@@ -238,10 +241,10 @@ bool tests_parse_registration = tests::Register(
         gc::Pool pool({});
         vm::Environment environment;
         environment.Define(L"foo", vm::Value::NewString(pool, L"bar"));
-        ValueOrError<ParsedCommand> output =
-            Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
-                  std::unordered_set<VMType>({VMType::String()}),
-                  SearchNamespaces(buffer.ptr().value()));
+        ValueOrError<ParsedCommand> output = Parse(
+            pool, NewLazyString(L"foo"), environment, EmptyString(),
+            std::unordered_set<VMType>({{.variant = vm::types::String{}}}),
+            SearchNamespaces(buffer.ptr().value()));
         CHECK(std::holds_alternative<Error>(output));
       }}});
 }

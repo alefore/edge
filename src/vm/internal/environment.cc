@@ -39,7 +39,8 @@ language::gc::Root<Environment> Environment::NewDefault(
   RegisterStringType(pool, environment_value);
   RegisterNumberFunctions(pool, environment_value);
   RegisterTimeType(pool, environment_value);
-  gc::Root<ObjectType> bool_type = ObjectType::New(pool, VMType::Bool());
+  gc::Root<ObjectType> bool_type =
+      ObjectType::New(pool, {.variant = types::Bool()});
   bool_type.ptr()->AddField(
       L"tostring", NewCallback(pool, PurityType::kPure,
                                std::function<wstring(bool)>([](bool v) {
@@ -48,7 +49,8 @@ language::gc::Root<Environment> Environment::NewDefault(
                        .ptr());
   environment_value.DefineType(bool_type.ptr());
 
-  gc::Root<ObjectType> int_type = ObjectType::New(pool, VMType::Int());
+  gc::Root<ObjectType> int_type =
+      ObjectType::New(pool, {.variant = types::Int()});
   int_type.ptr()->AddField(
       L"tostring", NewCallback(pool, PurityType::kPure,
                                std::function<std::wstring(int)>([](int value) {
@@ -57,7 +59,8 @@ language::gc::Root<Environment> Environment::NewDefault(
                        .ptr());
   environment_value.DefineType(int_type.ptr());
 
-  gc::Root<ObjectType> double_type = ObjectType::New(pool, VMType::Double());
+  gc::Root<ObjectType> double_type =
+      ObjectType::New(pool, {.variant = types::Double()});
   double_type.ptr()->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure,
@@ -102,13 +105,17 @@ const ObjectType* Environment::LookupObjectType(
 
 const VMType* Environment::LookupType(const wstring& symbol) {
   if (symbol == L"void") {
-    return &VMType::Void();
+    static VMType output{.variant = types::Void()};
+    return &output;
   } else if (symbol == L"bool") {
-    return &VMType::Bool();
+    static VMType output{.variant = types::Bool()};
+    return &output;
   } else if (symbol == L"int") {
-    return &VMType::Int();
+    static VMType output{.variant = types::Int()};
+    return &output;
   } else if (symbol == L"string") {
-    return &VMType::String();
+    static VMType output{.variant = types::String()};
+    return &output;
   }
 
   auto object_type = LookupObjectType(VMTypeObjectTypeName(symbol));

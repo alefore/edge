@@ -78,7 +78,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
 
   if (str_operator != nullptr && a->IsString() && b->IsString()) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType::String(),
+        std::move(a), std::move(b), VMType{.variant = types::String()},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
           ASSIGN_OR_RETURN(
@@ -90,7 +90,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
 
   if (int_operator != nullptr && a->IsInt() && b->IsInt()) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType::Int(),
+        std::move(a), std::move(b), VMType{.variant = types::Int()},
         [int_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
           ASSIGN_OR_RETURN(int value,
@@ -102,14 +102,14 @@ std::unique_ptr<Expression> NewBinaryExpression(
   if (double_operator != nullptr && (a->IsInt() || a->IsDouble()) &&
       (b->IsInt() || b->IsDouble())) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType::Double(),
+        std::move(a), std::move(b), VMType{.variant = types::Double{}},
         [double_operator](
             gc::Pool& pool, const Value& a_value,
             const Value& b_value) -> ValueOrError<gc::Root<Value>> {
           auto to_double = [](const Value& x) {
-            if (x.type == VMType::Int()) {
+            if (std::holds_alternative<types::Int>(x.type.variant)) {
               return static_cast<double>(x.get_int());
-            } else if (x.type == VMType::Double()) {
+            } else if (std::holds_alternative<types::Double>(x.type.variant)) {
               return x.get_double();
             } else {
               CHECK(false) << "Unexpected type: " << x.type;
@@ -124,7 +124,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
 
   if (str_int_operator != nullptr && a->IsString() && b->IsInt()) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType::String(),
+        std::move(a), std::move(b), VMType{.variant = types::String{}},
         [str_int_operator](
             gc::Pool& pool, const Value& value_a,
             const Value& value_b) -> ValueOrError<gc::Root<Value>> {

@@ -69,7 +69,9 @@ class Value {
           callback);
 
   bool IsVoid() const;
+  bool IsBool() const;
   bool IsInt() const;
+  bool IsDouble() const;
   bool IsString() const;
   bool IsSymbol() const;
   bool IsFunction() const;

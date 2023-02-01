@@ -125,7 +125,8 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
     case vm::PurityType::kPure:
     case vm::PurityType::kReader: {
       description += L" ...";
-      if (expr->Types() == std::vector<vm::VMType>({vm::VMType::Void()})) {
+      if (expr->Types() ==
+          std::vector<vm::VMType>({vm::VMType{.variant = vm::types::Void{}}})) {
         return MakeNonNullShared<const Line>(
             line->CopyOptions().SetMetadata(std::nullopt));
       }
@@ -606,7 +607,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
       L"sleep",
       Value::NewFunction(
           editor().gc_pool(), PurityType::kUnknown,
-          {VMType::Void(), VMType::Double()},
+          {{.variant = types::Void()}, {.variant = types::Double()}},
           [weak_this](std::vector<gc::Root<Value>> args,
                       Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
@@ -1583,8 +1584,10 @@ bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
   if (vm::types::Function* function_type =
           std::get_if<vm::types::Function>(&type.variant);
       function_type == nullptr || function_type->type_arguments.size() != 2 ||
-      function_type->type_arguments[0] != VMType::String() ||
-      function_type->type_arguments[1] != VMType::String()) {
+      !std::holds_alternative<vm::types::String>(
+          function_type->type_arguments[0].variant) ||
+      !std::holds_alternative<vm::types::String>(
+          function_type->type_arguments[1].variant)) {
     status_.SetWarningText(
         L": Unexpected type for keyboard text transformer: " +
         transformer.ptr()->type.ToString());

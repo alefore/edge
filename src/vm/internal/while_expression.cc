@@ -54,7 +54,7 @@ class WhileExpression : public Expression {
       Trampoline& trampoline, NonNull<std::shared_ptr<Expression>> condition,
       NonNull<std::shared_ptr<Expression>> body,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
-    trampoline.Bounce(condition.value(), VMType::Bool())
+    trampoline.Bounce(condition.value(), {.variant = types::Bool{}})
         .SetConsumer(VisitCallback(overload{
             [consumer](Error error) { return consumer(std::move(error)); },
             [condition, body, consumer,

@@ -66,32 +66,30 @@ std::unique_ptr<Expression> NewNegateExpression(
 
 std::unique_ptr<Expression> NewNegateExpressionBool(
     Compilation& compilation, std::unique_ptr<Expression> expr) {
-  return NewNegateExpression(
-      compilation, std::move(expr),
-      [](gc::Pool& pool, Value& value) {
-        return Value::NewBool(pool, !value.get_bool());
-      },
-      VMType::Bool());
+  return NewNegateExpression(compilation, std::move(expr),
+                             [](gc::Pool& pool, Value& value) {
+                               return Value::NewBool(pool, !value.get_bool());
+                             },
+                             {.variant = types::Bool{}});
 }
 
 std::unique_ptr<Expression> NewNegateExpressionInt(
     Compilation& compilation, std::unique_ptr<Expression> expr) {
-  return NewNegateExpression(
-      compilation, std::move(expr),
-      [](gc::Pool& pool, Value& value) {
-        return Value::NewInt(pool, -value.get_int());
-      },
-      VMType::Int());
+  return NewNegateExpression(compilation, std::move(expr),
+                             [](gc::Pool& pool, Value& value) {
+                               return Value::NewInt(pool, -value.get_int());
+                             },
+                             {.variant = types::Int{}});
 }
 
 std::unique_ptr<Expression> NewNegateExpressionDouble(
     Compilation& compilation, std::unique_ptr<Expression> expr) {
-  return NewNegateExpression(
-      compilation, std::move(expr),
-      [](gc::Pool& pool, Value& value) {
-        return Value::NewDouble(pool, -value.get_double());
-      },
-      VMType::Double());
+  return NewNegateExpression(compilation, std::move(expr),
+                             [](gc::Pool& pool, Value& value) {
+                               return Value::NewDouble(pool,
+                                                       -value.get_double());
+                             },
+                             {.variant = types::Double()});
 }
 
 }  // namespace afc::vm

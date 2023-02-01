@@ -113,8 +113,9 @@ void Export(language::gc::Pool& pool, Environment& environment) {
       L"get",
       Value::NewFunction(
           pool, PurityType::kPure,
-          {GetVMType<typename Container::value_type>::vmtype(), vmtype,
-           VMType::Int()},
+          {GetVMType<typename Container::value_type>::vmtype(),
+           vmtype,
+           {.variant = types::Int{}}},
           [object_type_name](std::vector<language::gc::Root<Value>> args,
                              Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {

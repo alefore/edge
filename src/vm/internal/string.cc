@@ -40,7 +40,8 @@ void AddMethod(const wstring& name, language::gc::Pool& pool,
 }
 
 void RegisterStringType(gc::Pool& pool, Environment& environment) {
-  gc::Root<ObjectType> string_type = ObjectType::New(pool, VMType::String());
+  gc::Root<ObjectType> string_type =
+      ObjectType::New(pool, {.variant = types::String{}});
   AddMethod<int>(L"size", pool,
                  std::function<int(const wstring&)>(
                      [](const wstring& str) { return str.size(); }),

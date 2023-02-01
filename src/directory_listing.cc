@@ -82,7 +82,8 @@ Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
   std::optional<gc::Root<vm::Value>> callback = target.environment()->Lookup(
       target.editor().gc_pool(), vm::Namespace(), L"GetPathMetadata",
-      VMType::Function({VMType::String(), VMType::String()}));
+      VMType::Function({VMType{.variant = vm::types::String{}},
+                        VMType{.variant = vm::types::String{}}}));
   if (!callback.has_value()) {
     VLOG(5) << "Unable to find suitable GetPathMetadata definition";
     return {

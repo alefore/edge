@@ -65,7 +65,8 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
   editor_type.AddField(
       name,
       vm::Value::NewFunction(
-          pool, purity_type, {VMType::Void(), editor_type.type()},
+          pool, purity_type,
+          {{.variant = vm::types::Void{}}, editor_type.type()},
           [method](std::vector<gc::Root<vm::Value>> args,
                    Trampoline& trampoline) {
             CHECK_EQ(args.size(), size_t(1));
@@ -205,9 +206,10 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"ForEachActiveBuffer",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), GetVMType<EditorState>::vmtype(),
+          {{.variant = vm::types::Void{}},
+           GetVMType<EditorState>::vmtype(),
            VMType::Function(
-               {VMType::Void(),
+               {{.variant = vm::types::Void{}},
                 vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()})},
           [&pool](std::vector<gc::Root<vm::Value>> input,
                   Trampoline& trampoline) {
@@ -246,9 +248,10 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"ForEachActiveBufferWithRepetitions",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), GetVMType<EditorState>::vmtype(),
+          {{.variant = vm::types::Void{}},
+           GetVMType<EditorState>::vmtype(),
            VMType::Function(
-               {VMType::Void(),
+               {{.variant = vm::types::Void{}},
                 GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()})},
           [&pool](std::vector<gc::Root<vm::Value>> input,
                   Trampoline& trampoline) {
@@ -287,7 +290,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"ConnectTo",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), GetVMType<EditorState>::vmtype(), VMType::String()},
+          {{.variant = vm::types::Void{}},
+           GetVMType<EditorState>::vmtype(),
+           {.variant = vm::types::String{}}},
           [&pool](std::vector<gc::Root<vm::Value>> args,
                   Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
@@ -308,7 +313,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"WaitForClose",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), GetVMType<EditorState>::vmtype(),
+          {{.variant = vm::types::Void{}},
+           GetVMType<EditorState>::vmtype(),
            GetVMType<
                NonNull<std::shared_ptr<std::set<std::wstring>>>>::vmtype()},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
@@ -419,7 +425,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
           {GetVMType<gc::Root<OpenBuffer>>::vmtype(),
-           GetVMType<EditorState>::vmtype(), VMType::String(), VMType::Bool()},
+           GetVMType<EditorState>::vmtype(),
+           {.variant = vm::types::String{}},
+           {.variant = vm::types::Bool{}}},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
             EditorState& editor_arg =
@@ -449,8 +457,11 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"AddBinding",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {VMType::Void(), GetVMType<EditorState>::vmtype(), VMType::String(),
-           VMType::String(), VMType::Function({VMType::Void()})},
+          {{.variant = vm::types::Void{}},
+           GetVMType<EditorState>::vmtype(),
+           {.variant = vm::types::String{}},
+           {.variant = vm::types::String{}},
+           VMType::Function({{.variant = vm::types::Void{}}})},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 4u);
             EditorState& editor_arg =

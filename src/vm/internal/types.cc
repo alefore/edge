@@ -170,31 +170,6 @@ std::ostream& operator<<(std::ostream& os, const VMType& type) {
   return type;
 }
 
-/* static */ const VMType& VMType::Bool() {
-  static const VMType type{.variant = types::Bool()};
-  return type;
-}
-
-/* static */ const VMType& VMType::Int() {
-  static const VMType type{.variant = types::Int()};
-  return type;
-}
-
-/* static */ const VMType& VMType::String() {
-  static const VMType type{.variant = types::String()};
-  return type;
-}
-
-/* static */ const VMType& VMType::Symbol() {
-  static const VMType type{.variant = types::Symbol()};
-  return type;
-}
-
-/* static */ const VMType& VMType::Double() {
-  static const VMType type{.variant = types::Double()};
-  return type;
-}
-
 wstring TypesToString(const std::vector<VMType>& types) {
   wstring output;
   wstring separator = L"";

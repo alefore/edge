@@ -24,7 +24,7 @@ class LogicalExpression : public Expression {
         expr_a_(std::move(expr_a)),
         expr_b_(std::move(expr_b)) {}
 
-  std::vector<VMType> Types() override { return {VMType::Bool()}; }
+  std::vector<VMType> Types() override { return {{.variant = types::Bool{}}}; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
   PurityType purity() {
@@ -36,7 +36,7 @@ class LogicalExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
       Trampoline& trampoline, const VMType& type) override {
-    return trampoline.Bounce(expr_a_.value(), VMType::Bool())
+    return trampoline.Bounce(expr_a_.value(), {.variant = types::Bool{}})
         .Transform([type, &trampoline, identity = identity_,
                     expr_b = expr_b_](EvaluationOutput a_output)
                        -> futures::ValueOrError<EvaluationOutput> {

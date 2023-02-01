@@ -42,7 +42,7 @@ class IfExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(
       Trampoline& trampoline, const VMType& type) override {
-    return trampoline.Bounce(cond_.value(), VMType::Bool())
+    return trampoline.Bounce(cond_.value(), {.variant = types::Bool{}})
         .Transform([type, true_case = true_case_, false_case = false_case_,
                     &trampoline](EvaluationOutput cond_output)
                        -> futures::ValueOrError<EvaluationOutput> {

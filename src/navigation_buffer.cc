@@ -123,8 +123,9 @@ futures::Value<PossibleError> GenerateContents(
   target.AppendToLastLine(
       NewLazyString(source->ptr()->Read(buffer_variables::name)));
   static const vm::Namespace kEmptyNamespace;
-  std::optional<gc::Root<vm::Value>> depth_value = target.environment()->Lookup(
-      editor_state.gc_pool(), kEmptyNamespace, kDepthSymbol, vm::VMType::Int());
+  std::optional<gc::Root<vm::Value>> depth_value =
+      target.environment()->Lookup(editor_state.gc_pool(), kEmptyNamespace,
+                                   kDepthSymbol, {.variant = vm::types::Int{}});
   int depth = depth_value.has_value()
                   ? size_t(std::max(0, depth_value.value().ptr()->get_int()))
                   : 3;

@@ -498,14 +498,16 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
   if (var == nullptr) {
     OUT = nullptr;
   } else if (var->IsInt() || var->IsDouble()) {
-    auto type = var->IsInt() ? VMType::Int() : VMType::Double();
+    auto type = var->IsInt()
+       ? VMType{.variant = types::Int()}
+       : VMType{.variant = types::Double()};
     OUT = NewAssignExpression(
               compilation, NAME->value().ptr()->get_symbol(),
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
-                  type == VMType::Int()
+                  std::holds_alternative<types::Int>(type.variant)
                       ? [](gc::Pool& pool, const Value&, const Value& a) {
                           return Value::NewInt(pool, a.get_int() + 1);
                         }
@@ -526,14 +528,16 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
   if (var == nullptr) {
     OUT = nullptr;
   } else if (var->IsInt() || var->IsDouble()) {
-    auto type = var->IsInt() ? VMType::Int() : VMType::Double();
+    auto type = var->IsInt()
+       ? VMType{.variant = types::Int()}
+       : VMType{.variant = types::Double()};
     OUT = NewAssignExpression(
               compilation, NAME->value().ptr()->get_symbol(),
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
                   type,
-                  type == VMType::Int()
+                  std::holds_alternative<types::Int>(type.variant)
                       ? [](gc::Pool& pool, const Value&, const Value& a) {
                           return Value::NewInt(pool, a.get_int() - 1);
                         }
@@ -623,7 +627,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
             std::unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(pool, a.get_string() == b.get_string());
         });
@@ -635,7 +639,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
             std::unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(pool, a.get_int() == b.get_int());
         });
@@ -647,7 +651,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
             std::unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(pool, a.get_double() == b.get_double());
         });
@@ -670,7 +674,7 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
             std::unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(pool, a.get_string() != b.get_string());
         });
@@ -682,7 +686,7 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
             std::unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(pool, a.get_int() != b.get_int());
         });
@@ -694,7 +698,7 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
             std::unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(pool, a.get_double() != b.get_double());
         });
@@ -718,7 +722,7 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
             std::unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             std::unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(
               pool,
@@ -746,7 +750,7 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
             unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(
               pool,
@@ -774,7 +778,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
             unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(
               pool,
@@ -802,7 +806,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
             unique_ptr<Expression>(A)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(
             unique_ptr<Expression>(B)),
-        VMType::Bool(),
+        {.variant = types::Bool{}},
         [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(
               pool,
@@ -921,7 +925,7 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 
 expr(OUT) ::= BOOL(B). {
   // TODO(easy, 2022-05-13): Add a Value::IsBool check.
-  CHECK_EQ(B->value().ptr()->type, VMType::Bool());
+  CHECK_EQ(B->value().ptr()->type, VMType{.variant = types::Bool{}});
   OUT = NewConstantExpression(std::move(B->value())).get_unique().release();
   delete B;
 }
@@ -933,8 +937,7 @@ expr(OUT) ::= INTEGER(I). {
 }
 
 expr(OUT) ::= DOUBLE(I). {
-  // TODO(easy, 2022-05-13): Add a Value::IsDouble check.
-  CHECK_EQ(I->value().ptr()->type, VMType::Double());
+  CHECK(I->value().ptr()->IsDouble());
   OUT = NewConstantExpression(std::move(I->value())).get_unique().release();
   delete I;
 }
@@ -955,8 +958,8 @@ string(OUT) ::= STRING(S). {
 }
 
 string(OUT) ::= string(A) STRING(B). {
-  assert(A->ptr()->type == VMType::String());
-  assert(B->value().ptr()->type == VMType::String());
+  CHECK(std::holds_alternative<types::String>(A->ptr()->type.variant));
+  CHECK(std::holds_alternative<types::String>(B->value().ptr()->type.variant));
   OUT = std::make_unique<gc::Root<Value>>(Value::NewString(compilation->pool,
       std::move(A->ptr()->get_string())
       + std::move(B->value().ptr()->get_string()))).release();
@@ -972,7 +975,8 @@ expr(OUT) ::= non_empty_symbols_list(N) . {
 %destructor non_empty_symbols_list { delete $$; }
 
 non_empty_symbols_list(OUT) ::= SYMBOL(S). {
-  CHECK_EQ(S->value().ptr()->type, VMType::Symbol());
+  CHECK(
+      std::holds_alternative<types::Symbol>(S->value().ptr()->type.variant));
   OUT = new std::list<std::wstring>(
       {std::move(S->value().ptr()->get_symbol())});
   delete S;
@@ -981,7 +985,8 @@ non_empty_symbols_list(OUT) ::= SYMBOL(S). {
 non_empty_symbols_list(OUT) ::=
     SYMBOL(S) DOUBLECOLON non_empty_symbols_list(L). {
   CHECK_NE(L, nullptr);
-  CHECK_EQ(S->value().ptr()->type, VMType::Symbol());
+  CHECK(
+      std::holds_alternative<types::Symbol>(S->value().ptr()->type.variant));
   L->push_front(std::move(S->value().ptr()->get_symbol()));
   OUT = std::move(L);
   delete S;
