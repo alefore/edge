@@ -20,16 +20,16 @@ class NamespaceExpression : public Expression {
                       NonNull<std::shared_ptr<Expression>> body)
       : namespace_(full_namespace), body_(std::move(body)) {}
 
-  std::vector<VMType> Types() override { return body_->Types(); }
+  std::vector<Type> Types() override { return body_->Types(); }
 
-  std::unordered_set<VMType> ReturnTypes() const override {
+  std::unordered_set<Type> ReturnTypes() const override {
     return body_->ReturnTypes();
   }
 
   PurityType purity() { return body_->purity(); }
 
-  futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline& trampoline, const VMType& type) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
+                                                   const Type& type) override {
     language::gc::Root<Environment> original_environment =
         trampoline.environment();
     std::optional<language::gc::Root<Environment>> namespace_environment =

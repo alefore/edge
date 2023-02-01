@@ -9,20 +9,18 @@ namespace gc = language::gc;
 using PromotionCallback =
     std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>;
 
-PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
+PromotionCallback GetImplicitPromotion(Type original, Type desired) {
   if (original == desired)
     return [](gc::Pool&, gc::Root<Value> value) { return value; };
-  if (std::holds_alternative<types::Int>(original.variant) &&
-      std::holds_alternative<types::Double>(desired.variant)) {
+  if (std::holds_alternative<types::Int>(original) &&
+      std::holds_alternative<types::Double>(desired)) {
     return [](gc::Pool& pool, gc::Root<Value> value) {
       return Value::NewDouble(pool, value.ptr()->get_int());
     };
   }
 
-  types::Function* original_function =
-      std::get_if<types::Function>(&original.variant);
-  types::Function* desired_function =
-      std::get_if<types::Function>(&desired.variant);
+  types::Function* original_function = std::get_if<types::Function>(&original);
+  types::Function* desired_function = std::get_if<types::Function>(&desired);
 
   if (original_function != nullptr && desired_function != nullptr) {
     if (original_function->type_arguments.size() !=
@@ -47,8 +45,8 @@ PromotionCallback GetImplicitPromotion(VMType original, VMType desired) {
 
     return [argument_callbacks, purity = desired_function->function_purity](
                gc::Pool& pool, gc::Root<Value> value) {
-      std::vector<VMType> type_arguments =
-          std::get<types::Function>(value.ptr()->type.variant).type_arguments;
+      std::vector<Type> type_arguments =
+          std::get<types::Function>(value.ptr()->type).type_arguments;
       return Value::NewFunction(
           pool, purity, type_arguments,
           std::bind_front(

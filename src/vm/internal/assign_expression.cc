@@ -5,6 +5,7 @@
 #include "src/language/wstring.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/public/environment.h"
+#include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
@@ -29,15 +30,15 @@ class AssignExpression : public Expression {
         symbol_(std::move(symbol)),
         value_(std::move(value)) {}
 
-  std::vector<VMType> Types() override { return value_->Types(); }
-  std::unordered_set<VMType> ReturnTypes() const override {
+  std::vector<Type> Types() override { return value_->Types(); }
+  std::unordered_set<Type> ReturnTypes() const override {
     return value_->ReturnTypes();
   }
 
   PurityType purity() override { return PurityType::kUnknown; }
 
-  futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline& trampoline, const VMType& type) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
+                                                   const Type& type) override {
     return trampoline.Bounce(value_.value(), type)
         .Transform(
             [&trampoline, symbol = symbol_,
@@ -77,10 +78,11 @@ class AssignExpression : public Expression {
 };
 }  // namespace
 
-std::optional<VMType> NewDefineTypeExpression(
-    Compilation* compilation, std::wstring type, std::wstring symbol,
-    std::optional<VMType> default_type) {
-  VMType type_def;
+std::optional<Type> NewDefineTypeExpression(Compilation* compilation,
+                                            std::wstring type,
+                                            std::wstring symbol,
+                                            std::optional<Type> default_type) {
+  Type type_def;
   if (type == L"auto") {
     if (default_type == std::nullopt) {
       compilation->AddError(Error(L"Unable to deduce type."));
@@ -107,7 +109,7 @@ std::unique_ptr<Expression> NewDefineExpression(
   if (value == nullptr) {
     return nullptr;
   }
-  std::optional<VMType> default_type;
+  std::optional<Type> default_type;
   if (type == L"auto") {
     auto types = value->Types();
     if (types.size() != 1) {
@@ -155,7 +157,7 @@ std::unique_ptr<Expression> NewAssignExpression(
     return nullptr;
   }
 
-  std::vector<VMType> variable_types;
+  std::vector<Type> variable_types;
   for (const gc::Root<Value>& v : variables) {
     variable_types.push_back(v.ptr()->type);
   }

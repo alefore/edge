@@ -31,7 +31,6 @@ using std::wstring;
 
 class Environment;
 class Evaluation;
-struct VMType;
 
 class Expression;
 struct EvaluationOutput;
@@ -55,7 +54,7 @@ class Trampoline {
   // The Trampoline itself must not be deleted before the future is given a
   // value.
   futures::ValueOrError<EvaluationOutput> Bounce(Expression& expression,
-                                                 VMType expression_type);
+                                                 Type expression_type);
 
   language::gc::Pool& pool() const;
 
@@ -73,7 +72,7 @@ class Trampoline {
 class Expression {
  public:
   virtual ~Expression() = default;
-  virtual std::vector<VMType> Types() = 0;
+  virtual std::vector<Type> Types() = 0;
   // If the expression can cause a `return` statement to be evaluated, this
   // should return the type. Most expressions will return an empty set.
   // Expressions that combine sub-expressions should use `CombineReturnTypes`.
@@ -89,14 +88,14 @@ class Expression {
   // In this case, the evaluation of the body of `GetFoo` will reflect that the
   // expression could return multiple values (and, depending on the type `X`,
   // one will be selected).
-  virtual std::unordered_set<VMType> ReturnTypes() const = 0;
+  virtual std::unordered_set<Type> ReturnTypes() const = 0;
 
-  bool SupportsType(const VMType& type);
+  bool SupportsType(const Type& type);
 
-  bool IsBool() { return SupportsType({.variant = types::Bool()}); }
-  bool IsInt() { return SupportsType({.variant = types::Int()}); };
-  bool IsDouble() { return SupportsType({.variant = types::Double()}); };
-  bool IsString() { return SupportsType({.variant = types::String()}); };
+  bool IsBool() { return SupportsType(types::Bool{}); }
+  bool IsInt() { return SupportsType(types::Int{}); };
+  bool IsDouble() { return SupportsType(types::Double{}); };
+  bool IsString() { return SupportsType(types::String{}); };
 
   virtual PurityType purity() = 0;
 
@@ -109,7 +108,7 @@ class Expression {
   // The trampoline must not be deleted until the returned future is given a
   // value.
   virtual futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline& trampoline, const VMType& type) = 0;
+      Trampoline& trampoline, const Type& type) = 0;
 };
 
 struct EvaluationOutput {
@@ -130,8 +129,8 @@ struct EvaluationOutput {
 
 // Combine the return types of two sub-expressions (see Expression::ReturnType).
 // If there's an error, a string will be stored in `error` describing it.
-language::ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
-    std::unordered_set<VMType> a, std::unordered_set<VMType> b);
+language::ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
+    std::unordered_set<Type> a, std::unordered_set<Type> b);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
 CompileFile(infrastructure::Path path, language::gc::Pool& pool,

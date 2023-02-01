@@ -39,8 +39,7 @@ language::gc::Root<Environment> Environment::NewDefault(
   RegisterStringType(pool, environment_value);
   RegisterNumberFunctions(pool, environment_value);
   RegisterTimeType(pool, environment_value);
-  gc::Root<ObjectType> bool_type =
-      ObjectType::New(pool, {.variant = types::Bool()});
+  gc::Root<ObjectType> bool_type = ObjectType::New(pool, types::Bool{});
   bool_type.ptr()->AddField(
       L"tostring", NewCallback(pool, PurityType::kPure,
                                std::function<wstring(bool)>([](bool v) {
@@ -49,8 +48,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                        .ptr());
   environment_value.DefineType(bool_type.ptr());
 
-  gc::Root<ObjectType> int_type =
-      ObjectType::New(pool, {.variant = types::Int()});
+  gc::Root<ObjectType> int_type = ObjectType::New(pool, types::Int{});
   int_type.ptr()->AddField(
       L"tostring", NewCallback(pool, PurityType::kPure,
                                std::function<std::wstring(int)>([](int value) {
@@ -59,8 +57,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                        .ptr());
   environment_value.DefineType(int_type.ptr());
 
-  gc::Root<ObjectType> double_type =
-      ObjectType::New(pool, {.variant = types::Double()});
+  gc::Root<ObjectType> double_type = ObjectType::New(pool, types::Double{});
   double_type.ptr()->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure,
@@ -102,18 +99,18 @@ const ObjectType* Environment::LookupObjectType(const types::ObjectName& name) {
   return nullptr;
 }
 
-const VMType* Environment::LookupType(const wstring& symbol) {
+const Type* Environment::LookupType(const wstring& symbol) {
   if (symbol == L"void") {
-    static VMType output{.variant = types::Void()};
+    static Type output = types::Void{};
     return &output;
   } else if (symbol == L"bool") {
-    static VMType output{.variant = types::Bool()};
+    static Type output = types::Bool{};
     return &output;
   } else if (symbol == L"int") {
-    static VMType output{.variant = types::Int()};
+    static Type output = types::Int{};
     return &output;
   } else if (symbol == L"string") {
-    static VMType output{.variant = types::String()};
+    static Type output = types::String{};
     return &output;
   }
 
@@ -171,13 +168,12 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
 }
 
 void Environment::DefineType(gc::Ptr<ObjectType> value) {
-  object_types_.insert_or_assign(NameForType(value->type().variant),
-                                 std::move(value));
+  object_types_.insert_or_assign(NameForType(value->type()), std::move(value));
 }
 
 std::optional<gc::Root<Value>> Environment::Lookup(
     gc::Pool& pool, const Namespace& symbol_namespace, const wstring& symbol,
-    VMType expected_type) {
+    Type expected_type) {
   std::vector<gc::Root<Value>> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (gc::Root<Value>& value : values) {
@@ -246,7 +242,7 @@ void Environment::CaseInsensitiveLookup(
 }
 
 void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
-  VMType type = value.ptr()->type;
+  Type type = value.ptr()->type;
   table_[symbol].insert_or_assign(type, value.ptr());
   value.ptr().Protect();
 }
@@ -267,7 +263,7 @@ void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
   value.ptr().Protect();
 }
 
-void Environment::Remove(const wstring& symbol, VMType type) {
+void Environment::Remove(const wstring& symbol, Type type) {
   auto it = table_.find(symbol);
   if (it == table_.end()) return;
   it->second.erase(type);
@@ -296,7 +292,7 @@ void Environment::ForEachNonRecursive(
     std::function<void(const std::wstring&, const gc::Ptr<Value>&)> callback)
     const {
   for (const auto& symbol_entry : table_) {
-    for (const std::pair<const VMType, gc::Ptr<Value>>& type_entry :
+    for (const std::pair<const Type, gc::Ptr<Value>>& type_entry :
          symbol_entry.second) {
       callback(symbol_entry.first, type_entry.second);
     }

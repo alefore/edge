@@ -26,7 +26,7 @@ struct VMTypeMapper<void> {
   static language::gc::Root<Value> New(language::gc::Pool& pool) {
     return Value::NewVoid(pool);
   }
-  static const VMType vmtype;
+  static const Type vmtype;
 };
 
 template <>
@@ -35,7 +35,7 @@ struct VMTypeMapper<bool> {
   static language::gc::Root<Value> New(language::gc::Pool& pool, bool value) {
     return Value::NewBool(pool, value);
   }
-  static const VMType vmtype;
+  static const Type vmtype;
 };
 
 template <>
@@ -44,7 +44,7 @@ struct VMTypeMapper<int> {
   static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
     return Value::NewInt(pool, value);
   }
-  static const VMType vmtype;
+  static const Type vmtype;
 };
 
 template <>
@@ -53,7 +53,7 @@ struct VMTypeMapper<double> {
   static language::gc::Root<Value> New(language::gc::Pool& pool, double value) {
     return Value::NewDouble(pool, value);
   }
-  static const VMType vmtype;
+  static const Type vmtype;
 };
 
 template <>
@@ -63,7 +63,7 @@ struct VMTypeMapper<wstring> {
                                        const wstring& value) {
     return Value::NewString(pool, value);
   }
-  static const VMType vmtype;
+  static const Type vmtype;
 };
 
 template <typename T>
@@ -84,22 +84,22 @@ struct GetVMType;
 template <typename T>
 struct GetVMType {
  public:
-  static VMType vmtype() { return vmtype_internal<VMTypeMapper<T>>(nullptr); }
+  static Type vmtype() { return vmtype_internal<VMTypeMapper<T>>(nullptr); }
 
  private:
   template <typename C>
-  static VMType vmtype_internal(decltype(C::vmtype)*) {
+  static Type vmtype_internal(decltype(C::vmtype)*) {
     return C::vmtype;
   };
 
   template <typename C>
-  static VMType vmtype_internal(decltype(C::object_type_name)*) {
-    return VMType{.variant = C::object_type_name};
+  static Type vmtype_internal(decltype(C::object_type_name)*) {
+    return C::object_type_name;
   };
 };
 
 template <typename Tuple, size_t N>
-void AddArgs(std::vector<VMType>* output) {
+void AddArgs(std::vector<Type>* output) {
   if constexpr (N < std::tuple_size<Tuple>::value) {
     output->push_back(
         GetVMType<typename std::remove_const<typename std::remove_reference<
@@ -139,7 +139,7 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
                                       PurityType purity_type,
                                       Callable callback) {
   using ft = language::function_traits<Callable>;
-  std::vector<VMType> type_arguments;
+  std::vector<Type> type_arguments;
   type_arguments.push_back(GetVMType<typename ft::ReturnType>::vmtype());
   AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
 

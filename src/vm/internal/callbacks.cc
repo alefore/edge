@@ -4,10 +4,10 @@
 
 namespace afc {
 namespace vm {
-const VMType VMTypeMapper<void>::vmtype = {types::Void{}};
-const VMType VMTypeMapper<bool>::vmtype = {types ::Bool{}};
-const VMType VMTypeMapper<int>::vmtype = {types::Int{}};
-const VMType VMTypeMapper<double>::vmtype = {types::Double{}};
-const VMType VMTypeMapper<wstring>::vmtype = {types::String{}};
+const Type VMTypeMapper<void>::vmtype = types::Void{};
+const Type VMTypeMapper<bool>::vmtype = types ::Bool{};
+const Type VMTypeMapper<int>::vmtype = types::Int{};
+const Type VMTypeMapper<double>::vmtype = types::Double{};
+const Type VMTypeMapper<wstring>::vmtype = types::String{};
 }  // namespace vm
 }  // namespace afc

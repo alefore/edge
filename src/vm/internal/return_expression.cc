@@ -17,9 +17,9 @@ class ReturnExpression : public Expression {
   ReturnExpression(NonNull<std::shared_ptr<Expression>> expr)
       : expr_(std::move(expr)) {}
 
-  std::vector<VMType> Types() override { return expr_->Types(); }
+  std::vector<Type> Types() override { return expr_->Types(); }
 
-  std::unordered_set<VMType> ReturnTypes() const override {
+  std::unordered_set<Type> ReturnTypes() const override {
     auto types = expr_->Types();
     return {types.cbegin(), types.cend()};
   }
@@ -27,7 +27,7 @@ class ReturnExpression : public Expression {
   PurityType purity() override { return expr_->purity(); }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
-                                                   const VMType&) override {
+                                                   const Type&) override {
     return trampoline.Bounce(expr_.value(), expr_->Types()[0])
         .Transform([](EvaluationOutput expr_output) {
           return Success(

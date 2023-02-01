@@ -25,8 +25,7 @@ class Value {
   };
 
  public:
-  explicit Value(ConstructorAccessTag, language::gc::Pool& pool,
-                 const VMType& t)
+  explicit Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t)
       : type(t), pool_(pool) {}
 
   using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
@@ -34,7 +33,7 @@ class Value {
   using ExpandCallback = std::function<std::vector<
       language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>()>;
 
-  static language::gc::Root<Value> New(language::gc::Pool& pool, const VMType&);
+  static language::gc::Root<Value> New(language::gc::Pool& pool, const Type&);
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
   static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
                                            bool value);
@@ -54,7 +53,7 @@ class Value {
       });
   static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, PurityType purity_type,
-      std::vector<VMType> arguments, Callback callback,
+      std::vector<Type> arguments, Callback callback,
       ExpandCallback expand_callback = []() {
         return std::vector<
             language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>();
@@ -63,7 +62,7 @@ class Value {
   // Convenience wrapper.
   static language::gc::Root<Value> NewFunction(
       language::gc::Pool& pool, PurityType purity_type,
-      std::vector<VMType> arguments,
+      std::vector<Type> arguments,
       std::function<
           language::gc::Root<Value>(std::vector<language::gc::Root<Value>>)>
           callback);
@@ -77,7 +76,7 @@ class Value {
   bool IsFunction() const;
   bool IsObject() const;
 
-  VMType type;
+  Type type;
 
   bool get_bool() const;
   int get_int() const;
@@ -88,18 +87,18 @@ class Value {
   template <typename T>
   language::NonNull<std::shared_ptr<T>> get_user_value(
       const types::ObjectName& expected_type) const {
-    CHECK_EQ(std::get<types::ObjectName>(type.variant), expected_type);
+    CHECK_EQ(std::get<types::ObjectName>(type), expected_type);
     return language::NonNull<std::shared_ptr<T>>::UnsafeStaticCast(
         std::get<ObjectInstance>(value_).value);
   }
 
   template <typename T>
   language::NonNull<std::shared_ptr<T>> get_user_value(
-      const VMType& expected_type) const {
+      const Type& expected_type) const {
     CHECK(std::holds_alternative<ObjectInstance>(value_))
         << "Invalid call to get_user_value, expected type: " << expected_type
         << ", index was: " << value_.index();
-    return get_user_value<T>(std::get<types::ObjectName>(type.variant));
+    return get_user_value<T>(std::get<types::ObjectName>(type));
   }
 
   Callback LockCallback();

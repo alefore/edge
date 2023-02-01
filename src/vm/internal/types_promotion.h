@@ -16,7 +16,7 @@ namespace afc::vm {
 // `desired` type, returns a function that executes the promotion.
 std::function<language::gc::Root<Value>(language::gc::Pool&,
                                         language::gc::Root<Value>)>
-GetImplicitPromotion(VMType original, VMType desired);
+GetImplicitPromotion(Type original, Type desired);
 }  // namespace afc::vm
 
 #endif

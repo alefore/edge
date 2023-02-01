@@ -19,25 +19,25 @@ class BinaryOperator : public Expression {
  public:
   BinaryOperator(language::NonNull<std::shared_ptr<Expression>> a,
                  language::NonNull<std::shared_ptr<Expression>> b,
-                 const VMType type,
+                 const Type type,
                  function<language::ValueOrError<language::gc::Root<Value>>(
                      language::gc::Pool& pool, const Value&, const Value&)>
                      callback);
 
-  std::vector<VMType> Types() override;
-  std::unordered_set<VMType> ReturnTypes() const override;
+  std::vector<Type> Types() override;
+  std::unordered_set<Type> ReturnTypes() const override;
 
   PurityType purity() override;
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& evaluation,
-                                                   const VMType& type) override;
+                                                   const Type& type) override;
 
   language::NonNull<std::unique_ptr<Expression>> Clone() override;
 
  private:
   const language::NonNull<std::shared_ptr<Expression>> a_;
   const language::NonNull<std::shared_ptr<Expression>> b_;
-  VMType type_;
+  Type type_;
   std::function<language::ValueOrError<language::gc::Root<Value>>(
       language::gc::Pool&, const Value&, const Value&)>
       operator_;

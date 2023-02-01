@@ -23,15 +23,15 @@ namespace gc = language::gc;
 class LambdaExpression : public Expression {
  public:
   static ValueOrError<NonNull<std::unique_ptr<LambdaExpression>>> New(
-      VMType lambda_type,
+      Type lambda_type,
       NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body) {
-    auto& lambda_function_type = std::get<types::Function>(lambda_type.variant);
+    auto& lambda_function_type = std::get<types::Function>(lambda_type);
     lambda_function_type.function_purity = body->purity();
-    VMType expected_return_type = *lambda_function_type.type_arguments.cbegin();
+    Type expected_return_type = *lambda_function_type.type_arguments.cbegin();
     auto deduced_types = body->ReturnTypes();
     if (deduced_types.empty()) {
-      deduced_types.insert({.variant = types::Void{}});
+      deduced_types.insert(types::Void{});
     }
     if (deduced_types.size() > 1) {
       return Error(L"Found multiple return types: " +
@@ -51,7 +51,7 @@ class LambdaExpression : public Expression {
   }
 
   LambdaExpression(
-      VMType type,
+      Type type,
       NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body,
       std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
@@ -60,18 +60,16 @@ class LambdaExpression : public Expression {
         argument_names_(std::move(argument_names)),
         body_(std::move(body)),
         promotion_function_(std::move(promotion_function)) {
-    CHECK(std::holds_alternative<types::Function>(type_.variant));
-    CHECK(std::get<types::Function>(type_.variant).function_purity ==
-          body_->purity());
+    CHECK(std::get<types::Function>(type_).function_purity == body_->purity());
   }
 
-  std::vector<VMType> Types() { return {type_}; }
-  std::unordered_set<VMType> ReturnTypes() const override { return {}; }
+  std::vector<Type> Types() { return {type_}; }
+  std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override { return PurityType::kPure; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
-                                                   const VMType& type) {
+                                                   const Type& type) {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
     return futures::Past(Success(EvaluationOutput::New(promotion_function(
@@ -83,8 +81,7 @@ class LambdaExpression : public Expression {
                              gc::Root<Environment> parent_environment_root) {
     gc::Ptr<Environment> parent_environment = parent_environment_root.ptr();
     return Value::NewFunction(
-        pool, body_->purity(),
-        std::get<types::Function>(type_.variant).type_arguments,
+        pool, body_->purity(), std::get<types::Function>(type_).type_arguments,
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
@@ -118,7 +115,7 @@ class LambdaExpression : public Expression {
   }
 
  private:
-  VMType type_;
+  Type type_;
   const NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names_;
   const NonNull<std::shared_ptr<Expression>> body_;
   const std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
@@ -129,11 +126,11 @@ class LambdaExpression : public Expression {
 std::unique_ptr<UserFunction> UserFunction::New(
     Compilation& compilation, std::wstring return_type,
     std::optional<std::wstring> name,
-    std::vector<std::pair<VMType, wstring>>* args) {
+    std::vector<std::pair<Type, wstring>>* args) {
   if (args == nullptr) {
     return nullptr;
   }
-  const VMType* return_type_def =
+  const Type* return_type_def =
       compilation.environment.ptr()->LookupType(return_type);
   if (return_type_def == nullptr) {
     compilation.AddError(
@@ -144,11 +141,11 @@ std::unique_ptr<UserFunction> UserFunction::New(
   auto output = std::make_unique<UserFunction>();
   types::Function function_type;
   function_type.type_arguments.push_back(*return_type_def);
-  for (pair<VMType, wstring> arg : *args) {
+  for (pair<Type, wstring> arg : *args) {
     function_type.type_arguments.push_back(arg.first);
     output->argument_names->push_back(arg.second);
   }
-  output->type.variant = std::move(function_type);
+  output->type = std::move(function_type);
   if (name.has_value()) {
     output->name = name.value();
     compilation.environment.ptr()->Define(
@@ -156,7 +153,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
   compilation.environment = compilation.pool.NewRoot(
       MakeNonNullUnique<Environment>(compilation.environment.ptr()));
-  for (const pair<VMType, wstring>& arg : *args) {
+  for (const pair<Type, wstring>& arg : *args) {
     compilation.environment.ptr()->Define(
         arg.second, Value::New(compilation.pool, arg.first));
   }

@@ -19,43 +19,43 @@ using language::lazy_string::NewLazyString;
 namespace gc = language::gc;
 
 /* static */ language::gc::Root<Value> Value::New(language::gc::Pool& pool,
-                                                  const VMType& type) {
+                                                  const Type& type) {
   return pool.NewRoot(
       MakeNonNullUnique<Value>(ConstructorAccessTag(), pool, type));
 }
 
 /* static */ gc::Root<Value> Value::NewVoid(gc::Pool& pool) {
-  return New(pool, {.variant = types::Void{}});
+  return New(pool, types::Void{});
 }
 
 /* static */ gc::Root<Value> Value::NewBool(gc::Pool& pool, bool value) {
-  gc::Root<Value> output = New(pool, {.variant = types::Bool{}});
+  gc::Root<Value> output = New(pool, types::Bool{});
   output.ptr()->value_ = value;
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewInt(gc::Pool& pool, int value) {
-  gc::Root<Value> output = New(pool, {.variant = types::Int{}});
+  gc::Root<Value> output = New(pool, types::Int{});
   output.ptr()->value_ = value;
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewDouble(gc::Pool& pool, double value) {
-  gc::Root<Value> output = New(pool, {.variant = types::Double{}});
+  gc::Root<Value> output = New(pool, types::Double{});
   output.ptr()->value_ = value;
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewString(gc::Pool& pool,
                                               std::wstring value) {
-  gc::Root<Value> output = New(pool, {.variant = types::String{}});
+  gc::Root<Value> output = New(pool, types::String{});
   output.ptr()->value_ = std::move(value);
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewSymbol(gc::Pool& pool,
                                               std::wstring value) {
-  gc::Root<Value> output = New(pool, {.variant = types::Symbol{}});
+  gc::Root<Value> output = New(pool, types::Symbol{});
   output.ptr()->value_ = Symbol{.symbol_value = std::move(value)};
   return output;
 }
@@ -63,27 +63,26 @@ namespace gc = language::gc;
 /* static */ gc::Root<Value> Value::NewObject(
     gc::Pool& pool, types::ObjectName name,
     NonNull<std::shared_ptr<void>> value, ExpandCallback expand_callback) {
-  gc::Root<Value> output = New(pool, VMType{.variant = std::move(name)});
+  gc::Root<Value> output = New(pool, std::move(name));
   output.ptr()->value_ = ObjectInstance{.value = std::move(value)};
   output.ptr()->expand_callback = std::move(expand_callback);
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
-    gc::Pool& pool, PurityType purity_type, std::vector<VMType> arguments,
+    gc::Pool& pool, PurityType purity_type, std::vector<Type> arguments,
     Value::Callback callback, ExpandCallback expand_callback) {
   CHECK(callback != nullptr);
-  gc::Root<Value> output = New(
-      pool,
-      VMType{.variant = types::Function{.type_arguments = std::move(arguments),
-                                        .function_purity = purity_type}});
+  gc::Root<Value> output =
+      New(pool, types::Function{.type_arguments = std::move(arguments),
+                                .function_purity = purity_type});
   output.ptr()->value_ = std::move(callback);
   output.ptr()->expand_callback = std::move(expand_callback);
   return output;
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
-    gc::Pool& pool, PurityType purity_type, std::vector<VMType> arguments,
+    gc::Pool& pool, PurityType purity_type, std::vector<Type> arguments,
     std::function<gc::Root<Value>(std::vector<gc::Root<Value>>)> callback) {
   return NewFunction(
       pool, purity_type, arguments,
@@ -93,29 +92,23 @@ namespace gc = language::gc;
       });
 }
 
-bool Value::IsVoid() const {
-  return std::holds_alternative<types::Void>(type.variant);
-}
-bool Value::IsBool() const {
-  return std::holds_alternative<types::Bool>(type.variant);
-}
-bool Value::IsInt() const {
-  return std::holds_alternative<types::Int>(type.variant);
-}
+bool Value::IsVoid() const { return std::holds_alternative<types::Void>(type); }
+bool Value::IsBool() const { return std::holds_alternative<types::Bool>(type); }
+bool Value::IsInt() const { return std::holds_alternative<types::Int>(type); }
 bool Value::IsDouble() const {
-  return std::holds_alternative<types::Double>(type.variant);
+  return std::holds_alternative<types::Double>(type);
 }
 bool Value::IsString() const {
-  return std::holds_alternative<types::String>(type.variant);
+  return std::holds_alternative<types::String>(type);
 }
 bool Value::IsSymbol() const {
-  return std::holds_alternative<types::Symbol>(type.variant);
+  return std::holds_alternative<types::Symbol>(type);
 }
 bool Value::IsFunction() const {
-  return std::holds_alternative<types::Function>(type.variant);
+  return std::holds_alternative<types::Function>(type);
 }
 bool Value::IsObject() const {
-  return std::holds_alternative<types::ObjectName>(type.variant);
+  return std::holds_alternative<types::ObjectName>(type);
 }
 
 bool Value::get_bool() const {
@@ -187,7 +180,7 @@ ValueOrError<double> Value::ToDouble() const {
                [](const types::Function&) -> ValueOrError<double> {
                  return Error(L"Unable to convert to double: function");
                }},
-      type.variant);
+      type);
 }
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
@@ -215,7 +208,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                [&](const types::Double&) { os << value.get_double(); },
                [&](const types::ObjectName&) { os << ToString(value.type); },
                [&](const types::Function&) { os << ToString(value.type); }},
-      value.type.variant);
+      value.type);
   return os;
 }
 
@@ -233,7 +226,7 @@ bool value_gc_tests_registration = tests::Register(
         Value::Callback callback = [&] {
           gc::Root<Value> parent = [&] {
             gc::Root<Value> child = Value::NewFunction(
-                pool, PurityType::kPure, {{.variant = types::Void{}}},
+                pool, PurityType::kPure, {types::Void{}},
                 [](std::vector<gc::Root<Value>>, Trampoline& t) {
                   return futures::Past(
                       EvaluationOutput::Return(Value::NewVoid(t.pool())));
@@ -243,7 +236,7 @@ bool value_gc_tests_registration = tests::Register(
                       NonNull<std::shared_ptr<gc::ObjectMetadata>>>();
                 });
             return Value::NewFunction(
-                pool, PurityType::kPure, {{.variant = types::Void{}}},
+                pool, PurityType::kPure, {types::Void{}},
                 [child_ptr = child.ptr()](auto, Trampoline&) {
                   return futures::Past(Error(L"Some error."));
                 },

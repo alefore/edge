@@ -44,19 +44,19 @@ struct hash<afc::vm::types::Function> {
     // TODO(trivial, 2023-02-01): Hash in the purity?
     size_t output = 0;
     for (const auto& a : object.type_arguments) {
-      output ^= hash<afc::vm::VMType>()(a);
+      output ^= hash<afc::vm::Type>()(a);
     }
     return output;
   }
 };
 
-size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
+size_t hash<afc::vm::Type>::operator()(const afc::vm::Type& x) const {
   return std::visit(
       [](const auto& t) {
         return hash<typename std::remove_const<
             typename std::remove_reference<decltype(t)>::type>::type>()(t);
       },
-      x.variant);
+      x);
 }
 }  // namespace std
 namespace afc::vm {
@@ -145,17 +145,13 @@ bool operator==(const Function& a, const Function& b) {
 }
 }  // namespace types
 
-bool operator==(const VMType& lhs, const VMType& rhs) {
-  return lhs.variant == rhs.variant;
-}
-
-std::ostream& operator<<(std::ostream& os, const VMType& type) {
+std::ostream& operator<<(std::ostream& os, const Type& type) {
   using ::operator<<;
   os << ToString(type);
   return os;
 }
 
-wstring TypesToString(const std::vector<VMType>& types) {
+wstring TypesToString(const std::vector<Type>& types) {
   wstring output;
   wstring separator = L"";
   for (auto& t : types) {
@@ -165,11 +161,11 @@ wstring TypesToString(const std::vector<VMType>& types) {
   return output;
 }
 
-std::wstring TypesToString(const std::unordered_set<VMType>& types) {
-  return TypesToString(std::vector<VMType>(types.cbegin(), types.cend()));
+std::wstring TypesToString(const std::unordered_set<Type>& types) {
+  return TypesToString(std::vector<Type>(types.cbegin(), types.cend()));
 }
 
-std::wstring ToString(const VMType& type) {
+std::wstring ToString(const Type& type) {
   return std::visit(
       overload{
           [](const types::Void&) -> std::wstring { return L"void"; },
@@ -199,7 +195,7 @@ std::wstring ToString(const VMType& type) {
             output += L")>";
             return output;
           }},
-      type.variant);
+      type);
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
@@ -209,18 +205,12 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
   return output;
 }
 
-/* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, VMType type) {
+/* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {
   return pool.NewRoot(
       MakeNonNullUnique<ObjectType>(std::move(type), ConstructorAccessKey()));
 }
 
-/* static */ gc::Root<ObjectType> ObjectType::New(
-    gc::Pool& pool, types::ObjectName object_type_name) {
-  return New(pool, VMType{.variant = object_type_name});
-}
-
-ObjectType::ObjectType(const VMType& type, ConstructorAccessKey)
-    : type_(type) {}
+ObjectType::ObjectType(const Type& type, ConstructorAccessKey) : type_(type) {}
 
 void ObjectType::AddField(const wstring& name, gc::Ptr<Value> field) {
   fields_.insert({name, std::move(field)});

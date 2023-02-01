@@ -5,6 +5,8 @@
 #include <optional>
 #include <string>
 
+#include "src/vm/public/types.h"
+
 namespace afc::vm {
 
 using std::unique_ptr;
@@ -12,12 +14,11 @@ using std::wstring;
 
 class Compilation;
 class Expression;
-class VMType;
 
 // Declares a new variable of a given type.
-std::optional<VMType> NewDefineTypeExpression(
-    Compilation* compilation, wstring type, wstring symbol,
-    std::optional<VMType> default_type);
+std::optional<Type> NewDefineTypeExpression(Compilation* compilation,
+                                            wstring type, wstring symbol,
+                                            std::optional<Type> default_type);
 
 // Declares a new variable of a given type and gives it an initial value.
 unique_ptr<Expression> NewDefineExpression(Compilation* compilation,

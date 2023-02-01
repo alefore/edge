@@ -22,18 +22,18 @@ namespace gc = language::gc;
 class VariableLookup : public Expression {
  public:
   VariableLookup(Namespace symbol_namespace, std::wstring symbol,
-                 std::vector<VMType> types)
+                 std::vector<Type> types)
       : symbol_namespace_(std::move(symbol_namespace)),
         symbol_(std::move(symbol)),
         types_(types) {}
 
-  std::vector<VMType> Types() override { return types_; }
-  std::unordered_set<VMType> ReturnTypes() const override { return {}; }
+  std::vector<Type> Types() override { return types_; }
+  std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override { return PurityType::kPure; }
 
-  futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline& trampoline, const VMType& type) override {
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
+                                                   const Type& type) override {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
     return futures::Past(VisitPointer(
@@ -56,7 +56,7 @@ class VariableLookup : public Expression {
  private:
   const Namespace symbol_namespace_;
   const std::wstring symbol_;
-  const std::vector<VMType> types_;
+  const std::vector<Type> types_;
 };
 
 }  // namespace
@@ -80,8 +80,8 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
     compilation->AddError(Error(L"Unknown variable: `" + symbol + L"`"));
     return nullptr;
   }
-  std::vector<VMType> types;
-  std::unordered_set<VMType> types_already_seen;
+  std::vector<Type> types;
+  std::unordered_set<Type> types_already_seen;
 
   for (gc::Root<Value>& v : result) {
     if (types_already_seen.insert(v.ptr()->type).second) {

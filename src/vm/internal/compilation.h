@@ -16,7 +16,6 @@
 #include "src/vm/public/types.h"
 
 namespace afc::vm {
-class VMType;
 class Expression;
 class Environment;
 
@@ -43,7 +42,7 @@ struct Compilation {
   std::unique_ptr<Expression> expr;
 
   Namespace current_namespace;
-  std::vector<VMType> current_class = {};
+  std::vector<Type> current_class = {};
   language::gc::Root<Environment> environment;
   std::wstring last_token = L"";
 

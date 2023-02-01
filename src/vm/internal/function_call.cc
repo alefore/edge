@@ -30,10 +30,9 @@ using language::VisitPointer;
 namespace gc = language::gc;
 
 PossibleError CheckFunctionArguments(
-    const VMType& type,
+    const Type& type,
     const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
-  const types::Function* function_type =
-      std::get_if<types::Function>(&type.variant);
+  const types::Function* function_type = std::get_if<types::Function>(&type);
   if (function_type == nullptr) {
     return Error(L"Expected function but found: `" + ToString(type) + L"`.");
   }
@@ -57,17 +56,17 @@ PossibleError CheckFunctionArguments(
   return Success();
 }
 
-std::vector<VMType> DeduceTypes(
+std::vector<Type> DeduceTypes(
     Expression& func,
     const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
-  std::unordered_set<VMType> output;
+  std::unordered_set<Type> output;
   for (auto& type : func.Types()) {
     if (std::holds_alternative<EmptyValue>(
             CheckFunctionArguments(type, args))) {
-      output.insert(std::get<types::Function>(type.variant).type_arguments[0]);
+      output.insert(std::get<types::Function>(type).type_arguments[0]);
     }
   }
-  return std::vector<VMType>(output.begin(), output.end());
+  return std::vector<Type>(output.begin(), output.end());
 }
 
 class FunctionCall : public Expression {
@@ -81,9 +80,9 @@ class FunctionCall : public Expression {
         args_(std::move(args)),
         types_(DeduceTypes(func_.value(), args_.value())) {}
 
-  std::vector<VMType> Types() override { return types_; }
+  std::vector<Type> Types() override { return types_; }
 
-  std::unordered_set<VMType> ReturnTypes() const override { return {}; }
+  std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override {
     PurityType output = func_->purity();
@@ -93,33 +92,31 @@ class FunctionCall : public Expression {
     }
     for (const auto& callback_type : func_->Types()) {
       output = CombinePurityType(
-          std::get<types::Function>(callback_type.variant).function_purity,
-          output);
+          std::get<types::Function>(callback_type).function_purity, output);
       if (output == PurityType::kUnknown) return output;  // Optimization.
     }
     return output;
   }
 
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
-      Trampoline& trampoline, const VMType& type) {
+      Trampoline& trampoline, const Type& type) {
     DVLOG(3) << "Function call evaluation starts.";
-    std::vector<VMType> type_arguments = {type};
+    std::vector<Type> type_arguments = {type};
     for (auto& arg : args_.value()) {
       type_arguments.push_back(arg->Types()[0]);
     }
 
     return trampoline
         .Bounce(func_.value(),
-                VMType{.variant = types::Function{.type_arguments =
-                                                      std::move(type_arguments),
-                                                  .function_purity = purity()}})
+                types::Function{.type_arguments = std::move(type_arguments),
+                                .function_purity = purity()})
         .Transform(
             [&trampoline, args_types = args_](EvaluationOutput callback) {
               if (callback.type == EvaluationOutput::OutputType::kReturn)
                 return futures::Past(Success(std::move(callback)));
               DVLOG(6) << "Got function: " << callback.value.ptr().value();
               CHECK(std::holds_alternative<types::Function>(
-                  callback.value.ptr()->type.variant));
+                  callback.value.ptr()->type));
               futures::Future<ValueOrError<EvaluationOutput>> output;
               CaptureArgs(trampoline, std::move(output.consumer), args_types,
                           MakeNonNullShared<std::vector<gc::Root<Value>>>(),
@@ -186,7 +183,7 @@ class FunctionCall : public Expression {
   const NonNull<
       std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
       args_;
-  const std::vector<VMType> types_;
+  const std::vector<Type> types_;
 };
 
 }  // namespace
@@ -228,7 +225,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         // TODO: Support polymorphism.
         std::vector<Error> errors;
         for (const auto& type : object->Types()) {
-          types::ObjectName object_type_name = NameForType(type.variant);
+          types::ObjectName object_type_name = NameForType(type);
 
           const ObjectType* object_type =
               compilation->environment.ptr()->LookupObjectType(
@@ -267,9 +264,9 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
                                  Value* delegate)
                 : type_([=]() {
-                    auto output = std::make_shared<VMType>(delegate->type);
+                    auto output = std::make_shared<Type>(delegate->type);
                     auto& output_function_type =
-                        std::get<types::Function>(output->variant);
+                        std::get<types::Function>(*output);
                     output_function_type.type_arguments.erase(
                         output_function_type.type_arguments.begin() + 1);
                     return output;
@@ -277,10 +274,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                   obj_expr_(std::move(obj_expr)),
                   delegate_(delegate) {}
 
-            std::vector<VMType> Types() override { return {*type_}; }
-            std::unordered_set<VMType> ReturnTypes() const override {
-              return {};
-            }
+            std::vector<Type> Types() override { return {*type_}; }
+            std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
             NonNull<std::unique_ptr<Expression>> Clone() override {
               return MakeNonNullUnique<BindObjectExpression>(obj_expr_,
@@ -294,7 +289,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             }
 
             futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
-                Trampoline& trampoline, const VMType& type) override {
+                Trampoline& trampoline, const Type& type) override {
               return trampoline.Bounce(obj_expr_.value(), obj_expr_->Types()[0])
                   .Transform([type, shared_type = type_,
                               callback = delegate_->LockCallback(),
@@ -309,7 +304,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                       case EvaluationOutput::OutputType::kContinue:
                         return Success(EvaluationOutput::New(Value::NewFunction(
                             pool, purity_type,
-                            std::get<types::Function>(shared_type->variant)
+                            std::get<types::Function>(*shared_type)
                                 .type_arguments,
                             [obj = std::move(output.value), callback](
                                 std::vector<gc::Root<Value>> args,
@@ -326,19 +321,17 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
            private:
             types::Function* delegate_function_type() {
-              return &std::get<types::Function>(delegate_->type.variant);
+              return &std::get<types::Function>(delegate_->type);
             }
-            const std::shared_ptr<VMType> type_;
+            const std::shared_ptr<Type> type_;
             const NonNull<std::shared_ptr<Expression>> obj_expr_;
             Value* const delegate_;
           };
 
-          CHECK_GE(std::get<types::Function>(field->type.variant)
-                       .type_arguments.size(),
+          CHECK_GE(std::get<types::Function>(field->type).type_arguments.size(),
                    2ul);
-          CHECK_EQ(
-              std::get<types::Function>(field->type.variant).type_arguments[1],
-              type);
+          CHECK(std::get<types::Function>(field->type).type_arguments[1] ==
+                type);
 
           return std::make_unique<BindObjectExpression>(std::move(object),
                                                         field);
@@ -354,7 +347,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(std::function<void()>)> yield_callback) {
-  CHECK(std::holds_alternative<types::Function>(func.type.variant));
+  CHECK(std::holds_alternative<types::Function>(func.type));
   std::vector<NonNull<std::unique_ptr<Expression>>> args_expr;
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));

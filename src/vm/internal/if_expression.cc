@@ -18,7 +18,7 @@ class IfExpression : public Expression {
   IfExpression(NonNull<std::shared_ptr<Expression>> cond,
                NonNull<std::shared_ptr<Expression>> true_case,
                NonNull<std::shared_ptr<Expression>> false_case,
-               std::unordered_set<VMType> return_types)
+               std::unordered_set<Type> return_types)
       : cond_(std::move(cond)),
         true_case_(std::move(true_case)),
         false_case_(std::move(false_case)),
@@ -26,9 +26,9 @@ class IfExpression : public Expression {
     CHECK(cond_->IsBool());
   }
 
-  std::vector<VMType> Types() override { return true_case_->Types(); }
+  std::vector<Type> Types() override { return true_case_->Types(); }
 
-  std::unordered_set<VMType> ReturnTypes() const override {
+  std::unordered_set<Type> ReturnTypes() const override {
     return return_types_;
   }
 
@@ -40,9 +40,9 @@ class IfExpression : public Expression {
                : PurityType::kUnknown;
   }
 
-  futures::ValueOrError<EvaluationOutput> Evaluate(
-      Trampoline& trampoline, const VMType& type) override {
-    return trampoline.Bounce(cond_.value(), {.variant = types::Bool{}})
+  futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
+                                                   const Type& type) override {
+    return trampoline.Bounce(cond_.value(), types::Bool{})
         .Transform([type, true_case = true_case_, false_case = false_case_,
                     &trampoline](EvaluationOutput cond_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -70,7 +70,7 @@ class IfExpression : public Expression {
   const NonNull<std::shared_ptr<Expression>> cond_;
   const NonNull<std::shared_ptr<Expression>> true_case_;
   const NonNull<std::shared_ptr<Expression>> false_case_;
-  const std::unordered_set<VMType> return_types_;
+  const std::unordered_set<Type> return_types_;
 };
 
 }  // namespace
@@ -99,7 +99,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
     return error;
   }
 
-  ASSIGN_OR_RETURN(std::unordered_set<VMType> return_types,
+  ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    compilation->RegisterErrors(CombineReturnTypes(
                        true_case->ReturnTypes(), false_case->ReturnTypes())));
 

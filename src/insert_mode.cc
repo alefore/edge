@@ -51,7 +51,7 @@ using language::NonNull;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 
-using vm::VMType;
+using vm::Type;
 using vm::VMTypeMapper;
 
 namespace gc = language::gc;
@@ -293,10 +293,10 @@ class InsertMode : public EditorMode {
             options_.editor_state.environment().ptr()->Lookup(
                 options_.editor_state.gc_pool(), vm::Namespace(),
                 L"HandleKeyboardControlU",
-                {.variant = vm::types::Function{
-                     .type_arguments = {
-                         {.variant = vm::types::Void{}},
-                         vm::GetVMType<gc::Root<OpenBuffer>>::vmtype()}}});
+                vm::types::Function{
+                    .type_arguments = {
+                        vm::types::Void{},
+                        vm::GetVMType<gc::Root<OpenBuffer>>::vmtype()}});
         if (!callback.has_value()) {
           LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
           return;

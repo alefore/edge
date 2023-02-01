@@ -40,7 +40,7 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value);
 // Given two purity type values, return the purity type of an expression that
 // depends on both.
 PurityType CombinePurityType(PurityType a, PurityType b);
-struct VMType;
+
 namespace types {
 struct Void {};
 struct Bool {};
@@ -49,13 +49,9 @@ struct String {};
 struct Symbol {};
 struct Double {};
 GHOST_TYPE(ObjectName, std::wstring);
-struct Function {
-  // The first element is the return type of the callback. Subsequent elements
-  // are the types of the elements expected by the callback.
-  vector<VMType> type_arguments;
-  PurityType function_purity = PurityType::kUnknown;
-};
 
+// Function depends on `Type`, so we only forward declare it here.
+struct Function;
 bool operator==(const Void&, const Void&);
 bool operator==(const Bool&, const Bool&);
 bool operator==(const Int&, const Int&);
@@ -69,20 +65,23 @@ using Type = std::variant<types::Void, types::Bool, types::Int, types::String,
                           types::Symbol, types::Double, types::ObjectName,
                           types::Function>;
 
+namespace types {
+struct Function {
+  // The first element is the return type of the callback. Subsequent elements
+  // are the types of the elements expected by the callback.
+  vector<Type> type_arguments;
+  PurityType function_purity = PurityType::kUnknown;
+};
+}  // namespace types
+
 types::ObjectName NameForType(Type variant_type);
 
-// TODO(easy, 2022-12-07): Unnest the std::variant.
-struct VMType {
-  vm::Type variant = types::Void{};
-};
+std::wstring ToString(const Type&);
 
-std::wstring ToString(const VMType&);
+wstring TypesToString(const std::vector<Type>& types);
+wstring TypesToString(const std::unordered_set<Type>& types);
 
-wstring TypesToString(const std::vector<VMType>& types);
-wstring TypesToString(const std::unordered_set<VMType>& types);
-
-bool operator==(const VMType& lhs, const VMType& rhs);
-std::ostream& operator<<(std::ostream& os, const VMType& value);
+std::ostream& operator<<(std::ostream& os, const Type& value);
 
 struct Value;
 
@@ -91,16 +90,14 @@ class ObjectType {
   struct ConstructorAccessKey {};
 
  public:
-  ObjectType(const VMType& type, ConstructorAccessKey);
+  ObjectType(const Type& type, ConstructorAccessKey);
 
   // TODO(easy, 2023-01-31): Convert all callers to the version that takes the
   // ObjectName.
   static language::gc::Root<ObjectType> New(afc::language::gc::Pool& pool,
-                                            VMType type_name);
-  static language::gc::Root<ObjectType> New(afc::language::gc::Pool& pool,
-                                            types::ObjectName object_type_name);
+                                            Type type_name);
 
-  const VMType& type() const { return type_; }
+  const Type& type() const { return type_; }
   std::wstring ToString() const { return vm::ToString(type_); }
 
   void AddField(const wstring& name, language::gc::Ptr<Value> field);
@@ -116,7 +113,7 @@ class ObjectType {
   Expand() const;
 
  private:
-  VMType type_;
+  Type type_;
   std::map<std::wstring, language::gc::Ptr<Value>> fields_;
 };
 
@@ -124,8 +121,8 @@ class ObjectType {
 
 namespace std {
 template <>
-struct hash<afc::vm::VMType> {
-  size_t operator()(const afc::vm::VMType& x) const;
+struct hash<afc::vm::Type> {
+  size_t operator()(const afc::vm::Type& x) const;
 };
 }  // namespace std
 

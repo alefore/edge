@@ -87,7 +87,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   using ContainerPtr = T::ContainerPtr;
   const types::ObjectName& object_type_name =
       VMTypeMapper<ContainerPtr>::object_type_name;
-  const VMType vmtype = GetVMType<ContainerPtr>::vmtype();
+  const vm::Type vmtype = GetVMType<ContainerPtr>::vmtype();
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
   environment.Define(
@@ -113,9 +113,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
       L"get",
       Value::NewFunction(
           pool, PurityType::kPure,
-          {GetVMType<typename Container::value_type>::vmtype(),
-           vmtype,
-           {.variant = types::Int{}}},
+          {GetVMType<typename Container::value_type>::vmtype(), vmtype,
+           types::Int{}},
           [object_type_name](std::vector<language::gc::Root<Value>> args,
                              Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {

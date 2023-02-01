@@ -53,7 +53,6 @@ using vm::GetVMType;
 using vm::ObjectType;
 using vm::PurityType;
 using vm::Trampoline;
-using vm::VMType;
 using vm::VMTypeMapper;
 
 namespace gc = language::gc;
@@ -65,13 +64,12 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
   editor_type.AddField(
       name,
       vm::Value::NewFunction(
-          pool, purity_type,
-          {{.variant = vm::types::Void{}}, editor_type.type()},
+          pool, purity_type, {vm::types::Void{}, editor_type.type()},
           [method](std::vector<gc::Root<vm::Value>> args,
                    Trampoline& trampoline) {
             CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0].ptr()->type,
-                     GetVMType<editor::EditorState>::vmtype());
+            CHECK(args[0].ptr()->type ==
+                  GetVMType<editor::EditorState>::vmtype());
 
             EditorState& editor =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
@@ -206,14 +204,11 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"ForEachActiveBuffer",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {{.variant = vm::types::Void{}},
-           GetVMType<EditorState>::vmtype(),
-           VMType{.variant =
-                      vm::types::Function{
-                          .type_arguments =
-                              {{.variant = vm::types::Void{}},
-                               vm::GetVMType<
-                                   gc::Root<editor::OpenBuffer>>::vmtype()}}}},
+          {vm::types::Void{}, GetVMType<EditorState>::vmtype(),
+           vm::types::Function{
+               .type_arguments =
+                   {vm::types::Void{},
+                    vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()}}},
           [&pool](std::vector<gc::Root<vm::Value>> input,
                   Trampoline& trampoline) {
             EditorState& editor_arg =
@@ -251,14 +246,11 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"ForEachActiveBufferWithRepetitions",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {{.variant = vm::types::Void{}},
-           GetVMType<EditorState>::vmtype(),
-           VMType{.variant =
-                      vm::types::Function{
-                          .type_arguments =
-                              {{.variant = vm::types::Void{}},
-                               GetVMType<
-                                   gc::Root<editor::OpenBuffer>>::vmtype()}}}},
+          {vm::types::Void{}, GetVMType<EditorState>::vmtype(),
+           vm::types::Function{
+               .type_arguments =
+                   {vm::types::Void{},
+                    GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()}}},
           [&pool](std::vector<gc::Root<vm::Value>> input,
                   Trampoline& trampoline) {
             EditorState& editor_arg =
@@ -296,9 +288,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"ConnectTo",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {{.variant = vm::types::Void{}},
-           GetVMType<EditorState>::vmtype(),
-           {.variant = vm::types::String{}}},
+          {vm::types::Void{}, GetVMType<EditorState>::vmtype(),
+           vm::types::String{}},
           [&pool](std::vector<gc::Root<vm::Value>> args,
                   Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2u);
@@ -319,8 +310,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"WaitForClose",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {{.variant = vm::types::Void{}},
-           GetVMType<EditorState>::vmtype(),
+          {vm::types::Void{}, GetVMType<EditorState>::vmtype(),
            GetVMType<
                NonNull<std::shared_ptr<std::set<std::wstring>>>>::vmtype()},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
@@ -431,9 +421,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
           {GetVMType<gc::Root<OpenBuffer>>::vmtype(),
-           GetVMType<EditorState>::vmtype(),
-           {.variant = vm::types::String{}},
-           {.variant = vm::types::Bool{}}},
+           GetVMType<EditorState>::vmtype(), vm::types::String{},
+           vm::types::Bool{}},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 3u);
             EditorState& editor_arg =
@@ -463,13 +452,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"AddBinding",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown,
-          {{.variant = vm::types::Void{}},
-           GetVMType<EditorState>::vmtype(),
-           {.variant = vm::types::String{}},
-           {.variant = vm::types::String{}},
-           VMType{.variant =
-                      vm::types::Function{
-                          .type_arguments = {{.variant = vm::types::Void{}}}}}},
+          {vm::types::Void{}, GetVMType<EditorState>::vmtype(),
+           vm::types::String{}, vm::types::String{},
+           vm::types::Function{.type_arguments = {vm::types::Void{}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 4u);
             EditorState& editor_arg =

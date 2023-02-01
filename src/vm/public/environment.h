@@ -9,11 +9,11 @@
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
+#include "src/vm/public/types.h"
 
 namespace afc::vm {
 
 struct Value;
-struct VMType;
 class ObjectType;
 namespace types {
 class ObjectName;
@@ -42,12 +42,12 @@ class Environment {
   static language::gc::Root<Environment> NewDefault(language::gc::Pool& pool);
 
   const ObjectType* LookupObjectType(const types::ObjectName& symbol);
-  const VMType* LookupType(const std::wstring& symbol);
+  const Type* LookupType(const std::wstring& symbol);
   void DefineType(language::gc::Ptr<ObjectType> value);
 
   std::optional<language::gc::Root<Value>> Lookup(
       language::gc::Pool& pool, const Namespace& symbol_namespace,
-      const std::wstring& symbol, VMType expected_type);
+      const std::wstring& symbol, Type expected_type);
 
   void PolyLookup(const Namespace& symbol_namespace, const std::wstring& symbol,
                   std::vector<language::gc::Root<Value>>* output) const;
@@ -58,7 +58,7 @@ class Environment {
       std::vector<language::gc::Root<Value>>* output) const;
   void Define(const std::wstring& symbol, language::gc::Root<Value> value);
   void Assign(const std::wstring& symbol, language::gc::Root<Value> value);
-  void Remove(const std::wstring& symbol, VMType type);
+  void Remove(const std::wstring& symbol, Type type);
 
   void ForEachType(
       std::function<void(const types::ObjectName&, ObjectType&)> callback);
@@ -75,7 +75,7 @@ class Environment {
  private:
   std::map<types::ObjectName, language::gc::Ptr<ObjectType>> object_types_;
 
-  std::map<std::wstring, std::unordered_map<VMType, language::gc::Ptr<Value>>>
+  std::map<std::wstring, std::unordered_map<Type, language::gc::Ptr<Value>>>
       table_;
 
   std::map<std::wstring, language::gc::Ptr<Environment>> namespaces_;

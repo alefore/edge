@@ -23,7 +23,7 @@ using language::VisitPointer;
 namespace gc = language::gc;
 
 struct Instance {
-  static gc::Root<Environment> Read(const VMType& class_type,
+  static gc::Root<Environment> Read(const Type& class_type,
                                     const gc::Root<Value>& obj) {
     return obj.ptr()->get_user_value<Instance>(class_type)->environment;
   }
@@ -33,20 +33,20 @@ struct Instance {
 
 void StartClassDeclaration(Compilation& compilation,
                            const types::ObjectName& name) {
-  compilation.current_class.push_back(VMType{.variant = name});
+  compilation.current_class.push_back(name);
   compilation.environment = compilation.pool.NewRoot<Environment>(
       MakeNonNullUnique<Environment>(compilation.environment.ptr()));
 }
 
 namespace {
-gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
-                            VMType field_type, std::wstring field_name) {
+gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
+                            std::wstring field_name) {
   gc::Root<Value> output = Value::NewFunction(
       pool, PurityType::kUnknown, {class_type, class_type, field_type},
       [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
                                            Trampoline&) {
         CHECK_EQ(args.size(), 2u);
-        CHECK_EQ(args[1].ptr()->type, field_type);
+        CHECK(args[1].ptr()->type == field_type);
         Instance::Read(class_type, args[0])
             .ptr()
             ->Assign(field_name, std::move(args[1]));
@@ -55,13 +55,13 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, VMType class_type,
             Success(EvaluationOutput::New(std::move(args[0]))));
       });
 
-  std::get<types::Function>(output.ptr()->type.variant).function_purity =
+  std::get<types::Function>(output.ptr()->type).function_purity =
       PurityType::kUnknown;
   return output;
 }
 
-gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
-                            VMType field_type, std::wstring field_name) {
+gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
+                            std::wstring field_name) {
   gc::Root<Value> output = Value::NewFunction(
       pool, PurityType::kPure, {field_type, class_type},
       [&pool, class_type, field_name, field_type](
@@ -81,7 +81,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, VMType class_type,
                            field_name);
             }));
       });
-  std::get<types::Function>(output.ptr()->type.variant).function_purity =
+  std::get<types::Function>(output.ptr()->type).function_purity =
       PurityType::kPure;
   return output;
 }
@@ -126,8 +126,7 @@ PossibleError FinishClassDeclaration(
                 class_environment.ptr()->parent_environment()));
         auto original_environment = trampoline.environment();
         trampoline.SetEnvironment(instance_environment);
-        return trampoline
-            .Bounce(constructor_expression.value(), {.variant = types::Void{}})
+        return trampoline.Bounce(constructor_expression.value(), types::Void{})
             .Transform([constructor_expression, original_environment,
                         class_type, instance_environment,
                         &trampoline](EvaluationOutput constructor_evaluation)
@@ -140,7 +139,7 @@ PossibleError FinishClassDeclaration(
                 case EvaluationOutput::OutputType::kContinue:
                   return Success(EvaluationOutput::New(Value::NewObject(
                       trampoline.pool(),
-                      std::get<types::ObjectName>(class_type.variant),
+                      std::get<types::ObjectName>(class_type),
                       MakeNonNullShared<Instance>(
                           Instance{.environment = instance_environment}))));
               }
@@ -149,12 +148,10 @@ PossibleError FinishClassDeclaration(
               return error;
             });
       });
-  std::get<types::Function>(constructor.ptr()->type.variant).function_purity =
-      purity;
+  std::get<types::Function>(constructor.ptr()->type).function_purity = purity;
 
   compilation.environment.ptr()->Define(
-      std::get<types::ObjectName>(class_type.variant).read(),
-      std::move(constructor));
+      std::get<types::ObjectName>(class_type).read(), std::move(constructor));
   return Success();
 }
 

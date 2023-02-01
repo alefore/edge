@@ -40,7 +40,6 @@ using language::Error;
 using language::Success;
 using vm::GetVMType;
 using vm::PurityType;
-using vm::VMType;
 using vm::VMTypeMapper;
 
 class FunctionTransformation : public CompositeTransformation {
@@ -91,14 +90,12 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
           pool, PurityType::kPure,
           {GetVMType<NonNull<
                std::shared_ptr<editor::transformation::Variant>>>::vmtype(),
-           VMType{
-               .variant =
-                   vm::types::Function{
-                       .type_arguments =
-                           {GetVMType<NonNull<std::shared_ptr<
-                                CompositeTransformation::Output>>>::vmtype(),
-                            GetVMType<NonNull<std::shared_ptr<
-                                CompositeTransformation::Input>>>::vmtype()}}}},
+           vm::types::Function{
+               .type_arguments =
+                   {GetVMType<NonNull<std::shared_ptr<
+                        CompositeTransformation::Output>>>::vmtype(),
+                    GetVMType<NonNull<std::shared_ptr<
+                        CompositeTransformation::Input>>>::vmtype()}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
             gc::Ptr<vm::Value> callback = args[0].ptr();

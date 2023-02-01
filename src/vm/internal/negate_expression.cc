@@ -21,15 +21,15 @@ class NegateExpression : public Expression {
       NonNull<std::shared_ptr<Expression>> expr)
       : negate_(negate), expr_(std::move(expr)) {}
 
-  std::vector<VMType> Types() override { return expr_->Types(); }
-  std::unordered_set<VMType> ReturnTypes() const override {
+  std::vector<Type> Types() override { return expr_->Types(); }
+  std::unordered_set<Type> ReturnTypes() const override {
     return expr_->ReturnTypes();
   }
 
   PurityType purity() override { return expr_->purity(); }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
-                                                   const VMType&) override {
+                                                   const Type&) override {
     return trampoline.Bounce(expr_.value(), expr_->Types()[0])
         .Transform([&pool = trampoline.pool(),
                     negate = negate_](EvaluationOutput expr_output) {
@@ -50,7 +50,7 @@ class NegateExpression : public Expression {
 std::unique_ptr<Expression> NewNegateExpression(
     Compilation& compilation, std::unique_ptr<Expression> expr,
     std::function<gc::Root<Value>(gc::Pool& pool, Value&)> negate,
-    const VMType& expected_type) {
+    const Type& expected_type) {
   if (expr == nullptr) {
     return nullptr;
   }
@@ -66,30 +66,32 @@ std::unique_ptr<Expression> NewNegateExpression(
 
 std::unique_ptr<Expression> NewNegateExpressionBool(
     Compilation& compilation, std::unique_ptr<Expression> expr) {
-  return NewNegateExpression(compilation, std::move(expr),
-                             [](gc::Pool& pool, Value& value) {
-                               return Value::NewBool(pool, !value.get_bool());
-                             },
-                             {.variant = types::Bool{}});
+  return NewNegateExpression(
+      compilation, std::move(expr),
+      [](gc::Pool& pool, Value& value) {
+        return Value::NewBool(pool, !value.get_bool());
+      },
+      types::Bool{});
 }
 
 std::unique_ptr<Expression> NewNegateExpressionInt(
     Compilation& compilation, std::unique_ptr<Expression> expr) {
-  return NewNegateExpression(compilation, std::move(expr),
-                             [](gc::Pool& pool, Value& value) {
-                               return Value::NewInt(pool, -value.get_int());
-                             },
-                             {.variant = types::Int{}});
+  return NewNegateExpression(
+      compilation, std::move(expr),
+      [](gc::Pool& pool, Value& value) {
+        return Value::NewInt(pool, -value.get_int());
+      },
+      types::Int{});
 }
 
 std::unique_ptr<Expression> NewNegateExpressionDouble(
     Compilation& compilation, std::unique_ptr<Expression> expr) {
-  return NewNegateExpression(compilation, std::move(expr),
-                             [](gc::Pool& pool, Value& value) {
-                               return Value::NewDouble(pool,
-                                                       -value.get_double());
-                             },
-                             {.variant = types::Double()});
+  return NewNegateExpression(
+      compilation, std::move(expr),
+      [](gc::Pool& pool, Value& value) {
+        return Value::NewDouble(pool, -value.get_double());
+      },
+      types::Double{});
 }
 
 }  // namespace afc::vm

@@ -100,9 +100,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       L"format",
       Value::NewFunction(
           pool, PurityType::kPure,
-          {{.variant = types::String{}},
-           time_type.ptr()->type(),
-           {.variant = types::String{}}},
+          {types::String{}, time_type.ptr()->type(), types::String{}},
           [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
@@ -138,9 +136,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       L"ParseTime",
       vm::Value::NewFunction(
           pool, PurityType::kPure,
-          {time_type.ptr()->type(),
-           {.variant = types::String{}},
-           {.variant = types::String{}}},
+          {time_type.ptr()->type(), types::String{}, types::String{}},
           [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);

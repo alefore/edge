@@ -24,9 +24,9 @@ class WhileExpression : public Expression {
                   NonNull<std::shared_ptr<Expression>> body)
       : condition_(std::move(condition)), body_(std::move(body)) {}
 
-  std::vector<VMType> Types() { return {{.variant = types::Void{}}}; }
+  std::vector<Type> Types() { return {types::Void{}}; }
 
-  std::unordered_set<VMType> ReturnTypes() const override {
+  std::unordered_set<Type> ReturnTypes() const override {
     return body_->ReturnTypes();
   }
 
@@ -38,7 +38,7 @@ class WhileExpression : public Expression {
   }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
-                                                   const VMType&) override {
+                                                   const Type&) override {
     DVLOG(4) << "Starting iteration.";
     futures::Future<ValueOrError<EvaluationOutput>> output;
     Iterate(trampoline, condition_, body_, std::move(output.consumer));
@@ -54,7 +54,7 @@ class WhileExpression : public Expression {
       Trampoline& trampoline, NonNull<std::shared_ptr<Expression>> condition,
       NonNull<std::shared_ptr<Expression>> body,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
-    trampoline.Bounce(condition.value(), {.variant = types::Bool{}})
+    trampoline.Bounce(condition.value(), types::Bool{})
         .SetConsumer(VisitCallback(overload{
             [consumer](Error error) { return consumer(std::move(error)); },
             [condition, body, consumer,

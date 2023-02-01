@@ -130,7 +130,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       L"RemoteScreen",
       Value::NewFunction(
           pool, PurityType::kUnknown,
-          {screen_type.ptr()->type(), {.variant = vm::types::String()}},
+          {screen_type.ptr()->type(), vm::types::String{}},
           [&pool, &editor](std::vector<gc::Root<Value>> args, Trampoline&)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
@@ -219,8 +219,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       L"set_size",
       Value::NewFunction(
           pool, PurityType::kUnknown,
-          {{.variant = vm::types::Void{}},
-           screen_type.ptr()->type(),
+          {vm::types::Void{}, screen_type.ptr()->type(),
            vm::GetVMType<LineColumnDelta>::vmtype()},
           [&pool](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2ul);

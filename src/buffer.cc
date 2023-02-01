@@ -120,13 +120,12 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
   futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>> metadata_value(
       futures::Future<NonNull<std::shared_ptr<LazyString>>>().value);
 
-  std::wstring description = L"C++: " + TypesToString(expr->Types());
+  std::wstring description = L"C++: " + vm::TypesToString(expr->Types());
   switch (expr->purity()) {
     case vm::PurityType::kPure:
     case vm::PurityType::kReader: {
       description += L" ...";
-      if (expr->Types() ==
-          std::vector<vm::VMType>({vm::VMType{.variant = vm::types::Void{}}})) {
+      if (expr->Types() == std::vector<vm::Type>({vm::types::Void{}})) {
         return MakeNonNullShared<const Line>(
             line->CopyOptions().SetMetadata(std::nullopt));
       }
@@ -607,7 +606,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
       L"sleep",
       Value::NewFunction(
           editor().gc_pool(), PurityType::kUnknown,
-          {{.variant = types::Void()}, {.variant = types::Double()}},
+          {types::Void{}, types::Double{}},
           [weak_this](std::vector<gc::Root<Value>> args,
                       Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
@@ -1550,7 +1549,6 @@ FileSystemDriver& OpenBuffer::file_system_driver() const {
 
 futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
-  using afc::vm::VMType;
   auto input_shared = std::make_shared<std::wstring>(std::move(input));
   return futures::ForEach(
              keyboard_text_transformers_.begin(),
@@ -1580,14 +1578,14 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
 }
 
 bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
-  VMType& type = transformer.ptr()->type;
-  if (vm::types::Function* function_type =
-          std::get_if<vm::types::Function>(&type.variant);
+  const Type& type = transformer.ptr()->type;
+  if (const vm::types::Function* function_type =
+          std::get_if<vm::types::Function>(&type);
       function_type == nullptr || function_type->type_arguments.size() != 2 ||
       !std::holds_alternative<vm::types::String>(
-          function_type->type_arguments[0].variant) ||
+          function_type->type_arguments[0]) ||
       !std::holds_alternative<vm::types::String>(
-          function_type->type_arguments[1].variant)) {
+          function_type->type_arguments[1])) {
     status_.SetWarningText(
         L": Unexpected type for keyboard text transformer: " +
         vm::ToString(transformer.ptr()->type));

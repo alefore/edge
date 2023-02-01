@@ -16,22 +16,22 @@ class AppendExpression : public Expression {
  public:
   AppendExpression(NonNull<std::shared_ptr<Expression>> e0,
                    NonNull<std::shared_ptr<Expression>> e1,
-                   std::unordered_set<VMType> return_types)
+                   std::unordered_set<Type> return_types)
       : e0_(std::move(e0)), e1_(std::move(e1)), return_types_(return_types) {
     // Check that the optimization in NewAppendExpression is applied.
     CHECK(e0_->purity() != PurityType::kPure || !e0_->ReturnTypes().empty());
   }
 
-  std::vector<VMType> Types() override { return e1_->Types(); }
+  std::vector<Type> Types() override { return e1_->Types(); }
 
-  std::unordered_set<VMType> ReturnTypes() const override {
+  std::unordered_set<Type> ReturnTypes() const override {
     return return_types_;
   }
 
   PurityType purity() override { return PurityType::kUnknown; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
-                                                   const VMType&) override {
+                                                   const Type&) override {
     return trampoline.Bounce(e0_.value(), e0_->Types()[0])
         .Transform([&trampoline, e1 = e1_](EvaluationOutput e0_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -54,7 +54,7 @@ class AppendExpression : public Expression {
  private:
   const NonNull<std::shared_ptr<Expression>> e0_;
   const NonNull<std::shared_ptr<Expression>> e1_;
-  const std::unordered_set<VMType> return_types_;
+  const std::unordered_set<Type> return_types_;
 };
 
 }  // namespace
@@ -75,7 +75,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
     NonNull<std::unique_ptr<Expression>> b) {
   if (a->purity() == PurityType::kPure && a->ReturnTypes().empty())
     return Success(std::move(b));
-  ASSIGN_OR_RETURN(std::unordered_set<VMType> return_types,
+  ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
   return Success<NonNull<std::unique_ptr<Expression>>>(
       MakeNonNullUnique<AppendExpression>(std::move(a), std::move(b),

@@ -20,8 +20,8 @@ using concurrent::WorkQueue;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using vm::Expression;
+using vm::Type;
 using vm::Value;
-using vm::VMType;
 
 namespace gc = language::gc;
 
@@ -92,9 +92,8 @@ void MapModeCommands::Add(std::wstring name,
 void MapModeCommands::Add(std::wstring name, std::wstring description,
                           gc::Root<Value> value,
                           gc::Root<vm::Environment> environment) {
-  CHECK(
-      std::get<vm::types::Function>(value.ptr()->type.variant).type_arguments ==
-      std::vector<VMType>({{.variant = vm::types::Void{}}}));
+  CHECK(std::get<vm::types::Function>(value.ptr()->type).type_arguments ==
+        std::vector<Type>({vm::types::Void{}}));
 
   Add(name,
       MakeCommandFromFunction(

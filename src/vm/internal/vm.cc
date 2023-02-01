@@ -579,8 +579,8 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
 }
 }  // namespace
 
-ValueOrError<std::unordered_set<VMType>> CombineReturnTypes(
-    std::unordered_set<VMType> a, std::unordered_set<VMType> b) {
+ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
+    std::unordered_set<Type> a, std::unordered_set<Type> b) {
   if (a.empty()) return Success(b);
   if (b.empty()) return Success(a);
   if (a != b) {
@@ -614,7 +614,7 @@ Trampoline::Trampoline(Options options)
       yield_callback_(std::move(options.yield_callback)) {}
 
 futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
-    Expression& expression, VMType type) {
+    Expression& expression, Type type) {
   if (!expression.SupportsType(type)) {
     LOG(FATAL) << "Expression has types: " << TypesToString(expression.Types())
                << ", expected: " << type;
@@ -644,7 +644,7 @@ const gc::Root<Environment>& Trampoline::environment() const {
 
 gc::Pool& Trampoline::pool() const { return pool_.value(); }
 
-bool Expression::SupportsType(const VMType& type) {
+bool Expression::SupportsType(const Type& type) {
   auto types = Types();
   if (std::find(types.begin(), types.end(), type) != types.end()) {
     return true;

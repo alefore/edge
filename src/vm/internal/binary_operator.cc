@@ -19,15 +19,15 @@ namespace gc = language::gc;
 
 BinaryOperator::BinaryOperator(NonNull<std::shared_ptr<Expression>> a,
                                NonNull<std::shared_ptr<Expression>> b,
-                               const VMType type,
+                               const Type type,
                                function<ValueOrError<gc::Root<Value>>(
                                    gc::Pool& pool, const Value&, const Value&)>
                                    callback)
     : a_(std::move(a)), b_(std::move(b)), type_(type), operator_(callback) {}
 
-std::vector<VMType> BinaryOperator::Types() { return {type_}; }
+std::vector<Type> BinaryOperator::Types() { return {type_}; }
 
-std::unordered_set<VMType> BinaryOperator::ReturnTypes() const {
+std::unordered_set<Type> BinaryOperator::ReturnTypes() const {
   // TODO(easy): Should take b into account. That means changing cpp.y to be
   // able to handle errors here.
   return a_->ReturnTypes();
@@ -40,7 +40,7 @@ PurityType BinaryOperator::purity() {
 }
 
 futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
-    Trampoline& trampoline, const VMType& type) {
+    Trampoline& trampoline, const Type& type) {
   CHECK(type_ == type);
   return trampoline.Bounce(a_.value(), a_->Types()[0])
       .Transform([b = b_, type = type_, op = operator_,
@@ -52,7 +52,7 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
               ASSIGN_OR_RETURN(gc::Root<Value> result,
                                op(trampoline.pool(), a_value.ptr().value(),
                                   b_value.value.ptr().value()));
-              CHECK_EQ(result.ptr()->type, type);
+              CHECK(result.ptr()->type == type);
               return Success(EvaluationOutput::New(std::move(result)));
             });
       });
@@ -78,7 +78,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
 
   if (str_operator != nullptr && a->IsString() && b->IsString()) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType{.variant = types::String()},
+        std::move(a), std::move(b), types::String{},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
           ASSIGN_OR_RETURN(
@@ -90,7 +90,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
 
   if (int_operator != nullptr && a->IsInt() && b->IsInt()) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType{.variant = types::Int()},
+        std::move(a), std::move(b), types::Int{},
         [int_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
           ASSIGN_OR_RETURN(int value,
@@ -102,14 +102,14 @@ std::unique_ptr<Expression> NewBinaryExpression(
   if (double_operator != nullptr && (a->IsInt() || a->IsDouble()) &&
       (b->IsInt() || b->IsDouble())) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType{.variant = types::Double{}},
+        std::move(a), std::move(b), types::Double{},
         [double_operator](
             gc::Pool& pool, const Value& a_value,
             const Value& b_value) -> ValueOrError<gc::Root<Value>> {
           auto to_double = [](const Value& x) {
-            if (std::holds_alternative<types::Int>(x.type.variant)) {
+            if (std::holds_alternative<types::Int>(x.type)) {
               return static_cast<double>(x.get_int());
-            } else if (std::holds_alternative<types::Double>(x.type.variant)) {
+            } else if (std::holds_alternative<types::Double>(x.type)) {
               return x.get_double();
             } else {
               CHECK(false) << "Unexpected type: " << x.type;
@@ -124,7 +124,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
 
   if (str_int_operator != nullptr && a->IsString() && b->IsInt()) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), VMType{.variant = types::String{}},
+        std::move(a), std::move(b), types::String{},
         [str_int_operator](
             gc::Pool& pool, const Value& value_a,
             const Value& value_b) -> ValueOrError<gc::Root<Value>> {
