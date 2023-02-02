@@ -399,27 +399,15 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
 
   editor_type.ptr()->AddField(
       L"OpenFile",
-      vm::Value::NewFunction(
-          pool, PurityType::kUnknown, GetVMType<gc::Root<OpenBuffer>>::vmtype(),
-          {GetVMType<EditorState>::vmtype(), vm::types::String{},
-           vm::types::Bool{}},
-          [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
-            CHECK_EQ(args.size(), 3u);
-            EditorState& editor_arg =
-                VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            return OpenOrCreateFile(
-                       OpenFileOptions{
-                           .editor_state = editor_arg,
-                           .path = OptionalFrom(
-                               Path::FromString(args[1].ptr()->get_string())),
-                           .insertion_type =
-                               args[2].ptr()->get_bool()
-                                   ? BuffersList::AddBufferType::kVisit
-                                   : BuffersList::AddBufferType::kIgnore})
-                .Transform([&pool](gc::Root<OpenBuffer> buffer) {
-                  return EvaluationOutput::Return(
-                      VMTypeMapper<gc::Root<OpenBuffer>>::New(pool, buffer));
-                });
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](EditorState& editor_arg, std::wstring path_str,
+             bool visit) -> futures::ValueOrError<gc::Root<OpenBuffer>> {
+            return OpenOrCreateFile(OpenFileOptions{
+                .editor_state = editor_arg,
+                .path = OptionalFrom(Path::FromString(path_str)),
+                .insertion_type = visit ? BuffersList::AddBufferType::kVisit
+                                        : BuffersList::AddBufferType::kIgnore});
           })
           .ptr());
 
