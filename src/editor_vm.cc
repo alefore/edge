@@ -285,22 +285,16 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
 
   editor_type.ptr()->AddField(
       L"ConnectTo",
-      vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
-          {GetVMType<EditorState>::vmtype(), vm::types::String{}},
-          [&pool](std::vector<gc::Root<vm::Value>> args,
-                  Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
-            CHECK_EQ(args.size(), 2u);
-            EditorState& editor_arg =
-                VMTypeMapper<EditorState>::get(args[0].ptr().value());
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](EditorState& editor_arg,
+             std::wstring path_str) -> futures::ValueOrError<EmptyValue> {
             FUTURES_ASSIGN_OR_RETURN(
                 Path target_path,
                 editor_arg.status().LogErrors(AugmentErrors(
-                    L"ConnectTo error",
-                    Path::FromString(args[1].ptr()->get_string()))));
+                    L"ConnectTo error", Path::FromString(path_str))));
             OpenServerBuffer(editor_arg, target_path);
-            return futures::Past(
-                EvaluationOutput::Return(vm::Value::NewVoid(pool)));
+            return futures::Past(EmptyValue());
           })
           .ptr());
 
