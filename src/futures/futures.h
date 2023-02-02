@@ -102,9 +102,28 @@ struct TransformTraits<language::ValueOrError<InitialType>, Callable> {
   }
 };
 
+template <class T>
+struct is_future {
+ private:
+  template <typename C>
+  static constexpr bool value_internal(C::IsFutureTag*) {
+    return true;
+  };
+
+  template <typename C>
+  static constexpr bool value_internal(C*) {
+    return false;
+  };
+
+ public:
+  static constexpr bool value = value_internal<T>(nullptr);
+};
+
 template <typename Type>
 class Value {
  public:
+  using IsFutureTag = Type;
+
   Value(const Value<Type>&) = delete;
   Value(Value<Type>&&) = default;
   Value<Type>& operator=(Value<Type>&&) = default;
