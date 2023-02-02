@@ -261,16 +261,14 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
            public:
             BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
                                  Value* delegate)
-                : type_([=]() {
-                    auto output = std::make_shared<Type>(delegate->type);
-                    auto& output_function_type =
-                        std::get<types::Function>(*output);
-                    output_function_type.inputs.erase(
-                        output_function_type.inputs.begin());
+                : delegate_(delegate),
+                  type_([&]() {
+                    auto output = std::make_shared<types::Function>(
+                        *delegate_function_type());
+                    output->inputs.erase(output->inputs.begin());
                     return output;
                   }()),
-                  obj_expr_(std::move(obj_expr)),
-                  delegate_(delegate) {}
+                  obj_expr_(std::move(obj_expr)) {}
 
             std::vector<Type> Types() override { return {*type_}; }
             std::unordered_set<Type> ReturnTypes() const override { return {}; }
@@ -301,10 +299,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                         return Success(std::move(output));
                       case EvaluationOutput::OutputType::kContinue:
                         return Success(EvaluationOutput::New(Value::NewFunction(
-                            pool, purity_type,
-                            std::get<types::Function>(*shared_type)
-                                .output.get(),
-                            std::get<types::Function>(*shared_type).inputs,
+                            pool, purity_type, shared_type->output.get(),
+                            shared_type->inputs,
                             [obj = std::move(output.value), callback](
                                 std::vector<gc::Root<Value>> args,
                                 Trampoline& trampoline) {
@@ -322,10 +318,9 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             types::Function* delegate_function_type() {
               return &std::get<types::Function>(delegate_->type);
             }
-            // TODO(trivial, 2023-02-02): Change Type to types::Function.
-            const std::shared_ptr<Type> type_;
-            const NonNull<std::shared_ptr<Expression>> obj_expr_;
             Value* const delegate_;
+            const std::shared_ptr<types::Function> type_;
+            const NonNull<std::shared_ptr<Expression>> obj_expr_;
           };
 
           CHECK_GE(std::get<types::Function>(field->type).inputs.size(), 1ul);
