@@ -22,6 +22,7 @@ using language::Error;
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
+using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
@@ -129,22 +130,17 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
   // Constructors.
   environment.Define(
       L"RemoteScreen",
-      Value::NewFunction(
-          pool, PurityType::kUnknown, screen_type.ptr()->type(),
-          {vm::types::String{}},
-          [&pool, &editor](std::vector<gc::Root<Value>> args, Trampoline&)
-              -> futures::ValueOrError<EvaluationOutput> {
-            CHECK_EQ(args.size(), 1u);
-            FUTURES_ASSIGN_OR_RETURN(
-                Path path, Path::FromString(args[0].ptr()->get_string()));
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [&editor](std::wstring str_path)
+              -> futures::ValueOrError<NonNull<std::shared_ptr<Screen>>> {
+            FUTURES_ASSIGN_OR_RETURN(Path path, Path::FromString(str_path));
             return editor.thread_pool()
                 .Run([path] { return SyncConnectToServer(path); })
-                .Transform([&pool](FileDescriptor fd) {
-                  return futures::Past(Success(EvaluationOutput::Return(
-                      Value::NewObject(pool,
-                                       VMTypeMapper<NonNull<std::shared_ptr<
-                                           editor::Screen>>>::object_type_name,
-                                       MakeNonNullShared<ScreenVm>(fd)))));
+                .Transform([](FileDescriptor fd)
+                               -> futures::ValueOrError<
+                                   NonNull<std::shared_ptr<Screen>>> {
+                  return futures::Past(MakeNonNullShared<ScreenVm>(fd));
                 });
           }));
 

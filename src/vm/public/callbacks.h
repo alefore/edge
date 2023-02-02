@@ -171,8 +171,9 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
                                           language::PossibleError>::value) {
           return types::Void();
         } else {
-          return GetVMType<decltype(std::get<0>(
-              std::declval<typename ft::ReturnType::type>()))>::vmtype();
+          using NestedType = std::remove_reference<decltype(std::get<0>(
+              std::declval<typename ft::ReturnType::type>()))>::type;
+          return GetVMType<NestedType>::vmtype();
         }
       }(),
       std::move(type_arguments),
