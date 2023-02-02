@@ -62,28 +62,17 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
                           const std::wstring& name, PurityType purity_type,
                           MethodReturnType (OpenBuffer::*method)(void)) {
   editor_type.AddField(
-      name,
-      vm::Value::NewFunction(
-          pool, purity_type, vm::types::Void{}, {editor_type.type()},
-          [method](std::vector<gc::Root<vm::Value>> args,
-                   Trampoline& trampoline) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK(args[0].ptr()->type ==
-                  GetVMType<editor::EditorState>::vmtype());
-
-            EditorState& editor =
-                VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            return editor
-                .ForEachActiveBuffer([method](OpenBuffer& buffer) {
-                  (buffer.*method)();
-                  return futures::Past(EmptyValue());
-                })
-                .Transform([&editor, &pool = trampoline.pool()](EmptyValue) {
-                  editor.ResetModifiers();
-                  return EvaluationOutput::New(vm::Value::NewVoid(pool));
-                });
-          })
-          .ptr());
+      name, vm::NewCallback(pool, purity_type, [method](EditorState& editor) {
+              return editor
+                  .ForEachActiveBuffer([method](OpenBuffer& buffer) {
+                    (buffer.*method)();
+                    return futures::Past(EmptyValue());
+                  })
+                  .Transform([&editor](EmptyValue) -> PossibleError {
+                    editor.ResetModifiers();
+                    return EmptyValue();
+                  });
+            }).ptr());
 }
 
 template <typename EdgeStruct, typename FieldValue>
