@@ -294,9 +294,8 @@ class InsertMode : public EditorMode {
                 options_.editor_state.gc_pool(), vm::Namespace(),
                 L"HandleKeyboardControlU",
                 vm::types::Function{
-                    .type_arguments = {
-                        vm::types::Void{},
-                        vm::GetVMType<gc::Root<OpenBuffer>>::vmtype()}});
+                    .output = vm::Type{vm::types::Void{}},
+                    .inputs = {vm::GetVMType<gc::Root<OpenBuffer>>::vmtype()}});
         if (!callback.has_value()) {
           LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
           return;

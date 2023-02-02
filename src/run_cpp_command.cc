@@ -130,22 +130,18 @@ ValueOrError<ParsedCommand> Parse(
     const vm::types::Function* function_type =
         std::get_if<vm::types::Function>(&candidate.ptr()->type);
     if (function_type == nullptr ||
-        accepted_return_types.find(function_type->type_arguments[0]) ==
+        accepted_return_types.find(function_type->output.get()) ==
             accepted_return_types.end()) {
       continue;
     }
 
-    bool all_arguments_are_strings = true;
-    for (auto it = function_type->type_arguments.begin() + 1;
-         all_arguments_are_strings && it != function_type->type_arguments.end();
-         ++it) {
-      all_arguments_are_strings =
-          std::holds_alternative<vm::types::String>(*it);
-    }
-    if (all_arguments_are_strings) {
+    if (std::all_of(function_type->inputs.begin(), function_type->inputs.end(),
+                    [](const vm::Type& t) {
+                      return std::holds_alternative<vm::types::String>(t);
+                    })) {
       type_match_functions.push_back(candidate);
-    } else if (function_type->type_arguments.size() == 2 &&
-               function_type->type_arguments[1] ==
+    } else if (function_type->inputs.size() == 1 &&
+               function_type->inputs[0] ==
                    vm::GetVMType<NonNull<
                        std::shared_ptr<std::vector<std::wstring>>>>::vmtype()) {
       function_vector = candidate;
@@ -169,8 +165,7 @@ ValueOrError<ParsedCommand> Parse(
     output_function = type_match_functions[0];
     const vm::types::Function* function_type =
         std::get_if<vm::types::Function>(&output_function.value().ptr()->type);
-    CHECK_GE(function_type->type_arguments.size(), 1ul /* return type */);
-    size_t expected_arguments = function_type->type_arguments.size() - 1;
+    size_t expected_arguments = function_type->inputs.size();
     if (output_tokens.size() - 1 > expected_arguments) {
       return Error(L"Too many arguments given for `" + output_tokens[0].value +
                    L"` (expected: " + std::to_wstring(expected_arguments) +

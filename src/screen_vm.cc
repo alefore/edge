@@ -129,8 +129,8 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
   environment.Define(
       L"RemoteScreen",
       Value::NewFunction(
-          pool, PurityType::kUnknown,
-          {screen_type.ptr()->type(), vm::types::String{}},
+          pool, PurityType::kUnknown, screen_type.ptr()->type(),
+          {vm::types::String{}},
           [&pool, &editor](std::vector<gc::Root<Value>> args, Trampoline&)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 1u);
@@ -215,12 +215,13 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           })
           .ptr());
 
+  // TODO(trivial, 2023-02-02): No need to get the trampoline; can already bind
+  // the pool.
   screen_type.ptr()->AddField(
       L"set_size",
       Value::NewFunction(
-          pool, PurityType::kUnknown,
-          {vm::types::Void{}, screen_type.ptr()->type(),
-           vm::GetVMType<LineColumnDelta>::vmtype()},
+          pool, PurityType::kUnknown, vm::types::Void{},
+          {screen_type.ptr()->type(), vm::GetVMType<LineColumnDelta>::vmtype()},
           [&pool](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 2ul);
             return futures::Past(VisitPointer(

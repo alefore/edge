@@ -23,50 +23,51 @@ PromotionCallback GetImplicitPromotion(Type original, Type desired) {
   types::Function* desired_function = std::get_if<types::Function>(&desired);
 
   if (original_function != nullptr && desired_function != nullptr) {
-    if (original_function->type_arguments.size() !=
-        desired_function->type_arguments.size())
+    if (original_function->inputs.size() != desired_function->inputs.size())
       return nullptr;
-    std::vector<PromotionCallback> argument_callbacks;
-    for (size_t i = 0; i < original_function->type_arguments.size(); i++) {
+
+    PromotionCallback output_callback = GetImplicitPromotion(
+        original_function->output.get(), desired_function->output.get());
+
+    std::vector<PromotionCallback> inputs_callbacks;
+    for (size_t i = 0; i < original_function->inputs.size(); i++) {
       // Undo the promotion: we deliberately swap the order of desired and
       // original parameters for the function arguments.
-      if (auto argument_callback =
-              i == 0
-                  ? GetImplicitPromotion(original_function->type_arguments[i],
-                                         desired_function->type_arguments[i])
-                  : GetImplicitPromotion(desired_function->type_arguments[i],
-                                         original_function->type_arguments[i]);
+      if (auto argument_callback = GetImplicitPromotion(
+              desired_function->inputs[i], original_function->inputs[i]);
           argument_callback != nullptr) {
-        argument_callbacks.push_back(std::move(argument_callback));
+        inputs_callbacks.push_back(std::move(argument_callback));
       } else {
         return nullptr;
       }
     }
 
-    return [argument_callbacks, purity = desired_function->function_purity](
-               gc::Pool& pool, gc::Root<Value> value) {
-      std::vector<Type> type_arguments =
-          std::get<types::Function>(value.ptr()->type).type_arguments;
+    return [output_callback, inputs_callbacks,
+            purity = desired_function->function_purity](gc::Pool& pool,
+                                                        gc::Root<Value> value) {
+      const types::Function& value_function_type =
+          std::get<types::Function>(value.ptr()->type);
       return Value::NewFunction(
-          pool, purity, type_arguments,
+          pool, purity, value_function_type.output.get(),
+          value_function_type.inputs,
           std::bind_front(
-              [argument_callbacks](gc::Root<Value> original_callback,
-                                   std::vector<gc::Root<Value>> arguments,
-                                   Trampoline& trampoline) {
-                CHECK_EQ(argument_callbacks.size(), arguments.size() + 1);
+              [output_callback, inputs_callbacks](
+                  gc::Root<Value> original_callback,
+                  std::vector<gc::Root<Value>> arguments,
+                  Trampoline& trampoline) {
+                CHECK_EQ(inputs_callbacks.size(), arguments.size());
                 for (size_t i = 0; i < arguments.size(); ++i) {
-                  arguments[i] = argument_callbacks[i + 1](
-                      trampoline.pool(), std::move(arguments[i]));
+                  arguments[i] = inputs_callbacks[i](trampoline.pool(),
+                                                     std::move(arguments[i]));
                 }
                 return original_callback.ptr()
                     ->LockCallback()(std::move(arguments), trampoline)
-                    .Transform(
-                        [return_callback = argument_callbacks[0],
-                         &pool = trampoline.pool()](EvaluationOutput output) {
-                          output.value =
-                              return_callback(pool, std::move(output.value));
-                          return Success(std::move(output));
-                        });
+                    .Transform([output_callback, &pool = trampoline.pool()](
+                                   EvaluationOutput output) {
+                      output.value =
+                          output_callback(pool, std::move(output.value));
+                      return Success(std::move(output));
+                    });
               },
               std::move(value)));
     };

@@ -605,8 +605,8 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   environment_->Define(
       L"sleep",
       Value::NewFunction(
-          editor().gc_pool(), PurityType::kUnknown,
-          {types::Void{}, types::Double{}},
+          editor().gc_pool(), PurityType::kUnknown, types::Void{},
+          {types::Double{}},
           [weak_this](std::vector<gc::Root<Value>> args,
                       Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
@@ -1581,11 +1581,9 @@ bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
   const Type& type = transformer.ptr()->type;
   if (const vm::types::Function* function_type =
           std::get_if<vm::types::Function>(&type);
-      function_type == nullptr || function_type->type_arguments.size() != 2 ||
-      !std::holds_alternative<vm::types::String>(
-          function_type->type_arguments[0]) ||
-      !std::holds_alternative<vm::types::String>(
-          function_type->type_arguments[1])) {
+      function_type == nullptr || function_type->inputs.size() != 1 ||
+      !std::holds_alternative<vm::types::String>(function_type->output.get()) ||
+      !std::holds_alternative<vm::types::String>(function_type->inputs[0])) {
     status_.SetWarningText(
         L": Unexpected type for keyboard text transformer: " +
         vm::ToString(transformer.ptr()->type));

@@ -66,10 +66,33 @@ using Type = std::variant<types::Void, types::Bool, types::Int, types::String,
                           types::Function>;
 
 namespace types {
+// Simple wrapper around NonNull<unique_ptr<>> that copies values.
+template <typename T>
+struct SimpleBox {
+  SimpleBox(T t) : value(language::MakeNonNullUnique<T>(std::move(t))) {}
+
+  SimpleBox(const SimpleBox<T>& other) : SimpleBox(other.get()) {}
+  SimpleBox(SimpleBox<T>&& other) : value(std::move(other.value)) {}
+  SimpleBox& operator=(SimpleBox<T> other) {
+    value = std::move(other.value);
+    return *this;
+  }
+
+  T& get() { return value.value(); }
+  const T& get() const { return value.value(); }
+
+ private:
+  // Not const to enable move construction.
+  language::NonNull<std::unique_ptr<T>> value;
+};
+template <typename T, typename U>
+bool operator==(const SimpleBox<T>& t, const SimpleBox<U>& u) {
+  return t.get() == u.get();
+}
+
 struct Function {
-  // The first element is the return type of the callback. Subsequent elements
-  // are the types of the elements expected by the callback.
-  vector<Type> type_arguments;
+  SimpleBox<Type> output;
+  std::vector<Type> inputs = {};
   PurityType function_purity = PurityType::kUnknown;
 };
 }  // namespace types

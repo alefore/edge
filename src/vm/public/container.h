@@ -92,7 +92,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
 
   environment.Define(
       object_type_name.read(),
-      Value::NewFunction(pool, PurityType::kPure, {vmtype},
+      Value::NewFunction(pool, PurityType::kPure, vmtype, {},
                          [&pool](std::vector<language::gc::Root<Value>> args) {
                            CHECK(args.empty());
                            return Value::NewObject(
@@ -113,8 +113,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
       L"get",
       Value::NewFunction(
           pool, PurityType::kPure,
-          {GetVMType<typename Container::value_type>::vmtype(), vmtype,
-           types::Int{}},
+          GetVMType<typename Container::value_type>::vmtype(),
+          {vmtype, types::Int{}},
           [object_type_name](std::vector<language::gc::Root<Value>> args,
                              Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {

@@ -180,8 +180,8 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   buffer_object_type.ptr()->AddField(
       L"ApplyTransformation",
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown,
-          {vm::types::Void{}, buffer_object_type.ptr()->type(),
+          pool, PurityType::kUnknown, vm::types::Void{},
+          {buffer_object_type.ptr()->type(),
            vm::GetVMType<NonNull<
                std::shared_ptr<editor::transformation::Variant>>>::vmtype()},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
@@ -265,10 +265,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   buffer_object_type.ptr()->AddField(
       L"AddKeyboardTextTransformer",
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown,
-          {vm::types::Bool{}, buffer_object_type.ptr()->type(),
-           vm::types::Function{
-               .type_arguments = {vm::types::String{}, vm::types::String{}}}},
+          pool, PurityType::kUnknown, vm::types::Bool{},
+          {buffer_object_type.ptr()->type(),
+           vm::types::Function{.output = vm::Type{vm::types::String{}},
+                               .inputs = {vm::types::String{}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
@@ -282,10 +282,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   buffer_object_type.ptr()->AddField(
       L"Filter",
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown,
-          {vm::types::Void{}, buffer_object_type.ptr()->type(),
-           vm::types::Function{
-               .type_arguments = {vm::types::String{}, vm::types::String{}}}},
+          pool, PurityType::kUnknown, vm::types::Void{},
+          {buffer_object_type.ptr()->type(),
+           vm::types::Function{.output = vm::Type{vm::types::String{}},
+                               .inputs = {vm::types::String{}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
@@ -342,8 +342,8 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   buffer_object_type.ptr()->AddField(
       L"Save",
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown,
-          {vm::types::Void{}, buffer_object_type.ptr()->type()},
+          pool, PurityType::kUnknown, vm::types::Void{},
+          {buffer_object_type.ptr()->type()},
           [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
@@ -405,10 +405,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   buffer_object_type.ptr()->AddField(
       L"AddBinding",
       vm::Value::NewFunction(
-          pool, vm::PurityTypeWriter,
-          {vm::types::Void{}, buffer_object_type.ptr()->type(),
-           vm::types::String{}, vm::types::String{},
-           vm::types::Function{.type_arguments = {vm::types::Void{}}}},
+          pool, vm::PurityTypeWriter, vm::types::Void{},
+          {buffer_object_type.ptr()->type(), vm::types::String{},
+           vm::types::String{},
+           vm::types::Function{.output = vm::Type{vm::types::Void{}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 4u);
             gc::Root<OpenBuffer> buffer =
@@ -492,8 +492,8 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   buffer_object_type.ptr()->AddField(
       L"WaitForEndOfFile",
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown,
-          {vm::types::Void{}, buffer_object_type.ptr()->type()},
+          pool, PurityType::kUnknown, vm::types::Void{},
+          {buffer_object_type.ptr()->type()},
           [](std::vector<gc::Root<vm::Value>> args, Trampoline& trampoline) {
             CHECK_EQ(args.size(), 1ul);
             auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
@@ -508,9 +508,8 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   buffer_object_type.ptr()->AddField(
       L"LineMetadataString",
       vm::Value::NewFunction(
-          pool, PurityType::kPure,
-          {vm::types::String{}, buffer_object_type.ptr()->type(),
-           vm::types::Int{}},
+          pool, PurityType::kPure, vm::types::String{},
+          {buffer_object_type.ptr()->type(), vm::types::Int{}},
           [&pool](std::vector<gc::Root<vm::Value>> args,
                   Trampoline&) -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);

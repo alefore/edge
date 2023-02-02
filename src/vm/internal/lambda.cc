@@ -28,7 +28,7 @@ class LambdaExpression : public Expression {
       NonNull<std::shared_ptr<Expression>> body) {
     auto& lambda_function_type = std::get<types::Function>(lambda_type);
     lambda_function_type.function_purity = body->purity();
-    Type expected_return_type = *lambda_function_type.type_arguments.cbegin();
+    Type expected_return_type = lambda_function_type.output.get();
     auto deduced_types = body->ReturnTypes();
     if (deduced_types.empty()) {
       deduced_types.insert(types::Void{});
@@ -80,8 +80,9 @@ class LambdaExpression : public Expression {
   gc::Root<Value> BuildValue(gc::Pool& pool,
                              gc::Root<Environment> parent_environment_root) {
     gc::Ptr<Environment> parent_environment = parent_environment_root.ptr();
+    const types::Function& function_type = std::get<types::Function>(type_);
     return Value::NewFunction(
-        pool, body_->purity(), std::get<types::Function>(type_).type_arguments,
+        pool, body_->purity(), function_type.output.get(), function_type.inputs,
         [body = body_, parent_environment, argument_names = argument_names_,
          promotion_function = promotion_function_](
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
@@ -139,12 +140,13 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
 
   auto output = std::make_unique<UserFunction>();
-  types::Function function_type;
-  function_type.type_arguments.push_back(*return_type_def);
+  types::Function function_type{.output = *return_type_def};
   for (pair<Type, wstring> arg : *args) {
-    function_type.type_arguments.push_back(arg.first);
+    function_type.inputs.push_back(arg.first);
     output->argument_names->push_back(arg.second);
   }
+  // TODO(easy, 2023-02-02): Avoid copy assignment; just initialize type
+  // directly in constructor.
   output->type = std::move(function_type);
   if (name.has_value()) {
     output->name = name.value();

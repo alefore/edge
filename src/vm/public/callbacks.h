@@ -140,11 +140,11 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
                                       Callable callback) {
   using ft = language::function_traits<Callable>;
   std::vector<Type> type_arguments;
-  type_arguments.push_back(GetVMType<typename ft::ReturnType>::vmtype());
   AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
 
   language::gc::Root<Value> callback_wrapper = Value::NewFunction(
-      pool, purity_type, std::move(type_arguments),
+      pool, purity_type, GetVMType<typename ft::ReturnType>::vmtype(),
+      std::move(type_arguments),
       [callback = std::move(callback), &pool](
           vector<language::gc::Root<Value>> args, Trampoline&) {
         language::gc::Root<Value> result =

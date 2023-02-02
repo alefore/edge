@@ -427,8 +427,8 @@ class ForkEditorCommand : public Command {
                   original_buffer->ptr()->environment()->Lookup(
                       pool, kEmptyNamespace, L"GetShellPromptContextProgram",
                       vm::types::Function{
-                          .type_arguments = {vm::types::String{},
-                                             vm::types::String{}}})});
+                          .output = vm::Type{vm::types::String{}},
+                          .inputs = {vm::types::String{}}})});
 
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       Prompt(PromptOptions{

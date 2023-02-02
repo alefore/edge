@@ -88,14 +88,13 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
       L"FunctionTransformation",
       vm::Value::NewFunction(
           pool, PurityType::kPure,
-          {GetVMType<NonNull<
-               std::shared_ptr<editor::transformation::Variant>>>::vmtype(),
-           vm::types::Function{
-               .type_arguments =
-                   {GetVMType<NonNull<std::shared_ptr<
-                        CompositeTransformation::Output>>>::vmtype(),
-                    GetVMType<NonNull<std::shared_ptr<
-                        CompositeTransformation::Input>>>::vmtype()}}},
+          GetVMType<NonNull<std::shared_ptr<editor::transformation::Variant>>>::
+              vmtype(),
+          {vm::types::Function{
+              .output = GetVMType<NonNull<
+                  std::shared_ptr<CompositeTransformation::Output>>>::vmtype(),
+              .inputs = {GetVMType<NonNull<std::shared_ptr<
+                  CompositeTransformation::Input>>>::vmtype()}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 1ul);
             gc::Ptr<vm::Value> callback = args[0].ptr();

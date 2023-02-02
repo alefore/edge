@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "../public/value.h"
+#include "src/language/hash.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
@@ -41,11 +42,9 @@ struct hash<afc::vm::types::Double> {
 template <>
 struct hash<afc::vm::types::Function> {
   size_t operator()(const afc::vm::types::Function& object) const {
-    size_t output = hash<afc::vm::PurityType>()(object.function_purity);
-    for (const auto& a : object.type_arguments) {
-      output ^= hash<afc::vm::Type>()(a);
-    }
-    return output;
+    return afc::language::compute_hash(
+        object.function_purity, object.output.get(),
+        afc::language::MakeHashableIteratorRange(object.inputs));
   }
 };
 
@@ -139,7 +138,7 @@ bool operator==(const String&, const String&) { return true; }
 bool operator==(const Symbol&, const Symbol&) { return true; }
 bool operator==(const Double&, const Double&) { return true; }
 bool operator==(const Function& a, const Function& b) {
-  return a.type_arguments == b.type_arguments &&
+  return a.output == a.output && a.inputs == b.inputs &&
          a.function_purity == b.function_purity;
 }
 }  // namespace types
@@ -166,34 +165,33 @@ std::wstring TypesToString(const std::unordered_set<Type>& types) {
 
 std::wstring ToString(const Type& type) {
   return std::visit(
-      overload{
-          [](const types::Void&) -> std::wstring { return L"void"; },
-          [](const types::Bool&) -> std::wstring { return L"bool"; },
-          [](const types::Int&) -> std::wstring { return L"int"; },
-          [](const types::String&) -> std::wstring { return L"string"; },
-          [](const types::Symbol&) -> std::wstring { return L"symbol"; },
-          [](const types::Double&) -> std::wstring { return L"double"; },
-          [](const types::ObjectName& object) -> std::wstring {
-            return object.read();
-          },
-          [](const types::Function& function_type) -> std::wstring {
-            CHECK(!function_type.type_arguments.empty());
-            const std::unordered_map<PurityType, std::wstring>
-                function_purity_types = {{PurityType::kPure, L"function"},
-                                         {PurityType::kReader, L"Function"},
-                                         {PurityType::kUnknown, L"FUNCTION"}};
-            wstring output =
-                function_purity_types.find(function_type.function_purity)
-                    ->second +
-                L"<" + ToString(function_type.type_arguments[0]) + L"(";
-            wstring separator = L"";
-            for (size_t i = 1; i < function_type.type_arguments.size(); i++) {
-              output += separator + ToString(function_type.type_arguments[i]);
-              separator = L", ";
-            }
-            output += L")>";
-            return output;
-          }},
+      overload{[](const types::Void&) -> std::wstring { return L"void"; },
+               [](const types::Bool&) -> std::wstring { return L"bool"; },
+               [](const types::Int&) -> std::wstring { return L"int"; },
+               [](const types::String&) -> std::wstring { return L"string"; },
+               [](const types::Symbol&) -> std::wstring { return L"symbol"; },
+               [](const types::Double&) -> std::wstring { return L"double"; },
+               [](const types::ObjectName& object) -> std::wstring {
+                 return object.read();
+               },
+               [](const types::Function& function_type) -> std::wstring {
+                 const std::unordered_map<PurityType, std::wstring>
+                     function_purity_types = {
+                         {PurityType::kPure, L"function"},
+                         {PurityType::kReader, L"Function"},
+                         {PurityType::kUnknown, L"FUNCTION"}};
+                 wstring output =
+                     function_purity_types.find(function_type.function_purity)
+                         ->second +
+                     L"<" + ToString(function_type.output.get()) + L"(";
+                 wstring separator = L"";
+                 for (const Type& input : function_type.inputs) {
+                   output += separator + ToString(input);
+                   separator = L", ";
+                 }
+                 output += L")>";
+                 return output;
+               }},
       type);
 }
 

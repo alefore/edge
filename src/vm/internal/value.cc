@@ -70,11 +70,13 @@ namespace gc = language::gc;
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
-    gc::Pool& pool, PurityType purity_type, std::vector<Type> arguments,
-    Value::Callback callback, ExpandCallback expand_callback) {
+    gc::Pool& pool, PurityType purity_type, Type type_output,
+    std::vector<Type> type_inputs, Value::Callback callback,
+    ExpandCallback expand_callback) {
   CHECK(callback != nullptr);
   gc::Root<Value> output =
-      New(pool, types::Function{.type_arguments = std::move(arguments),
+      New(pool, types::Function{.output = std::move(type_output),
+                                .inputs = std::move(type_inputs),
                                 .function_purity = purity_type});
   output.ptr()->value_ = std::move(callback);
   output.ptr()->expand_callback = std::move(expand_callback);
@@ -82,10 +84,11 @@ namespace gc = language::gc;
 }
 
 /* static */ gc::Root<Value> Value::NewFunction(
-    gc::Pool& pool, PurityType purity_type, std::vector<Type> arguments,
+    gc::Pool& pool, PurityType purity_type, Type output,
+    std::vector<Type> inputs,
     std::function<gc::Root<Value>(std::vector<gc::Root<Value>>)> callback) {
   return NewFunction(
-      pool, purity_type, arguments,
+      pool, purity_type, std::move(output), std::move(inputs),
       [callback](std::vector<gc::Root<Value>> args, Trampoline&) {
         return futures::Past(
             Success(EvaluationOutput::New(callback(std::move(args)))));
@@ -226,7 +229,7 @@ bool value_gc_tests_registration = tests::Register(
         Value::Callback callback = [&] {
           gc::Root<Value> parent = [&] {
             gc::Root<Value> child = Value::NewFunction(
-                pool, PurityType::kPure, {types::Void{}},
+                pool, PurityType::kPure, types::Void{}, {},
                 [](std::vector<gc::Root<Value>>, Trampoline& t) {
                   return futures::Past(
                       EvaluationOutput::Return(Value::NewVoid(t.pool())));
@@ -236,8 +239,9 @@ bool value_gc_tests_registration = tests::Register(
                       NonNull<std::shared_ptr<gc::ObjectMetadata>>>();
                 });
             return Value::NewFunction(
-                pool, PurityType::kPure, {types::Void{}},
-                [child_ptr = child.ptr()](auto, Trampoline&) {
+                pool, PurityType::kPure, types::Void{}, {},
+                [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
+                                          Trampoline&) {
                   return futures::Past(Error(L"Some error."));
                 },
                 [child_frame = child.ptr().object_metadata()] {

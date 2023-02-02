@@ -42,7 +42,7 @@ namespace {
 gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
                             std::wstring field_name) {
   gc::Root<Value> output = Value::NewFunction(
-      pool, PurityType::kUnknown, {class_type, class_type, field_type},
+      pool, PurityType::kUnknown, class_type, {class_type, field_type},
       [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
                                            Trampoline&) {
         CHECK_EQ(args.size(), 2u);
@@ -63,7 +63,7 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
 gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                             std::wstring field_name) {
   gc::Root<Value> output = Value::NewFunction(
-      pool, PurityType::kPure, {field_type, class_type},
+      pool, PurityType::kPure, field_type, {class_type},
       [&pool, class_type, field_name, field_type](
           std::vector<gc::Root<Value>> args, Trampoline&) {
         CHECK_EQ(args.size(), 1u);
@@ -118,7 +118,7 @@ PossibleError FinishClassDeclaration(
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
   auto purity = constructor_expression->purity();
   gc::Root<Value> constructor = Value::NewFunction(
-      pool, PurityType::kPure, {class_type},
+      pool, PurityType::kPure, class_type, {},
       [constructor_expression, class_environment, class_type, values](
           std::vector<gc::Root<Value>>, Trampoline& trampoline) {
         gc::Root<Environment> instance_environment =

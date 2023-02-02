@@ -52,8 +52,8 @@ class Value {
             language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>();
       });
   static language::gc::Root<Value> NewFunction(
-      language::gc::Pool& pool, PurityType purity_type,
-      std::vector<Type> arguments, Callback callback,
+      language::gc::Pool& pool, PurityType purity_type, Type output,
+      std::vector<Type> inputs, Callback callback,
       ExpandCallback expand_callback = []() {
         return std::vector<
             language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>();
@@ -61,8 +61,8 @@ class Value {
 
   // Convenience wrapper.
   static language::gc::Root<Value> NewFunction(
-      language::gc::Pool& pool, PurityType purity_type,
-      std::vector<Type> arguments,
+      language::gc::Pool& pool, PurityType purity_type, Type output,
+      std::vector<Type> inputs,
       std::function<
           language::gc::Root<Value>(std::vector<language::gc::Root<Value>>)>
           callback);

@@ -37,18 +37,16 @@ PossibleError CheckFunctionArguments(
     return Error(L"Expected function but found: `" + ToString(type) + L"`.");
   }
 
-  if (function_type->type_arguments.size() != args.size() + 1) {
+  if (function_type->inputs.size() != args.size()) {
     return Error(L"Invalid number of arguments: Expected " +
-                 std::to_wstring(function_type->type_arguments.size() - 1) +
+                 std::to_wstring(function_type->inputs.size()) +
                  L" but found " + std::to_wstring(args.size()));
   }
 
   for (size_t argument = 0; argument < args.size(); argument++) {
-    if (!args[argument]->SupportsType(
-            function_type->type_arguments[1 + argument])) {
+    if (!args[argument]->SupportsType(function_type->inputs[argument])) {
       return Error(L"Type mismatch in argument " + std::to_wstring(argument) +
-                   L": Expected `" +
-                   ToString(function_type->type_arguments[1 + argument]) +
+                   L": Expected `" + ToString(function_type->inputs[argument]) +
                    L"` but found " + TypesToString(args[argument]->Types()));
     }
   }
@@ -63,7 +61,7 @@ std::vector<Type> DeduceTypes(
   for (auto& type : func.Types()) {
     if (std::holds_alternative<EmptyValue>(
             CheckFunctionArguments(type, args))) {
-      output.insert(std::get<types::Function>(type).type_arguments[0]);
+      output.insert(std::get<types::Function>(type).output.get());
     }
   }
   return std::vector<Type>(output.begin(), output.end());
@@ -101,15 +99,15 @@ class FunctionCall : public Expression {
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
       Trampoline& trampoline, const Type& type) {
     DVLOG(3) << "Function call evaluation starts.";
-    std::vector<Type> type_arguments = {type};
+    std::vector<Type> type_inputs;
     for (auto& arg : args_.value()) {
-      type_arguments.push_back(arg->Types()[0]);
+      type_inputs.push_back(arg->Types()[0]);
     }
 
     return trampoline
-        .Bounce(func_.value(),
-                types::Function{.type_arguments = std::move(type_arguments),
-                                .function_purity = purity()})
+        .Bounce(func_.value(), types::Function{.output = type,
+                                               .inputs = std::move(type_inputs),
+                                               .function_purity = purity()})
         .Transform(
             [&trampoline, args_types = args_](EvaluationOutput callback) {
               if (callback.type == EvaluationOutput::OutputType::kReturn)
@@ -267,8 +265,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                     auto output = std::make_shared<Type>(delegate->type);
                     auto& output_function_type =
                         std::get<types::Function>(*output);
-                    output_function_type.type_arguments.erase(
-                        output_function_type.type_arguments.begin() + 1);
+                    output_function_type.inputs.erase(
+                        output_function_type.inputs.begin());
                     return output;
                   }()),
                   obj_expr_(std::move(obj_expr)),
@@ -305,7 +303,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                         return Success(EvaluationOutput::New(Value::NewFunction(
                             pool, purity_type,
                             std::get<types::Function>(*shared_type)
-                                .type_arguments,
+                                .output.get(),
+                            std::get<types::Function>(*shared_type).inputs,
                             [obj = std::move(output.value), callback](
                                 std::vector<gc::Root<Value>> args,
                                 Trampoline& trampoline) {
@@ -323,15 +322,14 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             types::Function* delegate_function_type() {
               return &std::get<types::Function>(delegate_->type);
             }
+            // TODO(trivial, 2023-02-02): Change Type to types::Function.
             const std::shared_ptr<Type> type_;
             const NonNull<std::shared_ptr<Expression>> obj_expr_;
             Value* const delegate_;
           };
 
-          CHECK_GE(std::get<types::Function>(field->type).type_arguments.size(),
-                   2ul);
-          CHECK(std::get<types::Function>(field->type).type_arguments[1] ==
-                type);
+          CHECK_GE(std::get<types::Function>(field->type).inputs.size(), 1ul);
+          CHECK(std::get<types::Function>(field->type).inputs[0] == type);
 
           return std::make_unique<BindObjectExpression>(std::move(object),
                                                         field);
