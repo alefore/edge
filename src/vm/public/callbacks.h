@@ -110,7 +110,7 @@ void AddArgs(std::vector<Type>* output) {
 };
 
 template <typename Callable, size_t... I>
-language::gc::Root<Value> RunCallback(
+futures::ValueOrError<EvaluationOutput> RunCallback(
     language::gc::Pool& pool, Callable& callback,
     std::vector<language::gc::Root<Value>> args, std::index_sequence<I...>) {
   using ft = language::function_traits<Callable>;
@@ -123,14 +123,34 @@ language::gc::Root<Value> RunCallback(
         VMTypeMapper<typename std::remove_const<typename std::remove_reference<
             typename std::tuple_element<I, typename ft::ArgTuple>::
                 type>::type>::type>::get(args.at(I).ptr().value())...);
-    return Value::NewVoid(pool);
+    return futures::Past(
+        language::Success(EvaluationOutput::New(Value::NewVoid(pool))));
+  } else if constexpr (futures::is_future<typename ft::ReturnType>::value) {
+    using NestedType = std::remove_reference<decltype(std::get<0>(
+        std::declval<typename ft::ReturnType::type>()))>::type;
+    return callback(
+               VMTypeMapper<typename std::remove_const<
+                   typename std::remove_reference<typename std::tuple_element<
+                       I, typename ft::ArgTuple>::type>::type>::type>::
+                   get(args.at(I).ptr().value())...)
+        .Transform([&pool](NestedType value) {
+          if constexpr (std::is_same<NestedType, language::EmptyValue>::value) {
+            return language::Success(
+                EvaluationOutput::New(Value::NewVoid(pool)));
+          } else {
+            return language::Success(EvaluationOutput::New(
+                (VMTypeMapper<NestedType>::New(pool, value))));
+          }
+        });
   } else {
-    return VMTypeMapper<typename ft::ReturnType>::New(
-        pool,
-        callback(VMTypeMapper<typename std::remove_const<
-                     typename std::remove_reference<typename std::tuple_element<
-                         I, typename ft::ArgTuple>::type>::type>::type>::
-                     get(args.at(I).ptr().value())...));
+    return futures::Past(language::Success(
+        EvaluationOutput::New(VMTypeMapper<typename ft::ReturnType>::New(
+            pool,
+            callback(
+                VMTypeMapper<typename std::remove_const<
+                    typename std::remove_reference<typename std::tuple_element<
+                        I, typename ft::ArgTuple>::type>::type>::type>::
+                    get(args.at(I).ptr().value())...)))));
   }
 }
 
@@ -143,16 +163,25 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
   AddArgs<typename ft::ArgTuple, 0>(&type_arguments);
 
   language::gc::Root<Value> callback_wrapper = Value::NewFunction(
-      pool, purity_type, GetVMType<typename ft::ReturnType>::vmtype(),
+      pool, purity_type,
+      [&] {
+        if constexpr (!futures::is_future<typename ft::ReturnType>::value) {
+          return GetVMType<typename ft::ReturnType>::vmtype();
+        } else if constexpr (std::is_same<typename ft::ReturnType::type,
+                                          language::PossibleError>::value) {
+          return types::Void();
+        } else {
+          return GetVMType<decltype(std::get<0>(
+              std::declval<typename ft::ReturnType::type>()))>::vmtype();
+        }
+      }(),
       std::move(type_arguments),
       [callback = std::move(callback), &pool](
           vector<language::gc::Root<Value>> args, Trampoline&) {
-        language::gc::Root<Value> result =
-            RunCallback(pool, callback, std::move(args),
-                        std::make_index_sequence<
-                            std::tuple_size<typename ft::ArgTuple>::value>());
-        return futures::Past(
-            language::Success(EvaluationOutput::New(std::move(result))));
+        return RunCallback(
+            pool, callback, std::move(args),
+            std::make_index_sequence<
+                std::tuple_size<typename ft::ArgTuple>::value>());
       });
   return callback_wrapper;
 }
