@@ -215,25 +215,22 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           })
           .ptr());
 
-  // TODO(trivial, 2023-02-02): No need to get the trampoline; can already bind
-  // the pool.
   screen_type.ptr()->AddField(
       L"set_size",
       Value::NewFunction(
           pool, PurityType::kUnknown, vm::types::Void{},
           {screen_type.ptr()->type(), vm::GetVMType<LineColumnDelta>::vmtype()},
-          [&pool](std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
+          [&pool](std::vector<gc::Root<Value>> args, Trampoline&) {
             CHECK_EQ(args.size(), 2ul);
             return futures::Past(VisitPointer(
                 NonNull<std::shared_ptr<ScreenVm>>::DynamicCast(
                     VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::get(
                         args[0].ptr().value())),
-                [&args,
-                 &trampoline](NonNull<std::shared_ptr<ScreenVm>> screen) {
+                [&args, &pool](NonNull<std::shared_ptr<ScreenVm>> screen) {
                   screen->set_size(VMTypeMapper<LineColumnDelta>::get(
                       args[1].ptr().value()));
-                  return Success(EvaluationOutput::Return(
-                      Value::NewVoid(trampoline.pool())));
+                  return Success(
+                      EvaluationOutput::Return(Value::NewVoid(pool)));
                 },
                 [] {
                   return Error(
