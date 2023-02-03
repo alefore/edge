@@ -138,7 +138,7 @@ bool operator==(const String&, const String&) { return true; }
 bool operator==(const Symbol&, const Symbol&) { return true; }
 bool operator==(const Double&, const Double&) { return true; }
 bool operator==(const Function& a, const Function& b) {
-  return a.output == a.output && a.inputs == b.inputs &&
+  return a.output == b.output && a.inputs == b.inputs &&
          a.function_purity == b.function_purity;
 }
 }  // namespace types
