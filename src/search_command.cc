@@ -31,8 +31,8 @@ using ::operator<<;
 
 namespace gc = language::gc;
 
-static void MergeInto(SearchResultsSummary current_results,
-                      ValueOrError<SearchResultsSummary>& final_results) {
+void MergeInto(SearchResultsSummary current_results,
+               ValueOrError<SearchResultsSummary>& final_results) {
   std::visit(
       overload{IgnoreErrors{},
                [&](SearchResultsSummary& output) {
@@ -88,7 +88,7 @@ const bool merge_into_tests_registration =
                 S{.matches = 889, .search_completion = kInterrupted})});
     }());
 
-static void DoSearch(OpenBuffer& buffer, SearchOptions options) {
+void DoSearch(OpenBuffer& buffer, SearchOptions options) {
   ValueOrError<std::vector<LineColumn>> output =
       SearchHandler(buffer.editor(), options, buffer.contents());
   HandleSearchResults(output, buffer);
