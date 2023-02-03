@@ -289,19 +289,10 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
 
   editor_type.ptr()->AddField(
       L"WaitForClose",
-      vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
-          {GetVMType<EditorState>::vmtype(),
-           GetVMType<
-               NonNull<std::shared_ptr<std::set<std::wstring>>>>::vmtype()},
-          [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
-            CHECK_EQ(args.size(), 2u);
-            EditorState& editor_arg =
-                VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            NonNull<std::shared_ptr<std::set<std::wstring>>> buffers_to_wait =
-                VMTypeMapper<NonNull<std::shared_ptr<std::set<std::wstring>>>>::
-                    get(args[1].ptr().value());
-
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](EditorState& editor_arg,
+             NonNull<std::shared_ptr<std::set<std::wstring>>> buffers_to_wait) {
             auto values =
                 std::make_shared<std::vector<futures::Value<EmptyValue>>>();
             for (const auto& buffer_name_str : buffers_to_wait.value()) {
@@ -318,8 +309,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                            return futures::IterationControlCommand::kContinue;
                          });
                        })
-                .Transform([&pool](futures::IterationControlCommand) {
-                  return EvaluationOutput::Return(vm::Value::NewVoid(pool));
+                .Transform([](futures::IterationControlCommand) {
+                  return EmptyValue();
                 });
           })
           .ptr());
