@@ -179,24 +179,12 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
 
   buffer_object_type.ptr()->AddField(
       L"ApplyTransformation",
-      vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
-          {buffer_object_type.ptr()->type(),
-           vm::GetVMType<NonNull<
-               std::shared_ptr<editor::transformation::Variant>>>::vmtype()},
-          [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
-            CHECK_EQ(args.size(), 2ul);
-            auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
-                args[0].ptr().value());
-            NonNull<std::shared_ptr<editor::transformation::Variant>>
-                transformation = vm::VMTypeMapper<
-                    NonNull<std::shared_ptr<editor::transformation::Variant>>>::
-                    get(args[1].ptr().value());
-            return buffer.ptr()
-                ->ApplyToCursors(transformation.value())
-                .Transform([&pool](EmptyValue) {
-                  return EvaluationOutput::Return(vm::Value::NewVoid(pool));
-                });
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](gc::Root<OpenBuffer> buffer,
+             NonNull<std::shared_ptr<editor::transformation::Variant>>
+                 transformation) {
+            return buffer.ptr()->ApplyToCursors(transformation.value());
           })
           .ptr());
 
