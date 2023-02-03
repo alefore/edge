@@ -139,15 +139,19 @@ std::unique_ptr<UserFunction> UserFunction::New(
     return nullptr;
   }
 
-  auto output = std::make_unique<UserFunction>();
   types::Function function_type{.output = *return_type_def};
   for (pair<Type, wstring> arg : *args) {
     function_type.inputs.push_back(arg.first);
+  }
+
+  auto output = std::make_unique<UserFunction>(
+      UserFunction{.name = std::nullopt,
+                   .type = std::move(function_type),
+                   .argument_names = {}});
+  for (pair<Type, wstring> arg : *args) {
     output->argument_names->push_back(arg.second);
   }
-  // TODO(easy, 2023-02-02): Avoid copy assignment; just initialize type
-  // directly in constructor.
-  output->type = std::move(function_type);
+
   if (name.has_value()) {
     output->name = name.value();
     compilation.environment.ptr()->Define(
