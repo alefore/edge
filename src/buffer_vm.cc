@@ -479,18 +479,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
 
   buffer_object_type.ptr()->AddField(
       L"WaitForEndOfFile",
-      vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
-          {buffer_object_type.ptr()->type()},
-          [](std::vector<gc::Root<vm::Value>> args, Trampoline& trampoline) {
-            CHECK_EQ(args.size(), 1ul);
-            auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
-                args[0].ptr().value());
-            return buffer.ptr()->WaitForEndOfFile().Transform(
-                [&pool = trampoline.pool()](EmptyValue) {
-                  return EvaluationOutput::Return(vm::Value::NewVoid(pool));
-                });
-          })
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](gc::Root<OpenBuffer> buffer) {
+                        return buffer.ptr()->WaitForEndOfFile();
+                      })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
