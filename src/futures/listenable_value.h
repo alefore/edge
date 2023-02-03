@@ -68,5 +68,21 @@ class ListenableValue {
   std::shared_ptr<concurrent::Protected<Data>> data_ =
       std::make_shared<concurrent::Protected<Data>>();
 };
+
+template <typename T>
+futures::ValueOrError<T> ToFuture(
+    language::ValueOrError<ListenableValue<T>> input) {
+  return std::visit(
+      language::overload{
+          [](language::Error error) {
+            return futures::Past(language::ValueOrError<T>(error));
+          },
+          [](ListenableValue<T> listenable_value) {
+            return listenable_value.ToFuture().Transform(
+                [](T t) { return language::Success(std::move(t)); });
+          }},
+      input);
+}
+
 }  // namespace afc::futures
 #endif  // __AFC_FUTURES_LISTENABLE_FUTURES_H__
