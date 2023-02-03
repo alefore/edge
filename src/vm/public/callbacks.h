@@ -125,7 +125,17 @@ futures::ValueOrError<EvaluationOutput> RunCallback(
                 type>::type>::type>::get(args.at(I).ptr().value())...);
     return futures::Past(
         language::Success(EvaluationOutput::New(Value::NewVoid(pool))));
-  } else if constexpr (futures::is_future<typename ft::ReturnType>::value) {
+  } else if constexpr (!futures::is_future<typename ft::ReturnType>::value) {
+    return futures::Past(language::Success(
+        EvaluationOutput::New(VMTypeMapper<typename ft::ReturnType>::New(
+            pool,
+            callback(
+                VMTypeMapper<typename std::remove_const<
+                    typename std::remove_reference<typename std::tuple_element<
+                        I, typename ft::ArgTuple>::type>::type>::type>::
+                    get(args.at(I).ptr().value())...)))));
+  } else if constexpr (language::IsValueOrError<
+                           typename ft::ReturnType::type>::value) {
     using NestedType = std::remove_reference<decltype(std::get<0>(
         std::declval<typename ft::ReturnType::type>()))>::type;
     return callback(
@@ -143,14 +153,21 @@ futures::ValueOrError<EvaluationOutput> RunCallback(
           }
         });
   } else {
-    return futures::Past(language::Success(
-        EvaluationOutput::New(VMTypeMapper<typename ft::ReturnType>::New(
-            pool,
-            callback(
-                VMTypeMapper<typename std::remove_const<
-                    typename std::remove_reference<typename std::tuple_element<
-                        I, typename ft::ArgTuple>::type>::type>::type>::
-                    get(args.at(I).ptr().value())...)))));
+    using NestedType = ft::ReturnType::type;
+    return callback(
+               VMTypeMapper<typename std::remove_const<
+                   typename std::remove_reference<typename std::tuple_element<
+                       I, typename ft::ArgTuple>::type>::type>::type>::
+                   get(args.at(I).ptr().value())...)
+        .Transform([&pool](NestedType value) {
+          if constexpr (std::is_same<NestedType, language::EmptyValue>::value) {
+            return language::Success(
+                EvaluationOutput::New(Value::NewVoid(pool)));
+          } else {
+            return language::Success(EvaluationOutput::New(
+                (VMTypeMapper<NestedType>::New(pool, value))));
+          }
+        });
   }
 }
 
@@ -169,11 +186,17 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
           return GetVMType<typename ft::ReturnType>::vmtype();
         } else if constexpr (std::is_same<typename ft::ReturnType::type,
                                           language::PossibleError>::value) {
-          return types::Void();
-        } else {
+          return types::Void{};
+        } else if constexpr (language::IsValueOrError<
+                                 typename ft::ReturnType::type>::value) {
           using NestedType = std::remove_reference<decltype(std::get<0>(
               std::declval<typename ft::ReturnType::type>()))>::type;
           return GetVMType<NestedType>::vmtype();
+        } else if constexpr (std::is_same<typename ft::ReturnType::type,
+                                          language::EmptyValue>::value) {
+          return types::Void{};
+        } else {
+          return GetVMType<typename ft::ReturnType::type>::vmtype();
         }
       }(),
       std::move(type_arguments),
