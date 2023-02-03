@@ -604,35 +604,27 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   environment_->Define(
       L"sleep",
-      Value::NewFunction(
-          editor().gc_pool(), PurityType::kUnknown, types::Void{},
-          {types::Double{}},
-          [weak_this](std::vector<gc::Root<Value>> args,
-                      Trampoline& trampoline) {
-            CHECK_EQ(args.size(), 1ul);
-            double delay_seconds = args[0].ptr()->get_double();
+      vm::NewCallback(
+          editor().gc_pool(), PurityType::kUnknown,
+          [weak_this](double delay_seconds) {
             return VisitPointer(
                 weak_this.Lock(),
                 [&](gc::Root<OpenBuffer> root_this) {
-                  futures::Future<ValueOrError<EvaluationOutput>> future;
-                  EvaluationOutput output = vm::EvaluationOutput::Return(
-                      vm::Value::NewVoid(root_this.ptr()->editor().gc_pool()));
+                  futures::Future<EmptyValue> future;
                   root_this.ptr()->work_queue()->Schedule(WorkQueue::Callback{
                       .time = AddSeconds(Now(), delay_seconds),
                       .callback = [weak_this,
-                                   consumer = std::move(future.consumer),
-                                   output] {
+                                   consumer = std::move(future.consumer)] {
                         VisitPointer(
                             weak_this.Lock(),
-                            [&](gc::Root<OpenBuffer>) { consumer(output); },
+                            [&](gc::Root<OpenBuffer>) {
+                              consumer(EmptyValue());
+                            },
                             [] {});
                       }});
                   return std::move(future.value);
                 },
-                [&] {
-                  return futures::Past(Success(EvaluationOutput::Return(
-                      vm::Value::NewVoid(trampoline.pool()))));
-                });
+                [&] { return futures::Past(EmptyValue()); });
           }));
 
   Set(buffer_variables::name, options_.name.read());
