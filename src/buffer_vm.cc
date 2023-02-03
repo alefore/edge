@@ -329,17 +329,13 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
 
   buffer_object_type.ptr()->AddField(
       L"Save",
-      vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
-          {buffer_object_type.ptr()->type()},
-          [&pool](std::vector<gc::Root<vm::Value>> args, Trampoline&) {
-            CHECK_EQ(args.size(), 1ul);
-            auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
-                args[0].ptr().value());
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](gc::Root<OpenBuffer> buffer) {
             if (buffer.ptr()->editor().structure() == StructureLine()) {
-              auto target_buffer =
-                  buffer.ptr()->current_line()->buffer_line_column();
-              if (target_buffer.has_value()) {
+              if (auto target_buffer =
+                      buffer.ptr()->current_line()->buffer_line_column();
+                  target_buffer.has_value()) {
                 VisitPointer(
                     target_buffer->buffer.Lock(),
                     [&](gc::Root<OpenBuffer> target_root) {
@@ -349,22 +345,9 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
               }
             }
 
-            futures::Future<ValueOrError<EvaluationOutput>> future;
-            buffer.ptr()->Save().SetConsumer(
-                [&pool,
-                 consumer = std::move(future.consumer)](PossibleError result) {
-                  consumer(std::visit(
-                      overload{[](Error error) {
-                                 return ValueOrError<EvaluationOutput>(error);
-                               },
-                               [&pool](EmptyValue) {
-                                 return Success(EvaluationOutput::Return(
-                                     vm::Value::NewVoid(pool)));
-                               }},
-                      result));
-                });
+            futures::Value<PossibleError> output = buffer.ptr()->Save();
             buffer.ptr()->editor().ResetModifiers();
-            return std::move(future.value);
+            return output;
           })
           .ptr());
 
