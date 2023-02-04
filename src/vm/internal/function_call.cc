@@ -213,11 +213,11 @@ std::unique_ptr<Expression> NewFunctionCall(
   return nullptr;
 }
 
-std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
-                                            std::unique_ptr<Expression> object,
-                                            wstring method_name) {
+std::unique_ptr<Expression> NewMethodLookup(
+    Compilation* compilation, std::unique_ptr<Expression> object_ptr,
+    wstring method_name) {
   return VisitPointer(
-      std::move(object),
+      std::move(object_ptr),
       [&compilation, &method_name](NonNull<std::unique_ptr<Expression>> object)
           -> std::unique_ptr<Expression> {
         // TODO: Support polymorphism.
@@ -303,9 +303,10 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                             shared_type->inputs,
                             [obj = std::move(output.value), callback](
                                 std::vector<gc::Root<Value>> args,
-                                Trampoline& trampoline) {
+                                Trampoline& trampoline_inner) {
                               args.emplace(args.begin(), obj);
-                              return callback(std::move(args), trampoline);
+                              return callback(std::move(args),
+                                              trampoline_inner);
                             })));
                     }
                     language::Error error(L"Unhandled OutputType case.");
