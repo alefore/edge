@@ -68,13 +68,12 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
   return input;
 }
 
-#define ASSIGN_OR_RETURN(variable, expression)                                 \
-  variable = ({                                                                \
-    auto tmp = expression;                                                     \
-    if (afc::language::Error* error = std::get_if<afc::language::Error>(&tmp); \
-        error != nullptr)                                                      \
-      return std::move(*error);                                                \
-    std::move(std::get<0>(tmp));                                               \
+#define ASSIGN_OR_RETURN(variable, expression)               \
+  variable = ({                                              \
+    auto tmp = expression;                                   \
+    if (std::holds_alternative<afc::language::Error>(tmp))   \
+      return std::get<afc::language::Error>(std::move(tmp)); \
+    std::get<0>(std::move(tmp));                             \
   })
 
 struct IgnoreErrors {
