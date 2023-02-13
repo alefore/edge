@@ -84,9 +84,9 @@ std::wstring ToStatus(const CommandReachPage& reach_line) {
 }
 
 std::wstring ToStatus(const CommandReachQuery& c) {
-  // TODO(easy, 2023-02-13): If query is shorter than the desired size (3), show
-  // place holders `_`.
-  return SerializeCall(L"Query", {c.query.empty() ? L"…" : c.query});
+  return SerializeCall(
+      L"Query",
+      {c.query + std::wstring(3 - std::min(3ul, c.query.size()), L'_')});
 }
 
 std::wstring ToStatus(const CommandReachBisect& c) {
