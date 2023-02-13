@@ -11,6 +11,7 @@
 #include "src/language/safe_types.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
+#include "src/transformation/bisect.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/move.h"
@@ -83,7 +84,14 @@ std::wstring ToStatus(const CommandReachPage& reach_line) {
 }
 
 std::wstring ToStatus(const CommandReachQuery& c) {
+  // TODO(easy, 2023-02-13): If query is shorter than the desired size (3), show
+  // place holders `_`.
   return SerializeCall(L"Query", {c.query.empty() ? L"…" : c.query});
+}
+
+std::wstring ToStatus(const CommandReachBisect& c) {
+  // TODO(easy, 2023-02-13): Display directions.
+  return SerializeCall(L"Bisect", {StructureToString(c.structure)});
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -176,6 +184,13 @@ transformation::Stack GetTransformation(CommandReachQuery reach_query) {
   transformation.PushBack(
       MakeNonNullUnique<transformation::ReachQueryTransformation>(
           reach_query.query));
+  return transformation;
+}
+
+transformation::Stack GetTransformation(CommandReachBisect bisect) {
+  transformation::Stack transformation;
+  transformation.PushBack(MakeNonNullUnique<transformation::Bisect>(
+      bisect.structure, std::move(bisect.directions)));
   return transformation;
 }
 
@@ -272,7 +287,13 @@ class State {
 
   transformation::Variant PrepareStack() {
     transformation::Stack stack;
+    // After each transformation (except for the last), we reset the visual
+    // overlays. This allows us to clean up in case we have a
+    // transformation::Bisect leaves visual overlays (that are no longer
+    // relevant, since other transformations follow).
+    std::optional<transformation::Variant> separator;
     for (auto& command : commands_) {
+      if (separator.has_value()) stack.PushBack(separator.value());
       stack.PushBack(std::visit(
           [&](auto t) -> transformation::Variant {
             static Tracker tracker(L"State::PrepareStack::GetTransformation");
@@ -280,6 +301,7 @@ class State {
             return GetTransformation(t);
           },
           command));
+      separator = transformation::VisualOverlay(VisualOverlayMap());
     }
     stack.post_transformation_behavior =
         top_command_.post_transformation_behavior;
@@ -398,7 +420,50 @@ bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
   return false;
 }
 
-bool ReceiveInput(CommandReach* output, wint_t c, State*) {
+bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
+  if (output->structure == StructureChar() || output->structure == nullptr) {
+    switch (c) {
+      case L'H':
+        if (!output->repetitions.empty() &&
+            output->repetitions.get_list().back() < 0) {
+          state->Push(
+              CommandReachBisect{.structure = StructureChar(),
+                                 .directions = {Direction::kBackwards}});
+          return true;
+        }
+        break;
+      case L'L':
+        if (!output->repetitions.empty() &&
+            output->repetitions.get_list().back() > 0) {
+          state->Push(CommandReachBisect{.structure = StructureChar(),
+                                         .directions = {Direction::kForwards}});
+          return true;
+        }
+        break;
+    }
+  }
+  if (output->structure == StructureLine()) {
+    switch (c) {
+      case L'K':
+        if (!output->repetitions.empty() &&
+            output->repetitions.get_list().back() < 0) {
+          state->Push(
+              CommandReachBisect{.structure = StructureLine(),
+                                 .directions = {Direction::kBackwards}});
+          return true;
+        }
+        break;
+      case L'J':
+        if (!output->repetitions.empty() &&
+            output->repetitions.get_list().back() > 0) {
+          state->Push(CommandReachBisect{.structure = StructureLine(),
+                                         .directions = {Direction::kForwards}});
+          return true;
+        }
+        break;
+    }
+  }
+
   if (CheckStructureChar(c, &output->structure, &output->repetitions)) {
     return true;
   }
@@ -413,7 +478,7 @@ bool ReceiveInput(CommandReach* output, wint_t c, State*) {
   return false;
 }
 
-bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
+bool ReceiveInput(CommandReachBegin* output, wint_t c, State* state) {
   if (output->structure == StructureLine()) {
     switch (c) {
       case 'j':
@@ -449,7 +514,26 @@ bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
   return false;
 }
 
-bool ReceiveInput(CommandReachLine* output, wint_t c, State*) {
+bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
+  switch (c) {
+    case L'K':
+      if (!output->repetitions.empty() &&
+          output->repetitions.get_list().back() < 0) {
+        state->Push(CommandReachBisect{.structure = StructureLine(),
+                                       .directions = {Direction::kBackwards}});
+        return true;
+      }
+      break;
+    case L'J':
+      if (!output->repetitions.empty() &&
+          output->repetitions.get_list().back() > 0) {
+        state->Push(CommandReachBisect{.structure = StructureLine(),
+                                       .directions = {Direction::kForwards}});
+        return true;
+      }
+      break;
+  }
+
   if (CheckRepetitionsChar(c, &output->repetitions)) return true;
   switch (static_cast<int>(c)) {
     case L'j':
@@ -485,6 +569,39 @@ bool ReceiveInput(CommandReachQuery* output, wint_t c, State*) {
   if (output->query.size() < 3) {
     output->query.push_back(c);
     return true;
+  }
+  return false;
+}
+
+bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
+  switch (static_cast<int>(c)) {
+    case Terminal::BACKSPACE:
+      if (output->directions.empty()) return false;
+      output->directions.pop_back();
+      return true;
+  }
+
+  if (output->structure == nullptr || output->structure == StructureChar()) {
+    switch (static_cast<int>(c)) {
+      case L'h':
+        output->directions.push_back(Direction::kBackwards);
+        return true;
+      case L'l':
+        output->directions.push_back(Direction::kForwards);
+        return true;
+    }
+    return false;
+  }
+  if (output->structure == StructureLine()) {
+    switch (static_cast<int>(c)) {
+      case L'k':
+        output->directions.push_back(Direction::kBackwards);
+        return true;
+      case L'j':
+        output->directions.push_back(Direction::kForwards);
+        return true;
+    }
+    return false;
   }
   return false;
 }

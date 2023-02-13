@@ -116,6 +116,7 @@ std::wstring ReachQueryTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> GoTo(
     std::optional<LineColumn> position) {
+  // TODO(easy, 2023-02-13): This can be simplified significantly.
   CompositeTransformation::Output output(VisualOverlay{VisualOverlayMap{}});
   VisitPointer(
       position, [&](LineColumn value) { output.Push(SetPosition(value)); },

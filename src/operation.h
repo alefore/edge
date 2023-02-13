@@ -83,8 +83,14 @@ struct CommandReachQuery {
   std::wstring query;
 };
 
-using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
-                             CommandReachPage, CommandReachQuery>;
+struct CommandReachBisect {
+  Structure* structure = nullptr;
+  std::vector<Direction> directions;
+};
+
+using Command =
+    std::variant<CommandReach, CommandReachBegin, CommandReachLine,
+                 CommandReachPage, CommandReachQuery, CommandReachBisect>;
 
 language::NonNull<std::unique_ptr<afc::editor::Command>> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,

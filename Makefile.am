@@ -238,6 +238,8 @@ src/tests/tests.h \
 src/tokenize.cc \
 src/tokenize.h \
 src/tokenize_test.cc \
+src/transformation/bisect.cc \
+src/transformation/bisect.h \
 src/transformation/composite.cc \
 src/transformation/composite.h \
 src/transformation/cursors.cc \
