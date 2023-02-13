@@ -90,8 +90,18 @@ std::wstring ToStatus(const CommandReachQuery& c) {
 }
 
 std::wstring ToStatus(const CommandReachBisect& c) {
-  // TODO(easy, 2023-02-13): Display directions.
-  return SerializeCall(L"Bisect", {StructureToString(c.structure)});
+  std::wstring directions;
+  wchar_t backwards = c.structure == StructureLine() ? L'↑' : L'←';
+  wchar_t forwards = c.structure == StructureLine() ? L'↓' : L'→';
+  for (Direction direction : c.directions) switch (direction) {
+      case Direction::kForwards:
+        directions.push_back(forwards);
+        break;
+      case Direction::kBackwards:
+        directions.push_back(backwards);
+        break;
+    }
+  return SerializeCall(L"Bisect", {StructureToString(c.structure), directions});
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
