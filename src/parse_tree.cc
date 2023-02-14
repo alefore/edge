@@ -226,27 +226,28 @@ class WordsTreeParser : public TreeParser {
       ColumnNumber column =
           line == range.begin.line ? range.begin.column : ColumnNumber(0);
       while (column < line_end) {
-        Range range;
+        Range keyword_range;
         while (column < line_end && IsSpace(contents, column)) {
           column++;
         }
-        range.begin = LineColumn(line, column);
+        keyword_range.begin = LineColumn(line, column);
 
         while (column < line_end && !IsSpace(contents, column)) {
           column++;
         }
-        range.end = LineColumn(line, column);
+        keyword_range.end = LineColumn(line, column);
 
-        if (range.IsEmpty()) {
+        if (keyword_range.IsEmpty()) {
           return;
         }
 
-        CHECK_GT(range.end.column, range.begin.column);
+        CHECK_GT(keyword_range.end.column, keyword_range.begin.column);
         // TODO(2022-04-22): Find a way to avoid the call to ToString?
-        auto keyword = Substring(contents.contents(), range.begin.column,
-                                 range.end.column - range.begin.column)
-                           ->ToString();
-        ParseTree child = delegate_->FindChildren(buffer, range);
+        auto keyword =
+            Substring(contents.contents(), keyword_range.begin.column,
+                      keyword_range.end.column - keyword_range.begin.column)
+                ->ToString();
+        ParseTree child = delegate_->FindChildren(buffer, keyword_range);
         if (typos_.find(keyword) != typos_.end()) {
           child.InsertModifier(LineModifier::RED);
         }
