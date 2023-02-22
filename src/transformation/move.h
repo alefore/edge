@@ -24,9 +24,13 @@ std::wstring ToStringBase(const SwapActiveCursor& v);
 SwapActiveCursor OptimizeBase(SwapActiveCursor transformation);
 }  // namespace transformation
 
+class OperationScope;
 class CompositeTransformation;
 language::NonNull<std::unique_ptr<CompositeTransformation>>
 NewMoveTransformation();
+language::NonNull<std::unique_ptr<CompositeTransformation>>
+NewMoveTransformation(
+    language::NonNull<std::shared_ptr<OperationScope>> operation_scope);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_TRANSFORMATION_MOVE_H__

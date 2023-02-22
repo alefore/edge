@@ -9,6 +9,7 @@
 #include "src/futures/serializer.h"
 #include "src/goto_command.h"
 #include "src/language/safe_types.h"
+#include "src/operation_scope.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
 #include "src/transformation/bisect.h"
@@ -147,18 +148,21 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 
-transformation::Stack GetTransformation(CommandReach reach) {
+transformation::Stack GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
+    CommandReach reach) {
   transformation::Stack transformation;
   for (int repetitions : reach.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
             GetModifiers(reach.structure, repetitions, Direction::kForwards),
-        .transformation = NewMoveTransformation()});
+        .transformation = NewMoveTransformation(operation_scope)});
   }
   return transformation;
 }
 
 transformation::ModifiersAndComposite GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>&,
     CommandReachBegin reach_begin) {
   return transformation::ModifiersAndComposite{
       .modifiers = GetModifiers(reach_begin.structure, reach_begin.repetitions,
@@ -166,29 +170,35 @@ transformation::ModifiersAndComposite GetTransformation(
       .transformation = MakeNonNullUnique<GotoTransformation>(0)};
 }
 
-transformation::Stack GetTransformation(CommandReachLine reach_line) {
+transformation::Stack GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
+    CommandReachLine reach_line) {
   transformation::Stack transformation;
   for (int repetitions : reach_line.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
             GetModifiers(StructureLine(), repetitions, Direction::kForwards),
-        .transformation = NewMoveTransformation()});
+        .transformation = NewMoveTransformation(operation_scope)});
   }
   return transformation;
 }
 
-transformation::Stack GetTransformation(CommandReachPage reach_page) {
+transformation::Stack GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
+    CommandReachPage reach_page) {
   transformation::Stack transformation;
   for (int repetitions : reach_page.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
             GetModifiers(StructurePage(), repetitions, Direction::kForwards),
-        .transformation = NewMoveTransformation()});
+        .transformation = NewMoveTransformation(operation_scope)});
   }
   return transformation;
 }
 
-transformation::Stack GetTransformation(CommandReachQuery reach_query) {
+transformation::Stack GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>&,
+    CommandReachQuery reach_query) {
   if (reach_query.query.empty()) return transformation::Stack{};
   transformation::Stack transformation;
   transformation.PushBack(
@@ -197,7 +207,9 @@ transformation::Stack GetTransformation(CommandReachQuery reach_query) {
   return transformation;
 }
 
-transformation::Stack GetTransformation(CommandReachBisect bisect) {
+transformation::Stack GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>&,
+    CommandReachBisect bisect) {
   transformation::Stack transformation;
   transformation.PushBack(MakeNonNullUnique<transformation::Bisect>(
       bisect.structure, std::move(bisect.directions)));
@@ -308,7 +320,7 @@ class State {
           [&](auto t) -> transformation::Variant {
             static Tracker tracker(L"State::PrepareStack::GetTransformation");
             auto call = tracker.Call();
-            return GetTransformation(t);
+            return GetTransformation(operation_scope_, t);
           },
           command));
       separator = transformation::VisualOverlay(VisualOverlayMap());
@@ -340,6 +352,7 @@ class State {
   }
 
   EditorState& editor_state_;
+  NonNull<std::shared_ptr<OperationScope>> operation_scope_;
   futures::Serializer serializer_;
   TopCommand top_command_;
   std::vector<Command> commands_ = {};

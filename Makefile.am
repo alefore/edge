@@ -184,6 +184,8 @@ src/open_directory_command.cc \
 src/open_file_command.cc \
 src/operation.cc \
 src/operation.h \
+src/operation_scope.cc \
+src/operation_scope.h \
 src/parse_tools.cc \
 src/parse_tools.h \
 src/parse_tree.cc \

@@ -9,11 +9,13 @@
 #include "src/direction.h"
 #include "src/editor.h"
 #include "src/line_marks.h"
+#include "src/operation_scope.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
 
 namespace afc::editor {
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 namespace transformation {
@@ -54,7 +56,8 @@ SwapActiveCursor OptimizeBase(SwapActiveCursor transformation) {
 namespace {
 class MoveTransformation : public CompositeTransformation {
  public:
-  MoveTransformation() {}
+  MoveTransformation(NonNull<std::shared_ptr<OperationScope>> operation_scope)
+      : operation_scope_(std::move(operation_scope)) {}
 
   std::wstring Serialize() const override { return L"MoveTransformation()"; }
 
@@ -69,7 +72,8 @@ class MoveTransformation : public CompositeTransformation {
           transformation::SwapActiveCursor{.modifiers = input.modifiers}));
     }
 
-    auto position = structure->Move(input.buffer, input.original_position,
+    auto position = structure->Move(operation_scope_.value().get(input.buffer),
+                                    input.buffer, input.original_position,
                                     input.range, input.modifiers);
 
     if (!position.has_value()) {
@@ -86,10 +90,18 @@ class MoveTransformation : public CompositeTransformation {
               << position.value() << " " << input.modifiers;
     return futures::Past(Output::SetPosition(position.value()));
   }
+
+ private:
+  const NonNull<std::shared_ptr<OperationScope>> operation_scope_;
 };
 }  // namespace
 
 NonNull<std::unique_ptr<CompositeTransformation>> NewMoveTransformation() {
-  return MakeNonNullUnique<MoveTransformation>();
+  return NewMoveTransformation(MakeNonNullShared<OperationScope>());
+}
+
+NonNull<std::unique_ptr<CompositeTransformation>> NewMoveTransformation(
+    NonNull<std::shared_ptr<OperationScope>> operation_scope) {
+  return MakeNonNullUnique<MoveTransformation>(operation_scope);
 }
 }  // namespace afc::editor
