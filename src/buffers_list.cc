@@ -851,31 +851,37 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
           << ", size: " << buffers_.size()
           << ", size column: " << options.size.column;
 
-  options.size.line -= layout.lines;
-  LineWithCursor::Generator::Vector output = widget_->CreateOutput(options);
-  CHECK_EQ(output.size(), options.size.line);
-  if (layout.lines.IsZero()) return output;
+  LineWithCursor::Generator::Vector output;
+  if (!layout.lines.IsZero()) {
+    options.size.line -= layout.lines;
 
-  VLOG(2) << "Buffers per line: " << layout.buffers_per_line
-          << ", from: " << buffers_.size()
-          << " buffers with lines: " << layout.lines;
+    VLOG(2) << "Buffers per line: " << layout.buffers_per_line
+            << ", from: " << buffers_.size()
+            << " buffers with lines: " << layout.lines;
 
-  std::set<NonNull<const OpenBuffer*>> active_buffers;
-  for (gc::Root<OpenBuffer>& b : editor_state_.active_buffers()) {
-    active_buffers.insert(
-        NonNull<const OpenBuffer*>::AddressOf(b.ptr().value()));
+    std::set<NonNull<const OpenBuffer*>> active_buffers;
+    for (gc::Root<OpenBuffer>& b : editor_state_.active_buffers()) {
+      active_buffers.insert(
+          NonNull<const OpenBuffer*>::AddressOf(b.ptr().value()));
+    }
+
+    output = ProduceBuffersList(
+        std::make_shared<BuffersListOptions>(BuffersListOptions{
+            .buffers = buffers_,
+            .active_buffer = active_buffer(),
+            .active_buffers = std::move(active_buffers),
+            .buffers_per_line = layout.buffers_per_line,
+            .size = LineColumnDelta(layout.lines, options.size.column),
+            .filter = OptimizeFilter(filter_)}));
+    CHECK_EQ(output.size(), layout.lines);
+    output.RemoveCursor();
+    output.Append(std::move(output));
   }
-  auto buffers_list_lines = ProduceBuffersList(
-      std::make_shared<BuffersListOptions>(BuffersListOptions{
-          .buffers = buffers_,
-          .active_buffer = active_buffer(),
-          .active_buffers = std::move(active_buffers),
-          .buffers_per_line = layout.buffers_per_line,
-          .size = LineColumnDelta(layout.lines, options.size.column),
-          .filter = OptimizeFilter(filter_)}));
-  CHECK_EQ(buffers_list_lines.size(), layout.lines);
-  buffers_list_lines.RemoveCursor();
-  output.Append(std::move(buffers_list_lines));
+
+  LineWithCursor::Generator::Vector widget_output =
+      widget_->CreateOutput(options);
+  CHECK_EQ(widget_output.size(), options.size.line);
+  output.Append(std::move(widget_output));
 
   return output;
 }

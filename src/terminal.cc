@@ -56,19 +56,29 @@ LineWithCursor::Generator::Vector GetLines(const EditorState& editor_state,
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   LineWithCursor::Generator::Vector output =
       editor_state.buffer_tree().GetLines(Widget::OutputProducerOptions{
-          .size = LineColumnDelta(screen_size.line - status_lines.size(),
-                                  screen_size.column),
+          .size = LineColumnDelta(screen_size.line, screen_size.column),
           .main_cursor_display =
               (editor_state.status().GetType() == Status::Type::kPrompt ||
                (buffer.has_value() &&
                 buffer->ptr()->status().GetType() == Status::Type::kPrompt))
                   ? Widget::OutputProducerOptions::MainCursorDisplay::kInactive
                   : Widget::OutputProducerOptions::MainCursorDisplay::kActive});
-  CHECK_EQ(output.size(), screen_size.line - status_lines.size());
+  CHECK_EQ(output.size(), screen_size.line);
 
   (editor_state.status().GetType() == Status::Type::kPrompt ? output
                                                             : status_lines)
       .RemoveCursor();
+
+  if (!status_lines.lines.empty()) {
+    // TODO(2023-02-24): It would be more efficient to somehow convey to the
+    // widget that it can skip producing status_lines.size() lines. This has to
+    // be conveyed separately from the OutputProducerOptions::size::line so that
+    // we avoid having things wiggle around when the status appears/disappears.
+    // In other words, there's two separate concepts: how large is the view
+    // size, and how many lines actually need to be rendered. The value of
+    // `status_lines` should affect the 2nd but not the first.
+    output.resize(screen_size.line - status_lines.size());
+  }
   output.Append(std::move(status_lines));
   return output;
 }

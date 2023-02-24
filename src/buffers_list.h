@@ -12,8 +12,8 @@
 
 namespace afc::editor {
 
-// Divides the screen vertically into two sections: at the top, displays a given
-// widget. At the bottom, displays a numbered list of buffers.
+// Divides the screen vertically into two sections: at the top, displays a
+// numbered list of buffers; at the bottom, displays a given widget.
 class BuffersList {
  public:
   BuffersList(const EditorState& editor_state);
