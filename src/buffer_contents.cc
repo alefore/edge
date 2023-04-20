@@ -43,7 +43,7 @@ Range BufferContents::range() const {
 }
 
 NonNull<std::unique_ptr<BufferContents>> BufferContents::copy() const {
-  auto output = MakeNonNullUnique<BufferContents>();
+  NonNull<std::unique_ptr<BufferContents>> output;
   output->lines_ = lines_;
   return output;
 }
