@@ -243,9 +243,8 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
 const bool buffer_work_queue_tests_registration = tests::Register(
     L"BufferWorkQueue",
     {{.name = L"WorkQueueStaysAlive", .callback = [] {
-        // Validates that the work queue in a buffer is
-        // correctly connected to the work queue in the
-        // editor, including not being destroyed early.
+        // Validates that the work queue in a buffer is correctly connected to
+        // the work queue in the editor, including not being destroyed early.
         bool keep_going = true;
         int iterations = 0;
         NonNull<std::shared_ptr<WorkQueue>> work_queue =
