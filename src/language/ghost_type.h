@@ -215,10 +215,12 @@
     GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
     GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)              \
     GHOST_TYPE_EMPTY                                        \
+    GHOST_TYPE_CLEAR                                        \
     GHOST_TYPE_SIZE                                         \
     GHOST_TYPE_EQ(ClassName, value);                        \
     GHOST_TYPE_BEGIN_END                                    \
     GHOST_TYPE_INDEX                                        \
+    GHOST_TYPE_BACK                                         \
     GHOST_TYPE_PUSH_BACK                                    \
     GHOST_TYPE_POP_BACK                                     \
     GHOST_TYPE_INSERT                                       \
@@ -371,6 +373,9 @@
 #define GHOST_TYPE_EMPTY \
   bool empty() const { return value.empty(); }
 
+#define GHOST_TYPE_CLEAR \
+  void clear() { value.clear(); }
+
 #define GHOST_TYPE_SIZE \
   size_t size() const { return value.size(); }
 
@@ -423,7 +428,7 @@
 #define GHOST_TYPE_HASH(ClassName)                                      \
   template <>                                                           \
   struct std::hash<ClassName> {                                         \
-    std::size_t operator()(const ClassName& self) const {               \
+    std::size_t operator()(const ClassName& self) const noexcept {      \
       return std::hash<std::remove_const<                               \
           std::remove_reference<decltype(self.read())>::type>::type>()( \
           self.read());                                                 \
@@ -452,6 +457,16 @@
 // We use the template type V to use SFINAE to disable this expression on ghost
 // types of containers that don't include a push_back method (such as
 // std::unordered_set).
+#define GHOST_TYPE_BACK                 \
+  template <typename V = ContainerType> \
+  auto& back() {                        \
+    auto& (V::*f)() = &V::back;         \
+    return (value.*f)();                \
+  }
+
+// We use the template type V to use SFINAE to disable this expression on ghost
+// types of containers that don't include a push_back method (such as
+// std::unordered_set).
 #define GHOST_TYPE_PUSH_BACK                                        \
   template <typename V = ContainerType>                             \
   void push_back(const ContainerType::value_type& v) {              \
@@ -471,19 +486,19 @@
 
 // We use the template type V to use SFINAE to disable this expression on ghost
 // types of containers that don't include an insert method.
-#define GHOST_TYPE_INSERT                                                   \
-  template <typename V = ContainerType,                                     \
-            std::pair<ContainerType::iterator, bool> (V::*F)(               \
-                ContainerType::value_type &&) = &V::insert>                 \
-  auto insert(ContainerType::value_type&& v) {                              \
-    return (value.*F)(std::forward<ContainerType::value_type>(v));          \
-  }                                                                         \
-                                                                            \
-  template <typename V = ContainerType,                                     \
-            ContainerType::iterator (V::*F)(ContainerType::value_type &&) = \
-                &V::insert>                                                 \
-  auto insert(ContainerType::value_type&& v) {                              \
-    return (value.*F)(std::forward<ContainerType::value_type>(v));          \
+#define GHOST_TYPE_INSERT                                                  \
+  template <typename V = ContainerType,                                    \
+            std::pair<ContainerType::iterator, bool> (V::*F)(              \
+                ContainerType::value_type&&) = &V::insert>                 \
+  auto insert(ContainerType::value_type&& v) {                             \
+    return (value.*F)(std::forward<ContainerType::value_type>(v));         \
+  }                                                                        \
+                                                                           \
+  template <typename V = ContainerType,                                    \
+            ContainerType::iterator (V::*F)(ContainerType::value_type&&) = \
+                &V::insert>                                                \
+  auto insert(ContainerType::value_type&& v) {                             \
+    return (value.*F)(std::forward<ContainerType::value_type>(v));         \
   }
 
 #define GHOST_TYPE_LOWER_BOUND                                       \
