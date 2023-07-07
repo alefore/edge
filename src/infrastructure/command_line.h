@@ -277,20 +277,28 @@ class Handler {
               << "Supports the following options:\n";
 
     std::vector<std::wstring> initial_table;
-    for (const auto& handler : *data->handlers) {
+    std::vector<const Handler<ParsedValues>*> sorted_handlers;
+    for (const Handler<ParsedValues>& handler : *data->handlers)
+      sorted_handlers.push_back(&handler);
+    std::sort(sorted_handlers.begin(), sorted_handlers.end(),
+              [](const auto& a, const auto& b) {
+                return a->aliases().front() < b->aliases().front();
+              });
+
+    for (const Handler<ParsedValues>* handler : sorted_handlers) {
       std::wstring line;
       std::wstring prefix = L"  ";
-      for (auto alias : handler.aliases()) {
+      for (const std::wstring& alias : handler->aliases()) {
         line += prefix + L"-" + alias;
         prefix = L", ";
       }
-      switch (handler.argument_type()) {
+      switch (handler->argument_type()) {
         case VariableType::kRequired:
-          line += L" <" + handler.argument() + L">";
+          line += L" <" + handler->argument() + L">";
           break;
 
         case VariableType::kOptional:
-          line += L"[=" + handler.argument() + L"]";
+          line += L"[=" + handler->argument() + L"]";
           break;
 
         case VariableType::kNone:
@@ -306,15 +314,15 @@ class Handler {
 
     size_t padding = max_length + 2;
 
-    for (size_t i = 0; i < data->handlers->size(); i++) {
-      const Handler<ParsedValues>& handler = (*data->handlers)[i];
+    for (size_t i = 0; i < sorted_handlers.size(); i++) {
+      const Handler<ParsedValues>* handler = sorted_handlers[i];
       // TODO: Figure out how to get rid of the calls to `ToByteString`.
       std::cout << ToByteString(initial_table[i])
                 << std::string(padding > initial_table[i].size()
                                    ? padding - initial_table[i].size()
                                    : 1,
                                ' ')
-                << ToByteString(handler.short_help()) << "\n";
+                << ToByteString(handler->short_help()) << "\n";
     }
     exit(0);
   }
@@ -343,11 +351,11 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
   using std::cerr;
   using std::cout;
 
-  ParsingData<ParsedValues> args_data;
-  args_data.handlers = &handlers;
-
   for (const auto& h : Handler<ParsedValues>::StandardHandlers())
     handlers.push_back(h);
+
+  ParsingData<ParsedValues> args_data;
+  args_data.handlers = &handlers;
 
   for (auto config_path : args_data.output.config_paths) {
     auto flags_path = config_path + L"/flags.txt";
