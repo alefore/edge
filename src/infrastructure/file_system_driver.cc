@@ -36,6 +36,12 @@ futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(
       });
 }
 
+futures::Value<ssize_t> FileSystemDriver::Read(FileDescriptor fd, void* buf,
+                                               size_t count) {
+  return thread_pool_.Run(
+      [fd, buf, count] { return read(fd.read(), buf, count); });
+}
+
 futures::Value<PossibleError> FileSystemDriver::Close(FileDescriptor fd) const {
   return thread_pool_.Run(
       [fd] { return SyscallReturnValue(L"Close", close(fd.read())); });

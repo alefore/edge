@@ -24,6 +24,7 @@ class FileSystemDriver {
 
   futures::ValueOrError<FileDescriptor> Open(Path path, int flags,
                                              mode_t mode) const;
+  futures::Value<ssize_t> Read(FileDescriptor, void* buf, size_t count);
   futures::Value<language::PossibleError> Close(FileDescriptor fd) const;
   futures::Value<language::PossibleError> Unlink(Path path) const;
   futures::ValueOrError<struct stat> Stat(Path path) const;
