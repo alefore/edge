@@ -3,6 +3,24 @@
 // This module allows specific applications to define their own flags and call
 // the methods defined here in order to parse them into an application-specific
 // structure (of type ParsedValues).
+//
+// To use this, create a structure that extends `StandardArguments` containing
+// all the outputs of the parsing of flags.
+//
+//     struct MyArgs : StandardArguments {
+//       std::string foo;
+//     };
+//
+// Then call `Parse`, passing a handler for each flag. Use the `Handler` class
+// below to provide semantics about the flags.
+//
+// Example handler:
+//
+//     Handler<CommandLineValues>({L"input", L"i"},
+//                                 L"Set the input file")
+//          .Require(L"path", L"CSV file to read")
+//          .Set(&MyArgs::foo),
+
 #ifndef __AFC_COMMAND_LINE_ARGUMENTS__H_
 #define __AFC_COMMAND_LINE_ARGUMENTS__H_
 
@@ -125,6 +143,7 @@ class Handler {
                                  callback) {
     return PushDelegate([field, callback](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value()) {
+        // TODO(easy, 2023-07-04): Switch to ValueOrError.
         std::wstring error;
         auto value = callback(data->current_value.value(), &error);
         if (!value.has_value()) {
