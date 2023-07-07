@@ -104,6 +104,7 @@ src/help_command.cc \
 src/horizontal_center_output_producer.cc \
 src/horizontal_center_output_producer.h \
 src/infrastructure/command_line.h \
+src/infrastructure/command_line.cc \
 src/infrastructure/dirname.cc \
 src/infrastructure/dirname.h \
 src/infrastructure/file_system_driver.cc \

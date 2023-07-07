@@ -94,8 +94,6 @@ CommandLineValues::CommandLineValues() : home_directory(GetHomeDirectory()) {
 
 const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
   static const std::vector<Handler<CommandLineValues>> handlers = {
-      Handler<CommandLineValues>::Help(L"Open the files given."),
-
       Handler<CommandLineValues>({L"fork", L"f"},
                                  L"Create a buffer running a shell command")
           .SetHelp(
@@ -241,24 +239,6 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                   sep = L", ";
                 }
                 *error += L")";
-                return std::nullopt;
-              }),
-
-      Handler<CommandLineValues>({L"tests"}, L"Unit tests behavior")
-          .Require(
-              L"behavior",
-              L"The behavior for tests. Valid values are `run` and `list`.")
-          .Set<CommandLineValues::TestsBehavior>(
-              &CommandLineValues::tests_behavior,
-              [](std::wstring input, std::wstring* error)
-                  -> std::optional<CommandLineValues::TestsBehavior> {
-                if (input == L"run")
-                  return CommandLineValues::TestsBehavior::kRunAndExit;
-                if (input == L"list")
-                  return CommandLineValues::TestsBehavior::kListAndExit;
-                *error =
-                    L"Invalid value (valid values are `run` and `list`): " +
-                    input;
                 return std::nullopt;
               }),
 

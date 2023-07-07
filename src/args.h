@@ -47,9 +47,6 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   // If non-empty, benchmark to run.
   std::wstring benchmark = L"";
 
-  enum class TestsBehavior { kIgnore, kRunAndExit, kListAndExit };
-  TestsBehavior tests_behavior = TestsBehavior::kIgnore;
-
   enum class ViewMode {
     // Automatically start editing all files opened (as soon as they have been
     // loaded).

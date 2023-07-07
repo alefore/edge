@@ -331,17 +331,6 @@ int main(int argc, const char** argv) {
   global_editor_state =
       std::make_unique<EditorState>(args, audio_player.value()).release();
 
-  switch (args.tests_behavior) {
-    case CommandLineValues::TestsBehavior::kRunAndExit:
-      afc::tests::Run();
-      exit(0);
-    case CommandLineValues::TestsBehavior::kListAndExit:
-      afc::tests::List();
-      exit(0);
-    case CommandLineValues::TestsBehavior::kIgnore:
-      break;
-  }
-
   if (!args.benchmark.empty()) {
     afc::tests::RunBenchmark(args.benchmark);
     exit(0);

@@ -44,11 +44,15 @@ namespace afc::command_line_arguments {
 template <typename ParsedValues>
 class Handler;
 
+enum class TestsBehavior { kRunAndExit, kListAndExit, kIgnore };
+
 // ParsedValues should inherit from `StandardArguments`. This contains standard
 // fields that the command-line parsing logic uses.
 struct StandardArguments {
   // Input parameter.
   std::vector<std::wstring> config_paths;
+
+  TestsBehavior tests_behavior = TestsBehavior::kIgnore;
 
   // Output parameter with the name of the binary.
   std::wstring binary_name;
@@ -70,14 +74,27 @@ class Handler {
   using Callback = std::function<void(ParsingData<ParsedValues>*)>;
   enum class VariableType { kRequired, kOptional, kNone };
 
-  static Handler<ParsedValues> Help(std::wstring description) {
-    return Handler<ParsedValues>({L"help", L"h"}, L"Display help and exit")
-        .SetHelp(
-            L"The `--help` command-line argument displays a brief overview "
-            L"of the available command line arguments and exits.")
-        .Run([description](ParsingData<ParsedValues>* data) {
-          DisplayHelp(description, data);
-        });
+  static std::vector<Handler<ParsedValues>> StandardHandlers() {
+    return {
+        Handler<ParsedValues>({L"help", L"h"}, L"Display help and exit")
+            .SetHelp(
+                L"The `--help` command-line argument displays a brief overview "
+                L"of the available command line arguments and exits.")
+            .Run([](ParsingData<ParsedValues>* data) { DisplayHelp(data); }),
+        Handler<ParsedValues>({L"tests"}, L"Unit tests behavior")
+            .Require(
+                L"behavior",
+                L"The behavior for tests. Valid values are `run` and `list`.")
+            .Set(&ParsedValues::tests_behavior,
+                 [](std::wstring input,
+                    std::wstring* error) -> std::optional<TestsBehavior> {
+                   if (input == L"run") return TestsBehavior::kRunAndExit;
+                   if (input == L"list") return TestsBehavior::kListAndExit;
+                   *error =
+                       L"Invalid value (valid values are `run` and `list`): " +
+                       input;
+                   return std::nullopt;
+                 })};
   }
 
   Handler(std::vector<std::wstring> aliases, std::wstring short_help)
@@ -136,11 +153,12 @@ class Handler {
     });
   }
 
-  template <typename Type>
-  Handler<ParsedValues>& Set(Type ParsedValues::*field,
-                             std::function<std::optional<Type>(
-                                 std::wstring input, std::wstring* error)>
-                                 callback) {
+  // Class can be ParsedValues or a super-class of it. This is useful for fields
+  // in StandardArguments.
+  // Callable should receive two arguments: std::wstring input, and
+  // std::wstring* error. It should return an std::optional<Type>.
+  template <typename Type, typename Class, typename Callable>
+  Handler<ParsedValues>& Set(Type Class::*field, Callable callback) {
     return PushDelegate([field, callback](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value()) {
         // TODO(easy, 2023-07-04): Switch to ValueOrError.
@@ -252,13 +270,11 @@ class Handler {
     return *this;
   }
 
-  static void DisplayHelp(std::wstring description,
-                          ParsingData<ParsedValues>* data) {
+  static void DisplayHelp(ParsingData<ParsedValues>* data) {
     using language::ToByteString;
     std::cout << "Usage: " << ToByteString(data->output.binary_name)
-              << " [OPTION]... [FILE]...\n"
-              << ToByteString(description)
-              << "\n\nSupports the following options:\n";
+              << " [OPTION]... [FILE]...\n\n"
+              << "Supports the following options:\n";
 
     std::vector<std::wstring> initial_table;
     for (const auto& handler : *data->handlers) {
@@ -317,6 +333,8 @@ class Handler {
       [](ParsingData<ParsedValues>*) {};
 };
 
+void HonorStandardArguments(const StandardArguments& arguments);
+
 template <typename ParsedValues>
 ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
                    const char** argv) {
@@ -327,6 +345,9 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
 
   ParsingData<ParsedValues> args_data;
   args_data.handlers = &handlers;
+
+  for (const auto& h : Handler<ParsedValues>::StandardHandlers())
+    handlers.push_back(h);
 
   for (auto config_path : args_data.output.config_paths) {
     auto flags_path = config_path + L"/flags.txt";
@@ -390,6 +411,7 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
     }
   }
 
+  HonorStandardArguments(args_data.output);
   return args_data.output;
 }
 
