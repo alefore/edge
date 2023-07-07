@@ -13,6 +13,11 @@
 namespace afc::concurrent {
 class ThreadPool {
  public:
+  // completion_work_queue can be null (in which case `Run` should not be
+  // called).
+  //
+  // TODO(2023-07-04): Find a way to separate this into two types, perhaps
+  // a subtype.
   ThreadPool(size_t size, std::shared_ptr<WorkQueue> completion_work_queue);
   ~ThreadPool();
 
