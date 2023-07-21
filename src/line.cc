@@ -365,6 +365,7 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
 }
 
 Line::Options& Line::Options::DeleteSuffix(ColumnNumber column) {
+  if (column >= EndColumn()) return *this;
   return DeleteCharacters(column, EndColumn() - column);
 }
 
