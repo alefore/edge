@@ -421,10 +421,28 @@ const bool remove_common_prefixes_tests_registration =
 
 enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
 
-void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
-                      LineModifierSet modifiers, SelectionState selection_state,
-                      const std::list<ProcessedPathComponent>& components,
-                      Line::Options* output) {
+Line::Options GetBufferContents(const OpenBuffer& buffer,
+                                ColumnNumberDelta columns) {
+  NonNull<std::shared_ptr<const Line>> line =
+      buffer.contents().at(LineNumber(0));
+  Line::Options output;
+  if ((line->EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
+    ColumnNumberDelta padding = (columns - line->EndColumn().ToDelta()) / 2;
+    output.AppendString(Padding(padding, L' '));
+  }
+
+  output.Append(
+      Line(line->CopyOptions().DeleteSuffix(ColumnNumber() + columns)));
+  output.modifiers.clear();
+  output.modifiers.insert({ColumnNumber{}, {LineModifier::DIM}});
+  return output;
+}
+
+Line::Options GetBufferVisibleString(
+    ColumnNumberDelta columns, const OpenBuffer& buffer,
+    LineModifierSet modifiers, SelectionState selection_state,
+    const std::list<ProcessedPathComponent>& components) {
+  Line::Options output;
   std::optional<LineModifierSet> modifiers_override;
 
   LineModifierSet dim = modifiers;
@@ -459,31 +477,36 @@ void AppendBufferPath(ColumnNumberDelta columns, const OpenBuffer& buffer,
       output_name =
           TrimLeft(Substring(std::move(output_name), ColumnNumber(1)), L" ");
     }
-    output->AppendString(SubstringWithRangeChecks(std::move(output_name),
-                                                  ColumnNumber(0), columns),
-                         modifiers);
-    return;
-  }
+    output.AppendString(SubstringWithRangeChecks(std::move(output_name),
+                                                 ColumnNumber(0), columns),
+                        modifiers);
+  } else {
+    std::wstring separator;
+    for (auto it = components.begin(); it != components.end(); ++it) {
+      output.AppendString(separator, dim);
+      columns -= ColumnNumberDelta(separator.size());
+      separator = it->complete ? L"/" : L"…";
+      if (it != std::prev(components.end())) {
+        output.AppendString(
+            NewLazyString(std::move(it->path_component.ToString())), modifiers);
+        continue;
+      }
 
-  std::wstring separator;
-  for (auto it = components.begin(); it != components.end(); ++it) {
-    output->AppendString(separator, dim);
-    separator = it->complete ? L"/" : L"…";
-    if (it != std::prev(components.end())) {
-      output->AppendString(
-          NewLazyString(std::move(it->path_component.ToString())), modifiers);
-      continue;
-    }
-
-    PathComponent base = OptionalFrom(it->path_component.remove_extension())
-                             .value_or(it->path_component);
-    std::optional<std::wstring> extension = it->path_component.extension();
-    output->AppendString(base.ToString(), bold);
-    if (extension.has_value()) {
-      output->AppendString(L".", dim);
-      output->AppendString(extension.value(), bold);
+      PathComponent base = OptionalFrom(it->path_component.remove_extension())
+                               .value_or(it->path_component);
+      std::optional<std::wstring> extension = it->path_component.extension();
+      output.AppendString(base.ToString(), bold);
+      if (extension.has_value()) {
+        output.AppendString(L".", dim);
+        output.AppendString(extension.value(), bold);
+      }
     }
   }
+  if (columns > output.EndColumn().ToDelta())
+    output.Append(Line(
+        GetBufferContents(buffer, columns - output.EndColumn().ToDelta())));
+
+  return output;
 }
 
 ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
@@ -617,12 +640,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                         ? SelectionState::kReceivingInput
                         : SelectionState::kIdle;
             }
-            AppendBufferPath(columns_per_buffer, buffer,
-                             buffer.dirty()
-                                 ? LineModifierSet{LineModifier::ITALIC}
-                                 : LineModifierSet{},
-                             selection_state, path_components[index + j],
-                             &line_options_output);
+            line_options_output.Append(Line(GetBufferVisibleString(
+                columns_per_buffer, buffer,
+                buffer.dirty() ? LineModifierSet{LineModifier::ITALIC}
+                               : LineModifierSet{},
+                selection_state, path_components[index + j])));
           }
           return LineWithCursor{
               .line = MakeNonNullShared<Line>(std::move(line_options_output))};
