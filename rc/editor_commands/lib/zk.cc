@@ -141,6 +141,32 @@ TransformationOutput Link(Buffer buffer, TransformationInput input) {
   return output;
 }
 
+TransformationOutput Refresh(Buffer buffer, TransformationInput input) {
+  auto output = TransformationOutput();
+  auto line = buffer.line(input.position().line());
+
+  // Find the indices of the text to update:
+  int text_start = line.find_last_of("[", input.position().column());
+  if (text_start == -1) return output;
+  int text_end = line.find_first_of("]", text_start);
+  if (text_end == -1) return output;
+
+  // Find the indices of the link target:
+  int link_start = line.find_first_of("(", text_end);
+  if (link_start == -1) return output;
+  int link_end = line.find_first_of(")", link_start);
+  if (link_end == -1) return output;
+
+  string path = line.substr(link_start + 1, link_end - link_start - 1);
+  string title = GetNoteTitle(path);
+  output.push(SetColumnTransformation(text_start + 1))
+      .push(DeleteTransformationBuilder()
+                .set_modifiers(
+                    Modifiers().set_repetitions(text_end - text_start - 1))
+                .build())
+      .push(InsertTransformationBuilder().set_text(title).build());
+}
+
 Buffer InitializeNewNote(string path, string title, string parent_title,
                          string parent_path, string parent_type) {
   auto new_note = editor.OpenFile(path, true);
@@ -598,6 +624,17 @@ void L() {
     buffer.ApplyTransformation(FunctionTransformation(
         [](TransformationInput input) -> TransformationOutput {
           return internal::Link(buffer, input);
+        }));
+  });
+}
+
+// Starting in a link like `[foo bar](xyz.md)`, updates the link text (`foo
+// bar`) with the title embedded inside the target file.
+void R() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          return internal::Refresh(buffer, input);
         }));
   });
 }
