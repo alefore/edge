@@ -7,29 +7,30 @@
 #   ~/local/bin/python3 src/chatgpt-query.py /tmp/log-chatgpt-query.py < file
 
 from typing import Dict, List, Literal, TypedDict, TypeAlias, Union
+import argparse
 import openai
 import sys
 import json
 import os
 import logging
 
-openai_dir: str = os.path.join(os.path.expanduser('~'), '.openai')
-system_prompt_path: str = os.path.join(openai_dir, 'prompt.txt')
-
 CONVERSATION_KEY: str = 'conversation'
-
-DEFAULT_AI_PROMPT: str = 'You are a helpful assistant.'
 
 logging.basicConfig(level=logging.WARNING)
 
-with open(os.path.join(openai_dir, 'api_key'), 'r') as f:
-  openai.api_key = f.read().strip()
+def SetApiKey(path: str):
+  try:
+    with open(path, 'r') as f:
+      openai.api_key = f.read().strip()
+  except FileNotFoundError:
+    logging.error(f"{path}: Unable to load API key.")
 
 class ChatEntry(TypedDict):
   role: Literal['system', 'user', 'assistant']
   content: str
 
-def RoleContent(role: Literal['system', 'user', 'assistant'], content: str) -> ChatEntry:
+def CreateChatEntry(
+    role: Literal['system', 'user', 'assistant'], content: str) -> ChatEntry:
   return {'role': role, 'content': content}
 
 def Chat(log: List[ChatEntry]) -> str:
@@ -37,35 +38,64 @@ def Chat(log: List[ChatEntry]) -> str:
   response = openai.ChatCompletion.create(model='gpt-3.5-turbo', messages=log)
   return response['choices'][0]['message']['content']
 
-def LoadOrCreateLog(log_path: str) -> List[ChatEntry]:
-  try:
-    with open(log_path, 'r') as file:
-      return json.load(file)[CONVERSATION_KEY]
-  except FileNotFoundError:
-    logging.warning(f"File {log_path} not found. Creating conversation log.")
-  return [RoleContent('system', GetInitialPrompt())]
+def LoadConversation(path: str) -> List[ChatEntry]:
+  with open(path, 'r') as file:
+    return json.load(file)[CONVERSATION_KEY]
 
-def GetInitialPrompt() -> str:
+def GetInitialPrompt(prompt_path: str, default_prompt: str) -> str:
   try:
-    with open(system_prompt_path, 'r') as file:
-      return file.read()
+    if prompt_path:
+      with open(prompt_path, 'r') as file:
+        return file.read()
   except FileNotFoundError:
-    logging.warning(f"File {system_prompt_path} not found. "
-                    f"Using default prompt.")
-    return DEFAULT_AI_PROMPT
+    pass
+
+  logging.warning(f"File {prompt_path} not found. Using default prompt.")
+  return default_prompt
 
 def main() -> None:
-  if len(sys.argv) != 2:
-    logging.error(f"Usage: {sys.argv[0]} <log_path>")
-    sys.exit(1)
-  log_path: str = sys.argv[1]
-  log = LoadOrCreateLog(log_path)
-  log.append(RoleContent('user', sys.stdin.read()))
+  parser = argparse.ArgumentParser(
+      description='Hold a conversation with ChatGPT.')
+  parser.add_argument(
+      "--api_key",
+      type=str,
+      help="Path to file containing the API key.",
+      default=os.path.join(os.path.expanduser('~'), '.openai', 'api_key'))
+  parser.add_argument(
+      "--prompt",
+      type=str,
+      help="Path of file with the initial prompt.")
+  parser.add_argument(
+      "--default_prompt",
+      type=str,
+      default='You are a helpful assistant.',
+      help="Initial text to use as the system prompt.")
+  parser.add_argument(
+      "--conversation",
+      type=str,
+      help="Path to the conversation log file.")
+
+  args = parser.parse_args()
+
+  SetApiKey(args.api_key)
+
+  log: List[ChatEntry] = None
+  if args.conversation:
+    try:
+      log = LoadConversation(args.conversation)
+    except FileNotFoundError:
+      logging.info(f"File {args.conversation} not found. Creating it.")
+  if log is None:
+    log = [CreateChatEntry(
+               'system', GetInitialPrompt(args.prompt, args.default_prompt))]
+
+  log.append(CreateChatEntry('user', sys.stdin.read()))
   response = Chat(log)
   print(response)
-  log.append(RoleContent('assistant', response))
-  with open(log_path, 'w') as file:
-    json.dump({CONVERSATION_KEY: log}, file, indent=True)
+  if args.conversation:
+    log.append(CreateChatEntry('assistant', response))
+    with open(args.conversation, 'w') as file:
+      json.dump({CONVERSATION_KEY: log}, file, indent=True)
 
 if __name__ == '__main__':
     main()
