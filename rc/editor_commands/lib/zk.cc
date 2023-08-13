@@ -256,7 +256,8 @@ TransformationOutput NewLink(Buffer buffer, TransformationInput input,
         .push(InsertTransformationBuilder().set_text("\n").build());
   }
   InitializeNewNote(path, title, GetNoteTitle(buffer.path()),
-                    Basename(buffer.path()), back_link_type);
+                    Basename(buffer.path()), back_link_type)
+      .Save();
   return output;
 }
 
