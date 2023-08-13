@@ -142,15 +142,16 @@ TransformationOutput Link(Buffer buffer, TransformationInput input) {
 }
 
 Buffer InitializeNewNote(string path, string title, string parent_title,
-                         string parent_path) {
+                         string parent_path, string parent_type) {
   auto new_note = editor.OpenFile(path, true);
   new_note.WaitForEndOfFile();
   new_note.ApplyTransformation(FunctionTransformation(
       [](TransformationInput input) -> TransformationOutput {
         return TransformationOutput()
             .push(InsertTransformationBuilder()
-                      .set_text("# " + title + "\n\n\n\n## Related\n\n* [" +
-                                parent_title + "](" + parent_path + ")\n")
+                      .set_text("# " + title + "\n\n\n\n## Related\n\n* " +
+                                parent_type + (parent_type == "" ? "" : ": ") +
+                                "[" + parent_title + "](" + parent_path + ")\n")
                       .build())
             .push(SetPositionTransformation(LineColumn(2, 0)));
       }));
@@ -197,7 +198,8 @@ void FindLink(string link_type) {
   });
 }
 
-TransformationOutput NewLink(Buffer buffer, TransformationInput input) {
+TransformationOutput NewLink(Buffer buffer, TransformationInput input,
+                             string back_link_type) {
   auto line = buffer.line(input.position().line());
   auto path_characters = buffer.path_characters();
   int start = line.find_last_of("[", input.position().column());
@@ -228,8 +230,18 @@ TransformationOutput NewLink(Buffer buffer, TransformationInput input) {
         .push(InsertTransformationBuilder().set_text("\n").build());
   }
   InitializeNewNote(path, title, GetNoteTitle(buffer.path()),
-                    Basename(buffer.path()));
+                    Basename(buffer.path()), back_link_type);
   return output;
+}
+
+void NewLinkAllBuffers(string back_link_type) {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          return internal::NewLink(buffer, input, back_link_type);
+        }));
+    buffer.Save();
+  });
 }
 
 void RegisterLinks(string line, VectorString output) {
@@ -478,8 +490,8 @@ void Journal(int days_to_generate, Time start, string template_path) {
           auto next_child_path = NextEmpty();
           for (int i = 0; i < days_to_generate; i++) {
             auto child_title = start.format("%Y-%m-%d (%a)");
-            auto child_buffer = InitializeNewNote(next_child_path, child_title,
-                                                  parent_title, parent_path);
+            auto child_buffer = InitializeNewNote(
+                next_child_path, child_title, parent_title, parent_path, "Up");
             // Append the template.
             child_buffer.ApplyTransformation(FunctionTransformation(
                 [](TransformationInput input) -> TransformationOutput {
@@ -595,13 +607,12 @@ void L() {
 // said identifier) and inserts some initial skeleton into the new file
 // (including the title); and saves the original buffer.
 void N() {  // Short for New.
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    buffer.ApplyTransformation(FunctionTransformation(
-        [](TransformationInput input) -> TransformationOutput {
-          return internal::NewLink(buffer, input);
-        }));
-    buffer.Save();
-  });
+  internal::NewLinkAllBuffers("");
+}
+
+// Similar
+void ND() {  // Short for NewDown.
+  internal::NewLinkAllBuffers("Up");
 }
 
 void Up() { return internal::FindLink("Up"); }
