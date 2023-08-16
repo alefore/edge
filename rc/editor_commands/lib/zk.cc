@@ -167,20 +167,28 @@ TransformationOutput Refresh(Buffer buffer, TransformationInput input) {
       .push(InsertTransformationBuilder().set_text(title).build());
 }
 
+void AddLinkAtEndOfNote(Buffer note, string link_type, string link_target,
+                        string link_title) {
+  note.ApplyTransformation(
+      InsertTransformationBuilder()
+          .set_position(LineColumn(note.line_count() - 1, 0))
+          .set_text("* " + link_type + (link_type == "" ? "" : ": ") + "[" +
+                    link_title + "](" + link_target + ")\n")
+          .build());
+}
+
 Buffer InitializeNewNote(string path, string title, string parent_title,
                          string parent_path, string parent_type) {
-  auto new_note = editor.OpenFile(path, true);
+  Buffer new_note = editor.OpenFile(path, true);
   new_note.WaitForEndOfFile();
-  new_note.ApplyTransformation(FunctionTransformation(
-      [](TransformationInput input) -> TransformationOutput {
-        return TransformationOutput()
-            .push(InsertTransformationBuilder()
-                      .set_text("# " + title + "\n\n\n\n## Related\n\n* " +
-                                parent_type + (parent_type == "" ? "" : ": ") +
-                                "[" + parent_title + "](" + parent_path + ")\n")
-                      .build())
-            .push(SetPositionTransformation(LineColumn(2, 0)));
-      }));
+
+  new_note.ApplyTransformation(
+      InsertTransformationBuilder()
+          .set_text("# " + title + "\n\n\n\n## Related\n\n")
+          .build());
+  AddLinkAtEndOfNote(new_note, parent_type, parent_path, parent_title);
+  new_note.ApplyTransformation(SetPositionTransformation(LineColumn(2, 0)));
+
   return new_note;
 }
 
@@ -255,9 +263,19 @@ TransformationOutput NewLink(Buffer buffer, TransformationInput input,
     output.push(SetColumnTransformation(99999999))
         .push(InsertTransformationBuilder().set_text("\n").build());
   }
-  InitializeNewNote(path, title, GetNoteTitle(buffer.path()),
-                    Basename(buffer.path()), back_link_type)
-      .Save();
+  Buffer new_note = InitializeNewNote(path, title, GetNoteTitle(buffer.path()),
+                                      Basename(buffer.path()), back_link_type);
+  if (back_link_type == "Prev") {
+    string up_link = FindLink(buffer, "Up");
+    if (up_link != "") {
+      Buffer up_buffer = editor.OpenFile(up_link, false);
+      up_buffer.WaitForEndOfFile();
+      AddLinkAtEndOfNote(up_buffer, "", path, title);
+      up_buffer.Save();
+      AddLinkAtEndOfNote(new_note, "Up", up_link, GetNoteTitle(up_buffer));
+    }
+  }
+  new_note.Save();
   return output;
 }
 
@@ -265,7 +283,22 @@ void NewLinkAllBuffers(string back_link_type) {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     buffer.ApplyTransformation(FunctionTransformation(
         [](TransformationInput input) -> TransformationOutput {
-          return internal::NewLink(buffer, input, back_link_type);
+          if (back_link_type == "") {
+            auto line = buffer.line(input.position().line());
+            auto path_characters = buffer.path_characters();
+            int end_prefix = line.find_last_of("[", input.position().column());
+            if (end_prefix != -1) {
+              end_prefix = line.find_last_not_of(" :", end_prefix - 1);
+              int start_prefix = line.find_first_not_of("* ", 0);
+              if (end_prefix != -1 && start_prefix != -1 &&
+                  start_prefix < end_prefix) {
+                string prefix =
+                    line.substr(start_prefix, end_prefix + 1 - start_prefix);
+                if (prefix == "Next") back_link_type = "Prev";
+              }
+            }
+          }
+          return NewLink(buffer, input, back_link_type);
         }));
     buffer.Save();
   });
