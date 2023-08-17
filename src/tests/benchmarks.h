@@ -6,7 +6,6 @@
 #include <functional>
 #include <memory>
 
-#include "src/fuzz_testable.h"
 #include "src/language/wstring.h"
 
 namespace afc::tests {
