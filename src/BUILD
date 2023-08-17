@@ -756,7 +756,6 @@ cc_library(
         ":seek",
         "//src/language/lazy_string",
         "//src/tests",
-        "//src/transformation:delete",
     ],
 )
 
