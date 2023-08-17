@@ -5,8 +5,6 @@
 #include <iostream>
 #include <unordered_set>
 
-#include "src/buffer_variables.h"
-#include "src/editor.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/append.h"
@@ -16,11 +14,14 @@
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/line_with_cursor.h"
 #include "src/tests/tests.h"
 
 namespace afc {
 namespace editor {
 namespace lazy_string = language::lazy_string;
+
+using ::operator<<;
 
 using infrastructure::Tracker;
 using language::compute_hash;
