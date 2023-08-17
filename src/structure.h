@@ -5,6 +5,7 @@
 
 #include "src/direction.h"
 #include "src/line_column.h"
+#include "src/parse_tree.h"
 
 namespace afc {
 namespace editor {
@@ -13,7 +14,9 @@ class Modifiers;
 class DeleteOptions;
 class Transformation;
 class OpenBuffer;
+class BufferContents;
 class OperationScopeBufferInformation;
+class ParseTree;
 
 class Structure {
  public:
@@ -55,8 +58,18 @@ class Structure {
   // Moves position in the specified direction until we're inside the structure
   // of the type specified that starts after position. No-op if we're already
   // inside the structure.
-  virtual void SeekToNext(const OpenBuffer& buffer, Direction direction,
-                          LineColumn* position) = 0;
+  struct SeekToNextInput {
+    const BufferContents& contents;
+    Direction direction;
+    std::wstring line_prefix_characters;
+    std::wstring symbol_characters;
+    language::NonNull<std::shared_ptr<const ParseTree>> parse_tree;
+    // Input-output parameter.
+    //
+    // TODO(easy, 2023-08-17): Replace with an output parameter.
+    LineColumn* position;
+  };
+  virtual void SeekToNext(SeekToNextInput input) = 0;
 
   // Moves position in the specified direction until we're just outside of the
   // current structure of the type specified. No-op if we're already outside the

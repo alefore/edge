@@ -503,6 +503,10 @@ class OpenBuffer {
 
   void UpdateLastAction();
   void InsertLines(std::vector<language::NonNull<std::shared_ptr<const Line>>>);
+
+  Structure::SeekToNextInput NewSeekToNextInput(Direction direction,
+                                                LineColumn* position) const;
+
   const Options options_;
 
   language::NonNull<std::unique_ptr<Log>> log_ = NewNullLog();
