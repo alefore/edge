@@ -6,7 +6,6 @@
 using afc::language::FromByteString;
 
 int main(int argc, const char** argv) {
-  using namespace afc::editor;
   using std::cerr;
 
   google::InitGoogleLogging(argv[0]);
