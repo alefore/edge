@@ -14,6 +14,7 @@ cc_binary(
     srcs = ["benchmarks_main.cc"],
     deps = [
         ":benchmarks",
+        "@com_github_google_glog//:glog",
     ],
 )
 

@@ -88,4 +88,7 @@ cc_library(
     srcs = ["wstring.cc"],
     hdrs = ["wstring.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_google_glog//:glog",
+    ],
 )
