@@ -120,16 +120,15 @@ const bool adjust_range_tests_registration = tests::Register(
                   LineColumn(LineNumber(2), ColumnNumber(16))));
       }}});
 
-Range GetRange(const OpenBuffer& buffer, Direction initial_direction,
+Range GetRange(const BufferContents& contents, Direction initial_direction,
                Structure* structure, LineColumn position) {
   if (structure == StructureChar()) {
     switch (initial_direction) {
       case Direction::kForwards:
         return Range(
             position,
-            LineColumn(
-                position.line,
-                buffer.contents().at(position.line).value().EndColumn()));
+            LineColumn(position.line,
+                       contents.at(position.line).value().EndColumn()));
 
       case Direction::kBackwards:
         return Range(LineColumn(position.line, ColumnNumber()), position);
@@ -137,7 +136,8 @@ Range GetRange(const OpenBuffer& buffer, Direction initial_direction,
   } else if (structure == StructureLine()) {
     switch (initial_direction) {
       case Direction::kForwards:
-        return Range(position, buffer.end_position());
+        return Range(position, LineColumn(contents.EndLine(),
+                                          contents.back()->EndColumn()));
       case Direction::kBackwards:
         return Range(LineColumn(), position);
     }
@@ -160,14 +160,14 @@ const bool get_range_tests_registration = [] {
         .callback =
             [] {
               CHECK_EQ(
-                  GetRange(NewBufferForTests().ptr().value(),
+                  GetRange(NewBufferForTests().ptr()->contents(),
                            Direction::kForwards, StructureChar(), LineColumn()),
                   Range());
             }},
        {.name = L"EmptyBufferCharBackwards",
         .callback =
             [] {
-              CHECK_EQ(GetRange(NewBufferForTests().ptr().value(),
+              CHECK_EQ(GetRange(NewBufferForTests().ptr()->contents(),
                                 Direction::kBackwards, StructureChar(),
                                 LineColumn()),
                        Range());
@@ -176,14 +176,14 @@ const bool get_range_tests_registration = [] {
         .callback =
             [] {
               CHECK_EQ(
-                  GetRange(NewBufferForTests().ptr().value(),
+                  GetRange(NewBufferForTests().ptr()->contents(),
                            Direction::kForwards, StructureLine(), LineColumn()),
                   Range());
             }},
        {.name = L"EmptyBufferLineBackwards",
         .callback =
             [] {
-              CHECK_EQ(GetRange(NewBufferForTests().ptr().value(),
+              CHECK_EQ(GetRange(NewBufferForTests().ptr()->contents(),
                                 Direction::kBackwards, StructureLine(),
                                 LineColumn()),
                        Range());
@@ -191,7 +191,7 @@ const bool get_range_tests_registration = [] {
        {.name = L"NonEmptyBufferCharForwards",
         .callback =
             [&] {
-              CHECK_EQ(GetRange(non_empty_buffer().ptr().value(),
+              CHECK_EQ(GetRange(non_empty_buffer().ptr()->contents(),
                                 Direction::kForwards, StructureChar(),
                                 LineColumn(LineNumber(1), ColumnNumber(4))),
                        Range(LineColumn(LineNumber(1), ColumnNumber(4)),
@@ -200,7 +200,7 @@ const bool get_range_tests_registration = [] {
        {.name = L"NonEmptyBufferCharBackwards",
         .callback =
             [&] {
-              CHECK_EQ(GetRange(non_empty_buffer().ptr().value(),
+              CHECK_EQ(GetRange(non_empty_buffer().ptr()->contents(),
                                 Direction::kBackwards, StructureChar(),
                                 LineColumn(LineNumber(1), ColumnNumber(4))),
                        Range(LineColumn(LineNumber(1), ColumnNumber(0)),
@@ -209,14 +209,14 @@ const bool get_range_tests_registration = [] {
        {.name = L"NonEmptyBufferLineForwards",
         .callback =
             [&] {
-              CHECK_EQ(GetRange(non_empty_buffer().ptr().value(),
+              CHECK_EQ(GetRange(non_empty_buffer().ptr()->contents(),
                                 Direction::kForwards, StructureLine(),
                                 LineColumn(LineNumber(1), ColumnNumber(4))),
                        Range(LineColumn(LineNumber(1), ColumnNumber(4)),
                              LineColumn(LineNumber(3), ColumnNumber(6))));
             }},
        {.name = L"NonEmptyBufferLineBackwards", .callback = [&] {
-          CHECK_EQ(GetRange(non_empty_buffer().ptr().value(),
+          CHECK_EQ(GetRange(non_empty_buffer().ptr()->contents(),
                             Direction::kBackwards, StructureLine(),
                             LineColumn(LineNumber(1), ColumnNumber(4))),
                    Range(LineColumn(LineNumber(0), ColumnNumber(0)),
@@ -231,7 +231,8 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
   std::optional<Range> range;
   for (Direction direction : directions_)
     if (range == std::nullopt)
-      range = GetRange(input.buffer, direction, structure_, input.position);
+      range = GetRange(input.buffer.contents(), direction, structure_,
+                       input.position);
     else
       range = AdjustRange(structure_, direction, range.value());
 
