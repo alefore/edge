@@ -3,7 +3,6 @@
 #include <cctype>
 #include <ostream>
 
-#include "src/buffer_terminal.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -115,14 +114,14 @@ FileDescriptorReader::ReadData() {
   options_->maybe_exec(buffer_wrapper.value());
 
   clock_gettime(0, &last_input_received_);
-  if (options_->terminal == nullptr) {
+  if (options_->process_terminal_input == nullptr) {
     state_ = State::kParsing;
     return ParseAndInsertLines(buffer_wrapper).Transform([this](bool) {
       state_ = State::kIdle;
       return ReadResult::kContinue;
     });
   }
-  options_->terminal->ProcessCommandInput(buffer_wrapper, [this]() {
+  options_->process_terminal_input(buffer_wrapper, [this]() {
     lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
   });
   return futures::Past(ReadResult::kContinue);

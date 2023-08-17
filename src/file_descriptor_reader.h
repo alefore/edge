@@ -36,13 +36,17 @@ class FileDescriptorReader {
         std::vector<language::NonNull<std::shared_ptr<const Line>>>)>
         insert_lines;
 
+    // Should be null if there's no terminal.
+    std::function<void(const language::NonNull<
+                           std::shared_ptr<language::lazy_string::LazyString>>&,
+                       std::function<void()>)>
+        process_terminal_input;
+
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
     infrastructure::FileDescriptor fd;
 
     LineModifierSet modifiers;
-
-    BufferTerminal* terminal = nullptr;
 
     // We want to avoid potentially expensive/slow parsing operations in the
     // main thread. To achieve that, we receive a thread pool owned by our
