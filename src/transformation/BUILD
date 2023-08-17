@@ -2,12 +2,18 @@ cc_library(
     name = "bisect",
     srcs = ["bisect.cc"],
     hdrs = ["bisect.h"],
+    deps = [
+        ":composite",
+    ],
 )
 
 cc_library(
     name = "composite",
     srcs = ["composite.cc"],
     hdrs = ["composite.h"],
+    deps = [
+        "//src:buffer_contents",
+    ],
 )
 
 cc_library(
@@ -29,6 +35,7 @@ cc_library(
     hdrs = ["delete.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//src:modifiers",
         "//src:line_modifier",
     ],
 )
@@ -37,6 +44,10 @@ cc_library(
     name = "expand",
     srcs = ["expand.cc"],
     hdrs = ["expand.h"],
+    deps = [
+        "//src:transformation",
+        "//src/language:safe_types",
+    ],
 )
 
 cc_library(
@@ -80,12 +91,19 @@ cc_library(
     name = "reach_query",
     srcs = ["reach_query.cc"],
     hdrs = ["reach_query.h"],
+    deps = [
+        "//src:buffer_contents",
+        "//src:buffer_display_data",
+    ],
 )
 
 cc_library(
     name = "repetitions",
     srcs = ["repetitions.cc"],
     hdrs = ["repetitions.h"],
+    deps = [
+        ":input",
+    ],
 )
 
 cc_library(
@@ -122,6 +140,10 @@ cc_library(
     name = "switch_case",
     srcs = ["switch_case.cc"],
     hdrs = ["switch_case.h"],
+    deps = [
+        "//src:modifiers",
+        "//src:line_column",
+    ],
 )
 
 cc_library(
