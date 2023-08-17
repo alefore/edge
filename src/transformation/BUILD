@@ -27,6 +27,7 @@ cc_library(
     name = "delete",
     srcs = ["delete.cc"],
     hdrs = ["delete.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//src:line_modifier",
     ],
