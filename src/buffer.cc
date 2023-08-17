@@ -1274,14 +1274,15 @@ void OpenBuffer::set_current_cursor(LineColumn new_value) {
   cursors.SetCurrentCursor(new_value);
 }
 
-Structure::SeekToNextInput OpenBuffer::NewSeekToNextInput(
-    Direction direction, LineColumn* position) const {
-  return Structure::SeekToNextInput{
+Structure::SeekInput OpenBuffer::NewSeekInput(Direction direction,
+                                              LineColumn* position) const {
+  return Structure::SeekInput{
       .contents = contents(),
       .direction = direction,
       .line_prefix_characters = Read(buffer_variables::line_prefix_characters),
       .symbol_characters = Read(buffer_variables::symbol_characters),
       .parse_tree = parse_tree(),
+      .cursors = FindCursors(L""),
       .position = position,
   };
 }
@@ -1302,13 +1303,13 @@ void OpenBuffer::CreateCursor() {
     LOG(INFO) << "Range for cursors: " << range;
     while (!range.IsEmpty()) {
       auto tmp_first = range.begin;
-      structure->SeekToNext(
-          NewSeekToNextInput(Direction::kForwards, &tmp_first));
+      structure->SeekToNext(NewSeekInput(Direction::kForwards, &tmp_first));
       if (tmp_first > range.begin && tmp_first < range.end) {
         VLOG(5) << "Creating cursor at: " << tmp_first;
         active_cursors().insert(tmp_first);
       }
-      if (!structure->SeekToLimit(*this, Direction::kForwards, &tmp_first)) {
+      if (!structure->SeekToLimit(
+              NewSeekInput(Direction::kForwards, &tmp_first))) {
         break;
       }
       range.begin = tmp_first;
@@ -1401,7 +1402,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
             << ", structure: " << modifiers.structure->ToString();
   if (modifiers.structure->space_behavior() ==
       Structure::SpaceBehavior::kForwards) {
-    modifiers.structure->SeekToNext(NewSeekToNextInput(forward, &output.begin));
+    modifiers.structure->SeekToNext(NewSeekInput(forward, &output.begin));
   }
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
@@ -1411,7 +1412,8 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
       break;
 
     case Modifiers::LIMIT_CURRENT: {
-      if (modifiers.structure->SeekToLimit(*this, backward, &output.begin)) {
+      if (modifiers.structure->SeekToLimit(
+              NewSeekInput(backward, &output.begin))) {
         Seek(contents_, &output.begin)
             .WrappingLines()
             .WithDirection(forward)
@@ -1420,10 +1422,10 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     } break;
 
     case Modifiers::LIMIT_NEIGHBOR:
-      if (modifiers.structure->SeekToLimit(*this, backward, &output.begin)) {
-        modifiers.structure->SeekToNext(
-            NewSeekToNextInput(backward, &output.begin));
-        modifiers.structure->SeekToLimit(*this, forward, &output.begin);
+      if (modifiers.structure->SeekToLimit(
+              NewSeekInput(backward, &output.begin))) {
+        modifiers.structure->SeekToNext(NewSeekInput(backward, &output.begin));
+        modifiers.structure->SeekToLimit(NewSeekInput(forward, &output.begin));
       }
   }
   LOG(INFO) << "After seek, initial position: " << output.begin;
@@ -1433,11 +1435,11 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   bool move_start = true;
   for (size_t i = 1; i < modifiers.repetitions.value_or(1); i++) {
     LineColumn start_position = output.end;
-    if (!modifiers.structure->SeekToLimit(*this, forward, &output.end)) {
+    if (!modifiers.structure->SeekToLimit(NewSeekInput(forward, &output.end))) {
       move_start = false;
       break;
     }
-    modifiers.structure->SeekToNext(NewSeekToNextInput(forward, &output.end));
+    modifiers.structure->SeekToNext(NewSeekInput(forward, &output.end));
     if (output.end == start_position) {
       break;
     }
@@ -1450,13 +1452,13 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
 
     case Modifiers::LIMIT_CURRENT:
       move_start &=
-          modifiers.structure->SeekToLimit(*this, forward, &output.end);
+          modifiers.structure->SeekToLimit(NewSeekInput(forward, &output.end));
       break;
 
     case Modifiers::LIMIT_NEIGHBOR:
       move_start &=
-          modifiers.structure->SeekToLimit(*this, forward, &output.end);
-      modifiers.structure->SeekToNext(NewSeekToNextInput(forward, &output.end));
+          modifiers.structure->SeekToLimit(NewSeekInput(forward, &output.end));
+      modifiers.structure->SeekToNext(NewSeekInput(forward, &output.end));
   }
   LOG(INFO) << "After adjusting end: " << output;
 

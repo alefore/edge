@@ -58,25 +58,25 @@ class Structure {
   // Moves position in the specified direction until we're inside the structure
   // of the type specified that starts after position. No-op if we're already
   // inside the structure.
-  struct SeekToNextInput {
+  struct SeekInput {
     const BufferContents& contents;
     Direction direction;
     std::wstring line_prefix_characters;
     std::wstring symbol_characters;
     language::NonNull<std::shared_ptr<const ParseTree>> parse_tree;
+    const CursorsSet* cursors;
     // Input-output parameter.
     //
     // TODO(easy, 2023-08-17): Replace with an output parameter.
     LineColumn* position;
   };
-  virtual void SeekToNext(SeekToNextInput input) = 0;
+  virtual void SeekToNext(SeekInput input) = 0;
 
   // Moves position in the specified direction until we're just outside of the
   // current structure of the type specified. No-op if we're already outside the
   // structure. Returns a boolean indicating whether it successfully found a
   // position outside of the structure.
-  virtual bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
-                           LineColumn* position) = 0;
+  virtual bool SeekToLimit(SeekInput input) = 0;
 
   virtual std::optional<LineColumn> ComputeGoToPosition(
       const OpenBuffer& buffer, const Modifiers& modifiers, LineColumn position,
