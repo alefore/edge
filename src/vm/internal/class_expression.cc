@@ -5,7 +5,6 @@
 #include "src/language/gc.h"
 #include "src/vm/internal/append_expression.h"
 #include "src/vm/internal/compilation.h"
-#include "src/vm/public/callbacks.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
