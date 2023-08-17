@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_BUFFER_VARIABLES_H__
 #define __AFC_EDITOR_BUFFER_VARIABLES_H__
 
+#include "src/line_column.h"
 #include "src/variables.h"
 #include "vm/public/value.h"
 
