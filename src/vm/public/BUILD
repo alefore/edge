@@ -35,7 +35,6 @@ cc_library(
 
 cc_library(
     name = "escape",
-    srcs = ["escape.cc"],
     hdrs = ["escape.h"],
 )
 
@@ -47,7 +46,6 @@ cc_library(
 
 cc_library(
     name = "optional",
-    srcs = ["optional.cc"],
     hdrs = ["optional.h"],
 )
 
