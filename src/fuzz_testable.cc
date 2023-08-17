@@ -1,13 +1,11 @@
+#include "src/fuzz_testable.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>
 
-#include "src/buffer_contents.h"
-#include "src/editor.h"
-#include "src/language/lazy_string/append.h"
-#include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/substring.h"
+#include "glog/logging.h"
 #include "src/language/wstring.h"
 
 namespace afc {
