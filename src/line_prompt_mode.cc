@@ -1124,7 +1124,6 @@ InsertModeOptions PromptState::insert_mode_options() {
             Predict({.editor_state = prompt_state->editor_state(),
                      .predictor = prompt_state->options().predictor,
                      .input_buffer = buffer.NewRoot(),
-                     .input_selection_structure = StructureLine(),
                      .source_buffers = prompt_state->options().source_buffers})
                 .SetConsumer([prompt_state,
                               input](std::optional<PredictResults> results) {
