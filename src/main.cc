@@ -15,7 +15,6 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "config.h"
 #include "src/args.h"
 #include "src/audio.h"
 #include "src/buffer_variables.h"
