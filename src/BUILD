@@ -234,6 +234,9 @@ cc_library(
     deps = [
         ":line_column",
         "//src/futures",
+        "//src/language/lazy_string:append",
+        "//src/language/lazy_string:char_buffer",
+        "//src/language/lazy_string:substring",
     ],
 )
 
@@ -664,6 +667,9 @@ cc_library(
     name = "seek",
     srcs = ["seek.cc"],
     hdrs = ["seek.h"],
+    deps = [
+        ":buffer_contents",
+    ],
 )
 
 cc_library(
@@ -764,6 +770,7 @@ cc_library(
     visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":direction",
+        ":line",
         "//src/futures",
     ],
 )
