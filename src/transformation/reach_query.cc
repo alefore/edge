@@ -18,8 +18,9 @@ using ::operator<<;
 namespace {
 static const ColumnNumberDelta kQueryLength = ColumnNumberDelta(2);
 
-const Line& GetLine(const LineColumn& position, const OpenBuffer& buffer) {
-  return buffer.contents().at(position.line).value();
+const Line& GetLine(const LineColumn& position,
+                    const BufferContents& contents) {
+  return contents.at(position.line).value();
 }
 
 std::vector<LineColumn> FindPositions(const std::wstring& query,
@@ -31,7 +32,7 @@ std::vector<LineColumn> FindPositions(const std::wstring& query,
   if (view_size == std::nullopt) return output;
   LineNumber end_line = view_start.line + view_size->line;
   while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
-    const Line& line = GetLine(view_start, buffer);
+    const Line& line = GetLine(view_start, buffer.contents());
     while (view_start.column + std::max(kQueryLength + ColumnNumberDelta(1),
                                         ColumnNumberDelta(query.size())) <=
            line.EndColumn()) {
@@ -56,11 +57,12 @@ using Identifier = wchar_t;
 using PositionIdentifierMap =
     std::map<Identifier, std::map<Identifier, LineColumn>>;
 
-bool FindSyntheticIdentifier(LineColumn position, const OpenBuffer& buffer,
+bool FindSyntheticIdentifier(LineColumn position,
+                             const BufferContents& contents,
                              PositionIdentifierMap& output) {
   static const std::wstring kIdentifiers =
       L"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const Line& line = GetLine(position, buffer);
+  const Line& line = GetLine(position, contents);
   const Identifier first_identifier =
       std::tolower(line.get(position.column + ColumnNumberDelta(1)));
   const Identifier desired_identifier =
@@ -79,7 +81,7 @@ bool FindSyntheticIdentifier(LineColumn position, const OpenBuffer& buffer,
 }
 
 PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
-                                      const OpenBuffer& buffer) {
+                                      const BufferContents& contents) {
   PositionIdentifierMap output;
   std::vector<LineColumn> pending;
 
@@ -88,7 +90,7 @@ PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
   // different position. This lets us bias towards reducing the number of
   // "invented" identifiers.
   for (LineColumn position : matches) {
-    const Line& line = GetLine(position, buffer);
+    const Line& line = GetLine(position, contents);
     const Identifier desired_identifier =
         line.get(position.column + kQueryLength);
     if (!output[std::tolower(line.get(position.column + ColumnNumberDelta(1)))]
@@ -101,7 +103,7 @@ PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
   // could remember external identifiers for which this has happened and give up
   // on them.
   for (LineColumn position : pending) {
-    FindSyntheticIdentifier(position, buffer, output);
+    FindSyntheticIdentifier(position, contents, output);
   }
   return output;
 }
@@ -132,7 +134,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
 
   PositionIdentifierMap matches = FindIdentifiers(
       FindPositions(query_.substr(0, kQueryLength.read()), input.buffer),
-      input.buffer);
+      input.buffer.contents());
 
   LOG(INFO) << "Found matches: " << matches.size();
 
@@ -166,7 +168,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
   for (std::pair<Identifier, std::map<Identifier, LineColumn>> group :
        matches) {
     for (std::pair<Identifier, LineColumn> match : group.second) {
-      const Line& line = GetLine(match.second, input.buffer);
+      const Line& line = GetLine(match.second, input.buffer.contents());
       overlays.insert(std::make_pair(
           match.second,
           afc::editor::VisualOverlay{
