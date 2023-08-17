@@ -5,7 +5,6 @@
 #include "src/language/value_or_error.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/internal/types_promotion.h"
-#include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 
