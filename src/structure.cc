@@ -11,7 +11,6 @@
 #include "src/parse_tree.h"
 #include "src/seek.h"
 #include "src/tests/tests.h"
-#include "src/transformation/delete.h"
 
 namespace afc::editor {
 using language::NonNull;
@@ -53,17 +52,16 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
   }
 }
 
-Seek StartSeekToLimit(const OpenBuffer& buffer, LineColumn* position) {
-  CHECK_GT(buffer.lines_size(), LineNumberDelta(0));
-  position->line = std::min(buffer.EndLine(), position->line);
-  if (position->column >= buffer.LineAt(position->line)->EndColumn()) {
+Seek StartSeekToLimit(const BufferContents& contents, LineColumn* position) {
+  position->line = std::min(contents.EndLine(), position->line);
+  if (position->column >= contents.at(position->line)->EndColumn()) {
     // if (buffer .Read(buffer_variables::extend_lines)) {
     //   MaybeExtendLine(*position);
     //} else {
-    position->column = buffer.LineAt(position->line)->EndColumn();
+    position->column = contents.at(position->line)->EndColumn();
     //}
   }
-  return Seek(buffer.contents(), position);
+  return Seek(contents, position);
 }
 }  // namespace
 
@@ -84,7 +82,7 @@ Structure* StructureChar() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      return StartSeekToLimit(buffer, position)
+      return StartSeekToLimit(buffer.contents(), position)
                  .WrappingLines()
                  .WithDirection(direction)
                  .Once() == Seek::DONE;
@@ -151,7 +149,7 @@ Structure* StructureWord() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       auto seek = Seek(buffer.contents(), position)
                       .WithDirection(direction)
                       .WrappingLines();
@@ -208,7 +206,7 @@ Structure* StructureSymbol() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       return Seek(buffer.contents(), position)
                  .WithDirection(direction)
                  .WrappingLines()
@@ -288,7 +286,7 @@ Structure* StructureLine() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       switch (direction) {
         case Direction::kForwards:
           // TODO(easy, 2022-04-30): Check LineAt returning nullptr?
@@ -394,7 +392,7 @@ Structure* StructureMark() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       // TODO: Implement.
       return true;
     }
@@ -489,7 +487,7 @@ Structure* StructurePage() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       // TODO: Implement.
       return true;
     }
@@ -546,7 +544,7 @@ Structure* StructureSearch() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       // TODO: Implement.
       return true;
     }
@@ -593,7 +591,7 @@ Structure* StructureTree() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       Range range;
       if (!FindTreeRange(buffer, *position, direction, &range)) {
         return false;
@@ -678,7 +676,7 @@ Structure* StructureCursor() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       bool has_boundary = false;
       LineColumn boundary;
       auto cursors = buffer.FindCursors(L"");
@@ -760,7 +758,7 @@ Structure* StructureSentence() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       if (direction == Direction::kBackwards) {
         Seek(buffer.contents(), position)
             .Backwards()
@@ -835,7 +833,7 @@ Structure* StructureParagraph() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      return StartSeekToLimit(buffer, position)
+      return StartSeekToLimit(buffer.contents(), position)
                  .WithDirection(direction)
                  .WrappingLines()
                  .UntilNextLineIsSubsetOf(buffer.Read(
@@ -875,7 +873,7 @@ Structure* StructureBuffer() {
 
     bool SeekToLimit(const OpenBuffer& buffer, Direction direction,
                      LineColumn* position) override {
-      StartSeekToLimit(buffer, position);
+      StartSeekToLimit(buffer.contents(), position);
       if (direction == Direction::kBackwards) {
         *position = LineColumn();
       } else {
