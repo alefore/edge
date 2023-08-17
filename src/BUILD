@@ -37,6 +37,7 @@ cc_library(
     name = "buffer_contents",
     srcs = ["buffer_contents.cc"],
     hdrs = ["buffer_contents.h"],
+    visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":cursors",
         ":line",
@@ -66,6 +67,11 @@ cc_library(
     name = "buffer_display_data",
     srcs = ["buffer_display_data.cc"],
     hdrs = ["buffer_display_data.h"],
+    visibility = ["//src/transformation:__pkg__"],
+    deps = [
+        ":line_column",
+        "//src/language:observers",
+    ],
 )
 
 cc_library(
@@ -541,6 +547,9 @@ cc_library(
     name = "operation_scope",
     srcs = ["operation_scope.cc"],
     hdrs = ["operation_scope.h"],
+    deps = [
+        "//src/concurrent:protected",
+    ],
 )
 
 cc_library(
