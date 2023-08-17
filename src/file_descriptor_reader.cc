@@ -3,14 +3,14 @@
 #include <cctype>
 #include <ostream>
 
-#include "src/buffer.h"
-#include "src/buffer_variables.h"
-#include "src/editor.h"
+#include "src/buffer_terminal.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/substring.h"
 #include "src/language/wstring.h"
+#include "src/line.h"
 
 namespace afc::editor {
 using infrastructure::FileDescriptor;
@@ -51,7 +51,7 @@ std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
 futures::Value<FileDescriptorReader::ReadResult>
 FileDescriptorReader::ReadData() {
   LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
-            << options_->buffer.Read(buffer_variables::name);
+            << options_->buffer_name;
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
     CHECK_EQ(low_buffer_length_, 0ul);
@@ -102,8 +102,7 @@ FileDescriptorReader::ReadData() {
   size_t processed = low_buffer_tmp == nullptr
                          ? low_buffer_length_
                          : low_buffer_tmp - low_buffer_.get();
-  VLOG(5) << options_->buffer.Read(buffer_variables::name)
-          << ": Characters consumed: " << processed
+  VLOG(5) << options_->buffer_name << ": Characters consumed: " << processed
           << ", produced: " << buffer_wrapper->size();
   CHECK_LE(processed, low_buffer_length_);
   memmove(low_buffer_.get(), low_buffer_tmp, low_buffer_length_ - processed);
@@ -113,14 +112,9 @@ FileDescriptorReader::ReadData() {
     low_buffer_ = nullptr;
   }
 
-  if (options_->buffer.Read(buffer_variables::vm_exec)) {
-    LOG(INFO) << options_->buffer.Read(buffer_variables::name)
-              << ": Evaluating VM code: " << buffer_wrapper->ToString();
-    options_->buffer.EvaluateString(buffer_wrapper->ToString());
-  }
+  options_->maybe_exec(buffer_wrapper.value());
 
   clock_gettime(0, &last_input_received_);
-  options_->buffer.RegisterProgress();
   if (options_->terminal == nullptr) {
     state_ = State::kParsing;
     return ParseAndInsertLines(buffer_wrapper).Transform([this](bool) {
@@ -168,29 +162,6 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
   return lines_to_insert;
 }
 
-void InsertLines(
-    const FileDescriptorReader::Options& options,
-    std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert) {
-  static Tracker tracker(L"FileDescriptorReader::InsertLines");
-  auto tracker_call = tracker.Call();
-
-  if (lines_to_insert.empty()) return;
-
-  // These changes don't count: they come from disk.
-  auto disk_state_freezer = options.buffer.FreezeDiskState();
-
-  auto follower = options.buffer.GetEndPositionFollower();
-  options.buffer.AppendToLastLine((*lines_to_insert.begin()).value());
-  // TODO: Avoid the linear complexity operation in the next line. However,
-  // according to `tracker_erase`, it doesn't seem to matter much.
-  static Tracker tracker_erase(L"FileDescriptorReader::InsertLines::Erase");
-  auto tracker_erase_call = tracker_erase.Call();
-  lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
-  tracker_erase_call = nullptr;
-
-  options.buffer.AppendLines(std::move(lines_to_insert));
-}
-
 futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
     NonNull<std::shared_ptr<LazyString>> contents) {
   return options_->thread_pool
@@ -199,7 +170,10 @@ futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
       .Transform([options = options_, lines_read_rate = lines_read_rate_](
                      std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
         lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
-        InsertLines(*options, std::move(lines));
+        static Tracker tracker(L"FileDescriptorReader::ParseAndInsertLines");
+        auto tracker_call = tracker.Call();
+        if (lines.empty()) return true;
+        options->insert_lines(std::move(lines));
         return true;
       });
 }

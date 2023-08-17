@@ -1589,6 +1589,23 @@ BufferName OpenBuffer::name() const {
   return BufferName(Read(buffer_variables::name));
 }
 
+void OpenBuffer::InsertLines(
+    std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert) {
+  // These changes don't count: they come from disk.
+  auto disk_state_freezer = FreezeDiskState();
+
+  auto follower = GetEndPositionFollower();
+  AppendToLastLine((*lines_to_insert.begin()).value());
+  // TODO: Avoid the linear complexity operation in the next line. However,
+  // according to `tracker_erase`, it doesn't seem to matter much.
+  static Tracker tracker_erase(L"FileDescriptorReader::InsertLines::Erase");
+  auto tracker_erase_call = tracker_erase.Call();
+  lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
+  tracker_erase_call = nullptr;
+
+  AppendLines(std::move(lines_to_insert));
+}
+
 void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
                                FileDescriptor input_error_fd,
                                bool fd_is_terminal, pid_t child_pid) {
@@ -1605,12 +1622,20 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
     if (fd == FileDescriptor(-1)) {
       return nullptr;
     }
-    return std::make_unique<FileDescriptorReader>(
-        FileDescriptorReader::Options{.buffer = *this,
-                                      .fd = fd,
-                                      .modifiers = std::move(modifiers),
-                                      .terminal = terminal_.get(),
-                                      .thread_pool = editor().thread_pool()});
+    return std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
+        .buffer_name = name(),
+        .maybe_exec =
+            [this](const LazyString& input) {
+              RegisterProgress();
+              if (!Read(buffer_variables::vm_exec)) return;
+              LOG(INFO) << name() << ": Evaluating VM code" << input.ToString();
+              EvaluateString(input.ToString());
+            },
+        .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); },
+        .fd = fd,
+        .modifiers = std::move(modifiers),
+        .terminal = terminal_.get(),
+        .thread_pool = editor().thread_pool()});
   };
 
   fd_ = new_reader(input_fd, {});

@@ -502,7 +502,7 @@ class OpenBuffer {
   void ReadData(std::unique_ptr<FileDescriptorReader>& source);
 
   void UpdateLastAction();
-
+  void InsertLines(std::vector<language::NonNull<std::shared_ptr<const Line>>>);
   const Options options_;
 
   language::NonNull<std::unique_ptr<Log>> log_ = NewNullLog();
@@ -529,8 +529,8 @@ class OpenBuffer {
     // A reload is currently ongoing. If it finishes in this state, we switch to
     // kDone.
     kOngoing,
-    // A reload is underway, but a new reload was requested. Once it's done,
-    // it should switch to kUnderway and restart.
+    // A reload is underway, but a new reload was requested. Once it's done, it
+    // should switch to kUnderway and restart.
     kPending,
   };
   ReloadState reload_state_ = ReloadState::kDone;

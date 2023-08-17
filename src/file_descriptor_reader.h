@@ -9,12 +9,12 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/buffer_name.h"
 #include "src/concurrent/thread_pool.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/line_column.h"
 #include "src/line_modifier.h"
 #include "src/math/decaying_counter.h"
 
@@ -23,12 +23,18 @@ namespace editor {
 
 class OpenBuffer;
 class BufferTerminal;
+class Line;
 
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {
  public:
   struct Options {
-    OpenBuffer& buffer;
+    BufferName buffer_name;
+
+    std::function<void(const language::lazy_string::LazyString&)> maybe_exec;
+    std::function<void(
+        std::vector<language::NonNull<std::shared_ptr<const Line>>>)>
+        insert_lines;
 
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
