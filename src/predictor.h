@@ -12,7 +12,6 @@
 #include "src/futures/futures.h"
 #include "src/language/safe_types.h"
 #include "src/status.h"
-#include "src/structure.h"
 
 namespace afc {
 namespace editor {
@@ -120,7 +119,6 @@ struct PredictOptions {
   // The buffer that contains the input to use for the prediction. Only read if
   // `text` is absent.
   std::optional<language::gc::Root<OpenBuffer>> input_buffer = std::nullopt;
-  Structure* input_selection_structure = StructureLine();
 
   // Given to the predictor (see `PredictorInput::source_buffers`). The caller
   // must ensure it doesn't get deallocated until the future returned by the

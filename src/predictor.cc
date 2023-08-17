@@ -25,6 +25,7 @@ extern "C" {
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/predictor.h"
+#include "src/structure.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
@@ -124,7 +125,7 @@ std::wstring GetPredictInput(const PredictOptions& options) {
   CHECK(buffer.has_value());
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
-  modifiers.structure = options.input_selection_structure;
+  modifiers.structure = StructureLine();
   auto range =
       buffer->ptr()->FindPartialRange(modifiers, buffer->ptr()->position());
   range.end = std::max(range.end, buffer->ptr()->position());
