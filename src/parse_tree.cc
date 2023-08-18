@@ -8,8 +8,8 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "src/buffer.h"
 #include "src/language/hash.h"
+#include "src/language/lazy_string/substring.h"
 
 namespace afc::editor {
 using language::compute_hash;

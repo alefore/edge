@@ -574,7 +574,6 @@ cc_library(
     srcs = ["parse_tree.cc"],
     hdrs = ["parse_tree.h"],
     deps = [
-        ":buffer",
         ":buffer_contents",
         ":line_column",
         ":line_modifier",
