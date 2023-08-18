@@ -1514,6 +1514,10 @@ std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
 
     void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
 
+    audio::Player& audio_player() override {
+      return buffer_.editor().audio_player();
+    }
+
     BufferName name() override { return buffer_.name(); }
 
     std::optional<infrastructure::FileDescriptor> fd() {
@@ -1543,7 +1547,7 @@ std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
   };
 
   return std::make_unique<BufferTerminal>(std::make_unique<Adapter>(*this),
-                                          *this, contents_);
+                                          contents_);
 }
 
 const std::shared_ptr<const Line> OpenBuffer::current_line() const {

@@ -22,6 +22,10 @@ class BufferContents;
 class BufferName;
 class Status;
 
+namespace audio {
+class Player;
+}
+
 // If the buffer holds an underlying process with a terminal (PTS),
 // BufferTerminal holds its state.
 //
@@ -35,6 +39,8 @@ class BufferTerminal : public fuzz::FuzzTestable {
     virtual void EraseLines(LineNumber first, LineNumber last) = 0;
 
     virtual void AppendEmptyLine() = 0;
+
+    virtual audio::Player& audio_player() = 0;
 
     virtual BufferName name() = 0;
 
@@ -56,8 +62,7 @@ class BufferTerminal : public fuzz::FuzzTestable {
     virtual void JumpToPosition(LineColumn position) = 0;
   };
 
-  BufferTerminal(std::unique_ptr<Receiver> receiver, OpenBuffer& buffer,
-                 BufferContents& contents);
+  BufferTerminal(std::unique_ptr<Receiver> receiver, BufferContents& contents);
 
   // Propagates the last view size to buffer->fd().
   void UpdateSize();
@@ -77,7 +82,6 @@ class BufferTerminal : public fuzz::FuzzTestable {
     std::optional<LineColumnDelta> last_updated_size = std::nullopt;
 
     std::unique_ptr<Receiver> receiver;
-    OpenBuffer& buffer;
 
     // TODO: Find a way to remove this? I.e. always use buffer_.
     BufferContents& contents;

@@ -7,14 +7,16 @@ extern "C" {
 #include <sys/ioctl.h>
 }
 
-#include "src/buffer.h"
-#include "src/editor.h"
+#include "src/audio.h"
+#include "src/buffer_contents.h"
 #include "src/file_descriptor_reader.h"
 #include "src/fuzz.h"
-#include "src/language//safe_types.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/substring.h"
+#include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/status.h"
 
 namespace afc::editor {
 using language::FromByteString;
@@ -27,11 +29,10 @@ using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 
 BufferTerminal::BufferTerminal(
-    std::unique_ptr<BufferTerminal::Receiver> receiver, OpenBuffer& buffer,
+    std::unique_ptr<BufferTerminal::Receiver> receiver,
     BufferContents& contents)
-    : data_(MakeNonNullShared<Data>(Data{.receiver = std::move(receiver),
-                                         .buffer = buffer,
-                                         .contents = contents})) {
+    : data_(MakeNonNullShared<Data>(
+          Data{.receiver = std::move(receiver), .contents = contents})) {
   data_->receiver->view_size().Add(Observers::LockingObserver(
       std::weak_ptr<Data>(data_.get_shared()), InternalUpdateSize));
 
@@ -65,7 +66,7 @@ void BufferTerminal::ProcessCommandInput(
       VLOG(8) << "Received \\a";
       data_->receiver->status().Bell();
       audio::BeepFrequencies(
-          data_->buffer.editor().audio_player(), 0.1,
+          data_->receiver->audio_player(), 0.1,
           {audio::Frequency(783.99), audio::Frequency(523.25),
            audio::Frequency(659.25)});
     } else if (c == '\r') {
@@ -285,7 +286,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
           data_->position =
               data_->receiver->current_widget_view_start() + delta;
           while (data_->position.line > data_->receiver->contents().EndLine()) {
-            data_->buffer.AppendEmptyLine();
+            data_->receiver->AppendEmptyLine();
           }
           data_->receiver->JumpToPosition(data_->position);
         }
@@ -372,7 +373,7 @@ void BufferTerminal::MoveToNextLine() {
   data_->position.column = ColumnNumber(0);
   if (data_->position.line ==
       LineNumber(0) + data_->receiver->contents().size()) {
-    data_->buffer.AppendEmptyLine();
+    data_->receiver->AppendEmptyLine();
   }
   data_->receiver->JumpToPosition(data_->position);
 }
@@ -403,8 +404,8 @@ void BufferTerminal::InternalUpdateSize(Data& data) {
 
   if (ioctl(fd->read(), TIOCSWINSZ, &screen_size) == -1) {
     LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
-    data.buffer.status().SetWarningText(L"ioctl TIOCSWINSZ failed: " +
-                                        FromByteString(strerror(errno)));
+    data.receiver->status().SetWarningText(L"ioctl TIOCSWINSZ failed: " +
+                                           FromByteString(strerror(errno)));
   }
 }
 
