@@ -6,7 +6,7 @@
 #include "../editor_commands/compiler"
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
-#include "../editor_commands/lib/clang-format"
+#include "../editor_commands/lib/clang-format.cc"
 #include "../editor_commands/lib/numbers.cc"
 #include "../editor_commands/lib/paths.cc"
 #include "../editor_commands/lib/strings.cc"
