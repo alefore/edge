@@ -1514,6 +1514,14 @@ std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
 
     void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
 
+    BufferName name() override { return buffer_.name(); }
+
+    std::optional<infrastructure::FileDescriptor> fd() {
+      if (const FileDescriptorReader* fd = buffer_.fd(); fd != nullptr)
+        return fd->fd();
+      return std::nullopt;
+    }
+
     Status& status() override { return buffer_.status(); }
 
     const BufferContents& contents() override { return buffer_.contents(); }

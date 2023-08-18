@@ -8,7 +8,6 @@ extern "C" {
 }
 
 #include "src/buffer.h"
-#include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/fuzz.h"
@@ -36,8 +35,7 @@ BufferTerminal::BufferTerminal(
   data_->buffer.display_data().view_size().Add(Observers::LockingObserver(
       std::weak_ptr<Data>(data_.get_shared()), InternalUpdateSize));
 
-  LOG(INFO) << "New BufferTerminal for "
-            << data_->buffer.Read(buffer_variables::name);
+  LOG(INFO) << "New BufferTerminal for " << data_->receiver->name();
 }
 
 LineColumn BufferTerminal::position() const { return data_->position; }
@@ -386,8 +384,9 @@ void BufferTerminal::UpdateSize() { InternalUpdateSize(data_.value()); }
 
 /* static */
 void BufferTerminal::InternalUpdateSize(Data& data) {
-  if (data.buffer.fd() == nullptr) {
-    LOG(INFO) << "Buffer fd is nullptr!";
+  std::optional<infrastructure::FileDescriptor> fd = data.receiver->fd();
+  if (fd == std::nullopt) {
+    LOG(INFO) << "Buffer fd is gone.";
     return;
   }
   auto view_size = LastViewSize(data);
@@ -397,16 +396,15 @@ void BufferTerminal::InternalUpdateSize(Data& data) {
   }
   data.last_updated_size = view_size;
   struct winsize screen_size;
-  LOG(INFO) << "Update buffer size: "
-            << data.buffer.Read(buffer_variables::name) << " to: " << view_size;
+  LOG(INFO) << "Update buffer size: " << data.receiver->name()
+            << " to: " << view_size;
   screen_size.ws_row = view_size.line.read();
   screen_size.ws_col = view_size.column.read();
   // Silence valgrind warnings about uninitialized values:
   screen_size.ws_xpixel = 0;
   screen_size.ws_ypixel = 0;
-  CHECK(data.buffer.fd() != nullptr);
 
-  if (ioctl(data.buffer.fd()->fd().read(), TIOCSWINSZ, &screen_size) == -1) {
+  if (ioctl(fd->read(), TIOCSWINSZ, &screen_size) == -1) {
     LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
     data.buffer.status().SetWarningText(L"ioctl TIOCSWINSZ failed: " +
                                         FromByteString(strerror(errno)));

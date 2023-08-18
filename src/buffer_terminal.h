@@ -3,11 +3,13 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
 #include "src/fuzz_testable.h"
+#include "src/infrastructure/file_system_driver.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/line_column.h"
@@ -17,6 +19,7 @@ namespace afc::editor {
 
 class OpenBuffer;
 class BufferContents;
+class BufferName;
 class Status;
 
 // If the buffer holds an underlying process with a terminal (PTS),
@@ -32,6 +35,10 @@ class BufferTerminal : public fuzz::FuzzTestable {
     virtual void EraseLines(LineNumber first, LineNumber last) = 0;
 
     virtual void AppendEmptyLine() = 0;
+
+    virtual BufferName name() = 0;
+
+    virtual std::optional<infrastructure::FileDescriptor> fd() = 0;
 
     virtual Status& status() = 0;
 
