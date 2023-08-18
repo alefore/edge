@@ -11,7 +11,7 @@ void ClangFormatOnSave() {
   }
   buffer.SetStatus(reformat_command + " ...");
   ForkCommandOptions options = ForkCommandOptions();
-  options.set_command(reformat_command_in_place + path.shell_escape() +
+  options.set_command(reformat_command_in_place + " " + path.shell_escape() +
                       "; edge --run 'Buffer original_buffer = " +
                       "editor.OpenFile(\"" + path.shell_escape() +
                       "\", false); original_buffer.Reload(); "
@@ -24,7 +24,7 @@ void ClangFormatToggle() {
   clang_format = !clang_format;
   buffer.SetStatus((clang_format ? "🗸" : "⛶") + " clang-format");
   if (reformat_command == "") {
-    reformat_command = "clang-format ";
+    reformat_command = "clang-format";
     reformat_command_in_place = reformat_command + " -i ";
   }
 }
@@ -34,10 +34,13 @@ string extension = Extension(path);
 if (extension == "cc" || extension == "h" || extension == "cpp" ||
     extension == "java") {
   reformat_command = "clang-format";
-  reformat_command_in_place = "clang-format -i ";
+  reformat_command_in_place = "clang-format -i";
 } else if (extension == "sql" || extension == "sqlt" || extension == "sqlm") {
   reformat_command = "~/bin/format_sql <";
-  reformat_command_in_place = "~/bin/format_sql -in_place ";
+  reformat_command_in_place = "~/bin/format_sql -in_place";
+} else if (Basename(path) == "BUILD") {
+  reformat_command = "buildifier <";
+  reformat_command_in_place = "buildifier";
 }
 
 if (reformat_command != "") {
@@ -51,6 +54,8 @@ if (reformat_command != "") {
       "formatted.\");'");
   options.set_insertion_type("ignore");
   editor.ForkCommand(options);
+}
+if (reformat_command_in_place != "") {
   ClangFormatToggle();
 }
 
