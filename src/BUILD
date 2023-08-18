@@ -232,7 +232,8 @@ cc_library(
     srcs = ["cpp_parse_tree.cc"],
     hdrs = ["cpp_parse_tree.h"],
     deps = [
-        ":buffer",
+        ":buffer_contents",
+        ":lru_cache",
         ":parse_tree",
         "//src/language:safe_types",
     ],
@@ -489,8 +490,10 @@ cc_library(
 
 cc_library(
     name = "lru_cache",
-    srcs = ["lru_cache.cc"],
     hdrs = ["lru_cache.h"],
+    deps = [
+        "//src/concurrent:protected",
+    ],
 )
 
 cc_library(
