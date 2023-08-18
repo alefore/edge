@@ -355,7 +355,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
         VLOG(9) << "Terminal: P";
         ColumnNumberDelta chars_to_erase(atoi(sequence.c_str()));
         ColumnNumber end_column =
-            data_->contents.at(data_->position.line)->EndColumn();
+            data_->receiver->contents().at(data_->position.line)->EndColumn();
         if (data_->position.column < end_column) {
           data_->contents.DeleteCharactersFromLine(
               data_->position,
