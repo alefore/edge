@@ -433,6 +433,7 @@ cc_library(
     srcs = ["line_marks.cc"],
     hdrs = ["line_marks.h"],
     deps = [
+        ":buffer_contents",
         ":buffer_name",
         ":line_column",
         "//src/language/lazy_string",
@@ -548,6 +549,7 @@ cc_library(
     hdrs = ["operation_scope_buffer_information.h"],
     deps = [
         ":line_column",
+        ":line_marks",
     ],
 )
 
@@ -689,6 +691,7 @@ cc_library(
     hdrs = ["seek.h"],
     deps = [
         ":buffer_contents",
+        ":direction",
     ],
 )
 
