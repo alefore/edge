@@ -2,6 +2,7 @@
 #define __AFC_EDITOR_SEEK_H__
 
 #include "src/buffer_contents.h"
+#include "src/direction.h"
 #include "src/line_column.h"
 
 namespace afc {

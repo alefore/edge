@@ -4,6 +4,7 @@
 
 #include "src/buffer_contents.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/modifiers.h"
 #include "src/operation_scope_buffer_information.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
