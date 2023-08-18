@@ -1,16 +1,17 @@
 string path = buffer.path();
 bool clang_format = false;
+string reformat_command = "";
+string reformat_command_in_place = "";
 
 void ClangFormatOnSave() {
   if (!clang_format) {
     return;
   }
-  buffer.SetStatus("clang-format ...");
+  buffer.SetStatus(reformat_command + " ...");
   ForkCommandOptions options = ForkCommandOptions();
-  options.set_command("clang-format -i " + path.shell_escape() +
+  options.set_command(reformat_command_in_place + path.shell_escape() +
                       "; edge --run 'Buffer original_buffer = " +
-                      "editor.OpenFile(\"" +
-                      path.shell_escape() +
+                      "editor.OpenFile(\"" + path.shell_escape() +
                       "\", false); original_buffer.Reload(); "
                       "original_buffer.SetStatus(\"clang-reformat 🗸\");'");
   options.set_insertion_type("ignore");
@@ -20,16 +21,29 @@ void ClangFormatOnSave() {
 void ClangFormatToggle() {
   clang_format = !clang_format;
   buffer.SetStatus((clang_format ? "🗸" : "⛶") + " clang-format");
+  if (reformat_command == "") {
+    reformat_command = "clang-format ";
+    reformat_command_in_place = reformat_command + " -i ";
+  }
 }
 
 int dot = path.find_last_of(".", path.size());
 string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
+
 if (extension == "cc" || extension == "h" || extension == "cpp" ||
     extension == "java") {
+  reformat_command = "clang-format ";
+  reformat_command_in_place = reformat_command + " -i ";
+} else if (extension == "sql" || extension == "sqlt" || extension == "sqlm") {
+  reformat_command = "~/bin/format_sql ";
+  reformat_command_in_place = reformat_command + "-in_place ";
+}
+
+if (reformat_command != "") {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(
-      "test ! -f " + path.shell_escape() + "||" +
-      "clang-format " + path.shell_escape() + "| diff " + path.shell_escape() +
+      "test ! -f " + path.shell_escape() + "||" + reformat_command + "<" +
+      path.shell_escape() + "| diff " + path.shell_escape() +
       " /dev/stdin || edge --run 'editor.OpenFile(\"'" + path.shell_escape() +
       "'\", false).SetWarningStatus(\"clang-format: File is not properly "
       "formatted.\");'");
