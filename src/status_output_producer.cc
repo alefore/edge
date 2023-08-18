@@ -108,11 +108,11 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     std::wstring structure;
-    if (options.modifiers.structure == StructureTree()) {
+    if (options.modifiers.structure == Structure::kTree) {
       structure =
           L"tree<" + std::to_wstring(options.buffer->tree_depth()) + L">";
-    } else if (options.modifiers.structure != StructureChar()) {
-      structure = options.modifiers.structure->ToString();
+    } else if (options.modifiers.structure != Structure::kChar) {
+      structure = ToString(options.modifiers.structure);
     }
     if (!structure.empty()) {
       if (options.modifiers.sticky_structure) {

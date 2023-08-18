@@ -148,12 +148,12 @@ class GotoPreviousPositionCommand : public Command {
           editor_state_.current_buffer()->ptr()->position();
       if (it != editor_state_.buffers()->end() &&
           (pos.buffer_name != current_buffer->ptr()->name() ||
-           ((editor_state_.structure() == StructureLine() ||
-             editor_state_.structure() == StructureWord() ||
-             editor_state_.structure() == StructureSymbol() ||
-             editor_state_.structure() == StructureChar()) &&
+           ((editor_state_.structure() == Structure::kLine ||
+             editor_state_.structure() == Structure::kWord ||
+             editor_state_.structure() == Structure::kSymbol ||
+             editor_state_.structure() == Structure::kChar) &&
             pos.position.line != current_position.line) ||
-           (editor_state_.structure() == StructureChar() &&
+           (editor_state_.structure() == Structure::kChar &&
             pos.position.column != current_position.column))) {
         LOG(INFO) << "Jumping to position: "
                   << it->second.ptr()->Read(buffer_variables::name) << " "
@@ -219,15 +219,16 @@ class LineDown : public Command {
   void ProcessInput(wint_t c) override {
     Move(c, editor_state_, editor_state_.structure());
   }
-  static void Move(int c, EditorState& editor_state, Structure* structure) {
+  static void Move(int c, EditorState& editor_state, Structure structure) {
     // TODO: Move to Structure.
-    if (structure == StructureChar()) {
-      editor_state.set_structure(StructureLine());
+    if (structure == Structure::kChar) {
+      editor_state.set_structure(Structure::kLine);
       MoveForwards::Move(c, editor_state, Direction::kForwards);
-    } else if (structure == StructureWord() || structure == StructureSymbol()) {
-      editor_state.set_structure(StructurePage());
+    } else if (structure == Structure::kWord ||
+               structure == Structure::kSymbol) {
+      editor_state.set_structure(Structure::kPage);
       MoveForwards::Move(c, editor_state, Direction::kForwards);
-    } else if (structure == StructureTree()) {
+    } else if (structure == Structure::kTree) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state.current_buffer();
       if (!buffer.has_value()) {
@@ -279,7 +280,7 @@ class LineUp : public Command {
   void ProcessInput(wint_t c) override {
     Move(c, editor_state_, editor_state_.structure());
   }
-  static void Move(int c, EditorState& editor_state, Structure* structure) {
+  static void Move(int c, EditorState& editor_state, Structure structure) {
     editor_state.set_direction(ReverseDirection(editor_state.direction()));
     LineDown::Move(c, editor_state, structure);
   }
@@ -357,11 +358,13 @@ class ReverseDirectionCommand : public Command {
 
 class SetStructureCommand : public Command {
  public:
-  SetStructureCommand(EditorState& editor_state, Structure* structure)
+  SetStructureCommand(EditorState& editor_state, Structure structure)
       : editor_state_(editor_state), structure_(structure) {}
 
   std::wstring Description() const override {
-    return L"sets the structure: " + structure_->ToString();
+    std::ostringstream os;
+    os << structure_;
+    return L"sets the structure: " + language::FromByteString(os.str());
   }
   std::wstring Category() const override { return L"Modifiers"; }
 
@@ -372,14 +375,14 @@ class SetStructureCommand : public Command {
     } else if (!editor_state_.sticky_structure()) {
       editor_state_.set_sticky_structure(true);
     } else {
-      editor_state_.set_structure(StructureChar());
+      editor_state_.set_structure(Structure::kChar);
       editor_state_.set_sticky_structure(false);
     }
   }
 
  private:
   EditorState& editor_state_;
-  Structure* structure_;
+  Structure structure_;
   const std::wstring description_;
 };
 
@@ -724,19 +727,19 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   commands->Add(L"g", NewGotoCommand(editor_state));
 
   commands->Add(L"W", MakeNonNullUnique<SetStructureCommand>(
-                          editor_state, StructureSymbol()));
+                          editor_state, Structure::kSymbol));
   commands->Add(L"w", MakeNonNullUnique<SetStructureCommand>(editor_state,
-                                                             StructureWord()));
+                                                             Structure::kWord));
   commands->Add(L"E", MakeNonNullUnique<SetStructureCommand>(editor_state,
-                                                             StructurePage()));
+                                                             Structure::kPage));
   commands->Add(L"c", MakeNonNullUnique<SetStructureCommand>(
-                          editor_state, StructureCursor()));
+                          editor_state, Structure::kCursor));
   commands->Add(L"B", MakeNonNullUnique<SetStructureCommand>(
-                          editor_state, StructureBuffer()));
+                          editor_state, Structure::kBuffer));
   commands->Add(L"!", MakeNonNullUnique<SetStructureCommand>(editor_state,
-                                                             StructureMark()));
+                                                             Structure::kMark));
   commands->Add(L"t", MakeNonNullUnique<SetStructureCommand>(editor_state,
-                                                             StructureTree()));
+                                                             Structure::kTree));
 
   commands->Add(
       L"e", operation::NewTopLevelCommand(
@@ -795,14 +798,14 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 L"home", L"moves to the beginning of the current line",
                 operation::TopCommand(), editor_state,
                 {operation::CommandReachBegin{
-                    .structure = StructureChar(),
+                    .structure = Structure::kChar,
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
   commands->Add(L"L",
                 operation::NewTopLevelCommand(
                     L"end", L"moves to the end of the current line",
                     operation::TopCommand(), editor_state,
                     {operation::CommandReachBegin{
-                        .structure = StructureChar(),
+                        .structure = Structure::kChar,
                         .repetitions = operation::CommandArgumentRepetitions(1),
                         .direction = Direction::kBackwards}}));
   commands->Add(
@@ -810,14 +813,14 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 L"file-home", L"moves to the beginning of the current file",
                 operation::TopCommand(), editor_state,
                 {operation::CommandReachBegin{
-                    .structure = StructureLine(),
+                    .structure = Structure::kLine,
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
   commands->Add(L"J",
                 operation::NewTopLevelCommand(
                     L"file-end", L"moves to the end of the current line",
                     operation::TopCommand(), editor_state,
                     {operation::CommandReachBegin{
-                        .structure = StructureLine(),
+                        .structure = Structure::kLine,
                         .repetitions = operation::CommandArgumentRepetitions(1),
                         .direction = Direction::kBackwards}}));
   commands->Add(L"~",

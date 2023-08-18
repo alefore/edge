@@ -12,9 +12,9 @@ namespace afc::editor {
 using language::NonNull;
 namespace {
 bool CharConsumer(wint_t c, Modifiers modifiers) {
-  auto set_structure = [&modifiers](Structure* structure) {
+  auto set_structure = [&modifiers](Structure structure) {
     modifiers.structure =
-        modifiers.structure == structure ? StructureChar() : structure;
+        modifiers.structure == structure ? Structure::kChar : structure;
   };
 
   switch (c) {
@@ -88,35 +88,35 @@ bool CharConsumer(wint_t c, Modifiers modifiers) {
       return true;
 
     case 'e':
-      set_structure(StructureLine());
+      set_structure(Structure::kLine);
       return true;
 
     case 'w':
-      set_structure(StructureWord());
+      set_structure(Structure::kWord);
       return true;
 
     case 'W':
-      set_structure(StructureSymbol());
+      set_structure(Structure::kSymbol);
       return true;
 
     case 'B':
-      set_structure(StructureBuffer());
+      set_structure(Structure::kBuffer);
       return true;
 
     case 'c':
-      set_structure(StructureCursor());
+      set_structure(Structure::kCursor);
       return true;
 
     case 't':
-      set_structure(StructureTree());
+      set_structure(Structure::kTree);
       return true;
 
     case 'S':
-      set_structure(StructureSentence());
+      set_structure(Structure::kSentence);
       return true;
 
     case 'p':
-      set_structure(StructureParagraph());
+      set_structure(Structure::kParagraph);
       return true;
 
     case 'P':
@@ -144,8 +144,10 @@ std::wstring BuildStatus(
     const std::function<std::wstring(const Modifiers&)>& name,
     const Modifiers& modifiers) {
   std::wstring status = name(modifiers);
-  if (modifiers.structure != StructureChar()) {
-    status += L" " + modifiers.structure->ToString();
+  if (modifiers.structure != Structure::kChar) {
+    std::ostringstream oss;
+    oss << modifiers.structure;
+    status += L" " + language::FromByteString(oss.str());
   }
   if (modifiers.direction == Direction::kBackwards) {
     status += L" reverse";

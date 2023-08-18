@@ -45,19 +45,24 @@ std::wstring SerializeCall(std::wstring name,
   return output + L")";
 }
 
-std::wstring StructureToString(Structure* structure) {
-  return structure == nullptr ? L"?" : structure->ToString();
+std::wstring StructureToString(std::optional<Structure> structure) {
+  std::ostringstream oss;
+  if (structure.has_value())
+    oss << *structure;
+  else
+    oss << "?";
+  return language::FromByteString(oss.str());
 }
 
-Modifiers GetModifiers(Structure* structure, int repetitions,
+Modifiers GetModifiers(std::optional<Structure> structure, int repetitions,
                        Direction direction) {
   return Modifiers{
-      .structure = structure == nullptr ? StructureChar() : structure,
+      .structure = structure.value_or(Structure::kChar),
       .direction = repetitions < 0 ? ReverseDirection(direction) : direction,
       .repetitions = abs(repetitions)};
 }
 
-Modifiers GetModifiers(Structure* structure,
+Modifiers GetModifiers(std::optional<Structure> structure,
                        const CommandArgumentRepetitions& repetitions,
                        Direction direction) {
   return GetModifiers(structure, repetitions.get(), direction);
@@ -92,8 +97,8 @@ std::wstring ToStatus(const CommandReachQuery& c) {
 
 std::wstring ToStatus(const CommandReachBisect& c) {
   std::wstring directions;
-  wchar_t backwards = c.structure == StructureLine() ? L'↑' : L'←';
-  wchar_t forwards = c.structure == StructureLine() ? L'↓' : L'→';
+  wchar_t backwards = c.structure == Structure::kLine ? L'↑' : L'←';
+  wchar_t forwards = c.structure == Structure::kLine ? L'↓' : L'→';
   for (Direction direction : c.directions) switch (direction) {
       case Direction::kForwards:
         directions.push_back(forwards);
@@ -177,7 +182,7 @@ transformation::Stack GetTransformation(
   for (int repetitions : reach_line.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
-            GetModifiers(StructureLine(), repetitions, Direction::kForwards),
+            GetModifiers(Structure::kLine, repetitions, Direction::kForwards),
         .transformation = NewMoveTransformation(operation_scope)});
   }
   return transformation;
@@ -190,7 +195,7 @@ transformation::Stack GetTransformation(
   for (int repetitions : reach_page.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
         .modifiers =
-            GetModifiers(StructurePage(), repetitions, Direction::kForwards),
+            GetModifiers(Structure::kPage, repetitions, Direction::kForwards),
         .transformation = NewMoveTransformation(operation_scope)});
   }
   return transformation;
@@ -212,7 +217,8 @@ transformation::Stack GetTransformation(
     CommandReachBisect bisect) {
   transformation::Stack transformation;
   transformation.PushBack(MakeNonNullUnique<transformation::Bisect>(
-      bisect.structure, std::move(bisect.directions)));
+      bisect.structure.value_or(Structure::kChar),
+      std::move(bisect.directions)));
   return transformation;
 }
 
@@ -360,44 +366,44 @@ class State {
       []() -> futures::Value<EmptyValue> { return Past(EmptyValue()); });
 };
 
-bool CheckStructureChar(wint_t c, Structure** structure,
+bool CheckStructureChar(wint_t c, std::optional<Structure>* structure,
                         CommandArgumentRepetitions* repetitions) {
   CHECK(structure != nullptr);
   CHECK(repetitions != nullptr);
-  Structure* selected_structure = nullptr;
+  std::optional<Structure> selected_structure;
   switch (c) {
     case L'z':
-      selected_structure = StructureChar();
+      selected_structure = Structure::kChar;
       break;
     case L'x':
-      selected_structure = StructureWord();
+      selected_structure = Structure::kWord;
       break;
     case L'c':
-      selected_structure = StructureSymbol();
+      selected_structure = Structure::kSymbol;
       break;
     case L'v':
-      selected_structure = StructureLine();
+      selected_structure = Structure::kLine;
       break;
     case L'b':
-      selected_structure = StructureParagraph();
+      selected_structure = Structure::kParagraph;
       break;
     case L'n':
-      selected_structure = StructurePage();
+      selected_structure = Structure::kPage;
       break;
     case L'm':
-      selected_structure = StructureBuffer();
+      selected_structure = Structure::kBuffer;
       break;
     case L'C':
-      selected_structure = StructureCursor();
+      selected_structure = Structure::kCursor;
       break;
     case L'V':
-      selected_structure = StructureTree();
+      selected_structure = Structure::kTree;
       break;
     default:
       return false;
   }
-  CHECK(selected_structure != nullptr);
-  if (*structure == nullptr) {
+  CHECK(selected_structure.has_value());
+  if (*structure == std::nullopt) {
     *structure = selected_structure;
     if (repetitions->get() == 0) {
       repetitions->sum(1);
@@ -444,13 +450,13 @@ bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
 }
 
 bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
-  if (output->structure == StructureChar() || output->structure == nullptr) {
+  if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
     switch (c) {
       case L'H':
         if (!output->repetitions.empty() &&
             output->repetitions.get_list().back() < 0) {
           state->Push(
-              CommandReachBisect{.structure = StructureChar(),
+              CommandReachBisect{.structure = Structure::kChar,
                                  .directions = {Direction::kBackwards}});
           return true;
         }
@@ -458,20 +464,20 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
       case L'L':
         if (!output->repetitions.empty() &&
             output->repetitions.get_list().back() > 0) {
-          state->Push(CommandReachBisect{.structure = StructureChar(),
+          state->Push(CommandReachBisect{.structure = Structure::kChar,
                                          .directions = {Direction::kForwards}});
           return true;
         }
         break;
     }
   }
-  if (output->structure == StructureLine()) {
+  if (output->structure == Structure::kLine) {
     switch (c) {
       case L'K':
         if (!output->repetitions.empty() &&
             output->repetitions.get_list().back() < 0) {
           state->Push(
-              CommandReachBisect{.structure = StructureLine(),
+              CommandReachBisect{.structure = Structure::kLine,
                                  .directions = {Direction::kBackwards}});
           return true;
         }
@@ -479,7 +485,7 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
       case L'J':
         if (!output->repetitions.empty() &&
             output->repetitions.get_list().back() > 0) {
-          state->Push(CommandReachBisect{.structure = StructureLine(),
+          state->Push(CommandReachBisect{.structure = Structure::kLine,
                                          .directions = {Direction::kForwards}});
           return true;
         }
@@ -493,8 +499,8 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
 
   if (CheckIncrementsChar(c, &output->repetitions) ||
       CheckRepetitionsChar(c, &output->repetitions)) {
-    if (output->structure == nullptr) {
-      output->structure = StructureChar();
+    if (output->structure == std::nullopt) {
+      output->structure = Structure::kChar;
     }
     return true;
   }
@@ -502,7 +508,7 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
 }
 
 bool ReceiveInput(CommandReachBegin* output, wint_t c, State* state) {
-  if (output->structure == StructureLine()) {
+  if (output->structure == Structure::kLine) {
     switch (c) {
       case 'j':
       case 'k': {
@@ -520,7 +526,7 @@ bool ReceiveInput(CommandReachBegin* output, wint_t c, State* state) {
         return false;
     }
   }
-  if (output->structure == StructureChar() || output->structure == nullptr) {
+  if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
     switch (c) {
       case 'h':
       case 'l':
@@ -542,7 +548,7 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
     case L'K':
       if (!output->repetitions.empty() &&
           output->repetitions.get_list().back() < 0) {
-        state->Push(CommandReachBisect{.structure = StructureLine(),
+        state->Push(CommandReachBisect{.structure = Structure::kLine,
                                        .directions = {Direction::kBackwards}});
         return true;
       }
@@ -550,7 +556,7 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
     case L'J':
       if (!output->repetitions.empty() &&
           output->repetitions.get_list().back() > 0) {
-        state->Push(CommandReachBisect{.structure = StructureLine(),
+        state->Push(CommandReachBisect{.structure = Structure::kLine,
                                        .directions = {Direction::kForwards}});
         return true;
       }
@@ -604,7 +610,7 @@ bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
       return true;
   }
 
-  if (output->structure == nullptr || output->structure == StructureChar()) {
+  if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
     switch (static_cast<int>(c)) {
       case L'h':
         output->directions.push_back(Direction::kBackwards);
@@ -615,7 +621,7 @@ bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
     }
     return false;
   }
-  if (output->structure == StructureLine()) {
+  if (output->structure == Structure::kLine) {
     switch (static_cast<int>(c)) {
       case L'k':
         output->directions.push_back(Direction::kBackwards);
@@ -758,7 +764,7 @@ class OperationMode : public EditorMode {
                 state_.empty()
                     ? nullptr
                     : std::get_if<CommandReach>(&state_.GetLastCommand());
-            reach != nullptr && reach->structure == nullptr) {
+            reach != nullptr && reach->structure == std::nullopt) {
           state_.UndoLast();
         }
         state_.Push(CommandReachPage{
@@ -771,7 +777,7 @@ class OperationMode : public EditorMode {
                 state_.empty()
                     ? nullptr
                     : std::get_if<CommandReach>(&state_.GetLastCommand());
-            reach != nullptr && reach->structure == nullptr) {
+            reach != nullptr && reach->structure == std::nullopt) {
           state_.UndoLast();
         }
         state_.Push(CommandReachLine{
@@ -785,10 +791,10 @@ class OperationMode : public EditorMode {
         state_.Push(CommandReachBegin{.direction = Direction::kBackwards});
         return true;
       case L'K':
-        state_.Push(CommandReachBegin{.structure = StructureLine()});
+        state_.Push(CommandReachBegin{.structure = Structure::kLine});
         return true;
       case L'J':
-        state_.Push(CommandReachBegin{.structure = StructureLine(),
+        state_.Push(CommandReachBegin{.structure = Structure::kLine,
                                       .direction = Direction::kBackwards});
         return true;
     }

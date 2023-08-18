@@ -54,12 +54,12 @@ class CommandArgumentRepetitions {
 
 // A sequence of arguments becomes a command.
 struct CommandReach {
-  Structure* structure = nullptr;
+  std::optional<Structure> structure = std::nullopt;
   CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(0);
 };
 
 struct CommandReachBegin {
-  Structure* structure = nullptr;
+  std::optional<Structure> structure = std::nullopt;
   CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(1);
   Direction direction = Direction::kForwards;
 };
@@ -84,7 +84,7 @@ struct CommandReachQuery {
 };
 
 struct CommandReachBisect {
-  Structure* structure = nullptr;
+  std::optional<Structure> structure = std::nullopt;
   std::vector<Direction> directions;
 };
 

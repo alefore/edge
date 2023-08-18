@@ -14,7 +14,7 @@ std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Modifiers& m) {
-  os << "[structure: " << m.structure->ToString() << "][direction: ";
+  os << "[structure: " << m.structure << "][direction: ";
   switch (m.direction) {
     case Direction::kForwards:
       os << "forwards";
@@ -87,7 +87,7 @@ void Modifiers::Register(language::gc::Pool& pool,
       L"set_line",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
-                        output->structure = StructureLine();
+                        output->structure = Structure::kLine;
                         return output;
                       })
           .ptr());
@@ -145,7 +145,7 @@ std::wstring Modifiers::Serialize() const {
     output += L".set_backwards()";
   }
   // TODO: Handle other structures.
-  if (structure == StructureLine()) {
+  if (structure == Structure::kLine) {
     output += L".set_line()";
   }
   if (repetitions.has_value()) {

@@ -355,7 +355,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             if (range.lines() > LineNumberDelta(1))
               transformations.push_back(
                   {.modifiers =
-                       {.structure = StructureLine(),
+                       {.structure = Structure::kLine,
                         .repetitions =
                             (range.lines() - LineNumberDelta(1)).read(),
                         .boundary_end = Modifiers::LIMIT_NEIGHBOR},

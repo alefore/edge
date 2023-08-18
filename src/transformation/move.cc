@@ -66,19 +66,21 @@ class MoveTransformation : public CompositeTransformation {
             << input.buffer.Read(buffer_variables::name) << " "
             << input.modifiers;
     // TODO: Finish moving to Structure.
-    auto structure = input.modifiers.structure;
-    if (structure == StructureCursor()) {
+    Structure structure = input.modifiers.structure;
+    if (structure == Structure::kCursor) {
       return futures::Past(Output(
           transformation::SwapActiveCursor{.modifiers = input.modifiers}));
     }
 
-    auto position = structure->Move(
-        operation_scope_.value().get(input.buffer), input.buffer.contents(),
-        input.original_position, input.range, input.modifiers);
+    auto position = Move(operation_scope_.value().get(input.buffer), structure,
+                         input.buffer.contents(), input.original_position,
+                         input.range, input.modifiers);
 
     if (!position.has_value()) {
+      std::ostringstream oss;
+      oss << structure;
       input.buffer.status().SetWarningText(L"Unhandled structure: " +
-                                           structure->ToString());
+                                           language::FromByteString(oss.str()));
       return futures::Past(Output());
     }
 

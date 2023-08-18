@@ -762,6 +762,7 @@ cc_library(
         ":buffer_contents",
         ":direction",
         ":line_column",
+        ":modifiers",
         ":operation_scope_buffer_information",
         ":parse_tree",
         ":seek",

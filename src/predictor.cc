@@ -125,7 +125,7 @@ std::wstring GetPredictInput(const PredictOptions& options) {
   CHECK(buffer.has_value());
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
-  modifiers.structure = StructureLine();
+  modifiers.structure = Structure::kLine;
   auto range =
       buffer->ptr()->FindPartialRange(modifiers, buffer->ptr()->position());
   range.end = std::max(range.end, buffer->ptr()->position());

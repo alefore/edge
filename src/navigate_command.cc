@@ -217,7 +217,7 @@ class NavigateTransformation : public CompositeTransformation {
     }
     output->Push(transformation::SetPosition(WriteIndex(position, index)));
     output->Push(transformation::Delete{
-        .modifiers = {.structure = StructureLine(),
+        .modifiers = {.structure = Structure::kLine,
                       .direction = direction,
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::kDoNothing},
@@ -235,10 +235,10 @@ class NavigateTransformation : public CompositeTransformation {
 };
 
 NavigateState InitialState(EditorState& editor_state) {
-  Structure* structure = editor_state.modifiers().structure;
+  Structure structure = editor_state.modifiers().structure;
   // TODO: Move to Structure.
   NavigateState initial_state;
-  if (structure == StructureChar()) {
+  if (structure == Structure::kChar) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn position) {
       return SearchRange{0, buffer.LineAt(position.line)->EndColumn().read()};
@@ -251,7 +251,7 @@ NavigateState InitialState(EditorState& editor_state) {
     initial_state.navigate_options.position_to_index = [](LineColumn position) {
       return position.column.read();
     };
-  } else if (structure == StructureSymbol()) {
+  } else if (structure == Structure::kSymbol) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn position) {
       auto contents = buffer.LineAt(position.line);
@@ -278,7 +278,7 @@ NavigateState InitialState(EditorState& editor_state) {
     initial_state.navigate_options.position_to_index = [](LineColumn position) {
       return position.column.read();
     };
-  } else if (structure == StructureLine()) {
+  } else if (structure == Structure::kLine) {
     initial_state.navigate_options.initial_range = [](const OpenBuffer& buffer,
                                                       LineColumn) {
       return SearchRange{0,

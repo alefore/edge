@@ -8,12 +8,12 @@
 namespace afc::editor::transformation {
 class Bisect : public CompositeTransformation {
  public:
-  Bisect(Structure* structure, std::vector<Direction> directions);
+  Bisect(Structure structure, std::vector<Direction> directions);
   std::wstring Serialize() const override;
   futures::Value<Output> Apply(Input input) const override;
 
  private:
-  Structure* const structure_;
+  const Structure structure_;
   const std::vector<Direction> directions_;
 };
 }  // namespace afc::editor::transformation

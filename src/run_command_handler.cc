@@ -413,7 +413,7 @@ class ForkEditorCommand : public Command {
 
   void ProcessInput(wint_t) override {
     gc::Pool& pool = editor_state_.gc_pool();
-    if (editor_state_.structure() == StructureChar()) {
+    if (editor_state_.structure() == Structure::kChar) {
       std::optional<gc::Root<OpenBuffer>> original_buffer =
           editor_state_.current_buffer();
       // TODO(easy, 2022-05-16): Why is this safe?
@@ -450,7 +450,7 @@ class ForkEditorCommand : public Command {
                   : PromptOptions::ColorizeFunction(nullptr),
           .handler = std::bind_front(RunCommandHandler, std::ref(editor_state_),
                                      0, 1, OptionalFrom(children_path))});
-    } else if (editor_state_.structure() == StructureLine()) {
+    } else if (editor_state_.structure() == Structure::kLine) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
       if (!buffer.has_value()) {

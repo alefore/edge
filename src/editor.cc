@@ -561,9 +561,9 @@ void EditorState::set_modifiers(const Modifiers& modifiers) {
   modifiers_ = modifiers;
 }
 
-Structure* EditorState::structure() const { return modifiers_.structure; }
+Structure EditorState::structure() const { return modifiers_.structure; }
 
-void EditorState::set_structure(Structure* structure) {
+void EditorState::set_structure(Structure structure) {
   modifiers_.structure = structure;
 }
 

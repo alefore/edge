@@ -191,8 +191,8 @@ class SearchCommand : public Command {
   std::wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t) override {
-    if (editor_state_.structure()->search_query() ==
-        Structure::SearchQuery::kRegion) {
+    if (GetStructureSearchQuery(editor_state_.structure()) ==
+        StructureSearchQuery::kRegion) {
       editor_state_
           .ForEachActiveBuffer([&editor_state =
                                     editor_state_](OpenBuffer& buffer) {
@@ -341,7 +341,8 @@ class SearchCommand : public Command {
     SearchOptions search_options;
     // TODO(easy, 2022-06-05): Avoid call to ToString.
     search_options.search_query = input->ToString();
-    if (editor.structure()->search_range() == Structure::SearchRange::kBuffer) {
+    if (GetStructureSearchRange(editor.structure()) ==
+        StructureSearchRange::kBuffer) {
       search_options.starting_position = buffer.position();
     } else {
       Range range =

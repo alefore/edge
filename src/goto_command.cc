@@ -55,11 +55,11 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
   return 0;
 }
 
-std::optional<LineColumn> ComputeGoToPosition(Structure* structure,
+std::optional<LineColumn> ComputeGoToPosition(Structure structure,
                                               const OpenBuffer& buffer,
                                               const Modifiers& modifiers,
                                               LineColumn position, int calls) {
-  if (structure == StructureChar()) {
+  if (structure == Structure::kChar) {
     const std::wstring& line_prefix_characters =
         buffer.Read(buffer_variables::line_prefix_characters);
     const auto& line = buffer.LineAt(position.line);
@@ -80,7 +80,7 @@ std::optional<LineColumn> ComputeGoToPosition(Structure* structure,
         modifiers.repetitions.value_or(1), calls));
     CHECK_LE(position.column, line->EndColumn());
     return position;
-  } else if (structure == StructureSymbol()) {
+  } else if (structure == Structure::kSymbol) {
     position.column = modifiers.direction == Direction::kBackwards
                           ? buffer.LineAt(position.line)->EndColumn()
                           : ColumnNumber();
@@ -105,14 +105,14 @@ std::optional<LineColumn> ComputeGoToPosition(Structure* structure,
       } break;
     }
     return position;
-  } else if (structure == StructureLine()) {
+  } else if (structure == Structure::kLine) {
     size_t lines = buffer.EndLine().read();
     position.line =
         LineNumber(ComputePosition(0, lines, lines, modifiers.direction,
                                    modifiers.repetitions.value_or(1), calls));
     CHECK_LE(position.line, LineNumber(0) + buffer.contents().size());
     return position;
-  } else if (structure == StructureMark()) {
+  } else if (structure == Structure::kMark) {
     // Navigates marks in the current buffer.
     const std::multimap<LineColumn, LineMarks::Mark>& marks =
         buffer.GetLineMarks();
@@ -127,7 +127,7 @@ std::optional<LineColumn> ComputeGoToPosition(Structure* structure,
                         modifiers.repetitions.value_or(1), calls);
     CHECK_LE(index, lines.size());
     return lines.at(index).first;
-  } else if (structure == StructurePage()) {
+  } else if (structure == Structure::kPage) {
     CHECK_GT(buffer.contents().size(), LineNumberDelta(0));
     std::optional<LineColumnDelta> view_size =
         buffer.display_data().view_size().Get();
@@ -161,13 +161,13 @@ class GotoCommand : public Command {
       return;
     }
     auto structure = editor_state_.structure();
-    if (structure == StructureChar() || structure == StructureSymbol() ||
-        structure == StructureLine() || structure == StructureMark() ||
-        structure == StructurePage() || structure == StructureSearch() ||
-        structure == StructureCursor()) {
+    if (structure == Structure::kChar || structure == Structure::kSymbol ||
+        structure == Structure::kLine || structure == Structure::kMark ||
+        structure == Structure::kPage || structure == Structure::kSearch ||
+        structure == Structure::kCursor) {
       editor_state_.ApplyToActiveBuffers(
           MakeNonNullUnique<GotoTransformation>(calls_));
-    } else if (structure == StructureBuffer()) {
+    } else if (structure == Structure::kBuffer) {
       size_t buffers = editor_state_.buffers()->size();
       size_t position =
           ComputePosition(0, buffers, buffers, editor_state_.direction(),

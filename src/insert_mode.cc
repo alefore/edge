@@ -349,7 +349,7 @@ class InsertMode : public EditorMode {
               return buffer
                   .ApplyToCursors(transformation::Delete{
                       .modifiers =
-                          {.structure = StructureLine(),
+                          {.structure = Structure::kLine,
                            .paste_buffer_behavior =
                                Modifiers::PasteBufferBehavior::kDoNothing,
                            .boundary_begin = Modifiers::CURRENT_POSITION,
@@ -603,13 +603,13 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
 
 void DefaultScrollBehavior::Up(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.structure = StructureLine(), .direction = Direction::kBackwards},
+      {.structure = Structure::kLine, .direction = Direction::kBackwards},
       NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Down(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
-      {.structure = StructureLine()}, NewMoveTransformation()});
+      {.structure = Structure::kLine}, NewMoveTransformation()});
 }
 
 void DefaultScrollBehavior::Left(OpenBuffer& buffer) {
@@ -706,8 +706,8 @@ void EnterInsertMode(InsertModeOptions options) {
           buffer.ptr()->status().Reset();
         }
 
-        if (shared_options->editor_state.structure() == StructureChar() ||
-            shared_options->editor_state.structure() == StructureLine()) {
+        if (shared_options->editor_state.structure() == Structure::kChar ||
+            shared_options->editor_state.structure() == Structure::kLine) {
           for (gc::Root<OpenBuffer>& buffer_root :
                shared_options->buffers.value()) {
             OpenBuffer& buffer = buffer_root.ptr().value();
@@ -715,7 +715,7 @@ void EnterInsertMode(InsertModeOptions options) {
             buffer.PushTransformationStack();
             buffer.PushTransformationStack();
           }
-          if (shared_options->editor_state.structure() == StructureLine()) {
+          if (shared_options->editor_state.structure() == Structure::kLine) {
             for (gc::Root<OpenBuffer>& buffer :
                  shared_options->buffers.value()) {
               buffer.ptr()->ApplyToCursors(

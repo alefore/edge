@@ -16,19 +16,19 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
 using ::operator<<;
 
-Bisect::Bisect(Structure* structure, std::vector<Direction> directions)
+Bisect::Bisect(Structure structure, std::vector<Direction> directions)
     : structure_(structure), directions_(std::move(directions)) {}
 
 std::wstring Bisect::Serialize() const { return L"Bisect()"; }
 
 namespace {
-LineColumn RangeCenter(const Range& range, Structure* structure) {
-  if (structure == StructureChar()) {
+LineColumn RangeCenter(const Range& range, Structure structure) {
+  if (structure == Structure::kChar) {
     return LineColumn(
         range.begin.line,
         ColumnNumber() +
             (range.begin.column.ToDelta() + range.end.column.ToDelta()) / 2);
-  } else if (structure == StructureLine()) {
+  } else if (structure == Structure::kLine) {
     if (range.begin.line == range.end.line) return range.begin;
     return LineColumn(LineNumber() +
                       (range.begin.line.ToDelta() + range.end.line.ToDelta()) /
@@ -46,7 +46,7 @@ const bool range_center_tests_registration = tests::Register(
             CHECK_EQ(
                 RangeCenter(Range(LineColumn(LineNumber(2), ColumnNumber(21)),
                                   LineColumn(LineNumber(2), ColumnNumber(21))),
-                            StructureChar()),
+                            Structure::kChar),
                 LineColumn(LineNumber(2), ColumnNumber(21)));
           }},
      {.name = L"EmptyRangeLine",
@@ -55,18 +55,18 @@ const bool range_center_tests_registration = tests::Register(
             CHECK_EQ(
                 RangeCenter(Range(LineColumn(LineNumber(2), ColumnNumber(21)),
                                   LineColumn(LineNumber(2), ColumnNumber(21))),
-                            StructureLine()),
+                            Structure::kLine),
                 LineColumn(LineNumber(2), ColumnNumber(21)));
           }},
      {.name = L"NormalRangeChar", .callback = [] {
         CHECK_EQ(
             RangeCenter(Range(LineColumn(LineNumber(21), ColumnNumber(2)),
                               LineColumn(LineNumber(21), ColumnNumber(10))),
-                        StructureChar()),
+                        Structure::kChar),
             LineColumn(LineNumber(21), ColumnNumber(6)));
       }}});
 
-Range AdjustRange(Structure* structure, Direction direction, Range range) {
+Range AdjustRange(Structure structure, Direction direction, Range range) {
   LineColumn center = RangeCenter(range, structure);
   switch (direction) {
     case Direction::kForwards:
@@ -85,7 +85,7 @@ const bool adjust_range_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                AdjustRange(StructureChar(), Direction::kForwards,
+                AdjustRange(Structure::kChar, Direction::kForwards,
                             Range(LineColumn(LineNumber(2), ColumnNumber(21)),
                                   LineColumn(LineNumber(2), ColumnNumber(21)))),
                 Range(LineColumn(LineNumber(2), ColumnNumber(21)),
@@ -95,7 +95,7 @@ const bool adjust_range_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                AdjustRange(StructureChar(), Direction::kBackwards,
+                AdjustRange(Structure::kChar, Direction::kBackwards,
                             Range(LineColumn(LineNumber(2), ColumnNumber(21)),
                                   LineColumn(LineNumber(2), ColumnNumber(21)))),
                 Range(LineColumn(LineNumber(2), ColumnNumber(21)),
@@ -105,7 +105,7 @@ const bool adjust_range_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                AdjustRange(StructureChar(), Direction::kForwards,
+                AdjustRange(Structure::kChar, Direction::kForwards,
                             Range(LineColumn(LineNumber(2), ColumnNumber(12)),
                                   LineColumn(LineNumber(2), ColumnNumber(20)))),
                 Range(LineColumn(LineNumber(2), ColumnNumber(16)),
@@ -113,7 +113,7 @@ const bool adjust_range_tests_registration = tests::Register(
           }},
      {.name = L"NormalRangeCharBackwards", .callback = [] {
         CHECK_EQ(
-            AdjustRange(StructureChar(), Direction::kBackwards,
+            AdjustRange(Structure::kChar, Direction::kBackwards,
                         Range(LineColumn(LineNumber(2), ColumnNumber(12)),
                               LineColumn(LineNumber(2), ColumnNumber(20)))),
             Range(LineColumn(LineNumber(2), ColumnNumber(12)),
@@ -121,8 +121,8 @@ const bool adjust_range_tests_registration = tests::Register(
       }}});
 
 Range GetRange(const BufferContents& contents, Direction initial_direction,
-               Structure* structure, LineColumn position) {
-  if (structure == StructureChar()) {
+               Structure structure, LineColumn position) {
+  if (structure == Structure::kChar) {
     switch (initial_direction) {
       case Direction::kForwards:
         return Range(
@@ -133,7 +133,7 @@ Range GetRange(const BufferContents& contents, Direction initial_direction,
       case Direction::kBackwards:
         return Range(LineColumn(position.line, ColumnNumber()), position);
     }
-  } else if (structure == StructureLine()) {
+  } else if (structure == Structure::kLine) {
     switch (initial_direction) {
       case Direction::kForwards:
         return Range(position, LineColumn(contents.EndLine(),
@@ -159,32 +159,32 @@ const bool get_range_tests_registration = [] {
       {{.name = L"EmptyBufferCharForwards",
         .callback =
             [] {
-              CHECK_EQ(
-                  GetRange(NewBufferForTests().ptr()->contents(),
-                           Direction::kForwards, StructureChar(), LineColumn()),
-                  Range());
+              CHECK_EQ(GetRange(NewBufferForTests().ptr()->contents(),
+                                Direction::kForwards, Structure::kChar,
+                                LineColumn()),
+                       Range());
             }},
        {.name = L"EmptyBufferCharBackwards",
         .callback =
             [] {
               CHECK_EQ(GetRange(NewBufferForTests().ptr()->contents(),
-                                Direction::kBackwards, StructureChar(),
+                                Direction::kBackwards, Structure::kChar,
                                 LineColumn()),
                        Range());
             }},
        {.name = L"EmptyBufferLineForwards",
         .callback =
             [] {
-              CHECK_EQ(
-                  GetRange(NewBufferForTests().ptr()->contents(),
-                           Direction::kForwards, StructureLine(), LineColumn()),
-                  Range());
+              CHECK_EQ(GetRange(NewBufferForTests().ptr()->contents(),
+                                Direction::kForwards, Structure::kLine,
+                                LineColumn()),
+                       Range());
             }},
        {.name = L"EmptyBufferLineBackwards",
         .callback =
             [] {
               CHECK_EQ(GetRange(NewBufferForTests().ptr()->contents(),
-                                Direction::kBackwards, StructureLine(),
+                                Direction::kBackwards, Structure::kLine,
                                 LineColumn()),
                        Range());
             }},
@@ -192,7 +192,7 @@ const bool get_range_tests_registration = [] {
         .callback =
             [&] {
               CHECK_EQ(GetRange(non_empty_buffer().ptr()->contents(),
-                                Direction::kForwards, StructureChar(),
+                                Direction::kForwards, Structure::kChar,
                                 LineColumn(LineNumber(1), ColumnNumber(4))),
                        Range(LineColumn(LineNumber(1), ColumnNumber(4)),
                              LineColumn(LineNumber(1), ColumnNumber(9))));
@@ -201,7 +201,7 @@ const bool get_range_tests_registration = [] {
         .callback =
             [&] {
               CHECK_EQ(GetRange(non_empty_buffer().ptr()->contents(),
-                                Direction::kBackwards, StructureChar(),
+                                Direction::kBackwards, Structure::kChar,
                                 LineColumn(LineNumber(1), ColumnNumber(4))),
                        Range(LineColumn(LineNumber(1), ColumnNumber(0)),
                              LineColumn(LineNumber(1), ColumnNumber(4))));
@@ -210,14 +210,14 @@ const bool get_range_tests_registration = [] {
         .callback =
             [&] {
               CHECK_EQ(GetRange(non_empty_buffer().ptr()->contents(),
-                                Direction::kForwards, StructureLine(),
+                                Direction::kForwards, Structure::kLine,
                                 LineColumn(LineNumber(1), ColumnNumber(4))),
                        Range(LineColumn(LineNumber(1), ColumnNumber(4)),
                              LineColumn(LineNumber(3), ColumnNumber(6))));
             }},
        {.name = L"NonEmptyBufferLineBackwards", .callback = [&] {
           CHECK_EQ(GetRange(non_empty_buffer().ptr()->contents(),
-                            Direction::kBackwards, StructureLine(),
+                            Direction::kBackwards, Structure::kLine,
                             LineColumn(LineNumber(1), ColumnNumber(4))),
                    Range(LineColumn(LineNumber(0), ColumnNumber(0)),
                          LineColumn(LineNumber(1), ColumnNumber(4))));

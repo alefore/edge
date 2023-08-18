@@ -21,7 +21,7 @@ LineColumn MoveInRange(Range range, Modifiers modifiers) {
   return modifiers.direction == Direction::kForwards ? range.end : range.begin;
 }
 
-Seek StartSeekToLimit(Structure::SeekInput input) {
+Seek StartSeekToLimit(const SeekInput& input) {
   input.position->line =
       std::min(input.contents.EndLine(), input.position->line);
   if (input.position->column >=
@@ -35,62 +35,230 @@ Seek StartSeekToLimit(Structure::SeekInput input) {
   }
   return Seek(input.contents, input.position);
 }
+
+bool FindTreeRange(const NonNull<std::shared_ptr<const ParseTree>>& root,
+                   LineColumn position, Direction direction, Range* output) {
+  NonNull<const ParseTree*> tree = root.get();
+  while (true) {
+    // Each iteration descends by one level in the parse tree.
+    size_t child = 0;
+    auto get_child = [=](size_t i) {
+      CHECK_LT(i, tree->children().size());
+      if (direction == Direction::kBackwards) {
+        i = tree->children().size() - i - 1;  // From last to first.
+      }
+      return NonNull<const ParseTree*>::AddressOf(tree->children()[i]);
+    };
+    while (child < tree->children().size() &&
+           (get_child(child)->children().empty() ||
+            (direction == Direction::kForwards
+                 ? get_child(child)->range().end <= position
+                 : get_child(child)->range().begin > position))) {
+      child++;
+    }
+
+    if (child < tree->children().size() &&
+        (direction == Direction::kForwards ? tree->range().begin < position
+                                           : tree->range().end > position)) {
+      tree = get_child(child);
+      continue;
+    }
+    *output = tree->range();
+    return true;
+  }
+}
 }  // namespace
 
-Structure* StructureChar() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"char"; }
-
-    Structure* Lower() override { return StructureChar(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kBuffer; }
-
-    void SeekToNext(SeekInput) override {}
-
-    bool SeekToLimit(SeekInput input) override {
-      return StartSeekToLimit(input)
-                 .WrappingLines()
-                 .WithDirection(input.direction)
-                 .Once() == Seek::DONE;
-    }
-
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn,
-                                   Range range,
-                                   const Modifiers& modifiers) override {
-      return MoveInRange(range, modifiers);
-    }
-  };
-  static Impl output;
-  return &output;
+std::ostream& operator<<(std::ostream& os, const Structure& structure) {
+  switch (structure) {
+    case Structure::kChar:
+      os << "char";
+      break;
+    case Structure::kWord:
+      os << "word";
+      break;
+    case Structure::kSymbol:
+      os << "symbol";
+      break;
+    case Structure::kLine:
+      os << "line";
+      break;
+    case Structure::kMark:
+      os << "mark";
+      break;
+    case Structure::kPage:
+      os << "page";
+      break;
+    case Structure::kSearch:
+      os << "search";
+      break;
+    case Structure::kTree:
+      os << "tree";
+      break;
+    case Structure::kCursor:
+      os << "cursor";
+      break;
+    case Structure::kSentence:
+      os << "sentence";
+      break;
+    case Structure::kParagraph:
+      os << "paragraph";
+      break;
+    case Structure::kBuffer:
+      os << "buffer";
+      break;
+  }
+  return os;
 }
 
-Structure* StructureWord() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"word"; }
+std::wstring ToString(Structure structure) {
+  std::ostringstream os;
+  os << structure;
+  return language::FromByteString(os.str());
+}
 
-    Structure* Lower() override { return StructureChar(); }
+Structure StructureLower(Structure structure) {
+  switch (structure) {
+    case Structure::kChar:
+      return Structure::kChar;
+    case Structure::kWord:
+      return Structure::kChar;
+    case Structure::kSymbol:
+      return Structure::kWord;
+    case Structure::kLine:
+      return Structure::kSymbol;
+    case Structure::kMark:
+      return Structure::kLine;
+    case Structure::kPage:
+      return Structure::kMark;
+    case Structure::kSearch:
+      return Structure::kPage;
+    case Structure::kTree:
+      return Structure::kTree;
+    case Structure::kCursor:
+      return Structure::kSearch;
+    case Structure::kSentence:
+      return Structure::kSymbol;
+    case Structure::kParagraph:
+      return Structure::kSentence;
+    case Structure::kBuffer:
+      return Structure::kCursor;
+  }
+  LOG(FATAL) << "Invalid structure";
+  return Structure::kChar;
+}
 
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
+StructureSpaceBehavior GetStructureSpaceBehavior(Structure structure) {
+  switch (structure) {
+    case Structure::kLine:
+    case Structure::kSentence:
+      return StructureSpaceBehavior::kBackwards;
+    default:
+      return StructureSpaceBehavior::kForwards;
+  }
+}
 
-    SearchQuery search_query() override { return SearchQuery::kRegion; }
+StructureSearchQuery GetStructureSearchQuery(Structure structure) {
+  switch (structure) {
+    case Structure::kWord:
+    case Structure::kSymbol:
+      return StructureSearchQuery::kRegion;
+    default:
+      return StructureSearchQuery::kPrompt;
+  }
+}
 
-    SearchRange search_range() override { return SearchRange::kBuffer; }
+StructureSearchRange GetStructureSearchRange(Structure structure) {
+  switch (structure) {
+    case Structure::kLine:
+    case Structure::kTree:
+    case Structure::kCursor:
+    case Structure::kSentence:
+    case Structure::kParagraph:
+      return StructureSearchRange::kRegion;
+    default:
+      return StructureSearchRange::kBuffer;
+  }
+}
 
-    void SeekToNext(SeekInput input) override {
+namespace {
+const std::wstring exclamation_signs = L".?!:";
+const std::wstring spaces = L" \n*#";
+}  // namespace
+
+void SeekToNext(SeekInput input) {
+  switch (input.structure) {
+    case Structure::kChar:
+    case Structure::kMark:
+    case Structure::kPage:
+    case Structure::kSearch:
+    case Structure::kCursor:
+    case Structure::kBuffer:
+      return;
+
+    case Structure::kWord:
       Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .WrappingLines()
           .UntilCurrentCharIsAlpha();
-    }
+      return;
 
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kSymbol:
+      Seek(input.contents, input.position)
+          .WithDirection(input.direction)
+          .WrappingLines()
+          .UntilCurrentCharIn(input.symbol_characters);
+      return;
+
+    case Structure::kLine:
+      switch (input.direction) {
+        case Direction::kForwards: {
+          auto seek = Seek(input.contents, input.position).WrappingLines();
+          if (seek.read() == L'\n') seek.Once();
+          return;
+        }
+        case Direction::kBackwards:
+          return;
+      }
+      LOG(FATAL) << "Invalid direction value.";
+      return;
+
+    case Structure::kTree: {
+      Range range;
+      if (!FindTreeRange(input.parse_tree, *input.position, input.direction,
+                         &range)) {
+        return;
+      }
+      if (!range.Contains(*input.position)) {
+        *input.position = range.begin;
+      }
+    }
+      return;
+
+    case Structure::kSentence:
+      Seek(input.contents, input.position)
+          .WithDirection(input.direction)
+          .WrappingLines()
+          .UntilCurrentCharNotIn(spaces);
+      return;
+
+    case Structure::kParagraph:
+      Seek(input.contents, input.position)
+          .WithDirection(input.direction)
+          .UntilNextLineIsNotSubsetOf(input.line_prefix_characters);
+      return;
+  }
+}
+
+bool SeekToLimit(SeekInput input) {
+  switch (input.structure) {
+    case Structure::kChar:
+      return StartSeekToLimit(input)
+                 .WrappingLines()
+                 .WithDirection(input.direction)
+                 .Once() == Seek::DONE;
+
+    case Structure::kWord: {
       StartSeekToLimit(input);
       auto seek = Seek(input.contents, input.position)
                       .WithDirection(input.direction)
@@ -109,85 +277,14 @@ Structure* StructureWord() {
       return true;
     }
 
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn,
-                                   Range range,
-                                   const Modifiers& modifiers) override {
-      return MoveInRange(range, modifiers);
-    }
-  };
-  static Impl output;
-  return &output;
-}
-
-Structure* StructureSymbol() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"symbol"; }
-
-    Structure* Lower() override { return StructureWord(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kRegion; }
-
-    SearchRange search_range() override { return SearchRange::kBuffer; }
-
-    void SeekToNext(SeekInput input) override {
-      Seek(input.contents, input.position)
-          .WithDirection(input.direction)
-          .WrappingLines()
-          .UntilCurrentCharIn(input.symbol_characters);
-    }
-
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kSymbol:
       StartSeekToLimit(input);
       return Seek(input.contents, input.position)
                  .WithDirection(input.direction)
                  .WrappingLines()
                  .UntilCurrentCharNotIn(input.symbol_characters) == Seek::DONE;
-    }
 
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn,
-                                   Range range,
-                                   const Modifiers& modifiers) override {
-      return MoveInRange(range, modifiers);
-    }
-  };
-  static Impl output;
-  return &output;
-}
-
-Structure* StructureLine() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"line"; }
-
-    Structure* Lower() override { return StructureSymbol(); }
-
-    SpaceBehavior space_behavior() override {
-      return SpaceBehavior::kBackwards;
-    }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kRegion; }
-
-    void SeekToNext(SeekInput input) override {
-      switch (input.direction) {
-        case Direction::kForwards: {
-          auto seek = Seek(input.contents, input.position).WrappingLines();
-          if (seek.read() == L'\n') seek.Once();
-          return;
-        }
-        case Direction::kBackwards:
-          return;
-      }
-      LOG(FATAL) << "Invalid direction value.";
-    }
-
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kLine: {
       StartSeekToLimit(input);
       switch (input.direction) {
         case Direction::kForwards:
@@ -205,232 +302,13 @@ Structure* StructureLine() {
       return false;
     }
 
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents& contents,
-                                   LineColumn position, Range,
-                                   const Modifiers& modifiers) override {
-      int direction = (modifiers.direction == Direction::kBackwards ? -1 : 1);
-      size_t repetitions = modifiers.repetitions.value_or(1);
-      if (modifiers.direction == Direction::kBackwards &&
-          repetitions > position.line.read()) {
-        position = LineColumn();
-      } else {
-        VLOG(5) << "Move: " << position.line << " " << direction << " "
-                << repetitions;
-        position.line += LineNumberDelta(direction * repetitions);
-        if (position.line > contents.EndLine()) {
-          position = LineColumn(contents.EndLine(),
-                                std::numeric_limits<ColumnNumber>::max());
-        }
-      }
-      return position;
-    }
-  };
-  static Impl output;
-  return &output;
-}
-
-namespace {
-template <typename Iterator>
-static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
-                                  LineColumn current,
-                                  const Modifiers& modifiers) {
-  using P = std::pair<const LineColumn, LineMarks::Mark>;
-  Iterator it = std::upper_bound(
-      it_begin, it_end,
-      P(LineColumn(current.line),
-        LineMarks::Mark{.source_line = LineNumber(),
-                        .target_line_column = LineColumn()}),
-      modifiers.direction == Direction::kForwards
-          ? [](const P& a, const P& b) { return a.first < b.first; }
-          : [](const P& a, const P& b) { return a.first > b.first; });
-  if (it == it_end) {
-    return current;
-  }
-
-  for (size_t i = 1; i < modifiers.repetitions; i++) {
-    LineColumn position = it->first;
-    ++it;
-    // Skip more marks for the same line.
-    while (it != it_end && it->first == position) {
-      ++it;
-    }
-    if (it == it_end) {
-      // Can't move past the current mark.
-      return position;
-    }
-  }
-
-  return it->second.target_line_column;
-}
-}  // namespace
-
-Structure* StructureMark() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"mark"; }
-
-    Structure* Lower() override { return StructureLine(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kBuffer; }
-
-    void SeekToNext(SeekInput) override {}
-
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kMark:
+    case Structure::kPage:
+    case Structure::kSearch:
       StartSeekToLimit(input);
-      // TODO: Implement.
-      return true;
-    }
+      return true;  // TODO: Implement.
 
-    std::optional<LineColumn> Move(
-        const OperationScopeBufferInformation& buffer_information,
-        const BufferContents&, LineColumn position, Range,
-        const Modifiers& modifiers) override {
-      switch (modifiers.direction) {
-        case Direction::kForwards:
-          return GetMarkPosition(buffer_information.line_marks.begin(),
-                                 buffer_information.line_marks.end(), position,
-                                 modifiers);
-          break;
-        case Direction::kBackwards:
-          return GetMarkPosition(buffer_information.line_marks.rbegin(),
-                                 buffer_information.line_marks.rend(), position,
-                                 modifiers);
-      }
-      CHECK(false);
-      return std::nullopt;
-    }
-
-   private:
-  };
-  static Impl output;
-  return &output;
-}
-
-LineNumberDelta ComputePageMoveLines(
-    std::optional<LineNumberDelta> view_size_lines, double margin_lines_ratio,
-    std::optional<size_t> repetitions) {
-  static const auto kDefaultScreenLines = LineNumberDelta(24);
-  const LineNumberDelta screen_lines(
-      std::max(0.2, 1.0 - 2.0 * margin_lines_ratio) *
-      static_cast<double>(
-          (view_size_lines ? *view_size_lines : kDefaultScreenLines).read()));
-  return repetitions.value_or(1) * screen_lines - LineNumberDelta(1);
-}
-
-namespace {
-bool compute_page_move_lines_test_registration = tests::Register(
-    L"ComputePageMoveLines",
-    std::vector<tests::Test>(
-        {{.name = L"Simple",
-          .callback =
-              [] {
-                CHECK_EQ(ComputePageMoveLines(LineNumberDelta(10), 0.2, 1),
-                         LineNumberDelta(5));
-              }},
-         {.name = L"Large", .callback = [] {
-            CHECK_EQ(ComputePageMoveLines(LineNumberDelta(100), 0.1, 5),
-                     LineNumberDelta(399));
-          }}}));
-}
-
-Structure* StructurePage() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"page"; }
-
-    Structure* Lower() override { return StructureMark(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kBuffer; }
-
-    void SeekToNext(SeekInput) override {}
-
-    bool SeekToLimit(SeekInput input) override {
-      StartSeekToLimit(input);
-      // TODO: Implement.
-      return true;
-    }
-
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation& scope,
-                                   const BufferContents& contents,
-                                   LineColumn position, Range range,
-                                   const Modifiers& modifiers) override {
-      LineNumberDelta lines_to_move = ComputePageMoveLines(
-          scope.screen_lines, scope.margin_lines_ratio, modifiers.repetitions);
-      return StructureLine()->Move(scope, contents, position, range,
-                                   {.structure = StructureLine(),
-                                    .direction = modifiers.direction,
-                                    .repetitions = lines_to_move.read()});
-    }
-  };
-  static Impl output;
-  return &output;
-}
-
-Structure* StructureSearch() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"search"; }
-
-    Structure* Lower() override { return StructurePage(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kBuffer; }
-
-    void SeekToNext(SeekInput) override {}
-
-    bool SeekToLimit(SeekInput input) override {
-      StartSeekToLimit(input);
-      // TODO: Implement.
-      return true;
-    }
-
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn, Range,
-                                   const Modifiers&) override {
-      return std::nullopt;
-    }
-  };
-  static Impl output;
-  return &output;
-}
-
-Structure* StructureTree() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"tree"; }
-
-    Structure* Lower() override { return StructureTree(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kRegion; }
-
-    void SeekToNext(SeekInput input) override {
-      Range range;
-      if (!FindTreeRange(input.parse_tree, *input.position, input.direction,
-                         &range)) {
-        return;
-      }
-      if (!range.Contains(*input.position)) {
-        *input.position = range.begin;
-      }
-    }
-
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kTree: {
       StartSeekToLimit(input);
       Range range;
       if (!FindTreeRange(input.parse_tree, *input.position, input.direction,
@@ -446,71 +324,9 @@ Structure* StructureTree() {
           return true;
       }
       LOG(FATAL) << "Invalid direction value.";
+    }
       return false;
-    }
-
-   private:
-    bool FindTreeRange(const NonNull<std::shared_ptr<const ParseTree>>& root,
-                       LineColumn position, Direction direction,
-                       Range* output) {
-      NonNull<const ParseTree*> tree = root.get();
-      while (true) {
-        // Each iteration descends by one level in the parse tree.
-        size_t child = 0;
-        auto get_child = [=](size_t i) {
-          CHECK_LT(i, tree->children().size());
-          if (direction == Direction::kBackwards) {
-            i = tree->children().size() - i - 1;  // From last to first.
-          }
-          return NonNull<const ParseTree*>::AddressOf(tree->children()[i]);
-        };
-        while (child < tree->children().size() &&
-               (get_child(child)->children().empty() ||
-                (direction == Direction::kForwards
-                     ? get_child(child)->range().end <= position
-                     : get_child(child)->range().begin > position))) {
-          child++;
-        }
-
-        if (child < tree->children().size() &&
-            (direction == Direction::kForwards
-                 ? tree->range().begin < position
-                 : tree->range().end > position)) {
-          tree = get_child(child);
-          continue;
-        }
-        *output = tree->range();
-        return true;
-      }
-    }
-
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn,
-                                   Range range,
-                                   const Modifiers& modifiers) override {
-      return MoveInRange(range, modifiers);
-    }
-  };
-  static Impl output;
-  return &output;
-}
-
-Structure* StructureCursor() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"cursor"; }
-
-    Structure* Lower() override { return StructureSearch(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kRegion; }
-
-    void SeekToNext(SeekInput) override {}
-
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kCursor: {
       StartSeekToLimit(input);
       bool has_boundary = false;
       LineColumn boundary;
@@ -533,45 +349,10 @@ Structure* StructureCursor() {
         Seek(input.contents, &boundary).WithDirection(input.direction).Once();
       }
       *input.position = boundary;
+    }
       return true;
-    }
 
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn, Range,
-                                   const Modifiers&) override {
-      return std::nullopt;
-    }
-  };
-  static Impl output;
-  return &output;
-}
-
-Structure* StructureSentence() {
-  static const std::wstring exclamation_signs = L".?!:";
-  static const std::wstring spaces = L" \n*#";
-  // The exclamation signs at the end are considered part of the sentence.
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"sentence"; }
-
-    Structure* Lower() override { return StructureSymbol(); }
-
-    SpaceBehavior space_behavior() override {
-      return SpaceBehavior::kBackwards;
-    }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kRegion; }
-
-    void SeekToNext(SeekInput input) override {
-      Seek(input.contents, input.position)
-          .WithDirection(input.direction)
-          .WrappingLines()
-          .UntilCurrentCharNotIn(spaces);
-    }
-
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kSentence: {
       StartSeekToLimit(input);
       if (input.direction == Direction::kBackwards) {
         Seek(input.contents, input.position)
@@ -608,70 +389,14 @@ Structure* StructureSentence() {
       }
     }
 
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn, Range,
-                                   const Modifiers&) override {
-      return std::nullopt;
-    }
-  };
-  static Impl output;
-  return &output;
-};
-
-Structure* StructureParagraph() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"paragraph"; }
-
-    Structure* Lower() override { return StructureLine(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kRegion; }
-
-    void SeekToNext(SeekInput input) override {
-      Seek(input.contents, input.position)
-          .WithDirection(input.direction)
-          .UntilNextLineIsNotSubsetOf(input.line_prefix_characters);
-    }
-
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kParagraph:
       return StartSeekToLimit(input)
                  .WithDirection(input.direction)
                  .WrappingLines()
                  .UntilNextLineIsSubsetOf(input.line_prefix_characters) ==
              Seek::DONE;
-    }
 
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn,
-                                   Range range,
-                                   const Modifiers& modifiers) override {
-      return MoveInRange(range, modifiers);
-    }
-  };
-  static Impl output;
-  return &output;
-}
-
-Structure* StructureBuffer() {
-  class Impl : public Structure {
-   public:
-    std::wstring ToString() override { return L"buffer"; }
-
-    Structure* Lower() override { return StructureCursor(); }
-
-    SpaceBehavior space_behavior() override { return SpaceBehavior::kForwards; }
-
-    SearchQuery search_query() override { return SearchQuery::kPrompt; }
-
-    SearchRange search_range() override { return SearchRange::kBuffer; }
-
-    void SeekToNext(SeekInput) override {}
-
-    bool SeekToLimit(SeekInput input) override {
+    case Structure::kBuffer:
       StartSeekToLimit(input);
       if (input.direction == Direction::kBackwards) {
         *input.position = LineColumn();
@@ -680,15 +405,134 @@ Structure* StructureBuffer() {
         *input.position = input.contents.range().end;
       }
       return false;
+  }
+  LOG(FATAL) << "Invalid structure or case didn't return: " << input.structure;
+  return false;
+}
+
+namespace {
+template <typename Iterator>
+static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
+                                  LineColumn current,
+                                  const Modifiers& modifiers) {
+  using P = std::pair<const LineColumn, LineMarks::Mark>;
+  Iterator it = std::upper_bound(
+      it_begin, it_end,
+      P(LineColumn(current.line),
+        LineMarks::Mark{.source_line = LineNumber(),
+                        .target_line_column = LineColumn()}),
+      modifiers.direction == Direction::kForwards
+          ? [](const P& a, const P& b) { return a.first < b.first; }
+          : [](const P& a, const P& b) { return a.first > b.first; });
+  if (it == it_end) {
+    return current;
+  }
+
+  for (size_t i = 1; i < modifiers.repetitions; i++) {
+    LineColumn position = it->first;
+    ++it;
+    // Skip more marks for the same line.
+    while (it != it_end && it->first == position) {
+      ++it;
+    }
+    if (it == it_end) {
+      // Can't move past the current mark.
+      return position;
+    }
+  }
+
+  return it->second.target_line_column;
+}
+
+LineNumberDelta ComputePageMoveLines(
+    std::optional<LineNumberDelta> view_size_lines, double margin_lines_ratio,
+    std::optional<size_t> repetitions) {
+  static const auto kDefaultScreenLines = LineNumberDelta(24);
+  const LineNumberDelta screen_lines(
+      std::max(0.2, 1.0 - 2.0 * margin_lines_ratio) *
+      static_cast<double>(
+          (view_size_lines ? *view_size_lines : kDefaultScreenLines).read()));
+  return repetitions.value_or(1) * screen_lines - LineNumberDelta(1);
+}
+
+bool compute_page_move_lines_test_registration = tests::Register(
+    L"ComputePageMoveLines",
+    std::vector<tests::Test>(
+        {{.name = L"Simple",
+          .callback =
+              [] {
+                CHECK_EQ(ComputePageMoveLines(LineNumberDelta(10), 0.2, 1),
+                         LineNumberDelta(5));
+              }},
+         {.name = L"Large", .callback = [] {
+            CHECK_EQ(ComputePageMoveLines(LineNumberDelta(100), 0.1, 5),
+                     LineNumberDelta(399));
+          }}}));
+}  // namespace
+
+std::optional<LineColumn> Move(
+    const OperationScopeBufferInformation& buffer_information,
+    Structure structure, const BufferContents& contents, LineColumn position,
+    Range range, const Modifiers& modifiers) {
+  switch (structure) {
+    case Structure::kChar:
+    case Structure::kWord:
+    case Structure::kSymbol:
+    case Structure::kTree:
+    case Structure::kParagraph:
+      return MoveInRange(range, modifiers);
+
+    case Structure::kLine: {
+      int direction = (modifiers.direction == Direction::kBackwards ? -1 : 1);
+      size_t repetitions = modifiers.repetitions.value_or(1);
+      if (modifiers.direction == Direction::kBackwards &&
+          repetitions > position.line.read()) {
+        position = LineColumn();
+      } else {
+        VLOG(5) << "Move: " << position.line << " " << direction << " "
+                << repetitions;
+        position.line += LineNumberDelta(direction * repetitions);
+        if (position.line > contents.EndLine()) {
+          position = LineColumn(contents.EndLine(),
+                                std::numeric_limits<ColumnNumber>::max());
+        }
+      }
+      return position;
     }
 
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const BufferContents&, LineColumn, Range,
-                                   const Modifiers&) override {
+    case Structure::kMark: {
+      switch (modifiers.direction) {
+        case Direction::kForwards:
+          return GetMarkPosition(buffer_information.line_marks.begin(),
+                                 buffer_information.line_marks.end(), position,
+                                 modifiers);
+          break;
+        case Direction::kBackwards:
+          return GetMarkPosition(buffer_information.line_marks.rbegin(),
+                                 buffer_information.line_marks.rend(), position,
+                                 modifiers);
+      }
+      CHECK(false);
       return std::nullopt;
     }
-  };
-  static Impl output;
-  return &output;
+
+    case Structure::kPage:
+      return Move(
+          buffer_information, Structure::kLine, contents, position, range,
+          {.structure = Structure::kLine,
+           .direction = modifiers.direction,
+           .repetitions =
+               ComputePageMoveLines(buffer_information.screen_lines,
+                                    buffer_information.margin_lines_ratio,
+                                    modifiers.repetitions)
+                   .read()});
+    case Structure::kSearch:
+    case Structure::kCursor:
+    case Structure::kSentence:
+    case Structure::kBuffer:
+      return std::nullopt;
+  }
+  LOG(FATAL) << "Invalid structure or case didn't return: " << structure;
+  return std::nullopt;
 }
 }  // namespace afc::editor

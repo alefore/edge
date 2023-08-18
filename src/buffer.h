@@ -504,8 +504,8 @@ class OpenBuffer {
   void UpdateLastAction();
   void InsertLines(std::vector<language::NonNull<std::shared_ptr<const Line>>>);
 
-  Structure::SeekInput NewSeekInput(Direction direction,
-                                    LineColumn* position) const;
+  SeekInput NewSeekInput(Structure structure, Direction direction,
+                         LineColumn* position) const;
 
   const Options options_;
 

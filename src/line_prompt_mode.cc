@@ -978,7 +978,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
       OpenBuffer& buffer,
       NonNull<std::shared_ptr<BufferContents>> contents_to_insert) {
     buffer.ApplyToCursors(transformation::Delete{
-        .modifiers = {.structure = StructureLine(),
+        .modifiers = {.structure = Structure::kLine,
                       .paste_buffer_behavior =
                           Modifiers::PasteBufferBehavior::kDoNothing,
                       .boundary_begin = Modifiers::LIMIT_CURRENT,
@@ -1040,7 +1040,7 @@ class LinePromptCommand : public Command {
     auto buffer = editor_state_.current_buffer();
     if (!buffer.has_value()) return;
     auto options = options_supplier_();
-    if (editor_state_.structure() == StructureLine()) {
+    if (editor_state_.structure() == Structure::kLine) {
       editor_state_.ResetStructure();
       VisitPointer(
           buffer->ptr()->current_line(),
@@ -1137,7 +1137,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Delete{
                             .modifiers =
-                                {.structure = StructureLine(),
+                                {.structure = Structure::kLine,
                                  .paste_buffer_behavior =
                                      Modifiers::PasteBufferBehavior::kDoNothing,
                                  .boundary_begin = Modifiers::LIMIT_CURRENT,

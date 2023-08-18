@@ -130,8 +130,8 @@ class EditorState {
   Modifiers modifiers() const;
   void set_modifiers(const Modifiers& modifiers);
 
-  Structure* structure() const;
-  void set_structure(Structure* structure);
+  Structure structure() const;
+  void set_structure(Structure structure);
   void ResetStructure();
 
   bool sticky_structure() const;

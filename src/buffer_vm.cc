@@ -288,7 +288,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](gc::Root<OpenBuffer> buffer) {
-            if (buffer.ptr()->editor().structure() == StructureLine()) {
+            if (buffer.ptr()->editor().structure() == Structure::kLine) {
               auto target_buffer =
                   buffer.ptr()->current_line()->buffer_line_column();
               if (target_buffer.has_value()) {
@@ -310,7 +310,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](gc::Root<OpenBuffer> buffer) {
-            if (buffer.ptr()->editor().structure() == StructureLine()) {
+            if (buffer.ptr()->editor().structure() == Structure::kLine) {
               auto target_buffer =
                   buffer.ptr()->current_line()->buffer_line_column();
               if (target_buffer.has_value()) {
@@ -332,7 +332,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](gc::Root<OpenBuffer> buffer) {
-            if (buffer.ptr()->editor().structure() == StructureLine()) {
+            if (buffer.ptr()->editor().structure() == Structure::kLine) {
               if (auto target_buffer =
                       buffer.ptr()->current_line()->buffer_line_column();
                   target_buffer.has_value()) {
@@ -356,7 +356,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
           [](gc::Root<OpenBuffer> buffer) {
-            if (buffer.ptr()->editor().structure() == StructureLine()) {
+            if (buffer.ptr()->editor().structure() == Structure::kLine) {
               auto target_buffer =
                   buffer.ptr()->current_line()->buffer_line_column();
               if (target_buffer.has_value()) {
