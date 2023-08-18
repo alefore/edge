@@ -23,6 +23,7 @@ cc_library(
     deps = [
         ":input",
         ":result",
+        "//src:buffer",
         "//src:cursors",
         "//src:line_column",
         "//src/futures",
@@ -35,8 +36,9 @@ cc_library(
     hdrs = ["delete.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//src:modifiers",
+        ":input",
         "//src:line_modifier",
+        "//src:modifiers",
     ],
 )
 
@@ -141,8 +143,8 @@ cc_library(
     srcs = ["switch_case.cc"],
     hdrs = ["switch_case.h"],
     deps = [
-        "//src:modifiers",
         "//src:line_column",
+        "//src:modifiers",
     ],
 )
 

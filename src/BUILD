@@ -5,6 +5,7 @@ cc_binary(
         ":args",
         ":audio",
         ":buffer_variables",
+        ":status_tests",
     ],
 )
 
@@ -85,6 +86,7 @@ cc_library(
     srcs = ["buffer.cc"],
     hdrs = ["buffer.h"],
     deps = [
+        ":audio",
         ":buffer_contents",
         ":buffer_name",
         ":buffer_syntax_parser",
@@ -162,11 +164,19 @@ cc_library(
     srcs = ["buffer_terminal.cc"],
     hdrs = ["buffer_terminal.h"],
     deps = [
+        ":audio",
+        ":buffer_contents",
+        ":file_descriptor_reader",
         ":fuzz_testable",
         ":line_column",
         ":line_modifier",
+        ":status",
+        "//src/infrastructure:file_system_driver",
         "//src/language:safe_types",
+        "//src/language:wstring",
         "//src/language/lazy_string",
+        "//src/language/lazy_string:char_buffer",
+        "//src/language/lazy_string:substring",
     ],
 )
 
@@ -234,6 +244,7 @@ cc_library(
     deps = [
         ":buffer_contents",
         ":lru_cache",
+        ":parse_tools",
         ":parse_tree",
         "//src/language:safe_types",
     ],
@@ -578,6 +589,10 @@ cc_library(
     name = "parse_tools",
     srcs = ["parse_tools.cc"],
     hdrs = ["parse_tools.h"],
+    deps = [
+        ":line_column",
+        ":seek",
+    ],
 )
 
 cc_library(
@@ -746,13 +761,23 @@ cc_library(
     hdrs = ["status.h"],
     deps = [
         ":audio",
-        # ":buffer",
         ":line",
         ":line_modifier",
         "//src/infrastructure:time",
         "//src/language:gc",
         "//src/language:ghost_type",
         "//src/language:overload",
+    ],
+)
+
+cc_library(
+    name = "status_tests",
+    srcs = ["status_tests.cc"],
+    deps = [
+        ":buffer",
+        ":status",
+        "//src/language:gc",
+        "//src/language:safe_types",
         "//src/tests",
     ],
 )
@@ -811,8 +836,8 @@ cc_library(
     visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":direction",
-        ":modifiers",
         ":line",
+        ":modifiers",
         "//src/futures",
     ],
 )
