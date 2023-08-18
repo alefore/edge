@@ -535,7 +535,8 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                              .validator = std::bind_front(
                                  ResolvePathOptions<EmptyValue>::CanStatPath,
                                  std::make_shared<FileSystemDriver>(
-                                     options.editor_state.thread_pool()))})
+                                     options.editor_state.thread_pool()),
+                                 options.stat_validator)})
                   .Transform([options](ResolvePathOutput<EmptyValue> input) {
                     return futures::Past(Success(CreateBuffer(options, input)));
                   });

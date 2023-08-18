@@ -36,6 +36,10 @@ struct OpenFileOptions {
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;
   std::vector<infrastructure::Path> initial_search_paths = {};
+
+  // You can use this if you want to ignore specific files.
+  std::function<language::PossibleError(struct stat)> stat_validator =
+      [](struct stat) { return language::Success(); };
 };
 
 futures::Value<std::vector<infrastructure::Path>> GetSearchPaths(
@@ -66,7 +70,9 @@ struct ResolvePathOptions {
         .search_paths = std::move(search_paths),
         .home_directory = editor_state.home_directory(),
         .validator = [file_system_driver](const infrastructure::Path& path) {
-          return CanStatPath(file_system_driver, path);
+          return CanStatPath(
+              file_system_driver,
+              [](struct stat) { return language::Success(); }, path);
         }};
   }
 
@@ -82,10 +88,10 @@ struct ResolvePathOptions {
 
   static futures::Value<language::PossibleError> CanStatPath(
       std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver,
+      std::function<language::PossibleError(struct stat)> stat_validator,
       const infrastructure::Path& path) {
     VLOG(5) << "Considering path: " << path;
-    return file_system_driver->Stat(path).Transform(
-        [](struct stat) { return language::Success(); });
+    return file_system_driver->Stat(path).Transform(stat_validator);
   }
 };
 
