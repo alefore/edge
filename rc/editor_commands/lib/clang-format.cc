@@ -32,19 +32,20 @@ string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
 
 if (extension == "cc" || extension == "h" || extension == "cpp" ||
     extension == "java") {
-  reformat_command = "clang-format ";
-  reformat_command_in_place = reformat_command + " -i ";
+  reformat_command = "clang-format";
+  reformat_command_in_place = "clang-format -i ";
 } else if (extension == "sql" || extension == "sqlt" || extension == "sqlm") {
-  reformat_command = "~/bin/format_sql ";
-  reformat_command_in_place = reformat_command + "-in_place ";
+  reformat_command = "~/bin/format_sql <";
+  reformat_command_in_place = "~/bin/format_sql -in_place ";
 }
 
 if (reformat_command != "") {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(
-      "test ! -f " + path.shell_escape() + "||" + reformat_command + "<" +
+      "test ! -f " + path.shell_escape() + "||" + reformat_command + " " +
       path.shell_escape() + "| diff " + path.shell_escape() +
-      " /dev/stdin || edge --run 'editor.OpenFile(\"'" + path.shell_escape() +
+      " /dev/stdin > /tmp/edge-clang-format-diff-log " +
+      "|| edge --run 'editor.OpenFile(\"'" + path.shell_escape() +
       "'\", false).SetWarningStatus(\"clang-format: File is not properly "
       "formatted.\");'");
   options.set_insertion_type("ignore");
