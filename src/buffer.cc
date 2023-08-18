@@ -1522,9 +1522,17 @@ std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
       return std::nullopt;
     }
 
+    language::ObservableValue<LineColumnDelta>& view_size() override {
+      return buffer_.display_data().view_size();
+    }
+
     Status& status() override { return buffer_.status(); }
 
     const BufferContents& contents() override { return buffer_.contents(); }
+
+    LineColumn current_widget_view_start() override {
+      return buffer_.editor().buffer_tree().GetActiveLeaf().view_start();
+    }
 
     void JumpToPosition(LineColumn position) override {
       buffer_.set_position(position);

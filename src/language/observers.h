@@ -98,6 +98,9 @@ class ObservableValue : public Observable {
   // Adds a callback that will be updated whenever the value changes.
   //
   // We will only notify the observers after `Get` returns a value.
+  //
+  // TODO(easy, 2023-08-18): This should probably be const. That requires us to
+  // reevaluate the const semantics of the superclass.
   void Add(Observers::Observer observer) override {
     if (value_.has_value()) observer();
     observers_.Add(std::move(observer));

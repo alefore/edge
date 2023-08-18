@@ -32,7 +32,7 @@ BufferTerminal::BufferTerminal(
     : data_(MakeNonNullShared<Data>(Data{.receiver = std::move(receiver),
                                          .buffer = buffer,
                                          .contents = contents})) {
-  data_->buffer.display_data().view_size().Add(Observers::LockingObserver(
+  data_->receiver->view_size().Add(Observers::LockingObserver(
       std::weak_ptr<Data>(data_.get_shared()), InternalUpdateSize));
 
   LOG(INFO) << "New BufferTerminal for " << data_->receiver->name();
@@ -282,11 +282,8 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
           }
           DLOG(INFO) << "Move cursor home: line: " << delta.line
                      << ", column: " << delta.column;
-          data_->position = data_->buffer.editor()
-                                .buffer_tree()
-                                .GetActiveLeaf()
-                                .view_start() +
-                            delta;
+          data_->position =
+              data_->receiver->current_widget_view_start() + delta;
           while (data_->position.line > data_->receiver->contents().EndLine()) {
             data_->buffer.AppendEmptyLine();
           }
@@ -413,7 +410,7 @@ void BufferTerminal::InternalUpdateSize(Data& data) {
 
 /* static */
 LineColumnDelta BufferTerminal::LastViewSize(Data& data) {
-  return data.buffer.display_data().view_size().Get().value_or(
+  return data.receiver->view_size().Get().value_or(
       LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }
 

@@ -40,9 +40,18 @@ class BufferTerminal : public fuzz::FuzzTestable {
 
     virtual std::optional<infrastructure::FileDescriptor> fd() = 0;
 
+    // Every buffer should keep track of the last size of a widget that has
+    // displayed it. BufferTerminal uses this to be notified when it changes and
+    // propagate that information to the underlying file descriptor (e.g., so
+    // that $LINES shell variable is updated).
+    virtual language::ObservableValue<LineColumnDelta>& view_size() = 0;
+
     virtual Status& status() = 0;
 
     virtual const BufferContents& contents() = 0;
+
+    // Return the position of the start of the current view.
+    virtual LineColumn current_widget_view_start() = 0;
 
     virtual void JumpToPosition(LineColumn position) = 0;
   };
