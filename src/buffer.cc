@@ -1512,9 +1512,15 @@ std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
       buffer_.EraseLines(first, last);
     }
 
+    void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
+
     Status& status() override { return buffer_.status(); }
 
     const BufferContents& contents() override { return buffer_.contents(); }
+
+    void JumpToPosition(LineColumn position) override {
+      buffer_.set_position(position);
+    }
 
    private:
     OpenBuffer& buffer_;

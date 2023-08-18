@@ -55,7 +55,6 @@ void BufferTerminal::ProcessCommandInput(
 
   ColumnNumber read_index;
   VLOG(5) << "Terminal input: " << str->ToString();
-  auto follower = data_->buffer.GetEndPositionFollower();
   while (read_index < ColumnNumber(0) + str->size()) {
     int c = str->get(read_index);
     ++read_index;
@@ -97,6 +96,7 @@ void BufferTerminal::ProcessCommandInput(
       LOG(INFO) << "Unknown character: [" << c << "]\n";
     }
   }
+  data_->receiver->JumpToPosition(data_->position);
 }
 
 std::vector<fuzz::Handler> BufferTerminal::FuzzHandlers() {
@@ -255,8 +255,8 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
       case 'C':
         VLOG(9) << "Terminal: cuf1: non-destructive space (move right 1 space)";
         if (data_->position.column < current_line->EndColumn()) {
-          auto follower = data_->buffer.GetEndPositionFollower();
           data_->position.column++;
+          data_->receiver->JumpToPosition(data_->position);
         }
         return read_index;
 
@@ -289,11 +289,10 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
                                 .GetActiveLeaf()
                                 .view_start() +
                             delta;
-          auto follower = data_->buffer.GetEndPositionFollower();
           while (data_->position.line > data_->receiver->contents().EndLine()) {
             data_->buffer.AppendEmptyLine();
           }
-          follower = nullptr;
+          data_->receiver->JumpToPosition(data_->position);
         }
         return read_index;
 
@@ -374,13 +373,13 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
 }
 
 void BufferTerminal::MoveToNextLine() {
-  auto follower = data_->buffer.GetEndPositionFollower();
   ++data_->position.line;
   data_->position.column = ColumnNumber(0);
   if (data_->position.line ==
       LineNumber(0) + data_->receiver->contents().size()) {
     data_->buffer.AppendEmptyLine();
   }
+  data_->receiver->JumpToPosition(data_->position);
 }
 
 void BufferTerminal::UpdateSize() { InternalUpdateSize(data_.value()); }

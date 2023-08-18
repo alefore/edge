@@ -31,9 +31,13 @@ class BufferTerminal : public fuzz::FuzzTestable {
     // Erases all lines in range [first, last).
     virtual void EraseLines(LineNumber first, LineNumber last) = 0;
 
+    virtual void AppendEmptyLine() = 0;
+
     virtual Status& status() = 0;
 
     virtual const BufferContents& contents() = 0;
+
+    virtual void JumpToPosition(LineColumn position) = 0;
   };
 
   BufferTerminal(std::unique_ptr<Receiver> receiver, OpenBuffer& buffer,
