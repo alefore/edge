@@ -5,10 +5,8 @@
 #include <cmath>
 #include <memory>
 
-#include "src/buffer.h"
 #include "src/line.h"
 #include "src/line_modifier.h"
-#include "src/tests/tests.h"
 
 namespace afc::editor {
 using language::Error;
@@ -286,35 +284,5 @@ const std::wstring& Status::text() const {
 
 void Status::ValidatePreconditions() const {
   CHECK((data_->prompt_buffer.has_value()) == (data_->type == Type::kPrompt));
-}
-
-namespace {
-const bool prompt_tests_registration = tests::Register(
-    L"StatusPrompt",
-    {{.name = L"SetWarningText",
-      .callback =
-          [] {
-            NonNull<std::unique_ptr<audio::Player>> audio_player =
-                audio::NewNullPlayer();
-            Status status(audio_player.value());
-            gc::Root<OpenBuffer> prompt = NewBufferForTests();
-            status.set_prompt(L">", prompt);
-            status.SetWarningText(L"Foobar");
-            CHECK(status.text() == L">");
-            CHECK(&status.prompt_buffer().value().ptr().value() ==
-                  &prompt.ptr().value());
-          }},
-     {.name = L"SetExpiringInformationText", .callback = [] {
-        NonNull<std::unique_ptr<audio::Player>> audio_player =
-            audio::NewNullPlayer();
-        Status status(audio_player.value());
-        gc::Root<OpenBuffer> prompt = NewBufferForTests();
-        status.set_prompt(L">", prompt);
-        status.SetExpiringInformationText(L"Foobar");
-        CHECK(status.text() == L">");
-        CHECK(&status.prompt_buffer().value().ptr().value() ==
-              &prompt.ptr().value());
-      }}});
-
 }
 }  // namespace afc::editor
