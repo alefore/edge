@@ -2,9 +2,9 @@
 
 #include <glog/logging.h>
 
-#include "src/buffer.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/lru_cache.h"
 #include "src/parse_tools.h"
@@ -53,19 +53,20 @@ class CppTreeParser : public TreeParser {
         identifier_behavior_(identifier_behavior),
         cache_(1) {}
 
-  ParseTree FindChildren(const BufferContents& buffer, Range range) override {
+  ParseTree FindChildren(const BufferContents& contents, Range range) override {
     static Tracker top_tracker(L"CppTreeParser::FindChildren");
     auto top_call = top_tracker.Call();
-    cache_.SetMaxSize(buffer.size().read());
+    cache_.SetMaxSize(contents.size().read());
 
     std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
     std::vector<ParseTree> trees = {ParseTree(range)};
     range.ForEachLine([&](LineNumber i) {
-      size_t hash = GetLineHash(buffer.at(i)->contents().value(), states_stack);
+      size_t hash =
+          GetLineHash(contents.at(i)->contents().value(), states_stack);
       auto parse_results = cache_.Get(hash, [&] {
         static Tracker tracker(L"CppTreeParser::FindChildren::Parse");
         auto call = tracker.Call();
-        ParseData data(buffer, std::move(states_stack),
+        ParseData data(contents, std::move(states_stack),
                        std::min(LineColumn(i + LineNumberDelta(1)), range.end));
         data.set_position(std::max(LineColumn(i), range.begin));
         ParseLine(&data);
@@ -82,11 +83,11 @@ class CppTreeParser : public TreeParser {
     });
 
     auto final_position =
-        LineColumn(buffer.EndLine(), buffer.back()->EndColumn());
+        LineColumn(contents.EndLine(), contents.back()->EndColumn());
     if (final_position >= range.end) {
       DVLOG(5) << "Draining final states: " << states_stack.size();
-      ParseData data(buffer, std::move(states_stack),
-                     std::min(LineColumn(LineNumber(0) + buffer.size() +
+      ParseData data(contents, std::move(states_stack),
+                     std::min(LineColumn(LineNumber(0) + contents.size() +
                                          LineNumberDelta(1)),
                               range.end));
       while (data.parse_results()->states_stack.size() > 1) {
