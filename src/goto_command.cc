@@ -19,6 +19,9 @@ namespace afc::editor {
 using infrastructure::Tracker;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+
 namespace {
 // Arguments:
 //   prefix_len: The length of prefix that we skip when calls is 0.
@@ -50,6 +53,95 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
   }
   LOG(FATAL) << "Invalid direction.";
   return 0;
+}
+
+std::optional<LineColumn> ComputeGoToPosition(Structure* structure,
+                                              const OpenBuffer& buffer,
+                                              const Modifiers& modifiers,
+                                              LineColumn position, int calls) {
+  if (structure == StructureChar()) {
+    const std::wstring& line_prefix_characters =
+        buffer.Read(buffer_variables::line_prefix_characters);
+    const auto& line = buffer.LineAt(position.line);
+    if (line == nullptr) return std::nullopt;
+    ColumnNumber start =
+        FindFirstColumnWithPredicate(line->contents().value(), [&](ColumnNumber,
+                                                                   wchar_t c) {
+          return line_prefix_characters.find(c) == std::wstring::npos;
+        }).value_or(line->EndColumn());
+    ColumnNumber end = line->EndColumn();
+    while (start + ColumnNumberDelta(1) < end &&
+           (line_prefix_characters.find(
+                line->get(end - ColumnNumberDelta(1))) != std::wstring::npos)) {
+      end--;
+    }
+    position.column = ColumnNumber(ComputePosition(
+        start.read(), end.read(), line->EndColumn().read(), modifiers.direction,
+        modifiers.repetitions.value_or(1), calls));
+    CHECK_LE(position.column, line->EndColumn());
+    return position;
+  } else if (structure == StructureSymbol()) {
+    position.column = modifiers.direction == Direction::kBackwards
+                          ? buffer.LineAt(position.line)->EndColumn()
+                          : ColumnNumber();
+
+    VLOG(4) << "Start SYMBOL GotoCommand: " << modifiers;
+    Range range = buffer.FindPartialRange(modifiers, position);
+    switch (modifiers.direction) {
+      case Direction::kForwards: {
+        Modifiers modifiers_copy = modifiers;
+        modifiers_copy.repetitions = 1;
+        range = buffer.FindPartialRange(
+            modifiers_copy, buffer.contents().PositionBefore(range.end));
+        position = range.begin;
+      } break;
+
+      case Direction::kBackwards: {
+        Modifiers modifiers_copy = modifiers;
+        modifiers_copy.repetitions = 1;
+        modifiers_copy.direction = Direction::kForwards;
+        range = buffer.FindPartialRange(modifiers_copy, range.begin);
+        position = buffer.contents().PositionBefore(range.end);
+      } break;
+    }
+    return position;
+  } else if (structure == StructureLine()) {
+    size_t lines = buffer.EndLine().read();
+    position.line =
+        LineNumber(ComputePosition(0, lines, lines, modifiers.direction,
+                                   modifiers.repetitions.value_or(1), calls));
+    CHECK_LE(position.line, LineNumber(0) + buffer.contents().size());
+    return position;
+  } else if (structure == StructureMark()) {
+    // Navigates marks in the current buffer.
+    const std::multimap<LineColumn, LineMarks::Mark>& marks =
+        buffer.GetLineMarks();
+    std::vector<std::pair<LineColumn, LineMarks::Mark>> lines;
+    std::unique_copy(marks.begin(), marks.end(), std::back_inserter(lines),
+                     [](const std::pair<LineColumn, LineMarks::Mark>& entry1,
+                        const std::pair<LineColumn, LineMarks::Mark>& entry2) {
+                       return (entry1.first.line == entry2.first.line);
+                     });
+    size_t index =
+        ComputePosition(0, lines.size(), lines.size(), modifiers.direction,
+                        modifiers.repetitions.value_or(1), calls);
+    CHECK_LE(index, lines.size());
+    return lines.at(index).first;
+  } else if (structure == StructurePage()) {
+    CHECK_GT(buffer.contents().size(), LineNumberDelta(0));
+    std::optional<LineColumnDelta> view_size =
+        buffer.display_data().view_size().Get();
+    auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
+    size_t pages = ceil(static_cast<double>(buffer.contents().size().read()) /
+                        lines.read());
+    position.line =
+        LineNumber(0) +
+        lines * ComputePosition(0, pages, pages, modifiers.direction,
+                                modifiers.repetitions.value_or(1), calls);
+    CHECK_LT(position.line.ToDelta(), buffer.contents().size());
+    return position;
+  } else
+    return std::nullopt;
 }
 
 class GotoCommand : public Command {
@@ -116,8 +208,8 @@ futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
     CompositeTransformation::Input input) const {
   static Tracker tracker(L"GotoTransformation::Apply");
   auto call = tracker.Call();
-  auto position = input.modifiers.structure->ComputeGoToPosition(
-      input.buffer, input.modifiers, input.position, calls_);
+  auto position = ComputeGoToPosition(input.modifiers.structure, input.buffer,
+                                      input.modifiers, input.position, calls_);
   return futures::Past(
       position.has_value() ? Output::SetPosition(position.value()) : Output());
 }
