@@ -1908,7 +1908,36 @@ OpenBuffer::OpenBufferForCurrentPosition(
                               .path = std::get<Path>(path),
                               .insertion_type =
                                   BuffersList::AddBufferType::kIgnore,
-                              .use_search_paths = false})
+                              .use_search_paths = false,
+                              .stat_validator = [](struct stat st)
+                                  -> language::PossibleError {
+                                switch (st.st_mode & S_IFMT) {
+                                  case S_IFBLK:
+                                    return Error(
+                                        L"Path for URL has unexpected type: "
+                                        L"block device\n");
+                                  case S_IFCHR:
+                                    return Error(
+                                        L"Path for URL has unexpected type: "
+                                        L"character device\n");
+                                  case S_IFIFO:
+                                    return Error(
+                                        L"Path for URL has unexpected type: "
+                                        L"FIFO/pipe\n");
+                                  case S_IFSOCK:
+                                    return Error(
+                                        L"Path for URL has unexpected type: "
+                                        L"socket\n");
+                                  case S_IFLNK:
+                                  case S_IFREG:
+                                  case S_IFDIR:
+                                    return Success();
+                                  default:
+                                    return Error(
+                                        L"Path for URL has unexpected type: "
+                                        L"unknown\n");
+                                }
+                              }})
                    .Transform([data](gc::Root<OpenBuffer> buffer_context) {
                      data->output = buffer_context;
                      return futures::Past(
