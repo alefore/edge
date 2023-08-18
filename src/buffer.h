@@ -406,7 +406,8 @@ class OpenBuffer {
 
   infrastructure::FileSystemDriver& file_system_driver() const;
 
-  std::unique_ptr<BufferTerminal> NewTerminal();  // Public for testing.
+  language::NonNull<std::unique_ptr<BufferTerminal>>
+  NewTerminal();  // Public for testing.
 
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.

@@ -62,7 +62,8 @@ class BufferTerminal : public fuzz::FuzzTestable {
     virtual void JumpToPosition(LineColumn position) = 0;
   };
 
-  BufferTerminal(std::unique_ptr<Receiver> receiver, BufferContents& contents);
+  BufferTerminal(language::NonNull<std::unique_ptr<Receiver>> receiver,
+                 BufferContents& contents);
 
   // Propagates the last view size to buffer->fd().
   void UpdateSize();
@@ -81,7 +82,7 @@ class BufferTerminal : public fuzz::FuzzTestable {
     // The last size written to buffer->fd() by UpdateSize.
     std::optional<LineColumnDelta> last_updated_size = std::nullopt;
 
-    std::unique_ptr<Receiver> receiver;
+    language::NonNull<std::unique_ptr<Receiver>> receiver;
 
     // TODO: Find a way to remove this? I.e. always use buffer_.
     BufferContents& contents;

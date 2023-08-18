@@ -29,7 +29,7 @@ using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 
 BufferTerminal::BufferTerminal(
-    std::unique_ptr<BufferTerminal::Receiver> receiver,
+    NonNull<std::unique_ptr<BufferTerminal::Receiver>> receiver,
     BufferContents& contents)
     : data_(MakeNonNullShared<Data>(
           Data{.receiver = std::move(receiver), .contents = contents})) {

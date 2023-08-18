@@ -1503,7 +1503,7 @@ VisualOverlayMap OpenBuffer::SetVisualOverlayMap(VisualOverlayMap value) {
   return previous_value;
 }
 
-std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
+NonNull<std::unique_ptr<BufferTerminal>> OpenBuffer::NewTerminal() {
   class Adapter : public BufferTerminal::Receiver {
    public:
     Adapter(OpenBuffer& buffer) : buffer_(buffer) {}
@@ -1546,8 +1546,8 @@ std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
     OpenBuffer& buffer_;
   };
 
-  return std::make_unique<BufferTerminal>(std::make_unique<Adapter>(*this),
-                                          contents_);
+  return MakeNonNullUnique<BufferTerminal>(MakeNonNullUnique<Adapter>(*this),
+                                           contents_);
 }
 
 const std::shared_ptr<const Line> OpenBuffer::current_line() const {
@@ -1675,7 +1675,7 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
   }
 
   CHECK_EQ(child_pid_, -1);
-  terminal_ = fd_is_terminal ? NewTerminal() : nullptr;
+  terminal_ = fd_is_terminal ? std::move(NewTerminal().get_unique()) : nullptr;
 
   auto new_reader = [this](FileDescriptor fd, LineModifierSet modifiers)
       -> std::unique_ptr<FileDescriptorReader> {
