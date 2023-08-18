@@ -1,3 +1,5 @@
+#include "paths.cc"
+
 string path = buffer.path();
 bool clang_format = false;
 string reformat_command = "";
@@ -27,8 +29,7 @@ void ClangFormatToggle() {
   }
 }
 
-int dot = path.find_last_of(".", path.size());
-string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
+string extension = Extension(path);
 
 if (extension == "cc" || extension == "h" || extension == "cpp" ||
     extension == "java") {
