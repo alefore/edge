@@ -1504,7 +1504,24 @@ VisualOverlayMap OpenBuffer::SetVisualOverlayMap(VisualOverlayMap value) {
 }
 
 std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
-  return std::make_unique<BufferTerminal>(*this, contents_);
+  class Adapter : public BufferTerminal::Receiver {
+   public:
+    Adapter(OpenBuffer& buffer) : buffer_(buffer) {}
+
+    void EraseLines(LineNumber first, LineNumber last) override {
+      buffer_.EraseLines(first, last);
+    }
+
+    Status& status() override { return buffer_.status(); }
+
+    const BufferContents& contents() override { return buffer_.contents(); }
+
+   private:
+    OpenBuffer& buffer_;
+  };
+
+  return std::make_unique<BufferTerminal>(std::make_unique<Adapter>(*this),
+                                          *this, contents_);
 }
 
 const std::shared_ptr<const Line> OpenBuffer::current_line() const {

@@ -17,12 +17,27 @@ namespace afc::editor {
 
 class OpenBuffer;
 class BufferContents;
+class Status;
 
 // If the buffer holds an underlying process with a terminal (PTS),
 // BufferTerminal holds its state.
+//
+// TODO(trivial, 2023-08-18): Find a better name. Perhaps
+// `TerminalInputProcessor`.
 class BufferTerminal : public fuzz::FuzzTestable {
  public:
-  BufferTerminal(OpenBuffer& buffer, BufferContents& contents);
+  class Receiver {
+   public:
+    // Erases all lines in range [first, last).
+    virtual void EraseLines(LineNumber first, LineNumber last) = 0;
+
+    virtual Status& status() = 0;
+
+    virtual const BufferContents& contents() = 0;
+  };
+
+  BufferTerminal(std::unique_ptr<Receiver> receiver, OpenBuffer& buffer,
+                 BufferContents& contents);
 
   // Propagates the last view size to buffer->fd().
   void UpdateSize();
@@ -41,6 +56,7 @@ class BufferTerminal : public fuzz::FuzzTestable {
     // The last size written to buffer->fd() by UpdateSize.
     std::optional<LineColumnDelta> last_updated_size = std::nullopt;
 
+    std::unique_ptr<Receiver> receiver;
     OpenBuffer& buffer;
 
     // TODO: Find a way to remove this? I.e. always use buffer_.

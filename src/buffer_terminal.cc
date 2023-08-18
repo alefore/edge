@@ -27,9 +27,12 @@ using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 
-BufferTerminal::BufferTerminal(OpenBuffer& buffer, BufferContents& contents)
-    : data_(MakeNonNullShared<Data>(
-          Data{.buffer = buffer, .contents = contents})) {
+BufferTerminal::BufferTerminal(
+    std::unique_ptr<BufferTerminal::Receiver> receiver, OpenBuffer& buffer,
+    BufferContents& contents)
+    : data_(MakeNonNullShared<Data>(Data{.receiver = std::move(receiver),
+                                         .buffer = buffer,
+                                         .contents = contents})) {
   data_->buffer.display_data().view_size().Add(Observers::LockingObserver(
       std::weak_ptr<Data>(data_.get_shared()), InternalUpdateSize));
 
@@ -47,7 +50,7 @@ void BufferTerminal::ProcessCommandInput(
     NonNull<std::shared_ptr<LazyString>> str,
     const std::function<void()>& new_line_callback) {
   data_->position.line =
-      std::min(data_->position.line, data_->buffer.EndLine());
+      std::min(data_->position.line, data_->receiver->contents().EndLine());
   std::unordered_set<LineModifier, std::hash<int>> modifiers;
 
   ColumnNumber read_index;
@@ -63,7 +66,7 @@ void BufferTerminal::ProcessCommandInput(
       }
     } else if (c == '\a') {
       VLOG(8) << "Received \\a";
-      data_->buffer.status().Bell();
+      data_->receiver->status().Bell();
       audio::BeepFrequencies(
           data_->buffer.editor().audio_player(), 0.1,
           {audio::Frequency(783.99), audio::Frequency(523.25),
@@ -79,7 +82,7 @@ void BufferTerminal::ProcessCommandInput(
       VLOG(8) << "Received 0x1b";
       read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
       VLOG(9) << "Modifiers: " << modifiers.size();
-      CHECK_LE(data_->position.line, data_->buffer.EndLine());
+      CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
     } else if (isprint(c) || c == '\t') {
       VLOG(8) << "Received printable or tab: " << c
               << " (modifiers: " << modifiers.size() << ", position "
@@ -135,8 +138,8 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
                 << Substring(str, read_index)->ToString();
   }
   ++read_index;
-  CHECK_LE(data_->position.line, data_->buffer.EndLine());
-  auto current_line = data_->buffer.LineAt(data_->position.line);
+  CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
+  auto current_line = data_->receiver->contents().at(data_->position.line);
   std::string sequence;
   while (read_index.ToDelta() < str->size()) {
     int c = str->get(read_index);
@@ -274,7 +277,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
               delta.line = LineNumberDelta(stoul(sequence));
             }
           } catch (const std::invalid_argument& ia) {
-            data_->buffer.status().SetWarningText(
+            data_->receiver->status().SetWarningText(
                 L"Unable to parse sequence from terminal in 'home' command: "
                 L"\"" +
                 FromByteString(sequence) + L"\"");
@@ -287,7 +290,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
                                 .view_start() +
                             delta;
           auto follower = data_->buffer.GetEndPositionFollower();
-          while (data_->position.line > data_->buffer.EndLine()) {
+          while (data_->position.line > data_->receiver->contents().EndLine()) {
             data_->buffer.AppendEmptyLine();
           }
           follower = nullptr;
@@ -299,35 +302,39 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
         // Clears part of the screen.
         if (sequence == "" || sequence == "0") {
           VLOG(10) << "ed: Clear from cursor to end of screen.";
-          data_->buffer.EraseLines(data_->position.line + LineNumberDelta(1),
-                                   LineNumber(0) + data_->buffer.lines_size());
+          data_->receiver->EraseLines(
+              data_->position.line + LineNumberDelta(1),
+              LineNumber(0) + data_->receiver->contents().size());
           data_->contents.DeleteToLineEnd(data_->position);
         } else if (sequence == "1") {
           VLOG(10) << "ed: Clear from cursor to beginning of the screen.";
-          data_->buffer.EraseLines(LineNumber(0), data_->position.line);
+          data_->receiver->EraseLines(LineNumber(0), data_->position.line);
           data_->contents.DeleteCharactersFromLine(
               LineColumn(), data_->position.column.ToDelta());
           data_->position = LineColumn();
         } else if (sequence == "2") {
           VLOG(10) << "ed: Clear entire screen (and moves cursor to upper left "
                       "on DOS ANSI.SYS).";
-          data_->buffer.EraseLines(LineNumber(0),
-                                   LineNumber(0) + data_->buffer.lines_size());
+          data_->receiver->EraseLines(
+              LineNumber(0),
+              LineNumber(0) + data_->receiver->contents().size());
           data_->position = LineColumn();
         } else if (sequence == "3") {
           VLOG(10) << "ed: Clear entire screen and delete all lines saved in "
                       "the scrollback buffer (this feature was added for xterm "
                       "and is supported by other terminal applications).";
-          data_->buffer.EraseLines(LineNumber(0),
-                                   LineNumber(0) + data_->buffer.lines_size());
+          data_->receiver->EraseLines(
+              LineNumber(0),
+              LineNumber(0) + data_->receiver->contents().size());
           data_->position = LineColumn();
         } else {
           VLOG(10) << "ed: Unknown sequence: " << sequence;
-          data_->buffer.EraseLines(LineNumber(0),
-                                   LineNumber(0) + data_->buffer.lines_size());
+          data_->receiver->EraseLines(
+              LineNumber(0),
+              LineNumber(0) + data_->receiver->contents().size());
           data_->position = LineColumn();
         }
-        CHECK_LE(data_->position.line, data_->buffer.EndLine());
+        CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
         return read_index;
 
       case 'K': {
@@ -339,9 +346,9 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
       case 'M':
         VLOG(9) << "Terminal: dl1: delete one line.";
         {
-          data_->buffer.EraseLines(data_->position.line,
-                                   data_->position.line + LineNumberDelta(1));
-          CHECK_LE(data_->position.line, data_->buffer.EndLine());
+          data_->receiver->EraseLines(
+              data_->position.line, data_->position.line + LineNumberDelta(1));
+          CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
         }
         return read_index;
 
@@ -355,7 +362,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
               data_->position,
               std::min(chars_to_erase, end_column - data_->position.column));
         }
-        current_line = data_->buffer.LineAt(data_->position.line);
+        current_line = data_->receiver->contents().at(data_->position.line);
         return read_index;
       }
       default:
@@ -370,7 +377,8 @@ void BufferTerminal::MoveToNextLine() {
   auto follower = data_->buffer.GetEndPositionFollower();
   ++data_->position.line;
   data_->position.column = ColumnNumber(0);
-  if (data_->position.line == LineNumber(0) + data_->buffer.lines_size()) {
+  if (data_->position.line ==
+      LineNumber(0) + data_->receiver->contents().size()) {
     data_->buffer.AppendEmptyLine();
   }
 }
