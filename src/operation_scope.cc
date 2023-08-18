@@ -4,6 +4,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_display_data.h"
+#include "src/buffer_variables.h"
 #include "src/concurrent/protected.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/tests/tests.h"
@@ -18,13 +19,16 @@ OperationScopeBufferInformation OperationScope::get(
     std::pair<Map::iterator, bool> insert_results =
         data.insert({&buffer, OperationScopeBufferInformation()});
     if (insert_results.second) {
-      insert_results.first->second.screen_lines =
-          buffer.display_data()
-              .view_size()
-              .Get()
-              .value_or(
-                  LineColumnDelta{LineNumberDelta{24}, ColumnNumberDelta{80}})
-              .line;
+      insert_results.first->second = {
+          .screen_lines = buffer.display_data()
+                              .view_size()
+                              .Get()
+                              .value_or(LineColumnDelta{LineNumberDelta{24},
+                                                        ColumnNumberDelta{80}})
+                              .line,
+          .line_marks = buffer.GetLineMarks(),
+          .margin_lines_ratio =
+              buffer.Read(buffer_variables::margin_lines_ratio)};
     }
     DVLOG(4) << "OperationScope::get(" << &buffer
              << "): Lines: " << insert_results.first->second.screen_lines;

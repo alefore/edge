@@ -79,8 +79,9 @@ class Structure {
   virtual bool SeekToLimit(SeekInput input) = 0;
 
   virtual std::optional<LineColumn> Move(
-      const OperationScopeBufferInformation& scope, const OpenBuffer& buffer,
-      LineColumn position, Range range, const Modifiers& modifiers) = 0;
+      const OperationScopeBufferInformation& scope,
+      const BufferContents& contents, LineColumn position, Range range,
+      const Modifiers& modifiers) = 0;
 };
 
 Structure* StructureChar();

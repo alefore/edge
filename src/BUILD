@@ -544,10 +544,21 @@ cc_library(
 )
 
 cc_library(
+    name = "operation_scope_buffer_information",
+    hdrs = ["operation_scope_buffer_information.h"],
+    deps = [
+        ":line_column",
+    ],
+)
+
+cc_library(
     name = "operation_scope",
     srcs = ["operation_scope.cc"],
     hdrs = ["operation_scope.h"],
     deps = [
+        ":buffer",
+        ":buffer_variables",
+        ":operation_scope_buffer_information",
         "//src/concurrent:protected",
     ],
 )
@@ -563,6 +574,7 @@ cc_library(
     srcs = ["parse_tree.cc"],
     hdrs = ["parse_tree.h"],
     deps = [
+        ":buffer",
         ":buffer_contents",
         ":line_column",
         ":line_modifier",
@@ -745,13 +757,10 @@ cc_library(
     srcs = ["structure.cc"],
     hdrs = ["structure.h"],
     deps = [
-        ":buffer",
         ":buffer_contents",
-        ":buffer_variables",
         ":direction",
-        ":editor",
         ":line_column",
-        ":operation_scope",
+        ":operation_scope_buffer_information",
         ":parse_tree",
         ":seek",
         "//src/language/lazy_string",

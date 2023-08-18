@@ -5,19 +5,10 @@
 
 #include "src/concurrent/protected.h"
 #include "src/line_column.h"
+#include "src/operation_scope_buffer_information.h"
 
 namespace afc::editor {
 class OpenBuffer;
-
-// Freezes information about buffers in the scope of an operation. This makes
-// the operation repeatable: if the information changes in the buffers, those
-// changes won't affect repeated applications of the operation.
-//
-// This is used for PageUp/PageDown. If the screen sizes, we still scroll by the
-// original screen size.
-struct OperationScopeBufferInformation {
-  LineNumberDelta screen_lines;
-};
 
 class OperationScope {
  public:

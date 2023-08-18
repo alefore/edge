@@ -2,12 +2,9 @@
 
 #include <glog/logging.h>
 
-#include "src/buffer.h"
 #include "src/buffer_contents.h"
-#include "src/buffer_variables.h"
-#include "src/editor.h"
 #include "src/language/lazy_string/functional.h"
-#include "src/operation_scope.h"
+#include "src/operation_scope_buffer_information.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
 #include "src/tests/tests.h"
@@ -62,7 +59,8 @@ Structure* StructureChar() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range range,
+                                   const BufferContents&, LineColumn,
+                                   Range range,
                                    const Modifiers& modifiers) override {
       return MoveInRange(range, modifiers);
     }
@@ -111,7 +109,8 @@ Structure* StructureWord() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range range,
+                                   const BufferContents&, LineColumn,
+                                   Range range,
                                    const Modifiers& modifiers) override {
       return MoveInRange(range, modifiers);
     }
@@ -149,7 +148,8 @@ Structure* StructureSymbol() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range range,
+                                   const BufferContents&, LineColumn,
+                                   Range range,
                                    const Modifiers& modifiers) override {
       return MoveInRange(range, modifiers);
     }
@@ -205,7 +205,7 @@ Structure* StructureLine() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer& buffer,
+                                   const BufferContents& contents,
                                    LineColumn position, Range,
                                    const Modifiers& modifiers) override {
       int direction = (modifiers.direction == Direction::kBackwards ? -1 : 1);
@@ -217,8 +217,8 @@ Structure* StructureLine() {
         VLOG(5) << "Move: " << position.line << " " << direction << " "
                 << repetitions;
         position.line += LineNumberDelta(direction * repetitions);
-        if (position.line > buffer.contents().EndLine()) {
-          position = LineColumn(buffer.contents().EndLine(),
+        if (position.line > contents.EndLine()) {
+          position = LineColumn(contents.EndLine(),
                                 std::numeric_limits<ColumnNumber>::max());
         }
       }
@@ -285,19 +285,19 @@ Structure* StructureMark() {
       return true;
     }
 
-    std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer& buffer,
-                                   LineColumn position, Range,
-                                   const Modifiers& modifiers) override {
-      const std::multimap<LineColumn, LineMarks::Mark>& marks =
-          buffer.GetLineMarks();
+    std::optional<LineColumn> Move(
+        const OperationScopeBufferInformation& buffer_information,
+        const BufferContents&, LineColumn position, Range,
+        const Modifiers& modifiers) override {
       switch (modifiers.direction) {
         case Direction::kForwards:
-          return GetMarkPosition(marks.begin(), marks.end(), position,
+          return GetMarkPosition(buffer_information.line_marks.begin(),
+                                 buffer_information.line_marks.end(), position,
                                  modifiers);
           break;
         case Direction::kBackwards:
-          return GetMarkPosition(marks.rbegin(), marks.rend(), position,
+          return GetMarkPosition(buffer_information.line_marks.rbegin(),
+                                 buffer_information.line_marks.rend(), position,
                                  modifiers);
       }
       CHECK(false);
@@ -359,13 +359,12 @@ Structure* StructurePage() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation& scope,
-                                   const OpenBuffer& buffer,
+                                   const BufferContents& contents,
                                    LineColumn position, Range range,
                                    const Modifiers& modifiers) override {
       LineNumberDelta lines_to_move = ComputePageMoveLines(
-          scope.screen_lines, buffer.Read(buffer_variables::margin_lines_ratio),
-          modifiers.repetitions);
-      return StructureLine()->Move(scope, buffer, position, range,
+          scope.screen_lines, scope.margin_lines_ratio, modifiers.repetitions);
+      return StructureLine()->Move(scope, contents, position, range,
                                    {.structure = StructureLine(),
                                     .direction = modifiers.direction,
                                     .repetitions = lines_to_move.read()});
@@ -397,7 +396,7 @@ Structure* StructureSearch() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range,
+                                   const BufferContents&, LineColumn, Range,
                                    const Modifiers&) override {
       return std::nullopt;
     }
@@ -485,7 +484,8 @@ Structure* StructureTree() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range range,
+                                   const BufferContents&, LineColumn,
+                                   Range range,
                                    const Modifiers& modifiers) override {
       return MoveInRange(range, modifiers);
     }
@@ -536,7 +536,7 @@ Structure* StructureCursor() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range,
+                                   const BufferContents&, LineColumn, Range,
                                    const Modifiers&) override {
       return std::nullopt;
     }
@@ -608,7 +608,7 @@ Structure* StructureSentence() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range,
+                                   const BufferContents&, LineColumn, Range,
                                    const Modifiers&) override {
       return std::nullopt;
     }
@@ -645,7 +645,8 @@ Structure* StructureParagraph() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range range,
+                                   const BufferContents&, LineColumn,
+                                   Range range,
                                    const Modifiers& modifiers) override {
       return MoveInRange(range, modifiers);
     }
@@ -681,7 +682,7 @@ Structure* StructureBuffer() {
     }
 
     std::optional<LineColumn> Move(const OperationScopeBufferInformation&,
-                                   const OpenBuffer&, LineColumn, Range,
+                                   const BufferContents&, LineColumn, Range,
                                    const Modifiers&) override {
       return std::nullopt;
     }

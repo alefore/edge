@@ -72,9 +72,9 @@ class MoveTransformation : public CompositeTransformation {
           transformation::SwapActiveCursor{.modifiers = input.modifiers}));
     }
 
-    auto position = structure->Move(operation_scope_.value().get(input.buffer),
-                                    input.buffer, input.original_position,
-                                    input.range, input.modifiers);
+    auto position = structure->Move(
+        operation_scope_.value().get(input.buffer), input.buffer.contents(),
+        input.original_position, input.range, input.modifiers);
 
     if (!position.has_value()) {
       input.buffer.status().SetWarningText(L"Unhandled structure: " +
