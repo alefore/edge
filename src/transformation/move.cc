@@ -10,6 +10,7 @@
 #include "src/editor.h"
 #include "src/line_marks.h"
 #include "src/operation_scope.h"
+#include "src/structure_move.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"

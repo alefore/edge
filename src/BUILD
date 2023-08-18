@@ -762,10 +762,22 @@ cc_library(
         ":buffer_contents",
         ":direction",
         ":line_column",
-        ":modifiers",
-        ":operation_scope_buffer_information",
         ":parse_tree",
         ":seek",
+        "//src/language/lazy_string",
+    ],
+)
+
+cc_library(
+    name = "structure_move",
+    srcs = ["structure_move.cc"],
+    hdrs = ["structure_move.h"],
+    deps = [
+        ":buffer_contents",
+        ":direction",
+        ":line_column",
+        ":modifiers",
+        ":operation_scope_buffer_information",
         "//src/language/lazy_string",
         "//src/tests",
     ],

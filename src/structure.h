@@ -9,13 +9,10 @@
 
 namespace afc {
 namespace editor {
-
-class Modifiers;
 class DeleteOptions;
 class Transformation;
 class OpenBuffer;
 class BufferContents;
-class OperationScopeBufferInformation;
 class ParseTree;
 
 enum class Structure {
@@ -94,13 +91,6 @@ void SeekToNext(SeekInput input);
 // structure. Returns a boolean indicating whether it successfully found a
 // position outside of the structure.
 bool SeekToLimit(SeekInput input);
-
-std::optional<LineColumn> Move(const OperationScopeBufferInformation& scope,
-                               Structure structure,
-                               const BufferContents& contents,
-                               LineColumn position, Range range,
-                               const Modifiers& modifiers);
-
 }  // namespace editor
 }  // namespace afc
 

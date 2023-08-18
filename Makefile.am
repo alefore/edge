@@ -234,6 +234,9 @@ src/status.h \
 src/status_output_producer.cc \
 src/status_output_producer.h \
 src/structure.cc \
+src/structure.h \
+src/structure_move.cc \
+src/structure_move.h \
 src/terminal.cc \
 src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
