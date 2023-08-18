@@ -147,6 +147,7 @@ cc_library(
     srcs = ["buffer_syntax_parser.cc"],
     hdrs = ["buffer_syntax_parser.h"],
     deps = [
+        ":cpp_parse_tree",
         ":parse_tree",
         "//src/concurrent:protected",
         "//src/concurrent:thread_pool",
@@ -230,6 +231,11 @@ cc_library(
     name = "cpp_parse_tree",
     srcs = ["cpp_parse_tree.cc"],
     hdrs = ["cpp_parse_tree.h"],
+    deps = [
+        ":buffer",
+        ":parse_tree",
+        "//src/language:safe_types",
+    ],
 )
 
 cc_library(
@@ -802,6 +808,7 @@ cc_library(
     visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":direction",
+        ":modifiers",
         ":line",
         "//src/futures",
     ],
