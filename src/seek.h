@@ -3,7 +3,6 @@
 
 #include "src/buffer_contents.h"
 #include "src/line_column.h"
-#include "src/modifiers.h"
 
 namespace afc {
 namespace editor {
