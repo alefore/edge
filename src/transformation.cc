@@ -47,8 +47,6 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     return futures::Past(std::move(output));
   }
 };
-
-;
 }  // namespace
 
 transformation::Variant TransformationAtPosition(
