@@ -7,16 +7,14 @@ extern "C" {
 #include <sys/ioctl.h>
 }
 
-#include "src/audio.h"
 #include "src/buffer_contents.h"
-#include "src/file_descriptor_reader.h"
+#include "src/buffer_name.h"
 #include "src/fuzz.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
-#include "src/status.h"
 
 namespace afc::editor {
 using language::FromByteString;
@@ -64,11 +62,7 @@ void TerminalInputParser::ProcessCommandInput(
       }
     } else if (c == '\a') {
       VLOG(8) << "Received \\a";
-      data_->receiver->status().Bell();
-      audio::BeepFrequencies(
-          data_->receiver->audio_player(), 0.1,
-          {audio::Frequency(783.99), audio::Frequency(523.25),
-           audio::Frequency(659.25)});
+      data_->receiver->Bell();
     } else if (c == '\r') {
       VLOG(8) << "Received \\r";
       data_->position.column = ColumnNumber(0);
@@ -276,7 +270,7 @@ ColumnNumber TerminalInputParser::ProcessTerminalEscapeSequence(
               delta.line = LineNumberDelta(stoul(sequence));
             }
           } catch (const std::invalid_argument& ia) {
-            data_->receiver->status().SetWarningText(
+            data_->receiver->Warn(
                 L"Unable to parse sequence from terminal in 'home' command: "
                 L"\"" +
                 FromByteString(sequence) + L"\"");
@@ -404,8 +398,8 @@ void TerminalInputParser::InternalUpdateSize(Data& data) {
 
   if (ioctl(fd->read(), TIOCSWINSZ, &screen_size) == -1) {
     LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
-    data.receiver->status().SetWarningText(L"ioctl TIOCSWINSZ failed: " +
-                                           FromByteString(strerror(errno)));
+    data.receiver->Warn(L"ioctl TIOCSWINSZ failed: " +
+                        FromByteString(strerror(errno)));
   }
 }
 

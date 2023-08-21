@@ -788,11 +788,9 @@ cc_library(
     srcs = ["terminal_input_parser.cc"],
     hdrs = ["terminal_input_parser.h"],
     deps = [
-        ":audio",
         ":buffer_contents",
-        ":file_descriptor_reader",
+        ":buffer_name",
         ":line_column",
-        ":status",
         "//src/infrastructure:file_system_driver",
         "//src/infrastructure/screen:line_modifier",
         "//src/language:safe_types",

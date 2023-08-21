@@ -1514,10 +1514,6 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
 
     void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
 
-    audio::Player& audio_player() override {
-      return buffer_.editor().audio_player();
-    }
-
     BufferName name() override { return buffer_.name(); }
 
     std::optional<infrastructure::FileDescriptor> fd() {
@@ -1530,7 +1526,17 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
       return buffer_.display_data().view_size();
     }
 
-    Status& status() override { return buffer_.status(); }
+    void Bell() override {
+      buffer_.status().Bell();
+      audio::BeepFrequencies(
+          buffer_.editor().audio_player(), 0.1,
+          {audio::Frequency(783.99), audio::Frequency(523.25),
+           audio::Frequency(659.25)});
+    }
+
+    void Warn(std::wstring warning_text) override {
+      buffer_.status().SetWarningText(warning_text);
+    }
 
     const BufferContents& contents() override { return buffer_.contents(); }
 
