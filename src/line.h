@@ -98,20 +98,29 @@ class LineBuilder {
   LineBuilder& insert_end_of_line_modifiers(LineModifierSet values);
   LineModifierSet copy_end_of_line_modifiers() const;
 
+  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
+      const;
+  size_t modifiers_size() const;
+  void InsertModifier(language::lazy_string::ColumnNumber, LineModifier);
+  void set_modifiers(language::lazy_string::ColumnNumber, LineModifierSet);
+  void set_modifiers(
+      std::map<language::lazy_string::ColumnNumber, LineModifierSet> value);
+  void ClearModifiers();
+
   // TODO: Make these fields private.
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
       contents;
-
-  // Columns without an entry here reuse the last present value. If no
-  // previous value, assume LineModifierSet(). There's no need to include
-  // RESET: it is assumed implicitly. In other words, modifiers don't carry
-  // over past an entry.
-  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers;
 
  private:
   friend Line;
   // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
   friend class std::hash<Line>;
+
+  // Columns without an entry here reuse the last present value. If no
+  // previous value, assume LineModifierSet(). There's no need to include
+  // RESET: it is assumed implicitly. In other words, modifiers don't carry
+  // over past an entry.
+  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers_;
 
   // The semantics of this is that any characters at the end of the line
   // (i.e., the space that represents the end of the line) should be rendered
@@ -163,7 +172,8 @@ class Line {
 
   std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
       const {
-    return data_.lock([](const Data& data) { return data.options.modifiers; });
+    return data_.lock(
+        [](const Data& data) { return data.options.modifiers(); });
   }
   LineModifierSet end_of_line_modifiers() const {
     return data_.lock(

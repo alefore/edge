@@ -45,8 +45,8 @@ void AddContents(const OpenBuffer& source, const Line& input,
   line_options->contents = Append(line_options->contents, trim);
   for (auto& m : input.modifiers()) {
     if (m.first >= ColumnNumber(0) + characters_trimmed) {
-      line_options->modifiers[m.first + initial_length - characters_trimmed] =
-          m.second;
+      line_options->set_modifiers(m.first + initial_length - characters_trimmed,
+                                  m.second);
     }
   }
 }

@@ -142,7 +142,7 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
   LineBuilder line_options;
   line_options.contents = NewLazyString(path + type_it->second.description);
   if (!type_it->second.modifiers.empty()) {
-    line_options.modifiers[ColumnNumber(0)] = (type_it->second.modifiers);
+    line_options.set_modifiers(ColumnNumber(0), type_it->second.modifiers);
   }
 
   line_options.SetMetadata(GetMetadata(target, path));

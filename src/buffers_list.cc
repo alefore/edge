@@ -432,8 +432,8 @@ LineBuilder GetBufferContents(const OpenBuffer& buffer,
   }
 
   output.Append(line->CopyLineBuilder().DeleteSuffix(ColumnNumber() + columns));
-  output.modifiers.clear();
-  output.modifiers.insert({ColumnNumber{}, {LineModifier::kDim}});
+  output.ClearModifiers();
+  output.InsertModifier(ColumnNumber{}, LineModifier::kDim);
   return output;
 }
 

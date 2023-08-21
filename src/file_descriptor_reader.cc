@@ -143,7 +143,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
       LineBuilder line_options;
       line_options.contents =
           Substring(contents, line_start, ColumnNumber(i) - line_start);
-      line_options.modifiers[ColumnNumber(0)] = modifiers;
+      line_options.set_modifiers(ColumnNumber(0), modifiers);
       lines_to_insert.emplace_back(
           MakeNonNullShared<const Line>(std::move(line_options)));
 
@@ -155,7 +155,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
           << contents->size();
   LineBuilder line_options;
   line_options.contents = Substring(contents, line_start);
-  line_options.modifiers[ColumnNumber(0)] = modifiers;
+  line_options.set_modifiers(ColumnNumber(0), modifiers);
   lines_to_insert.emplace_back(
       MakeNonNullShared<Line>(std::move(line_options)));
   return lines_to_insert;

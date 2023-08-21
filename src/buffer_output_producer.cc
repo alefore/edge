@@ -65,13 +65,17 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
       std::nullopt, [generator]() {
         auto output = generator.generate();
         LineBuilder line_options = output.line->CopyLineBuilder();
-        line_options.modifiers.insert({ColumnNumber(0), {}});
-        for (auto& m : line_options.modifiers) {
+        std::map<language::lazy_string::ColumnNumber, LineModifierSet>
+            new_modifiers;
+        new_modifiers.insert({ColumnNumber(0), {}});
+        for (auto& m : line_options.modifiers()) {
           auto it = m.second.insert(LineModifier::kReverse);
           if (!it.second) {
             m.second.erase(it.first);
           }
+          new_modifiers[m.first] = m.second;
         }
+        line_options.set_modifiers(std::move(new_modifiers));
         output.line = MakeNonNullShared<Line>(std::move(line_options));
         return output;
       }};
@@ -83,10 +87,12 @@ LineWithCursor::Generator ParseTreeHighlighter(
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
         LineBuilder line_options = output.line->CopyLineBuilder();
-        LineModifierSet modifiers = {LineModifier::kBlue};
-        line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
-                                     line_options.modifiers.lower_bound(end));
-        line_options.modifiers[begin] = {LineModifier::kBlue};
+        std::map<language::lazy_string::ColumnNumber, LineModifierSet>
+            modifiers = line_options.modifiers();
+        modifiers.erase(modifiers.lower_bound(begin),
+                        modifiers.lower_bound(end));
+        modifiers[begin] = {LineModifier::kBlue};
+        line_options.set_modifiers(std::move(modifiers));
         output.line = MakeNonNullShared<Line>(std::move(line_options));
         return output;
       }};
@@ -146,22 +152,23 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
 
     // Merge them.
     std::map<ColumnNumber, LineModifierSet> merged_modifiers;
-    auto parent_it = options.modifiers.begin();
+    auto options_modifiers = options.modifiers();
+    auto parent_it = options_modifiers.begin();
     auto syntax_it = syntax_modifiers.begin();
     LineModifierSet current_parent_modifiers;
     LineModifierSet current_syntax_modifiers;
     while ((syntax_it != syntax_modifiers.end() &&
             syntax_it->first <= options.EndColumn()) ||
-           parent_it != options.modifiers.end()) {
+           parent_it != options_modifiers.end()) {
       if (syntax_it == syntax_modifiers.end()) {
         merged_modifiers.insert(*parent_it);
         ++parent_it;
-        if (parent_it == options.modifiers.end()) {
+        if (parent_it == options_modifiers.end()) {
           current_parent_modifiers = options.copy_end_of_line_modifiers();
         }
         continue;
       }
-      if (parent_it == options.modifiers.end() ||
+      if (parent_it == options_modifiers.end() ||
           parent_it->first > syntax_it->first) {
         current_syntax_modifiers = syntax_it->second;
         if (current_parent_modifiers.empty()) {
@@ -170,7 +177,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
         ++syntax_it;
         continue;
       }
-      CHECK(parent_it != options.modifiers.end());
+      CHECK(parent_it != options_modifiers.end());
       CHECK(syntax_it != syntax_modifiers.end());
       CHECK_LE(parent_it->first, syntax_it->first);
       current_parent_modifiers = parent_it->second;
@@ -179,7 +186,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
                                                : current_parent_modifiers;
       ++parent_it;
     }
-    options.modifiers = std::move(merged_modifiers);
+    options.set_modifiers(std::move(merged_modifiers));
 
     input.line = MakeNonNullShared<Line>(std::move(options));
     return input;

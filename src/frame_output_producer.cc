@@ -44,7 +44,7 @@ Line FrameLine(FrameOutputProducerOptions options) {
   }
 
   output.AppendString(
-      Padding(options.width - ColumnNumberDelta(output.modifiers.size()), L'─'),
+      Padding(options.width - ColumnNumberDelta(output.modifiers_size()), L'─'),
       line_modifiers);
 
   return Line(std::move(output));
