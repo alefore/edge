@@ -286,7 +286,7 @@ void Line::Options::Append(Line::Options line) {
   ValidateInvariants();
   end_of_line_modifiers_ = std::move(line.end_of_line_modifiers_);
   if (line.EndColumn().IsZero()) return;
-  auto original_length = EndColumn().ToDelta();
+  ColumnNumberDelta original_length = EndColumn().ToDelta();
   contents = lazy_string::Append(std::move(contents), std::move(line.contents));
   metadata_ = std::nullopt;
 
@@ -305,6 +305,8 @@ void Line::Options::Append(Line::Options line) {
       modifiers[position + original_length] = std::move(new_modifiers);
     }
   }
+
+  end_of_line_modifiers_ = line.end_of_line_modifiers_;
 
   ValidateInvariants();
 }
@@ -456,27 +458,6 @@ Line::metadata_future() const {
         }
         return Error(L"Line has no value.");
       });
-}
-
-void Line::Append(const Line& line) {
-  CHECK(this != &line);
-  if (line.empty()) return;
-  data_.lock([&line](Data& data) {
-    data.hash = std::nullopt;
-    line.data_.lock([&data](const Data& line_data) {
-      auto original_length = EndColumn(data).ToDelta();
-      data.options.contents = lazy_string::Append(
-          std::move(data.options.contents), line_data.options.contents);
-      data.options.modifiers[ColumnNumber() + original_length] =
-          LineModifierSet{};
-      for (auto& [position, modifiers] : line_data.options.modifiers) {
-        data.options.modifiers[position + original_length] = modifiers;
-      }
-      data.options.end_of_line_modifiers_ =
-          line_data.options.end_of_line_modifiers_;
-      data.options.metadata_ = std::nullopt;
-    });
-  });
 }
 
 std::function<void()> Line::explicit_delete_observer() const {

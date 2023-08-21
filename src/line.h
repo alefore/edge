@@ -175,8 +175,6 @@ class Line {
     data_.lock([=](Data& data) { data.modified = modified; });
   }
 
-  void Append(const Line& line);
-
   bool filtered() const {
     return data_.lock([](const Data& data) { return data.filtered; });
   }
@@ -217,7 +215,7 @@ class Line {
   friend class std::hash<Line>;
 
   struct Data {
-    Options options;
+    const Options options;
     bool filtered = true;
     size_t filter_version = 0;
     bool modified = false;

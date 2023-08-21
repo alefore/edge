@@ -1155,14 +1155,15 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
   CHECK_LE(position.line, contents_.EndLine());
-  auto line = MakeNonNullShared<Line>(contents_.at(position.line).value());
+  NonNull<std::shared_ptr<const Line>> line = contents_.at(position.line);
   if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
     return;
   }
-  line->Append(Line(Padding(
-      position.column - line->EndColumn() + ColumnNumberDelta(1), L' ')));
 
-  contents_.set_line(position.line, NonNull(std::move(line)));
+  Line::Options options = line->CopyOptions();
+  options.Append(Padding(
+      position.column - line->EndColumn() + ColumnNumberDelta(1), L' '));
+  contents_.set_line(position.line, std::move(options));
 }
 
 void OpenBuffer::CheckPosition() {
