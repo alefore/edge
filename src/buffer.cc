@@ -1002,7 +1002,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
   auto tracker_call = tracker.Call();
   auto follower = GetEndPositionFollower();
   Line::Options options = contents_.back()->CopyOptions();
-  options.Append(line);
+  options.Append(std::move(line).GetOptions());
   AppendRawLine(MakeNonNullShared<Line>(std::move(options)));
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
                        contents_.EndLine(),

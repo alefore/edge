@@ -72,7 +72,7 @@ class Line {
         std::optional<LineModifierSet> modifier);
     void AppendString(std::wstring contents,
                       std::optional<LineModifierSet> modifier);
-    void Append(Line line);
+    void Append(Options line);
 
     void SetExplicitDeleteObserver(std::function<void()> observer) {
       explicit_delete_observer_ = std::move(observer);
@@ -129,6 +129,7 @@ class Line {
   Line(const Line& line);
 
   Options CopyOptions() const;
+  Options GetOptions() &&;
 
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
   contents() const;

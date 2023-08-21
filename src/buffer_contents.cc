@@ -10,6 +10,7 @@
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/line.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
@@ -555,7 +556,7 @@ void BufferContents::InsertCharacter(LineColumn position) {
 void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
   TransformLine(std::min(position, LineNumber() + size() - LineNumberDelta(1)),
                 [&](Line::Options& options) {
-                  options.Append(std::move(line_to_append));
+                  options.Append(std::move(line_to_append).GetOptions());
                 });
 }
 

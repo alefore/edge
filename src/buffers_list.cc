@@ -431,8 +431,7 @@ Line::Options GetBufferContents(const OpenBuffer& buffer,
     output.AppendString(Padding(padding, L' '));
   }
 
-  output.Append(
-      Line(line->CopyOptions().DeleteSuffix(ColumnNumber() + columns)));
+  output.Append(line->CopyOptions().DeleteSuffix(ColumnNumber() + columns));
   output.modifiers.clear();
   output.modifiers.insert({ColumnNumber{}, {LineModifier::kDim}});
   return output;
@@ -503,8 +502,8 @@ Line::Options GetBufferVisibleString(
     }
   }
   if (columns > output.EndColumn().ToDelta())
-    output.Append(Line(
-        GetBufferContents(buffer, columns - output.EndColumn().ToDelta())));
+    output.Append(
+        GetBufferContents(buffer, columns - output.EndColumn().ToDelta()));
 
   return output;
 }
@@ -640,11 +639,11 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                         ? SelectionState::kReceivingInput
                         : SelectionState::kIdle;
             }
-            line_options_output.Append(Line(GetBufferVisibleString(
+            line_options_output.Append(GetBufferVisibleString(
                 columns_per_buffer, buffer,
                 buffer.dirty() ? LineModifierSet{LineModifier::kItalic}
                                : LineModifierSet{},
-                selection_state, path_components[index + j])));
+                selection_state, path_components[index + j]));
           }
           return LineWithCursor{
               .line = MakeNonNullShared<Line>(std::move(line_options_output))};

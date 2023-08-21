@@ -273,35 +273,33 @@ void Line::Options::AppendString(
       suffix_line.contents->size() > ColumnNumberDelta(0)) {
     suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers.value();
   }
-  Append(Line(std::move(suffix_line)));
+  Append(std::move(suffix_line));
   ValidateInvariants();
 }
 
-void Line::Options::AppendString(std::wstring suffix,
-                                 std::optional<LineModifierSet> modifiers) {
-  AppendString(NewLazyString(std::move(suffix)), std::move(modifiers));
+void Line::Options::AppendString(
+    std::wstring suffix, std::optional<LineModifierSet> suffix_modifiers) {
+  AppendString(NewLazyString(std::move(suffix)), std::move(suffix_modifiers));
 }
 
-void Line::Options::Append(Line line) {
+void Line::Options::Append(Line::Options line) {
   ValidateInvariants();
-  end_of_line_modifiers = std::move(line.end_of_line_modifiers());
-  if (line.empty()) return;
+  end_of_line_modifiers = std::move(line.end_of_line_modifiers);
+  if (line.EndColumn().IsZero()) return;
   auto original_length = EndColumn().ToDelta();
-  contents =
-      lazy_string::Append(std::move(contents), std::move(line.contents()));
+  contents = lazy_string::Append(std::move(contents), std::move(line.contents));
   metadata = std::nullopt;
 
   auto initial_modifier =
-      line.modifiers().empty() ||
-              line.modifiers().begin()->first != ColumnNumber(0)
+      line.modifiers.empty() || line.modifiers.begin()->first != ColumnNumber(0)
           ? LineModifierSet{}
-          : line.modifiers().begin()->second;
+          : line.modifiers.begin()->second;
   auto final_modifier =
       modifiers.empty() ? LineModifierSet{} : modifiers.rbegin()->second;
   if (initial_modifier != final_modifier) {
     modifiers[ColumnNumber() + original_length] = initial_modifier;
   }
-  for (auto& [position, new_modifiers] : line.modifiers()) {
+  for (auto& [position, new_modifiers] : line.modifiers) {
     if ((modifiers.empty() ? LineModifierSet{} : modifiers.rbegin()->second) !=
         new_modifiers) {
       modifiers[position + original_length] = std::move(new_modifiers);
@@ -321,8 +319,8 @@ std::optional<Line::BufferLineColumn> Line::Options::buffer_line_column()
 }
 
 Line::Options& Line::Options::SetMetadata(
-    std::optional<MetadataEntry> metadata) {
-  this->metadata = std::move(metadata);
+    std::optional<MetadataEntry> new_metadata) {
+  this->metadata = std::move(new_metadata);
   return *this;
 }
 
@@ -392,6 +390,10 @@ Line::Line(const Line& line) : data_(Data{}, Line::ValidateInvariants) {
 
 Line::Options Line::CopyOptions() const {
   return data_.lock([](const Data& data) { return data.options; });
+}
+
+Line::Options Line::GetOptions() && {
+  return data_.lock([](Data& data) { return std::move(data.options); });
 }
 
 NonNull<std::shared_ptr<LazyString>> Line::contents() const {

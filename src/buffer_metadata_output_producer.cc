@@ -142,7 +142,7 @@ LineWithCursor::Generator NewGenerator(std::wstring input_prefix,
         } else {
           options.AppendString(prefix, LineModifierSet{LineModifier::kYellow});
         }
-        options.Append(suffix);
+        options.Append(std::move(suffix).GetOptions());
         return LineWithCursor{.line = MakeNonNullShared<Line>(options)};
       },
       line.info_char, line.modifier, std::move(line.suffix.value()),
@@ -175,14 +175,14 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
   return output;
 }
 
-Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
-                          LineNumber line) {
+Line::Options ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
+                                   LineNumber line) {
   static Tracker tracker(L"BufferMetadataOutput::ComputeCursorsSuffix");
   auto call = tracker.Call();
 
   const CursorsSet& cursors = options.buffer.active_cursors();
   if (cursors.size() <= 1) {
-    return Line(L"");
+    return Line::Options{};
   }
   CHECK_GE(line, initial_line(options));
   auto range = MapScreenLineToContentsRange(
@@ -198,7 +198,7 @@ Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   }
 
   if (count == 0) {
-    return Line(L" ");
+    return Line::Options(NewLazyString(L" "));
   }
 
   std::wstring output_str = std::wstring(1, L'0' + count);
@@ -213,13 +213,13 @@ Line ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   }
   Line::Options line_options;
   line_options.AppendString(output_str, modifiers);
-  return Line(std::move(line_options));
+  return line_options;
 }
 
 GHOST_TYPE_SIZE_T(Rows);
 
-Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
-                            LineNumber line) {
+Line::Options ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
+                                     LineNumber line) {
   static Tracker tracker(L"BufferMetadataOutput::ComputeScrollBarSuffix");
   auto call = tracker.Call();
 
@@ -319,7 +319,7 @@ Line ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
 
   CHECK_LT(base_char, chars.size());
   line_options.AppendString(std::wstring(1, chars[base_char]), modifiers);
-  return Line(std::move(line_options));
+  return line_options;
 }
 
 NonNull<std::shared_ptr<Line>> GetDefaultInformation(

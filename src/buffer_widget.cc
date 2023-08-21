@@ -148,7 +148,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
             if (output.cursor.has_value()) {
               output.cursor = *output.cursor + padding_size;
             }
-            line_options.Append(output.line.value());
+            line_options.Append(std::move(output.line.value()).GetOptions());
             output.line = MakeNonNullShared<Line>(std::move(line_options));
             return output;
           }};
