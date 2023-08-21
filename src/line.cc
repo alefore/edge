@@ -389,14 +389,11 @@ Line::Line(std::wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
 Line::Line(Options options)
     : data_(Data{.options = std::move(options)}, Line::ValidateInvariants) {}
 
-Line::Line(const Line& line) : data_(Data{}, Line::ValidateInvariants) {
-  data_.lock([&line](Data& data) {
-    line.data_.lock([&data](const Data& line_data) {
-      data.options = line_data.options;
-      data.hash = line_data.hash;
-    });
-  });
-}
+Line::Line(const Line& line)
+    : data_(line.data_.lock([](const Data& line_data) {
+        return Data{.options = line_data.options, .hash = line_data.hash};
+      }),
+            Line::ValidateInvariants) {}
 
 Line::Options Line::CopyOptions() const {
   return data_.lock([](const Data& data) { return data.options; });
