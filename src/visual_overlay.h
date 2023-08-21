@@ -4,10 +4,10 @@
 #include <map>
 #include <memory>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/line_column.h"
-#include "src/line_modifier.h"
 
 namespace afc::editor {
 struct VisualOverlay {

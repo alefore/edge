@@ -98,17 +98,17 @@ ColorizePromptOptions SearchResultsModifiers(
     NonNull<std::shared_ptr<LazyString>> line,
     ValueOrError<SearchResultsSummary> result_or_error) {
   LineModifierSet modifiers = std::visit(
-      overload{[&](Error) { return LineModifierSet{LineModifier::RED}; },
+      overload{[&](Error) { return LineModifierSet{LineModifier::kRed}; },
                [&](const SearchResultsSummary& result) -> LineModifierSet {
                  switch (result.matches) {
                    case 0:
                      return {};
                    case 1:
-                     return {LineModifier::CYAN};
+                     return {LineModifier::kCyan};
                    case 2:
-                     return {LineModifier::YELLOW};
+                     return {LineModifier::kYellow};
                    default:
-                     return {LineModifier::GREEN};
+                     return {LineModifier::kGreen};
                  }
                }},
       result_or_error);

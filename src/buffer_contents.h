@@ -134,8 +134,7 @@ class BufferContents : public fuzz::FuzzTestable {
   // `position.column` may be greater than size() of the current line, in which
   // case the character will just get appended (extending the line by exactly
   // one character).
-  void SetCharacter(LineColumn position, int c,
-                    std::unordered_set<LineModifier, std::hash<int>> modifiers);
+  void SetCharacter(LineColumn position, int c, LineModifierSet modifiers);
 
   void InsertCharacter(LineColumn position);
   void AppendToLine(LineNumber line, Line line_to_append);

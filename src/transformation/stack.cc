@@ -78,13 +78,13 @@ futures::Value<Result> HandleCommandCpp(Input input,
   if (input.mode == Input::Mode::kPreview) {
     auto delete_transformation =
         std::make_shared<Delete>(std::move(original_delete_transformation));
-    delete_transformation->preview_modifiers = {LineModifier::GREEN,
-                                                LineModifier::UNDERLINE};
+    delete_transformation->preview_modifiers = {LineModifier::kGreen,
+                                                LineModifier::kUnderline};
     return PreviewCppExpression(input.buffer, contents.value())
         .ConsumeErrors(
             [&buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
-                  LineModifier::RED, LineModifier::UNDERLINE};
+                  LineModifier::kRed, LineModifier::kUnderline};
               buffer.status().SetInformationText(error.read());
               return futures::Past(EmptyValue());
             })
@@ -331,7 +331,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
           case Stack::PostTransformationBehavior::kCommandSystem: {
             if (input.mode == Input::Mode::kPreview) {
               delete_transformation.preview_modifiers = {
-                  LineModifier::GREEN, LineModifier::UNDERLINE};
+                  LineModifier::kGreen, LineModifier::kUnderline};
               return Apply(delete_transformation, input.NewChild(range.begin));
             }
             NonNull<std::unique_ptr<BufferContents>> contents =

@@ -14,12 +14,12 @@ using language::lazy_string::ColumnNumberDelta;
 Line FrameLine(FrameOutputProducerOptions options) {
   LineModifierSet line_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::kInactive
-          ? LineModifierSet({LineModifier::DIM})
-          : LineModifierSet({LineModifier::BOLD, LineModifier::CYAN});
+          ? LineModifierSet({LineModifier::kDim})
+          : LineModifierSet({LineModifier::kBold, LineModifier::kCyan});
   LineModifierSet title_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::kActive
-          ? LineModifierSet(
-                {LineModifier::BOLD, LineModifier::CYAN, LineModifier::REVERSE})
+          ? LineModifierSet({LineModifier::kBold, LineModifier::kCyan,
+                             LineModifier::kReverse})
           : LineModifierSet();
   Line::Options output;
   output.AppendString(options.prefix, line_modifiers);
@@ -33,7 +33,7 @@ Line FrameLine(FrameOutputProducerOptions options) {
     // typically start counting from 1.
     output.AppendString(
         std::to_wstring(1 + options.position_in_parent.value()),
-        LineModifierSet{LineModifier::BOLD, LineModifier::CYAN});
+        LineModifierSet{LineModifier::kBold, LineModifier::kCyan});
     output.AppendString(L")", line_modifiers);
   }
 

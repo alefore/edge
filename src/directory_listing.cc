@@ -123,13 +123,13 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
     LineModifierSet modifiers;
   };
   static const std::unordered_map<int, FileType> types = {
-      {DT_BLK, {L" (block dev)", {GREEN}}},
-      {DT_CHR, {L" (char dev)", {RED}}},
-      {DT_DIR, {L"/", {CYAN}}},
-      {DT_FIFO, {L" (named pipe)", {BLUE}}},
-      {DT_LNK, {L"@", {ITALIC}}},
+      {DT_BLK, {L" (block dev)", {LineModifier::kGreen}}},
+      {DT_CHR, {L" (char dev)", {LineModifier::kRed}}},
+      {DT_DIR, {L"/", {LineModifier::kCyan}}},
+      {DT_FIFO, {L" (named pipe)", {LineModifier::kBlue}}},
+      {DT_LNK, {L"@", {LineModifier::kItalic}}},
       {DT_REG, {L"", {}}},
-      {DT_SOCK, {L" (unix sock)", {MAGENTA}}}};
+      {DT_SOCK, {L" (unix sock)", {LineModifier::kMagenta}}}};
 
   auto path = FromByteString(entry.d_name);
 

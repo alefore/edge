@@ -10,10 +10,10 @@
 
 #include "src/fuzz_testable.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/line_column.h"
-#include "src/line_modifier.h"
 
 namespace afc::editor {
 

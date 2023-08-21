@@ -1708,7 +1708,7 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
   };
 
   fd_ = new_reader(input_fd, {});
-  fd_error_ = new_reader(input_error_fd, {LineModifier::BOLD});
+  fd_error_ = new_reader(input_error_fd, {LineModifier::kBold});
 
   if (terminal_ != nullptr) {
     terminal_->UpdateSize();

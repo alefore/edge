@@ -67,7 +67,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
         Line::Options line_options = output.line->CopyOptions();
         line_options.modifiers.insert({ColumnNumber(0), {}});
         for (auto& m : line_options.modifiers) {
-          auto it = m.second.insert(LineModifier::REVERSE);
+          auto it = m.second.insert(LineModifier::kReverse);
           if (!it.second) {
             m.second.erase(it.first);
           }
@@ -83,10 +83,10 @@ LineWithCursor::Generator ParseTreeHighlighter(
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
         Line::Options line_options = output.line->CopyOptions();
-        LineModifierSet modifiers = {LineModifier::BLUE};
+        LineModifierSet modifiers = {LineModifier::kBlue};
         line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
                                      line_options.modifiers.lower_bound(end));
-        line_options.modifiers[begin] = {LineModifier::BLUE};
+        line_options.modifiers[begin] = {LineModifier::kBlue};
         output.line = MakeNonNullShared<Line>(std::move(line_options));
         return output;
       }};
@@ -243,32 +243,32 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                     switch (cursor_mode) {
                       case EditorMode::CursorMode::kDefault:
                         options.modifiers_main_cursor = {
-                            multiple_cursors ? LineModifier::GREEN
-                                             : LineModifier::WHITE};
+                            multiple_cursors ? LineModifier::kGreen
+                                             : LineModifier::kWhite};
                         break;
                       case EditorMode::CursorMode::kInserting:
-                        options.modifiers_main_cursor = {LineModifier::YELLOW};
+                        options.modifiers_main_cursor = {LineModifier::kYellow};
                         break;
                       case EditorMode::CursorMode::kOverwriting:
                         options.modifiers_main_cursor = {
-                            LineModifier::RED, LineModifier::UNDERLINE};
+                            LineModifier::kRed, LineModifier::kUnderline};
                         break;
                     }
                     options.modifiers_inactive_cursors =
                         multiple_cursors
                             ? options.modifiers_main_cursor
-                            : LineModifierSet({LineModifier::BLUE});
+                            : LineModifierSet({LineModifier::kBlue});
                     // The inactive cursors need the REVERSE modifier to ensure
                     // they get highlighted. The active one doesn't need it,
                     // since the terminal handler actually places the real
                     // cursor in the corresponding position.
                     options.modifiers_inactive_cursors.insert(
-                        LineModifier::REVERSE);
+                        LineModifier::kReverse);
                     break;
                   case Widget::OutputProducerOptions::MainCursorDisplay::
                       kInactive:
-                    options.modifiers_main_cursor = {LineModifier::BLUE};
-                    options.modifiers_inactive_cursors = {LineModifier::BLUE};
+                    options.modifiers_main_cursor = {LineModifier::kBlue};
+                    options.modifiers_inactive_cursors = {LineModifier::kBlue};
                     break;
                 }
               }

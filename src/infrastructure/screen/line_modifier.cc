@@ -1,19 +1,28 @@
-#include "src/line_modifier.h"
+#include "src/infrastructure/screen/line_modifier.h"
 
 #include <glog/logging.h>
+
+#include <ostream>
 
 namespace afc {
 namespace editor {
 
 const std::unordered_map<std::string, LineModifier>& ModifierNames() {
   static const std::unordered_map<std::string, LineModifier> values = {
-      {"RESET", RESET},         {"BOLD", BOLD},
-      {"ITALIC", ITALIC},       {"DIM", DIM},
-      {"UNDERLINE", UNDERLINE}, {"REVERSE", REVERSE},
-      {"BLACK", BLACK},         {"RED", RED},
-      {"GREEN", GREEN},         {"BLUE", BLUE},
-      {"CYAN", CYAN},           {"YELLOW", YELLOW},
-      {"MAGENTA", MAGENTA},     {"BG_RED", BG_RED}};
+      {"RESET", LineModifier::kReset},
+      {"BOLD", LineModifier::kBold},
+      {"ITALIC", LineModifier::kItalic},
+      {"DIM", LineModifier::kDim},
+      {"UNDERLINE", LineModifier::kUnderline},
+      {"REVERSE", LineModifier::kReverse},
+      {"BLACK", LineModifier::kBlack},
+      {"RED", LineModifier::kRed},
+      {"GREEN", LineModifier::kGreen},
+      {"BLUE", LineModifier::kBlue},
+      {"CYAN", LineModifier::kCyan},
+      {"YELLOW", LineModifier::kYellow},
+      {"MAGENTA", LineModifier::kMagenta},
+      {"BG_RED", LineModifier::kBgRed}};
   return values;
 }
 
@@ -35,7 +44,7 @@ std::string ModifierToString(LineModifier modifier) {
 LineModifier ModifierFromString(std::string modifier) {
   const std::unordered_map<std::string, LineModifier>& values = ModifierNames();
   if (auto it = values.find(modifier); it != values.end()) return it->second;
-  return RESET;  // Ugh.
+  return LineModifier::kReset;  // Ugh.
 }
 
 std::ostream& operator<<(std::ostream& os, const LineModifierSet& s) {

@@ -156,7 +156,7 @@ std::wstring TransformCommandNameForStatus(std::wstring name) {
 }
 
 void FlushModifiers(Screen& screen, const LineModifierSet& modifiers) {
-  screen.SetModifier(LineModifier::RESET);
+  screen.SetModifier(LineModifier::kReset);
   for (const auto& m : modifiers) {
     screen.SetModifier(m);
   }
@@ -211,7 +211,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   ColumnNumber output_column;
 
   functions.push_back(
-      [](Screen& screen) { screen.SetModifier(LineModifier::RESET); });
+      [](Screen& screen) { screen.SetModifier(LineModifier::kReset); });
 
   std::map<ColumnNumber, LineModifierSet> modifiers =
       line_with_cursor.line->modifiers();

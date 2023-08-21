@@ -279,7 +279,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                             {.token = {.value = L"",
                                        .begin = ColumnNumber(0),
                                        .end = ColumnNumber() + line->size()},
-                             .modifiers = {LineModifier::CYAN}});
+                             .modifiers = {LineModifier::kCyan}});
                       }},
              Parse(editor.gc_pool(), line, environment, search_namespaces));
 

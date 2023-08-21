@@ -114,6 +114,13 @@ template <typename T>
 WithHash<T> MakeWithHash(T value, size_t hash) {
   return WithHash<T>{.hash = hash, .value = value};
 }
+
+struct EnumClassHash {
+  template <typename T>
+  std::size_t operator()(T t) const {
+    return static_cast<std::size_t>(t);
+  }
+};
 }  // namespace afc::language
 namespace std {
 template <typename Iterator, typename Callable>

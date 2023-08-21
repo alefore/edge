@@ -169,9 +169,9 @@ cc_library(
         ":file_descriptor_reader",
         ":fuzz_testable",
         ":line_column",
-        ":line_modifier",
         ":status",
         "//src/infrastructure:file_system_driver",
+        "//src/infrastructure/screen:line_modifier",
         "//src/language:safe_types",
         "//src/language:wstring",
         "//src/language/lazy_string",
@@ -307,11 +307,11 @@ cc_library(
     deps = [
         ":buffer_name",
         ":line",
-        ":line_modifier",
         "//src/concurrent:thread_pool",
         "//src/infrastructure:file_system_driver",
         "//src/infrastructure:time",
         "//src/infrastructure:tracker",
+        "//src/infrastructure/screen:line_modifier",
         "//src/language:wstring",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
@@ -435,10 +435,10 @@ cc_library(
     ],
     deps = [
         ":line_column",
-        ":line_modifier",
         "//src/concurrent:protected",
         "//src/futures",
         "//src/futures:listenable_value",
+        "//src/infrastructure/screen:line_modifier",
         "//src/language:observers",
         "//src/language:safe_types",
         "//src/language/lazy_string",
@@ -457,17 +457,6 @@ cc_library(
         ":buffer_name",
         ":line_column",
         "//src/language/lazy_string",
-    ],
-)
-
-cc_library(
-    name = "line_modifier",
-    srcs = ["line_modifier.cc"],
-    hdrs = ["line_modifier.h"],
-    visibility = ["//src/transformation:__pkg__"],
-    deps = [
-        "//src/language:hash",
-        "//src/vm/public:environment",
     ],
 )
 
@@ -604,7 +593,7 @@ cc_library(
     deps = [
         ":buffer_contents",
         ":line_column",
-        ":line_modifier",
+        "//src/infrastructure/screen:line_modifier",
         "//src/language:ghost_type",
         "//src/language:safe_types",
     ],
@@ -764,8 +753,8 @@ cc_library(
     deps = [
         ":audio",
         ":line",
-        ":line_modifier",
         "//src/infrastructure:time",
+        "//src/infrastructure/screen:line_modifier",
         "//src/language:gc",
         "//src/language:ghost_type",
         "//src/language:overload",

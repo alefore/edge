@@ -5,8 +5,8 @@
 #include <optional>
 #include <string>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/safe_types.h"
-#include "src/line_modifier.h"
 #include "src/modifiers.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"

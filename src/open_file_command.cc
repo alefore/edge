@@ -101,24 +101,24 @@ futures::Value<ColorizePromptOptions> DrawPath(
           switch (line->get(i)) {
             case L'/':
             case L'.':
-              modifiers.insert(LineModifier::DIM);
+              modifiers.insert(LineModifier::kDim);
               break;
             default:
               if (i.ToDelta() >=
                   results.predictor_output.longest_directory_match) {
                 if (results.predictor_output.found_exact_match) {
-                  modifiers.insert(LineModifier::BOLD);
+                  modifiers.insert(LineModifier::kBold);
                 }
                 if (results.matches == 0 &&
                     i.ToDelta() >= results.predictor_output.longest_prefix) {
-                  modifiers.insert(LineModifier::RED);
+                  modifiers.insert(LineModifier::kRed);
                 } else if (results.matches == 1) {
-                  modifiers.insert(LineModifier::GREEN);
+                  modifiers.insert(LineModifier::kGreen);
                 } else if (results.common_prefix.has_value() &&
                            ColumnNumber() + line->size() <
                                ColumnNumber(
                                    results.common_prefix.value().size())) {
-                  modifiers.insert(LineModifier::YELLOW);
+                  modifiers.insert(LineModifier::kYellow);
                 }
               }
           }

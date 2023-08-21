@@ -67,7 +67,7 @@ class ScreenCurses : public Screen {
 
   void SetModifier(LineModifier modifier) override {
     switch (modifier) {
-      case LineModifier::RESET:
+      case LineModifier::kReset:
         attroff(A_BOLD);
         attroff(A_ITALIC);
         attroff(A_DIM);
@@ -83,46 +83,46 @@ class ScreenCurses : public Screen {
         attroff(COLOR_PAIR(8));
         attroff(COLOR_PAIR(9));
         break;
-      case LineModifier::BOLD:
+      case LineModifier::kBold:
         attron(A_BOLD);
         break;
-      case LineModifier::ITALIC:
+      case LineModifier::kItalic:
         attron(A_ITALIC);
         break;
-      case LineModifier::DIM:
+      case LineModifier::kDim:
         attron(A_DIM);
         break;
-      case LineModifier::UNDERLINE:
+      case LineModifier::kUnderline:
         attron(A_UNDERLINE);
         break;
-      case LineModifier::REVERSE:
+      case LineModifier::kReverse:
         attron(A_REVERSE);
         break;
-      case LineModifier::BLACK:
+      case LineModifier::kBlack:
         attron(COLOR_PAIR(1));
         break;
-      case LineModifier::RED:
+      case LineModifier::kRed:
         attron(COLOR_PAIR(2));
         break;
-      case LineModifier::GREEN:
+      case LineModifier::kGreen:
         attron(COLOR_PAIR(3));
         break;
-      case LineModifier::BLUE:
+      case LineModifier::kBlue:
         attron(COLOR_PAIR(4));
         break;
-      case LineModifier::YELLOW:
+      case LineModifier::kYellow:
         attron(COLOR_PAIR(5));
         break;
-      case LineModifier::MAGENTA:
+      case LineModifier::kMagenta:
         attron(COLOR_PAIR(6));
         break;
-      case LineModifier::CYAN:
+      case LineModifier::kCyan:
         attron(COLOR_PAIR(7));
         break;
-      case LineModifier::BG_RED:
+      case LineModifier::kBgRed:
         attron(COLOR_PAIR(8));
         break;
-      case LineModifier::WHITE:
+      case LineModifier::kWhite:
         attron(COLOR_PAIR(9));
         break;
     }

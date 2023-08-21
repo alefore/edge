@@ -159,7 +159,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
   }
   LineModifierSet modifiers =
       options.status.GetType() == Status::Type::kWarning
-          ? LineModifierSet({LineModifier::RED, LineModifier::BOLD})
+          ? LineModifierSet({LineModifier::kRed, LineModifier::kBold})
           : LineModifierSet();
 
   std::optional<ColumnNumber> cursor;

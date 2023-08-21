@@ -2,9 +2,9 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/padding.h"
 #include "src/language/safe_types.h"
-#include "src/line_modifier.h"
 #include "src/line_with_cursor.h"
 #include "src/path_flags.h"
 
@@ -21,13 +21,13 @@ std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
   InputKey path(L"path");
 
   std::map<Color, LineModifier> modifiers = {
-      {Color(L"red"), LineModifier::RED},
-      {Color(L"green"), LineModifier::GREEN},
-      {Color(L"blue"), LineModifier::BLUE},
-      {Color(L"cyan"), LineModifier::CYAN},
-      {Color(L"yellow"), LineModifier::YELLOW},
-      {Color(L"magenta"), LineModifier::MAGENTA},
-      {Color(L"white"), LineModifier::WHITE}};
+      {Color(L"red"), LineModifier::kRed},
+      {Color(L"green"), LineModifier::kGreen},
+      {Color(L"blue"), LineModifier::kBlue},
+      {Color(L"cyan"), LineModifier::kCyan},
+      {Color(L"yellow"), LineModifier::kYellow},
+      {Color(L"magenta"), LineModifier::kMagenta},
+      {Color(L"white"), LineModifier::kWhite}};
   std::vector<Color> color_values;
   for (auto& entry : modifiers) color_values.push_back(entry.first);
   std::vector<InputKey> spec = {path, path, path};

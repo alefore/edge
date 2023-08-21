@@ -111,6 +111,8 @@ src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
+src/infrastructure/screen/line_modifier.cc \
+src/infrastructure/screen/line_modifier.h \
 src/infrastructure/tracker.cc \
 src/infrastructure/tracker.h \
 src/insert_history.cc \
@@ -165,8 +167,6 @@ src/line_column_vm.h \
 src/line_marks.cc \
 src/line_marks.h \
 src/line_marks_test.cc \
-src/line_modifier.cc \
-src/line_modifier.h \
 src/line_number_output_producer.h \
 src/line_number_output_producer.cc \
 src/line_prompt_mode.cc \

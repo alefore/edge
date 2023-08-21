@@ -38,14 +38,14 @@ void TestBufferInsertModifiers() {
   BufferContents contents;
   Line::Options options;
   options.contents = NewLazyString(L"alejo");
-  options.modifiers[ColumnNumber(0)] = {LineModifier::CYAN};
+  options.modifiers[ColumnNumber(0)] = {LineModifier::kCyan};
 
   contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(1).
   contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(2).
-  options.modifiers[ColumnNumber(2)] = {LineModifier::BOLD};
+  options.modifiers[ColumnNumber(2)] = {LineModifier::kBold};
   contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(3).
   auto line = MakeNonNullShared<Line>(contents.at(LineNumber(1)).value());
-  line->SetAllModifiers(LineModifierSet({LineModifier::DIM}));
+  line->SetAllModifiers(LineModifierSet({LineModifier::kDim}));
   contents.push_back(line);  // LineNumber(4).
 
   for (int i = 0; i < 2; i++) {
@@ -57,7 +57,7 @@ void TestBufferInsertModifiers() {
       auto modifiers_1 = contents.at(LineNumber(1))->modifiers();
       CHECK_EQ(modifiers_1.size(), 1ul);
       CHECK(modifiers_1.find(ColumnNumber(0))->second ==
-            LineModifierSet({LineModifier::CYAN}));
+            LineModifierSet({LineModifier::kCyan}));
     }
 
     {
@@ -65,7 +65,7 @@ void TestBufferInsertModifiers() {
       auto modifiers_2 = contents.at(LineNumber(2))->modifiers();
       CHECK_EQ(modifiers_2.size(), 1ul);
       CHECK(modifiers_2.find(ColumnNumber(0))->second ==
-            LineModifierSet({LineModifier::CYAN}));
+            LineModifierSet({LineModifier::kCyan}));
     }
 
     {
@@ -73,9 +73,9 @@ void TestBufferInsertModifiers() {
       auto modifiers_3 = contents.at(LineNumber(3))->modifiers();
       CHECK_EQ(modifiers_3.size(), 2ul);
       CHECK(modifiers_3.find(ColumnNumber(0))->second ==
-            LineModifierSet({LineModifier::CYAN}));
+            LineModifierSet({LineModifier::kCyan}));
       CHECK(modifiers_3.find(ColumnNumber(2))->second ==
-            LineModifierSet({LineModifier::BOLD}));
+            LineModifierSet({LineModifier::kBold}));
     }
 
     {
@@ -83,7 +83,7 @@ void TestBufferInsertModifiers() {
       auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
       CHECK_EQ(modifiers_4.size(), 1ul);
       CHECK(modifiers_4.find(ColumnNumber(0))->second ==
-            LineModifierSet({LineModifier::DIM}));
+            LineModifierSet({LineModifier::kDim}));
     }
 
     // Contents:

@@ -60,22 +60,22 @@ class DiffParser : public TreeParser {
 
       case L'+':
         if (result->state() == HEADERS) {
-          AdvanceLine(result, {LineModifier::BOLD});
+          AdvanceLine(result, {LineModifier::kBold});
           return;
         }
         // Fall through.
       case L'>':
-        InContents(result, {LineModifier::GREEN});
+        InContents(result, {LineModifier::kGreen});
         return;
 
       case L'-':
         if (result->state() == HEADERS) {
-          AdvanceLine(result, {LineModifier::BOLD});
+          AdvanceLine(result, {LineModifier::kBold});
           return;
         }
         // Fall through.
       case L'<':
-        InContents(result, {LineModifier::RED});
+        InContents(result, {LineModifier::kRed});
         return;
 
       case L'@':
@@ -86,7 +86,7 @@ class DiffParser : public TreeParser {
           result->PopBack();
         }
         result->Push(SECTION, ColumnNumberDelta(), {}, {});
-        AdvanceLine(result, {LineModifier::CYAN});
+        AdvanceLine(result, {LineModifier::kCyan});
         return;
 
       default:
@@ -102,7 +102,7 @@ class DiffParser : public TreeParser {
           }
           result->Push(HEADERS, ColumnNumberDelta(), {}, {});
         }
-        AdvanceLine(result, {LineModifier::BOLD});
+        AdvanceLine(result, {LineModifier::kBold});
         return;
     }
   }

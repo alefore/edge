@@ -249,7 +249,7 @@ class WordsTreeParser : public TreeParser {
                 ->ToString();
         ParseTree child = delegate_->FindChildren(buffer, keyword_range);
         if (typos_.find(keyword) != typos_.end()) {
-          child.InsertModifier(LineModifier::RED);
+          child.InsertModifier(LineModifier::kRed);
         }
         DVLOG(6) << "Adding word: " << child;
         output.PushChild(std::move(child));

@@ -12,10 +12,10 @@
 #include "src/buffer_name.h"
 #include "src/concurrent/thread_pool.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/line_modifier.h"
 #include "src/math/decaying_counter.h"
 
 namespace afc {

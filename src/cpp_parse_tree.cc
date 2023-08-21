@@ -38,7 +38,7 @@ static const std::wstring identifier_chars =
     L"_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 static const std::wstring digit_chars = L"1234567890";
 static const LineModifierSet BAD_PARSE_MODIFIERS =
-    LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
+    LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
 class CppTreeParser : public TreeParser {
  public:
@@ -177,7 +177,7 @@ class CppTreeParser : public TreeParser {
         CommentToEndOfLine(result);
         break;
       case '*':
-        result->Push(COMMENT, ColumnNumberDelta(1), {LineModifier::BLUE}, {});
+        result->Push(COMMENT, ColumnNumberDelta(1), {LineModifier::kBlue}, {});
         seek.Once();
         break;
       default:
@@ -191,7 +191,7 @@ class CppTreeParser : public TreeParser {
     result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column + ColumnNumberDelta(1) -
                            original_position.column,
-                       {LineModifier::BLUE});
+                       {LineModifier::kBlue});
     // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
@@ -220,7 +220,7 @@ class CppTreeParser : public TreeParser {
     if (seek.read() == '\'') {
       seek.Once();
       ++rewind_column;
-      result->PushAndPop(rewind_column, {LineModifier::YELLOW});
+      result->PushAndPop(rewind_column, {LineModifier::kYellow});
     } else {
       result->set_position(original_position);
       result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
@@ -243,7 +243,7 @@ class CppTreeParser : public TreeParser {
       CHECK_EQ(result->position().line, original_position.line);
       result->PushAndPop(result->position().column - original_position.column +
                              ColumnNumberDelta(1),
-                         {LineModifier::YELLOW});
+                         {LineModifier::kYellow});
       // TODO: words_parser_->FindChildren(result->buffer(), tree);
     } else {
       result->set_position(original_position);
@@ -259,7 +259,7 @@ class CppTreeParser : public TreeParser {
     result->seek().ToEndOfLine();
     CHECK_GT(result->position().column, original_position.column);
     result->PushAndPop(result->position().column - original_position.column,
-                       {LineModifier::YELLOW});
+                       {LineModifier::kYellow});
   }
 
   void Identifier(ParseData* result) {
@@ -279,9 +279,9 @@ class CppTreeParser : public TreeParser {
     LineModifierSet modifiers;
     // TODO(2022-04-22): Avoid the call to ToString?
     if (keywords_.find(str->ToString()) != keywords_.end()) {
-      modifiers.insert(LineModifier::CYAN);
+      modifiers.insert(LineModifier::kCyan);
     } else if (typos_.find(str->ToString()) != typos_.end()) {
-      modifiers.insert(LineModifier::RED);
+      modifiers.insert(LineModifier::kRed);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
       modifiers = HashToModifiers(std::hash<std::wstring>{}(str->ToString()),
                                   HashToModifiersBold::kNever);
@@ -299,7 +299,7 @@ class CppTreeParser : public TreeParser {
     CHECK_GT(result->position(), original_position);
 
     result->PushAndPop(result->position().column - original_position.column,
-                       {LineModifier::YELLOW});
+                       {LineModifier::kYellow});
   }
 
   void DefaultState(State state_default, State state_default_at_start_of_line,
@@ -378,13 +378,13 @@ class CppTreeParser : public TreeParser {
                                   HashToModifiersBold bold_behavior) {
     LineModifierSet output;
     static std::vector<LineModifier> modifiers = {
-        LineModifier::CYAN, LineModifier::YELLOW, LineModifier::RED,
-        LineModifier::BLUE, LineModifier::GREEN,  LineModifier::MAGENTA,
-        LineModifier::WHITE};
+        LineModifier::kCyan, LineModifier::kYellow, LineModifier::kRed,
+        LineModifier::kBlue, LineModifier::kGreen,  LineModifier::kMagenta,
+        LineModifier::kWhite};
     output.insert(modifiers[nesting % modifiers.size()]);
     if (bold_behavior == HashToModifiersBold::kSometimes &&
         ((nesting / modifiers.size()) % 2) == 0) {
-      output.insert(LineModifier::BOLD);
+      output.insert(LineModifier::kBold);
     }
     return output;
   }

@@ -7,10 +7,10 @@
 #include <unordered_set>
 
 #include "src/buffer_contents.h"
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
 #include "src/line_column.h"
-#include "src/line_modifier.h"
 
 namespace afc::editor {
 class BufferContents;

@@ -41,12 +41,12 @@ using language::lazy_string::NewLazyString;
 LineModifierSet LineModifiers(const BufferContentsViewLayout::Line& line,
                               const OpenBuffer& buffer) {
   if (line.current_cursors.empty()) {
-    return {LineModifier::DIM};
+    return {LineModifier::kDim};
   } else if (line.has_active_cursor ||
              buffer.Read(buffer_variables::multiple_cursors)) {
-    return {LineModifier::CYAN, LineModifier::BOLD};
+    return {LineModifier::kCyan, LineModifier::kBold};
   } else {
-    return {LineModifier::BLUE};
+    return {LineModifier::kBlue};
   }
 }
 

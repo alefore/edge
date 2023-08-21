@@ -4,7 +4,7 @@
 #include <memory>
 #include <optional>
 
-#include "src/line_modifier.h"
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/modifiers.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
@@ -21,8 +21,8 @@ struct Delete {
   LineEndBehavior line_end_behavior = LineEndBehavior::kDelete;
 
   // When mode is kPreview, what colors should the deleted text be previewed in?
-  LineModifierSet preview_modifiers = {LineModifier::RED,
-                                       LineModifier::UNDERLINE};
+  LineModifierSet preview_modifiers = {LineModifier::kRed,
+                                       LineModifier::kUnderline};
 
   // If set, overrides the mode passed when the transformation is executed. This
   // is used by CompositeTransformations that want to effectively erase text

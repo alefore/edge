@@ -485,7 +485,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
     std::vector<TokenAndModifiers> tokens;
     for (const Token& token : history_prompt_tokens[key]) {
       VLOG(6) << "Add token BOLD: " << token;
-      tokens.push_back({token, LineModifierSet{LineModifier::BOLD}});
+      tokens.push_back({token, LineModifierSet{LineModifier::kBold}});
     }
     output.lines.push_back(
         ColorizeLine(NewLazyString(key.read()), std::move(tokens)));
@@ -546,7 +546,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
               auto s = modifiers.find(ColumnNumber(4));
               CHECK(s != modifiers.end());
               LOG(INFO) << "Modifiers found: " << s->second;
-              CHECK_EQ(s->second, LineModifierSet{LineModifier::BOLD});
+              CHECK_EQ(s->second, LineModifierSet{LineModifier::kBold});
             }
             {
               auto s = modifiers.find(ColumnNumber(8));

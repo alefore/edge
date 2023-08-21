@@ -5,8 +5,8 @@
 #include <cmath>
 #include <memory>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/line.h"
-#include "src/line_modifier.h"
 
 namespace afc::editor {
 using language::Error;
@@ -110,7 +110,7 @@ void StatusPromptExtraInformation::SetValue(Key key, int version, int value) {
 
 std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
   Line::Options options;
-  static const auto dim = LineModifierSet{LineModifier::DIM};
+  static const auto dim = LineModifierSet{LineModifier::kDim};
   static const auto empty = LineModifierSet{};
 
   if (!information_.empty()) {

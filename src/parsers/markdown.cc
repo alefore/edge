@@ -116,7 +116,7 @@ class MarkdownParser : public TreeParser {
   void HandleOpenLink(ParseData* result) {
     result->Push(LINK, ColumnNumberDelta(), {}, {ParseTreeProperty::Link()});
     result->seek().Once();
-    result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::CYAN}, {});
+    result->Push(LINK_TEXT, ColumnNumberDelta(), {LineModifier::kCyan}, {});
   }
 
   void HandleCloseLink(ParseData* result) {
@@ -129,7 +129,7 @@ class MarkdownParser : public TreeParser {
     seek.Once();
     if (seek.read() == L'(') {
       seek.Once();
-      result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::UNDERLINE},
+      result->Push(LINK_URL, ColumnNumberDelta(), {LineModifier::kUnderline},
                    {ParseTreeProperty::LinkTarget()});
     }
   }
@@ -160,22 +160,22 @@ class MarkdownParser : public TreeParser {
     LineModifierSet modifiers;
     switch (spaces_prefix / 2) {
       case 0:
-        modifiers = {LineModifier::BOLD, LineModifier::CYAN};
+        modifiers = {LineModifier::kBold, LineModifier::kCyan};
         break;
       case 1:
-        modifiers = {LineModifier::BOLD, LineModifier::YELLOW};
+        modifiers = {LineModifier::kBold, LineModifier::kYellow};
         break;
       case 2:
-        modifiers = {LineModifier::BOLD, LineModifier::GREEN};
+        modifiers = {LineModifier::kBold, LineModifier::kGreen};
         break;
       case 3:
-        modifiers = {LineModifier::CYAN};
+        modifiers = {LineModifier::kCyan};
         break;
       case 4:
-        modifiers = {LineModifier::YELLOW};
+        modifiers = {LineModifier::kYellow};
         break;
       case 5:
-        modifiers = {LineModifier::GREEN};
+        modifiers = {LineModifier::kGreen};
         break;
     }
     result->PushAndPop(ColumnNumberDelta(1), modifiers);
@@ -188,7 +188,7 @@ class MarkdownParser : public TreeParser {
     if (result->state() == CODE) {
       result->PopBack();
     } else {
-      result->Push(CODE, ColumnNumberDelta(1), {LineModifier::CYAN}, {});
+      result->Push(CODE, ColumnNumberDelta(1), {LineModifier::kCyan}, {});
     }
   }
 
@@ -200,12 +200,12 @@ class MarkdownParser : public TreeParser {
       if (result->state() == STRONG) {
         result->PopBack();
       } else if (seek.read() != L' ' && seek.read() != L'\n') {
-        result->Push(STRONG, ColumnNumberDelta(2), {LineModifier::BOLD}, {});
+        result->Push(STRONG, ColumnNumberDelta(2), {LineModifier::kBold}, {});
       }
     } else if (result->state() == EM) {
       result->PopBack();
     } else if (seek.read() != L' ' && seek.read() != L'\n') {
-      result->Push(EM, ColumnNumberDelta(1), {LineModifier::ITALIC}, {});
+      result->Push(EM, ColumnNumberDelta(1), {LineModifier::kItalic}, {});
     }
   }
 
@@ -229,10 +229,11 @@ class MarkdownParser : public TreeParser {
     }
 
     static const auto modifiers_by_depth = new std::vector<LineModifierSet>(
-        {{LineModifier::REVERSE, LineModifier::UNDERLINE},
-         {LineModifier::CYAN, LineModifier::REVERSE, LineModifier::UNDERLINE},
-         {LineModifier::BOLD, LineModifier::UNDERLINE},
-         {LineModifier::BOLD}});
+        {{LineModifier::kReverse, LineModifier::kUnderline},
+         {LineModifier::kCyan, LineModifier::kReverse,
+          LineModifier::kUnderline},
+         {LineModifier::kBold, LineModifier::kUnderline},
+         {LineModifier::kBold}});
 
     if (depth <= 5) {
       result->Push(DepthToState(depth), ColumnNumberDelta(0), {}, {});

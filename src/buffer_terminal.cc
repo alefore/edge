@@ -50,7 +50,7 @@ void BufferTerminal::ProcessCommandInput(
     const std::function<void()>& new_line_callback) {
   data_->position.line =
       std::min(data_->position.line, data_->receiver->contents().EndLine());
-  std::unordered_set<LineModifier, std::hash<int>> modifiers;
+  LineModifierSet modifiers;
 
   ColumnNumber read_index;
   VLOG(5) << "Terminal input: " << str->ToString();
@@ -186,35 +186,35 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
         static const std::unordered_map<std::string, LineModifierSet> on{
             {"", {}},
             {"0", {}},
-            {"0;30", {LineModifier::BLACK}},
-            {"0;31", {LineModifier::RED}},
-            {"0;32", {LineModifier::GREEN}},
-            {"0;33", {LineModifier::YELLOW}},
-            {"0;34", {LineModifier::BLUE}},
-            {"0;35", {LineModifier::MAGENTA}},
-            {"0;36", {LineModifier::CYAN}},
-            {"1", {LineModifier::BOLD}},
-            {"1;30", {LineModifier::BOLD, LineModifier::BLACK}},
-            {"1;31", {LineModifier::BOLD, LineModifier::RED}},
-            {"1;32", {LineModifier::BOLD, LineModifier::GREEN}},
-            {"1;33", {LineModifier::BOLD, LineModifier::YELLOW}},
-            {"1;34", {LineModifier::BOLD, LineModifier::BLUE}},
-            {"1;35", {LineModifier::BOLD, LineModifier::MAGENTA}},
-            {"1;36", {LineModifier::BOLD, LineModifier::CYAN}},
+            {"0;30", {LineModifier::kBlack}},
+            {"0;31", {LineModifier::kRed}},
+            {"0;32", {LineModifier::kGreen}},
+            {"0;33", {LineModifier::kYellow}},
+            {"0;34", {LineModifier::kBlue}},
+            {"0;35", {LineModifier::kMagenta}},
+            {"0;36", {LineModifier::kCyan}},
+            {"1", {LineModifier::kBold}},
+            {"1;30", {LineModifier::kBold, LineModifier::kBlack}},
+            {"1;31", {LineModifier::kBold, LineModifier::kRed}},
+            {"1;32", {LineModifier::kBold, LineModifier::kGreen}},
+            {"1;33", {LineModifier::kBold, LineModifier::kYellow}},
+            {"1;34", {LineModifier::kBold, LineModifier::kBlue}},
+            {"1;35", {LineModifier::kBold, LineModifier::kMagenta}},
+            {"1;36", {LineModifier::kBold, LineModifier::kCyan}},
             // TODO(alejo): Support italic (3) on. "23" is Fraktur off, italic
             // off.
             {"3", {}},
-            {"4", {LineModifier::UNDERLINE}},
-            {"30", {LineModifier::BLACK}},
-            {"31", {LineModifier::RED}},
-            {"32", {LineModifier::GREEN}},
-            {"33", {LineModifier::YELLOW}},
-            {"34", {LineModifier::BLUE}},
-            {"35", {LineModifier::MAGENTA}},
-            {"36", {LineModifier::CYAN}},
+            {"4", {LineModifier::kUnderline}},
+            {"30", {LineModifier::kBlack}},
+            {"31", {LineModifier::kRed}},
+            {"32", {LineModifier::kGreen}},
+            {"33", {LineModifier::kYellow}},
+            {"34", {LineModifier::kBlue}},
+            {"35", {LineModifier::kMagenta}},
+            {"36", {LineModifier::kCyan}},
         };
         static const std::unordered_map<std::string, LineModifierSet> off{
-            {"24", {LineModifier::UNDERLINE}}};
+            {"24", {LineModifier::kUnderline}}};
         if (auto it_on = on.find(sequence); it_on != on.end()) {
           *modifiers = it_on->second;
         } else if (auto it_off = off.find(sequence); it_off != off.end()) {
@@ -223,7 +223,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
           }
         } else if (sequence == "0;36") {
           modifiers->clear();
-          modifiers->insert(LineModifier::CYAN);
+          modifiers->insert(LineModifier::kCyan);
         } else {
           LOG(INFO) << "Unhandled character sequence: (" << sequence;
         }
