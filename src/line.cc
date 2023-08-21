@@ -40,7 +40,7 @@ const bool line_tests_registration = tests::Register(
     {{.name = L"ConstructionOfEmptySetsEndOfLine",
       .callback =
           [] {
-            Line::Options options;
+            LineBuilder options;
             options.insert_end_of_line_modifiers({LineModifier::kRed});
             Line line(std::move(options));
             CHECK(line.end_of_line_modifiers().find(LineModifier::kRed) !=
@@ -49,7 +49,7 @@ const bool line_tests_registration = tests::Register(
      {.name = L"CopyOfEmptyPreservesEndOfLine",
       .callback =
           [] {
-            Line::Options options;
+            LineBuilder options;
             options.insert_end_of_line_modifiers({LineModifier::kRed});
             Line initial_line(std::move(options));
             Line final_line(std::move(initial_line));
@@ -59,7 +59,7 @@ const bool line_tests_registration = tests::Register(
      {.name = L"EndOfLineModifiersChangesHash",
       .callback =
           [] {
-            Line::Options options;
+            LineBuilder options;
             size_t initial_hash = std::hash<Line>{}(Line(options));
             options.insert_end_of_line_modifiers({LineModifier::kRed});
             size_t final_hash = std::hash<Line>{}(Line(options));
@@ -68,15 +68,14 @@ const bool line_tests_registration = tests::Register(
      {.name = L"ContentChangesHash",
       .callback =
           [] {
-            CHECK(std::hash<Line>{}(
-                      Line(Line::Options(NewLazyString(L"alejo")))) !=
-                  std::hash<Line>{}(
-                      Line(Line::Options(NewLazyString(L"Xlejo")))));
+            CHECK(
+                std::hash<Line>{}(Line(LineBuilder(NewLazyString(L"alejo")))) !=
+                std::hash<Line>{}(Line(LineBuilder(NewLazyString(L"Xlejo")))));
           }},
      {.name = L"ModifiersChangesHash",
       .callback =
           [] {
-            Line::Options options(NewLazyString(L"alejo"));
+            LineBuilder options(NewLazyString(L"alejo"));
             size_t initial_hash = std::hash<Line>{}(Line(options));
             options.modifiers[ColumnNumber(2)].insert(LineModifier::kRed);
             size_t final_hash = std::hash<Line>{}(Line(options));
@@ -84,22 +83,22 @@ const bool line_tests_registration = tests::Register(
           }},
      {.name = L"MetadataBecomesAvailable", .callback = [] {
         futures::Future<NonNull<std::shared_ptr<LazyString>>> future;
-        Line line(Line::Options().SetMetadata(
-            Line::MetadataEntry{.initial_value = NewLazyString(L"Foo"),
-                                .value = std::move(future.value)}));
+        Line line(LineBuilder().SetMetadata(
+            LineMetadataEntry{.initial_value = NewLazyString(L"Foo"),
+                              .value = std::move(future.value)}));
         CHECK(line.metadata()->ToString() == L"Foo");
         future.consumer(NewLazyString(L"Bar"));
         CHECK(line.metadata()->ToString() == L"Bar");
       }}});
 }
 
-ColumnNumber Line::Options::EndColumn() const {
+ColumnNumber LineBuilder::EndColumn() const {
   // TODO: Compute this separately, taking the width of characters into account.
   return ColumnNumber(0) + contents->size();
 }
 
-void Line::Options::SetCharacter(ColumnNumber column, int c,
-                                 const LineModifierSet& c_modifiers) {
+void LineBuilder::SetCharacter(ColumnNumber column, int c,
+                               const LineModifierSet& c_modifiers) {
   ValidateInvariants();
   VLOG(4) << "Start SetCharacter: " << column;
   auto str = NewLazyString(std::wstring(1, c));
@@ -151,7 +150,7 @@ namespace {
 const bool line_set_character_tests_registration = tests::Register(
     L"LineTestsSetCharacter",
     {{.name = L"ConsecutiveSets", .callback = [] {
-        Line::Options options;
+        LineBuilder options;
         options.AppendString(std::wstring(L"ALEJANDRO"), std::nullopt);
         CHECK(options.contents->ToString() == L"ALEJANDRO");
         CHECK(options.modifiers.empty());
@@ -232,7 +231,7 @@ const bool line_set_character_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
+void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
   contents = lazy_string::Append(
       lazy_string::Substring(contents, ColumnNumber(0), column.ToDelta()),
@@ -250,7 +249,7 @@ void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
 }
 
-void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
+void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(modifier.find(LineModifier::kReset) == modifier.end());
   modifiers[ColumnNumber(0) + contents->size()] = modifier;
@@ -260,15 +259,15 @@ void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
 }
 
-void Line::Options::AppendString(NonNull<std::shared_ptr<LazyString>> suffix) {
+void LineBuilder::AppendString(NonNull<std::shared_ptr<LazyString>> suffix) {
   AppendString(std::move(suffix), std::nullopt);
 }
 
-void Line::Options::AppendString(
+void LineBuilder::AppendString(
     NonNull<std::shared_ptr<LazyString>> suffix,
     std::optional<LineModifierSet> suffix_modifiers) {
   ValidateInvariants();
-  Line::Options suffix_line(std::move(suffix));
+  LineBuilder suffix_line(std::move(suffix));
   if (suffix_modifiers.has_value() &&
       suffix_line.contents->size() > ColumnNumberDelta(0)) {
     suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers.value();
@@ -277,12 +276,12 @@ void Line::Options::AppendString(
   ValidateInvariants();
 }
 
-void Line::Options::AppendString(
+void LineBuilder::AppendString(
     std::wstring suffix, std::optional<LineModifierSet> suffix_modifiers) {
   AppendString(NewLazyString(std::move(suffix)), std::move(suffix_modifiers));
 }
 
-void Line::Options::Append(Line::Options line) {
+void LineBuilder::Append(LineBuilder line) {
   ValidateInvariants();
   end_of_line_modifiers_ = std::move(line.end_of_line_modifiers_);
   if (line.EndColumn().IsZero()) return;
@@ -311,23 +310,21 @@ void Line::Options::Append(Line::Options line) {
   ValidateInvariants();
 }
 
-void Line::Options::SetBufferLineColumn(
-    Line::BufferLineColumn buffer_line_column) {
+void LineBuilder::SetBufferLineColumn(BufferLineColumn buffer_line_column) {
   buffer_line_column_ = buffer_line_column;
 }
-std::optional<Line::BufferLineColumn> Line::Options::buffer_line_column()
-    const {
+std::optional<BufferLineColumn> LineBuilder::buffer_line_column() const {
   return buffer_line_column_;
 }
 
-Line::Options& Line::Options::SetMetadata(
-    std::optional<MetadataEntry> metadata) {
+LineBuilder& LineBuilder::SetMetadata(
+    std::optional<LineMetadataEntry> metadata) {
   metadata_ = std::move(metadata);
   return *this;
 }
 
-Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
-                                               ColumnNumberDelta delta) {
+LineBuilder& LineBuilder::DeleteCharacters(ColumnNumber column,
+                                           ColumnNumberDelta delta) {
   ValidateInvariants();
   CHECK_GE(delta, ColumnNumberDelta(0));
   CHECK_LE(column, EndColumn());
@@ -365,36 +362,35 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
   return *this;
 }
 
-Line::Options& Line::Options::DeleteSuffix(ColumnNumber column) {
+LineBuilder& LineBuilder::DeleteSuffix(ColumnNumber column) {
   if (column >= EndColumn()) return *this;
   return DeleteCharacters(column, EndColumn() - column);
 }
 
-Line::Options& Line::Options::SetAllModifiers(LineModifierSet value) {
+LineBuilder& LineBuilder::SetAllModifiers(LineModifierSet value) {
   modifiers = {{ColumnNumber(0), value}};
   end_of_line_modifiers_ = std::move(value);
   return *this;
 }
 
-Line::Options& Line::Options::insert_end_of_line_modifiers(
-    LineModifierSet values) {
+LineBuilder& LineBuilder::insert_end_of_line_modifiers(LineModifierSet values) {
   end_of_line_modifiers_.insert(values.begin(), values.end());
   return *this;
 }
 
-LineModifierSet Line::Options::copy_end_of_line_modifiers() const {
+LineModifierSet LineBuilder::copy_end_of_line_modifiers() const {
   return end_of_line_modifiers_;
 }
 
-void Line::Options::ValidateInvariants() {}
+void LineBuilder::ValidateInvariants() {}
 
-/* static */ NonNull<std::shared_ptr<Line>> Line::New(Options options) {
+/* static */ NonNull<std::shared_ptr<Line>> Line::New(LineBuilder options) {
   return MakeNonNullShared<Line>(std::move(options));
 }
 
-Line::Line(std::wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
+Line::Line(std::wstring x) : Line(LineBuilder(NewLazyString(std::move(x)))) {}
 
-Line::Line(Options options)
+Line::Line(LineBuilder options)
     : data_(Data{.options = std::move(options)}, Line::ValidateInvariants) {}
 
 Line::Line(const Line& line)
@@ -403,11 +399,11 @@ Line::Line(const Line& line)
       }),
             Line::ValidateInvariants) {}
 
-Line::Options Line::CopyOptions() const {
+LineBuilder Line::CopyLineBuilder() const {
   return data_.lock([](const Data& data) { return data.options; });
 }
 
-Line::Options Line::GetOptions() && {
+LineBuilder Line::GetLineBuilder() && {
   return data_.lock([](Data& data) { return std::move(data.options); });
 }
 
@@ -465,7 +461,7 @@ std::function<void()> Line::explicit_delete_observer() const {
       [](const Data& data) { return data.options.explicit_delete_observer_; });
 }
 
-std::optional<Line::BufferLineColumn> Line::buffer_line_column() const {
+std::optional<BufferLineColumn> Line::buffer_line_column() const {
   return data_.lock(
       [](const Data& data) { return data.options.buffer_line_column_; });
 }
@@ -476,7 +472,7 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
 
   VLOG(5) << "Producing output of line: " << ToString();
   return data_.lock([&options](const Data& data) {
-    Line::Options line_output;
+    LineBuilder line_output;
     ColumnNumber input_column = options.initial_column;
     LineWithCursor line_with_cursor;
     auto modifiers_it = data.options.modifiers.lower_bound(input_column);

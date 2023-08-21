@@ -127,7 +127,7 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
       description += L" ...";
       if (expr->Types() == std::vector<vm::Type>({vm::types::Void{}})) {
         return MakeNonNullShared<const Line>(
-            line->CopyOptions().SetMetadata(std::nullopt));
+            line->CopyLineBuilder().SetMetadata(std::nullopt));
       }
       futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
       buffer.work_queue()->Schedule(WorkQueue::Callback{
@@ -160,9 +160,9 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
       break;
   }
 
-  return MakeNonNullShared<const Line>(line->CopyOptions().SetMetadata(
-      Line::MetadataEntry{.initial_value = NewLazyString(description),
-                          .value = std::move(metadata_value)}));
+  return MakeNonNullShared<const Line>(line->CopyLineBuilder().SetMetadata(
+      LineMetadataEntry{.initial_value = NewLazyString(description),
+                        .value = std::move(metadata_value)}));
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
@@ -985,7 +985,7 @@ void OpenBuffer::AppendLine(NonNull<std::shared_ptr<LazyString>> str) {
 }
 
 void OpenBuffer::AppendRawLine(NonNull<std::shared_ptr<LazyString>> str) {
-  AppendRawLine(MakeNonNullShared<Line>(Line::Options(std::move(str))));
+  AppendRawLine(MakeNonNullShared<Line>(LineBuilder(std::move(str))));
 }
 
 void OpenBuffer::AppendRawLine(NonNull<std::shared_ptr<Line>> line) {
@@ -994,15 +994,15 @@ void OpenBuffer::AppendRawLine(NonNull<std::shared_ptr<Line>> line) {
 }
 
 void OpenBuffer::AppendToLastLine(NonNull<std::shared_ptr<LazyString>> str) {
-  AppendToLastLine(Line(Line::Options(std::move(str))));
+  AppendToLastLine(Line(LineBuilder(std::move(str))));
 }
 
 void OpenBuffer::AppendToLastLine(Line line) {
   static Tracker tracker(L"OpenBuffer::AppendToLastLine");
   auto tracker_call = tracker.Call();
   auto follower = GetEndPositionFollower();
-  Line::Options options = contents_.back()->CopyOptions();
-  options.Append(std::move(line).GetOptions());
+  LineBuilder options = contents_.back()->CopyLineBuilder();
+  options.Append(std::move(line).GetLineBuilder());
   AppendRawLine(MakeNonNullShared<Line>(std::move(options)));
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
                        contents_.EndLine(),
@@ -1160,10 +1160,11 @@ void OpenBuffer::MaybeExtendLine(LineColumn position) {
     return;
   }
 
-  Line::Options options = line->CopyOptions();
+  LineBuilder options = line->CopyLineBuilder();
   options.Append(Padding(
       position.column - line->EndColumn() + ColumnNumberDelta(1), L' '));
-  contents_.set_line(position.line, std::move(options));
+  contents_.set_line(position.line,
+                     MakeNonNullShared<Line>(std::move(options)));
 }
 
 void OpenBuffer::CheckPosition() {

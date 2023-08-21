@@ -81,7 +81,7 @@ class NewLineTransformation : public CompositeTransformation {
     {
       NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
       contents_to_insert->push_back(MakeNonNullShared<Line>(
-          line->CopyOptions().DeleteSuffix(prefix_end)));
+          line->CopyLineBuilder().DeleteSuffix(prefix_end)));
       output.Push(transformation::Insert{.contents_to_insert =
                                              std::move(contents_to_insert)});
     }
@@ -665,7 +665,7 @@ void EnterInsertMode(InsertModeOptions options) {
       .Transform([shared_options](EmptyValue) {
         for (gc::Root<OpenBuffer>& buffer_root :
              shared_options->buffers.value()) {
-          if (std::optional<Line::BufferLineColumn> line_buffer =
+          if (std::optional<BufferLineColumn> line_buffer =
                   buffer_root.ptr()->current_line()->buffer_line_column();
               line_buffer.has_value())
             VisitPointer(

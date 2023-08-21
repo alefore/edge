@@ -437,8 +437,9 @@ void BufferContents::insert(LineNumber position_line,
     VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
             << (modifiers.has_value() ? modifiers->size() : -1);
     if (modifiers.has_value()) {
-      line = MakeNonNullShared<Line>(
-          std::move(line)->CopyOptions().SetAllModifiers(modifiers.value()));
+      LineBuilder builder = std::move(line)->CopyLineBuilder();
+      builder.SetAllModifiers(modifiers.value());
+      line = MakeNonNullShared<Line>(std::move(builder));
     }
     prefix = Lines::PushBack(prefix, line);
     return true;
@@ -520,7 +521,7 @@ void BufferContents::DeleteCharactersFromLine(LineColumn position,
 
   TransformLine(
       position.line,
-      [&](Line::Options& options) {
+      [&](LineBuilder& options) {
         options.DeleteCharacters(position.column, amount);
       },
       CursorsTracker::Transformation()
@@ -541,21 +542,21 @@ void BufferContents::SetCharacter(LineColumn position, int c,
                                   LineModifierSet modifiers) {
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers.size();
-  TransformLine(position.line, [&](Line::Options& options) {
+  TransformLine(position.line, [&](LineBuilder& options) {
     options.SetCharacter(position.column, c, modifiers);
   });
 }
 
 void BufferContents::InsertCharacter(LineColumn position) {
-  TransformLine(position.line, [&](Line::Options& options) {
+  TransformLine(position.line, [&](LineBuilder& options) {
     options.InsertCharacterAtPosition(position.column);
   });
 }
 
 void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
   TransformLine(std::min(position, LineNumber() + size() - LineNumberDelta(1)),
-                [&](Line::Options& options) {
-                  options.Append(std::move(line_to_append).GetOptions());
+                [&](LineBuilder& options) {
+                  options.Append(std::move(line_to_append).GetLineBuilder());
                 });
 }
 
@@ -587,7 +588,7 @@ void BufferContents::SplitLine(LineColumn position) {
   // TODO: Can maybe combine this with next for fewer updates.
   insert_line(position.line + LineNumberDelta(1),
               Line::New(at(position.line)
-                            ->CopyOptions()
+                            ->CopyLineBuilder()
                             .DeleteCharacters(ColumnNumber(0),
                                               position.column.ToDelta())));
   update_listener_(CursorsTracker::Transformation()
@@ -701,14 +702,14 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
-        insert_line(line_number, MakeNonNullShared<const Line>(Line::Options(
+        insert_line(line_number, MakeNonNullShared<const Line>(LineBuilder(
                                      NewLazyString(std::move(text.value)))));
       })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
-        set_line(line_number, MakeNonNullShared<const Line>(Line::Options(
+        set_line(line_number, MakeNonNullShared<const Line>(LineBuilder(
                                   NewLazyString(std::move(text.value)))));
       })));
 

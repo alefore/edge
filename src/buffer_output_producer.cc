@@ -37,7 +37,7 @@ LineWithCursor::Generator ApplyVisualOverlay(
   return LineWithCursor::Generator{
       std::nullopt, [overlays, generator]() {
         auto output = generator.generate();
-        Line::Options line_options = output.line->CopyOptions();
+        LineBuilder line_options = output.line->CopyLineBuilder();
         for (std::pair<LineColumn, VisualOverlay> overlay : overlays) {
           ColumnNumber column = overlay.first.column;
           NonNull<std::shared_ptr<LazyString>> content = VisitPointer(
@@ -64,7 +64,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
       std::nullopt, [generator]() {
         auto output = generator.generate();
-        Line::Options line_options = output.line->CopyOptions();
+        LineBuilder line_options = output.line->CopyLineBuilder();
         line_options.modifiers.insert({ColumnNumber(0), {}});
         for (auto& m : line_options.modifiers) {
           auto it = m.second.insert(LineModifier::kReverse);
@@ -82,7 +82,7 @@ LineWithCursor::Generator ParseTreeHighlighter(
   return LineWithCursor::Generator{
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
-        Line::Options line_options = output.line->CopyOptions();
+        LineBuilder line_options = output.line->CopyLineBuilder();
         LineModifierSet modifiers = {LineModifier::kBlue};
         line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
                                      line_options.modifiers.lower_bound(end));
@@ -138,7 +138,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
                    std::hash<Range>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
     LineWithCursor input = generator.generate();
-    Line::Options options = input.line->CopyOptions();
+    LineBuilder options = input.line->CopyLineBuilder();
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
     GetSyntaxModifiersForLine(range, root.value(), {}, syntax_modifiers);

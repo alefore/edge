@@ -46,7 +46,7 @@ LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
   for (auto& modifier : GetBufferFlag(buffer)) {
     output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
         [](LineModifier m) {
-          Line::Options options;
+          LineBuilder options;
           options.AppendString(Padding(ColumnNumberDelta(80), L'█'),
                                LineModifierSet{m});
           return LineWithCursor{

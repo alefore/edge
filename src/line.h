@@ -26,117 +26,119 @@ class EditorState;
 class OpenBuffer;
 class LineWithCursor;
 
+struct LineMetadataEntry {
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+      initial_value;
+  futures::ListenableValue<
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>
+      value;
+};
+
+struct BufferLineColumn {
+  language::gc::WeakPtr<OpenBuffer> buffer;
+  std::optional<LineColumn> position;
+};
+
+class Line;
+
+class LineBuilder {
+ public:
+  LineBuilder() : LineBuilder(language::lazy_string::EmptyString()) {}
+
+  LineBuilder(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          input_contents)
+      : contents(std::move(input_contents)) {}
+
+  language::lazy_string::ColumnNumber EndColumn() const;
+
+  // Sets the character at the position given.
+  //
+  // `column` may be greater than size(), in which case the character will
+  // just get appended (extending the line by exactly one character).
+  void SetCharacter(language::lazy_string::ColumnNumber column, int c,
+                    const LineModifierSet& modifiers);
+
+  void InsertCharacterAtPosition(language::lazy_string::ColumnNumber position);
+  void AppendCharacter(wchar_t c, LineModifierSet modifier);
+  void AppendString(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          suffix);
+  void AppendString(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          suffix,
+      std::optional<LineModifierSet> modifier);
+  void AppendString(std::wstring contents,
+                    std::optional<LineModifierSet> modifier);
+  void Append(LineBuilder line);
+
+  void SetExplicitDeleteObserver(std::function<void()> observer) {
+    explicit_delete_observer_ = std::move(observer);
+  }
+
+  std::function<void()>& explicit_delete_observer() {
+    return explicit_delete_observer_;
+  }
+
+  void SetBufferLineColumn(BufferLineColumn buffer_line_column);
+  std::optional<BufferLineColumn> buffer_line_column() const;
+
+  LineBuilder& SetMetadata(std::optional<LineMetadataEntry> metadata);
+
+  // Delete characters in [position, position + amount).
+  LineBuilder& DeleteCharacters(
+      language::lazy_string::ColumnNumber position,
+      language::lazy_string::ColumnNumberDelta amount);
+
+  // Delete characters from column (included) until the end.
+  LineBuilder& DeleteSuffix(language::lazy_string::ColumnNumber column);
+
+  LineBuilder& SetAllModifiers(LineModifierSet value);
+
+  LineBuilder& insert_end_of_line_modifiers(LineModifierSet values);
+  LineModifierSet copy_end_of_line_modifiers() const;
+
+  // TODO: Make these fields private.
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+      contents;
+
+  // Columns without an entry here reuse the last present value. If no
+  // previous value, assume LineModifierSet(). There's no need to include
+  // RESET: it is assumed implicitly. In other words, modifiers don't carry
+  // over past an entry.
+  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers;
+
+ private:
+  friend Line;
+  // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
+  friend class std::hash<Line>;
+
+  // The semantics of this is that any characters at the end of the line
+  // (i.e., the space that represents the end of the line) should be rendered
+  // using these modifiers.
+  //
+  // If two lines are concatenated, the end of line modifiers of the first
+  // line is entirely ignored; it doesn't affect the first characters from the
+  // second line.
+  LineModifierSet end_of_line_modifiers_;
+
+  std::optional<LineMetadataEntry> metadata_;
+  std::function<void()> explicit_delete_observer_;
+  std::optional<BufferLineColumn> buffer_line_column_;
+  void ValidateInvariants();
+};
+
 // This class is thread-safe.
 class Line {
  public:
-  struct MetadataEntry {
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-        initial_value;
-    futures::ListenableValue<
-        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>
-        value;
-  };
-
-  struct BufferLineColumn {
-    language::gc::WeakPtr<OpenBuffer> buffer;
-    std::optional<LineColumn> position;
-  };
-
-  class Options {
-   public:
-    Options() : Options(language::lazy_string::EmptyString()) {}
-
-    Options(
-        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-            input_contents)
-        : contents(std::move(input_contents)) {}
-
-    language::lazy_string::ColumnNumber EndColumn() const;
-
-    // Sets the character at the position given.
-    //
-    // `column` may be greater than size(), in which case the character will
-    // just get appended (extending the line by exactly one character).
-    void SetCharacter(language::lazy_string::ColumnNumber column, int c,
-                      const LineModifierSet& modifiers);
-
-    void InsertCharacterAtPosition(
-        language::lazy_string::ColumnNumber position);
-    void AppendCharacter(wchar_t c, LineModifierSet modifier);
-    void AppendString(
-        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-            suffix);
-    void AppendString(
-        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-            suffix,
-        std::optional<LineModifierSet> modifier);
-    void AppendString(std::wstring contents,
-                      std::optional<LineModifierSet> modifier);
-    void Append(Options line);
-
-    void SetExplicitDeleteObserver(std::function<void()> observer) {
-      explicit_delete_observer_ = std::move(observer);
-    }
-
-    std::function<void()>& explicit_delete_observer() {
-      return explicit_delete_observer_;
-    }
-
-    void SetBufferLineColumn(BufferLineColumn buffer_line_column);
-    std::optional<BufferLineColumn> buffer_line_column() const;
-
-    Options& SetMetadata(std::optional<MetadataEntry> metadata);
-
-    // Delete characters in [position, position + amount).
-    Options& DeleteCharacters(language::lazy_string::ColumnNumber position,
-                              language::lazy_string::ColumnNumberDelta amount);
-
-    // Delete characters from column (included) until the end.
-    Options& DeleteSuffix(language::lazy_string::ColumnNumber column);
-
-    Options& SetAllModifiers(LineModifierSet value);
-
-    Options& insert_end_of_line_modifiers(LineModifierSet values);
-    LineModifierSet copy_end_of_line_modifiers() const;
-
-    // TODO: Make these fields private.
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-        contents;
-
-    // Columns without an entry here reuse the last present value. If no
-    // previous value, assume LineModifierSet(). There's no need to include
-    // RESET: it is assumed implicitly. In other words, modifiers don't carry
-    // over past an entry.
-    std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers;
-
-   private:
-    friend Line;
-    // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
-    friend class std::hash<Line>;
-
-    // The semantics of this is that any characters at the end of the line
-    // (i.e., the space that represents the end of the line) should be rendered
-    // using these modifiers.
-    //
-    // If two lines are concatenated, the end of line modifiers of the first
-    // line is entirely ignored; it doesn't affect the first characters from the
-    // second line.
-    LineModifierSet end_of_line_modifiers_;
-
-    std::optional<MetadataEntry> metadata_;
-    std::function<void()> explicit_delete_observer_;
-    std::optional<BufferLineColumn> buffer_line_column_;
-    void ValidateInvariants();
-  };
-
-  static language::NonNull<std::shared_ptr<Line>> New(Options options);
-  Line() : Line(Options()) {}
-  explicit Line(Options options);
+  static language::NonNull<std::shared_ptr<Line>> New(LineBuilder options);
+  Line() : Line(LineBuilder()) {}
+  explicit Line(LineBuilder options);
   explicit Line(std::wstring text);
   Line(const Line& line);
 
-  Options CopyOptions() const;
-  Options GetOptions() &&;
+  LineBuilder CopyLineBuilder() const;
+  LineBuilder GetLineBuilder() &&;
 
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
   contents() const;
@@ -215,7 +217,7 @@ class Line {
   friend class std::hash<Line>;
 
   struct Data {
-    const Options options;
+    const LineBuilder options;
     bool filtered = true;
     size_t filter_version = 0;
     bool modified = false;

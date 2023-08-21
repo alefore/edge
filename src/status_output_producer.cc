@@ -151,7 +151,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
   }
 
-  Line::Options line_options;
+  LineBuilder line_options;
 
   ColumnNumberDelta status_columns;
   for (auto& c : output) {
@@ -174,15 +174,16 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     VLOG(5) << "Setting status cursor: " << column;
 
     line_options.AppendString(options.status.text(), LineModifierSet());
-    Line::Options prefix = contents->CopyOptions();
+    LineBuilder prefix = contents->CopyLineBuilder();
     prefix.DeleteSuffix(column);
     line_options.Append(std::move(prefix));
     cursor = ColumnNumber(0) + line_options.contents->size();
-    Line::Options suffix = contents->CopyOptions();
+    LineBuilder suffix = contents->CopyLineBuilder();
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     line_options.Append(std::move(suffix));
-    line_options.Append(
-        options.status.prompt_extra_information()->GetLine()->CopyOptions());
+    line_options.Append(options.status.prompt_extra_information()
+                            ->GetLine()
+                            ->CopyLineBuilder());
   } else {
     VLOG(6) << "Not setting status cursor.";
     line_options.AppendString(text, modifiers);

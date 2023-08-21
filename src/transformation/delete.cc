@@ -61,7 +61,7 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
   gc::Root<OpenBuffer> delete_buffer = OpenBuffer::New(
       {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
   for (LineNumber i = range.begin.line; i <= range.end.line; ++i) {
-    Line::Options line_options = buffer.contents().at(i)->CopyOptions();
+    LineBuilder line_options = buffer.contents().at(i)->CopyLineBuilder();
     if (i == range.end.line) {
       line_options.DeleteSuffix(range.end.column);
     }

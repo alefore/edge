@@ -177,7 +177,7 @@ class BufferContents : public fuzz::FuzzTestable {
       lines_ = Lines::PushBack(nullptr, {});
     }
     CHECK_LE(line_number, EndLine());
-    Line::Options options = at(line_number)->CopyOptions();
+    LineBuilder options = at(line_number)->CopyLineBuilder();
     callback(options);
     set_line(line_number,
              language::MakeNonNullShared<const Line>(std::move(options)));

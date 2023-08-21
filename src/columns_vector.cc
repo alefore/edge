@@ -48,9 +48,9 @@ std::optional<size_t> CombineHashes(
                                 }));
 }
 
-Line::Options GeneratePadding(const ColumnsVector::Padding padding,
-                              ColumnNumberDelta size) {
-  Line::Options options;
+LineBuilder GeneratePadding(const ColumnsVector::Padding padding,
+                            ColumnNumberDelta size) {
+  LineBuilder options;
   CHECK(!padding.body->size().IsZero());
   NonNull<std::shared_ptr<LazyString>> contents = padding.head;
   while (contents->size() < size) {
@@ -117,7 +117,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
         .generate = [line, line_input = std::move(line_input),
                      columns_vector]() {
           std::optional<ColumnNumber> cursor;
-          Line::Options options;
+          LineBuilder options;
           ColumnNumber initial_column;
           LineModifierSet current_modifiers;
           // This takes wide characters into account (i.e., it may differ from
@@ -154,7 +154,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
             columns_shown += ColumnNumberDelta(
                 std::max(0, wcswidth(str.c_str(), str.size())));
             // TODO(easy, 2023-08-21): Avoid CopyOptions? Just move?
-            options.Append(std::move(column_data.line->CopyOptions()));
+            options.Append(std::move(column_data.line->CopyLineBuilder()));
           }
           return LineWithCursor{
               .line = MakeNonNullShared<Line>(std::move(options)),

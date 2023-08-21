@@ -421,27 +421,27 @@ const bool remove_common_prefixes_tests_registration =
 
 enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
 
-Line::Options GetBufferContents(const OpenBuffer& buffer,
-                                ColumnNumberDelta columns) {
+LineBuilder GetBufferContents(const OpenBuffer& buffer,
+                              ColumnNumberDelta columns) {
   NonNull<std::shared_ptr<const Line>> line =
       buffer.contents().at(LineNumber(0));
-  Line::Options output;
+  LineBuilder output;
   if ((line->EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
     ColumnNumberDelta padding = (columns - line->EndColumn().ToDelta()) / 2;
     output.AppendString(Padding(padding, L' '));
   }
 
-  output.Append(line->CopyOptions().DeleteSuffix(ColumnNumber() + columns));
+  output.Append(line->CopyLineBuilder().DeleteSuffix(ColumnNumber() + columns));
   output.modifiers.clear();
   output.modifiers.insert({ColumnNumber{}, {LineModifier::kDim}});
   return output;
 }
 
-Line::Options GetBufferVisibleString(
+LineBuilder GetBufferVisibleString(
     ColumnNumberDelta columns, const OpenBuffer& buffer,
     LineModifierSet modifiers, SelectionState selection_state,
     const std::list<ProcessedPathComponent>& components) {
-  Line::Options output;
+  LineBuilder output;
   std::optional<LineModifierSet> modifiers_override;
 
   LineModifierSet dim = modifiers;
@@ -569,7 +569,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
     output.lines.push_back(LineWithCursor::Generator{
         std::nullopt,
         [options, prefix_width, path_components, columns_per_buffer, index]() {
-          Line::Options line_options_output;
+          LineBuilder line_options_output;
           for (size_t j = 0; j < options->buffers_per_line &&
                              index + j < options->buffers.size();
                j++) {

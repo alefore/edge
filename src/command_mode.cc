@@ -95,6 +95,7 @@ class UndoCommand : public Command {
         return L"un-does the last change to the current buffer";
     }
     LOG(FATAL) << "Invalid direction value.";
+    return L"";
   }
 
   std::wstring Category() const override { return L"Edit"; }
@@ -451,7 +452,7 @@ class ActivateLink : public Command {
 
           VisitPointer(
               buffer.ptr()->current_line()->buffer_line_column(),
-              [&](Line::BufferLineColumn line_buffer) {
+              [&](BufferLineColumn line_buffer) {
                 if (std::optional<gc::Root<OpenBuffer>> target =
                         line_buffer.buffer.Lock();
                     target.has_value() &&

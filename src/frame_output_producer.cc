@@ -21,7 +21,7 @@ Line FrameLine(FrameOutputProducerOptions options) {
           ? LineModifierSet({LineModifier::kBold, LineModifier::kCyan,
                              LineModifier::kReverse})
           : LineModifierSet();
-  Line::Options output;
+  LineBuilder output;
   output.AppendString(options.prefix, line_modifiers);
   output.AppendString(L"──", line_modifiers);
   if (!options.title.empty()) {

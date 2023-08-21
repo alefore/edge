@@ -35,7 +35,7 @@ const std::wstring kDepthSymbol = L"navigation_buffer_depth";
 
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
-                 Line::Options* line_options) {
+                 LineBuilder* line_options) {
   auto trim = TrimLeft(input.contents(),
                        source.Read(buffer_variables::line_prefix_characters));
   CHECK_LE(trim->size(), input.contents()->size());
@@ -54,10 +54,10 @@ void AddContents(const OpenBuffer& source, const Line& input,
 void AppendLine(OpenBuffer& source,
                 NonNull<std::shared_ptr<LazyString>> padding,
                 LineColumn position, OpenBuffer& target) {
-  Line::Options options;
+  LineBuilder options;
   options.contents = padding;
   options.SetBufferLineColumn(
-      Line::BufferLineColumn{source.NewRoot().ptr().ToWeakPtr(), position});
+      BufferLineColumn{source.NewRoot().ptr().ToWeakPtr(), position});
   AddContents(source, *source.LineAt(position.line), &options);
   target.AppendRawLine(MakeNonNullShared<Line>(options));
 }
@@ -70,7 +70,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
     if (child.range().begin.line + LineNumberDelta(1) ==
             child.range().end.line ||
         depth_left == 0 || child.children().empty()) {
-      Line::Options options;
+      LineBuilder options;
       options.contents = padding;
       AddContents(source, *source.LineAt(child.range().begin.line), &options);
       if (child.range().begin.line + LineNumberDelta(1) <
@@ -85,7 +85,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
           child.range().end.line != tree.children()[i + 1].range().begin.line) {
         AddContents(source, *source.LineAt(child.range().end.line), &options);
       }
-      options.SetBufferLineColumn(Line::BufferLineColumn{
+      options.SetBufferLineColumn(BufferLineColumn{
           source.NewRoot().ptr().ToWeakPtr(), child.range().begin});
 
       target.AppendRawLine(MakeNonNullShared<Line>(options));

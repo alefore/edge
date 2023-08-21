@@ -43,7 +43,7 @@ static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
 LineWithCursor ProducerForString(std::wstring src, LineModifierSet modifiers) {
-  Line::Options options;
+  LineBuilder options;
   options.AppendString(std::move(src), std::move(modifiers));
   return LineWithCursor{.line = MakeNonNullShared<Line>(std::move(options))};
 }
@@ -123,7 +123,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
         .inputs_hash = {},
         .generate = [original_generator = buffer_output.lines.back().generate] {
           LineWithCursor output = original_generator();
-          Line::Options line_options;
+          LineBuilder line_options;
           line_options.AppendString(output.line->contents(),
                                     LineModifierSet{LineModifier::kDim});
           output.line = MakeNonNullShared<Line>(std::move(line_options));
@@ -143,12 +143,13 @@ LineWithCursor::Generator::Vector LinesSpanView(
                 (width - output.line->EndColumn().ToDelta() +
                  ColumnNumberDelta(1)) /
                 2;
-            Line::Options line_options;
+            LineBuilder line_options;
             line_options.AppendString(Padding(padding_size, L' '));
             if (output.cursor.has_value()) {
               output.cursor = *output.cursor + padding_size;
             }
-            line_options.Append(std::move(output.line.value()).GetOptions());
+            line_options.Append(
+                std::move(output.line.value()).GetLineBuilder());
             output.line = MakeNonNullShared<Line>(std::move(line_options));
             return output;
           }};

@@ -109,7 +109,7 @@ void StatusPromptExtraInformation::SetValue(Key key, int version, int value) {
 }
 
 std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
-  Line::Options options;
+  LineBuilder options;
   static const auto dim = LineModifierSet{LineModifier::kDim};
   static const auto empty = LineModifierSet{};
 

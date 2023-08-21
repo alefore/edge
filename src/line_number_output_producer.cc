@@ -74,7 +74,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
           language::NonNull<std::shared_ptr<LazyString>> padding =
               Padding(width - ColumnNumberDelta(number.size() + 1), L' ');
 
-          Line::Options line_options;
+          LineBuilder line_options;
           line_options.AppendString(
               Append(padding, NewLazyString(number + L":")),
               modifiers.container);

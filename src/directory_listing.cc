@@ -78,7 +78,7 @@ void StartDeleteFile(EditorState& editor_state, std::wstring path) {
       (result == 0 ? L"done" : L"ERROR: " + FromByteString(strerror(errno))));
 }
 
-Line::MetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
+LineMetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
   std::optional<gc::Root<vm::Value>> callback = target.environment()->Lookup(
       target.editor().gc_pool(), vm::Namespace(), L"GetPathMetadata",
@@ -139,7 +139,7 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
     CHECK(type_it != types.end());
   }
 
-  Line::Options line_options;
+  LineBuilder line_options;
   line_options.contents = NewLazyString(path + type_it->second.description);
   if (!type_it->second.modifiers.empty()) {
     line_options.modifiers[ColumnNumber(0)] = (type_it->second.modifiers);

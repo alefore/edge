@@ -95,8 +95,8 @@ const bool buffer_tests_registration = tests::Register(
          .callback =
              [] {
                auto buffer = NewBufferForTests();
-               Line::Options options(NewLazyString(L"foo"));
-               options.SetMetadata(Line::MetadataEntry{
+               LineBuilder options(NewLazyString(L"foo"));
+               options.SetMetadata(LineMetadataEntry{
                    .initial_value = NewLazyString(L"bar"),
                    .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
                        NewLazyString(L"quux")))});

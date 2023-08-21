@@ -346,7 +346,7 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
          return a.token.begin < b.token.begin;
        });
   VLOG(6) << "Producing output: " << line->ToString();
-  Line::Options options;
+  LineBuilder options;
   ColumnNumber position;
   auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
     if (end <= position) return;

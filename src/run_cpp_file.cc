@@ -31,7 +31,7 @@ futures::Value<PossibleError> RunCppFileHandler(
     return futures::Past(ValueOrError<EmptyValue>(Error(L"No current buffer")));
   }
   if (editor_state.structure() == Structure::kLine) {
-    std::optional<Line::BufferLineColumn> line_buffer =
+    std::optional<BufferLineColumn> line_buffer =
         buffer->ptr()->current_line()->buffer_line_column();
     if (line_buffer.has_value()) {
       if (auto target = line_buffer->buffer.Lock(); target.has_value()) {
