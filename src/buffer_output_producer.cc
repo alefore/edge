@@ -44,7 +44,7 @@ LineWithCursor::Generator ApplyVisualOverlay(
               overlay.second.content,
               [](NonNull<std::shared_ptr<LazyString>> input) { return input; },
               [&] {
-                return Substring(line_options.contents, column,
+                return Substring(line_options.contents(), column,
                                  ColumnNumberDelta(1));
               });
           for (ColumnNumberDelta i; i < content->size(); ++i) {

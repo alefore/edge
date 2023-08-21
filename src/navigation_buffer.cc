@@ -42,7 +42,7 @@ void AddContents(const OpenBuffer& source, const Line& input,
   auto characters_trimmed =
       ColumnNumberDelta(input.contents()->size() - trim->size());
   auto initial_length = line_options->EndColumn().ToDelta();
-  line_options->contents = Append(line_options->contents, trim);
+  line_options->set_contents(Append(line_options->contents(), trim));
   for (auto& m : input.modifiers()) {
     if (m.first >= ColumnNumber(0) + characters_trimmed) {
       line_options->set_modifiers(m.first + initial_length - characters_trimmed,
@@ -55,7 +55,7 @@ void AppendLine(OpenBuffer& source,
                 NonNull<std::shared_ptr<LazyString>> padding,
                 LineColumn position, OpenBuffer& target) {
   LineBuilder options;
-  options.contents = padding;
+  options.set_contents(padding);
   options.SetBufferLineColumn(
       BufferLineColumn{source.NewRoot().ptr().ToWeakPtr(), position});
   AddContents(source, *source.LineAt(position.line), &options);
@@ -71,15 +71,14 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
             child.range().end.line ||
         depth_left == 0 || child.children().empty()) {
       LineBuilder options;
-      options.contents = padding;
+      options.set_contents(padding);
       AddContents(source, *source.LineAt(child.range().begin.line), &options);
       if (child.range().begin.line + LineNumberDelta(1) <
           child.range().end.line) {
-        options.contents =
-            Append(std::move(options.contents), NewLazyString(L" ... "));
+        options.set_contents(
+            Append(options.contents(), NewLazyString(L" ... ")));
       } else {
-        options.contents =
-            Append(std::move(options.contents), NewLazyString(L" "));
+        options.set_contents(Append(options.contents(), NewLazyString(L" ")));
       }
       if (i + 1 >= tree.children().size() ||
           child.range().end.line != tree.children()[i + 1].range().begin.line) {

@@ -48,7 +48,7 @@ class LineBuilder {
   LineBuilder(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
           input_contents)
-      : contents(std::move(input_contents)) {}
+      : contents_(std::move(input_contents)) {}
 
   language::lazy_string::ColumnNumber EndColumn() const;
 
@@ -107,14 +107,18 @@ class LineBuilder {
       std::map<language::lazy_string::ColumnNumber, LineModifierSet> value);
   void ClearModifiers();
 
-  // TODO: Make these fields private.
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-      contents;
+  contents() const;
+  void set_contents(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
 
  private:
   friend Line;
   // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
   friend class std::hash<Line>;
+
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+      contents_;
 
   // Columns without an entry here reuse the last present value. If no
   // previous value, assume LineModifierSet(). There's no need to include

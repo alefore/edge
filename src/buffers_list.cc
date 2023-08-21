@@ -579,8 +579,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * j;
             line_options_output.AppendString(
-                Padding(start.ToDelta() - line_options_output.contents->size(),
-                        L' '),
+                Padding(
+                    start.ToDelta() - line_options_output.contents()->size(),
+                    L' '),
                 LineModifierSet());
 
             FilterResult filter_result =
@@ -597,7 +598,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             line_options_output.AppendString(
                 Append(Padding(start.ToDelta() -
-                                   line_options_output.contents->size(),
+                                   line_options_output.contents()->size(),
                                L' '),
                        NewLazyString(number_prefix)),
                 number_modifiers);

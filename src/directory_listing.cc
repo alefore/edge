@@ -140,7 +140,7 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
   }
 
   LineBuilder line_options;
-  line_options.contents = NewLazyString(path + type_it->second.description);
+  line_options.set_contents(NewLazyString(path + type_it->second.description));
   if (!type_it->second.modifiers.empty()) {
     line_options.set_modifiers(ColumnNumber(0), type_it->second.modifiers);
   }

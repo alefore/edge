@@ -141,8 +141,8 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
       VLOG(8) << "Adding line from " << line_start << " to " << i;
 
       LineBuilder line_options;
-      line_options.contents =
-          Substring(contents, line_start, ColumnNumber(i) - line_start);
+      line_options.set_contents(
+          Substring(contents, line_start, ColumnNumber(i) - line_start));
       line_options.set_modifiers(ColumnNumber(0), modifiers);
       lines_to_insert.emplace_back(
           MakeNonNullShared<const Line>(std::move(line_options)));
@@ -154,7 +154,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
   VLOG(8) << "Adding last line from " << line_start << " to "
           << contents->size();
   LineBuilder line_options;
-  line_options.contents = Substring(contents, line_start);
+  line_options.set_contents(Substring(contents, line_start));
   line_options.set_modifiers(ColumnNumber(0), modifiers);
   lines_to_insert.emplace_back(
       MakeNonNullShared<Line>(std::move(line_options)));
