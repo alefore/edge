@@ -5,12 +5,12 @@
 #include <vector>
 
 #include "src/cursors.h"
-#include "src/fuzz_testable.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/const_tree.h"
 #include "src/language/safe_types.h"
 #include "src/line.h"
 #include "src/line_column.h"
+#include "src/tests/fuzz_testable.h"
 
 namespace afc {
 namespace editor {

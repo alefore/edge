@@ -1,4 +1,4 @@
-#include "src/fuzz_testable.h"
+#include "src/tests/fuzz_testable.h"
 
 #include <algorithm>
 #include <cmath>

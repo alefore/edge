@@ -97,8 +97,6 @@ src/futures/serializer.cc \
 src/futures/serializer.h \
 src/fuzz.h \
 src/fuzz.cc \
-src/fuzz_testable.h \
-src/fuzz_testable.cc \
 src/goto_command.cc \
 src/help_command.cc \
 src/horizontal_center_output_producer.cc \
@@ -241,6 +239,8 @@ src/structure_move.h \
 src/terminal.cc \
 src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
+src/tests/fuzz_testable.h \
+src/tests/fuzz_testable.cc \
 src/tests/tests.cc \
 src/tests/tests.h \
 src/tokenize.cc \

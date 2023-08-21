@@ -1,14 +1,12 @@
-#ifndef __AFC_EDITOR_FUZZ_TESTABLE_H__
-#define __AFC_EDITOR_FUZZ_TESTABLE_H__
+#ifndef __AFC_EDITOR_TESTS_FUZZ_TESTABLE_H__
+#define __AFC_EDITOR_TESTS_FUZZ_TESTABLE_H__
 
 #include <algorithm>
 #include <fstream>
 #include <functional>
 #include <memory>
 
-namespace afc {
-namespace editor {
-namespace fuzz {
+namespace afc::editor::fuzz {
 
 using Stream = std::ifstream;
 using Handler = std::function<void(Stream&)>;
@@ -20,8 +18,6 @@ class FuzzTestable {
   virtual std::vector<Handler> FuzzHandlers() = 0;
 };
 
-}  // namespace fuzz
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor::fuzz
 
-#endif  // __AFC_EDITOR_FUZZ_TESTABLE_H__
+#endif  // __AFC_EDITOR_TESTS_FUZZ_TESTABLE_H__

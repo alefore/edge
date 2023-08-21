@@ -7,8 +7,8 @@
 #include <memory>
 #include <optional>
 
-#include "src/fuzz_testable.h"
 #include "src/language/wstring.h"
+#include "src/tests/fuzz_testable.h"
 
 namespace afc {
 namespace editor {

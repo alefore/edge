@@ -167,7 +167,6 @@ cc_library(
         ":audio",
         ":buffer_contents",
         ":file_descriptor_reader",
-        ":fuzz_testable",
         ":line_column",
         ":status",
         "//src/infrastructure:file_system_driver",
@@ -177,6 +176,7 @@ cc_library(
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
         "//src/language/lazy_string:substring",
+        "//src/tests:fuzz_testable",
     ],
 )
 
@@ -342,17 +342,7 @@ cc_library(
     srcs = ["fuzz.cc"],
     hdrs = ["fuzz.h"],
     deps = [
-        ":fuzz_testable",
-    ],
-)
-
-cc_library(
-    name = "fuzz_testable",
-    srcs = ["fuzz_testable.cc"],
-    hdrs = ["fuzz_testable.h"],
-    deps = [
-        "//src/language:wstring",
-        "@com_github_google_glog//:glog",
+        "//src/tests:fuzz_testable",
     ],
 )
 

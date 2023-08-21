@@ -19,6 +19,16 @@ cc_binary(
 )
 
 cc_library(
+    name = "fuzz_testable",
+    srcs = ["fuzz_testable.cc"],
+    hdrs = ["fuzz_testable.h"],
+    deps = [
+        "//src/language:wstring",
+        "@com_github_google_glog//:glog",
+    ],
+)
+
+cc_library(
     name = "tests",
     srcs = ["tests.cc"],
     hdrs = ["tests.h"],
