@@ -41,7 +41,7 @@ const bool line_tests_registration = tests::Register(
       .callback =
           [] {
             Line::Options options;
-            options.end_of_line_modifiers.insert(LineModifier::kRed);
+            options.insert_end_of_line_modifiers({LineModifier::kRed});
             Line line(std::move(options));
             CHECK(line.end_of_line_modifiers().find(LineModifier::kRed) !=
                   line.end_of_line_modifiers().end());
@@ -50,7 +50,7 @@ const bool line_tests_registration = tests::Register(
       .callback =
           [] {
             Line::Options options;
-            options.end_of_line_modifiers.insert(LineModifier::kRed);
+            options.insert_end_of_line_modifiers({LineModifier::kRed});
             Line initial_line(std::move(options));
             Line final_line(std::move(initial_line));
             CHECK(final_line.end_of_line_modifiers().find(LineModifier::kRed) !=
@@ -61,7 +61,7 @@ const bool line_tests_registration = tests::Register(
           [] {
             Line::Options options;
             size_t initial_hash = std::hash<Line>{}(Line(options));
-            options.end_of_line_modifiers.insert(LineModifier::kRed);
+            options.insert_end_of_line_modifiers({LineModifier::kRed});
             size_t final_hash = std::hash<Line>{}(Line(options));
             CHECK(initial_hash != final_hash);
           }},
@@ -114,7 +114,7 @@ void Line::Options::SetCharacter(ColumnNumber column, int c,
         lazy_string::Substring(contents, column + ColumnNumberDelta(1)));
   }
 
-  metadata = std::nullopt;
+  metadata_ = std::nullopt;
 
   // Return the modifiers that are effective at a given position.
   auto Read = [&](ColumnNumber position) -> LineModifierSet {
@@ -246,7 +246,7 @@ void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
   }
   modifiers = std::move(new_modifiers);
 
-  metadata = std::nullopt;
+  metadata_ = std::nullopt;
   ValidateInvariants();
 }
 
@@ -256,7 +256,7 @@ void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   modifiers[ColumnNumber(0) + contents->size()] = modifier;
   contents = lazy_string::Append(std::move(contents),
                                  NewLazyString(std::wstring(1, c)));
-  metadata = std::nullopt;
+  metadata_ = std::nullopt;
   ValidateInvariants();
 }
 
@@ -284,11 +284,11 @@ void Line::Options::AppendString(
 
 void Line::Options::Append(Line::Options line) {
   ValidateInvariants();
-  end_of_line_modifiers = std::move(line.end_of_line_modifiers);
+  end_of_line_modifiers_ = std::move(line.end_of_line_modifiers_);
   if (line.EndColumn().IsZero()) return;
   auto original_length = EndColumn().ToDelta();
   contents = lazy_string::Append(std::move(contents), std::move(line.contents));
-  metadata = std::nullopt;
+  metadata_ = std::nullopt;
 
   auto initial_modifier =
       line.modifiers.empty() || line.modifiers.begin()->first != ColumnNumber(0)
@@ -319,8 +319,8 @@ std::optional<Line::BufferLineColumn> Line::Options::buffer_line_column()
 }
 
 Line::Options& Line::Options::SetMetadata(
-    std::optional<MetadataEntry> new_metadata) {
-  this->metadata = std::move(new_metadata);
+    std::optional<MetadataEntry> metadata) {
+  metadata_ = std::move(metadata);
   return *this;
 }
 
@@ -357,7 +357,7 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
     new_modifiers[column] = modifiers_continuation.value();
   }
   modifiers = std::move(new_modifiers);
-  metadata = std::nullopt;
+  metadata_ = std::nullopt;
 
   ValidateInvariants();
   return *this;
@@ -366,6 +366,16 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
 Line::Options& Line::Options::DeleteSuffix(ColumnNumber column) {
   if (column >= EndColumn()) return *this;
   return DeleteCharacters(column, EndColumn() - column);
+}
+
+Line::Options& Line::Options::insert_end_of_line_modifiers(
+    LineModifierSet values) {
+  end_of_line_modifiers_.insert(values.begin(), values.end());
+  return *this;
+}
+
+LineModifierSet Line::Options::copy_end_of_line_modifiers() const {
+  return end_of_line_modifiers_;
 }
 
 void Line::Options::ValidateInvariants() {}
@@ -422,7 +432,7 @@ NonNull<std::shared_ptr<LazyString>> Line::Substring(
 
 std::shared_ptr<LazyString> Line::metadata() const {
   return data_.lock([](const Data& data) -> std::shared_ptr<LazyString> {
-    if (const auto& metadata = data.options.metadata; metadata.has_value())
+    if (const auto& metadata = data.options.metadata_; metadata.has_value())
       return metadata->value.get_copy()
           .value_or(metadata->initial_value)
           .get_shared();
@@ -437,7 +447,7 @@ Line::metadata_future() const {
       [](const Data& data)
           -> language::ValueOrError<
               futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>>> {
-        if (const auto& metadata = data.options.metadata;
+        if (const auto& metadata = data.options.metadata_;
             metadata.has_value()) {
           return metadata.value().value;
         }
@@ -449,7 +459,7 @@ void Line::SetAllModifiers(const LineModifierSet& modifiers) {
   data_.lock([&modifiers](Data& data) {
     data.options.modifiers.clear();
     data.options.modifiers[ColumnNumber(0)] = modifiers;
-    data.options.end_of_line_modifiers = modifiers;
+    data.options.end_of_line_modifiers_ = modifiers;
     data.hash = std::nullopt;
   });
 }
@@ -468,9 +478,9 @@ void Line::Append(const Line& line) {
       for (auto& [position, modifiers] : line_data.options.modifiers) {
         data.options.modifiers[position + original_length] = modifiers;
       }
-      data.options.end_of_line_modifiers =
-          line_data.options.end_of_line_modifiers;
-      data.options.metadata = std::nullopt;
+      data.options.end_of_line_modifiers_ =
+          line_data.options.end_of_line_modifiers_;
+      data.options.metadata_ = std::nullopt;
     });
   });
 }
@@ -578,9 +588,9 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
       }
     }
 
-    line_output.end_of_line_modifiers =
+    line_output.end_of_line_modifiers_ =
         input_column == EndColumn(data)
-            ? data.options.end_of_line_modifiers
+            ? data.options.end_of_line_modifiers_
             : (line_output.modifiers.empty()
                    ? LineModifierSet()
                    : line_output.modifiers.rbegin()->second);
@@ -631,7 +641,7 @@ std::size_t hash<afc::editor::Line>::operator()(
     if (data.hash.has_value()) return *data.hash;
     data.hash = compute_hash(
         data.options.contents.value(),
-        MakeHashableIteratorRange(data.options.end_of_line_modifiers),
+        MakeHashableIteratorRange(data.options.end_of_line_modifiers_),
         MakeHashableIteratorRange(
             data.options.modifiers.begin(), data.options.modifiers.end(),
             [](const std::pair<ColumnNumber, LineModifierSet>& value) {

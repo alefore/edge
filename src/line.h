@@ -94,6 +94,9 @@ class Line {
     // Delete characters from column (included) until the end.
     Options& DeleteSuffix(language::lazy_string::ColumnNumber column);
 
+    Options& insert_end_of_line_modifiers(LineModifierSet values);
+    LineModifierSet copy_end_of_line_modifiers() const;
+
     // TODO: Make these fields private.
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
         contents;
@@ -104,6 +107,11 @@ class Line {
     // over past an entry.
     std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers;
 
+   private:
+    friend Line;
+    // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
+    friend class std::hash<Line>;
+
     // The semantics of this is that any characters at the end of the line
     // (i.e., the space that represents the end of the line) should be rendered
     // using these modifiers.
@@ -111,12 +119,9 @@ class Line {
     // If two lines are concatenated, the end of line modifiers of the first
     // line is entirely ignored; it doesn't affect the first characters from the
     // second line.
-    LineModifierSet end_of_line_modifiers;
+    LineModifierSet end_of_line_modifiers_;
 
-   private:
-    friend Line;
-
-    std::optional<MetadataEntry> metadata;
+    std::optional<MetadataEntry> metadata_;
     std::function<void()> explicit_delete_observer_;
     std::optional<BufferLineColumn> buffer_line_column_;
     void ValidateInvariants();
@@ -162,7 +167,7 @@ class Line {
   }
   LineModifierSet end_of_line_modifiers() const {
     return data_.lock(
-        [](const Data& data) { return data.options.end_of_line_modifiers; });
+        [](const Data& data) { return data.options.end_of_line_modifiers_; });
   }
 
   bool modified() const {

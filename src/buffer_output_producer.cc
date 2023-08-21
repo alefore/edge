@@ -157,7 +157,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
         merged_modifiers.insert(*parent_it);
         ++parent_it;
         if (parent_it == options.modifiers.end()) {
-          current_parent_modifiers = options.end_of_line_modifiers;
+          current_parent_modifiers = options.copy_end_of_line_modifiers();
         }
         continue;
       }
