@@ -1,7 +1,6 @@
 #include "src/transformation/set_position.h"
 
 #include "src/line_column_vm.h"
-#include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"

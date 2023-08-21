@@ -413,10 +413,12 @@ cc_library(
     name = "line_column_vm",
     srcs = ["line_column_vm.cc"],
     hdrs = ["line_column_vm.h"],
+    visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":line_column",
         "//src/language:safe_types",
         "//src/vm/public:callbacks",
+        "//src/vm/public:container",
     ],
 )
 
@@ -839,6 +841,7 @@ cc_library(
         ":line",
         ":modifiers",
         "//src/futures",
+        "//src/transformation:type",
     ],
 )
 

@@ -12,6 +12,7 @@ cc_library(
     srcs = ["composite.cc"],
     hdrs = ["composite.h"],
     deps = [
+        ":stack",
         "//src:buffer_contents",
     ],
 )
@@ -55,6 +56,9 @@ cc_library(
 cc_library(
     name = "input",
     hdrs = ["input.h"],
+    deps = [
+        "//src:line_column",
+    ],
 )
 
 cc_library(
@@ -118,9 +122,11 @@ cc_library(
     srcs = ["set_position.cc"],
     hdrs = ["set_position.h"],
     deps = [
+        ":composite",
         ":input",
         ":result",
         "//src:line_column",
+        "//src:line_column_vm",
         "//src/futures",
         "//src/vm/public:environment",
     ],
@@ -134,7 +140,6 @@ cc_library(
     deps = [
         ":input",
         ":result",
-        "//src:transformation",
     ],
 )
 

@@ -4,9 +4,9 @@
 #include <list>
 #include <memory>
 
-#include "src/transformation.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
+#include "src/transformation/type.h"
 
 namespace afc::editor {
 namespace transformation {
