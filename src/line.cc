@@ -368,6 +368,12 @@ Line::Options& Line::Options::DeleteSuffix(ColumnNumber column) {
   return DeleteCharacters(column, EndColumn() - column);
 }
 
+Line::Options& Line::Options::SetAllModifiers(LineModifierSet value) {
+  modifiers = {{ColumnNumber(0), value}};
+  end_of_line_modifiers_ = std::move(value);
+  return *this;
+}
+
 Line::Options& Line::Options::insert_end_of_line_modifiers(
     LineModifierSet values) {
   end_of_line_modifiers_.insert(values.begin(), values.end());
@@ -450,15 +456,6 @@ Line::metadata_future() const {
         }
         return Error(L"Line has no value.");
       });
-}
-
-void Line::SetAllModifiers(const LineModifierSet& modifiers) {
-  data_.lock([&modifiers](Data& data) {
-    data.options.modifiers.clear();
-    data.options.modifiers[ColumnNumber(0)] = modifiers;
-    data.options.end_of_line_modifiers_ = modifiers;
-    data.hash = std::nullopt;
-  });
 }
 
 void Line::Append(const Line& line) {

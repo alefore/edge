@@ -437,9 +437,8 @@ void BufferContents::insert(LineNumber position_line,
     VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
             << (modifiers.has_value() ? modifiers->size() : -1);
     if (modifiers.has_value()) {
-      auto replacement = MakeNonNullShared<Line>(line.value());
-      replacement->SetAllModifiers(modifiers.value());
-      line = std::move(replacement);
+      line = MakeNonNullShared<Line>(
+          std::move(line)->CopyOptions().SetAllModifiers(modifiers.value()));
     }
     prefix = Lines::PushBack(prefix, line);
     return true;

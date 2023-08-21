@@ -94,6 +94,8 @@ class Line {
     // Delete characters from column (included) until the end.
     Options& DeleteSuffix(language::lazy_string::ColumnNumber column);
 
+    Options& SetAllModifiers(LineModifierSet value);
+
     Options& insert_end_of_line_modifiers(LineModifierSet values);
     LineModifierSet copy_end_of_line_modifiers() const;
 
@@ -157,12 +159,8 @@ class Line {
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
   metadata_future() const;
 
-  void SetAllModifiers(const LineModifierSet& modifiers);
   std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
       const {
-    return data_.lock([](const Data& data) { return data.options.modifiers; });
-  }
-  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers() {
     return data_.lock([](const Data& data) { return data.options.modifiers; });
   }
   LineModifierSet end_of_line_modifiers() const {
