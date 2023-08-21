@@ -1,4 +1,4 @@
-#include "src/buffer_terminal.h"
+#include "src/terminal_input_parser.h"
 
 #include <cctype>
 #include <ostream>
@@ -28,24 +28,24 @@ using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 
-BufferTerminal::BufferTerminal(
-    NonNull<std::unique_ptr<BufferTerminal::Receiver>> receiver,
+TerminalInputParser::TerminalInputParser(
+    NonNull<std::unique_ptr<TerminalInputParser::Receiver>> receiver,
     BufferContents& contents)
     : data_(MakeNonNullShared<Data>(
           Data{.receiver = std::move(receiver), .contents = contents})) {
   data_->receiver->view_size().Add(Observers::LockingObserver(
       std::weak_ptr<Data>(data_.get_shared()), InternalUpdateSize));
 
-  LOG(INFO) << "New BufferTerminal for " << data_->receiver->name();
+  LOG(INFO) << "New TerminalInputParser for " << data_->receiver->name();
 }
 
-LineColumn BufferTerminal::position() const { return data_->position; }
+LineColumn TerminalInputParser::position() const { return data_->position; }
 
-void BufferTerminal::SetPosition(LineColumn position) {
+void TerminalInputParser::SetPosition(LineColumn position) {
   data_->position = position;
 }
 
-void BufferTerminal::ProcessCommandInput(
+void TerminalInputParser::ProcessCommandInput(
     NonNull<std::shared_ptr<LazyString>> str,
     const std::function<void()>& new_line_callback) {
   data_->position.line =
@@ -98,7 +98,7 @@ void BufferTerminal::ProcessCommandInput(
   data_->receiver->JumpToPosition(data_->position);
 }
 
-std::vector<fuzz::Handler> BufferTerminal::FuzzHandlers() {
+std::vector<fuzz::Handler> TerminalInputParser::FuzzHandlers() {
   using namespace fuzz;
   std::vector<Handler> output;
   output.push_back(Call(std::function<void()>([this]() { position(); })));
@@ -114,7 +114,7 @@ std::vector<fuzz::Handler> BufferTerminal::FuzzHandlers() {
   return output;
 }
 
-ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
+ColumnNumber TerminalInputParser::ProcessTerminalEscapeSequence(
     NonNull<std::shared_ptr<LazyString>> str, ColumnNumber read_index,
     LineModifierSet* modifiers) {
   if (str->size() <= read_index.ToDelta()) {
@@ -368,7 +368,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
   return read_index;
 }
 
-void BufferTerminal::MoveToNextLine() {
+void TerminalInputParser::MoveToNextLine() {
   ++data_->position.line;
   data_->position.column = ColumnNumber(0);
   if (data_->position.line ==
@@ -378,10 +378,10 @@ void BufferTerminal::MoveToNextLine() {
   data_->receiver->JumpToPosition(data_->position);
 }
 
-void BufferTerminal::UpdateSize() { InternalUpdateSize(data_.value()); }
+void TerminalInputParser::UpdateSize() { InternalUpdateSize(data_.value()); }
 
 /* static */
-void BufferTerminal::InternalUpdateSize(Data& data) {
+void TerminalInputParser::InternalUpdateSize(Data& data) {
   std::optional<infrastructure::FileDescriptor> fd = data.receiver->fd();
   if (fd == std::nullopt) {
     LOG(INFO) << "Buffer fd is gone.";
@@ -410,7 +410,7 @@ void BufferTerminal::InternalUpdateSize(Data& data) {
 }
 
 /* static */
-LineColumnDelta BufferTerminal::LastViewSize(Data& data) {
+LineColumnDelta TerminalInputParser::LastViewSize(Data& data) {
   return data.receiver->view_size().Get().value_or(
       LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }

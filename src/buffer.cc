@@ -1503,8 +1503,8 @@ VisualOverlayMap OpenBuffer::SetVisualOverlayMap(VisualOverlayMap value) {
   return previous_value;
 }
 
-NonNull<std::unique_ptr<BufferTerminal>> OpenBuffer::NewTerminal() {
-  class Adapter : public BufferTerminal::Receiver {
+NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
+  class Adapter : public TerminalInputParser::Receiver {
    public:
     Adapter(OpenBuffer& buffer) : buffer_(buffer) {}
 
@@ -1546,8 +1546,8 @@ NonNull<std::unique_ptr<BufferTerminal>> OpenBuffer::NewTerminal() {
     OpenBuffer& buffer_;
   };
 
-  return MakeNonNullUnique<BufferTerminal>(MakeNonNullUnique<Adapter>(*this),
-                                           contents_);
+  return MakeNonNullUnique<TerminalInputParser>(
+      MakeNonNullUnique<Adapter>(*this), contents_);
 }
 
 const std::shared_ptr<const Line> OpenBuffer::current_line() const {

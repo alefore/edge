@@ -34,8 +34,6 @@ src/buffer_metadata_output_producer.cc \
 src/buffer_metadata_output_producer.h \
 src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
-src/buffer_terminal.cc \
-src/buffer_terminal.h \
 src/buffer_tests.cc \
 src/widget_list.cc \
 src/widget_list.h \
@@ -237,6 +235,9 @@ src/structure.h \
 src/structure_move.cc \
 src/structure_move.h \
 src/terminal.cc \
+src/terminal.h \
+src/terminal_input_parser.cc \
+src/terminal_input_parser.h \
 src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
 src/tests/fuzz_testable.h \

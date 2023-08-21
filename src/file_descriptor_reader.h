@@ -22,7 +22,6 @@ namespace afc {
 namespace editor {
 
 class OpenBuffer;
-class BufferTerminal;
 class Line;
 
 // Class used to read input from a file descriptor into a buffer.

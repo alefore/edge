@@ -12,7 +12,6 @@
 #include "src/buffer_contents.h"
 #include "src/buffer_name.h"
 #include "src/buffer_syntax_parser.h"
-#include "src/buffer_terminal.h"
 #include "src/concurrent/work_queue.h"
 #include "src/cursors.h"
 #include "src/file_descriptor_reader.h"
@@ -28,6 +27,7 @@
 #include "src/log.h"
 #include "src/parse_tree.h"
 #include "src/status.h"
+#include "src/terminal_input_parser.h"
 #include "src/transformation.h"
 #include "src/transformation/type.h"
 #include "src/undo_state.h"
@@ -382,8 +382,11 @@ class OpenBuffer {
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
   //
-  // One exception to this is the BufferTerminal class (to which we pass a
+  // One exception to this is the TerminalInputParser class (to which we pass a
   // reference).
+  //
+  // TODO(easy, 2023-08-21): Stop passing a reference to TerminalInputParser;
+  // instead, extend TerminalInputParser::Receiver.
   const BufferContents& contents() const { return contents_; }
 
   BufferName name() const;
@@ -406,7 +409,7 @@ class OpenBuffer {
 
   infrastructure::FileSystemDriver& file_system_driver() const;
 
-  language::NonNull<std::unique_ptr<BufferTerminal>>
+  language::NonNull<std::unique_ptr<TerminalInputParser>>
   NewTerminal();  // Public for testing.
 
   // Returns the path to the directory that should be used to keep state for the
@@ -518,7 +521,7 @@ class OpenBuffer {
   // Non-const because Reload will reset it to a newly constructed instance.
   language::NonNull<std::unique_ptr<BufferDisplayData>> display_data_;
 
-  std::unique_ptr<BufferTerminal> terminal_;
+  std::unique_ptr<TerminalInputParser> terminal_;
 
   // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is

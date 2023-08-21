@@ -90,7 +90,6 @@ cc_library(
         ":buffer_contents",
         ":buffer_name",
         ":buffer_syntax_parser",
-        ":buffer_terminal",
         ":cursors",
         ":file_descriptor_reader",
         ":line",
@@ -99,6 +98,7 @@ cc_library(
         ":log",
         ":parse_tree",
         ":status",
+        ":terminal_input_parser",
         ":transformation",
         ":undo_state",
         ":variables",
@@ -156,27 +156,6 @@ cc_library(
         "//src/futures:delete_notification",
         "//src/language:observers",
         "//src/language:safe_types",
-    ],
-)
-
-cc_library(
-    name = "buffer_terminal",
-    srcs = ["buffer_terminal.cc"],
-    hdrs = ["buffer_terminal.h"],
-    deps = [
-        ":audio",
-        ":buffer_contents",
-        ":file_descriptor_reader",
-        ":line_column",
-        ":status",
-        "//src/infrastructure:file_system_driver",
-        "//src/infrastructure/screen:line_modifier",
-        "//src/language:safe_types",
-        "//src/language:wstring",
-        "//src/language/lazy_string",
-        "//src/language/lazy_string:char_buffer",
-        "//src/language/lazy_string:substring",
-        "//src/tests:fuzz_testable",
     ],
 )
 
@@ -802,6 +781,27 @@ cc_library(
     name = "terminal",
     srcs = ["terminal.cc"],
     hdrs = ["terminal.h"],
+)
+
+cc_library(
+    name = "terminal_input_parser",
+    srcs = ["terminal_input_parser.cc"],
+    hdrs = ["terminal_input_parser.h"],
+    deps = [
+        ":audio",
+        ":buffer_contents",
+        ":file_descriptor_reader",
+        ":line_column",
+        ":status",
+        "//src/infrastructure:file_system_driver",
+        "//src/infrastructure/screen:line_modifier",
+        "//src/language:safe_types",
+        "//src/language:wstring",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:char_buffer",
+        "//src/language/lazy_string:substring",
+        "//src/tests:fuzz_testable",
+    ],
 )
 
 cc_library(
