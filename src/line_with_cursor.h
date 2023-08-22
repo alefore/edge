@@ -11,7 +11,6 @@
 #include "src/line_column.h"
 
 namespace afc::editor {
-
 class Line;
 
 struct LineWithCursor {
@@ -53,6 +52,27 @@ struct LineWithCursor {
     // Generates the line. Must be called at most once.
     std::function<LineWithCursor()> generate;
   };
+
+  struct ViewOptions {
+    const Line& line;
+
+    language::lazy_string::ColumnNumber initial_column;
+    // Total number of screen characters to consume. If the input has wide
+    // characters, they have to be taken into account (in other words, the
+    // number of characters consumed from the input may be smaller than the
+    // width).
+    language::lazy_string::ColumnNumberDelta width;
+    // Maximum number of characters in the input to consume. Even if more
+    // characters would fit in the output (per `width`), can stop outputting
+    // when this limit is reached.
+    language::lazy_string::ColumnNumberDelta input_width;
+    std::optional<language::lazy_string::ColumnNumber> active_cursor_column =
+        std::nullopt;
+    std::set<language::lazy_string::ColumnNumber> inactive_cursor_columns = {};
+    LineModifierSet modifiers_main_cursor = {};
+    LineModifierSet modifiers_inactive_cursors = {};
+  };
+  static LineWithCursor View(const ViewOptions& options);
 
   language::NonNull<std::shared_ptr<Line>> line;
 

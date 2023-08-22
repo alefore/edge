@@ -230,7 +230,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                BufferContentsViewLayout::Line screen_line, bool atomic_lines,
                bool multiple_cursors, LineColumn position,
                EditorMode::CursorMode cursor_mode) {
-              Line::OutputOptions options{
+              LineWithCursor::ViewOptions options{
+                  .line = *line_contents_with_hash.value,
                   .initial_column = screen_line.range.begin.column,
                   .width = size_columns,
                   .input_width =
@@ -279,8 +280,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                     break;
                 }
               }
-
-              return line_contents_with_hash.value->Output(std::move(options));
+              return LineWithCursor::View(std::move(options));
             },
             output_producer_options.size.column,
             output_producer_options.main_cursor_display,

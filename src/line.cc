@@ -10,11 +10,9 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
-#include "src/line_with_cursor.h"
 #include "src/tests/tests.h"
 
 namespace afc {
@@ -497,118 +495,6 @@ std::function<void()> Line::explicit_delete_observer() const {
 
 std::optional<BufferLineColumn> Line::buffer_line_column() const {
   return stable_fields_.buffer_line_column;
-}
-
-LineWithCursor Line::Output(const OutputOptions& options) const {
-  static Tracker tracker(L"Line::Output");
-  auto tracker_call = tracker.Call();
-
-  VLOG(5) << "Producing output of line: " << ToString();
-
-  LineBuilder line_output;
-  ColumnNumber input_column = options.initial_column;
-  LineWithCursor line_with_cursor;
-  auto modifiers_it = stable_fields_.modifiers.lower_bound(input_column);
-  if (!stable_fields_.modifiers.empty() &&
-      modifiers_it != stable_fields_.modifiers.begin()) {
-    line_output.data_.modifiers[ColumnNumber()] =
-        std::prev(modifiers_it)->second;
-  }
-
-  const ColumnNumber input_end =
-      options.input_width != std::numeric_limits<ColumnNumberDelta>::max()
-          ? std::min(EndColumn(), input_column + options.input_width)
-          : EndColumn();
-  // output_column contains the column in the screen. May not match
-  // options.contents().size() if there are wide characters.
-  for (ColumnNumber output_column;
-       input_column <= input_end && output_column.ToDelta() < options.width;
-       ++input_column) {
-    wint_t c = input_column < input_end ? Get(input_column) : L' ';
-    CHECK(c != '\n');
-
-    ColumnNumber current_position =
-        ColumnNumber() + line_output.data_.contents->size();
-    if (modifiers_it != stable_fields_.modifiers.end()) {
-      CHECK_GE(modifiers_it->first, input_column);
-      if (modifiers_it->first == input_column) {
-        line_output.data_.modifiers[current_position] = modifiers_it->second;
-        ++modifiers_it;
-      }
-    }
-
-    if (options.active_cursor_column.has_value() &&
-        (options.active_cursor_column.value() == input_column ||
-         (input_column == input_end &&
-          options.active_cursor_column.value() >= input_column))) {
-      // We use current_position rather than output_column because terminals
-      // compensate for wide characters (so we don't need to).
-      line_with_cursor.cursor = current_position;
-      if (!options.modifiers_main_cursor.empty()) {
-        line_output.data_.modifiers[current_position + ColumnNumberDelta(1)] =
-            line_output.data_.modifiers.empty()
-                ? LineModifierSet()
-                : line_output.data_.modifiers.rbegin()->second;
-        line_output.data_.modifiers[current_position].insert(
-            options.modifiers_main_cursor.begin(),
-            options.modifiers_main_cursor.end());
-      }
-    } else if (options.inactive_cursor_columns.find(input_column) !=
-                   options.inactive_cursor_columns.end() ||
-               (input_column == input_end &&
-                !options.inactive_cursor_columns.empty() &&
-                *options.inactive_cursor_columns.rbegin() >= input_column)) {
-      line_output.data_.modifiers[current_position + ColumnNumberDelta(1)] =
-          line_output.data_.modifiers.empty()
-              ? LineModifierSet()
-              : line_output.data_.modifiers.rbegin()->second;
-      line_output.data_.modifiers[current_position].insert(
-          options.modifiers_inactive_cursors.begin(),
-          options.modifiers_inactive_cursors.end());
-    }
-
-    switch (c) {
-      case L'\r':
-        break;
-
-      case L'\t': {
-        ColumnNumber target =
-            ColumnNumber(0) +
-            ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8;
-        VLOG(8) << "Handling TAB character at position: " << output_column
-                << ", target: " << target;
-        line_output.AppendString(Padding(target - output_column, L' '),
-                                 std::nullopt);
-        output_column = target;
-        break;
-      }
-
-      default:
-        VLOG(8) << "Print character: " << c;
-        output_column += ColumnNumberDelta(wcwidth(c));
-        if (output_column.ToDelta() <= options.width)
-          line_output.data_.contents =
-              lazy_string::Append(std::move(line_output.contents()),
-                                  NewLazyString(std::wstring(1, c)));
-    }
-  }
-
-  line_output.data_.end_of_line_modifiers =
-      input_column == EndColumn()
-          ? stable_fields_.end_of_line_modifiers
-          : (line_output.data_.modifiers.empty()
-                 ? LineModifierSet()
-                 : line_output.data_.modifiers.rbegin()->second);
-  if (!line_with_cursor.cursor.has_value() &&
-      options.active_cursor_column.has_value()) {
-    // Same as above: we use the current position (rather than output_column)
-    // since terminals compensate for wide characters.
-    line_with_cursor.cursor = ColumnNumber() + line_output.contents()->size();
-  }
-
-  line_with_cursor.line =
-      MakeNonNullShared<Line>(std::move(line_output).Build());
-  return line_with_cursor;
 }
 
 Line::Line(Line::StableFields stable_fields)

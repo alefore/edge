@@ -317,15 +317,6 @@ cc_library(
 )
 
 cc_library(
-    name = "fuzz",
-    srcs = ["fuzz.cc"],
-    hdrs = ["fuzz.h"],
-    deps = [
-        "//src/tests:fuzz_testable",
-    ],
-)
-
-cc_library(
     name = "goto_command",
     srcs = ["goto_command.cc"],
     hdrs = ["goto_command.h"],
@@ -367,13 +358,13 @@ cc_library(
     hdrs = ["line_column.h"],
     visibility = ["//src/transformation:__pkg__"],
     deps = [
-        ":fuzz",
         "//src/language:hash",
         "//src/language:safe_types",
         "//src/language:value_or_error",
         "//src/language:wstring",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
+        "//src/tests:fuzz",
         "//src/vm/public:environment",
     ],
 )
@@ -391,16 +382,13 @@ cc_library(
     ],
 )
 
-# TODO(cycles): Move line_with_cursor to its own module.
 cc_library(
     name = "line",
     srcs = [
         "line.cc",
-        "line_with_cursor.cc",
     ],
     hdrs = [
         "line.h",
-        "line_with_cursor.h",
     ],
     deps = [
         ":line_column",
@@ -412,7 +400,6 @@ cc_library(
         "//src/language:safe_types",
         "//src/language/lazy_string",
         "//src/language/lazy_string:append",
-        "//src/language/lazy_string:padding",
         "//src/language/lazy_string:substring",
     ],
 )
@@ -445,6 +432,27 @@ cc_library(
     name = "line_prompt_mode",
     srcs = ["line_prompt_mode.cc"],
     hdrs = ["line_prompt_mode.h"],
+)
+
+cc_library(
+    name = "line_with_cursor",
+    srcs = [
+        "line_with_cursor.cc",
+    ],
+    hdrs = [
+        "line_with_cursor.h",
+    ],
+    deps = [
+        ":line",
+        ":line_column",
+        "//src/infrastructure:tracker",
+        "//src/language:hash",
+        "//src/language:safe_types",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:append",
+        "//src/language/lazy_string:padding",
+        "//src/tests",
+    ],
 )
 
 cc_library(

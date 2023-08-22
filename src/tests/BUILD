@@ -19,9 +19,20 @@ cc_binary(
 )
 
 cc_library(
+    name = "fuzz",
+    srcs = ["fuzz.cc"],
+    hdrs = ["fuzz.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":fuzz_testable",
+    ],
+)
+
+cc_library(
     name = "fuzz_testable",
     srcs = ["fuzz_testable.cc"],
     hdrs = ["fuzz_testable.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//src/language:wstring",
         "@com_github_google_glog//:glog",

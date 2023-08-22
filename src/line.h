@@ -22,7 +22,6 @@
 
 namespace afc::editor {
 class OpenBuffer;
-class LineWithCursor;
 
 struct LineMetadataEntry {
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
@@ -38,6 +37,9 @@ struct BufferLineColumn {
 };
 
 class LineBuilder;
+
+// TODO(2023-08-22, easy): Remove this dependency.
+class LineWithCursor;
 
 // This class is thread-safe.
 class Line {
@@ -100,25 +102,6 @@ class Line {
 
   std::optional<BufferLineColumn> buffer_line_column() const;
 
-  struct OutputOptions {
-    language::lazy_string::ColumnNumber initial_column;
-    // Total number of screen characters to consume. If the input has wide
-    // characters, they have to be taken into account (in other words, the
-    // number of characters consumed from the input may be smaller than the
-    // width).
-    language::lazy_string::ColumnNumberDelta width;
-    // Maximum number of characters in the input to consume. Even if more
-    // characters would fit in the output (per `width`), can stop outputting
-    // when this limit is reached.
-    language::lazy_string::ColumnNumberDelta input_width;
-    std::optional<language::lazy_string::ColumnNumber> active_cursor_column =
-        std::nullopt;
-    std::set<language::lazy_string::ColumnNumber> inactive_cursor_columns = {};
-    LineModifierSet modifiers_main_cursor = {};
-    LineModifierSet modifiers_inactive_cursors = {};
-  };
-  LineWithCursor Output(const OutputOptions& options) const;
-
  private:
   struct StableFields {
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
@@ -147,6 +130,7 @@ class Line {
 
   friend class std::hash<Line>;
   friend class LineBuilder;
+  friend class LineWithCursor;
 
   explicit Line(StableFields stable_fields);
 
@@ -235,6 +219,7 @@ class LineBuilder {
   std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
       const;
   size_t modifiers_size() const;
+  bool modifiers_empty() const;
   void InsertModifier(language::lazy_string::ColumnNumber, LineModifier);
   void set_modifiers(language::lazy_string::ColumnNumber, LineModifierSet);
   void set_modifiers(
@@ -247,7 +232,7 @@ class LineBuilder {
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
 
  private:
-  friend Line;
+  friend LineWithCursor;
   // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
   friend class std::hash<Line>;
 
