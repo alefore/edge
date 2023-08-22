@@ -39,31 +39,139 @@ struct BufferLineColumn {
   std::optional<LineColumn> position;
 };
 
-class Line;
+class LineBuilder;
 
-// TODO(trivial, 2023-08-22): Make this a private field of Line.
-struct LineStableFields {
+// This class is thread-safe.
+class Line {
+ public:
+  Line() : Line(Line::StableFields{}) {}
+
+  explicit Line(std::wstring text);
+  Line(const Line& line);
+
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-      contents = language::lazy_string::EmptyString();
+  contents() const;
+  language::lazy_string::ColumnNumber EndColumn() const;
+  bool empty() const;
 
-  // Columns without an entry here reuse the last present value. If no
-  // previous value, assume LineModifierSet(). There's no need to include
-  // RESET: it is assumed implicitly. In other words, modifiers don't carry
-  // over past an entry.
-  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers = {};
+  wint_t get(language::lazy_string::ColumnNumber column) const;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  Substring(language::lazy_string::ColumnNumber column,
+            language::lazy_string::ColumnNumberDelta length) const;
 
-  // The semantics of this is that any characters at the end of the line
-  // (i.e., the space that represents the end of the line) should be rendered
-  // using these modifiers.
-  //
-  // If two lines are concatenated, the end of line modifiers of the first
-  // line is entirely ignored; it doesn't affect the first characters from the
-  // second line.
-  LineModifierSet end_of_line_modifiers = {};
+  // Returns the substring from pos to the end of the string.
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  Substring(language::lazy_string::ColumnNumber column) const;
 
-  std::optional<LineMetadataEntry> metadata = std::nullopt;
-  std::function<void()> explicit_delete_observer = nullptr;
-  std::optional<BufferLineColumn> buffer_line_column = std::nullopt;
+  std::wstring ToString() const { return contents()->ToString(); }
+
+  std::shared_ptr<language::lazy_string::LazyString> metadata() const;
+  language::ValueOrError<futures::ListenableValue<
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
+  metadata_future() const;
+
+  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
+      const {
+    return data_.lock(
+        [](const Data& data) { return data.stable_fields.modifiers; });
+  }
+  LineModifierSet end_of_line_modifiers() const {
+    return data_.lock([](const Data& data) {
+      return data.stable_fields.end_of_line_modifiers;
+    });
+  }
+
+  bool modified() const {
+    return data_.lock([=](const Data& data) { return data.modified; });
+  }
+  void set_modified(bool modified) {
+    data_.lock([=](Data& data) { data.modified = modified; });
+  }
+
+  bool filtered() const {
+    return data_.lock([](const Data& data) { return data.filtered; });
+  }
+  bool filter_version() const {
+    return data_.lock([](const Data& data) { return data.filter_version; });
+  }
+  void set_filtered(bool filtered, size_t filter_version) {
+    data_.lock([=](Data& data) {
+      data.filtered = filtered;
+      data.filter_version = filter_version;
+    });
+  }
+
+  std::function<void()> explicit_delete_observer() const;
+
+  std::optional<BufferLineColumn> buffer_line_column() const;
+
+  struct OutputOptions {
+    language::lazy_string::ColumnNumber initial_column;
+    // Total number of screen characters to consume. If the input has wide
+    // characters, they have to be taken into account (in other words, the
+    // number of characters consumed from the input may be smaller than the
+    // width).
+    language::lazy_string::ColumnNumberDelta width;
+    // Maximum number of characters in the input to consume. Even if more
+    // characters would fit in the output (per `width`), can stop outputting
+    // when this limit is reached.
+    language::lazy_string::ColumnNumberDelta input_width;
+    std::optional<language::lazy_string::ColumnNumber> active_cursor_column =
+        std::nullopt;
+    std::set<language::lazy_string::ColumnNumber> inactive_cursor_columns = {};
+    LineModifierSet modifiers_main_cursor = {};
+    LineModifierSet modifiers_inactive_cursors = {};
+  };
+  LineWithCursor Output(const OutputOptions& options) const;
+
+ private:
+  struct StableFields {
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+        contents = language::lazy_string::EmptyString();
+
+    // Columns without an entry here reuse the last present value. If no
+    // previous value, assume LineModifierSet(). There's no need to include
+    // RESET: it is assumed implicitly. In other words, modifiers don't carry
+    // over past an entry.
+    std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers =
+        {};
+
+    // The semantics of this is that any characters at the end of the line
+    // (i.e., the space that represents the end of the line) should be rendered
+    // using these modifiers.
+    //
+    // If two lines are concatenated, the end of line modifiers of the first
+    // line is entirely ignored; it doesn't affect the first characters from the
+    // second line.
+    LineModifierSet end_of_line_modifiers = {};
+
+    std::optional<LineMetadataEntry> metadata = std::nullopt;
+    std::function<void()> explicit_delete_observer = nullptr;
+    std::optional<BufferLineColumn> buffer_line_column = std::nullopt;
+  };
+
+  friend class std::hash<Line>;
+  friend class LineBuilder;
+
+  explicit Line(StableFields stable_fields);
+
+  struct Data {
+    // TODO(easy, 2023-08-22): Take `stable_fields` out of the lock!
+    const StableFields stable_fields;
+    bool filtered = true;
+    size_t filter_version = 0;
+    bool modified = false;
+    // This is mutable so that when it is computed (from a `const Data&`), we
+    // can memoize the value.
+    mutable std::optional<size_t> hash = std::nullopt;
+  };
+
+  static void ValidateInvariants(const Data& data);
+  static language::lazy_string::ColumnNumber EndColumn(const Data& data);
+  static wint_t Get(const Data& data,
+                    language::lazy_string::ColumnNumber column);
+
+  concurrent::Protected<Data, decltype(&Line::ValidateInvariants)> data_;
 };
 
 class LineBuilder {
@@ -151,118 +259,10 @@ class LineBuilder {
   // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
   friend class std::hash<Line>;
 
-  explicit LineBuilder(LineStableFields);
+  explicit LineBuilder(Line::StableFields);
 
-  LineStableFields data_;
+  Line::StableFields data_;
   void ValidateInvariants();
-};
-
-// This class is thread-safe.
-class Line {
- public:
-  Line() : Line(LineStableFields{}) {}
-
-  explicit Line(std::wstring text);
-  Line(const Line& line);
-
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  contents() const;
-  language::lazy_string::ColumnNumber EndColumn() const;
-  bool empty() const;
-
-  wint_t get(language::lazy_string::ColumnNumber column) const;
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  Substring(language::lazy_string::ColumnNumber column,
-            language::lazy_string::ColumnNumberDelta length) const;
-
-  // Returns the substring from pos to the end of the string.
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  Substring(language::lazy_string::ColumnNumber column) const;
-
-  std::wstring ToString() const { return contents()->ToString(); }
-
-  std::shared_ptr<language::lazy_string::LazyString> metadata() const;
-  language::ValueOrError<futures::ListenableValue<
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
-  metadata_future() const;
-
-  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
-      const {
-    return data_.lock(
-        [](const Data& data) { return data.stable_fields.modifiers; });
-  }
-  LineModifierSet end_of_line_modifiers() const {
-    return data_.lock([](const Data& data) {
-      return data.stable_fields.end_of_line_modifiers;
-    });
-  }
-
-  bool modified() const {
-    return data_.lock([=](const Data& data) { return data.modified; });
-  }
-  void set_modified(bool modified) {
-    data_.lock([=](Data& data) { data.modified = modified; });
-  }
-
-  bool filtered() const {
-    return data_.lock([](const Data& data) { return data.filtered; });
-  }
-  bool filter_version() const {
-    return data_.lock([](const Data& data) { return data.filter_version; });
-  }
-  void set_filtered(bool filtered, size_t filter_version) {
-    data_.lock([=](Data& data) {
-      data.filtered = filtered;
-      data.filter_version = filter_version;
-    });
-  }
-
-  std::function<void()> explicit_delete_observer() const;
-
-  std::optional<BufferLineColumn> buffer_line_column() const;
-
-  struct OutputOptions {
-    language::lazy_string::ColumnNumber initial_column;
-    // Total number of screen characters to consume. If the input has wide
-    // characters, they have to be taken into account (in other words, the
-    // number of characters consumed from the input may be smaller than the
-    // width).
-    language::lazy_string::ColumnNumberDelta width;
-    // Maximum number of characters in the input to consume. Even if more
-    // characters would fit in the output (per `width`), can stop outputting
-    // when this limit is reached.
-    language::lazy_string::ColumnNumberDelta input_width;
-    std::optional<language::lazy_string::ColumnNumber> active_cursor_column =
-        std::nullopt;
-    std::set<language::lazy_string::ColumnNumber> inactive_cursor_columns = {};
-    LineModifierSet modifiers_main_cursor = {};
-    LineModifierSet modifiers_inactive_cursors = {};
-  };
-  LineWithCursor Output(const OutputOptions& options) const;
-
- private:
-  friend class std::hash<Line>;
-  friend class LineBuilder;
-
-  explicit Line(LineStableFields stable_fields);
-
-  struct Data {
-    // TODO(easy, 2023-08-22): Take `stable_fields` out of the lock!
-    const LineStableFields stable_fields;
-    bool filtered = true;
-    size_t filter_version = 0;
-    bool modified = false;
-    // This is mutable so that when it is computed (from a `const Data&`), we
-    // can memoize the value.
-    mutable std::optional<size_t> hash = std::nullopt;
-  };
-
-  static void ValidateInvariants(const Data& data);
-  static language::lazy_string::ColumnNumber EndColumn(const Data& data);
-  static wint_t Get(const Data& data,
-                    language::lazy_string::ColumnNumber column);
-
-  concurrent::Protected<Data, decltype(&Line::ValidateInvariants)> data_;
 };
 }  // namespace afc::editor
 namespace std {

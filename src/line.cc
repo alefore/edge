@@ -106,9 +106,9 @@ LineBuilder::LineBuilder(const Line& line)
 LineBuilder::LineBuilder(
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
         input_contents)
-    : data_(LineStableFields{.contents = std::move(input_contents)}) {}
+    : data_(Line::StableFields{.contents = std::move(input_contents)}) {}
 
-LineBuilder::LineBuilder(LineStableFields data) : data_(std::move(data)) {}
+LineBuilder::LineBuilder(Line::StableFields data) : data_(std::move(data)) {}
 
 LineBuilder LineBuilder::Copy() const { return LineBuilder(data_); }
 
@@ -447,7 +447,7 @@ void LineBuilder::set_contents(
 void LineBuilder::ValidateInvariants() {}
 
 Line::Line(std::wstring x)
-    : Line(LineStableFields{.contents = NewLazyString(std::move(x))}) {}
+    : Line(StableFields{.contents = NewLazyString(std::move(x))}) {}
 
 Line::Line(const Line& line)
     : data_(line.data_.lock([](const Data& line_data) {
@@ -631,7 +631,7 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
   });
 }
 
-Line::Line(LineStableFields stable_fields)
+Line::Line(Line::StableFields stable_fields)
     : data_(Data{.stable_fields = std::move(stable_fields)},
             &Line::ValidateInvariants) {}
 
