@@ -14,6 +14,7 @@
 #include "src/buffer_syntax_parser.h"
 #include "src/concurrent/work_queue.h"
 #include "src/cursors.h"
+#include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"

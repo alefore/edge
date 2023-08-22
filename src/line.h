@@ -21,8 +21,6 @@
 #include "src/line_column.h"
 
 namespace afc::editor {
-class EditorMode;
-class EditorState;
 class OpenBuffer;
 class LineWithCursor;
 
