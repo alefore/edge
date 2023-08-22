@@ -95,13 +95,9 @@ const bool line_tests_registration = tests::Register(
       }}});
 }
 
-LineBuilder::LineBuilder(Line&& line)
-    : data_(line.data_.lock(
-          [](Line::Data& data) { return std::move(data.stable_fields); })) {}
+LineBuilder::LineBuilder(Line&& line) : data_(std::move(line.stable_fields_)) {}
 
-LineBuilder::LineBuilder(const Line& line)
-    : data_(line.data_.lock(
-          [](const Line::Data& data) { return data.stable_fields; })) {}
+LineBuilder::LineBuilder(const Line& line) : data_(line.stable_fields_) {}
 
 LineBuilder::LineBuilder(
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
@@ -450,26 +446,23 @@ Line::Line(std::wstring x)
     : Line(StableFields{.contents = NewLazyString(std::move(x))}) {}
 
 Line::Line(const Line& line)
-    : data_(line.data_.lock([](const Data& line_data) {
-        return Data{.stable_fields = line_data.stable_fields,
-                    .hash = line_data.hash};
+    : stable_fields_(line.stable_fields_),
+      data_(line.data_.lock([](const Data& line_data) {
+        return Data{.hash = line_data.hash};
       }),
             &Line::ValidateInvariants) {}
 
 NonNull<std::shared_ptr<LazyString>> Line::contents() const {
-  return data_.lock(
-      [](const Data& data) { return data.stable_fields.contents; });
+  return stable_fields_.contents;
 }
 
 ColumnNumber Line::EndColumn() const {
-  return data_.lock([](const Data& data) { return EndColumn(data); });
+  return ColumnNumber(0) + stable_fields_.contents->size();
 }
 
 bool Line::empty() const { return EndColumn().IsZero(); }
 
-wint_t Line::get(ColumnNumber column) const {
-  return data_.lock([column](const Data& data) { return Get(data, column); });
-}
+wint_t Line::get(ColumnNumber column) const { return Get(column); }
 
 NonNull<std::shared_ptr<LazyString>> Line::Substring(
     ColumnNumber column, ColumnNumberDelta delta) const {
@@ -482,40 +475,28 @@ NonNull<std::shared_ptr<LazyString>> Line::Substring(
 }
 
 std::shared_ptr<LazyString> Line::metadata() const {
-  return data_.lock([](const Data& data) -> std::shared_ptr<LazyString> {
-    if (const auto& metadata = data.stable_fields.metadata;
-        metadata.has_value())
-      return metadata->value.get_copy()
-          .value_or(metadata->initial_value)
-          .get_shared();
-    return nullptr;
-  });
+  if (const auto& metadata = stable_fields_.metadata; metadata.has_value())
+    return metadata->value.get_copy()
+        .value_or(metadata->initial_value)
+        .get_shared();
+  return nullptr;
 }
 
 language::ValueOrError<futures::ListenableValue<
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
 Line::metadata_future() const {
-  return data_.lock(
-      [](const Data& data)
-          -> language::ValueOrError<
-              futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>>> {
-        if (const auto& metadata = data.stable_fields.metadata;
-            metadata.has_value()) {
-          return metadata.value().value;
-        }
-        return Error(L"Line has no value.");
-      });
+  if (const auto& metadata = stable_fields_.metadata; metadata.has_value()) {
+    return metadata.value().value;
+  }
+  return Error(L"Line has no value.");
 }
 
 std::function<void()> Line::explicit_delete_observer() const {
-  return data_.lock([](const Data& data) {
-    return data.stable_fields.explicit_delete_observer;
-  });
+  return stable_fields_.explicit_delete_observer;
 }
 
 std::optional<BufferLineColumn> Line::buffer_line_column() const {
-  return data_.lock(
-      [](const Data& data) { return data.stable_fields.buffer_line_column; });
+  return stable_fields_.buffer_line_column;
 }
 
 LineWithCursor Line::Output(const OutputOptions& options) const {
@@ -523,141 +504,137 @@ LineWithCursor Line::Output(const OutputOptions& options) const {
   auto tracker_call = tracker.Call();
 
   VLOG(5) << "Producing output of line: " << ToString();
-  return data_.lock([&options](const Data& data) {
-    LineBuilder line_output;
-    ColumnNumber input_column = options.initial_column;
-    LineWithCursor line_with_cursor;
-    auto modifiers_it = data.stable_fields.modifiers.lower_bound(input_column);
-    if (!data.stable_fields.modifiers.empty() &&
-        modifiers_it != data.stable_fields.modifiers.begin()) {
-      line_output.data_.modifiers[ColumnNumber()] =
-          std::prev(modifiers_it)->second;
+
+  LineBuilder line_output;
+  ColumnNumber input_column = options.initial_column;
+  LineWithCursor line_with_cursor;
+  auto modifiers_it = stable_fields_.modifiers.lower_bound(input_column);
+  if (!stable_fields_.modifiers.empty() &&
+      modifiers_it != stable_fields_.modifiers.begin()) {
+    line_output.data_.modifiers[ColumnNumber()] =
+        std::prev(modifiers_it)->second;
+  }
+
+  const ColumnNumber input_end =
+      options.input_width != std::numeric_limits<ColumnNumberDelta>::max()
+          ? std::min(EndColumn(), input_column + options.input_width)
+          : EndColumn();
+  // output_column contains the column in the screen. May not match
+  // options.contents().size() if there are wide characters.
+  for (ColumnNumber output_column;
+       input_column <= input_end && output_column.ToDelta() < options.width;
+       ++input_column) {
+    wint_t c = input_column < input_end ? Get(input_column) : L' ';
+    CHECK(c != '\n');
+
+    ColumnNumber current_position =
+        ColumnNumber() + line_output.data_.contents->size();
+    if (modifiers_it != stable_fields_.modifiers.end()) {
+      CHECK_GE(modifiers_it->first, input_column);
+      if (modifiers_it->first == input_column) {
+        line_output.data_.modifiers[current_position] = modifiers_it->second;
+        ++modifiers_it;
+      }
     }
 
-    const ColumnNumber input_end =
-        options.input_width != std::numeric_limits<ColumnNumberDelta>::max()
-            ? std::min(EndColumn(data), input_column + options.input_width)
-            : EndColumn(data);
-    // output_column contains the column in the screen. May not match
-    // options.contents().size() if there are wide characters.
-    for (ColumnNumber output_column;
-         input_column <= input_end && output_column.ToDelta() < options.width;
-         ++input_column) {
-      wint_t c = input_column < input_end ? Get(data, input_column) : L' ';
-      CHECK(c != '\n');
-
-      ColumnNumber current_position =
-          ColumnNumber() + line_output.data_.contents->size();
-      if (modifiers_it != data.stable_fields.modifiers.end()) {
-        CHECK_GE(modifiers_it->first, input_column);
-        if (modifiers_it->first == input_column) {
-          line_output.data_.modifiers[current_position] = modifiers_it->second;
-          ++modifiers_it;
-        }
-      }
-
-      if (options.active_cursor_column.has_value() &&
-          (options.active_cursor_column.value() == input_column ||
-           (input_column == input_end &&
-            options.active_cursor_column.value() >= input_column))) {
-        // We use current_position rather than output_column because terminals
-        // compensate for wide characters (so we don't need to).
-        line_with_cursor.cursor = current_position;
-        if (!options.modifiers_main_cursor.empty()) {
-          line_output.data_.modifiers[current_position + ColumnNumberDelta(1)] =
-              line_output.data_.modifiers.empty()
-                  ? LineModifierSet()
-                  : line_output.data_.modifiers.rbegin()->second;
-          line_output.data_.modifiers[current_position].insert(
-              options.modifiers_main_cursor.begin(),
-              options.modifiers_main_cursor.end());
-        }
-      } else if (options.inactive_cursor_columns.find(input_column) !=
-                     options.inactive_cursor_columns.end() ||
-                 (input_column == input_end &&
-                  !options.inactive_cursor_columns.empty() &&
-                  *options.inactive_cursor_columns.rbegin() >= input_column)) {
+    if (options.active_cursor_column.has_value() &&
+        (options.active_cursor_column.value() == input_column ||
+         (input_column == input_end &&
+          options.active_cursor_column.value() >= input_column))) {
+      // We use current_position rather than output_column because terminals
+      // compensate for wide characters (so we don't need to).
+      line_with_cursor.cursor = current_position;
+      if (!options.modifiers_main_cursor.empty()) {
         line_output.data_.modifiers[current_position + ColumnNumberDelta(1)] =
             line_output.data_.modifiers.empty()
                 ? LineModifierSet()
                 : line_output.data_.modifiers.rbegin()->second;
         line_output.data_.modifiers[current_position].insert(
-            options.modifiers_inactive_cursors.begin(),
-            options.modifiers_inactive_cursors.end());
+            options.modifiers_main_cursor.begin(),
+            options.modifiers_main_cursor.end());
       }
-
-      switch (c) {
-        case L'\r':
-          break;
-
-        case L'\t': {
-          ColumnNumber target =
-              ColumnNumber(0) +
-              ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8;
-          VLOG(8) << "Handling TAB character at position: " << output_column
-                  << ", target: " << target;
-          line_output.AppendString(Padding(target - output_column, L' '),
-                                   std::nullopt);
-          output_column = target;
-          break;
-        }
-
-        default:
-          VLOG(8) << "Print character: " << c;
-          output_column += ColumnNumberDelta(wcwidth(c));
-          if (output_column.ToDelta() <= options.width)
-            line_output.data_.contents =
-                lazy_string::Append(std::move(line_output.contents()),
-                                    NewLazyString(std::wstring(1, c)));
-      }
+    } else if (options.inactive_cursor_columns.find(input_column) !=
+                   options.inactive_cursor_columns.end() ||
+               (input_column == input_end &&
+                !options.inactive_cursor_columns.empty() &&
+                *options.inactive_cursor_columns.rbegin() >= input_column)) {
+      line_output.data_.modifiers[current_position + ColumnNumberDelta(1)] =
+          line_output.data_.modifiers.empty()
+              ? LineModifierSet()
+              : line_output.data_.modifiers.rbegin()->second;
+      line_output.data_.modifiers[current_position].insert(
+          options.modifiers_inactive_cursors.begin(),
+          options.modifiers_inactive_cursors.end());
     }
 
-    line_output.data_.end_of_line_modifiers =
-        input_column == EndColumn(data)
-            ? data.stable_fields.end_of_line_modifiers
-            : (line_output.data_.modifiers.empty()
-                   ? LineModifierSet()
-                   : line_output.data_.modifiers.rbegin()->second);
-    if (!line_with_cursor.cursor.has_value() &&
-        options.active_cursor_column.has_value()) {
-      // Same as above: we use the current position (rather than output_column)
-      // since terminals compensate for wide characters.
-      line_with_cursor.cursor = ColumnNumber() + line_output.contents()->size();
-    }
+    switch (c) {
+      case L'\r':
+        break;
 
-    line_with_cursor.line =
-        MakeNonNullShared<Line>(std::move(line_output).Build());
-    return line_with_cursor;
-  });
+      case L'\t': {
+        ColumnNumber target =
+            ColumnNumber(0) +
+            ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8;
+        VLOG(8) << "Handling TAB character at position: " << output_column
+                << ", target: " << target;
+        line_output.AppendString(Padding(target - output_column, L' '),
+                                 std::nullopt);
+        output_column = target;
+        break;
+      }
+
+      default:
+        VLOG(8) << "Print character: " << c;
+        output_column += ColumnNumberDelta(wcwidth(c));
+        if (output_column.ToDelta() <= options.width)
+          line_output.data_.contents =
+              lazy_string::Append(std::move(line_output.contents()),
+                                  NewLazyString(std::wstring(1, c)));
+    }
+  }
+
+  line_output.data_.end_of_line_modifiers =
+      input_column == EndColumn()
+          ? stable_fields_.end_of_line_modifiers
+          : (line_output.data_.modifiers.empty()
+                 ? LineModifierSet()
+                 : line_output.data_.modifiers.rbegin()->second);
+  if (!line_with_cursor.cursor.has_value() &&
+      options.active_cursor_column.has_value()) {
+    // Same as above: we use the current position (rather than output_column)
+    // since terminals compensate for wide characters.
+    line_with_cursor.cursor = ColumnNumber() + line_output.contents()->size();
+  }
+
+  line_with_cursor.line =
+      MakeNonNullShared<Line>(std::move(line_output).Build());
+  return line_with_cursor;
 }
 
 Line::Line(Line::StableFields stable_fields)
-    : data_(Data{.stable_fields = std::move(stable_fields)},
-            &Line::ValidateInvariants) {}
-
-/* static */ void Line::ValidateInvariants(const Data& data) {
-  static Tracker tracker(L"Line::ValidateInvariants");
-  auto call = tracker.Call();
-#if 0
-  ForEachColumn(Pointer(data.stable_fields.contents).Reference(),
-                [&contents = data.stable_fields.contents](ColumnNumber, wchar_t c) {
-                  CHECK(c != L'\n')
-                      << "Line has newline character: " << contents->ToString();
-                });
-#endif
-  for (auto& m : data.stable_fields.modifiers) {
-    CHECK_LE(m.first, EndColumn(data)) << "Modifiers found past end of line.";
+    : stable_fields_(std::move(stable_fields)),
+      data_(Data{}, &Line::ValidateInvariants) {
+  for (auto& m : stable_fields_.modifiers) {
+    CHECK_LE(m.first, EndColumn()) << "Modifiers found past end of line.";
     CHECK(m.second.find(LineModifier::kReset) == m.second.end());
   }
 }
 
-/* static */ ColumnNumber Line::EndColumn(const Data& data) {
-  return ColumnNumber(0) + data.stable_fields.contents->size();
+/* static */ void Line::ValidateInvariants(const Data&) {
+  static Tracker tracker(L"Line::ValidateInvariants");
+  auto call = tracker.Call();
+#if 0
+  ForEachColumn(Pointer(data.stable_fields_.contents).Reference(),
+                [&contents = stable_fields_.contents](ColumnNumber, wchar_t c) {
+                  CHECK(c != L'\n')
+                      << "Line has newline character: " << contents->ToString();
+                });
+#endif
 }
 
-wint_t Line::Get(const Data& data, ColumnNumber column) {
-  CHECK_LT(column, EndColumn(data));
-  return data.stable_fields.contents->get(column);
+wint_t Line::Get(ColumnNumber column) const {
+  CHECK_LT(column, EndColumn());
+  return stable_fields_.contents->get(column);
 }
 
 }  // namespace editor
@@ -666,14 +643,16 @@ namespace std {
 std::size_t hash<afc::editor::Line>::operator()(
     const afc::editor::Line& line) const {
   using namespace afc::editor;
-  return line.data_.lock([](const Line::Data& data) {
+  // TODO(2023-08-22, trivial): Compute the parts that depend on stable_fields
+  // outside of the critical section.
+  return line.data_.lock([&](const Line::Data& data) {
     if (data.hash.has_value()) return *data.hash;
     data.hash = compute_hash(
-        data.stable_fields.contents.value(),
-        MakeHashableIteratorRange(data.stable_fields.end_of_line_modifiers),
+        line.stable_fields_.contents.value(),
+        MakeHashableIteratorRange(line.stable_fields_.end_of_line_modifiers),
         MakeHashableIteratorRange(
-            data.stable_fields.modifiers.begin(),
-            data.stable_fields.modifiers.end(),
+            line.stable_fields_.modifiers.begin(),
+            line.stable_fields_.modifiers.end(),
             [](const std::pair<ColumnNumber, LineModifierSet>& value) {
               return compute_hash(value.first,
                                   MakeHashableIteratorRange(value.second));

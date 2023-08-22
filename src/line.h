@@ -72,13 +72,10 @@ class Line {
 
   std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
       const {
-    return data_.lock(
-        [](const Data& data) { return data.stable_fields.modifiers; });
+    return stable_fields_.modifiers;
   }
   LineModifierSet end_of_line_modifiers() const {
-    return data_.lock([](const Data& data) {
-      return data.stable_fields.end_of_line_modifiers;
-    });
+    return stable_fields_.end_of_line_modifiers;
   }
 
   bool modified() const {
@@ -156,8 +153,6 @@ class Line {
   explicit Line(StableFields stable_fields);
 
   struct Data {
-    // TODO(easy, 2023-08-22): Take `stable_fields` out of the lock!
-    const StableFields stable_fields;
     bool filtered = true;
     size_t filter_version = 0;
     bool modified = false;
@@ -167,10 +162,9 @@ class Line {
   };
 
   static void ValidateInvariants(const Data& data);
-  static language::lazy_string::ColumnNumber EndColumn(const Data& data);
-  static wint_t Get(const Data& data,
-                    language::lazy_string::ColumnNumber column);
+  wint_t Get(language::lazy_string::ColumnNumber column) const;
 
+  const StableFields stable_fields_;
   concurrent::Protected<Data, decltype(&Line::ValidateInvariants)> data_;
 };
 
