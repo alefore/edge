@@ -93,8 +93,6 @@ src/futures/delete_notification.cc \
 src/futures/delete_notification.h \
 src/futures/serializer.cc \
 src/futures/serializer.h \
-src/fuzz.h \
-src/fuzz.cc \
 src/goto_command.cc \
 src/help_command.cc \
 src/horizontal_center_output_producer.cc \
@@ -240,6 +238,8 @@ src/terminal_input_parser.cc \
 src/terminal_input_parser.h \
 src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
+src/tests/fuzz.h \
+src/tests/fuzz.cc \
 src/tests/fuzz_testable.h \
 src/tests/fuzz_testable.cc \
 src/tests/tests.cc \

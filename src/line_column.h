@@ -6,11 +6,11 @@
 #include <string>
 #include <vector>
 
-#include "src/fuzz.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/value_or_error.h"
+#include "src/tests/fuzz.h"
 
 namespace afc::language::gc {
 class Pool;

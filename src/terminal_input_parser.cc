@@ -9,12 +9,12 @@ extern "C" {
 
 #include "src/buffer_contents.h"
 #include "src/buffer_name.h"
-#include "src/fuzz.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/tests/fuzz.h"
 
 namespace afc::editor {
 using language::FromByteString;
