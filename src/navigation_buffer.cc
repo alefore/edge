@@ -59,7 +59,7 @@ void AppendLine(OpenBuffer& source,
   options.SetBufferLineColumn(
       BufferLineColumn{source.NewRoot().ptr().ToWeakPtr(), position});
   AddContents(source, *source.LineAt(position.line), &options);
-  target.AppendRawLine(MakeNonNullShared<Line>(options));
+  target.AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()));
 }
 
 void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
@@ -87,7 +87,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
       options.SetBufferLineColumn(BufferLineColumn{
           source.NewRoot().ptr().ToWeakPtr(), child.range().begin});
 
-      target.AppendRawLine(MakeNonNullShared<Line>(options));
+      target.AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()));
       continue;
     }
 

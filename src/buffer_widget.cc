@@ -45,7 +45,8 @@ static const auto kStatusFrameLines = LineNumberDelta(1);
 LineWithCursor ProducerForString(std::wstring src, LineModifierSet modifiers) {
   LineBuilder options;
   options.AppendString(std::move(src), std::move(modifiers));
-  return LineWithCursor{.line = MakeNonNullShared<Line>(std::move(options))};
+  return LineWithCursor{
+      .line = MakeNonNullShared<Line>(std::move(options).Build())};
 }
 
 LineWithCursor::Generator::Vector AddLeftFrame(
@@ -126,7 +127,8 @@ LineWithCursor::Generator::Vector LinesSpanView(
           LineBuilder line_options;
           line_options.AppendString(output.line->contents(),
                                     LineModifierSet{LineModifier::kDim});
-          output.line = MakeNonNullShared<Line>(std::move(line_options));
+          output.line =
+              MakeNonNullShared<Line>(std::move(line_options).Build());
           return output;
         }};
   }
@@ -148,9 +150,9 @@ LineWithCursor::Generator::Vector LinesSpanView(
             if (output.cursor.has_value()) {
               output.cursor = *output.cursor + padding_size;
             }
-            line_options.Append(
-                std::move(output.line.value()).GetLineBuilder());
-            output.line = MakeNonNullShared<Line>(std::move(line_options));
+            line_options.Append(LineBuilder(std::move(output.line.value())));
+            output.line =
+                MakeNonNullShared<Line>(std::move(line_options).Build());
             return output;
           }};
     }

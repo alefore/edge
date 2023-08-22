@@ -47,7 +47,7 @@ Line FrameLine(FrameOutputProducerOptions options) {
       Padding(options.width - ColumnNumberDelta(output.modifiers_size()), L'─'),
       line_modifiers);
 
-  return Line(std::move(output));
+  return std::move(output).Build();
 }
 
 }  // namespace afc::editor

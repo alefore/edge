@@ -101,7 +101,7 @@ const bool buffer_tests_registration = tests::Register(
                    .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
                        NewLazyString(L"quux")))});
                buffer.ptr()->AppendRawLine(
-                   MakeNonNullShared<Line>(std::move(options)));
+                   MakeNonNullShared<Line>(std::move(options).Build()));
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();
                CHECK(Pointer(buffer.ptr()->contents().back()->metadata())

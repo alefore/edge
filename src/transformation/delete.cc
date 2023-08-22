@@ -61,17 +61,17 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
   gc::Root<OpenBuffer> delete_buffer = OpenBuffer::New(
       {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
   for (LineNumber i = range.begin.line; i <= range.end.line; ++i) {
-    LineBuilder line_options = buffer.contents().at(i)->CopyLineBuilder();
+    LineBuilder line_options(buffer.contents().at(i).value());
     if (i == range.end.line) {
       line_options.DeleteSuffix(range.end.column);
     }
     if (i == range.begin.line) {
       line_options.DeleteCharacters(ColumnNumber(0),
                                     range.begin.column.ToDelta());
-      delete_buffer.ptr()->AppendToLastLine(Line(std::move(line_options)));
+      delete_buffer.ptr()->AppendToLastLine(std::move(line_options).Build());
     } else {
       delete_buffer.ptr()->AppendRawLine(
-          MakeNonNullShared<Line>(std::move(line_options)));
+          MakeNonNullShared<Line>(std::move(line_options).Build()));
     }
   }
 

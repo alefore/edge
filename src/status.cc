@@ -108,6 +108,7 @@ void StatusPromptExtraInformation::SetValue(Key key, int version, int value) {
   return SetValue(key, version, std::to_wstring(value));
 }
 
+// TODO(trivial, 2023-08-22): Change return type to NonNull?
 std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
   LineBuilder options;
   static const auto dim = LineModifierSet{LineModifier::kDim};
@@ -138,7 +139,7 @@ std::shared_ptr<Line> StatusPromptExtraInformation::GetLine() const {
       break;
   }
 
-  return std::make_shared<Line>(std::move(options));
+  return std::make_shared<Line>(std::move(options).Build());
 }
 
 void StatusPromptExtraInformation::MarkVersionDone(int version) {

@@ -177,10 +177,10 @@ class BufferContents : public fuzz::FuzzTestable {
       lines_ = Lines::PushBack(nullptr, {});
     }
     CHECK_LE(line_number, EndLine());
-    LineBuilder options = at(line_number)->CopyLineBuilder();
+    LineBuilder options(at(line_number).value());
     callback(options);
-    set_line(line_number,
-             language::MakeNonNullShared<const Line>(std::move(options)));
+    set_line(line_number, language::MakeNonNullShared<const Line>(
+                              std::move(options).Build()));
     update_listener_(cursors_transformation);
   }
 

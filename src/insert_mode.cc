@@ -80,8 +80,10 @@ class NewLineTransformation : public CompositeTransformation {
     Output output;
     {
       NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
-      contents_to_insert->push_back(MakeNonNullShared<Line>(
-          line->CopyLineBuilder().DeleteSuffix(prefix_end)));
+      LineBuilder line_without_suffix(*line);
+      line_without_suffix.DeleteSuffix(prefix_end);
+      contents_to_insert->push_back(
+          MakeNonNullShared<Line>(std::move(line_without_suffix).Build()));
       output.Push(transformation::Insert{.contents_to_insert =
                                              std::move(contents_to_insert)});
     }

@@ -437,9 +437,9 @@ void BufferContents::insert(LineNumber position_line,
     VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
             << (modifiers.has_value() ? modifiers->size() : -1);
     if (modifiers.has_value()) {
-      LineBuilder builder = std::move(line)->CopyLineBuilder();
+      LineBuilder builder(line.value());
       builder.SetAllModifiers(modifiers.value());
-      line = MakeNonNullShared<Line>(std::move(builder));
+      line = MakeNonNullShared<Line>(std::move(builder).Build());
     }
     prefix = Lines::PushBack(prefix, line);
     return true;
@@ -556,7 +556,7 @@ void BufferContents::InsertCharacter(LineColumn position) {
 void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
   TransformLine(std::min(position, LineNumber() + size() - LineNumberDelta(1)),
                 [&](LineBuilder& options) {
-                  options.Append(std::move(line_to_append).GetLineBuilder());
+                  options.Append(LineBuilder(std::move(line_to_append)));
                 });
 }
 
@@ -586,11 +586,10 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
 
 void BufferContents::SplitLine(LineColumn position) {
   // TODO: Can maybe combine this with next for fewer updates.
+  LineBuilder builder(at(position.line).value());
+  builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   insert_line(position.line + LineNumberDelta(1),
-              Line::New(at(position.line)
-                            ->CopyLineBuilder()
-                            .DeleteCharacters(ColumnNumber(0),
-                                              position.column.ToDelta())));
+              MakeNonNullShared<Line>(std::move(builder).Build()));
   update_listener_(CursorsTracker::Transformation()
                        .WithBegin(position)
                        .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
@@ -702,15 +701,19 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
-        insert_line(line_number, MakeNonNullShared<const Line>(LineBuilder(
-                                     NewLazyString(std::move(text.value)))));
+        insert_line(
+            line_number,
+            MakeNonNullShared<const Line>(
+                LineBuilder(NewLazyString(std::move(text.value))).Build()));
       })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
-        set_line(line_number, MakeNonNullShared<const Line>(LineBuilder(
-                                  NewLazyString(std::move(text.value)))));
+        set_line(
+            line_number,
+            MakeNonNullShared<const Line>(
+                LineBuilder(NewLazyString(std::move(text.value))).Build()));
       })));
 
   // TODO: Call sort.

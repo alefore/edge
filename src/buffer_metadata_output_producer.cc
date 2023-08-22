@@ -142,8 +142,9 @@ LineWithCursor::Generator NewGenerator(std::wstring input_prefix,
         } else {
           options.AppendString(prefix, LineModifierSet{LineModifier::kYellow});
         }
-        options.Append(std::move(suffix).GetLineBuilder());
-        return LineWithCursor{.line = MakeNonNullShared<Line>(options)};
+        options.Append(LineBuilder(std::move(suffix)));
+        return LineWithCursor{
+            .line = MakeNonNullShared<Line>(std::move(options).Build())};
       },
       line.info_char, line.modifier, std::move(line.suffix.value()),
       std::move(input_prefix)));
@@ -349,7 +350,7 @@ NonNull<std::shared_ptr<Line>> GetDefaultInformation(
           std::nullopt);
     }
   }
-  return MakeNonNullShared<Line>(std::move(line_options));
+  return MakeNonNullShared<Line>(std::move(line_options).Build());
 }
 
 template <typename MarkType>
@@ -416,7 +417,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         });
         output.push_back(
             MetadataLine{L'>', LineModifier::kGreen,
-                         MakeNonNullShared<const Line>(std::move(metadata)),
+                         MakeNonNullShared<const Line>(
+                             LineBuilder(std::move(metadata)).Build()),
                          MetadataLine::Type::kLineContents});
       },
       [] {});

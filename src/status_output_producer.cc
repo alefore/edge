@@ -168,28 +168,28 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
   auto text = options.status.text();
   if (options.status.prompt_buffer().has_value()) {
     auto contents = options.status.prompt_buffer()->ptr()->current_line();
+    CHECK(contents != nullptr);
     auto column =
         std::min(contents->EndColumn(),
                  options.status.prompt_buffer()->ptr()->current_position_col());
     VLOG(5) << "Setting status cursor: " << column;
 
     line_options.AppendString(options.status.text(), LineModifierSet());
-    LineBuilder prefix = contents->CopyLineBuilder();
+    LineBuilder prefix(*contents);
     prefix.DeleteSuffix(column);
     line_options.Append(std::move(prefix));
     cursor = ColumnNumber(0) + line_options.contents()->size();
-    LineBuilder suffix = contents->CopyLineBuilder();
+    LineBuilder suffix(*contents);
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     line_options.Append(std::move(suffix));
-    line_options.Append(options.status.prompt_extra_information()
-                            ->GetLine()
-                            ->CopyLineBuilder());
+    line_options.Append(
+        LineBuilder(*options.status.prompt_extra_information()->GetLine()));
   } else {
     VLOG(6) << "Not setting status cursor.";
     line_options.AppendString(text, modifiers);
   }
   return LineWithCursor{
-      .line = MakeNonNullShared<Line>(std::move(line_options)),
+      .line = MakeNonNullShared<Line>(std::move(line_options).Build()),
       .cursor = cursor};
 }
 

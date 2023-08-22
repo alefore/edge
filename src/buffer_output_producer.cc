@@ -37,7 +37,7 @@ LineWithCursor::Generator ApplyVisualOverlay(
   return LineWithCursor::Generator{
       std::nullopt, [overlays, generator]() {
         auto output = generator.generate();
-        LineBuilder line_options = output.line->CopyLineBuilder();
+        LineBuilder line_options(output.line.value());
         for (std::pair<LineColumn, VisualOverlay> overlay : overlays) {
           ColumnNumber column = overlay.first.column;
           NonNull<std::shared_ptr<LazyString>> content = VisitPointer(
@@ -54,7 +54,7 @@ LineWithCursor::Generator ApplyVisualOverlay(
           }
         }
 
-        output.line = MakeNonNullShared<Line>(std::move(line_options));
+        output.line = MakeNonNullShared<Line>(std::move(line_options).Build());
         return output;
       }};
 }
@@ -64,7 +64,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
       std::nullopt, [generator]() {
         auto output = generator.generate();
-        LineBuilder line_options = output.line->CopyLineBuilder();
+        LineBuilder line_options(output.line.value());
         std::map<language::lazy_string::ColumnNumber, LineModifierSet>
             new_modifiers;
         new_modifiers.insert({ColumnNumber(0), {}});
@@ -76,7 +76,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
           new_modifiers[m.first] = m.second;
         }
         line_options.set_modifiers(std::move(new_modifiers));
-        output.line = MakeNonNullShared<Line>(std::move(line_options));
+        output.line = MakeNonNullShared<Line>(std::move(line_options).Build());
         return output;
       }};
 }
@@ -86,14 +86,14 @@ LineWithCursor::Generator ParseTreeHighlighter(
   return LineWithCursor::Generator{
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
-        LineBuilder line_options = output.line->CopyLineBuilder();
+        LineBuilder line_options(output.line.value());
         std::map<language::lazy_string::ColumnNumber, LineModifierSet>
             modifiers = line_options.modifiers();
         modifiers.erase(modifiers.lower_bound(begin),
                         modifiers.lower_bound(end));
         modifiers[begin] = {LineModifier::kBlue};
         line_options.set_modifiers(std::move(modifiers));
-        output.line = MakeNonNullShared<Line>(std::move(line_options));
+        output.line = MakeNonNullShared<Line>(std::move(line_options).Build());
         return output;
       }};
 }
@@ -144,7 +144,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
                    std::hash<Range>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
     LineWithCursor input = generator.generate();
-    LineBuilder options = input.line->CopyLineBuilder();
+    LineBuilder options(input.line.value());
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
     GetSyntaxModifiersForLine(range, root.value(), {}, syntax_modifiers);
@@ -188,7 +188,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     }
     options.set_modifiers(std::move(merged_modifiers));
 
-    input.line = MakeNonNullShared<Line>(std::move(options));
+    input.line = MakeNonNullShared<Line>(std::move(options).Build());
     return input;
   };
   return generator;

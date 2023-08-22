@@ -39,8 +39,8 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
     std::istringstream iss(oss.str());
     for (std::string line_str; std::getline(iss, line_str);) {
       delete_buffer->AppendToLastLine(
-          Line(LineBuilder(NewLazyString(FromByteString(line_str)))));
-      delete_buffer->AppendRawLine(MakeNonNullShared<Line>(LineBuilder()));
+          LineBuilder(NewLazyString(FromByteString(line_str))).Build());
+      delete_buffer->AppendRawLine(MakeNonNullShared<Line>());
     }
   }
 }
@@ -106,9 +106,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
         input.buffer.status().Set(error);
         if (input.delete_buffer != nullptr) {
           input.delete_buffer->AppendToLastLine(
-              Line(LineBuilder(NewLazyString(error.read()))));
-          input.delete_buffer->AppendRawLine(
-              MakeNonNullShared<Line>(LineBuilder{}));
+              LineBuilder(NewLazyString(error.read())).Build());
+          input.delete_buffer->AppendRawLine(MakeNonNullShared<Line>());
           output.added_to_paste_buffer = true;
         }
         return futures::Past(std::move(output));

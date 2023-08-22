@@ -361,7 +361,7 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
     push_to_position(t.token.end, t.modifiers);
   }
   push_to_position(ColumnNumber() + line->size(), {});
-  return MakeNonNullShared<Line>(std::move(options));
+  return MakeNonNullShared<Line>(std::move(options).Build());
 }
 
 struct FilterSortHistorySyncOutput {
@@ -959,7 +959,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
               }
             } else if (prompt_state->status().context() != previous_context) {
               prompt_state->status().set_context(previous_context);
-              line_to_insert = std::make_shared<Line>(original_input);
+              line_to_insert =
+                  std::make_shared<Line>(LineBuilder(original_input).Build());
             }
           }
           NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
@@ -990,6 +991,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
   }
 
   const futures::ListenableValue<gc::Root<OpenBuffer>> filtered_history_;
+  // TODO(trivial, 2023-08-22): Change the type to be a NonNull<shared_ptr<const
+  // Line>>.
   const NonNull<std::shared_ptr<LazyString>> original_input_;
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const std::optional<gc::Root<OpenBuffer>> previous_context_;
@@ -1150,9 +1153,9 @@ InsertModeOptions PromptState::insert_mode_options() {
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Insert(
-                            {.contents_to_insert =
-                                 MakeNonNullUnique<BufferContents>(
-                                     MakeNonNullShared<Line>(line))}));
+                            {.contents_to_insert = MakeNonNullUnique<
+                                 BufferContents>(MakeNonNullShared<Line>(
+                                 LineBuilder(std::move(line)).Build()))}));
                     prompt_state->OnModify();
                     return;
                   }

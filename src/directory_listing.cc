@@ -139,8 +139,7 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
     CHECK(type_it != types.end());
   }
 
-  LineBuilder line_options;
-  line_options.set_contents(NewLazyString(path + type_it->second.description));
+  LineBuilder line_options(NewLazyString(path + type_it->second.description));
   if (!type_it->second.modifiers.empty()) {
     line_options.set_modifiers(ColumnNumber(0), type_it->second.modifiers);
   }
@@ -150,7 +149,7 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
       [&editor = target.editor(), path] { StartDeleteFile(editor, path); });
 
   NonNull<std::shared_ptr<Line>> line =
-      MakeNonNullShared<Line>(std::move(line_options));
+      MakeNonNullShared<Line>(std::move(line_options).Build());
   target.AppendRawLine(line);
 }
 

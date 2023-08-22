@@ -431,7 +431,9 @@ LineBuilder GetBufferContents(const OpenBuffer& buffer,
     output.AppendString(Padding(padding, L' '));
   }
 
-  output.Append(line->CopyLineBuilder().DeleteSuffix(ColumnNumber() + columns));
+  LineBuilder line_without_suffix(line.value());
+  line_without_suffix.DeleteSuffix(ColumnNumber() + columns);
+  output.Append(std::move(line_without_suffix));
   output.ClearModifiers();
   output.InsertModifier(ColumnNumber{}, LineModifier::kDim);
   return output;
@@ -646,8 +648,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                                : LineModifierSet{},
                 selection_state, path_components[index + j]));
           }
-          return LineWithCursor{
-              .line = MakeNonNullShared<Line>(std::move(line_options_output))};
+          return LineWithCursor{.line = MakeNonNullShared<Line>(
+                                    std::move(line_options_output).Build())};
         }});
     index += options->buffers_per_line;
   }

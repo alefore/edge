@@ -41,14 +41,48 @@ struct BufferLineColumn {
 
 class Line;
 
+// TODO(trivial, 2023-08-22): Make this a private field of Line.
+struct LineStableFields {
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+      contents = language::lazy_string::EmptyString();
+
+  // Columns without an entry here reuse the last present value. If no
+  // previous value, assume LineModifierSet(). There's no need to include
+  // RESET: it is assumed implicitly. In other words, modifiers don't carry
+  // over past an entry.
+  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers = {};
+
+  // The semantics of this is that any characters at the end of the line
+  // (i.e., the space that represents the end of the line) should be rendered
+  // using these modifiers.
+  //
+  // If two lines are concatenated, the end of line modifiers of the first
+  // line is entirely ignored; it doesn't affect the first characters from the
+  // second line.
+  LineModifierSet end_of_line_modifiers = {};
+
+  std::optional<LineMetadataEntry> metadata = std::nullopt;
+  std::function<void()> explicit_delete_observer = nullptr;
+  std::optional<BufferLineColumn> buffer_line_column = std::nullopt;
+};
+
 class LineBuilder {
  public:
   LineBuilder() : LineBuilder(language::lazy_string::EmptyString()) {}
 
-  LineBuilder(
+  explicit LineBuilder(Line&&);
+  explicit LineBuilder(const Line&);
+  explicit LineBuilder(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          input_contents)
-      : contents_(std::move(input_contents)) {}
+          input_contents);
+
+  LineBuilder(LineBuilder&&) = default;
+
+  // Use the explicit `Copy` method below.
+  LineBuilder(const LineBuilder&) = delete;
+
+  LineBuilder Copy() const;
+  Line Build() &&;
 
   language::lazy_string::ColumnNumber EndColumn() const;
 
@@ -73,11 +107,11 @@ class LineBuilder {
   void Append(LineBuilder line);
 
   void SetExplicitDeleteObserver(std::function<void()> observer) {
-    explicit_delete_observer_ = std::move(observer);
+    data_.explicit_delete_observer = std::move(observer);
   }
 
   std::function<void()>& explicit_delete_observer() {
-    return explicit_delete_observer_;
+    return data_.explicit_delete_observer;
   }
 
   void SetBufferLineColumn(BufferLineColumn buffer_line_column);
@@ -117,41 +151,19 @@ class LineBuilder {
   // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
   friend class std::hash<Line>;
 
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-      contents_;
+  explicit LineBuilder(LineStableFields);
 
-  // Columns without an entry here reuse the last present value. If no
-  // previous value, assume LineModifierSet(). There's no need to include
-  // RESET: it is assumed implicitly. In other words, modifiers don't carry
-  // over past an entry.
-  std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers_;
-
-  // The semantics of this is that any characters at the end of the line
-  // (i.e., the space that represents the end of the line) should be rendered
-  // using these modifiers.
-  //
-  // If two lines are concatenated, the end of line modifiers of the first
-  // line is entirely ignored; it doesn't affect the first characters from the
-  // second line.
-  LineModifierSet end_of_line_modifiers_;
-
-  std::optional<LineMetadataEntry> metadata_;
-  std::function<void()> explicit_delete_observer_;
-  std::optional<BufferLineColumn> buffer_line_column_;
+  LineStableFields data_;
   void ValidateInvariants();
 };
 
 // This class is thread-safe.
 class Line {
  public:
-  static language::NonNull<std::shared_ptr<Line>> New(LineBuilder options);
-  Line() : Line(LineBuilder()) {}
-  explicit Line(LineBuilder options);
+  Line() : Line(LineStableFields{}) {}
+
   explicit Line(std::wstring text);
   Line(const Line& line);
-
-  LineBuilder CopyLineBuilder() const;
-  LineBuilder GetLineBuilder() &&;
 
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
   contents() const;
@@ -177,11 +189,12 @@ class Line {
   std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
       const {
     return data_.lock(
-        [](const Data& data) { return data.options.modifiers(); });
+        [](const Data& data) { return data.stable_fields.modifiers; });
   }
   LineModifierSet end_of_line_modifiers() const {
-    return data_.lock(
-        [](const Data& data) { return data.options.end_of_line_modifiers_; });
+    return data_.lock([](const Data& data) {
+      return data.stable_fields.end_of_line_modifiers;
+    });
   }
 
   bool modified() const {
@@ -229,9 +242,13 @@ class Line {
 
  private:
   friend class std::hash<Line>;
+  friend class LineBuilder;
+
+  explicit Line(LineStableFields stable_fields);
 
   struct Data {
-    const LineBuilder options;
+    // TODO(easy, 2023-08-22): Take `stable_fields` out of the lock!
+    const LineStableFields stable_fields;
     bool filtered = true;
     size_t filter_version = 0;
     bool modified = false;
@@ -245,11 +262,8 @@ class Line {
   static wint_t Get(const Data& data,
                     language::lazy_string::ColumnNumber column);
 
-  friend class Options;
-
   concurrent::Protected<Data, decltype(&Line::ValidateInvariants)> data_;
 };
-
 }  // namespace afc::editor
 namespace std {
 template <>

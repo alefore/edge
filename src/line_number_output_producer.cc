@@ -79,7 +79,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
               Append(padding, NewLazyString(number + L":")),
               modifiers.container);
           return LineWithCursor{
-              .line = MakeNonNullShared<Line>(std::move(line_options))};
+              .line = MakeNonNullShared<Line>(std::move(line_options).Build())};
         },
         screen_line.range, output.width,
         HashableContainer<LineModifierSet>(

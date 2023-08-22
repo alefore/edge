@@ -248,7 +248,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     // Add the matches to the predictions buffer.
     for (auto& match : matches) {
       input.predictions.AppendToLastLine(NewLazyString(std::move(match)));
-      input.predictions.AppendRawLine(MakeNonNullShared<Line>(LineBuilder()));
+      input.predictions.AppendRawLine(MakeNonNullShared<Line>());
     }
   }
   input.predictions.EndOfFile();

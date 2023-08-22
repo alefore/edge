@@ -201,9 +201,11 @@ class HelpCommand : public Command {
                                  : kPaddingSize - field_name.size(),
                              L' ');
         output.push_back(MakeNonNullShared<Line>(
-            Append(NewLazyString(L"* `"), NewLazyString(field_name),
-                   NewLazyString(L"`" + std::move(padding) + L"`"),
-                   NewLazyString(FromByteString(value_stream.str()) + L"`"))));
+            LineBuilder(Append(NewLazyString(L"* `"), NewLazyString(field_name),
+                               NewLazyString(L"`" + std::move(padding) + L"`"),
+                               NewLazyString(
+                                   FromByteString(value_stream.str()) + L"`")))
+                .Build()));
       });
       output.push_back(L"");
     });
@@ -226,9 +228,11 @@ class HelpCommand : public Command {
       value_stream << value.value();
 
       output.push_back(MakeNonNullShared<Line>(
-          Append(NewLazyString(L"* `"), NewLazyString(name),
-                 NewLazyString(L"`" + std::move(padding) + L"`"),
-                 NewLazyString(FromByteString(value_stream.str()) + L"`"))));
+          LineBuilder(
+              Append(NewLazyString(L"* `"), NewLazyString(name),
+                     NewLazyString(L"`" + std::move(padding) + L"`"),
+                     NewLazyString(FromByteString(value_stream.str()) + L"`")))
+              .Build()));
     });
     output.push_back(L"");
   }
@@ -240,17 +244,23 @@ class HelpCommand : public Command {
                                 EdgeStruct<T>* variables, C print) {
     StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {
-      output.push_back(MakeNonNullShared<Line>(Append(
-          NewLazyString(L"#### "), NewLazyString(variable.second->name()))));
+      output.push_back(MakeNonNullShared<Line>(
+          LineBuilder(Append(NewLazyString(L"#### "),
+                             NewLazyString(variable.second->name())))
+              .Build()));
       output.push_back(L"");
       output.push_back(variable.second->description());
       output.push_back(L"");
       output.push_back(MakeNonNullShared<Line>(
-          Append(NewLazyString(L"* Value: "),
-                 NewLazyString(print(source.Read(variable.second.get()))))));
+          LineBuilder(
+              Append(NewLazyString(L"* Value: "),
+                     NewLazyString(print(source.Read(variable.second.get())))))
+              .Build()));
       output.push_back(MakeNonNullShared<Line>(
-          Append(NewLazyString(L"* Default: "),
-                 NewLazyString(print(variable.second->default_value())))));
+          LineBuilder(
+              Append(NewLazyString(L"* Default: "),
+                     NewLazyString(print(variable.second->default_value()))))
+              .Build()));
 
       if (!variable.second->key().empty()) {
         output.push_back(L"* Related commands: `v" + variable.second->key() +

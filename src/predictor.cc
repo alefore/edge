@@ -311,7 +311,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
       continue;
     }
     predictions.push_back(MakeNonNullShared<Line>(
-        LineBuilder(NewLazyString(std::move(full_path)))));
+        LineBuilder(NewLazyString(std::move(full_path))).Build()));
     if (predictions.size() > 100) {
       FlushPredictions();
     }
@@ -576,8 +576,8 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
   return [dictionary_root](PredictorInput input) {
     const OpenBuffer& dictionary = dictionary_root.ptr().value();
     const BufferContents& contents = dictionary.contents();
-    auto input_line =
-        MakeNonNullShared<const Line>(LineBuilder(NewLazyString(input.input)));
+    auto input_line = MakeNonNullShared<const Line>(
+        LineBuilder(NewLazyString(input.input)).Build());
 
     LineNumber line = contents.upper_bound(
         input_line, [](const NonNull<std::shared_ptr<const Line>>& a,
