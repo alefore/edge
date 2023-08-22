@@ -30,9 +30,8 @@ int main(int, char** argv) {
 
   BufferContents contents;
   for (std::wstring line; std::getline(input, line, L'\n');) {
-    Line::Options options;
-    options.contents = NewLazyString(line);
-    contents.AppendToLine(contents.EndLine(), Line(std::move(options)));
+    LineBuilder options(NewLazyString(line));
+    contents.AppendToLine(contents.EndLine(), std::move(options).Build());
     contents.push_back(afc::language::MakeNonNullShared<Line>());
   }
 

@@ -16,9 +16,9 @@ extern "C" {
 #include "src/buffer_contents.h"
 #include "src/cpp_parse_tree.h"
 #include "src/editor.h"
-#include "src/fuzz.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/tests/fuzz.h"
 
 using namespace afc::editor;
 namespace gc = afc::language::gc;
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
   if (class_name == "BufferContents") {
     fuzz_testable = std::make_unique<BufferContents>();
   } else if (class_name == "BufferTerminal") {
-    fuzz_testable = buffer.ptr()->NewTerminal();
+    fuzz_testable = std::move(buffer.ptr()->NewTerminal().get_unique());
   }
   CHECK(fuzz_testable != nullptr)
       << "Invalid parameter for class name: " << class_name;

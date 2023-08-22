@@ -28,30 +28,32 @@ void CheckSingleton(C const container, V value) {
 
 void TestLineDeleteCharacters() {
   // Preparation.
-  Line line(Line::Options(NewCopyCharBuffer(L"alejo")));
-  line.modifiers()[ColumnNumber(0)].insert(LineModifier::kRed);
-  line.modifiers()[ColumnNumber(1)].insert(LineModifier::kGreen);
-  line.modifiers()[ColumnNumber(2)].insert(LineModifier::kBlue);
-  line.modifiers()[ColumnNumber(3)].insert(LineModifier::kBold);
-  line.modifiers()[ColumnNumber(4)].insert(LineModifier::kDim);
+  LineBuilder builder(NewCopyCharBuffer(L"alejo"));
+  builder.InsertModifier(ColumnNumber(0), LineModifier::kRed);
+  builder.InsertModifier(ColumnNumber(1), LineModifier::kGreen);
+  builder.InsertModifier(ColumnNumber(2), LineModifier::kBlue);
+  builder.InsertModifier(ColumnNumber(3), LineModifier::kBold);
+  builder.InsertModifier(ColumnNumber(4), LineModifier::kDim);
+  Line line = builder.Copy().Build();
 
   {
-    Line::Options line_copy = line.CopyOptions();
+    LineBuilder line_copy = builder.Copy();
     line_copy.DeleteSuffix(ColumnNumber(2));
-    CHECK_EQ(ToByteString(line_copy.contents->ToString()), "al");
-    CHECK_EQ(line_copy.modifiers.size(), 2ul);
-    CheckSingleton(line_copy.modifiers[ColumnNumber(0)], LineModifier::kRed);
-    CheckSingleton(line_copy.modifiers[ColumnNumber(1)], LineModifier::kGreen);
+    CHECK_EQ(ToByteString(line_copy.Copy().Build().ToString()), "al");
+    CHECK_EQ(line_copy.modifiers_size(), 2ul);
+    CheckSingleton(line_copy.modifiers()[ColumnNumber(0)], LineModifier::kRed);
+    CheckSingleton(line_copy.modifiers()[ColumnNumber(1)],
+                   LineModifier::kGreen);
   }
 
   {
-    Line::Options line_copy = line.CopyOptions();
+    LineBuilder line_copy = builder.Copy();
     line_copy.DeleteCharacters(ColumnNumber(1), ColumnNumberDelta(2));
-    CHECK_EQ(ToByteString(line_copy.contents->ToString()), "ajo");
-    CHECK_EQ(line_copy.modifiers.size(), 3ul);
-    CheckSingleton(line_copy.modifiers[ColumnNumber(0)], LineModifier::kRed);
-    CheckSingleton(line_copy.modifiers[ColumnNumber(1)], LineModifier::kBold);
-    CheckSingleton(line_copy.modifiers[ColumnNumber(2)], LineModifier::kDim);
+    CHECK_EQ(ToByteString(line_copy.Copy().Build().ToString()), "ajo");
+    CHECK_EQ(line_copy.modifiers_size(), 3ul);
+    CheckSingleton(line_copy.modifiers()[ColumnNumber(0)], LineModifier::kRed);
+    CheckSingleton(line_copy.modifiers()[ColumnNumber(1)], LineModifier::kBold);
+    CheckSingleton(line_copy.modifiers()[ColumnNumber(2)], LineModifier::kDim);
   }
 
   // Original isn't modified.
@@ -65,48 +67,41 @@ void TestLineDeleteCharacters() {
 }
 
 void TestLineAppend() {
-  Line::Options line;
-  line.contents = NewLazyString(L"abc");
-  line.modifiers[ColumnNumber(1)].insert(LineModifier::kRed);
-  line.modifiers[ColumnNumber(2)];
+  LineBuilder line(NewLazyString(L"abc"));
+  line.modifiers()[ColumnNumber(1)].insert(LineModifier::kRed);
+  line.modifiers()[ColumnNumber(2)];
 
-  Line::Options suffix;
-  suffix.contents = NewLazyString(L"def");
-  suffix.modifiers[ColumnNumber(1)].insert(LineModifier::kBold);
-  suffix.modifiers[ColumnNumber(2)];
-  line.Append(Line(suffix));
+  LineBuilder suffix(NewLazyString(L"def"));
+  suffix.InsertModifier(ColumnNumber(1), LineModifier::kBold);
+  suffix.set_modifiers(ColumnNumber(2), {});
+  line.Append(std::move(suffix));
 
-  CHECK_EQ(line.modifiers.size(), 4ul);
-  CHECK(line.modifiers[ColumnNumber(1)] ==
+  CHECK_EQ(line.modifiers().size(), 4ul);
+  CHECK(line.modifiers()[ColumnNumber(1)] ==
         LineModifierSet({LineModifier::kRed}));
-  CHECK(line.modifiers[ColumnNumber(2)] == LineModifierSet());
-  CHECK(line.modifiers[ColumnNumber(4)] ==
+  CHECK(line.modifiers()[ColumnNumber(2)] == LineModifierSet());
+  CHECK(line.modifiers()[ColumnNumber(4)] ==
         LineModifierSet({LineModifier::kBold}));
-  CHECK(line.modifiers[ColumnNumber(5)] == LineModifierSet());
+  CHECK(line.modifiers()[ColumnNumber(5)] == LineModifierSet());
 }
 
 void TestLineAppendEmpty() {
-  Line::Options line;
-  line.contents = NewLazyString(L"abc");
-  line.modifiers[ColumnNumber(0)].insert(LineModifier::kRed);
+  LineBuilder line(NewLazyString(L"abc"));
+  line.InsertModifier(ColumnNumber(0), LineModifier::kRed);
 
-  Line::Options empty_suffix;
-  empty_suffix.contents = NewLazyString(L"");
-  line.Append(Line(empty_suffix));
+  line.Append(LineBuilder());
 
-  CHECK_EQ(line.modifiers.size(), 1ul);
-  CHECK(line.modifiers[ColumnNumber(0)] ==
+  CHECK_EQ(line.modifiers_size(), 1ul);
+  CHECK(line.modifiers()[ColumnNumber(0)] ==
         LineModifierSet({LineModifier::kRed}));
 
-  Line::Options suffix;
-  suffix.contents = NewLazyString(L"def");
-  line.Append(Line(suffix));
+  line.Append(LineBuilder(NewLazyString(L"def")));
 
-  CHECK_EQ(line.modifiers.size(), 2ul);
-  CHECK(line.modifiers[ColumnNumber(0)] ==
+  CHECK_EQ(line.modifiers_size(), 2ul);
+  CHECK(line.modifiers()[ColumnNumber(0)] ==
         LineModifierSet({LineModifier::kRed}));
-  CHECK(line.modifiers[ColumnNumber(3)] == LineModifierSet());
-  CHECK_EQ(line.modifiers.size(), 2ul);
+  CHECK(line.modifiers()[ColumnNumber(3)] == LineModifierSet());
+  CHECK_EQ(line.modifiers_size(), 2ul);
 }
 }  // namespace
 

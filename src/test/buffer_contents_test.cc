@@ -6,6 +6,7 @@
 #include <iostream>
 #include <unordered_set>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/test/line_test.h"
@@ -14,6 +15,7 @@ namespace afc {
 namespace editor {
 namespace testing {
 namespace {
+using ::operator<<;
 using language::MakeNonNullShared;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
@@ -23,7 +25,7 @@ void TestBufferContentsSnapshot() {
   BufferContents contents;
   for (auto& s : {L"alejandro", L"forero", L"cuervo"}) {
     contents.push_back(
-        MakeNonNullShared<Line>(Line::Options(NewLazyString(s))));
+        MakeNonNullShared<Line>(LineBuilder(NewLazyString(s)).Build()));
   }
   auto copy = contents.copy();
   CHECK_EQ("\nalejandro\nforero\ncuervo", ToByteString(contents.ToString()));
@@ -36,17 +38,20 @@ void TestBufferContentsSnapshot() {
 
 void TestBufferInsertModifiers() {
   BufferContents contents;
-  Line::Options options;
-  options.contents = NewLazyString(L"alejo");
-  options.modifiers[ColumnNumber(0)] = {LineModifier::kCyan};
+  LineBuilder options(NewLazyString(L"alejo"));
+  options.set_modifiers(ColumnNumber(0), LineModifierSet{LineModifier::kCyan});
 
-  contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(1).
-  contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(2).
-  options.modifiers[ColumnNumber(2)] = {LineModifier::kBold};
-  contents.push_back(MakeNonNullShared<Line>(options));  // LineNumber(3).
-  auto line = MakeNonNullShared<Line>(contents.at(LineNumber(1)).value());
-  line->SetAllModifiers(LineModifierSet({LineModifier::kDim}));
-  contents.push_back(line);  // LineNumber(4).
+  contents.push_back(
+      MakeNonNullShared<Line>(options.Copy().Build()));  // LineNumber(1).
+  contents.push_back(
+      MakeNonNullShared<Line>(options.Copy().Build()));  // LineNumber(2).
+  options.set_modifiers(ColumnNumber(2), {LineModifier::kBold});
+  contents.push_back(
+      MakeNonNullShared<Line>(options.Copy().Build()));  // LineNumber(3).
+  LineBuilder new_line(contents.at(LineNumber(1)).value());
+  new_line.SetAllModifiers(LineModifierSet({LineModifier::kDim}));
+  contents.push_back(
+      MakeNonNullShared<Line>(std::move(new_line).Build()));  // LineNumber(4).
 
   for (int i = 0; i < 2; i++) {
     LOG(INFO) << "Start iteration: " << i;
@@ -140,7 +145,8 @@ void TestBufferInsertModifiers() {
     {
       auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
       for (auto& c : modifiers_4) {
-        LOG(INFO) << "At: " << c.first << " " << *c.second.begin();
+        LOG(INFO) << "At: " << c.first << " "
+                  << ModifierToString(*c.second.begin());
       }
       CHECK_EQ(modifiers_4.size(), 1ul);
     }
