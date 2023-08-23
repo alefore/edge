@@ -59,7 +59,9 @@ class StatusPromptExtraInformation {
   // but it will be misleading to the user (who will think that the values
   // displayed are final).
   void MarkVersionDone(int version);
-  std::shared_ptr<Line> GetLine() const;
+
+  // Prints the line.
+  Line GetLine() const;
 
  private:
   struct Value {

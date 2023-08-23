@@ -183,7 +183,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     line_options.Append(std::move(suffix));
     line_options.Append(
-        LineBuilder(*options.status.prompt_extra_information()->GetLine()));
+        LineBuilder(options.status.prompt_extra_information()->GetLine()));
   } else {
     VLOG(6) << "Not setting status cursor.";
     line_options.AppendString(text, modifiers);
