@@ -1367,8 +1367,7 @@ void OpenBuffer::DestroyCursor() {
   for (size_t i = 0; i < repetitions; i++) {
     cursors.DeleteCurrentCursor();
   }
-  // TODO(medium, 2022-05-28): This crashed today.
-  CHECK_LE(position().line, LineNumber(0) + contents_.size());
+  CheckPosition();
 }
 
 void OpenBuffer::DestroyOtherCursors() {

@@ -1,6 +1,7 @@
 #include "src/args.h"
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
+#include "src/cursors.h"
 #include "src/editor.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
@@ -271,6 +272,38 @@ const bool buffer_work_queue_tests_registration = tests::Register(
         CHECK_EQ(iterations, 12);
         EditorForTests().work_queue()->Execute();
         CHECK_EQ(iterations, 12);
+      }}});
+
+const bool buffer_positions_tests_registration = tests::Register(
+    L"BufferPositions",
+    {{.name = L"DeleteCursorLeavingOtherPastRange", .callback = [] {
+        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        buffer.ptr()->Set(buffer_variables::name, L"tests");
+        for (int i = 0; i < 10; i++) buffer.ptr()->AppendEmptyLine();
+        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(0)));
+        CHECK_EQ(buffer.ptr()->contents().size(), LineNumberDelta(10 + 1));
+
+        buffer.ptr()->set_position(LineColumn(LineNumber(222)));
+        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(222)));
+
+        buffer.ptr()->CheckPosition();
+        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(10)));
+
+        CursorsSet::iterator insertion_iterator =
+            buffer.ptr()->active_cursors().insert(LineColumn(LineNumber(5)));
+        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(10)));
+
+        buffer.ptr()->active_cursors().set_active(insertion_iterator);
+        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(5)));
+
+        buffer.ptr()->ClearContents(
+            BufferContents::CursorsBehavior::kUnmodified);
+
+        CHECK_EQ(buffer.ptr()->contents().size(), LineNumberDelta(1));
+        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(5)));
+
+        buffer.ptr()->DestroyCursor();
+        CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(0)));
       }}});
 
 }  // namespace
