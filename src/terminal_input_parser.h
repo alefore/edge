@@ -34,6 +34,8 @@ class TerminalInputParser : public fuzz::FuzzTestable {
  public:
   class Receiver {
    public:
+    virtual ~Receiver() = default;
+
     // Erases all lines in range [first, last).
     virtual void EraseLines(LineNumber first, LineNumber last) = 0;
 
