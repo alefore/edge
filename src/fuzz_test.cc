@@ -4,8 +4,8 @@
 #include <iostream>
 #include <string>
 
-#include "src/audio.h"
 #include "src/editor.h"
+#include "src/infrastructure/audio.h"
 #include "src/language/wstring.h"
 #include "src/terminal.h"
 

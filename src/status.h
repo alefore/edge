@@ -4,7 +4,7 @@
 #include <map>
 #include <memory>
 
-#include "src/audio.h"
+#include "src/infrastructure/audio.h"
 #include "src/infrastructure/time.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
@@ -81,7 +81,7 @@ class StatusPromptExtraInformation {
 
 class Status {
  public:
-  Status(audio::Player& audio_player);
+  Status(infrastructure::audio::Player& audio_player);
   Status(const Status&) = delete;
   void CopyFrom(const Status& status);
 
@@ -146,7 +146,7 @@ class Status {
   friend StatusExpirationControl;
   void ValidatePreconditions() const;
 
-  audio::Player& audio_player_;
+  infrastructure::audio::Player& audio_player_;
 
   // We nest our mutable fields in `struct Data`. This allows us to implement
   // `SetExpiringInformationText`, where we can detect if the status hasn't

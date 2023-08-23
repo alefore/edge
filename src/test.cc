@@ -4,10 +4,10 @@
 #include <iostream>
 #include <string>
 
-#include "src/audio.h"
 #include "src/buffer_variables.h"
 #include "src/command_argument_mode.h"
 #include "src/editor.h"
+#include "src/infrastructure/audio.h"
 #include "src/language/const_tree.h"
 #include "src/language/wstring.h"
 #include "src/terminal.h"
@@ -19,6 +19,7 @@ using afc::language::ConstTree;
 using afc::language::ToByteString;
 using afc::language::VectorBlock;
 using afc::language::lazy_string::ColumnNumber;
+namespace audio = afc::editor::infrastructure::audio;
 
 using IntConstTree = ConstTree<VectorBlock<int, 128>, 128>;
 

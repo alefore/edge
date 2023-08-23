@@ -1,4 +1,4 @@
-#include "src/audio.h"
+#include "src/infrastructure/audio.h"
 
 #include <glog/logging.h>
 
@@ -6,7 +6,7 @@
 #include "src/infrastructure/tracker.h"
 #include "src/language/safe_types.h"
 
-namespace afc::editor::audio {
+namespace afc::infrastructure::audio {
 using concurrent::Protected;
 using language::MakeNonNullUnique;
 using language::NonNull;
@@ -267,4 +267,4 @@ void GenerateAlert(Player& player) {
                   {Frequency(523.25), Frequency(659.25), Frequency(783.99)});
 }
 
-}  // namespace afc::editor::audio
+}  // namespace afc::infrastructure::audio

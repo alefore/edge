@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "src/args.h"
-#include "src/audio.h"
 #include "src/buffer.h"
 #include "src/buffer_name.h"
 #include "src/buffer_widget.h"
@@ -21,6 +20,7 @@
 #include "src/direction.h"
 #include "src/editor_mode.h"
 #include "src/editor_variables.h"
+#include "src/infrastructure/audio.h"
 #include "src/insert_history.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -48,7 +48,8 @@ class EditorState {
     bool needs_hard_redraw = false;
   };
 
-  EditorState(CommandLineValues args, audio::Player& audio_player);
+  EditorState(CommandLineValues args,
+              infrastructure::audio::Player& audio_player);
   ~EditorState();
 
   const bool& Read(const EdgeVariable<bool>* variable) const;
@@ -200,7 +201,7 @@ class EditorState {
 
   InsertHistory& insert_history() { return insert_history_; }
 
-  audio::Player& audio_player() const { return audio_player_; }
+  infrastructure::audio::Player& audio_player() const { return audio_player_; }
 
   // Can return null.
   std::shared_ptr<EditorMode> keyboard_redirect() const {
@@ -277,7 +278,7 @@ class EditorState {
   concurrent::Protected<bool> has_internal_events_ =
       concurrent::Protected<bool>(false);
 
-  audio::Player& audio_player_;
+  infrastructure::audio::Player& audio_player_;
 
   InsertHistory insert_history_;
 

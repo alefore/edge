@@ -241,6 +241,8 @@ futures::Value<PossibleError> GenerateContents(
       [&editor_state, data, &target](EmptyValue) {
         LOG(INFO) << "End of file notification.";
         if (editor_state.buffer_tree().GetBufferIndex(target).has_value()) {
+          namespace audio = infrastructure::audio;
+
           CHECK(target.child_exit_status().has_value());
           int success = WIFEXITED(target.child_exit_status().value()) &&
                         WEXITSTATUS(target.child_exit_status().value()) == 0;

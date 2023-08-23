@@ -4,9 +4,9 @@
 #include <regex>
 #include <set>
 
-#include "src/audio.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
+#include "src/infrastructure/audio.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
@@ -31,6 +31,7 @@ using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
+namespace audio = afc::infrastructure::audio;
 
 static constexpr int kMatchesLimit = 100;
 

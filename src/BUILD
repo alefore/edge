@@ -23,18 +23,6 @@ cc_library(
 )
 
 cc_library(
-    name = "audio",
-    srcs = ["audio.cc"],
-    hdrs = ["audio.h"],
-    deps = [
-        "//src/concurrent:protected",
-        "//src/infrastructure:tracker",
-        "//src/language:ghost_type",
-        "//src/language:safe_types",
-    ],
-)
-
-cc_library(
     name = "buffer_contents",
     srcs = ["buffer_contents.cc"],
     hdrs = ["buffer_contents.h"],

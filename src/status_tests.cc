@@ -8,6 +8,7 @@ namespace afc::editor {
 namespace {
 using language::NonNull;
 namespace gc = language::gc;
+namespace audio = infrastructure::audio;
 
 const bool prompt_tests_registration = tests::Register(
     L"StatusPrompt",

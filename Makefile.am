@@ -10,8 +10,6 @@ EXTRA_DIST = \
 src/vm/internal/cpp.y
 
 COMMON_SOURCES = \
-src/audio.cc \
-src/audio.h \
 src/args.cc \
 src/args.h \
 src/naive_bayes.cc \
@@ -97,6 +95,8 @@ src/goto_command.cc \
 src/help_command.cc \
 src/horizontal_center_output_producer.cc \
 src/horizontal_center_output_producer.h \
+src/infrastructure/audio.cc \
+src/infrastructure/audio.h \
 src/infrastructure/command_line.h \
 src/infrastructure/command_line.cc \
 src/infrastructure/dirname.cc \

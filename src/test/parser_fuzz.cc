@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 
-#include "src/audio.h"
 #include "src/cpp_parse_tree.h"
 #include "src/editor.h"
 #include "src/terminal.h"

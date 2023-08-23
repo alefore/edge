@@ -155,7 +155,8 @@ void StatusPromptExtraInformation::MarkVersionDone(int version) {
   }
 }
 
-Status::Status(audio::Player& audio_player) : audio_player_(audio_player) {
+Status::Status(infrastructure::audio::Player& audio_player)
+    : audio_player_(audio_player) {
   ValidatePreconditions();
 }
 

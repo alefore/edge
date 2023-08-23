@@ -1,4 +1,16 @@
 cc_library(
+    name = "audio",
+    srcs = ["audio.cc"],
+    hdrs = ["audio.h"],
+    deps = [
+        "//src/concurrent:protected",
+        "//src/infrastructure:tracker",
+        "//src/language:ghost_type",
+        "//src/language:safe_types",
+    ],
+)
+
+cc_library(
     name = "command_line",
     srcs = ["command_line.cc"],
     hdrs = ["command_line.h"],

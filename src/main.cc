@@ -16,11 +16,11 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/args.h"
-#include "src/audio.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
+#include "src/infrastructure/audio.h"
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/time.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -41,6 +41,7 @@ extern "C" {
 namespace {
 
 using namespace afc::editor;
+namespace audio = afc::infrastructure::audio;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::MillisecondsBetween;
 using afc::infrastructure::Now;

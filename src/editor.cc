@@ -18,11 +18,11 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "src/audio.h"
 #include "src/buffer_variables.h"
 #include "src/command_argument_mode.h"
 #include "src/editor_vm.h"
 #include "src/file_link_mode.h"
+#include "src/infrastructure/audio.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -118,7 +118,8 @@ void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
       }});
 }
 
-EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
+EditorState::EditorState(CommandLineValues args,
+                         infrastructure::audio::Player& audio_player)
     : work_queue_(WorkQueue::New()),
       thread_pool_(MakeNonNullShared<ThreadPool>(32, work_queue_.get_shared())),
       gc_pool_({.collect_duration_threshold = 0.05,
@@ -191,7 +192,7 @@ EditorState::EditorState(CommandLineValues args, audio::Player& audio_player)
   });
 
   double_variables_.ObserveValue(editor_variables::volume).Add([this] {
-    audio_player_.SetVolume(audio::Volume(
+    audio_player_.SetVolume(infrastructure::audio::Volume(
         std::max(0.0, std::min(1.0, Read(editor_variables::volume)))));
     return Observers::State::kAlive;
   });

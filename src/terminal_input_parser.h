@@ -15,15 +15,14 @@
 #include "src/line_column.h"
 #include "src/tests/fuzz_testable.h"
 
+namespace afc::infrastructure::audio {
+class Player;
+}
 namespace afc::editor {
 
 class OpenBuffer;
 class BufferContents;
 class BufferName;
-
-namespace audio {
-class Player;
-}
 
 // Decodes input from a terminal-associated file descriptor.
 //

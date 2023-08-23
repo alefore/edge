@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_AUDIO_H__
-#define __AFC_EDITOR_AUDIO_H__
+#ifndef __AFC_EDITOR_INFRASTRUCTURE_AUDIO_H__
+#define __AFC_EDITOR_INFRASTRUCTURE_AUDIO_H__
 
 // clang-format off
 #include "config.h"
@@ -22,7 +22,7 @@
 #include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
 
-namespace afc::editor::audio {
+namespace afc::infrastructure::audio {
 GHOST_TYPE_DOUBLE(Frequency);
 GHOST_TYPE(SpeakerValue, int);
 GHOST_TYPE_DOUBLE(Volume);
@@ -53,8 +53,8 @@ void GenerateBeep(Player& player, Frequency frequency);
 void BeepFrequencies(Player& player, Player::Duration duration,
                      const std::vector<Frequency>& frequencies);
 void GenerateAlert(Player& player);
-}  // namespace afc::editor::audio
+}  // namespace afc::infrastructure::audio
 
-GHOST_TYPE_HASH(afc::editor::audio::Frequency);
+GHOST_TYPE_HASH(afc::infrastructure::audio::Frequency);
 
-#endif  // __AFC_EDITOR_AUDIO_H__
+#endif  // __AFC_EDITOR_INFRASTRUCTURE_AUDIO_H__

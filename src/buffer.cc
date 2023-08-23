@@ -65,6 +65,9 @@ extern "C" {
 #include "src/vm/public/vm.h"
 
 namespace afc::editor {
+namespace gc = language::gc;
+namespace audio = infrastructure::audio;
+
 using concurrent::WorkQueue;
 using futures::IterationControlCommand;
 using infrastructure::AbsolutePath;
@@ -98,8 +101,6 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
-
-namespace gc = language::gc;
 
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
