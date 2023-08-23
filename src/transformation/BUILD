@@ -24,7 +24,6 @@ cc_library(
     deps = [
         ":input",
         ":result",
-        "//src:buffer",
         "//src:cursors",
         "//src:line_column",
         "//src/futures",
@@ -38,8 +37,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":input",
-        "//src:line_modifier",
         "//src:modifiers",
+        "//src/infrastructure/screen:line_modifier",
     ],
 )
 
@@ -68,8 +67,8 @@ cc_library(
     deps = [
         ":input",
         ":result",
-        "//src:line_modifier",
         "//src:modifiers",
+        "//src/infrastructure/screen:line_modifier",
         "//src/language:safe_types",
         "//src/vm/public:environment",
     ],
@@ -91,6 +90,9 @@ cc_library(
     name = "noop",
     srcs = ["noop.cc"],
     hdrs = ["noop.h"],
+    deps = [
+        ":composite",
+    ],
 )
 
 cc_library(
@@ -98,6 +100,7 @@ cc_library(
     srcs = ["reach_query.cc"],
     hdrs = ["reach_query.h"],
     deps = [
+        ":composite",
         "//src:buffer_contents",
         "//src:buffer_display_data",
     ],
@@ -157,6 +160,9 @@ cc_library(
     name = "tree_navigate",
     srcs = ["tree_navigate.cc"],
     hdrs = ["tree_navigate.h"],
+    deps = [
+        "//src:transformation",
+    ],
 )
 
 cc_library(
@@ -176,6 +182,9 @@ cc_library(
     name = "visual_overlay",
     srcs = ["visual_overlay.cc"],
     hdrs = ["visual_overlay.h"],
+    deps = [
+        "//src/futures",
+    ],
 )
 
 cc_library(

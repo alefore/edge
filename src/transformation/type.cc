@@ -16,10 +16,11 @@ std::wstring ToString(const Variant& transformation) {
       transformation);
 }
 
-Input::Input(OpenBuffer& input_buffer) : buffer(input_buffer) {}
+Input::Input(Adapter& input_adapter, OpenBuffer& input_buffer)
+    : adapter(input_adapter), buffer(input_buffer) {}
 
 Input Input::NewChild(LineColumn new_position) const {
-  Input child(buffer);
+  Input child(adapter, buffer);
   child.mode = mode;
   child.delete_buffer = delete_buffer;
   child.position = new_position;

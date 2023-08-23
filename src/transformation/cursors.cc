@@ -2,11 +2,8 @@
 
 #include <glog/logging.h>
 
-#include "src/buffer.h"
-#include "src/editor.h"
 #include "src/futures/futures.h"
 #include "src/language/lazy_string/append.h"
-#include "src/transformation/type.h"
 
 namespace afc::editor::transformation {
 futures::Value<Result> ApplyBase(const Cursors& parameters, Input input) {
@@ -19,7 +16,7 @@ futures::Value<Result> ApplyBase(const Cursors& parameters, Input input) {
       positions.push_back(cursor);
     }
   }
-  input.buffer.set_active_cursors(positions);
+  input.adapter.SetActiveCursors(positions);
   return futures::Past(Result(parameters.active));
 }
 

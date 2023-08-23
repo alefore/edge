@@ -224,8 +224,22 @@ using std::to_wstring;
   return output;
 }
 
+class TransformationInputAdapterImpl : public transformation::Input::Adapter {
+ public:
+  TransformationInputAdapterImpl(OpenBuffer& buffer) : buffer_(buffer) {}
+
+  void SetActiveCursors(std::vector<LineColumn> positions) override {
+    buffer_.set_active_cursors(std::move(positions));
+  }
+
+ private:
+  OpenBuffer& buffer_;
+};
+
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
+      transformation_adapter_(
+          MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
       work_queue_(WorkQueue::New()),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
@@ -2219,7 +2233,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   const std::weak_ptr<transformation::Stack> undo_stack_weak =
       undo_state_.Current().get_shared();
 
-  transformation::Input input(*this);
+  transformation::Input input(transformation_adapter_.value(), *this);
   input.mode = mode;
   input.position = position;
   if (Read(buffer_variables::delete_into_paste_buffer)) {
@@ -2315,7 +2329,8 @@ futures::Value<EmptyValue> OpenBuffer::Undo(
           .repetitions = editor().repetitions().value_or(1),
           .callback =
               [this](transformation::Variant t) {
-                transformation::Input input(*this);
+                transformation::Input input(transformation_adapter_.value(),
+                                            *this);
                 input.position = position();
                 // We've undone the entire changes, so...
                 last_transformation_stack_.clear();

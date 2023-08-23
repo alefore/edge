@@ -30,6 +30,7 @@
 #include "src/status.h"
 #include "src/terminal_input_parser.h"
 #include "src/transformation.h"
+#include "src/transformation/input.h"
 #include "src/transformation/type.h"
 #include "src/undo_state.h"
 #include "src/variables.h"
@@ -513,6 +514,8 @@ class OpenBuffer {
                          LineColumn* position) const;
 
   const Options options_;
+  const language::NonNull<std::unique_ptr<transformation::Input::Adapter>>
+      transformation_adapter_;
 
   language::NonNull<std::unique_ptr<Log>> log_ = NewNullLog();
 
