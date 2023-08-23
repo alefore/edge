@@ -57,6 +57,7 @@ cc_library(
     hdrs = ["input.h"],
     deps = [
         "//src:line_column",
+        "//src/infrastructure/screen:line_modifier",
     ],
 )
 
@@ -65,9 +66,12 @@ cc_library(
     srcs = ["insert.cc"],
     hdrs = ["insert.h"],
     deps = [
+        ":composite",
         ":input",
         ":result",
+        "//src:line_column_vm",
         "//src:modifiers",
+        "//src:transformation",
         "//src/infrastructure/screen:line_modifier",
         "//src/language:safe_types",
         "//src/vm/public:environment",

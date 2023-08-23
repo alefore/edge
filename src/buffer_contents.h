@@ -159,6 +159,11 @@ class BufferContents : public fuzz::FuzzTestable {
 
   void SetUpdateListener(UpdateListener update_listener);
 
+  // Returns position, but ensuring that it is in a valid position in the
+  // contents — that the line is valid, and that the column fits the length of
+  // the line.
+  LineColumn AdjustLineColumn(LineColumn position) const;
+
   std::vector<fuzz::Handler> FuzzHandlers() override;
 
  private:

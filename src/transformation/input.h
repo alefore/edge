@@ -1,17 +1,27 @@
 #ifndef __AFC_EDITOR_TRANSFORMATION_INPUT_H__
 #define __AFC_EDITOR_TRANSFORMATION_INPUT_H__
 
+#include <optional>
+
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/line_column.h"
 
 namespace afc::editor {
 class OpenBuffer;
+class BufferContents;
 class CompositeTransformation;
 namespace transformation {
 struct Input {
   class Adapter {
    public:
     virtual ~Adapter() = default;
+    virtual const BufferContents& contents() const = 0;
+
     virtual void SetActiveCursors(std::vector<LineColumn> positions) = 0;
+    virtual LineColumn InsertInPosition(
+        const BufferContents& contents_to_insert,
+        const LineColumn& input_position,
+        const std::optional<LineModifierSet>& modifiers) = 0;
   };
 
   explicit Input(Adapter& adapter, editor::OpenBuffer& input_buffer);

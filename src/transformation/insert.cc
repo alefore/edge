@@ -1,9 +1,8 @@
 #include "src/transformation/insert.h"
 
-#include "src/buffer.h"
-#include "src/editor.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/line_column_vm.h"
+#include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
@@ -44,7 +43,8 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
   }
 
   auto result = std::make_shared<transformation::Result>(
-      input.buffer.AdjustLineColumn(options.position.value_or(input.position)));
+      input.adapter.contents().AdjustLineColumn(
+          options.position.value_or(input.position)));
 
   result->modified_buffer = true;
   result->made_progress = true;
@@ -52,8 +52,8 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
   LineColumn start_position = result->position;
   for (size_t i = 0; i < options.modifiers.repetitions.value_or(1); i++) {
     result->position =
-        input.buffer.InsertInPosition(options.contents_to_insert.value(),
-                                      result->position, options.modifiers_set);
+        input.adapter.InsertInPosition(options.contents_to_insert.value(),
+                                       result->position, options.modifiers_set);
   }
   LineColumn final_position = result->position;
 

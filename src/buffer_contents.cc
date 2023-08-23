@@ -683,6 +683,13 @@ void BufferContents::SetUpdateListener(UpdateListener update_listener) {
   update_listener_ = std::move(update_listener);
 }
 
+LineColumn BufferContents::AdjustLineColumn(LineColumn position) const {
+  CHECK_GT(size(), LineNumberDelta(0));
+  position.line = std::min(position.line, EndLine());
+  position.column = std::min(at(position.line)->EndColumn(), position.column);
+  return position;
+}
+
 std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
   using namespace fuzz;
   std::vector<Handler> output;

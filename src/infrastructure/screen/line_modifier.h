@@ -8,7 +8,7 @@
 #include "src/language/hash.h"
 
 namespace afc::editor {
-
+// TODO(trivial, 2023-08-24): This should be inside the language namespace.
 enum class LineModifier {
   kReset,
   kBold,

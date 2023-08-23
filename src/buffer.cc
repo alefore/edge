@@ -228,8 +228,18 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
  public:
   TransformationInputAdapterImpl(OpenBuffer& buffer) : buffer_(buffer) {}
 
+  virtual const BufferContents& contents() const { return buffer_.contents(); }
+
   void SetActiveCursors(std::vector<LineColumn> positions) override {
     buffer_.set_active_cursors(std::move(positions));
+  }
+
+  virtual LineColumn InsertInPosition(
+      const BufferContents& contents_to_insert,
+      const LineColumn& input_position,
+      const std::optional<LineModifierSet>& modifiers) {
+    return buffer_.InsertInPosition(contents_to_insert, input_position,
+                                    modifiers);
   }
 
  private:
@@ -1156,11 +1166,7 @@ LineColumn OpenBuffer::InsertInPosition(
 
 LineColumn OpenBuffer::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(contents_.size(), LineNumberDelta(0));
-  position.line = std::min(position.line, contents_.EndLine());
-  CHECK(LineAt(position.line) != nullptr);
-  position.column =
-      std::min(LineAt(position.line)->EndColumn(), position.column);
-  return position;
+  return contents_.AdjustLineColumn(position);
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
