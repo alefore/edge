@@ -900,7 +900,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
  public:
   HistoryScrollBehavior(
       futures::ListenableValue<gc::Root<OpenBuffer>> filtered_history,
-      NonNull<std::shared_ptr<LazyString>> original_input,
+      NonNull<std::shared_ptr<const Line>> original_input,
       NonNull<std::shared_ptr<PromptState>> prompt_state)
       : filtered_history_(std::move(filtered_history)),
         original_input_(std::move(original_input)),
@@ -959,8 +959,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
               }
             } else if (prompt_state->status().context() != previous_context) {
               prompt_state->status().set_context(previous_context);
-              line_to_insert =
-                  std::make_shared<Line>(LineBuilder(original_input).Build());
+              line_to_insert = original_input.get_shared();
             }
           }
           NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
@@ -991,9 +990,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   }
 
   const futures::ListenableValue<gc::Root<OpenBuffer>> filtered_history_;
-  // TODO(trivial, 2023-08-22): Change the type to be a NonNull<shared_ptr<const
-  // Line>>.
-  const NonNull<std::shared_ptr<LazyString>> original_input_;
+  const NonNull<std::shared_ptr<const Line>> original_input_;
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const std::optional<gc::Root<OpenBuffer>> previous_context_;
 };
@@ -1008,8 +1005,8 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
       DeleteNotification::Value abort_value) override {
     OpenBuffer& buffer = prompt_state_->prompt_buffer().ptr().value();
     CHECK_GT(buffer.lines_size(), LineNumberDelta(0));
-    NonNull<std::shared_ptr<LazyString>> input =
-        buffer.contents().at(LineNumber(0))->contents();
+    NonNull<std::shared_ptr<const Line>> input =
+        buffer.contents().at(LineNumber(0));
     return futures::Past(MakeNonNullUnique<HistoryScrollBehavior>(
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),
