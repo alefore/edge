@@ -169,23 +169,26 @@ class InsertMode : public EditorMode {
     switch (static_cast<int>(c)) {
       case '\t':
         ResetScrollBehavior();
-        if (old_literal) {
-          LOG(INFO) << "Inserting escaped TAB.";
-          break;
+        if (!old_literal) {
+          bool started_completion = false;
+          ForEachActiveBuffer(
+              buffers_, "",
+              [options = options_, &started_completion](OpenBuffer& buffer) {
+                if (buffer.fd() == nullptr && options.start_completion(buffer))
+                  started_completion = true;
+                return futures::Past(EmptyValue());
+              });
+          if (started_completion) {
+            // Whatever was being typed, was probably just for completion
+            // purposes; we might as well not let it be added to the history (so
+            // as to not pollute it).
+            current_insertion_->FilterToRange(Range());
+            return;
+          }
         }
-        ForEachActiveBuffer(buffers_, "",
-                            [options = options_](OpenBuffer& buffer) {
-                              // TODO: Don't ignore the return value. If it's
-                              // false for all buffers, insert the \t.
-                              options.start_completion(buffer);
-                              return futures::Past(EmptyValue());
-                            });
 
-        // Whatever was being typed, was probably just for completion purposes;
-        // we might as well not let it be added to the history (so as to not
-        // pollute it).
-        current_insertion_->FilterToRange(Range());
-        return;
+        LOG(INFO) << "Inserting TAB (old_literal: " << old_literal << ")";
+        break;
 
       case Terminal::ESCAPE:
         ResetScrollBehavior();
