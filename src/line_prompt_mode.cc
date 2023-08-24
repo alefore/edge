@@ -806,13 +806,10 @@ class StatusVersionAdapter {
                             .prompt_extra_information()
                             ->StartNewVersion()) {}
 
-  ~StatusVersionAdapter() { status_version_->MarkDone(); }
-
   // The prompt has disappeared.
   bool Expired() const {
     if (prompt_state_->IsGone()) return true;
-    return prompt_state_->status().prompt_extra_information() == nullptr ||
-           status_version_->IsExpired();
+    return status_version_->IsExpired();
   }
 
   template <typename T>

@@ -101,6 +101,21 @@ StatusPromptExtraInformation::Version::Version(
     const NonNull<std::shared_ptr<StatusPromptExtraInformation::Data>>& data)
     : data_(data.get_shared()), version_id_(data->version_id) {}
 
+StatusPromptExtraInformation::Version::~Version() {
+  VisitPointer(
+      data_,
+      [&](NonNull<std::shared_ptr<Data>> data) {
+        std::erase_if(data->information,
+                      [&](const std::pair<Key, Data::Value>& entry) {
+                        return entry.second.version_id < version_id_;
+                      });
+        if (data->version_id == version_id_) {
+          data->last_version_state = Data::VersionExecution::kDone;
+        }
+      },
+      [] {});
+}
+
 bool StatusPromptExtraInformation::Version::IsExpired() const {
   return VisitPointer(
       data_,
@@ -159,25 +174,6 @@ Line StatusPromptExtraInformation::GetLine() const {
   }
 
   return std::move(options).Build();
-}
-
-void StatusPromptExtraInformation::Version::MarkDone() {
-  VisitPointer(
-      data_,
-      [&](NonNull<std::shared_ptr<Data>> data) {
-        auto it = data->information.begin();
-        while (it != data->information.end()) {
-          if (it->second.version_id < version_id_) {
-            it = data->information.erase(it);
-          } else {
-            ++it;
-          }
-        }
-        if (data->version_id == version_id_) {
-          data->last_version_state = Data::VersionExecution::kDone;
-        }
-      },
-      [] {});
 }
 
 Status::Status(infrastructure::audio::Player& audio_player)

@@ -75,16 +75,10 @@ class StatusPromptExtraInformation {
    public:
     Version(ConstructorAccessKey,
             const language::NonNull<std::shared_ptr<Data>>& data);
+    ~Version();
     bool IsExpired() const;
     void SetValue(Key key, std::wstring value);
     void SetValue(Key key, int value);
-
-    // Once the caller thinks that it won't be doing any additional calls to
-    // SetValue for a given version, it should call `MarkVersionDone`.
-    // Completion will be reflected by `GetLine`. It is okay to call `SetValue`
-    // after this, but it will be misleading to the user (who will think that
-    // the values displayed are final).
-    void MarkDone();
 
    private:
     friend StatusPromptExtraInformation;
