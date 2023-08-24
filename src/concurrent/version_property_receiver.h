@@ -50,13 +50,15 @@ class VersionPropertyReceiver {
     kDone
   };
 
+  using VersionPropertyValue = std::variant<std::wstring, int, size_t>;
+
  private:
   struct Data {
-    struct Value {
+    struct VersionValue {
       int version_id;
-      std::wstring value;
+      VersionPropertyValue value;
     };
-    std::map<Key, Value> information = {};
+    std::map<Key, VersionValue> information = {};
 
     int version_id = 0;
     VersionExecution last_version_state = VersionExecution::kDone;
@@ -71,8 +73,7 @@ class VersionPropertyReceiver {
             std::weak_ptr<concurrent::Protected<Data>> data, int version_id);
     ~Version();
     bool IsExpired() const;
-    void SetValue(Key key, std::wstring value);
-    void SetValue(Key key, int value);
+    void SetValue(Key key, VersionPropertyValue value);
 
    private:
     friend VersionPropertyReceiver;
@@ -89,7 +90,7 @@ class VersionPropertyReceiver {
     struct Value {
       enum class Status { kExpired, kCurrent };
       Status status;
-      std::wstring value;
+      VersionPropertyValue value;
     };
     std::map<Key, Value> property_values;
   };

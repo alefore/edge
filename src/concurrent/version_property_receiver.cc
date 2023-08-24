@@ -40,7 +40,7 @@ VersionPropertyReceiver::Version::~Version() {
       [&](NonNull<std::shared_ptr<Protected<Data>>> protected_data) {
         protected_data->lock([&](VersionPropertyReceiver::Data& data) {
           std::erase_if(data.information,
-                        [&](const std::pair<Key, Data::Value>& entry) {
+                        [&](const std::pair<Key, Data::VersionValue>& entry) {
                           return entry.second.version_id < version_id_;
                         });
           if (data.version_id == version_id_) {
@@ -62,7 +62,8 @@ bool VersionPropertyReceiver::Version::IsExpired() const {
       [] { return true; });
 }
 
-void VersionPropertyReceiver::Version::SetValue(Key key, std::wstring value) {
+void VersionPropertyReceiver::Version::SetValue(Key key,
+                                                VersionPropertyValue value) {
   VisitPointer(
       data_,
       [&](NonNull<std::shared_ptr<Protected<Data>>> protected_data) {
@@ -74,10 +75,6 @@ void VersionPropertyReceiver::Version::SetValue(Key key, std::wstring value) {
         });
       },
       [] {});
-}
-
-void VersionPropertyReceiver::Version::SetValue(Key key, int value) {
-  return SetValue(key, std::to_wstring(value));
 }
 
 VersionPropertyReceiver::PropertyValues VersionPropertyReceiver::GetValues()

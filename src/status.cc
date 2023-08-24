@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/overload.h"
 #include "src/line.h"
 
 namespace afc::editor {
@@ -17,6 +18,7 @@ using concurrent::VersionPropertyReceiver;
 using language::Error;
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::overload;
 using language::VisitPointer;
 
 wchar_t Braille(size_t counter) {
@@ -160,9 +162,14 @@ Line Status::prompt_extra_information_line() const {
                                   ? dim
                                   : empty;
       options.AppendString(key.read(), modifiers);
-      if (!value.value.empty()) {
+      if (!std::holds_alternative<std::wstring>(value.value) ||
+          std::get<std::wstring>(value.value) != L"") {
         options.AppendString(L":", dim);
-        options.AppendString(value.value, modifiers);
+        options.AppendString(
+            std::visit(overload{[](std::wstring v) { return v; },
+                                [](int v) { return std::to_wstring(v); }},
+                       value.value),
+            modifiers);
       }
     }
   }
