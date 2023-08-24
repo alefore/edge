@@ -28,7 +28,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:ghost_type",
-        "//src/language:value_or_error",
+        "//src/language/errors:value_or_error",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
     ],
@@ -51,7 +51,7 @@ cc_library(
     hdrs = ["time.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//src/language:value_or_error",
+        "//src/language/errors:value_or_error",
     ],
 )
 

@@ -17,7 +17,7 @@ cc_library(
     deps = [
         "//src/concurrent:protected",
         "//src/language:function_traits",
-        "//src/language:value_or_error",
+        "//src/language/errors:value_or_error",
     ],
 )
 

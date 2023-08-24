@@ -14,7 +14,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
-#include "src/language/value_or_error.h"
+#include "src/language/errors/value_or_error.h"
 #include "types.h"
 
 namespace afc {

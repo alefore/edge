@@ -116,6 +116,8 @@ src/insert_history_buffer.h \
 src/insert_mode.cc \
 src/language/const_tree.cc \
 src/language/const_tree.h \
+src/language/errors/value_or_error.cc \
+src/language/errors/value_or_error.h \
 src/language/function_traits.h \
 src/language/ghost_type.cc \
 src/language/ghost_type.h \
@@ -144,8 +146,6 @@ src/language/observers.h \
 src/language/observers.cc \
 src/language/observers_gc.h \
 src/language/safe_types.h \
-src/language/value_or_error.cc \
-src/language/value_or_error.h \
 src/language/wstring.cc \
 src/language/wstring.h \
 src/line.cc \

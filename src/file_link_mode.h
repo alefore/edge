@@ -9,7 +9,7 @@
 #include "src/editor.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
-#include "src/language/value_or_error.h"
+#include "src/language/errors/value_or_error.h"
 #include "src/widget_list.h"
 
 namespace afc {

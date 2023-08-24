@@ -6,7 +6,7 @@
 
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
-#include "src/language/value_or_error.h"
+#include "src/language/errors/value_or_error.h"
 #include "vm/public/vm.h"
 
 namespace afc::editor {
