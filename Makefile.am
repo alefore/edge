@@ -65,6 +65,8 @@ src/concurrent/protected.cc \
 src/concurrent/protected.h \
 src/concurrent/thread_pool.cc \
 src/concurrent/thread_pool.h \
+src/concurrent/version_property_receiver.cc \
+src/concurrent/version_property_receiver.h \
 src/concurrent/work_queue.cc \
 src/concurrent/work_queue.h \
 src/cursors.cc \

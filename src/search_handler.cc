@@ -17,6 +17,7 @@ namespace {
 using std::vector;
 using std::wstring;
 
+using concurrent::VersionPropertyKey;
 using concurrent::WorkQueueChannelConsumeMode;
 using language::EmptyValue;
 using language::Error;
@@ -80,27 +81,26 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
   } catch (std::regex_error& e) {
     Error error(L"Regex failure: " + FromByteString(e.what()));
     progress_channel->Push(
-        {.values = {{StatusPromptExtraInformationKey(L"!"), error.read()}}});
+        {.values = {{VersionPropertyKey(L"!"), error.read()}}});
     return error;
   }
 
-  bool searched_every_line =
-      contents.EveryLine([&](LineNumber position, const Line& line) {
-        auto matches = GetMatches(line.ToString(), pattern);
-        for (const auto& column : matches) {
-          positions.push_back(LineColumn(position, column));
-        }
-        if (!matches.empty())
-          progress_channel->Push(ProgressInformation{
-              .counters = {{StatusPromptExtraInformationKey(L"matches"),
-                            positions.size()}}});
-        return !options.abort_value.has_value() &&
-               (!options.required_positions.has_value() ||
-                options.required_positions.value() > positions.size());
-      });
+  bool searched_every_line = contents.EveryLine([&](LineNumber position,
+                                                    const Line& line) {
+    auto matches = GetMatches(line.ToString(), pattern);
+    for (const auto& column : matches) {
+      positions.push_back(LineColumn(position, column));
+    }
+    if (!matches.empty())
+      progress_channel->Push(ProgressInformation{
+          .counters = {{VersionPropertyKey(L"matches"), positions.size()}}});
+    return !options.abort_value.has_value() &&
+           (!options.required_positions.has_value() ||
+            options.required_positions.value() > positions.size());
+  });
   if (!searched_every_line)
-    progress_channel->Push(ProgressInformation{
-        .values = {{StatusPromptExtraInformationKey(L"partial"), L""}}});
+    progress_channel->Push(
+        ProgressInformation{.values = {{VersionPropertyKey(L"partial"), L""}}});
   VLOG(5) << "Perform search found matches: " << positions.size();
   return positions;
 }

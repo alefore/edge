@@ -36,6 +36,8 @@
 #include "src/vm/public/value.h"
 
 namespace afc::editor {
+using concurrent::VersionPropertyKey;
+using concurrent::VersionPropertyReceiver;
 using concurrent::WorkQueueChannelConsumeMode;
 using futures::DeleteNotification;
 using futures::ListenableValue;
@@ -813,7 +815,7 @@ class StatusVersionAdapter {
   }
 
   template <typename T>
-  void SetStatusValue(StatusPromptExtraInformationKey key, T value) {
+  void SetStatusValue(VersionPropertyKey key, T value) {
     CHECK(prompt_state_->status().GetType() == Status::Type::kPrompt);
     status_version_->SetValue(key, value);
   }
@@ -827,7 +829,7 @@ class StatusVersionAdapter {
  private:
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
 
-  const NonNull<std::unique_ptr<StatusPromptExtraInformation::Version>>
+  const NonNull<std::unique_ptr<VersionPropertyReceiver::Version>>
       status_version_;
 };
 
@@ -867,7 +869,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
                              ->LineAt(filtered_history.ptr()->EndLine())
                              ->empty();
                      status_value_viewer->SetStatusValue(
-                         StatusPromptExtraInformationKey(L"history"),
+                         VersionPropertyKey(L"history"),
                          filtered_history.ptr()->lines_size().read() -
                              (last_line_empty ? 1 : 0));
                    }

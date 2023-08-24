@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 
+#include "src/concurrent/version_property_receiver.h"
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/time.h"
 #include "src/language/error/log.h"
@@ -26,76 +27,7 @@ std::wstring ProgressStringFillUp(size_t counter,
 // Opaque type returned by `SetExpiringInformationText`.
 struct StatusExpirationControl;
 
-class StatusPromptExtraInformationKey {
- public:
-  GHOST_TYPE_CONSTRUCTOR(StatusPromptExtraInformationKey, std::wstring, value);
-  GHOST_TYPE_EQ(StatusPromptExtraInformationKey, value);
-  GHOST_TYPE_ORDER(StatusPromptExtraInformationKey, value);
-  GHOST_TYPE_OUTPUT_FRIEND(StatusPromptExtraInformationKey, value);
-  GHOST_TYPE_HASH_FRIEND(StatusPromptExtraInformationKey, value);
-
- private:
-  friend class StatusPromptExtraInformation;
-  const std::wstring& read() const { return value; }
-  std::wstring value;
-};
-
 using ::operator<<;
-GHOST_TYPE_OUTPUT(StatusPromptExtraInformationKey, value);
-}  // namespace afc::editor
-
-GHOST_TYPE_HASH(afc::editor::StatusPromptExtraInformationKey);
-
-namespace afc::editor {
-
-class StatusPromptExtraInformation {
-  using Key = StatusPromptExtraInformationKey;
-
-  struct Data {
-    struct Value {
-      int version_id;
-      std::wstring value;
-    };
-    std::map<Key, Value> information = {};
-
-    int version_id = 0;
-    enum class VersionExecution {
-      // MarkVersionDone hasn't executed for the last value of version_.
-      kRunning,
-      // MarkVersionDone has run with the last value of version_.
-      kDone
-    };
-    VersionExecution last_version_state = VersionExecution::kDone;
-  };
-
- public:
-  class Version {
-    struct ConstructorAccessKey {};
-
-   public:
-    Version(ConstructorAccessKey,
-            const language::NonNull<std::shared_ptr<Data>>& data);
-    ~Version();
-    bool IsExpired() const;
-    void SetValue(Key key, std::wstring value);
-    void SetValue(Key key, int value);
-
-   private:
-    friend StatusPromptExtraInformation;
-
-    const std::weak_ptr<Data> data_;
-    const int version_id_;
-  };
-
-  language::NonNull<std::unique_ptr<Version>> StartNewVersion();
-
-  // Prints the line.
-  Line GetLine() const;
-
- private:
-  const language::NonNull<std::shared_ptr<Data>> data_ =
-      language::MakeNonNullShared<Data>();
-};
 
 // TODO(easy, 2023-08-24): Make this class thread safe.
 class Status {
@@ -117,9 +49,11 @@ class Status {
   const std::optional<language::gc::Root<OpenBuffer>>& prompt_buffer() const;
 
   // Returns nullptr if the status type isn't kPrompt.
-  StatusPromptExtraInformation* prompt_extra_information();
+  concurrent::VersionPropertyReceiver* prompt_extra_information();
   // Returns nullptr if the status type isn't kPrompt.
-  const StatusPromptExtraInformation* prompt_extra_information() const;
+  const concurrent::VersionPropertyReceiver* prompt_extra_information() const;
+
+  Line prompt_extra_information_line() const;
 
   void SetInformationText(std::wstring text);
 
@@ -190,7 +124,8 @@ class Status {
     std::optional<language::gc::Root<OpenBuffer>> context = std::nullopt;
 
     // Should only be used when type is Type::kPrompt.
-    std::unique_ptr<StatusPromptExtraInformation> extra_information = nullptr;
+    std::unique_ptr<concurrent::VersionPropertyReceiver> extra_information =
+        nullptr;
   };
 
   language::NonNull<std::shared_ptr<Data>> data_;

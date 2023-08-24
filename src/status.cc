@@ -12,6 +12,8 @@ namespace afc::editor {
 namespace gc = language::gc;
 namespace error = language::error;
 
+using concurrent::VersionPropertyKey;
+using concurrent::VersionPropertyReceiver;
 using language::Error;
 using language::MakeNonNullShared;
 using language::NonNull;
@@ -89,93 +91,6 @@ std::wstring ProgressStringFillUp(size_t lines,
   return {output[index]};
 }
 
-language::NonNull<std::unique_ptr<StatusPromptExtraInformation::Version>>
-StatusPromptExtraInformation::StartNewVersion() {
-  data_->version_id++;
-  data_->last_version_state = Data::VersionExecution::kRunning;
-  return MakeNonNullUnique<Version>(Version::ConstructorAccessKey{}, data_);
-}
-
-StatusPromptExtraInformation::Version::Version(
-    ConstructorAccessKey,
-    const NonNull<std::shared_ptr<StatusPromptExtraInformation::Data>>& data)
-    : data_(data.get_shared()), version_id_(data->version_id) {}
-
-StatusPromptExtraInformation::Version::~Version() {
-  VisitPointer(
-      data_,
-      [&](NonNull<std::shared_ptr<Data>> data) {
-        std::erase_if(data->information,
-                      [&](const std::pair<Key, Data::Value>& entry) {
-                        return entry.second.version_id < version_id_;
-                      });
-        if (data->version_id == version_id_) {
-          data->last_version_state = Data::VersionExecution::kDone;
-        }
-      },
-      [] {});
-}
-
-bool StatusPromptExtraInformation::Version::IsExpired() const {
-  return VisitPointer(
-      data_,
-      [&](NonNull<std::shared_ptr<Data>> data) {
-        return version_id_ < data->version_id;
-      },
-      [] { return true; });
-}
-
-void StatusPromptExtraInformation::Version::SetValue(Key key,
-                                                     std::wstring value) {
-  VisitPointer(
-      data_,
-      [&](NonNull<std::shared_ptr<Data>> data) {
-        if (auto& entry = data->information[key];
-            entry.version_id <= version_id_) {
-          entry = {.version_id = version_id_, .value = value};
-        }
-      },
-      [] {});
-}
-
-void StatusPromptExtraInformation::Version::SetValue(Key key, int value) {
-  return SetValue(key, std::to_wstring(value));
-}
-
-Line StatusPromptExtraInformation::GetLine() const {
-  LineBuilder options;
-  static const auto dim = LineModifierSet{LineModifier::kDim};
-  static const auto empty = LineModifierSet{};
-
-  if (!data_->information.empty()) {
-    options.AppendString(L"    -- ", dim);
-    bool need_separator = false;
-    for (const auto& [key, value] : data_->information) {
-      if (need_separator) {
-        options.AppendString(L" ", empty);
-      }
-      need_separator = true;
-
-      const auto& modifiers =
-          value.version_id < data_->version_id ? dim : empty;
-      options.AppendString(key.value, modifiers);
-      if (!value.value.empty()) {
-        options.AppendString(L":", dim);
-        options.AppendString(value.value, modifiers);
-      }
-    }
-  }
-  switch (data_->last_version_state) {
-    case Data::VersionExecution::kDone:
-      break;
-    case Data::VersionExecution::kRunning:
-      options.AppendString(L" …", dim);
-      break;
-  }
-
-  return std::move(options).Build();
-}
-
 Status::Status(infrastructure::audio::Player& audio_player)
     : audio_player_(audio_player) {
   ValidatePreconditions();
@@ -190,11 +105,11 @@ Status::Type Status::GetType() const {
 
 void Status::set_prompt(std::wstring text, gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
-  data_ = MakeNonNullShared<Data>(Data{
-      .type = Status::Type::kPrompt,
-      .text = std::move(text),
-      .prompt_buffer = std::move(buffer),
-      .extra_information = std::make_unique<StatusPromptExtraInformation>()});
+  data_ = MakeNonNullShared<Data>(
+      Data{.type = Status::Type::kPrompt,
+           .text = std::move(text),
+           .prompt_buffer = std::move(buffer),
+           .extra_information = std::make_unique<VersionPropertyReceiver>()});
   ValidatePreconditions();
 }
 
@@ -214,12 +129,52 @@ const std::optional<gc::Root<OpenBuffer>>& Status::context() const {
   return data_->context;
 }
 
-StatusPromptExtraInformation* Status::prompt_extra_information() {
+VersionPropertyReceiver* Status::prompt_extra_information() {
   return data_->extra_information.get();
 }
 
-const StatusPromptExtraInformation* Status::prompt_extra_information() const {
+const VersionPropertyReceiver* Status::prompt_extra_information() const {
   return data_->extra_information.get();
+}
+
+Line Status::prompt_extra_information_line() const {
+  static const auto dim = LineModifierSet{LineModifier::kDim};
+  static const auto empty = LineModifierSet{};
+
+  const VersionPropertyReceiver* const receiver = prompt_extra_information();
+  if (receiver == nullptr) return LineBuilder().Build();
+  const VersionPropertyReceiver::PropertyValues values = receiver->GetValues();
+  LineBuilder options;
+  if (!values.property_values.empty()) {
+    options.AppendString(L"    -- ", dim);
+    bool need_separator = false;
+    for (const auto& [key, value] : values.property_values) {
+      if (need_separator) {
+        options.AppendString(L" ", empty);
+      }
+      need_separator = true;
+
+      const auto& modifiers = value.status ==
+                                      VersionPropertyReceiver::PropertyValues::
+                                          Value::Status::kExpired
+                                  ? dim
+                                  : empty;
+      options.AppendString(key.read(), modifiers);
+      if (!value.value.empty()) {
+        options.AppendString(L":", dim);
+        options.AppendString(value.value, modifiers);
+      }
+    }
+  }
+  switch (values.last_version_state) {
+    case VersionPropertyReceiver::VersionExecution::kDone:
+      break;
+    case VersionPropertyReceiver::VersionExecution::kRunning:
+      options.AppendString(L" …", dim);
+      break;
+  }
+
+  return std::move(options).Build();
 }
 
 void Status::SetInformationText(std::wstring text) {

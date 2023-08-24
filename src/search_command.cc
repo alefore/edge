@@ -13,6 +13,7 @@
 
 namespace afc::editor {
 namespace {
+using concurrent::VersionPropertyKey;
 using futures::DeleteNotification;
 using futures::IterationControlCommand;
 using language::EmptyValue;
@@ -152,8 +153,7 @@ class ProgressAggregator {
           }
 
           if (data->children_created > 1) {
-            data->aggregates
-                .values[StatusPromptExtraInformationKey(L"buffers")] =
+            data->aggregates.values[VersionPropertyKey(L"buffers")] =
                 std::to_wstring(data->buffers_with_matches) + L"/" +
                 std::to_wstring(data->children_created);
           }
@@ -165,7 +165,7 @@ class ProgressAggregator {
 
  private:
   static bool HasMatches(const ProgressInformation& info) {
-    auto it = info.counters.find(StatusPromptExtraInformationKey(L"matches"));
+    auto it = info.counters.find(VersionPropertyKey(L"matches"));
     return it != info.counters.end() && it->second > 0;
   }
 
@@ -271,9 +271,8 @@ class SearchCommand : public Command {
                             if (buffer.Read(
                                     buffer_variables::search_case_sensitive)) {
                               progress_channel->Push(
-                                  {.values = {{StatusPromptExtraInformationKey(
-                                                   L"case"),
-                                               L"on"}}});
+                                  {.values = {
+                                       {VersionPropertyKey(L"case"), L"on"}}});
                             }
                             if (line->size().IsZero()) {
                               return futures::Past(Control::kContinue);

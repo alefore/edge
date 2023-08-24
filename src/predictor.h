@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/buffer_name.h"
+#include "src/concurrent/version_property_receiver.h"
 #include "src/concurrent/work_queue.h"
 #include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
@@ -20,7 +21,7 @@ class EditorState;
 class OpenBuffer;
 
 struct ProgressInformation {
-  std::map<StatusPromptExtraInformationKey, std::wstring> values = {};
+  std::map<concurrent::VersionPropertyKey, std::wstring> values = {};
 
   // Similar to `values` but will be added in the case where multiple values are
   // reported from predictions that run independently (whereas for values the
@@ -29,7 +30,7 @@ struct ProgressInformation {
   // This is useful, in particular, when searching with `multiple_buffers`
   // enabled; the search will be performed in each buffer and the results will
   // be aggregated.
-  std::map<StatusPromptExtraInformationKey, size_t> counters = {};
+  std::map<concurrent::VersionPropertyKey, size_t> counters = {};
 };
 
 using ProgressChannel = concurrent::WorkQueueChannel<ProgressInformation>;

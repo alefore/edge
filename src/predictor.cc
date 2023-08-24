@@ -30,6 +30,7 @@ extern "C" {
 
 namespace afc::editor {
 namespace {
+using concurrent::VersionPropertyKey;
 using concurrent::WorkQueue;
 using concurrent::WorkQueueChannelConsumeMode;
 using futures::DeleteNotification;
@@ -317,13 +318,11 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
     }
     ++*matches;
     progress_channel.Push(ProgressInformation{
-        .values = {{StatusPromptExtraInformationKey(L"files"),
-                    std::to_wstring(*matches)}}});
+        .values = {{VersionPropertyKey(L"files"), std::to_wstring(*matches)}}});
   }
   FlushPredictions();
-  progress_channel.Push(
-      ProgressInformation{.values = {{StatusPromptExtraInformationKey(L"files"),
-                                      std::to_wstring(*matches)}}});
+  progress_channel.Push(ProgressInformation{
+      .values = {{VersionPropertyKey(L"files"), std::to_wstring(*matches)}}});
 
   predictor_output.lock([&](PredictorOutput& output) {
     output.longest_prefix =
@@ -490,7 +489,7 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
     }
     input.progress_channel.Push(ProgressInformation{
         .values = {
-            {StatusPromptExtraInformationKey(L"values"),
+            {VersionPropertyKey(L"values"),
              std::to_wstring(input.predictions.lines_size().read() - 1)}}});
     input.predictions.EndOfFile();
     return futures::Past(PredictorOutput());
