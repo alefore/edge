@@ -39,7 +39,7 @@ GHOST_TYPE_OUTPUT(VersionPropertyKey, value);
 GHOST_TYPE_HASH(afc::concurrent::VersionPropertyKey);
 
 namespace afc::concurrent {
-
+// This class is thread-safe.
 class VersionPropertyReceiver {
  public:
   using Key = VersionPropertyKey;
@@ -68,7 +68,7 @@ class VersionPropertyReceiver {
 
    public:
     Version(ConstructorAccessKey,
-            const language::NonNull<std::shared_ptr<Data>>& data);
+            std::weak_ptr<concurrent::Protected<Data>> data, int version_id);
     ~Version();
     bool IsExpired() const;
     void SetValue(Key key, std::wstring value);
@@ -77,7 +77,7 @@ class VersionPropertyReceiver {
    private:
     friend VersionPropertyReceiver;
 
-    const std::weak_ptr<Data> data_;
+    const std::weak_ptr<concurrent::Protected<Data>> data_;
     const int version_id_;
   };
 
@@ -96,8 +96,8 @@ class VersionPropertyReceiver {
   PropertyValues GetValues() const;
 
  private:
-  const language::NonNull<std::shared_ptr<Data>> data_ =
-      language::MakeNonNullShared<Data>();
+  const language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_ =
+      language::MakeNonNullShared<concurrent::Protected<Data>>(Data{});
 };
 
 }  // namespace afc::concurrent
