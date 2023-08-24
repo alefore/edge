@@ -806,24 +806,19 @@ class StatusVersionAdapter {
                             .prompt_extra_information()
                             ->StartNewVersion()) {}
 
-  ~StatusVersionAdapter() {
-    auto consumer = prompt_state_->status().prompt_extra_information();
-    if (consumer != nullptr) consumer->MarkVersionDone(status_version_);
-  }
+  ~StatusVersionAdapter() { status_version_->MarkDone(); }
 
   // The prompt has disappeared.
   bool Expired() const {
     if (prompt_state_->IsGone()) return true;
-    auto consumer = prompt_state_->status().prompt_extra_information();
-    return consumer == nullptr ||
-           consumer->current_version() != status_version_;
+    return prompt_state_->status().prompt_extra_information() == nullptr ||
+           status_version_->IsExpired();
   }
 
   template <typename T>
   void SetStatusValue(StatusPromptExtraInformationKey key, T value) {
     CHECK(prompt_state_->status().GetType() == Status::Type::kPrompt);
-    prompt_state_->status().prompt_extra_information()->SetValue(
-        key, status_version_, value);
+    status_version_->SetValue(key, value);
   }
 
   template <typename T>
@@ -835,8 +830,8 @@ class StatusVersionAdapter {
  private:
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
 
-  // The version of the status for which we're collecting information.
-  const int status_version_;
+  const NonNull<std::unique_ptr<StatusPromptExtraInformation::Version>>
+      status_version_;
 };
 
 futures::Value<EmptyValue> PromptState::OnModify() {

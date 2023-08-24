@@ -89,24 +89,42 @@ std::wstring ProgressStringFillUp(size_t lines,
   return {output[index]};
 }
 
-int StatusPromptExtraInformation::StartNewVersion() {
-  version_++;
-  last_version_state_ = VersionExecution::kRunning;
-  return version_;
+language::NonNull<std::unique_ptr<StatusPromptExtraInformation::Version>>
+StatusPromptExtraInformation::StartNewVersion() {
+  data_->version_id++;
+  data_->last_version_state = Data::VersionExecution::kRunning;
+  return MakeNonNullUnique<Version>(Version::ConstructorAccessKey{}, data_);
 }
 
-int StatusPromptExtraInformation::current_version() const { return version_; }
+StatusPromptExtraInformation::Version::Version(
+    ConstructorAccessKey,
+    const NonNull<std::shared_ptr<StatusPromptExtraInformation::Data>>& data)
+    : data_(data.get_shared()), version_id_(data->version_id) {}
 
-void StatusPromptExtraInformation::SetValue(Key key, int version,
-                                            std::wstring value) {
-  auto& entry = information_[key];
-  if (entry.version <= version) {
-    entry = {.version = version, .value = value};
-  }
+bool StatusPromptExtraInformation::Version::IsExpired() const {
+  return VisitPointer(
+      data_,
+      [&](NonNull<std::shared_ptr<Data>> data) {
+        return version_id_ < data->version_id;
+      },
+      [] { return true; });
 }
 
-void StatusPromptExtraInformation::SetValue(Key key, int version, int value) {
-  return SetValue(key, version, std::to_wstring(value));
+void StatusPromptExtraInformation::Version::SetValue(Key key,
+                                                     std::wstring value) {
+  VisitPointer(
+      data_,
+      [&](NonNull<std::shared_ptr<Data>> data) {
+        if (auto& entry = data->information[key];
+            entry.version_id <= version_id_) {
+          entry = {.version_id = version_id_, .value = value};
+        }
+      },
+      [] {});
+}
+
+void StatusPromptExtraInformation::Version::SetValue(Key key, int value) {
+  return SetValue(key, std::to_wstring(value));
 }
 
 Line StatusPromptExtraInformation::GetLine() const {
@@ -114,16 +132,17 @@ Line StatusPromptExtraInformation::GetLine() const {
   static const auto dim = LineModifierSet{LineModifier::kDim};
   static const auto empty = LineModifierSet{};
 
-  if (!information_.empty()) {
+  if (!data_->information.empty()) {
     options.AppendString(L"    -- ", dim);
     bool need_separator = false;
-    for (const auto& [key, value] : information_) {
+    for (const auto& [key, value] : data_->information) {
       if (need_separator) {
         options.AppendString(L" ", empty);
       }
       need_separator = true;
 
-      const auto& modifiers = value.version < version_ ? dim : empty;
+      const auto& modifiers =
+          value.version_id < data_->version_id ? dim : empty;
       options.AppendString(key.value, modifiers);
       if (!value.value.empty()) {
         options.AppendString(L":", dim);
@@ -131,10 +150,10 @@ Line StatusPromptExtraInformation::GetLine() const {
       }
     }
   }
-  switch (last_version_state_) {
-    case VersionExecution::kDone:
+  switch (data_->last_version_state) {
+    case Data::VersionExecution::kDone:
       break;
-    case VersionExecution::kRunning:
+    case Data::VersionExecution::kRunning:
       options.AppendString(L" …", dim);
       break;
   }
@@ -142,18 +161,23 @@ Line StatusPromptExtraInformation::GetLine() const {
   return std::move(options).Build();
 }
 
-void StatusPromptExtraInformation::MarkVersionDone(int version) {
-  auto it = information_.begin();
-  while (it != information_.end()) {
-    if (it->second.version < version_) {
-      it = information_.erase(it);
-    } else {
-      ++it;
-    }
-  }
-  if (version == version_) {
-    last_version_state_ = VersionExecution::kDone;
-  }
+void StatusPromptExtraInformation::Version::MarkDone() {
+  VisitPointer(
+      data_,
+      [&](NonNull<std::shared_ptr<Data>> data) {
+        auto it = data->information.begin();
+        while (it != data->information.end()) {
+          if (it->second.version_id < version_id_) {
+            it = data->information.erase(it);
+          } else {
+            ++it;
+          }
+        }
+        if (data->version_id == version_id_) {
+          data->last_version_state = Data::VersionExecution::kDone;
+        }
+      },
+      [] {});
 }
 
 Status::Status(infrastructure::audio::Player& audio_player)

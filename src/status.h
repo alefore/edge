@@ -11,6 +11,7 @@
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 #include "src/language/overload.h"
+#include "src/language/safe_types.h"
 
 namespace afc::editor {
 
@@ -46,39 +47,60 @@ GHOST_TYPE_OUTPUT(StatusPromptExtraInformationKey, value);
 GHOST_TYPE_HASH(afc::editor::StatusPromptExtraInformationKey);
 
 namespace afc::editor {
+
 class StatusPromptExtraInformation {
   using Key = StatusPromptExtraInformationKey;
 
- public:
-  int StartNewVersion();
-  int current_version() const;
-  void SetValue(Key key, int version, std::wstring value);
-  void SetValue(Key key, int version, int value);
+  struct Data {
+    struct Value {
+      int version_id;
+      std::wstring value;
+    };
+    std::map<Key, Value> information = {};
 
-  // Once the caller thinks that it won't be doing any additional calls to
-  // SetValue for a given version, it should call `MarkVersionDone`. Completion
-  // will be reflected by `GetLine`. It is okay to call `SetValue` after this,
-  // but it will be misleading to the user (who will think that the values
-  // displayed are final).
-  void MarkVersionDone(int version);
+    int version_id = 0;
+    enum class VersionExecution {
+      // MarkVersionDone hasn't executed for the last value of version_.
+      kRunning,
+      // MarkVersionDone has run with the last value of version_.
+      kDone
+    };
+    VersionExecution last_version_state = VersionExecution::kDone;
+  };
+
+ public:
+  class Version {
+    struct ConstructorAccessKey {};
+
+   public:
+    Version(ConstructorAccessKey,
+            const language::NonNull<std::shared_ptr<Data>>& data);
+    bool IsExpired() const;
+    void SetValue(Key key, std::wstring value);
+    void SetValue(Key key, int value);
+
+    // Once the caller thinks that it won't be doing any additional calls to
+    // SetValue for a given version, it should call `MarkVersionDone`.
+    // Completion will be reflected by `GetLine`. It is okay to call `SetValue`
+    // after this, but it will be misleading to the user (who will think that
+    // the values displayed are final).
+    void MarkDone();
+
+   private:
+    friend StatusPromptExtraInformation;
+
+    const std::weak_ptr<Data> data_;
+    const int version_id_;
+  };
+
+  language::NonNull<std::unique_ptr<Version>> StartNewVersion();
 
   // Prints the line.
   Line GetLine() const;
 
  private:
-  struct Value {
-    int version;
-    std::wstring value;
-  };
-  std::map<Key, Value> information_;
-  int version_ = 0;
-  enum class VersionExecution {
-    // MarkVersionDone hasn't executed for the last value of version_.
-    kRunning,
-    // MarkVersionDone has run with the last value of version_.
-    kDone
-  };
-  VersionExecution last_version_state_ = VersionExecution::kDone;
+  const language::NonNull<std::shared_ptr<Data>> data_ =
+      language::MakeNonNullShared<Data>();
 };
 
 // TODO(easy, 2023-08-24): Make this class thread safe.
