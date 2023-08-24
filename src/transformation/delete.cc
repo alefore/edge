@@ -9,7 +9,7 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/wstring.h"
 #include "src/line_column_vm.h"
 #include "src/line_prompt_mode.h"

@@ -348,7 +348,7 @@ cc_library(
     deps = [
         "//src/language:hash",
         "//src/language:safe_types",
-        "//src/language/errors:value_or_error",
+        "//src/language/error:value_or_error",
         "//src/language:wstring",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
@@ -451,7 +451,7 @@ cc_library(
         "//src/futures",
         "//src/infrastructure:file_system_driver",
         "//src/language:safe_types",
-        "//src/language/errors:value_or_error",
+        "//src/language/error:value_or_error",
     ],
 )
 

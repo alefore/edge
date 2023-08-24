@@ -5,7 +5,7 @@
 
 #include "../public/vm.h"
 #include "src/language/safe_types.h"
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/value_or_error.h"
 
 namespace afc::vm {
 class Compilation;

@@ -3,7 +3,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/infrastructure/time.h"
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/value_or_error.h"
 
 namespace afc::language::error {
 

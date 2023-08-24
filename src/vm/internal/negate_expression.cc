@@ -1,6 +1,6 @@
 #include "src/vm/internal/negate_expression.h"
 
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/value_or_error.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"

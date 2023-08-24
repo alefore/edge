@@ -6,8 +6,8 @@
 
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/time.h"
-#include "src/language/errors/log.h"
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/log.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 #include "src/language/overload.h"

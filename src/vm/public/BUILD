@@ -5,7 +5,7 @@ cc_library(
     deps = [
         ":value",
         "//src/language:function_traits",
-        "//src/language/errors:value_or_error",
+        "//src/language/error:value_or_error",
     ],
 )
 

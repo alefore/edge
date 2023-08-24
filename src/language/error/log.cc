@@ -1,4 +1,4 @@
-#include "src/language/errors/log.h"
+#include "src/language/error/log.h"
 
 namespace afc::language::error {
 Log::InsertResult Log::Insert(language::Error error,

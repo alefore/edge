@@ -3,7 +3,7 @@
 
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/value_or_error.h"
 
 namespace afc::editor {
 class OpenBuffer;

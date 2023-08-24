@@ -11,7 +11,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
 #include "src/language/overload.h"
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/value_or_error.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/types.h"
 

@@ -25,7 +25,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/wstring.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"

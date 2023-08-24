@@ -5,7 +5,7 @@
 
 #include "../public/vm.h"
 #include "src/language/gc.h"
-#include "src/language/errors/value_or_error.h"
+#include "src/language/error/value_or_error.h"
 
 namespace afc {
 namespace vm {

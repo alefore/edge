@@ -14,7 +14,7 @@ cc_library(
     deps = [
         ":compilation",
         "//src/language:safe_types",
-        "//src/language/errors:value_or_error",
+        "//src/language/error:value_or_error",
         "//src/vm/public:value",
     ],
 )
@@ -112,7 +112,7 @@ cc_library(
     deps = [
         ":compilation",
         "//src/language:safe_types",
-        "//src/language/errors:value_or_error",
+        "//src/language/error:value_or_error",
         "//src/vm/public:value",
     ],
 )
@@ -134,7 +134,7 @@ cc_library(
     hdrs = ["negate_expression.h"],
     deps = [
         ":compilation",
-        "//src/language/errors:value_or_error",
+        "//src/language/error:value_or_error",
         "//src/vm/public:types",
         "//src/vm/public:value",
     ],
@@ -241,7 +241,7 @@ cc_library(
     deps = [
         ":append_expression",
         "//src/language:safe_types",
-        "//src/language/errors:value_or_error",
+        "//src/language/error:value_or_error",
         "//src/vm/public:value",
     ],
 )
