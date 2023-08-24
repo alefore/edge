@@ -9,12 +9,13 @@
 #include "src/line.h"
 
 namespace afc::editor {
+namespace gc = language::gc;
+namespace error = language::error;
+
 using language::Error;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::VisitPointer;
-
-namespace gc = language::gc;
 
 wchar_t Braille(size_t counter) {
   wchar_t c = L'⠀';
@@ -255,18 +256,10 @@ void Status::Set(Error error) {
   ValidatePreconditions();
 }
 
-Status::InsertErrorResult Status::InsertError(
+error::Log::InsertResult Status::InsertError(
     language::Error error, infrastructure::Duration duration) {
-  infrastructure::Time now = infrastructure::Now();
-  std::erase_if(errors_log_, [now](const ErrorAndExpiration& entry) {
-    return entry.expiration < now;
-  });
-  InsertErrorResult output = InsertErrorResult::kInserted;
-  for (const ErrorAndExpiration& entry : errors_log_)
-    if (entry.error == error) output = InsertErrorResult::kAlreadyFound;
-  if (output == InsertErrorResult::kInserted) Set(error);
-  errors_log_.push_back(ErrorAndExpiration{
-      .error = error, .expiration = infrastructure::AddSeconds(now, duration)});
+  error::Log::InsertResult output = errors_log_.Insert(error, duration);
+  if (output == error::Log::InsertResult::kInserted) Set(error);
   return output;
 }
 

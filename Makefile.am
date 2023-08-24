@@ -116,6 +116,8 @@ src/insert_history_buffer.h \
 src/insert_mode.cc \
 src/language/const_tree.cc \
 src/language/const_tree.h \
+src/language/errors/log.cc \
+src/language/errors/log.h \
 src/language/errors/value_or_error.cc \
 src/language/errors/value_or_error.h \
 src/language/function_traits.h \

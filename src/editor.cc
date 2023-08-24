@@ -38,6 +38,9 @@ extern "C" {
 #include "src/widget_list.h"
 
 namespace afc::editor {
+namespace gc = language::gc;
+namespace error = language::error;
+
 using concurrent::ThreadPool;
 using concurrent::WorkQueue;
 using infrastructure::AddSeconds;
@@ -59,8 +62,6 @@ using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
-
-namespace gc = language::gc;
 
 // Executes pending work from all buffers.
 void EditorState::ExecutePendingWork() { work_queue_->Execute(); }
@@ -277,9 +278,9 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
                                      buffer.ptr()->Read(buffer_variables::name),
                                  error);
             switch (buffer.ptr()->status().InsertError(error, 30)) {
-              case Status::InsertErrorResult::kInserted:
+              case error::Log::InsertResult::kInserted:
                 return futures::Past(error);
-              case Status::InsertErrorResult::kAlreadyFound:
+              case error::Log::InsertResult::kAlreadyFound:
                 return futures::Past(Success());
             }
             LOG(FATAL) << "Invalid enum value.";
@@ -460,9 +461,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         error += L" " + name;
       }
       switch (status_.InsertError(Error(error), 30)) {
-        case Status::InsertErrorResult::kInserted:
+        case error::Log::InsertResult::kInserted:
           return;
-        case Status::InsertErrorResult::kAlreadyFound:
+        case error::Log::InsertResult::kAlreadyFound:
           break;
       }
     }
@@ -500,9 +501,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             error += L" " + name;
           }
           switch (status_.InsertError(Error(error), 5)) {
-            case Status::InsertErrorResult::kInserted:
+            case error::Log::InsertResult::kInserted:
               return;
-            case Status::InsertErrorResult::kAlreadyFound:
+            case error::Log::InsertResult::kAlreadyFound:
               break;
           }
         }

@@ -6,6 +6,8 @@
 
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/time.h"
+#include "src/language/errors/log.h"
+#include "src/language/errors/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 #include "src/language/overload.h"
@@ -116,9 +118,8 @@ class Status {
   // Prefer `InsertError` over `Set`.
   void Set(language::Error text);
 
-  enum class InsertErrorResult { kInserted, kAlreadyFound };
-  InsertErrorResult InsertError(language::Error error,
-                                infrastructure::Duration duration);
+  language::error::Log::InsertResult InsertError(
+      language::Error error, infrastructure::Duration duration);
 
   // Returns the time of the last call to a method in this class that changed
   // the state of this instance.
@@ -178,11 +179,7 @@ class Status {
 
   language::NonNull<std::shared_ptr<Data>> data_;
 
-  struct ErrorAndExpiration {
-    language::Error error;
-    infrastructure::Time expiration;
-  };
-  std::vector<ErrorAndExpiration> errors_log_;
+  language::error::Log errors_log_;
 };
 
 }  // namespace afc::editor
