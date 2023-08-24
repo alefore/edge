@@ -79,6 +79,7 @@ class StatusPromptExtraInformation {
   VersionExecution last_version_state_ = VersionExecution::kDone;
 };
 
+// TODO(easy, 2023-08-24): Make this class thread safe.
 class Status {
  public:
   Status(infrastructure::audio::Player& audio_player);
@@ -110,8 +111,14 @@ class Status {
   std::unique_ptr<StatusExpirationControl,
                   std::function<void(StatusExpirationControl*)>>
   SetExpiringInformationText(std::wstring text);
+  // TODO(trivial, 2023-08-24): Get rid of `SetWarningText`. Just use `Set`.
   void SetWarningText(std::wstring text);
+  // Prefer `InsertError` over `Set`.
   void Set(language::Error text);
+
+  enum class InsertErrorResult { kInserted, kAlreadyFound };
+  InsertErrorResult InsertError(language::Error error,
+                                infrastructure::Duration duration);
 
   // Returns the time of the last call to a method in this class that changed
   // the state of this instance.
@@ -170,6 +177,12 @@ class Status {
   };
 
   language::NonNull<std::shared_ptr<Data>> data_;
+
+  struct ErrorAndExpiration {
+    language::Error error;
+    infrastructure::Time expiration;
+  };
+  std::vector<ErrorAndExpiration> errors_log_;
 };
 
 }  // namespace afc::editor

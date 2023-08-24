@@ -255,6 +255,21 @@ void Status::Set(Error error) {
   ValidatePreconditions();
 }
 
+Status::InsertErrorResult Status::InsertError(
+    language::Error error, infrastructure::Duration duration) {
+  infrastructure::Time now = infrastructure::Now();
+  std::erase_if(errors_log_, [now](const ErrorAndExpiration& entry) {
+    return entry.expiration < now;
+  });
+  InsertErrorResult output = InsertErrorResult::kInserted;
+  for (const ErrorAndExpiration& entry : errors_log_)
+    if (entry.error == error) output = InsertErrorResult::kAlreadyFound;
+  if (output == InsertErrorResult::kInserted) Set(error);
+  errors_log_.push_back(ErrorAndExpiration{
+      .error = error, .expiration = infrastructure::AddSeconds(now, duration)});
+  return output;
+}
+
 struct timespec Status::last_change_time() const {
   return data_->creation_time;
 }

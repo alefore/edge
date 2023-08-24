@@ -270,19 +270,28 @@ void EditorState::CheckPosition() {
 }
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
-  buffer.PrepareToClose().SetConsumer(VisitCallback(
-      overload{[this, buffer = buffer.NewRoot()](Error error) {
-                 buffer.ptr()->status().Set(AugmentError(
-                     L"🖝  Unable to close (“*ad” to ignore): " +
-                         buffer.ptr()->Read(buffer_variables::name),
-                     error));
-               },
-               [this, buffer = buffer.NewRoot()](EmptyValue) {
-                 buffer.ptr()->Close();
-                 buffer_tree_.RemoveBuffer(buffer.ptr().value());
-                 buffers_.erase(buffer.ptr()->name());
-                 AdjustWidgets();
-               }}));
+  OnError(buffer.PrepareToClose(),
+          [this, buffer = buffer.NewRoot()](
+              Error error) -> futures::Value<PossibleError> {
+            error = AugmentError(L"🖝  Unable to close (“*ad” to ignore): " +
+                                     buffer.ptr()->Read(buffer_variables::name),
+                                 error);
+            switch (buffer.ptr()->status().InsertError(error, 30)) {
+              case Status::InsertErrorResult::kInserted:
+                return futures::Past(error);
+              case Status::InsertErrorResult::kAlreadyFound:
+                return futures::Past(Success());
+            }
+            LOG(FATAL) << "Invalid enum value.";
+            return futures::Past(error);
+          })
+      .Transform([this, buffer = buffer.NewRoot()](EmptyValue) {
+        buffer.ptr()->Close();
+        buffer_tree_.RemoveBuffer(buffer.ptr().value());
+        buffers_.erase(buffer.ptr()->name());
+        AdjustWidgets();
+        return futures::Past(Success());
+      });
 }
 
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
@@ -446,12 +455,16 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                  it.second.ptr()->IsUnableToPrepareToClose());
 
     if (!buffers_with_problems.empty()) {
-      std::wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+      std::wstring error = L"🖝  Dirty buffers:";
       for (auto name : buffers_with_problems) {
         error += L" " + name;
       }
-      status_.SetWarningText(error);
-      return;
+      switch (status_.InsertError(Error(error), 30)) {
+        case Status::InsertErrorResult::kInserted:
+          return;
+        case Status::InsertErrorResult::kAlreadyFound:
+          break;
+      }
     }
   }
 
@@ -482,11 +495,16 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           }
         }
         if (!buffers_with_problems.empty()) {
-          std::wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+          std::wstring error = L"🖝  Dirty buffers:";
           for (auto name : buffers_with_problems) {
             error += L" " + name;
           }
-          return status_.SetWarningText(error);
+          switch (status_.InsertError(Error(error), 5)) {
+            case Status::InsertErrorResult::kInserted:
+              return;
+            case Status::InsertErrorResult::kAlreadyFound:
+              break;
+          }
         }
         LOG(INFO) << "Terminating.";
         status().SetInformationText(
