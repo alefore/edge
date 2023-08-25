@@ -59,7 +59,7 @@ int main(int, char** argv) {
   LOG(INFO) << "Seed: " << seed;
   std::cout << "Seed: " << seed << std::endl;
   srand(seed);
-  auto audio_player = audio::NewNullPlayer();
+  auto audio_player = afc::infrastructure::audio::NewNullPlayer();
   EditorState editor_state(CommandLineValues(), audio_player.value());
   SendInput(&editor_state, "i");
   editor_state.ProcessInput(Terminal::ESCAPE);

@@ -12,10 +12,10 @@ extern "C" {
 }
 
 #include "src/args.h"
-#include "src/audio.h"
 #include "src/buffer_contents.h"
 #include "src/cpp_parse_tree.h"
 #include "src/editor.h"
+#include "src/infrastructure/audio.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/tests/fuzz.h"
@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
   std::unique_ptr<fuzz::FuzzTestable> fuzz_testable;
   std::string class_name(argv[1]);
-  auto audio_player = audio::NewNullPlayer();
+  auto audio_player = afc::infrastructure::audio::NewNullPlayer();
   EditorState editor(CommandLineValues(), audio_player.value());
   OpenBuffer::Options options{.editor = editor};
   gc::Root<OpenBuffer> buffer = OpenBuffer::New(options);

@@ -19,7 +19,7 @@ using afc::language::ConstTree;
 using afc::language::ToByteString;
 using afc::language::VectorBlock;
 using afc::language::lazy_string::ColumnNumber;
-namespace audio = afc::editor::infrastructure::audio;
+namespace audio = afc::infrastructure::audio;
 
 using IntConstTree = ConstTree<VectorBlock<int, 128>, 128>;
 
