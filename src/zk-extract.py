@@ -7,7 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from typing import Dict, List, TextIO, Tuple
+from typing import Dict, List, Optional, TextIO, Tuple
 
 
 class FilesWriter:
@@ -20,6 +20,7 @@ class FilesWriter:
     self.files_written: Dict[str, str] = {}
     self.files_to_delete: List[str] = []
     self.files_with_errors: Dict[str, Exception] = {}
+    self.file_mode: Dict[str, int] = {}
 
     self.path: str = ''
     self.content: List[str] = []
@@ -44,10 +45,16 @@ class FilesWriter:
         if (result.stdout.strip()):
           print(result.stdout)
       else:
-        print(f"{input_path}")
+        mode_string = ''
+        if input_path in self.file_mode:
+          mode_string = ' ' + oct(self.file_mode[input_path])[2:]
+        print(f"{input_path}{mode_string}")
 
-    for path in self.files_to_delete:
-      os.remove(path)
+    if not self.dry_run:
+      for path in self.files_to_delete:
+        os.remove(path)
+      for path in self.file_mode:
+        os.chmod(path, self.file_mode[path])
 
     if self.files_with_errors:
       for file, exception in self.files_with_errors.items():
@@ -91,10 +98,12 @@ class FilesWriter:
         self.content = []
         self.prefix_empty_lines = 0
 
-  def StartCollecting(self, path) -> None:
+  def StartCollecting(self, path: str, mode: Optional[int]) -> None:
     self.Flush()
     self.path = os.path.join(self.output_directory,
         os.path.relpath(os.path.expanduser(path), start='/'))
+    if mode:
+      self.file_mode[self.path] = mode
 
   def IsCollecting(self) -> bool:
     return self.path != ''
@@ -114,9 +123,13 @@ def ProcessFile(writer: FilesWriter, input: TextIO) -> None:
   for line in input:
     line = line.rstrip()
 
-    match = re.match(r"^File `(.*)`:$", line)
+    match = re.match(
+        r"^File `(.*)` *(\(mode ([0-9]{3})\))?:$", line)
     if match:
-      writer.StartCollecting(match.group(1))
+      mode: Optional[int] = None
+      if match.group(3):
+        mode = int(match.group(3), 8)
+      writer.StartCollecting(match.group(1), mode)
 
     elif line.startswith("    "):
       writer.AddCode(line[4:])
