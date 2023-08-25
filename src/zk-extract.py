@@ -19,6 +19,7 @@ class FilesWriter:
     # time will be the same).
     self.files_written: Dict[str, str] = {}
     self.files_to_delete: List[str] = []
+    self.files_with_errors: Dict[str, Exception] = {}
 
     self.path: str = ''
     self.content: List[str] = []
@@ -30,19 +31,35 @@ class FilesWriter:
   def __exit__(self, type, value, traceback) -> None:
     self.Flush()
     for input_path, actual_path in self.files_written.items():
-      print(f"{input_path}")
       if self.diff:
         result : subprocess.CompletedProcess = subprocess.run(
-            ['diff', '-Naur', input_path, actual_path], stdout=subprocess.PIPE,
+            ['diff',
+             '--label',
+             os.path.join('/old/', os.path.relpath(input_path, start='/')),
+             '--label',
+             os.path.join('/new/', os.path.relpath(input_path, start='/')),
+             '-Naur', input_path,
+             actual_path], stdout=subprocess.PIPE,
             text=True)
-        print(result.stdout)
+        if (result.stdout.strip()):
+          print(result.stdout)
+      else:
+        print(f"{input_path}")
 
     for path in self.files_to_delete:
       os.remove(path)
 
+    if self.files_with_errors:
+      for file, exception in self.files_with_errors.items():
+        print(f"{file}: {exception}", file=sys.stderr)
+      sys.exit(2)
+
   def Flush(self) -> None:
     if self.IsCollecting():
       try:
+        if self.path in self.files_with_errors:
+          return
+
         if self.diff and self.path not in self.files_written:
           with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_file:
             tmp_file.writelines(self.content)
@@ -67,6 +84,8 @@ class FilesWriter:
         with open(self.files_written[self.path], mode) as file:
           file.writelines(self.content)
 
+      except PermissionError as exception:
+        self.files_with_errors[self.path] = exception
       finally:
         self.path = ''
         self.content = []
