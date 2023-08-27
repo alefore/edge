@@ -100,9 +100,9 @@ LineBuilder::LineBuilder(const Line& line) : data_(line.stable_fields_) {}
 LineBuilder::LineBuilder(
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
         input_contents)
-    : data_(Line::StableFields{.contents = std::move(input_contents)}) {}
+    : data_(Line::Data{.contents = std::move(input_contents)}) {}
 
-LineBuilder::LineBuilder(Line::StableFields data) : data_(std::move(data)) {}
+LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 
 LineBuilder LineBuilder::Copy() const { return LineBuilder(data_); }
 
@@ -441,13 +441,13 @@ void LineBuilder::set_contents(
 void LineBuilder::ValidateInvariants() {}
 
 Line::Line(std::wstring x)
-    : Line(StableFields{.contents = NewLazyString(std::move(x))}) {}
+    : Line(Data{.contents = NewLazyString(std::move(x))}) {}
 
 Line::Line(const Line& line)
     : stable_fields_(line.stable_fields_), hash_(ComputeHash(stable_fields_)) {}
 
 /* static */
-size_t Line::ComputeHash(const Line::StableFields& data) {
+size_t Line::ComputeHash(const Line::Data& data) {
   return compute_hash(
       data.contents.value(),
       MakeHashableIteratorRange(
@@ -506,7 +506,7 @@ std::optional<BufferLineColumn> Line::buffer_line_column() const {
   return stable_fields_.buffer_line_column;
 }
 
-Line::Line(Line::StableFields stable_fields)
+Line::Line(Line::Data stable_fields)
     : stable_fields_(std::move(stable_fields)),
       hash_(ComputeHash(stable_fields_)) {
   for (auto& m : stable_fields_.modifiers) {

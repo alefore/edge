@@ -44,7 +44,7 @@ class LineWithCursor;
 // This class is thread-safe.
 class Line {
  public:
-  Line() : Line(Line::StableFields{}) {}
+  Line() : Line(Line::Data{}) {}
 
   explicit Line(std::wstring text);
   Line(const Line& line);
@@ -85,7 +85,7 @@ class Line {
   size_t hash() const { return hash_; }
 
  private:
-  struct StableFields {
+  struct Data {
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
         contents = language::lazy_string::EmptyString();
 
@@ -114,13 +114,13 @@ class Line {
   friend class LineBuilder;
   friend class LineWithCursor;
 
-  explicit Line(StableFields stable_fields);
-  static std::size_t ComputeHash(const Line::StableFields& data);
+  explicit Line(Data stable_fields);
+  static std::size_t ComputeHash(const Line::Data& data);
 
   // TODO(trivial, 2023-08-27): Get rid of this method.
   wint_t Get(language::lazy_string::ColumnNumber column) const;
 
-  const StableFields stable_fields_;
+  const Data stable_fields_;
   const size_t hash_;
 };
 
@@ -210,9 +210,9 @@ class LineBuilder {
   // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
   friend class std::hash<Line>;
 
-  explicit LineBuilder(Line::StableFields);
+  explicit LineBuilder(Line::Data);
 
-  Line::StableFields data_;
+  Line::Data data_;
   void ValidateInvariants();
 };
 }  // namespace afc::editor
