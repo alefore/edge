@@ -20,6 +20,7 @@ using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
 using language::lazy_string::LazyString;
+using language::text::OutgoingLink;
 
 namespace gc = language::gc;
 

@@ -19,6 +19,8 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 

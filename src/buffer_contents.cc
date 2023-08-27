@@ -9,8 +9,8 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/language/wstring.h"
-#include "src/line.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
@@ -21,6 +21,8 @@ using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;

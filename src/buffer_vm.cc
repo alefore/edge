@@ -10,12 +10,14 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_column_vm.h"
 #include "src/transformation/vm.h"
 
 namespace afc::vm {
 using language::MakeNonNullShared;
 using language::NonNull;
+
 namespace gc = language::gc;
 
 struct BufferWrapper {
@@ -61,9 +63,12 @@ using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::OutgoingLink;
 using vm::EvaluationOutput;
 using vm::ObjectType;
 using vm::PurityType;

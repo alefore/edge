@@ -17,6 +17,7 @@ using language::hash_combine;
 using language::MakeHashableIteratorRange;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
+using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;

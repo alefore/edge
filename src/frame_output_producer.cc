@@ -10,6 +10,8 @@
 
 namespace afc::editor {
 using language::lazy_string::ColumnNumberDelta;
+using language::text::Line;
+using language::text::LineBuilder;
 
 Line FrameLine(FrameOutputProducerOptions options) {
   LineModifierSet line_modifiers =

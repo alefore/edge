@@ -21,6 +21,7 @@ namespace afc::editor {
 namespace {
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;

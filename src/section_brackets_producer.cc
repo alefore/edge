@@ -9,13 +9,15 @@
 
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
-#include "src/line.h"
+#include "src/language/text/line.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
 using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineNumberDelta;
 
 LineWithCursor::Generator::Vector SectionBrackets(

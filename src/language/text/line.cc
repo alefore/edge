@@ -1,4 +1,4 @@
-#include "src/line.h"
+#include "src/language/text/line.h"
 
 #include <algorithm>
 #include <cmath>
@@ -15,12 +15,13 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-namespace afc {
-namespace editor {
+namespace afc::language::text {
 namespace lazy_string = language::lazy_string;
 
 using ::operator<<;
 
+using editor::LineModifier;
+using editor::LineModifierSet;
 using infrastructure::Tracker;
 using language::compute_hash;
 using language::Error;
@@ -109,7 +110,8 @@ LineBuilder LineBuilder::Copy() const { return LineBuilder(data_); }
 Line LineBuilder::Build() && { return Line(std::move(data_)); }
 
 ColumnNumber LineBuilder::EndColumn() const {
-  // TODO: Compute this separately, taking the width of characters into account.
+  // TODO: Compute this separately, taking the width of characters into
+  // account.
   return ColumnNumber(0) + contents()->size();
 }
 
@@ -527,5 +529,4 @@ wint_t Line::Get(ColumnNumber column) const {
   return data_.contents->get(column);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::language::text

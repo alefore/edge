@@ -60,6 +60,8 @@ using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineNumber;
 using vm::EscapedString;
 

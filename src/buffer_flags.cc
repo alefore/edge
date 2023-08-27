@@ -13,6 +13,8 @@ using language::CaptureAndHash;
 using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::Padding;
+using language::text::Line;
+using language::text::LineBuilder;
 
 std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
   using flags::Color;

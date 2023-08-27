@@ -7,7 +7,7 @@
 
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/overload.h"
-#include "src/line.h"
+#include "src/language/text/line.h"
 
 namespace afc::editor {
 namespace gc = language::gc;
@@ -20,6 +20,8 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::overload;
 using language::VisitPointer;
+using language::text::Line;
+using language::text::LineBuilder;
 
 wchar_t Braille(size_t counter) {
   wchar_t c = L'⠀';

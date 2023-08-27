@@ -5,6 +5,8 @@
 namespace afc::editor {
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::Line;
+using language::text::LineBuilder;
 
 namespace {
 ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
@@ -116,24 +118,24 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
      {.name = L"ManyWideOverflow",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"),
-                                   ColumnNumber(), ColumnNumberDelta(5),
+            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
+                                   ColumnNumberDelta(5),
                                    LineWrapStyle::kBreakWords,
                                    L"") == ColumnNumberDelta(2));
           }},
      {.name = L"ManyWideOverflowAfter",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"),
-                                   ColumnNumber(), ColumnNumberDelta(10),
+            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
+                                   ColumnNumberDelta(10),
                                    LineWrapStyle::kBreakWords,
                                    L"") == ColumnNumberDelta(6));
           }},
      {.name = L"ManyWideOverflowExact",
       .callback =
           [] {
-            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"),
-                                   ColumnNumber(), ColumnNumberDelta(4),
+            CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
+                                   ColumnNumberDelta(4),
                                    LineWrapStyle::kBreakWords,
                                    L"") == ColumnNumberDelta(2));
           }},

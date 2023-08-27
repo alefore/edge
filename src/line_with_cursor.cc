@@ -19,6 +19,8 @@ using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineNumberDelta;
 
 LineWithCursor::Generator::Vector& LineWithCursor::Generator::Vector::resize(

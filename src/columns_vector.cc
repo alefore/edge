@@ -12,7 +12,7 @@
 #include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/wstring.h"
-#include "src/line.h"
+#include "src/language/text/line.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
@@ -26,6 +26,8 @@ using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::EmptyString;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
 

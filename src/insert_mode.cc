@@ -50,8 +50,11 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumberDelta;
+using language::text::OutgoingLink;
 using language::text::Range;
 
 using vm::Type;

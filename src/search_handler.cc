@@ -30,6 +30,7 @@ using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::Range;

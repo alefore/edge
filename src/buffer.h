@@ -176,8 +176,10 @@ class OpenBuffer {
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(
       language::text::LineNumber first, language::text::LineNumber last,
-      std::function<bool(const language::NonNull<std::shared_ptr<const Line>>&,
-                         const language::NonNull<std::shared_ptr<const Line>>&)>
+      std::function<bool(
+          const language::NonNull<std::shared_ptr<const language::text::Line>>&,
+          const language::NonNull<
+              std::shared_ptr<const language::text::Line>>&)>
           compare);
 
   language::text::LineNumberDelta lines_size() const;
@@ -193,8 +195,9 @@ class OpenBuffer {
                   language::text::LineNumber last);
 
   // Inserts a new line into the buffer at a given position.
-  void InsertLine(language::text::LineNumber line_position,
-                  language::NonNull<std::shared_ptr<Line>> line);
+  void InsertLine(
+      language::text::LineNumber line_position,
+      language::NonNull<std::shared_ptr<language::text::Line>> line);
 
   // Can handle \n characters, breaking it into lines.
   void AppendLazyString(
@@ -209,20 +212,24 @@ class OpenBuffer {
           str);
 
   // Insert a line at the end of the buffer.
-  void AppendRawLine(language::NonNull<std::shared_ptr<Line>> line);
+  void AppendRawLine(
+      language::NonNull<std::shared_ptr<language::text::Line>> line);
 
   void AppendToLastLine(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
           str);
-  void AppendToLastLine(Line line);
+  void AppendToLastLine(language::text::Line line);
 
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
-  void StartNewLine(language::NonNull<std::shared_ptr<const Line>> line);
+  void StartNewLine(
+      language::NonNull<std::shared_ptr<const language::text::Line>> line);
   // Equivalent to calling StartNewLine repeatedly, but significantly more
   // efficient.
   void AppendLines(
-      std::vector<language::NonNull<std::shared_ptr<const Line>>> lines);
+      std::vector<
+          language::NonNull<std::shared_ptr<const language::text::Line>>>
+          lines);
 
   void DeleteRange(const language::text::Range& range);
 
@@ -385,9 +392,9 @@ class OpenBuffer {
   // Inspecting contents of buffer.
 
   // May return nullptr if the current_cursor is at the end of file.
-  const std::shared_ptr<const Line> current_line() const;
+  const std::shared_ptr<const language::text::Line> current_line() const;
 
-  std::shared_ptr<const Line> LineAt(
+  std::shared_ptr<const language::text::Line> LineAt(
       language::text::LineNumber line_number) const;
 
   // We deliberately provide only a read view into our contents. All
@@ -519,7 +526,9 @@ class OpenBuffer {
   void ReadData(std::unique_ptr<FileDescriptorReader>& source);
 
   void UpdateLastAction();
-  void InsertLines(std::vector<language::NonNull<std::shared_ptr<const Line>>>);
+  void InsertLines(
+      std::vector<
+          language::NonNull<std::shared_ptr<const language::text::Line>>>);
 
   SeekInput NewSeekInput(Structure structure, Direction direction,
                          language::text::LineColumn* position) const;

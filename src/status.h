@@ -13,11 +13,11 @@
 #include "src/language/ghost_type.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 
 namespace afc::editor {
 
 class OpenBuffer;
-class Line;
 
 enum class OverflowBehavior { kModulo, kMaximum };
 std::wstring ProgressString(size_t counter, OverflowBehavior overflow_behavior);
@@ -53,7 +53,7 @@ class Status {
   // Returns nullptr if the status type isn't kPrompt.
   const concurrent::VersionPropertyReceiver* prompt_extra_information() const;
 
-  Line prompt_extra_information_line() const;
+  language::text::Line prompt_extra_information_line() const;
 
   void SetInformationText(std::wstring text);
 

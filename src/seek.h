@@ -40,7 +40,8 @@ class Seek {
   Result ToEndOfLine() const;
   Result UntilNextLineIsSubsetOf(const std::wstring& allowed_chars) const;
   Result UntilNextLineIsNotSubsetOf(const std::wstring& allowed_chars) const;
-  Result UntilLine(std::function<bool(const Line& line)> predicate) const;
+  Result UntilLine(
+      std::function<bool(const language::text::Line& line)> predicate) const;
 
  private:
   bool Advance(language::text::LineColumn* position) const;

@@ -6,7 +6,7 @@
 #include <memory>
 
 #include "src/infrastructure/screen/line_modifier.h"
-#include "src/line.h"
+#include "src/language/text/line.h"
 
 namespace afc::concurrent {
 namespace gc = language::gc;

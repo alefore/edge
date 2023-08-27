@@ -7,12 +7,10 @@
 
 #include "src/language/hash.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
-#include "src/line.h"
 
 namespace afc::editor {
-class Line;
-
 struct LineWithCursor {
   // Callback that can generate a single line of output.
   struct Generator {
@@ -56,7 +54,7 @@ struct LineWithCursor {
   };
 
   struct ViewOptions {
-    const Line& line;
+    const language::text::Line& line;
 
     language::lazy_string::ColumnNumber initial_column;
     // Total number of screen characters to consume. If the input has wide
@@ -76,7 +74,7 @@ struct LineWithCursor {
   };
   static LineWithCursor View(const ViewOptions& options);
 
-  language::NonNull<std::shared_ptr<Line>> line;
+  language::NonNull<std::shared_ptr<language::text::Line>> line;
 
   // Output parameter. If the active cursor is found in the line, stores here
   // the column in which it was output here. May be nullptr.

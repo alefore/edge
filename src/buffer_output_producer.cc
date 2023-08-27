@@ -31,6 +31,8 @@ using language::WithHash;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;

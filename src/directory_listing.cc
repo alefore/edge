@@ -26,7 +26,8 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::EmptyString;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
-
+using language::text::Line;
+using language::text::LineBuilder;
 using vm::Environment;
 using vm::Expression;
 using vm::Type;
@@ -78,7 +79,8 @@ void StartDeleteFile(EditorState& editor_state, std::wstring path) {
       (result == 0 ? L"done" : L"ERROR: " + FromByteString(strerror(errno))));
 }
 
-LineMetadataEntry GetMetadata(OpenBuffer& target, std::wstring path) {
+language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
+                                              std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
   std::optional<gc::Root<vm::Value>> callback = target.environment()->Lookup(
       target.editor().gc_pool(), vm::Namespace(), L"GetPathMetadata",

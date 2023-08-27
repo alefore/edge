@@ -16,13 +16,13 @@
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/math/decaying_counter.h"
 
 namespace afc {
 namespace editor {
 
 class OpenBuffer;
-class Line;
 
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {
@@ -31,8 +31,8 @@ class FileDescriptorReader {
     BufferName buffer_name;
 
     std::function<void(const language::lazy_string::LazyString&)> maybe_exec;
-    std::function<void(
-        std::vector<language::NonNull<std::shared_ptr<const Line>>>)>
+    std::function<void(std::vector<language::NonNull<
+                           std::shared_ptr<const language::text::Line>>>)>
         insert_lines;
 
     // Should be null if there's no terminal.

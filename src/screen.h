@@ -2,7 +2,7 @@
 #define __AFC_EDITOR_SCREEN_H__
 
 #include "src/language/text/line_column.h"
-#include "src/line.h"
+#include "src/language/text/line.h"
 
 namespace afc {
 namespace editor {

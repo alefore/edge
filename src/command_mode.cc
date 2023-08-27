@@ -80,6 +80,7 @@ using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::NewLazyString;
 using language::text::LineColumn;
+using language::text::OutgoingLink;
 
 namespace gc = language::gc;
 

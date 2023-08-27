@@ -62,6 +62,8 @@ using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;

@@ -26,6 +26,8 @@ using language::PossibleError;
 using language::Success;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;

@@ -8,8 +8,8 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/text/line.h"
 #include "src/language/wstring.h"
-#include "src/line.h"
 
 namespace afc::editor {
 using infrastructure::FileDescriptor;
@@ -20,6 +20,8 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::make_shared<Options>(std::move(options))) {

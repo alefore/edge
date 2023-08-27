@@ -60,6 +60,7 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
+using language::text::Line;
 using language::text::LineNumber;
 
 namespace gc = language::gc;
@@ -202,8 +203,7 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
     ThreadPool& thread_pool, Path path, FileDescriptor fd,
     NonNull<std::shared_ptr<const BufferContents>> contents) {
   return thread_pool.Run([contents, path, fd]() {
-    // TODO: It'd be significant more efficient to do fewer (bigger)
-    // writes.
+    // TODO: It'd be significant more efficient to do fewer (bigger) writes.
     std::optional<PossibleError> error;
     contents->EveryLine([&](LineNumber position, const Line& line) {
       std::string str = (position == LineNumber(0) ? "" : "\n") +

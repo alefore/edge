@@ -15,6 +15,7 @@
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumberDelta;
 

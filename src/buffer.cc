@@ -101,6 +101,8 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;
@@ -168,9 +170,9 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
   }
 
   LineBuilder line_builder(line.value());
-  line_builder.SetMetadata(
-      LineMetadataEntry{.initial_value = NewLazyString(description),
-                        .value = std::move(metadata_value)});
+  line_builder.SetMetadata(language::text::LineMetadataEntry{
+      .initial_value = NewLazyString(description),
+      .value = std::move(metadata_value)});
 
   return MakeNonNullShared<const Line>(std::move(line_builder).Build());
 }

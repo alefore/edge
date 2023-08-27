@@ -34,6 +34,8 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;

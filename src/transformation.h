@@ -8,7 +8,7 @@
 #include "src/direction.h"
 #include "src/futures/futures.h"
 #include "src/language/text/line_column.h"
-#include "src/line.h"
+#include "src/language/text/line.h"
 #include "src/modifiers.h"
 #include "src/structure.h"
 #include "src/transformation/type.h"

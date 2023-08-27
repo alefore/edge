@@ -150,14 +150,14 @@ src/language/observers.h \
 src/language/observers.cc \
 src/language/observers_gc.h \
 src/language/safe_types.h \
+src/language/text/line.cc \
+src/language/text/line.h \
 src/language/text/line_column.cc \
 src/language/text/line_column.h \
 src/language/text/line_column_vm.cc \
 src/language/text/line_column_vm.h \
 src/language/wstring.cc \
 src/language/wstring.h \
-src/line.cc \
-src/line.h \
 src/line_output.cc \
 src/line_output.h \
 src/line_with_cursor.cc \

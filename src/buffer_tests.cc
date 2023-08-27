@@ -16,6 +16,8 @@ using language::ValueOrDie;
 using language::ValueOrError;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
@@ -100,7 +102,7 @@ const bool buffer_tests_registration = tests::Register(
              [] {
                auto buffer = NewBufferForTests();
                LineBuilder options(NewLazyString(L"foo"));
-               options.SetMetadata(LineMetadataEntry{
+               options.SetMetadata(language::text::LineMetadataEntry{
                    .initial_value = NewLazyString(L"bar"),
                    .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
                        NewLazyString(L"quux")))});

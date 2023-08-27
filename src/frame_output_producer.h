@@ -4,7 +4,7 @@
 #include <optional>
 #include <string>
 
-#include "src/line.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 
 namespace afc::editor {
@@ -20,7 +20,7 @@ struct FrameOutputProducerOptions {
   std::wstring prefix = L"";
 };
 
-Line FrameLine(FrameOutputProducerOptions options);
+language::text::Line FrameLine(FrameOutputProducerOptions options);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_FRAME_OUTPUT_PRODUCER_H__

@@ -8,8 +8,8 @@
 #include "src/infrastructure/tracker.h"
 #include "src/language/const_tree.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
-#include "src/line.h"
 #include "src/tests/fuzz_testable.h"
 
 namespace afc {
@@ -17,8 +17,8 @@ namespace editor {
 
 class BufferContents : public fuzz::FuzzTestable {
   using Lines = language::ConstTree<
-      language::VectorBlock<language::NonNull<std::shared_ptr<const Line>>,
-                            256>,
+      language::VectorBlock<
+          language::NonNull<std::shared_ptr<const language::text::Line>>, 256>,
       256>;
 
  public:
@@ -28,7 +28,8 @@ class BufferContents : public fuzz::FuzzTestable {
   BufferContents();
   virtual ~BufferContents() = default;
 
-  explicit BufferContents(language::NonNull<std::shared_ptr<const Line>> line);
+  explicit BufferContents(
+      language::NonNull<std::shared_ptr<const language::text::Line>> line);
   explicit BufferContents(UpdateListener update_listener);
 
   wint_t character_at(const language::text::LineColumn& position) const;
@@ -53,18 +54,18 @@ class BufferContents : public fuzz::FuzzTestable {
   // Drops all contents outside of a specific range.
   void FilterToRange(language::text::Range range);
 
-  language::NonNull<std::shared_ptr<const Line>> at(
+  language::NonNull<std::shared_ptr<const language::text::Line>> at(
       language::text::LineNumber line_number) const {
     CHECK_LT(line_number, language::text::LineNumber(0) + size());
     return lines_->Get(line_number.read());
   }
 
-  language::NonNull<std::shared_ptr<const Line>> back() const {
+  language::NonNull<std::shared_ptr<const language::text::Line>> back() const {
     CHECK(lines_ != nullptr);
     return at(EndLine());
   }
 
-  language::NonNull<std::shared_ptr<const Line>> front() const {
+  language::NonNull<std::shared_ptr<const language::text::Line>> front() const {
     CHECK(lines_ != nullptr);
     return at(language::text::LineNumber(0));
   }
@@ -73,43 +74,51 @@ class BufferContents : public fuzz::FuzzTestable {
   // first argument the line count (starts counting at 0). Stops the iteration
   // if the callback returns false. Returns true iff the callback always
   // returned true.
-  bool EveryLine(const std::function<bool(language::text::LineNumber,
-                                          const Line&)>& callback) const;
+  bool EveryLine(
+      const std::function<bool(language::text::LineNumber,
+                               const language::text::Line&)>& callback) const;
 
   // Convenience wrappers of the above.
-  void ForEach(const std::function<void(const Line&)>& callback) const;
+  void ForEach(
+      const std::function<void(const language::text::Line&)>& callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
 
   std::wstring ToString() const;
 
   template <class C>
   language::text::LineNumber upper_bound(
-      language::NonNull<std::shared_ptr<const Line>>& key, C compare) const {
+      language::NonNull<std::shared_ptr<const language::text::Line>>& key,
+      C compare) const {
     return language::text::LineNumber(Lines::UpperBound(lines_, key, compare));
   }
 
   size_t CountCharacters() const;
 
-  void insert_line(language::text::LineNumber line_position,
-                   language::NonNull<std::shared_ptr<const Line>> line);
+  void insert_line(
+      language::text::LineNumber line_position,
+      language::NonNull<std::shared_ptr<const language::text::Line>> line);
 
   // Does not call update_listener_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
   // semantic information about what you're doing).
-  void set_line(language::text::LineNumber position,
-                language::NonNull<std::shared_ptr<const Line>> line);
+  void set_line(
+      language::text::LineNumber position,
+      language::NonNull<std::shared_ptr<const language::text::Line>> line);
 
   template <class C>
   void sort(language::text::LineNumber first, language::text::LineNumber last,
             C compare) {
     // TODO: Only append to `lines` the actual range [first, last), and then
     // just Append to prefix/suffix.
-    std::vector<language::NonNull<std::shared_ptr<const Line>>> lines;
-    Lines::Every(lines_,
-                 [&lines](language::NonNull<std::shared_ptr<const Line>> line) {
-                   lines.push_back(line);
-                   return true;
-                 });
+    std::vector<language::NonNull<std::shared_ptr<const language::text::Line>>>
+        lines;
+    Lines::Every(
+        lines_,
+        [&lines](language::NonNull<std::shared_ptr<const language::text::Line>>
+                     line) {
+          lines.push_back(line);
+          return true;
+        });
     std::sort(lines.begin() + first.read(), lines.begin() + last.read(),
               compare);
     lines_ = nullptr;
@@ -145,7 +154,8 @@ class BufferContents : public fuzz::FuzzTestable {
                     LineModifierSet modifiers);
 
   void InsertCharacter(language::text::LineColumn position);
-  void AppendToLine(language::text::LineNumber line, Line line_to_append);
+  void AppendToLine(language::text::LineNumber line,
+                    language::text::Line line_to_append);
 
   enum class CursorsBehavior { kAdjust, kUnmodified };
 
@@ -162,9 +172,12 @@ class BufferContents : public fuzz::FuzzTestable {
   void FoldNextLine(language::text::LineNumber line);
 
   void push_back(std::wstring str);
-  void push_back(language::NonNull<std::shared_ptr<const Line>> line);
+  void push_back(
+      language::NonNull<std::shared_ptr<const language::text::Line>> line);
   void append_back(
-      std::vector<language::NonNull<std::shared_ptr<const Line>>> lines);
+      std::vector<
+          language::NonNull<std::shared_ptr<const language::text::Line>>>
+          lines);
 
   void SetUpdateListener(UpdateListener update_listener);
 
@@ -193,10 +206,11 @@ class BufferContents : public fuzz::FuzzTestable {
       lines_ = Lines::PushBack(nullptr, {});
     }
     CHECK_LE(line_number, EndLine());
-    LineBuilder options(at(line_number).value());
+    language::text::LineBuilder options(at(line_number).value());
     callback(options);
-    set_line(line_number, language::MakeNonNullShared<const Line>(
-                              std::move(options).Build()));
+    set_line(line_number,
+             language::MakeNonNullShared<const language::text::Line>(
+                 std::move(options).Build()));
     update_listener_(cursors_transformation);
   }
 
