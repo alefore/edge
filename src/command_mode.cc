@@ -451,26 +451,25 @@ class ActivateLink : public Command {
           }
 
           VisitPointer(
-              buffer.ptr()->current_line()->buffer_line_column(),
-              [&](BufferLineColumn line_buffer) {
-                if (std::optional<gc::Root<OpenBuffer>> target =
-                        line_buffer.buffer.Lock();
-                    target.has_value() &&
-                    &target->ptr().value() != &buffer.ptr().value()) {
-                  LOG(INFO) << "Visiting buffer: "
-                            << target->ptr()->Read(buffer_variables::name);
+              buffer.ptr()->current_line()->outgoing_link(),
+              [&](OutgoingLink outgoing_link) {
+                if (auto it = buffer.ptr()->editor().buffers()->find(
+                        BufferName(outgoing_link.path));
+                    it != buffer.ptr()->editor().buffers()->end() &&
+                    &it->second.ptr().value() != &buffer.ptr().value()) {
+                  LOG(INFO) << "Visiting buffer: " << it->second.ptr()->name();
                   editor_state_.status().Reset();
                   buffer.ptr()->status().Reset();
                   editor_state_.set_current_buffer(
-                      target.value(), CommandArgumentModeApplyMode::kFinal);
+                      it->second, CommandArgumentModeApplyMode::kFinal);
                   std::optional<LineColumn> target_position =
-                      line_buffer.position;
+                      outgoing_link.line_column;
                   if (target_position.has_value()) {
-                    target->ptr()->set_position(*target_position);
+                    it->second.ptr()->set_position(*target_position);
                   }
                   editor_state_.PushCurrentPosition();
                   buffer.ptr()->ResetMode();
-                  target->ptr()->ResetMode();
+                  it->second.ptr()->ResetMode();
                   return;
                 }
               },

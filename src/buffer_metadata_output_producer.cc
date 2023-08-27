@@ -380,14 +380,19 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   std::optional<gc::Root<OpenBuffer>> target_buffer_dummy;
   NonNull<const OpenBuffer*> target_buffer =
       NonNull<const OpenBuffer*>::AddressOf(options.buffer);
-  if (auto line_buffer = contents.buffer_line_column();
-      line_buffer.has_value()) {
-    target_buffer_dummy = line_buffer->buffer.Lock();
-    if (target_buffer_dummy.has_value())
-      target_buffer = NonNull<const OpenBuffer*>::AddressOf(
-          target_buffer_dummy->ptr().value());
-  }
-
+  VisitPointer(
+      contents.outgoing_link(),
+      [&](const OutgoingLink& link) {
+        if (auto it =
+                options.buffer.editor().buffers()->find(BufferName(link.path));
+            it != options.buffer.editor().buffers()->end()) {
+          target_buffer_dummy = it->second;
+          if (target_buffer_dummy.has_value())
+            target_buffer = NonNull<const OpenBuffer*>::AddressOf(
+                target_buffer_dummy->ptr().value());
+        }
+      },
+      [] {});
   auto info_char = L'•';
   auto info_char_modifier = LineModifier::kDim;
 

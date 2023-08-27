@@ -331,11 +331,11 @@ void LineBuilder::Append(LineBuilder line) {
   ValidateInvariants();
 }
 
-void LineBuilder::SetBufferLineColumn(BufferLineColumn buffer_line_column) {
-  data_.buffer_line_column = buffer_line_column;
+void LineBuilder::SetOutgoingLink(OutgoingLink outgoing_link) {
+  data_.outgoing_link = outgoing_link;
 }
-std::optional<BufferLineColumn> LineBuilder::buffer_line_column() const {
-  return data_.buffer_line_column;
+std::optional<OutgoingLink> LineBuilder::outgoing_link() const {
+  return data_.outgoing_link;
 }
 
 LineBuilder& LineBuilder::SetMetadata(
@@ -501,8 +501,8 @@ std::function<void()> Line::explicit_delete_observer() const {
   return data_.explicit_delete_observer;
 }
 
-std::optional<BufferLineColumn> Line::buffer_line_column() const {
-  return data_.buffer_line_column;
+std::optional<OutgoingLink> Line::outgoing_link() const {
+  return data_.outgoing_link;
 }
 
 Line::Line(Line::Data data)

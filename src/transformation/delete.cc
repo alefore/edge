@@ -6,10 +6,10 @@
 #include "src/buffer_variables.h"
 #include "src/direction.h"
 #include "src/editor.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
-#include "src/language/error/value_or_error.h"
 #include "src/language/wstring.h"
 #include "src/line_column_vm.h"
 #include "src/line_prompt_mode.h"
@@ -96,18 +96,20 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
     NonNull<std::shared_ptr<const Line>> line_contents =
         buffer.contents().at(position.line);
     DVLOG(5) << "Erasing line: " << line_contents->ToString();
-    auto line_buffer = buffer.current_line()->buffer_line_column();
-    if (line_buffer.has_value()) {
-      VisitPointer(
-          line_buffer->buffer.Lock(),
-          [&buffer](gc::Root<OpenBuffer> target_buffer) {
+    VisitPointer(
+        buffer.current_line()->outgoing_link(),
+        [&](const OutgoingLink& outgoing_link) {
+          if (auto it = buffer.editor().buffers()->find(
+                  BufferName(outgoing_link.path));
+              it != buffer.editor().buffers()->end()) {
+            gc::Root<OpenBuffer> target_buffer = it->second;
             if (&target_buffer.ptr().value() != &buffer) {
               target_buffer.ptr()->editor().CloseBuffer(
                   target_buffer.ptr().value());
             }
-          },
-          [] {});
-    }
+          }
+        },
+        [] {});
     std::function<void()> f = line_contents->explicit_delete_observer();
     if (f == nullptr) continue;
     observers.push_back(f);

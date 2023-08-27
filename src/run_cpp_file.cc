@@ -31,11 +31,13 @@ futures::Value<PossibleError> RunCppFileHandler(
     return futures::Past(ValueOrError<EmptyValue>(Error(L"No current buffer")));
   }
   if (editor_state.structure() == Structure::kLine) {
-    std::optional<BufferLineColumn> line_buffer =
-        buffer->ptr()->current_line()->buffer_line_column();
-    if (line_buffer.has_value()) {
-      if (auto target = line_buffer->buffer.Lock(); target.has_value()) {
-        buffer = target;
+    std::optional<OutgoingLink> outgoing_link =
+        buffer->ptr()->current_line()->outgoing_link();
+    if (outgoing_link.has_value()) {
+      if (auto it =
+              editor_state.buffers()->find(BufferName(outgoing_link->path));
+          it != editor_state.buffers()->end()) {
+        buffer = it->second;
       }
     }
     editor_state.ResetModifiers();

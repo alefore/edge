@@ -31,9 +31,9 @@ struct LineMetadataEntry {
       value;
 };
 
-struct BufferLineColumn {
-  language::gc::WeakPtr<OpenBuffer> buffer;
-  std::optional<LineColumn> position;
+struct OutgoingLink {
+  std::wstring path;
+  std::optional<LineColumn> line_column;
 };
 
 class LineBuilder;
@@ -80,7 +80,7 @@ class Line {
 
   std::function<void()> explicit_delete_observer() const;
 
-  std::optional<BufferLineColumn> buffer_line_column() const;
+  std::optional<OutgoingLink> outgoing_link() const;
 
   size_t hash() const { return hash_; }
 
@@ -107,7 +107,7 @@ class Line {
 
     std::optional<LineMetadataEntry> metadata = std::nullopt;
     std::function<void()> explicit_delete_observer = nullptr;
-    std::optional<BufferLineColumn> buffer_line_column = std::nullopt;
+    std::optional<OutgoingLink> outgoing_link = std::nullopt;
   };
 
   friend class std::hash<Line>;
@@ -172,8 +172,8 @@ class LineBuilder {
     return data_.explicit_delete_observer;
   }
 
-  void SetBufferLineColumn(BufferLineColumn buffer_line_column);
-  std::optional<BufferLineColumn> buffer_line_column() const;
+  void SetOutgoingLink(OutgoingLink outgoing_link);
+  std::optional<OutgoingLink> outgoing_link() const;
 
   LineBuilder& SetMetadata(std::optional<LineMetadataEntry> metadata);
 

@@ -671,15 +671,15 @@ void EnterInsertMode(InsertModeOptions options) {
       .Transform([shared_options](EmptyValue) {
         for (gc::Root<OpenBuffer>& buffer_root :
              shared_options->buffers.value()) {
-          if (std::optional<BufferLineColumn> line_buffer =
-                  buffer_root.ptr()->current_line()->buffer_line_column();
-              line_buffer.has_value())
-            VisitPointer(
-                line_buffer->buffer.Lock(),
-                [&](gc::Root<OpenBuffer> target_buffer) {
-                  buffer_root = target_buffer;
-                },
-                [] {});
+          VisitPointer(
+              buffer_root.ptr()->current_line()->outgoing_link(),
+              [&](const OutgoingLink& link) {
+                if (auto it = buffer_root.ptr()->editor().buffers()->find(
+                        BufferName(link.path));
+                    it != buffer_root.ptr()->editor().buffers()->end())
+                  buffer_root = it->second;
+              },
+              [] {});
         }
 
         if (shared_options->modify_handler == nullptr) {

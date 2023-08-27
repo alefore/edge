@@ -102,6 +102,22 @@ void RegisterBufferFields(
             .ptr());
   }
 }
+
+gc::Root<OpenBuffer> MaybeFollowOutgoingLink(gc::Root<OpenBuffer> buffer) {
+  if (buffer.ptr()->editor().structure() == Structure::kLine) {
+    return VisitPointer(
+        buffer.ptr()->current_line()->outgoing_link(),
+        [&](const OutgoingLink& link) {
+          if (auto it =
+                  buffer.ptr()->editor().buffers()->find(BufferName(link.path));
+              it != buffer.ptr()->editor().buffers()->end())
+            return it->second;
+          return buffer;
+        },
+        [&] { return buffer; });
+  }
+  return buffer;
+}
 }  // namespace
 
 gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
@@ -285,93 +301,45 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
 
   buffer_object_type.ptr()->AddField(
       L"Reload",
-      vm::NewCallback(
-          pool, PurityType::kUnknown,
-          [](gc::Root<OpenBuffer> buffer) {
-            if (buffer.ptr()->editor().structure() == Structure::kLine) {
-              auto target_buffer =
-                  buffer.ptr()->current_line()->buffer_line_column();
-              if (target_buffer.has_value()) {
-                VisitPointer(
-                    target_buffer->buffer.Lock(),
-                    [&](gc::Root<OpenBuffer> target_root) {
-                      buffer = target_root;
-                    },
-                    [] {});
-              }
-            }
-            buffer.ptr()->Reload();
-            buffer.ptr()->editor().ResetModifiers();
-          })
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](gc::Root<OpenBuffer> buffer) {
+                        buffer = MaybeFollowOutgoingLink(std::move(buffer));
+                        buffer.ptr()->Reload();
+                        buffer.ptr()->editor().ResetModifiers();
+                      })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       L"SendEndOfFileToProcess",
-      vm::NewCallback(
-          pool, PurityType::kUnknown,
-          [](gc::Root<OpenBuffer> buffer) {
-            if (buffer.ptr()->editor().structure() == Structure::kLine) {
-              auto target_buffer =
-                  buffer.ptr()->current_line()->buffer_line_column();
-              if (target_buffer.has_value()) {
-                VisitPointer(
-                    target_buffer->buffer.Lock(),
-                    [&](gc::Root<OpenBuffer> target_root) {
-                      buffer = target_root;
-                    },
-                    [] {});
-              }
-            }
-            buffer.ptr()->SendEndOfFileToProcess();
-            buffer.ptr()->editor().ResetModifiers();
-          })
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](gc::Root<OpenBuffer> buffer) {
+                        buffer = MaybeFollowOutgoingLink(std::move(buffer));
+                        buffer.ptr()->SendEndOfFileToProcess();
+                        buffer.ptr()->editor().ResetModifiers();
+                      })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      L"Save",
-      vm::NewCallback(
-          pool, PurityType::kUnknown,
-          [](gc::Root<OpenBuffer> buffer) {
-            if (buffer.ptr()->editor().structure() == Structure::kLine) {
-              if (auto target_buffer =
-                      buffer.ptr()->current_line()->buffer_line_column();
-                  target_buffer.has_value()) {
-                VisitPointer(
-                    target_buffer->buffer.Lock(),
-                    [&](gc::Root<OpenBuffer> target_root) {
-                      buffer = target_root;
-                    },
-                    [] {});
-              }
-            }
-
-            futures::Value<PossibleError> output = buffer.ptr()->Save();
-            buffer.ptr()->editor().ResetModifiers();
-            return output;
-          })
-          .ptr());
+      L"Save", vm::NewCallback(pool, PurityType::kUnknown,
+                               [](gc::Root<OpenBuffer> buffer) {
+                                 buffer =
+                                     MaybeFollowOutgoingLink(std::move(buffer));
+                                 futures::Value<PossibleError> output =
+                                     buffer.ptr()->Save();
+                                 buffer.ptr()->editor().ResetModifiers();
+                                 return output;
+                               })
+                   .ptr());
 
   buffer_object_type.ptr()->AddField(
-      L"Close",
-      vm::NewCallback(
-          pool, vm::PurityTypeWriter,
-          [](gc::Root<OpenBuffer> buffer) {
-            if (buffer.ptr()->editor().structure() == Structure::kLine) {
-              auto target_buffer =
-                  buffer.ptr()->current_line()->buffer_line_column();
-              if (target_buffer.has_value()) {
-                VisitPointer(
-                    target_buffer->buffer.Lock(),
-                    [&](gc::Root<OpenBuffer> target_root) {
-                      buffer = target_root;
-                    },
-                    [] {});
-              }
-            }
-            buffer.ptr()->editor().CloseBuffer(buffer.ptr().value());
-            buffer.ptr()->editor().ResetModifiers();
-          })
-          .ptr());
+      L"Close", vm::NewCallback(
+                    pool, vm::PurityTypeWriter,
+                    [](gc::Root<OpenBuffer> buffer) {
+                      buffer = MaybeFollowOutgoingLink(std::move(buffer));
+                      buffer.ptr()->editor().CloseBuffer(buffer.ptr().value());
+                      buffer.ptr()->editor().ResetModifiers();
+                    })
+                    .ptr());
 
   buffer_object_type.ptr()->AddField(
       L"AddBinding",
