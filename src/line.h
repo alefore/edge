@@ -21,8 +21,6 @@
 #include "src/language/text/line_column.h"
 
 namespace afc::editor {
-class OpenBuffer;
-
 struct LineMetadataEntry {
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
       initial_value;

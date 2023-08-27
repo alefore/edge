@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "src/buffer.h"
 #include "src/language/ghost_type.h"
 #include "src/language/wstring.h"
 #include "src/line_with_cursor.h"
