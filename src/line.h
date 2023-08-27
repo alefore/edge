@@ -78,29 +78,11 @@ class Line {
     return stable_fields_.end_of_line_modifiers;
   }
 
-  bool modified() const {
-    return data_.lock([=](const Data& data) { return data.modified; });
-  }
-  void set_modified(bool modified) {
-    data_.lock([=](Data& data) { data.modified = modified; });
-  }
-
-  bool filtered() const {
-    return data_.lock([](const Data& data) { return data.filtered; });
-  }
-  bool filter_version() const {
-    return data_.lock([](const Data& data) { return data.filter_version; });
-  }
-  void set_filtered(bool filtered, size_t filter_version) {
-    data_.lock([=](Data& data) {
-      data.filtered = filtered;
-      data.filter_version = filter_version;
-    });
-  }
-
   std::function<void()> explicit_delete_observer() const;
 
   std::optional<BufferLineColumn> buffer_line_column() const;
+
+  size_t hash() const { return hash_; }
 
  private:
   struct StableFields {
@@ -133,21 +115,13 @@ class Line {
   friend class LineWithCursor;
 
   explicit Line(StableFields stable_fields);
+  static std::size_t ComputeHash(const Line::StableFields& data);
 
-  struct Data {
-    bool filtered = true;
-    size_t filter_version = 0;
-    bool modified = false;
-    // This is mutable so that when it is computed (from a `const Data&`), we
-    // can memoize the value.
-    mutable std::optional<size_t> hash = std::nullopt;
-  };
-
-  static void ValidateInvariants(const Data& data);
+  // TODO(trivial, 2023-08-27): Get rid of this method.
   wint_t Get(language::lazy_string::ColumnNumber column) const;
 
   const StableFields stable_fields_;
-  concurrent::Protected<Data, decltype(&Line::ValidateInvariants)> data_;
+  const size_t hash_;
 };
 
 class LineBuilder {
@@ -245,7 +219,17 @@ class LineBuilder {
 namespace std {
 template <>
 struct hash<afc::editor::Line> {
-  std::size_t operator()(const afc::editor::Line& line) const;
+  std::size_t operator()(const afc::editor::Line& line) const {
+    return line.hash();
+  }
+};
+
+template <>
+struct hash<afc::editor::LineMetadataEntry> {
+  std::size_t operator()(const afc::editor::LineMetadataEntry&) const {
+    // TODO(easy, 2023-08-27): Implement?
+    return 0;
+  }
 };
 }  // namespace std
 #endif  // __AFC_EDITOR_LINE_H__

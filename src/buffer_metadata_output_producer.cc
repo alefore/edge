@@ -397,9 +397,11 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                      MakeNonNullShared<const Line>(
                          OpenBuffer::FlagsToString(target_buffer->Flags())),
                      MetadataLine::Type::kFlags});
+#if 0
   } else if (contents.modified()) {
     info_char_modifier = LineModifier::kGreen;
     info_char = L'•';
+#endif
   } else {
     info_char_modifier = LineModifier::kDim;
   }

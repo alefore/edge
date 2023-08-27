@@ -444,11 +444,20 @@ Line::Line(std::wstring x)
     : Line(StableFields{.contents = NewLazyString(std::move(x))}) {}
 
 Line::Line(const Line& line)
-    : stable_fields_(line.stable_fields_),
-      data_(line.data_.lock([](const Data& line_data) {
-        return Data{.hash = line_data.hash};
-      }),
-            &Line::ValidateInvariants) {}
+    : stable_fields_(line.stable_fields_), hash_(ComputeHash(stable_fields_)) {}
+
+/* static */
+size_t Line::ComputeHash(const Line::StableFields& data) {
+  return compute_hash(
+      data.contents.value(),
+      MakeHashableIteratorRange(
+          data.modifiers.begin(), data.modifiers.end(),
+          [](const std::pair<ColumnNumber, LineModifierSet>& value) {
+            return compute_hash(value.first,
+                                MakeHashableIteratorRange(value.second));
+          }),
+      MakeHashableIteratorRange(data.end_of_line_modifiers), data.metadata);
+}
 
 NonNull<std::shared_ptr<LazyString>> Line::contents() const {
   return stable_fields_.contents;
@@ -499,18 +508,15 @@ std::optional<BufferLineColumn> Line::buffer_line_column() const {
 
 Line::Line(Line::StableFields stable_fields)
     : stable_fields_(std::move(stable_fields)),
-      data_(Data{}, &Line::ValidateInvariants) {
+      hash_(ComputeHash(stable_fields_)) {
   for (auto& m : stable_fields_.modifiers) {
     CHECK_LE(m.first, EndColumn()) << "Modifiers found past end of line.";
     CHECK(m.second.find(LineModifier::kReset) == m.second.end());
   }
-}
-
-/* static */ void Line::ValidateInvariants(const Data&) {
+#if 0
   static Tracker tracker(L"Line::ValidateInvariants");
   auto call = tracker.Call();
-#if 0
-  ForEachColumn(Pointer(data.stable_fields_.contents).Reference(),
+  ForEachColumn(Pointer(stable_fields_.contents).Reference(),
                 [&contents = stable_fields_.contents](ColumnNumber, wchar_t c) {
                   CHECK(c != L'\n')
                       << "Line has newline character: " << contents->ToString();
@@ -525,25 +531,3 @@ wint_t Line::Get(ColumnNumber column) const {
 
 }  // namespace editor
 }  // namespace afc
-namespace std {
-std::size_t hash<afc::editor::Line>::operator()(
-    const afc::editor::Line& line) const {
-  using namespace afc::editor;
-  // TODO(2023-08-22, trivial): Compute the parts that depend on stable_fields
-  // outside of the critical section.
-  return line.data_.lock([&](const Line::Data& data) {
-    if (data.hash.has_value()) return *data.hash;
-    data.hash = compute_hash(
-        line.stable_fields_.contents.value(),
-        MakeHashableIteratorRange(line.stable_fields_.end_of_line_modifiers),
-        MakeHashableIteratorRange(
-            line.stable_fields_.modifiers.begin(),
-            line.stable_fields_.modifiers.end(),
-            [](const std::pair<ColumnNumber, LineModifierSet>& value) {
-              return compute_hash(value.first,
-                                  MakeHashableIteratorRange(value.second));
-            }));
-    return *data.hash;
-  });
-}
-}  // namespace std
