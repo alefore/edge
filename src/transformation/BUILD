@@ -25,8 +25,8 @@ cc_library(
         ":input",
         ":result",
         "//src:cursors",
-        "//src:line_column",
         "//src/futures",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -37,6 +37,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":input",
+        ":result",
         "//src:modifiers",
         "//src/infrastructure/screen:line_modifier",
     ],
@@ -56,8 +57,8 @@ cc_library(
     name = "input",
     hdrs = ["input.h"],
     deps = [
-        "//src:line_column",
         "//src/infrastructure/screen:line_modifier",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -69,11 +70,11 @@ cc_library(
         ":composite",
         ":input",
         ":result",
-        "//src:line_column_vm",
         "//src:modifiers",
         "//src:transformation",
         "//src/infrastructure/screen:line_modifier",
         "//src/language:safe_types",
+        "//src/language/text:line_column_vm",
         "//src/vm/public:environment",
     ],
 )
@@ -132,9 +133,9 @@ cc_library(
         ":composite",
         ":input",
         ":result",
-        "//src:line_column",
-        "//src:line_column_vm",
         "//src/futures",
+        "//src/language/text:line_column",
+        "//src/language/text:line_column_vm",
         "//src/vm/public:environment",
     ],
 )
@@ -155,8 +156,8 @@ cc_library(
     srcs = ["switch_case.cc"],
     hdrs = ["switch_case.h"],
     deps = [
-        "//src:line_column",
         "//src:modifiers",
+        "//src/language/text:line_column",
     ],
 )
 

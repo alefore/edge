@@ -1,4 +1,27 @@
 cc_library(
+    name = "line",
+    srcs = [
+        "line.cc",
+    ],
+    hdrs = [
+        "line.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":line_column",
+        "//src/concurrent:protected",
+        "//src/futures",
+        "//src/futures:listenable_value",
+        "//src/infrastructure/screen:line_modifier",
+        "//src/language:observers",
+        "//src/language:safe_types",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:append",
+        "//src/language/lazy_string:substring",
+    ],
+)
+
+cc_library(
     name = "line_column",
     srcs = ["line_column.cc"],
     hdrs = ["line_column.h"],

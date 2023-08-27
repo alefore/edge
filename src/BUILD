@@ -29,9 +29,9 @@ cc_library(
     visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":cursors",
-        ":line",
         "//src/language:const_tree",
         "//src/language:safe_types",
+        "//src/language/text:line",
         "//src/language/text:line_column",
     ],
 )
@@ -80,7 +80,6 @@ cc_library(
         ":buffer_syntax_parser",
         ":cursors",
         ":file_descriptor_reader",
-        ":line",
         ":line_marks",
         ":log",
         ":parse_tree",
@@ -97,6 +96,7 @@ cc_library(
         "//src/language:observers",
         "//src/language/lazy_string",
         "//src/language/lazy_string:substring",
+        "//src/language/text:line",
         "//src/language/text:line_column",
         "//src/transformation:type",
         "//src/vm/public:environment",
@@ -273,7 +273,6 @@ cc_library(
     hdrs = ["file_descriptor_reader.h"],
     deps = [
         ":buffer_name",
-        ":line",
         "//src/concurrent:thread_pool",
         "//src/infrastructure:file_system_driver",
         "//src/infrastructure:time",
@@ -283,6 +282,7 @@ cc_library(
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
         "//src/language/lazy_string:substring",
+        "//src/language/text:line",
     ],
 )
 
@@ -341,28 +341,6 @@ cc_library(
 )
 
 cc_library(
-    name = "line",
-    srcs = [
-        "line.cc",
-    ],
-    hdrs = [
-        "line.h",
-    ],
-    deps = [
-        "//src/concurrent:protected",
-        "//src/futures",
-        "//src/futures:listenable_value",
-        "//src/infrastructure/screen:line_modifier",
-        "//src/language:observers",
-        "//src/language:safe_types",
-        "//src/language/lazy_string",
-        "//src/language/lazy_string:append",
-        "//src/language/lazy_string:substring",
-        "//src/language/text:line_column",
-    ],
-)
-
-cc_library(
     name = "line_marks",
     srcs = ["line_marks.cc"],
     hdrs = ["line_marks.h"],
@@ -401,13 +379,13 @@ cc_library(
         "line_with_cursor.h",
     ],
     deps = [
-        ":line",
         "//src/infrastructure:tracker",
         "//src/language:hash",
         "//src/language:safe_types",
         "//src/language/lazy_string",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:padding",
+        "//src/language/text:line",
         "//src/language/text:line_column",
         "//src/tests",
     ],
@@ -687,12 +665,12 @@ cc_library(
     hdrs = ["status.h"],
     deps = [
         ":audio",
-        ":line",
         "//src/infrastructure:time",
         "//src/infrastructure/screen:line_modifier",
         "//src/language:gc",
         "//src/language:ghost_type",
         "//src/language:overload",
+        "//src/language/text:line",
     ],
 )
 
@@ -781,9 +759,9 @@ cc_library(
     visibility = ["//src/transformation:__pkg__"],
     deps = [
         ":direction",
-        ":line",
         ":modifiers",
         "//src/futures",
+        "//src/language/text:line",
         "//src/transformation:type",
     ],
 )
