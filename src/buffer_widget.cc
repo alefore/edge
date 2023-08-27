@@ -36,6 +36,11 @@ using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::Padding;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 namespace gc = language::gc;
 

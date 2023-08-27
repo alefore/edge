@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_LINE_COLUMN_H__
-#define __AFC_EDITOR_LINE_COLUMN_H__
+#ifndef __AFC_LANGUAGE_TEXT_LINE_COLUMN_H__
+#define __AFC_LANGUAGE_TEXT_LINE_COLUMN_H__
 
 #include <iostream>
 #include <limits>
@@ -12,12 +12,12 @@
 #include "src/language/safe_types.h"
 #include "src/tests/fuzz.h"
 
-namespace afc::editor {
+namespace afc::language::text {
 GHOST_TYPE_NUMBER_WITH_DELTA(LineNumber, size_t, LineNumberDelta, int);
-}  // namespace afc::editor
-GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumber)
-GHOST_TYPE_TOP_LEVEL(afc::editor::LineNumberDelta)
-namespace afc::editor {
+}  // namespace afc::language::text
+GHOST_TYPE_TOP_LEVEL(afc::language::text::LineNumber)
+GHOST_TYPE_TOP_LEVEL(afc::language::text::LineNumberDelta)
+namespace afc::language::text {
 
 // First adds the line, then adds the column.
 struct LineColumnDelta {
@@ -33,11 +33,12 @@ std::ostream& operator<<(std::ostream& os, const LineColumnDelta& lc);
 bool operator==(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator<(const LineColumnDelta& a, const LineColumnDelta& b);
-
-namespace fuzz {
+}  // namespace afc::language::text
+namespace afc::editor::fuzz {
 template <>
-struct Reader<LineNumber> {
-  static std::optional<LineNumber> Read(fuzz::Stream& input_stream);
+struct Reader<afc::language::text::LineNumber> {
+  static std::optional<afc::language::text::LineNumber> Read(
+      fuzz::Stream& input_stream);
 };
 
 template <>
@@ -45,8 +46,9 @@ struct Reader<afc::language::lazy_string::ColumnNumber> {
   static std::optional<afc::language::lazy_string::ColumnNumber> Read(
       fuzz::Stream& input_stream);
 };
-}  // namespace fuzz
+}  // namespace afc::editor::fuzz
 
+namespace afc::language::text {
 // A position in a text buffer.
 struct LineColumn {
   LineColumn() = default;
@@ -103,14 +105,16 @@ struct LineColumn {
 };
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
-
-namespace fuzz {
+}  // namespace afc::language::text
+namespace afc::editor::fuzz {
 template <>
-struct Reader<LineColumn> {
-  static std::optional<LineColumn> Read(fuzz::Stream& input_stream);
+struct Reader<afc::language::text::LineColumn> {
+  static std::optional<afc::language::text::LineColumn> Read(
+      fuzz::Stream& input_stream);
 };
-}  // namespace fuzz
+}  // namespace afc::editor::fuzz
 
+namespace afc::language::text {
 // A range that contains every position i such that begin <= i < end.
 struct Range {
   Range() = default;
@@ -168,20 +172,21 @@ std::ostream& operator<<(std::ostream& os, const Range& range);
 
 bool operator<(const Range& a, const Range& b);
 
-}  // namespace afc::editor
+}  // namespace afc::language::text
 namespace std {
 template <>
-struct hash<afc::editor::LineColumn> {
-  std::size_t operator()(const afc::editor::LineColumn& line_column) const {
+struct hash<afc::language::text::LineColumn> {
+  std::size_t operator()(
+      const afc::language::text::LineColumn& line_column) const {
     return afc::language::compute_hash(line_column.line, line_column.column);
   }
 };
 template <>
-struct hash<afc::editor::Range> {
-  std::size_t operator()(const afc::editor::Range& range) const {
+struct hash<afc::language::text::Range> {
+  std::size_t operator()(const afc::language::text::Range& range) const {
     return afc::language::compute_hash(range.begin, range.end);
   }
 };
 }  // namespace std
 
-#endif
+#endif  // __AFC_LANGUAGE_TEXT_LINE_COLUMN_H__

@@ -60,6 +60,7 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
+using language::text::LineNumber;
 
 namespace gc = language::gc;
 

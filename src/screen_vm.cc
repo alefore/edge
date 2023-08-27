@@ -8,8 +8,8 @@
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
-#include "src/line_column_vm.h"
 #include "src/screen.h"
 #include "src/server.h"
 #include "src/vm/public/callbacks.h"
@@ -27,6 +27,9 @@ using language::VisitPointer;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumberDelta;
 
 namespace gc = language::gc;
 

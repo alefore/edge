@@ -31,12 +31,13 @@ class WidgetListHorizontal : public WidgetList {
   LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const override;
 
-  LineNumberDelta MinimumLines() const override;
-  LineNumberDelta DesiredLines() const override;
+  language::text::LineNumberDelta MinimumLines() const override;
+  language::text::LineNumberDelta DesiredLines() const override;
 
  private:
   LineWithCursor::Generator::Vector GetChildOutput(
-      OutputProducerOptions options, size_t index, LineNumberDelta lines) const;
+      OutputProducerOptions options, size_t index,
+      language::text::LineNumberDelta lines) const;
 };
 
 class WidgetListVertical : public WidgetList {
@@ -50,8 +51,8 @@ class WidgetListVertical : public WidgetList {
   LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const override;
 
-  LineNumberDelta MinimumLines() const override;
-  LineNumberDelta DesiredLines() const override;
+  language::text::LineNumberDelta MinimumLines() const override;
+  language::text::LineNumberDelta DesiredLines() const override;
 
  private:
   std::vector<language::lazy_string::ColumnNumberDelta> columns_per_child_;

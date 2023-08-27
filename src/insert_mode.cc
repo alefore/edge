@@ -50,6 +50,9 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
+using language::text::LineColumn;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 using vm::Type;
 using vm::VMTypeMapper;

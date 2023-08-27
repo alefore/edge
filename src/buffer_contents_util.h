@@ -5,12 +5,12 @@
 #include <string>
 
 #include "src/buffer_contents.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 namespace afc::editor {
 struct CurrentTokenOptions {
   const BufferContents& contents;
-  LineColumn line_column;
+  language::text::LineColumn line_column;
   std::wstring token_characters;
 };
 std::wstring GetCurrentToken(CurrentTokenOptions options);

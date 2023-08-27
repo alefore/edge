@@ -7,8 +7,8 @@
 
 #include "src/language/hash.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_column.h"
 #include "src/line.h"
-#include "src/line_column.h"
 
 namespace afc::editor {
 class Line;
@@ -17,11 +17,13 @@ struct LineWithCursor {
   // Callback that can generate a single line of output.
   struct Generator {
     struct Vector {
-      LineNumberDelta size() const { return LineNumberDelta(lines.size()); }
+      language::text::LineNumberDelta size() const {
+        return language::text::LineNumberDelta(lines.size());
+      }
       bool empty() const { return lines.empty(); }
-      Vector& resize(LineNumberDelta size);
+      Vector& resize(language::text::LineNumberDelta size);
 
-      Vector& PrependEmptyLines(LineNumberDelta size);
+      Vector& PrependEmptyLines(language::text::LineNumberDelta size);
 
       // Complexity is linear to the length of `tail`.
       Vector& Append(LineWithCursor::Generator::Vector tail);
@@ -81,8 +83,8 @@ struct LineWithCursor {
   std::optional<language::lazy_string::ColumnNumber> cursor = std::nullopt;
 };
 
-LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
-                                             LineNumberDelta times);
+LineWithCursor::Generator::Vector RepeatLine(
+    LineWithCursor line, language::text::LineNumberDelta times);
 
 }  // namespace afc::editor
 namespace std {

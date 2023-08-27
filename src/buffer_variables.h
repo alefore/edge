@@ -1,7 +1,7 @@
 #ifndef __AFC_EDITOR_BUFFER_VARIABLES_H__
 #define __AFC_EDITOR_BUFFER_VARIABLES_H__
 
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/variables.h"
 #include "vm/public/value.h"
 
@@ -80,8 +80,8 @@ extern EdgeVariable<double>* const beep_frequency_success;
 extern EdgeVariable<double>* const beep_frequency_failure;
 extern EdgeVariable<double>* const close_after_idle_seconds;
 
-EdgeStruct<LineColumn>* LineColumnStruct();
-extern EdgeVariable<LineColumn>* const view_start;
+EdgeStruct<language::text::LineColumn>* LineColumnStruct();
+extern EdgeVariable<language::text::LineColumn>* const view_start;
 
 // No variables currently, but we'll likely add some later.
 EdgeStruct<std::unique_ptr<vm::Value>>* ValueStruct();

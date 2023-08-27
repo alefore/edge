@@ -56,6 +56,8 @@ using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::text::LineColumnDelta;
+
 namespace gc = afc::language::gc;
 
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";

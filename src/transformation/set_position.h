@@ -4,19 +4,19 @@
 #include <memory>
 
 #include "src/futures/futures.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
 #include "src/vm/public/environment.h"
 
 namespace afc::editor::transformation {
 struct SetPosition {
-  explicit SetPosition(LineColumn position)
+  explicit SetPosition(language::text::LineColumn position)
       : line(position.line), column(position.column) {}
   explicit SetPosition(language::lazy_string::ColumnNumber input_column)
       : column(input_column) {}
 
-  std::optional<LineNumber> line;
+  std::optional<language::text::LineNumber> line;
   // If column is greater than the length of the line, goes to the end of the
   // line.
   language::lazy_string::ColumnNumber column;

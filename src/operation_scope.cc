@@ -10,8 +10,10 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
-using language::lazy_string::ColumnNumberDelta;
 namespace gc = language::gc;
+using language::lazy_string::ColumnNumberDelta;
+using language::text::LineColumnDelta;
+using language::text::LineNumberDelta;
 
 OperationScopeBufferInformation OperationScope::get(
     const OpenBuffer& buffer) const {

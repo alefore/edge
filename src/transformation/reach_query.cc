@@ -13,6 +13,11 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
+
 using ::operator<<;
 
 namespace {

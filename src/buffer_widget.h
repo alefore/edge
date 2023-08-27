@@ -17,7 +17,7 @@ struct BufferOutputProducerOutput {
   // been adjusted.
   //
   // It is the responsibility of the caller to propagate it to the buffer.
-  LineColumn view_start;
+  language::text::LineColumn view_start;
 };
 
 struct BufferOutputProducerInput {
@@ -27,7 +27,7 @@ struct BufferOutputProducerInput {
   // This is an input/output parameter: the viewer should update the state here.
   BufferDisplayData& buffer_display_data;
 
-  LineColumn view_start;
+  language::text::LineColumn view_start;
   enum class StatusBehavior { kShow, kIgnore };
   StatusBehavior status_behavior = StatusBehavior::kShow;
 };
@@ -57,10 +57,10 @@ class BufferWidget : public Widget {
   LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const override;
 
-  LineNumberDelta MinimumLines() const override;
-  LineNumberDelta DesiredLines() const override;
+  language::text::LineNumberDelta MinimumLines() const override;
+  language::text::LineNumberDelta DesiredLines() const override;
 
-  LineColumn view_start() const;
+  language::text::LineColumn view_start() const;
 
   // Custom methods.
   std::optional<language::gc::Root<OpenBuffer>> Lock() const;

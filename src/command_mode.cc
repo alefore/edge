@@ -29,8 +29,8 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/overload.h"
+#include "src/language/text/line_column.h"
 #include "src/language/wstring.h"
-#include "src/line_column.h"
 #include "src/line_prompt_mode.h"
 #include "src/map_mode.h"
 #include "src/navigate_command.h"
@@ -79,6 +79,7 @@ using language::ToByteString;
 using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
 
 namespace gc = language::gc;
 

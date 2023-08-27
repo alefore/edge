@@ -11,6 +11,7 @@ namespace afc::editor {
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
+using language::text::LineColumn;
 
 namespace {
 futures::Value<PossibleError> InsertHistoryBufferContents(OpenBuffer& output) {

@@ -4,7 +4,7 @@
 #include <string>
 
 #include "src/direction.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 
 namespace afc {
@@ -82,7 +82,7 @@ struct SeekInput {
   // Input-output parameter.
   //
   // TODO(easy, 2023-08-17): Replace with an output parameter.
-  LineColumn* position;
+  language::text::LineColumn* position;
 };
 void SeekToNext(SeekInput input);
 

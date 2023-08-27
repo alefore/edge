@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "src/buffer.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/line_with_cursor.h"
 #include "src/vm/public/environment.h"
 
@@ -15,7 +15,7 @@ class Widget {
   ~Widget() = default;
 
   struct OutputProducerOptions {
-    LineColumnDelta size;
+    language::text::LineColumnDelta size;
     enum class MainCursorDisplay {
       kActive,
       // The main cursor should be shown as inactive.
@@ -26,8 +26,8 @@ class Widget {
   virtual LineWithCursor::Generator::Vector CreateOutput(
       OutputProducerOptions options) const = 0;
 
-  virtual LineNumberDelta MinimumLines() const = 0;
-  virtual LineNumberDelta DesiredLines() const = 0;
+  virtual language::text::LineNumberDelta MinimumLines() const = 0;
+  virtual language::text::LineNumberDelta DesiredLines() const = 0;
 };
 }  // namespace afc::editor
 

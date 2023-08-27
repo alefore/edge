@@ -14,6 +14,10 @@ using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::Range;
+
 using ::operator<<;
 
 Bisect::Bisect(Structure structure, std::vector<Direction> directions)

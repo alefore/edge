@@ -5,7 +5,7 @@ extern "C" {
 }
 
 #include "src/language/safe_types.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/terminal.h"
 
 namespace afc::editor {
@@ -14,6 +14,9 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumberDelta;
 
 namespace {
 class ScreenCurses : public Screen {

@@ -3,7 +3,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_contents_view_layout.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/line_with_cursor.h"
 
 namespace afc {

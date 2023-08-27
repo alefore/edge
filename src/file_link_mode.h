@@ -101,7 +101,7 @@ struct ResolvePathOutput {
   infrastructure::Path path;
 
   // The position to jump to.
-  std::optional<LineColumn> position;
+  std::optional<language::text::LineColumn> position;
 
   // The pattern to jump to (after jumping to `position`).
   std::optional<std::wstring> pattern;
@@ -172,7 +172,8 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                             .Transform([input, output, state, path_with_prefix](
                                            ValidatorOutput validator_output) {
                               std::wstring output_pattern = L"";
-                              std::optional<LineColumn> output_position;
+                              std::optional<language::text::LineColumn>
+                                  output_position;
                               for (size_t i = 0; i < 2; i++) {
                                 while (state->str_end < input.path.size() &&
                                        ':' == input.path[state->str_end]) {
@@ -206,10 +207,12 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                                     break;
                                   }
                                   if (!output_position.has_value()) {
-                                    output_position = LineColumn();
+                                    output_position =
+                                        language::text::LineColumn();
                                   }
                                   if (i == 0) {
-                                    output_position->line = LineNumber(value);
+                                    output_position->line =
+                                        language::text::LineNumber(value);
                                   } else {
                                     output_position->column =
                                         ColumnNumber(value);

@@ -4,7 +4,7 @@
 #include <map>
 
 #include "src/concurrent/protected.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/operation_scope_buffer_information.h"
 
 namespace afc::editor {

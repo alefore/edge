@@ -25,6 +25,7 @@ namespace afc::editor {
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::LineNumberDelta;
 
 Widget::OutputProducerOptions GetChildOptions(
     Widget::OutputProducerOptions options, size_t index, size_t index_active) {

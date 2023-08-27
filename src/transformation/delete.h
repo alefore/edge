@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/text/line_column.h"
 #include "src/modifiers.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
@@ -29,7 +30,7 @@ struct Delete {
   // even in kPreview mode.
   std::optional<Input::Mode> mode = std::nullopt;
 
-  std::optional<Range> range = std::nullopt;
+  std::optional<language::text::Range> range = std::nullopt;
 
   enum class Initiator {
     // The delete transformation was directly initiated by the user, requesting

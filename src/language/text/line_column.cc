@@ -1,4 +1,4 @@
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 #include <glog/logging.h>
 
@@ -10,9 +10,7 @@
 #include "src/language/wstring.h"
 #include "src/vm/public/environment.h"
 
-namespace afc::editor {
-using language::MakeNonNullUnique;
-using language::NonNull;
+namespace afc::language::text {
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::EmptyString;
@@ -41,8 +39,11 @@ bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b) {
 bool operator<(const LineColumnDelta& a, const LineColumnDelta& b) {
   return a.line < b.line || (a.line == b.line && a.column < b.column);
 }
+}  // namespace afc::language::text
+namespace afc::editor::fuzz {
+using language::lazy_string::ColumnNumber;
+using language::text::LineNumber;
 
-namespace fuzz {
 std::optional<LineNumber> Reader<LineNumber>::Read(Stream& input_stream) {
   auto value = Reader<size_t>::Read(input_stream);
   if (!value.has_value()) {
@@ -53,9 +54,7 @@ std::optional<LineNumber> Reader<LineNumber>::Read(Stream& input_stream) {
   VLOG(9) << "Fuzz: Read: " << output;
   return output;
 };
-}  // namespace fuzz
 
-namespace fuzz {
 std::optional<ColumnNumber> Reader<ColumnNumber>::Read(Stream& input_stream) {
   auto value = Reader<size_t>::Read(input_stream);
   if (!value.has_value()) {
@@ -66,8 +65,8 @@ std::optional<ColumnNumber> Reader<ColumnNumber>::Read(Stream& input_stream) {
   VLOG(9) << "Fuzz: Read: " << output;
   return output;
 };
-}  // namespace fuzz
-
+}  // namespace afc::editor::fuzz
+namespace afc::language::text {
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
   os << "["
      << (lc.line == std::numeric_limits<LineNumber>::max()
@@ -148,7 +147,11 @@ std::wstring LineColumn::ToCppString() const {
   return L"LineColumn(" + to_wstring(line) + L", " + to_wstring(column) + L")";
 }
 
-namespace fuzz {
+}  // namespace afc::language::text
+namespace afc::editor::fuzz {
+using language::lazy_string::ColumnNumber;
+using language::text::LineColumn;
+using language::text::LineNumber;
 /* static */ std::optional<LineColumn> Reader<LineColumn>::Read(
     fuzz::Stream& input_stream) {
   auto line = Reader<LineNumber>::Read(input_stream);
@@ -161,5 +164,4 @@ namespace fuzz {
   VLOG(9) << "Fuzz: Read: " << output;
   return output;
 }
-}  // namespace fuzz
-}  // namespace afc::editor
+}  // namespace afc::editor::fuzz

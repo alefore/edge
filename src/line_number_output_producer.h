@@ -5,14 +5,14 @@
 #include <memory>
 
 #include "src/buffer_contents_view_layout.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
 
 namespace afc::editor {
 
 language::lazy_string::ColumnNumberDelta LineNumberOutputWidth(
-    LineNumberDelta lines_size);
+    language::text::LineNumberDelta lines_size);
 
 LineWithCursor::Generator::Vector LineNumberOutput(
     const OpenBuffer& buffer,

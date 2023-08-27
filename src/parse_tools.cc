@@ -3,6 +3,9 @@
 namespace afc::editor {
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::Range;
 
 /* static */ Action Action::SetFirstChildModifiers(LineModifierSet modifiers) {
   return Action(SET_FIRST_CHILD_MODIFIERS, ColumnNumber(), std::move(modifiers),

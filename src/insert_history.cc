@@ -6,6 +6,8 @@
 namespace afc::editor {
 using language::NonNull;
 using language::ValueOrError;
+using language::text::LineColumn;
+
 using ::operator<<;
 
 void InsertHistory::Append(const BufferContents& insertion) {

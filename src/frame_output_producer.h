@@ -5,7 +5,7 @@
 #include <string>
 
 #include "src/line.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 namespace afc::editor {
 

@@ -27,6 +27,8 @@ using language::Success;
 using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
+using language::text::LineColumn;
+using language::text::Range;
 
 using ::operator<<;
 

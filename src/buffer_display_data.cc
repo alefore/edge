@@ -1,10 +1,12 @@
 #include "src/buffer_display_data.h"
 
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 namespace afc::editor {
 using language::ObservableValue;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::LineColumnDelta;
+using language::text::LineNumberDelta;
 
 ObservableValue<LineColumnDelta>& BufferDisplayData::view_size() {
   return view_size_;

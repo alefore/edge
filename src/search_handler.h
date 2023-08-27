@@ -7,7 +7,7 @@
 #include "src/buffer_contents.h"
 #include "src/futures/delete_notification.h"
 #include "src/language/safe_types.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/line_prompt_mode.h"
 #include "src/predictor.h"
 
@@ -15,7 +15,6 @@ namespace afc {
 namespace editor {
 class EditorState;
 class OpenBuffer;
-struct LineColumn;
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
 
@@ -23,13 +22,13 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
 // to background threads.
 struct SearchOptions {
   // The position in which to start searching for positions.
-  LineColumn starting_position = {};
+  language::text::LineColumn starting_position = {};
 
   // The regular expression to search.
   std::wstring search_query;
 
   // An optional position where the search should stop.
-  std::optional<LineColumn> limit_position = std::nullopt;
+  std::optional<language::text::LineColumn> limit_position = std::nullopt;
 
   // If set, signals that it is okay for the search operation to stop once this
   // number of positions has been found.
@@ -42,12 +41,13 @@ struct SearchOptions {
   bool case_sensitive;
 };
 
-language::ValueOrError<std::vector<LineColumn>> SearchHandler(
+language::ValueOrError<std::vector<language::text::LineColumn>> SearchHandler(
     EditorState& editor_state, const SearchOptions& options,
     const BufferContents& buffer);
 
 void HandleSearchResults(
-    const language::ValueOrError<std::vector<LineColumn>>& results_or_error,
+    const language::ValueOrError<std::vector<language::text::LineColumn>>&
+        results_or_error,
     OpenBuffer& buffer);
 
 void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,

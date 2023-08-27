@@ -17,6 +17,10 @@ using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 namespace {
 enum State {

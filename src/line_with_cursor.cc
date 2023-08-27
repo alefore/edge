@@ -8,8 +8,8 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/padding.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_column.h"
 #include "src/line.h"
-#include "src/line_column.h"
 #include "src/tests/tests.h"
 namespace afc::editor {
 using ::operator<<;
@@ -19,6 +19,7 @@ using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
+using language::text::LineNumberDelta;
 
 LineWithCursor::Generator::Vector& LineWithCursor::Generator::Vector::resize(
     LineNumberDelta size) {

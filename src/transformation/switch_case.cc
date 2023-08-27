@@ -15,6 +15,9 @@
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::text::LineColumn;
+using language::text::LineNumberDelta;
+
 std::wstring SwitchCaseTransformation::Serialize() const {
   return L"SwitchCaseTransformation();";
 }

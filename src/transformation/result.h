@@ -3,12 +3,14 @@
 
 #include <memory>
 
+#include "src/language/text/line_column.h"
+
 namespace afc::editor {
 class OpenBuffer;
 namespace transformation {
 class Stack;
 struct Result {
-  Result(LineColumn input_position);
+  Result(language::text::LineColumn input_position);
   Result(Result&&);
   ~Result();
 
@@ -33,7 +35,7 @@ struct Result {
   bool added_to_paste_buffer = false;
 
   // Where should the cursor move to after the transformation?
-  LineColumn position;
+  language::text::LineColumn position;
 };
 }  // namespace transformation
 }  // namespace afc::editor

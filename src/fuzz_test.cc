@@ -10,6 +10,7 @@
 #include "src/terminal.h"
 
 using namespace afc::editor;
+using afc::language::text::LineColumn;
 
 unsigned int NextRandom() {
   static const bool read_from_stdin = getenv("EDGE_TEST_STDIN") != nullptr;

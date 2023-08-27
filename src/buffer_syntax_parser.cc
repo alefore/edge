@@ -13,6 +13,8 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Observers;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {

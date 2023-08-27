@@ -12,6 +12,10 @@ namespace afc::editor::parsers {
 namespace {
 using language::NonNull;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 enum State {
   DEFAULT,

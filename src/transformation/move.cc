@@ -8,6 +8,7 @@
 #include "src/buffer_variables.h"
 #include "src/direction.h"
 #include "src/editor.h"
+#include "src/language/text/line_column.h"
 #include "src/line_marks.h"
 #include "src/operation_scope.h"
 #include "src/structure_move.h"

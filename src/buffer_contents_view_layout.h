@@ -17,7 +17,7 @@ struct BufferContentsViewLayout {
     const BufferContents& contents;
 
     // If present, adjusts the view (`begin`) to contain this location.
-    std::optional<LineColumn> active_position;
+    std::optional<language::text::LineColumn> active_position;
 
     const CursorsSet& active_cursors;
 
@@ -26,26 +26,26 @@ struct BufferContentsViewLayout {
 
     // Maximum number of lines in the output. May return fewer lines (e.g., if
     // the contents are shorter).
-    LineNumberDelta lines_shown;
+    language::text::LineNumberDelta lines_shown;
 
-    LineNumberDelta status_lines;
+    language::text::LineNumberDelta status_lines;
 
     // Total number of columns in the output for buffer contents.
     language::lazy_string::ColumnNumberDelta columns_shown;
 
     // Initial position in the buffer where output will begin.
-    LineColumn begin;
+    language::text::LineColumn begin;
 
     // Number of lines above the buffer->position() that should be shown.
     // Ignored if
     // - less than lines_shown / 2, or
     // - active_position is nullopt.
-    LineNumberDelta margin_lines;
+    language::text::LineNumberDelta margin_lines;
   };
   static BufferContentsViewLayout Get(Input input);
 
   struct Line {
-    Range range;
+    language::text::Range range;
     bool has_active_cursor;
     // Returns the set of cursors that fall in the current range.
     //
@@ -60,7 +60,7 @@ struct BufferContentsViewLayout {
   // Update information on the buffer: set the requested start at this position.
   // This may not match the beginning of `lines` because the status may have
   // obstructed part of the view.
-  LineColumn view_start;
+  language::text::LineColumn view_start;
 };
 }  // namespace afc::editor
 namespace std {

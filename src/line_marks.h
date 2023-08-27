@@ -8,7 +8,7 @@
 
 #include "src/buffer_name.h"
 #include "src/language/lazy_string/lazy_string.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 namespace afc {
 namespace editor {
@@ -22,13 +22,13 @@ struct LineMarks {
     const BufferName source_buffer = BufferName(L"");
 
     // What line in the source did this mark occur in?
-    const LineNumber source_line;
+    const language::text::LineNumber source_line;
 
     // What buffer does this mark identify?
     const BufferName target_buffer = BufferName(L"");
 
     // The line marked.
-    const LineColumn target_line_column;
+    const language::text::LineColumn target_line_column;
   };
 
   // A mark whose source buffer was removed will be preserved for some time. In
@@ -49,7 +49,7 @@ struct LineMarks {
     const BufferName target_buffer = BufferName(L"");
 
     // The position marked.
-    const LineColumn target_line_column;
+    const language::text::LineColumn target_line_column;
   };
 
   void AddMark(Mark mark);
@@ -60,15 +60,15 @@ struct LineMarks {
                              const BufferName& source);
   void RemoveExpiredMarksFromSource(const BufferName& source);
 
-  const std::multimap<LineColumn, Mark>& GetMarksForTargetBuffer(
-      const BufferName& target_buffer) const;
-  const std::multimap<LineColumn, ExpiredMark>& GetExpiredMarksForTargetBuffer(
-      const BufferName& target_buffer) const;
+  const std::multimap<language::text::LineColumn, Mark>&
+  GetMarksForTargetBuffer(const BufferName& target_buffer) const;
+  const std::multimap<language::text::LineColumn, ExpiredMark>&
+  GetExpiredMarksForTargetBuffer(const BufferName& target_buffer) const;
 
  private:
   struct MarksMaps {
-    std::multimap<LineColumn, Mark> marks;
-    std::multimap<LineColumn, ExpiredMark> expired_marks;
+    std::multimap<language::text::LineColumn, Mark> marks;
+    std::multimap<language::text::LineColumn, ExpiredMark> expired_marks;
   };
 
   // First key is the source, second key is the target_buffer.

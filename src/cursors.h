@@ -11,14 +11,15 @@
 #include <vector>
 
 #include "src/futures/futures.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 namespace afc {
 namespace editor {
 
-// A multiset of LineColumn entries, with a specific one designated as the
-// "active" one. The LineColumn entries aren't bound to any specific buffer, so
-// they may exceed past the length of any and all buffers. The set may be empty.
+// A multiset of language::text::LineColumn entries, with a specific one
+// designated as the "active" one. The language::text::LineColumn entries aren't
+// bound to any specific buffer, so they may exceed past the length of any and
+// all buffers. The set may be empty.
 class CursorsSet {
  public:
   CursorsSet() = default;
@@ -30,34 +31,35 @@ class CursorsSet {
     return *this;
   }
 
-  using iterator = std::multiset<LineColumn>::iterator;
-  using const_iterator = std::multiset<LineColumn>::const_iterator;
+  using iterator = std::multiset<language::text::LineColumn>::iterator;
+  using const_iterator =
+      std::multiset<language::text::LineColumn>::const_iterator;
 
   // position must already be a value in the set (or we'll crash).
-  void SetCurrentCursor(LineColumn position);
+  void SetCurrentCursor(language::text::LineColumn position);
 
   // Remove the current cursor from the set, add a new cursor at the position,
   // and set that as the current cursor.
-  void MoveCurrentCursor(LineColumn position);
+  void MoveCurrentCursor(language::text::LineColumn position);
 
   // cursors must have at least two elements.
   void DeleteCurrentCursor();
 
   size_t size() const;
   bool empty() const;
-  iterator insert(LineColumn line);
+  iterator insert(language::text::LineColumn line);
 
-  iterator lower_bound(LineColumn line);
-  const_iterator lower_bound(LineColumn line) const;
+  iterator lower_bound(language::text::LineColumn line);
+  const_iterator lower_bound(language::text::LineColumn line) const;
 
-  iterator find(LineColumn line);
-  const_iterator find(LineColumn line) const;
+  iterator find(language::text::LineColumn line);
+  const_iterator find(language::text::LineColumn line) const;
 
   // Are there any cursors in a given line?
-  bool cursors_in_line(LineNumber line) const;
+  bool cursors_in_line(language::text::LineNumber line) const;
 
   void erase(iterator it);
-  void erase(LineColumn position);
+  void erase(language::text::LineColumn position);
 
   void swap(CursorsSet* other);
 
@@ -83,38 +85,41 @@ class CursorsSet {
   size_t current_index() const;
 
  private:
-  std::multiset<LineColumn> cursors_;
+  std::multiset<language::text::LineColumn> cursors_;
   // Must be equal to cursors_.end() iff cursors_ is empty.
-  std::multiset<LineColumn>::iterator active_ = cursors_.end();
+  std::multiset<language::text::LineColumn>::iterator active_ = cursors_.end();
 };
 
 class CursorsTracker {
  public:
   struct Transformation {
-    Transformation& WithBegin(LineColumn position) {
-      CHECK_EQ(range.begin, LineColumn());
+    Transformation& WithBegin(language::text::LineColumn position) {
+      CHECK_EQ(range.begin, language::text::LineColumn());
       range.begin = position;
       return *this;
     }
 
-    Transformation& WithEnd(LineColumn position) {
-      CHECK_EQ(range.end, LineColumn::Max());
+    Transformation& WithEnd(language::text::LineColumn position) {
+      CHECK_EQ(range.end, language::text::LineColumn::Max());
       range.end = position;
       return *this;
     }
 
-    Transformation& WithLineEq(LineNumber line) {
-      range.begin = LineColumn(line);
-      range.end = LineColumn(line + LineNumberDelta(1));
+    Transformation& WithLineEq(language::text::LineNumber line) {
+      range.begin = language::text::LineColumn(line);
+      range.end =
+          language::text::LineColumn(line + language::text::LineNumberDelta(1));
       return *this;
     }
 
-    CursorsTracker::Transformation LineDelta(LineNumberDelta delta) {
+    CursorsTracker::Transformation LineDelta(
+        language::text::LineNumberDelta delta) {
       line_delta = delta;
       return *this;
     }
 
-    CursorsTracker::Transformation LineLowerBound(LineNumber line) {
+    CursorsTracker::Transformation LineLowerBound(
+        language::text::LineNumber line) {
       line_lower_bound = line;
       return *this;
     }
@@ -131,18 +136,23 @@ class CursorsTracker {
       return *this;
     }
 
-    LineColumn Transform(const LineColumn& position) const;
-    Range TransformRange(const Range& input) const;
+    language::text::LineColumn Transform(
+        const language::text::LineColumn& position) const;
+    language::text::Range TransformRange(
+        const language::text::Range& input) const;
 
-    Range range = Range(LineColumn(), LineColumn::Max());
+    language::text::Range range = language::text::Range(
+        language::text::LineColumn(), language::text::LineColumn::Max());
 
     // Number of lines to add to a given cursor. For example, a cursor
-    // LineColumn(25, 2) will move to LineColumn(20, 2) if lines_delta is -5.
-    LineNumberDelta line_delta = LineNumberDelta();
+    // language::text::LineColumn(25, 2) will move to
+    // language::text::LineColumn(20, 2) if lines_delta is -5.
+    language::text::LineNumberDelta line_delta =
+        language::text::LineNumberDelta();
 
     // If lines_delta would leave the output line at a value smaller than this
     // one, goes with this one.
-    LineNumber line_lower_bound = LineNumber();
+    language::text::LineNumber line_lower_bound = language::text::LineNumber();
 
     // Number of columns to add to a given cursor.
     language::lazy_string::ColumnNumberDelta column_delta =
@@ -159,7 +169,7 @@ class CursorsTracker {
   CursorsTracker();
 
   // Returns the position of the current cursor.
-  LineColumn position() const;
+  language::text::LineColumn position() const;
 
   CursorsSet& FindOrCreateCursors(const std::wstring& name) {
     return cursors_[name];
@@ -178,7 +188,9 @@ class CursorsTracker {
   // position to which the cursor moves.
   futures::Value<language::EmptyValue> ApplyTransformationToCursors(
       CursorsSet& cursors,
-      std::function<futures::Value<LineColumn>(LineColumn)> callback);
+      std::function<futures::Value<language::text::LineColumn>(
+          language::text::LineColumn)>
+          callback);
 
   // Push current cursors into cursors_stack_ and returns size of stack.
   size_t Push();
@@ -201,11 +213,11 @@ class CursorsTracker {
 
     // A range that is known to not have any cursors after this transformation
     // is applied.
-    Range empty;
+    language::text::Range empty;
 
     // A range where we know that any cursors here were moved by this
     // transformation.
-    Range owned;
+    language::text::Range owned;
   };
 
   std::shared_ptr<std::list<ExtendedTransformation>>

@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "src/infrastructure/screen/line_modifier.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/line_with_cursor.h"
 
 namespace afc::editor {

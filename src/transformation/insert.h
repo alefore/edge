@@ -39,7 +39,7 @@ struct Insert {
 
   // If not present, will insert wherever the cursor is. If present, inserts the
   // text at this position.
-  std::optional<LineColumn> position = std::nullopt;
+  std::optional<language::text::LineColumn> position = std::nullopt;
 };
 
 void RegisterInsert(language::gc::Pool& pool, vm::Environment& environment);

@@ -25,7 +25,7 @@ struct StatusOutputOptions {
 
   // Size is the maximum size to generate; we may generate fewer lines (e.g., if
   // the status is empty).
-  LineColumnDelta size;
+  language::text::LineColumnDelta size;
 };
 
 LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options);

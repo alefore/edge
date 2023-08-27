@@ -1,4 +1,4 @@
-#include "src/line_column_vm.h"
+#include "src/language/text/line_column_vm.h"
 
 #include <set>
 #include <vector>
@@ -21,64 +21,68 @@ namespace gc = afc::language::gc;
 
 namespace afc::vm {
 template <>
-const types::ObjectName VMTypeMapper<NonNull<
-    std::shared_ptr<std::vector<editor::LineColumn>>>>::object_type_name =
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
+    std::vector<language::text::LineColumn>>>>::object_type_name =
     types::ObjectName(L"VectorLineColumn");
 
 template <>
-const types::ObjectName VMTypeMapper<
-    NonNull<std::shared_ptr<std::set<editor::LineColumn>>>>::object_type_name =
+const types::ObjectName VMTypeMapper<NonNull<
+    std::shared_ptr<std::set<language::text::LineColumn>>>>::object_type_name =
     types::ObjectName(L"SetLineColumn");
 
 /* static */
-editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value& value) {
-  return value.get_user_value<editor::LineColumn>(object_type_name).value();
-}
-
-/* static */
-gc::Root<Value> VMTypeMapper<editor::LineColumn>::New(
-    gc::Pool& pool, editor::LineColumn value) {
-  return Value::NewObject(pool, object_type_name,
-                          MakeNonNullShared<editor::LineColumn>(value));
-}
-
-const types::ObjectName VMTypeMapper<editor::LineColumn>::object_type_name =
-    types::ObjectName(L"LineColumn");
-
-/* static */
-editor::LineColumnDelta VMTypeMapper<editor::LineColumnDelta>::get(
+language::text::LineColumn VMTypeMapper<language::text::LineColumn>::get(
     Value& value) {
-  return value.get_user_value<editor::LineColumnDelta>(object_type_name)
+  return value.get_user_value<language::text::LineColumn>(object_type_name)
       .value();
 }
 
 /* static */
-gc::Root<Value> VMTypeMapper<editor::LineColumnDelta>::New(
-    gc::Pool& pool, editor::LineColumnDelta value) {
+gc::Root<Value> VMTypeMapper<language::text::LineColumn>::New(
+    gc::Pool& pool, language::text::LineColumn value) {
   return Value::NewObject(pool, object_type_name,
-                          MakeNonNullShared<editor::LineColumnDelta>(value));
+                          MakeNonNullShared<language::text::LineColumn>(value));
 }
 
 const types::ObjectName
-    VMTypeMapper<editor::LineColumnDelta>::object_type_name =
+    VMTypeMapper<language::text::LineColumn>::object_type_name =
+        types::ObjectName(L"LineColumn");
+
+/* static */
+language::text::LineColumnDelta
+VMTypeMapper<language::text::LineColumnDelta>::get(Value& value) {
+  return value.get_user_value<language::text::LineColumnDelta>(object_type_name)
+      .value();
+}
+
+/* static */
+gc::Root<Value> VMTypeMapper<language::text::LineColumnDelta>::New(
+    gc::Pool& pool, language::text::LineColumnDelta value) {
+  return Value::NewObject(
+      pool, object_type_name,
+      MakeNonNullShared<language::text::LineColumnDelta>(value));
+}
+
+const types::ObjectName
+    VMTypeMapper<language::text::LineColumnDelta>::object_type_name =
         types::ObjectName(L"LineColumnDelta");
 
 /* static */
-editor::Range VMTypeMapper<editor::Range>::get(Value& value) {
-  return value.get_user_value<editor::Range>(object_type_name).value();
+language::text::Range VMTypeMapper<language::text::Range>::get(Value& value) {
+  return value.get_user_value<language::text::Range>(object_type_name).value();
 }
 
 /* static */
-gc::Root<Value> VMTypeMapper<editor::Range>::New(gc::Pool& pool,
-                                                 editor::Range range) {
+gc::Root<Value> VMTypeMapper<language::text::Range>::New(
+    gc::Pool& pool, language::text::Range range) {
   return Value::NewObject(pool, object_type_name,
-                          MakeNonNullShared<editor::Range>(range));
+                          MakeNonNullShared<language::text::Range>(range));
 }
 
-const types::ObjectName VMTypeMapper<editor::Range>::object_type_name =
+const types::ObjectName VMTypeMapper<language::text::Range>::object_type_name =
     types::ObjectName(L"Range");
 }  // namespace afc::vm
-namespace afc::editor {
+namespace afc::language::text {
 using vm::Environment;
 using vm::NewCallback;
 using vm::ObjectType;
@@ -186,4 +190,4 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
   vm::container::Export<typename std::vector<LineColumn>>(pool, environment);
   vm::container::Export<typename std::set<LineColumn>>(pool, environment);
 }
-}  // namespace afc::editor
+}  // namespace afc::language::text

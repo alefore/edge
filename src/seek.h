@@ -3,23 +3,23 @@
 
 #include "src/buffer_contents.h"
 #include "src/direction.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 namespace afc {
 namespace editor {
 
 class Seek {
  public:
-  Seek(const BufferContents& contents, LineColumn* position);
+  Seek(const BufferContents& contents, language::text::LineColumn* position);
 
   enum Result { DONE, UNABLE_TO_ADVANCE };
 
   Seek& WrappingLines();
   Seek& WithDirection(Direction direction);
   Seek& Backwards();
-  Seek& WithRange(Range range);
+  Seek& WithRange(language::text::Range range);
 
-  Range range() const;
+  language::text::Range range() const;
   bool AtRangeEnd() const;
 
   wchar_t read() const;
@@ -43,17 +43,17 @@ class Seek {
   Result UntilLine(std::function<bool(const Line& line)> predicate) const;
 
  private:
-  bool Advance(LineColumn* position) const;
-  bool AdvanceLine(LineColumn* position) const;
+  bool Advance(language::text::LineColumn* position) const;
+  bool AdvanceLine(language::text::LineColumn* position) const;
 
   const BufferContents& contents_;
-  LineColumn* const position_;
+  language::text::LineColumn* const position_;
 
   bool wrapping_lines_ = false;
   Direction direction_ = Direction::kForwards;
 
   // Ensures that position will never move outside of this range.
-  Range range_;
+  language::text::Range range_;
 };
 
 }  // namespace editor

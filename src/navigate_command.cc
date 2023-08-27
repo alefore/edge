@@ -22,6 +22,8 @@ namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
+using language::text::LineColumn;
+using language::text::LineNumber;
 
 namespace {
 // TODO(easy, 2022-06-05): Template this by type?

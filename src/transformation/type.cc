@@ -4,6 +4,7 @@
 #include "src/transformation/composite.h"
 
 namespace afc::editor::transformation {
+using language::text::LineColumn;
 
 futures::Value<Result> Apply(Variant base_transformation, const Input& input) {
   return std::visit([&](auto& value) { return ApplyBase(value, input); },

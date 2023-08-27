@@ -39,8 +39,8 @@ extern "C" {
 #include "src/language/observers_gc.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
-#include "src/line_column_vm.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
 #include "src/run_command_handler.h"
@@ -101,6 +101,11 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";

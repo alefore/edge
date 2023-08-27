@@ -30,6 +30,8 @@ using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 /* static */ ColumnNumberDelta LineNumberOutputWidth(
     LineNumberDelta lines_size) {

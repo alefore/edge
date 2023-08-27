@@ -21,6 +21,11 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 namespace {
 // Arguments:

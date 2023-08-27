@@ -169,7 +169,7 @@ class EditorState {
   }
 
   void PushCurrentPosition();
-  void PushPosition(LineColumn position);
+  void PushPosition(language::text::LineColumn position);
   language::gc::Root<OpenBuffer> GetConsole();
   bool HasPositionsInStack();
   BufferPosition ReadPositionsStack();

@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
 
@@ -22,7 +22,7 @@ struct Action {
 
   static Action SetFirstChildModifiers(LineModifierSet modifiers);
 
-  void Execute(std::vector<ParseTree>* trees, LineNumber line);
+  void Execute(std::vector<ParseTree>* trees, language::text::LineNumber line);
 
   enum ActionType {
     PUSH,
@@ -61,10 +61,11 @@ struct ParseResults {
 class ParseData {
  public:
   ParseData(const BufferContents& buffer, std::vector<size_t> initial_states,
-            LineColumn limit)
+            language::text::LineColumn limit)
       : buffer_(buffer), seek_(buffer_, &position_) {
     parse_results_.states_stack = std::move(initial_states);
-    seek_.WithRange(Range(LineColumn(), limit)).WrappingLines();
+    seek_.WithRange(language::text::Range(language::text::LineColumn(), limit))
+        .WrappingLines();
   }
 
   const BufferContents& buffer() const { return buffer_; }
@@ -73,9 +74,11 @@ class ParseData {
 
   ParseResults* parse_results() { return &parse_results_; }
 
-  LineColumn position() const { return position_; }
+  language::text::LineColumn position() const { return position_; }
 
-  void set_position(LineColumn position) { position_ = position; }
+  void set_position(language::text::LineColumn position) {
+    position_ = position;
+  }
 
   int AddAndGetNesting() { return nesting_++; }
 
@@ -100,7 +103,7 @@ class ParseData {
  private:
   const BufferContents& buffer_;
   ParseResults parse_results_;
-  LineColumn position_;
+  language::text::LineColumn position_;
   Seek seek_;
   int nesting_ = 0;
 };

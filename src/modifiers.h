@@ -9,7 +9,7 @@
 
 #include "src/buffer_name.h"
 #include "src/direction.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/structure.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
@@ -23,7 +23,7 @@ struct BufferPosition {
   // The name of the buffer.
   BufferName buffer_name;
   // The position within the buffer.
-  LineColumn position;
+  language::text::LineColumn position;
 };
 
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);

@@ -7,6 +7,7 @@
 
 #include "src/direction.h"
 #include "src/futures/futures.h"
+#include "src/language/text/line_column.h"
 #include "src/line.h"
 #include "src/modifiers.h"
 #include "src/structure.h"
@@ -14,11 +15,11 @@
 
 namespace afc::editor {
 class OpenBuffer;
-struct LineColumn;
 
 // Goes to a given position and applies a transformation.
 transformation::Variant TransformationAtPosition(
-    const LineColumn& position, transformation::Variant transformation);
+    const language::text::LineColumn& position,
+    transformation::Variant transformation);
 
 // Returns a transformation that deletes superfluous characters (based on
 // OpenBuffer::variable_line_suffix_superfluous_characters) from the current

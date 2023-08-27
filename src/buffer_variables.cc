@@ -4,6 +4,8 @@ namespace afc {
 namespace editor {
 namespace buffer_variables {
 
+using language::text::LineColumn;
+
 EdgeStruct<bool>* BoolStruct() {
   static EdgeStruct<bool>* output = new EdgeStruct<bool>();
   return output;

@@ -31,6 +31,8 @@ using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
 
 namespace gc = language::gc;
 

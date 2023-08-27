@@ -20,6 +20,9 @@ using language::MakeNonNullShared;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
 
 void TestBufferContentsSnapshot() {
   BufferContents contents;

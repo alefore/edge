@@ -25,6 +25,10 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
 
 TerminalInputParser::TerminalInputParser(
     NonNull<std::unique_ptr<TerminalInputParser::Receiver>> receiver,

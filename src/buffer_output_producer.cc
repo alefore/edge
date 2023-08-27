@@ -12,8 +12,8 @@
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/text/line_column.h"
 #include "src/line.h"
-#include "src/line_column.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
@@ -31,6 +31,11 @@ using language::WithHash;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
+using language::text::Range;
 
 LineWithCursor::Generator ApplyVisualOverlay(
     VisualOverlayMap overlays, LineWithCursor::Generator generator) {

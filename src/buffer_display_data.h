@@ -1,26 +1,29 @@
 #ifndef __AFC_EDITOR_BUFFER_DISPLAY_DATA_H__
 #define __AFC_EDITOR_BUFFER_DISPLAY_DATA_H__
 
-#include "line_column.h"
 #include "src/language/observers.h"
+#include "src/language/text/line_column.h"
 
 namespace afc::editor {
 // Holds state related to a viewer (terminal) of a buffer.
 class BufferDisplayData {
  public:
-  language::ObservableValue<LineColumnDelta>& view_size();
-  const language::ObservableValue<LineColumnDelta>& view_size() const;
+  language::ObservableValue<language::text::LineColumnDelta>& view_size();
+  const language::ObservableValue<language::text::LineColumnDelta>& view_size()
+      const;
 
   // See max_display_width_.
   void AddDisplayWidth(language::lazy_string::ColumnNumberDelta display_width);
   language::lazy_string::ColumnNumberDelta max_display_width() const;
 
   // See min_vertical_prefix_size_.
-  void AddVerticalPrefixSize(LineNumberDelta vertical_prefix_size);
-  std::optional<LineNumberDelta> min_vertical_prefix_size() const;
+  void AddVerticalPrefixSize(
+      language::text::LineNumberDelta vertical_prefix_size);
+  std::optional<language::text::LineNumberDelta> min_vertical_prefix_size()
+      const;
 
  private:
-  language::ObservableValue<LineColumnDelta> view_size_;
+  language::ObservableValue<language::text::LineColumnDelta> view_size_;
 
   // The maximum width that has been found for a screen line corresponding to
   // this buffer, since the OpenBuffer instance was created. Includes all the
@@ -41,7 +44,8 @@ class BufferDisplayData {
   // jittering.
   //
   // Cleared when the buffer is reloaded.
-  std::optional<LineNumberDelta> min_vertical_prefix_size_ = std::nullopt;
+  std::optional<language::text::LineNumberDelta> min_vertical_prefix_size_ =
+      std::nullopt;
 };
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_BUFFER_DISPLAY_DATA_H__

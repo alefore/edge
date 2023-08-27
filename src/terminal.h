@@ -48,7 +48,7 @@ class Terminal {
     std::optional<language::lazy_string::ColumnNumber> cursor;
   };
 
-  void WriteLine(Screen& screen, LineNumber line,
+  void WriteLine(Screen& screen, language::text::LineNumber line,
                  LineWithCursor::Generator line_with_cursor);
 
   // Returns a DrawLine that can be used to draw a given line.
@@ -59,7 +59,7 @@ class Terminal {
   void AdjustPosition(Screen& screen);
 
   // Position at which the cursor should be placed in the screen, if known.
-  std::optional<LineColumn> cursor_position_;
+  std::optional<language::text::LineColumn> cursor_position_;
 
   // Value at position i is the hash of the line currently drawn at line i, if
   // known.

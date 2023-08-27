@@ -10,6 +10,7 @@
 #include "src/language/wstring.h"
 #include "src/tests/fuzz_testable.h"
 
+// TODO(trivial, 2023-08-27): Fix the namespaces.
 namespace afc {
 namespace editor {
 namespace fuzz {

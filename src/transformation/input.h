@@ -4,7 +4,7 @@
 #include <optional>
 
 #include "src/infrastructure/screen/line_modifier.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 namespace afc::editor {
 class OpenBuffer;
@@ -17,15 +17,16 @@ struct Input {
     virtual ~Adapter() = default;
     virtual const BufferContents& contents() const = 0;
 
-    virtual void SetActiveCursors(std::vector<LineColumn> positions) = 0;
-    virtual LineColumn InsertInPosition(
+    virtual void SetActiveCursors(
+        std::vector<language::text::LineColumn> positions) = 0;
+    virtual language::text::LineColumn InsertInPosition(
         const BufferContents& contents_to_insert,
-        const LineColumn& input_position,
+        const language::text::LineColumn& input_position,
         const std::optional<LineModifierSet>& modifiers) = 0;
   };
 
   explicit Input(Adapter& adapter, editor::OpenBuffer& input_buffer);
-  Input NewChild(LineColumn new_position) const;
+  Input NewChild(language::text::LineColumn new_position) const;
 
   // Input parameter.
   enum class Mode {
@@ -51,7 +52,7 @@ struct Input {
   editor::OpenBuffer* delete_buffer = nullptr;
 
   // Where should the transformation be applied?
-  editor::LineColumn position;
+  language::text::LineColumn position;
 };
 }  // namespace transformation
 }  // namespace afc::editor

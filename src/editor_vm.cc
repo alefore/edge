@@ -5,10 +5,10 @@
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/insert_history_buffer.h"
-#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/char_buffer.h"
+#include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
-#include "src/line_column_vm.h"
 #include "src/open_file_command.h"
 #include "src/run_command_handler.h"
 #include "src/server.h"
@@ -458,9 +458,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   RegisterTransformations(pool, value);
   Modifiers::Register(pool, value);
   ForkCommandOptions::Register(pool, value);
-  LineColumnRegister(pool, value);
-  LineColumnDeltaRegister(pool, value);
-  RangeRegister(pool, value);
+  language::text::LineColumnRegister(pool, value);
+  language::text::LineColumnDeltaRegister(pool, value);
+  language::text::RangeRegister(pool, value);
   return environment;
 }
 }  // namespace afc::editor

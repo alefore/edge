@@ -23,6 +23,9 @@ using infrastructure::Tracker;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineColumnDelta;
+using language::text::LineNumber;
 
 namespace gc = language::gc;
 

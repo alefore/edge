@@ -10,8 +10,8 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
-#include "src/line_column_vm.h"
 #include "src/line_prompt_mode.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
@@ -32,6 +32,9 @@ using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::Range;
 
 namespace gc = language::gc;
 namespace vm {

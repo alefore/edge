@@ -22,8 +22,8 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/observers.h"
+#include "src/language/text/line_column.h"
 #include "src/line.h"
-#include "src/line_column.h"
 #include "src/line_marks.h"
 #include "src/log.h"
 #include "src/parse_tree.h"
@@ -175,13 +175,13 @@ class OpenBuffer {
 
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(
-      LineNumber first, LineNumber last,
+      language::text::LineNumber first, language::text::LineNumber last,
       std::function<bool(const language::NonNull<std::shared_ptr<const Line>>&,
                          const language::NonNull<std::shared_ptr<const Line>>&)>
           compare);
 
-  LineNumberDelta lines_size() const;
-  LineNumber EndLine() const;
+  language::text::LineNumberDelta lines_size() const;
+  language::text::LineNumber EndLine() const;
 
   EditorMode& mode() const;
   language::NonNull<std::shared_ptr<EditorMode>> ResetMode();
@@ -189,10 +189,11 @@ class OpenBuffer {
   language::NonNull<std::shared_ptr<MapModeCommands>> default_commands();
 
   // Erases all lines in range [first, last).
-  void EraseLines(LineNumber first, LineNumber last);
+  void EraseLines(language::text::LineNumber first,
+                  language::text::LineNumber last);
 
   // Inserts a new line into the buffer at a given position.
-  void InsertLine(LineNumber line_position,
+  void InsertLine(language::text::LineNumber line_position,
                   language::NonNull<std::shared_ptr<Line>> line);
 
   // Can handle \n characters, breaking it into lines.
@@ -223,25 +224,27 @@ class OpenBuffer {
   void AppendLines(
       std::vector<language::NonNull<std::shared_ptr<const Line>>> lines);
 
-  void DeleteRange(const Range& range);
+  void DeleteRange(const language::text::Range& range);
 
   // If modifiers is present, applies it to every character (overriding the
   // modifiers from `insertion`; that is, from the input).
-  LineColumn InsertInPosition(const BufferContents& contents_to_insert,
-                              const LineColumn& position,
-                              const std::optional<LineModifierSet>& modifiers);
+  language::text::LineColumn InsertInPosition(
+      const BufferContents& contents_to_insert,
+      const language::text::LineColumn& position,
+      const std::optional<LineModifierSet>& modifiers);
 
   // See BufferContents::AdjustLineColumn.
   // TODO(trivial, 2023-08-24): Get rid of this method; switch all callers to
   // BufferContents.
-  LineColumn AdjustLineColumn(LineColumn position) const;
+  language::text::LineColumn AdjustLineColumn(
+      language::text::LineColumn position) const;
 
   // If the current cursor is in a valid line (i.e., it isn't past the last
   // line), adjusts the column to not be beyond the length of the line.
   void MaybeAdjustPositionCol();
   // If the line referenced is shorter than the position.column, extend it with
   // spaces.
-  void MaybeExtendLine(LineColumn position);
+  void MaybeExtendLine(language::text::LineColumn position);
 
   // Makes sure that the current line (position) is not greater than the number
   // of elements in contents().  Note that after this, it may still not be a
@@ -258,7 +261,8 @@ class OpenBuffer {
 
   // Removes all active cursors and replaces them with the ones given. The old
   // cursors are saved and can be restored with ToggleActiveCursors.
-  void set_active_cursors(const std::vector<LineColumn>& positions);
+  void set_active_cursors(
+      const std::vector<language::text::LineColumn>& positions);
 
   // Restores the last cursors available.
   void ToggleActiveCursors();
@@ -268,13 +272,15 @@ class OpenBuffer {
   // a mark (based on line_marks_).
   void SetActiveCursorsToMarks();
 
-  void set_current_cursor(LineColumn new_cursor);
+  void set_current_cursor(language::text::LineColumn new_cursor);
   void CreateCursor();
-  LineColumn FindNextCursor(LineColumn cursor, const Modifiers& modifiers);
+  language::text::LineColumn FindNextCursor(language::text::LineColumn cursor,
+                                            const Modifiers& modifiers);
   void DestroyCursor();
   void DestroyOtherCursors();
 
-  Range FindPartialRange(const Modifiers& modifiers, LineColumn position) const;
+  language::text::Range FindPartialRange(
+      const Modifiers& modifiers, language::text::LineColumn position) const;
 
   // Serializes the buffer into a string.  This is not particularly fast (it's
   // meant more for debugging/testing rather than for real use).
@@ -332,9 +338,10 @@ class OpenBuffer {
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
-  const std::multimap<LineColumn, LineMarks::Mark>& GetLineMarks() const;
-  const std::multimap<LineColumn, LineMarks::ExpiredMark>& GetExpiredLineMarks()
-      const;
+  const std::multimap<language::text::LineColumn, LineMarks::Mark>&
+  GetLineMarks() const;
+  const std::multimap<language::text::LineColumn, LineMarks::ExpiredMark>&
+  GetExpiredLineMarks() const;
   std::wstring GetLineMarksText() const;
 
   /////////////////////////////////////////////////////////////////////////////
@@ -380,7 +387,8 @@ class OpenBuffer {
   // May return nullptr if the current_cursor is at the end of file.
   const std::shared_ptr<const Line> current_line() const;
 
-  std::shared_ptr<const Line> LineAt(LineNumber line_number) const;
+  std::shared_ptr<const Line> LineAt(
+      language::text::LineNumber line_number) const;
 
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
@@ -431,8 +439,8 @@ class OpenBuffer {
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
 
-  const LineColumn position() const;
-  void set_position(const LineColumn& position);
+  const language::text::LineColumn position() const;
+  void set_position(const language::text::LineColumn& position);
 
   // Can return nullptr.
   enum class RemoteURLBehavior { kIgnore, kLaunchBrowser };
@@ -440,10 +448,10 @@ class OpenBuffer {
   OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior);
 
   // Returns the position of just after the last character of the current file.
-  LineColumn end_position() const;
+  language::text::LineColumn end_position() const;
 
-  void set_current_position_line(LineNumber line);
-  LineNumber current_position_line() const;
+  void set_current_position_line(language::text::LineNumber line);
+  language::text::LineNumber current_position_line() const;
   language::lazy_string::ColumnNumber current_position_col() const;
   void set_current_position_col(language::lazy_string::ColumnNumber column);
 
@@ -463,8 +471,10 @@ class OpenBuffer {
   const double& Read(const EdgeVariable<double>* variable) const;
   void Set(const EdgeVariable<double>* variable, double value);
 
-  const LineColumn& Read(const EdgeVariable<LineColumn>* variable) const;
-  void Set(const EdgeVariable<LineColumn>* variable, LineColumn value);
+  const language::text::LineColumn& Read(
+      const EdgeVariable<language::text::LineColumn>* variable) const;
+  void Set(const EdgeVariable<language::text::LineColumn>* variable,
+           language::text::LineColumn value);
 
   //////////////////////////////////////////////////////////////////////////////
   // Parse tree
@@ -479,7 +489,7 @@ class OpenBuffer {
   const ParseTree& current_tree(const ParseTree& root) const;
 
   language::NonNull<std::shared_ptr<const ParseTree>>
-  current_zoomed_out_parse_tree(LineNumberDelta lines) const;
+  current_zoomed_out_parse_tree(language::text::LineNumberDelta lines) const;
 
   const VisualOverlayMap& visual_overlay_map() const;
   // Returns the previous value.
@@ -493,16 +503,16 @@ class OpenBuffer {
   void MaybeStartUpdatingSyntaxTrees();
 
   futures::Value<transformation::Result> Apply(
-      transformation::Variant transformation, LineColumn position,
-      transformation::Input::Mode mode);
+      transformation::Variant transformation,
+      language::text::LineColumn position, transformation::Input::Mode mode);
   void UpdateTreeParser();
 
   void ProcessCommandInput(
       std::shared_ptr<language::lazy_string::LazyString> str);
 
   // Returns true if the position given is set to a value other than
-  // LineColumn::Max and the buffer has read past that position.
-  bool IsPastPosition(LineColumn position) const;
+  // language::text::LineColumn::Max and the buffer has read past that position.
+  bool IsPastPosition(language::text::LineColumn position) const;
 
   // Reads from one of the two FileDescriptorReader instances in the buffer
   // (i.e., `fd_` or `fd_error_`).
@@ -512,7 +522,7 @@ class OpenBuffer {
   void InsertLines(std::vector<language::NonNull<std::shared_ptr<const Line>>>);
 
   SeekInput NewSeekInput(Structure structure, Direction direction,
-                         LineColumn* position) const;
+                         language::text::LineColumn* position) const;
 
   const Options options_;
   const language::NonNull<std::unique_ptr<transformation::Input::Adapter>>
@@ -568,7 +578,7 @@ class OpenBuffer {
   EdgeStructInstance<std::wstring> string_variables_;
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;
-  EdgeStructInstance<LineColumn> line_column_variables_;
+  EdgeStructInstance<language::text::LineColumn> line_column_variables_;
 
   UndoState undo_state_;
 

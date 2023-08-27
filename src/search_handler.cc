@@ -30,6 +30,9 @@ using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::Range;
 
 namespace gc = language::gc;
 namespace audio = afc::infrastructure::audio;

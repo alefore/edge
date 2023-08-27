@@ -29,10 +29,10 @@ class CompositeTransformation {
 
   struct Input {
     EditorState& editor;
-    LineColumn original_position = LineColumn();
+    language::text::LineColumn original_position = language::text::LineColumn();
     // Adjusted to ensure that it is within the length of the current line.
-    LineColumn position = LineColumn();
-    Range range = Range();
+    language::text::LineColumn position = language::text::LineColumn();
+    language::text::Range range = language::text::Range();
     const OpenBuffer& buffer;
     Modifiers modifiers = Modifiers();
     transformation::Input::Mode mode = transformation::Input::Mode::kFinal;
@@ -40,7 +40,7 @@ class CompositeTransformation {
 
   class Output {
    public:
-    static Output SetPosition(LineColumn position);
+    static Output SetPosition(language::text::LineColumn position);
     static Output SetColumn(language::lazy_string::ColumnNumber column);
     Output();
     Output(Output&&);

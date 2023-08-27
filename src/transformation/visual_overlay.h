@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "src/futures/futures.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
 #include "src/visual_overlay.h"

@@ -1,7 +1,7 @@
 #include "src/transformation/insert.h"
 
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/line_column_vm.h"
+#include "src/language/text/line_column_vm.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
@@ -15,6 +15,8 @@ namespace afc {
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::LineColumn;
+using language::text::LineNumber;
 
 namespace gc = language::gc;
 namespace vm {

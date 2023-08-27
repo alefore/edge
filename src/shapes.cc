@@ -4,8 +4,8 @@
 
 #include <set>
 
-#include "src/line_column.h"
-#include "src/line_column_vm.h"
+#include "src/language/text/line_column.h"
+#include "src/language/text/line_column_vm.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
@@ -14,6 +14,9 @@ namespace afc ::editor {
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
 
 NonNull<std::shared_ptr<std::vector<std::wstring>>> Justify(
     NonNull<std::shared_ptr<std::vector<std::wstring>>> input, int width) {

@@ -10,7 +10,7 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
-#include "src/line_column_vm.h"
+#include "src/language/text/line_column_vm.h"
 #include "src/transformation/vm.h"
 
 namespace afc::vm {
@@ -61,6 +61,9 @@ using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
 using vm::EvaluationOutput;
 using vm::ObjectType;
 using vm::PurityType;
@@ -136,7 +139,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   RegisterBufferFields<EdgeStruct<double>, double>(
       pool, buffer_variables::DoubleStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
-  RegisterBufferFields<EdgeStruct<LineColumn>, LineColumn>(
+  RegisterBufferFields<EdgeStruct<language::text::LineColumn>, LineColumn>(
       pool, buffer_variables::LineColumnStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
 

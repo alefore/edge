@@ -12,7 +12,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::infrastructure::audio {
@@ -36,7 +36,8 @@ class TerminalInputParser : public fuzz::FuzzTestable {
     virtual ~Receiver() = default;
 
     // Erases all lines in range [first, last).
-    virtual void EraseLines(LineNumber first, LineNumber last) = 0;
+    virtual void EraseLines(language::text::LineNumber first,
+                            language::text::LineNumber last) = 0;
 
     virtual void AppendEmptyLine() = 0;
 
@@ -48,7 +49,8 @@ class TerminalInputParser : public fuzz::FuzzTestable {
     // displayed it. TerminalInputParser uses this to be notified when it
     // changes and propagate that information to the underlying file descriptor
     // (e.g., so that $LINES shell variable is updated).
-    virtual language::ObservableValue<LineColumnDelta>& view_size() = 0;
+    virtual language::ObservableValue<language::text::LineColumnDelta>&
+    view_size() = 0;
 
     virtual void Bell() = 0;
     virtual void Warn(std::wstring warning_text) = 0;
@@ -56,9 +58,9 @@ class TerminalInputParser : public fuzz::FuzzTestable {
     virtual const BufferContents& contents() = 0;
 
     // Return the position of the start of the current view.
-    virtual LineColumn current_widget_view_start() = 0;
+    virtual language::text::LineColumn current_widget_view_start() = 0;
 
-    virtual void JumpToPosition(LineColumn position) = 0;
+    virtual void JumpToPosition(language::text::LineColumn position) = 0;
   };
 
   TerminalInputParser(language::NonNull<std::unique_ptr<Receiver>> receiver,
@@ -67,8 +69,8 @@ class TerminalInputParser : public fuzz::FuzzTestable {
   // Propagates the last view size to buffer->fd().
   void UpdateSize();
 
-  LineColumn position() const;
-  void SetPosition(LineColumn position);
+  language::text::LineColumn position() const;
+  void SetPosition(language::text::LineColumn position);
 
   void ProcessCommandInput(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
@@ -79,14 +81,15 @@ class TerminalInputParser : public fuzz::FuzzTestable {
  private:
   struct Data {
     // The last size written to buffer->fd() by UpdateSize.
-    std::optional<LineColumnDelta> last_updated_size = std::nullopt;
+    std::optional<language::text::LineColumnDelta> last_updated_size =
+        std::nullopt;
 
     language::NonNull<std::unique_ptr<Receiver>> receiver;
 
     // TODO: Find a way to remove this? I.e. always use buffer_.
     BufferContents& contents;
 
-    LineColumn position = LineColumn();
+    language::text::LineColumn position = language::text::LineColumn();
   };
 
   static void InternalUpdateSize(Data& data);
@@ -98,7 +101,7 @@ class TerminalInputParser : public fuzz::FuzzTestable {
 
   void MoveToNextLine();
 
-  static LineColumnDelta LastViewSize(Data& data);
+  static language::text::LineColumnDelta LastViewSize(Data& data);
 
   const language::NonNull<std::shared_ptr<Data>> data_;
 };

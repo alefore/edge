@@ -1,8 +1,8 @@
 #ifndef __AFC_EDITOR_SCREEN_H__
 #define __AFC_EDITOR_SCREEN_H__
 
+#include "src/language/text/line_column.h"
 #include "src/line.h"
-#include "src/line_column.h"
 
 namespace afc {
 namespace editor {
@@ -51,14 +51,14 @@ class Screen {
   }
 
   virtual void SetCursorVisibility(CursorVisibility cursor_visibility) = 0;
-  virtual void Move(LineColumn position) = 0;
+  virtual void Move(language::text::LineColumn position) = 0;
   virtual void WriteString(
       const language::NonNull<
           std::shared_ptr<language::lazy_string::LazyString>>& str) = 0;
 
   virtual void SetModifier(LineModifier modifier) = 0;
 
-  virtual LineColumnDelta size() const = 0;
+  virtual language::text::LineColumnDelta size() const = 0;
 };
 
 }  // namespace editor

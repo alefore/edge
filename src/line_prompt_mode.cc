@@ -58,6 +58,9 @@ using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::EmptyString;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::LineColumn;
+using language::text::LineNumber;
+using language::text::LineNumberDelta;
 
 namespace gc = language::gc;
 namespace {

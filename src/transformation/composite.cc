@@ -2,7 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/editor.h"
-#include "src/line_column_vm.h"
+#include "src/language/text/line_column_vm.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
@@ -13,6 +13,7 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
+using language::text::LineColumn;
 
 namespace gc = language::gc;
 

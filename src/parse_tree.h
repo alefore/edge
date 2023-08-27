@@ -10,7 +10,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
-#include "src/line_column.h"
+#include "src/language/text/line_column.h"
 
 namespace afc::editor {
 class BufferContents;
@@ -43,11 +43,11 @@ class ParseTree {
 
   ParseTree() = default;
 
-  ParseTree(Range range);
+  ParseTree(language::text::Range range);
   ParseTree(const ParseTree& other);
 
-  Range range() const;
-  void set_range(Range range);
+  language::text::Range range() const;
+  void set_range(language::text::Range range);
 
   size_t depth() const;
 
@@ -82,7 +82,7 @@ class ParseTree {
   // The xor of the hashes of all children (including their positions).
   size_t children_hashes_ = 0;
 
-  Range range_;
+  language::text::Range range_;
   size_t depth_ = 0;
   LineModifierSet modifiers_;
   std::unordered_set<ParseTreeProperty> properties_;
@@ -95,14 +95,15 @@ ParseTree SimplifyTree(const ParseTree& tree);
 // Produces simplified (by SimplifyTree) copy of a simplified tree, where lines
 // are remapped from an input of `input_lines` lines to an output of exactly
 // `output_lines`.
-ParseTree ZoomOutTree(const ParseTree& input, LineNumberDelta input_lines,
-                      LineNumberDelta output_lines);
+ParseTree ZoomOutTree(const ParseTree& input,
+                      language::text::LineNumberDelta input_lines,
+                      language::text::LineNumberDelta output_lines);
 
 // Find the route down a given parse tree always selecting the first children
 // that ends after the current position. The children selected at each step may
 // not include the position (it may start after the position).
-ParseTree::Route FindRouteToPosition(const ParseTree& root,
-                                     const LineColumn& position);
+ParseTree::Route FindRouteToPosition(
+    const ParseTree& root, const language::text::LineColumn& position);
 
 std::vector<const ParseTree*> MapRoute(const ParseTree& root,
                                        const ParseTree::Route& route);
@@ -116,7 +117,8 @@ class TreeParser {
  public:
   static bool IsNull(TreeParser*);
 
-  virtual ParseTree FindChildren(const BufferContents& lines, Range range) = 0;
+  virtual ParseTree FindChildren(const BufferContents& lines,
+                                 language::text::Range range) = 0;
 };
 
 language::NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser();
