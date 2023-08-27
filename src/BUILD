@@ -30,9 +30,9 @@ cc_library(
     deps = [
         ":cursors",
         ":line",
-        ":line_column",
         "//src/language:const_tree",
         "//src/language:safe_types",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -42,7 +42,7 @@ cc_library(
     hdrs = ["buffer_contents_util.h"],
     deps = [
         ":buffer_contents",
-        ":line_column",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -58,8 +58,8 @@ cc_library(
     hdrs = ["buffer_display_data.h"],
     visibility = ["//src/transformation:__pkg__"],
     deps = [
-        ":line_column",
         "//src/language:observers",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -81,7 +81,6 @@ cc_library(
         ":cursors",
         ":file_descriptor_reader",
         ":line",
-        ":line_column",
         ":line_marks",
         ":log",
         ":parse_tree",
@@ -98,6 +97,7 @@ cc_library(
         "//src/language:observers",
         "//src/language/lazy_string",
         "//src/language/lazy_string:substring",
+        "//src/language/text:line_column",
         "//src/transformation:type",
         "//src/vm/public:environment",
         "//src/vm/public:value",
@@ -223,11 +223,11 @@ cc_library(
     hdrs = ["cursors.h"],
     visibility = ["//src/transformation:__pkg__"],
     deps = [
-        ":line_column",
         "//src/futures",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:char_buffer",
         "//src/language/lazy_string:substring",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -341,36 +341,6 @@ cc_library(
 )
 
 cc_library(
-    name = "line_column",
-    srcs = ["line_column.cc"],
-    hdrs = ["line_column.h"],
-    visibility = ["//src/transformation:__pkg__"],
-    deps = [
-        "//src/language:hash",
-        "//src/language:safe_types",
-        "//src/language/error:value_or_error",
-        "//src/language:wstring",
-        "//src/language/lazy_string",
-        "//src/language/lazy_string:char_buffer",
-        "//src/tests:fuzz",
-        "//src/vm/public:environment",
-    ],
-)
-
-cc_library(
-    name = "line_column_vm",
-    srcs = ["line_column_vm.cc"],
-    hdrs = ["line_column_vm.h"],
-    visibility = ["//src/transformation:__pkg__"],
-    deps = [
-        ":line_column",
-        "//src/language:safe_types",
-        "//src/vm/public:callbacks",
-        "//src/vm/public:container",
-    ],
-)
-
-cc_library(
     name = "line",
     srcs = [
         "line.cc",
@@ -379,7 +349,6 @@ cc_library(
         "line.h",
     ],
     deps = [
-        ":line_column",
         "//src/concurrent:protected",
         "//src/futures",
         "//src/futures:listenable_value",
@@ -389,6 +358,7 @@ cc_library(
         "//src/language/lazy_string",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:substring",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -399,8 +369,8 @@ cc_library(
     deps = [
         ":buffer_contents",
         ":buffer_name",
-        ":line_column",
         "//src/language/lazy_string",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -432,13 +402,13 @@ cc_library(
     ],
     deps = [
         ":line",
-        ":line_column",
         "//src/infrastructure:tracker",
         "//src/language:hash",
         "//src/language:safe_types",
         "//src/language/lazy_string",
         "//src/language/lazy_string:append",
         "//src/language/lazy_string:padding",
+        "//src/language/text:line_column",
         "//src/tests",
     ],
 )
@@ -477,8 +447,8 @@ cc_library(
     deps = [
         ":buffer_name",
         ":direction",
-        ":line_column",
         ":structure",
+        "//src/language/text:line_column",
         "//src/vm/public:callbacks",
         "//src/vm/public:environment",
     ],
@@ -524,8 +494,8 @@ cc_library(
     name = "operation_scope_buffer_information",
     hdrs = ["operation_scope_buffer_information.h"],
     deps = [
-        ":line_column",
         ":line_marks",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -546,8 +516,8 @@ cc_library(
     srcs = ["parse_tools.cc"],
     hdrs = ["parse_tools.h"],
     deps = [
-        ":line_column",
         ":seek",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -557,10 +527,10 @@ cc_library(
     hdrs = ["parse_tree.h"],
     deps = [
         ":buffer_contents",
-        ":line_column",
         "//src/infrastructure/screen:line_modifier",
         "//src/language:ghost_type",
         "//src/language:safe_types",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -751,10 +721,10 @@ cc_library(
     deps = [
         ":buffer_contents",
         ":direction",
-        ":line_column",
         ":parse_tree",
         ":seek",
         "//src/language/lazy_string",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -765,10 +735,10 @@ cc_library(
     deps = [
         ":buffer_contents",
         ":direction",
-        ":line_column",
         ":modifiers",
         ":operation_scope_buffer_information",
         "//src/language/lazy_string",
+        "//src/language/text:line_column",
         "//src/tests",
     ],
 )
@@ -786,7 +756,6 @@ cc_library(
     deps = [
         ":buffer_contents",
         ":buffer_name",
-        ":line_column",
         "//src/infrastructure:file_system_driver",
         "//src/infrastructure/screen:line_modifier",
         "//src/language:safe_types",
@@ -794,6 +763,7 @@ cc_library(
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
         "//src/language/lazy_string:substring",
+        "//src/language/text:line_column",
         "//src/tests:fuzz_testable",
     ],
 )
