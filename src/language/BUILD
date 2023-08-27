@@ -70,20 +70,6 @@ cc_library(
 )
 
 cc_library(
-    name = "value_or_error",
-    srcs = ["value_or_error.cc"],
-    hdrs = ["value_or_error.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":ghost_type",
-        ":overload",
-        ":safe_types",
-        ":wstring",
-        "//src/tests",
-    ],
-)
-
-cc_library(
     name = "wstring",
     srcs = ["wstring.cc"],
     hdrs = ["wstring.h"],
