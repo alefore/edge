@@ -93,9 +93,9 @@ const bool line_tests_registration = tests::Register(
       }}});
 }
 
-LineBuilder::LineBuilder(Line&& line) : data_(std::move(line.stable_fields_)) {}
+LineBuilder::LineBuilder(Line&& line) : data_(std::move(line.data_)) {}
 
-LineBuilder::LineBuilder(const Line& line) : data_(line.stable_fields_) {}
+LineBuilder::LineBuilder(const Line& line) : data_(line.data_) {}
 
 LineBuilder::LineBuilder(
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
@@ -443,8 +443,7 @@ void LineBuilder::ValidateInvariants() {}
 Line::Line(std::wstring x)
     : Line(Data{.contents = NewLazyString(std::move(x))}) {}
 
-Line::Line(const Line& line)
-    : stable_fields_(line.stable_fields_), hash_(ComputeHash(stable_fields_)) {}
+Line::Line(const Line& line) : data_(line.data_), hash_(ComputeHash(data_)) {}
 
 /* static */
 size_t Line::ComputeHash(const Line::Data& data) {
@@ -460,11 +459,11 @@ size_t Line::ComputeHash(const Line::Data& data) {
 }
 
 NonNull<std::shared_ptr<LazyString>> Line::contents() const {
-  return stable_fields_.contents;
+  return data_.contents;
 }
 
 ColumnNumber Line::EndColumn() const {
-  return ColumnNumber(0) + stable_fields_.contents->size();
+  return ColumnNumber(0) + data_.contents->size();
 }
 
 bool Line::empty() const { return EndColumn().IsZero(); }
@@ -482,7 +481,7 @@ NonNull<std::shared_ptr<LazyString>> Line::Substring(
 }
 
 std::shared_ptr<LazyString> Line::metadata() const {
-  if (const auto& metadata = stable_fields_.metadata; metadata.has_value())
+  if (const auto& metadata = data_.metadata; metadata.has_value())
     return metadata->value.get_copy()
         .value_or(metadata->initial_value)
         .get_shared();
@@ -492,32 +491,31 @@ std::shared_ptr<LazyString> Line::metadata() const {
 language::ValueOrError<futures::ListenableValue<
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
 Line::metadata_future() const {
-  if (const auto& metadata = stable_fields_.metadata; metadata.has_value()) {
+  if (const auto& metadata = data_.metadata; metadata.has_value()) {
     return metadata.value().value;
   }
   return Error(L"Line has no value.");
 }
 
 std::function<void()> Line::explicit_delete_observer() const {
-  return stable_fields_.explicit_delete_observer;
+  return data_.explicit_delete_observer;
 }
 
 std::optional<BufferLineColumn> Line::buffer_line_column() const {
-  return stable_fields_.buffer_line_column;
+  return data_.buffer_line_column;
 }
 
-Line::Line(Line::Data stable_fields)
-    : stable_fields_(std::move(stable_fields)),
-      hash_(ComputeHash(stable_fields_)) {
-  for (auto& m : stable_fields_.modifiers) {
+Line::Line(Line::Data data)
+    : data_(std::move(data)), hash_(ComputeHash(data_)) {
+  for (auto& m : data_.modifiers) {
     CHECK_LE(m.first, EndColumn()) << "Modifiers found past end of line.";
     CHECK(m.second.find(LineModifier::kReset) == m.second.end());
   }
 #if 0
   static Tracker tracker(L"Line::ValidateInvariants");
   auto call = tracker.Call();
-  ForEachColumn(Pointer(stable_fields_.contents).Reference(),
-                [&contents = stable_fields_.contents](ColumnNumber, wchar_t c) {
+  ForEachColumn(Pointer(data_.contents).Reference(),
+                [&contents = data_.contents](ColumnNumber, wchar_t c) {
                   CHECK(c != L'\n')
                       << "Line has newline character: " << contents->ToString();
                 });
@@ -526,7 +524,7 @@ Line::Line(Line::Data stable_fields)
 
 wint_t Line::Get(ColumnNumber column) const {
   CHECK_LT(column, EndColumn());
-  return stable_fields_.contents->get(column);
+  return data_.contents->get(column);
 }
 
 }  // namespace editor

@@ -72,10 +72,10 @@ class Line {
 
   std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers()
       const {
-    return stable_fields_.modifiers;
+    return data_.modifiers;
   }
   LineModifierSet end_of_line_modifiers() const {
-    return stable_fields_.end_of_line_modifiers;
+    return data_.end_of_line_modifiers;
   }
 
   std::function<void()> explicit_delete_observer() const;
@@ -114,13 +114,13 @@ class Line {
   friend class LineBuilder;
   friend class LineWithCursor;
 
-  explicit Line(Data stable_fields);
+  explicit Line(Data data);
   static std::size_t ComputeHash(const Line::Data& data);
 
   // TODO(trivial, 2023-08-27): Get rid of this method.
   wint_t Get(language::lazy_string::ColumnNumber column) const;
 
-  const Data stable_fields_;
+  const Data data_;
   const size_t hash_;
 };
 
