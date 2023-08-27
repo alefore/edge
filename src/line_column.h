@@ -6,15 +6,12 @@
 #include <string>
 #include <vector>
 
+#include "src/language/error/value_or_error.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/language/error/value_or_error.h"
 #include "src/tests/fuzz.h"
 
-namespace afc::language::gc {
-class Pool;
-}
 namespace afc::editor {
 GHOST_TYPE_NUMBER_WITH_DELTA(LineNumber, size_t, LineNumberDelta, int);
 }  // namespace afc::editor
