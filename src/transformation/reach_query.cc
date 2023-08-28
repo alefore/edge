@@ -180,15 +180,12 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
           afc::editor::VisualOverlay{
-              .content = line.Substring(match.second.column, kQueryLength)
-                             .get_shared(),
+              .content = line.Substring(match.second.column, kQueryLength),
               .modifiers = {LineModifier::kUnderline}}));
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second + kQueryLength,
           afc::editor::VisualOverlay{
-              .content =
-                  std::move(NewLazyString(ColumnNumberDelta(1), match.first)
-                                .get_unique()),
+              .content = NewLazyString(ColumnNumberDelta(1), match.first),
               .modifiers = LineModifierSet{LineModifier::kReverse,
                                            LineModifier::kWhite}}));
     }

@@ -9,6 +9,7 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/substring.h"
@@ -26,6 +27,7 @@ using language::hash_combine;
 using language::MakeNonNullShared;
 using language::MakeWithHash;
 using language::NonNull;
+using language::overload;
 using language::VisitPointer;
 using language::WithHash;
 using language::lazy_string::ColumnNumber;
@@ -39,10 +41,80 @@ using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::Range;
 
+void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
+                        LineBuilder& output_line) {
+  ColumnNumberDelta length =
+      std::visit(overload{[&](NonNull<std::shared_ptr<LazyString>> input) {
+                            return input->size();
+                          },
+                          [&](ColumnNumberDelta l) { return l; }},
+                 overlay.content);
+
+  if (column.ToDelta() > output_line.contents()->size()) return;
+  if ((column + length).ToDelta() > output_line.contents()->size())
+    length = output_line.contents()->size() - column.ToDelta();
+
+  std::map<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
+      modifiers = output_line.modifiers();
+
+  switch (overlay.behavior) {
+    case VisualOverlay::Behavior::kReplace:
+      modifiers.erase(modifiers.lower_bound(column),
+                      modifiers.lower_bound(column + length));
+      modifiers.insert({column, overlay.modifiers});
+      modifiers.insert({column + length, {}});
+      break;
+
+    case VisualOverlay::Behavior::kToggle:
+    case VisualOverlay::Behavior::kOn:
+      LineModifierSet last_modifiers;
+      if (modifiers.find(column) == modifiers.end()) {
+        auto bound = modifiers.lower_bound(column);
+        if (bound == modifiers.begin())
+          modifiers.insert({column, {}});
+        else if (bound != modifiers.end())
+          modifiers.insert({column, std::prev(bound)->second});
+        else if (modifiers.empty())
+          modifiers.insert({column, {}});
+        else
+          modifiers.insert({column, modifiers.rbegin()->second});
+      }
+      for (auto it = modifiers.find(column);
+           it != modifiers.end() && it->first < column + length; ++it) {
+        last_modifiers = it->second;
+        for (auto& m : overlay.modifiers) switch (overlay.behavior) {
+            case VisualOverlay::Behavior::kReplace:
+              LOG(FATAL) << "Invalid behavior; internal error.";
+              break;
+
+            case VisualOverlay::Behavior::kOn:
+              it->second.insert(m);
+              break;
+
+            case VisualOverlay::Behavior::kToggle:
+              ToggleModifier(m, it->second);
+          }
+      }
+      if (column.ToDelta() + length == output_line.contents()->size())
+        output_line.insert_end_of_line_modifiers(last_modifiers);
+      else
+        modifiers.insert({column + length, last_modifiers});
+  }
+
+  std::visit(overload{[&](NonNull<std::shared_ptr<LazyString>> input) {
+                        for (ColumnNumberDelta i; i < input->size(); ++i)
+                          output_line.SetCharacter(
+                              column + i, input->get(ColumnNumber() + i), {});
+                      },
+                      [&](ColumnNumberDelta) {}},
+             overlay.content);
+  output_line.set_modifiers(modifiers);
+}
+
 LineWithCursor::Generator ApplyVisualOverlay(
     VisualOverlayMap overlays, LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
-      std::nullopt, [overlays, generator]() {
+      std::nullopt, [overlays = std::move(overlays), generator]() {
         auto output = generator.generate();
         LineBuilder line_options(output.line.value());
         for (const std::pair<
@@ -55,21 +127,8 @@ LineWithCursor::Generator ApplyVisualOverlay(
                    key_entry : priority_entry.second)
             for (const std::pair<const LineColumn, VisualOverlay>& overlay :
                  key_entry.second) {
-              ColumnNumber column = overlay.first.column;
-              NonNull<std::shared_ptr<LazyString>> content = VisitPointer(
-                  overlay.second.content,
-                  [](NonNull<std::shared_ptr<LazyString>> input) {
-                    return input;
-                  },
-                  [&] {
-                    return Substring(line_options.contents(), column,
-                                     ColumnNumberDelta(1));
-                  });
-              for (ColumnNumberDelta i; i < content->size(); ++i) {
-                line_options.SetCharacter(column + i,
-                                          content->get(ColumnNumber() + i),
-                                          overlay.second.modifiers);
-              }
+              ApplyVisualOverlay(overlay.first.column, overlay.second,
+                                 line_options);
             }
 
         output.line = MakeNonNullShared<Line>(std::move(line_options).Build());

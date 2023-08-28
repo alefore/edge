@@ -2457,12 +2457,13 @@ void OpenBuffer::OnCursorMove() {
                   AdjustLineColumn(position()),
                   Range(view_start, view_start + view_size));
           for (const language::text::Range& range : ranges) {
+            CHECK_EQ(range.begin.line, range.end.line);
             visual_overlay_map_[kPriority][kKey].insert(
                 {range.begin,
-                 VisualOverlay{
-                     .content =
-                         nullptr,  // std::move(NewLazyString(L"foo").get_unique()),
-                     .modifiers = {LineModifier::kUnderline}}});
+                 VisualOverlay{.content = ColumnNumberDelta(range.end.column -
+                                                            range.begin.column),
+                               .modifiers = {LineModifier::kUnderline},
+                               .behavior = VisualOverlay::Behavior::kOn}});
           }
         },
         [] {});

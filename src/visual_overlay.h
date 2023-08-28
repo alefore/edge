@@ -3,6 +3,7 @@
 
 #include <map>
 #include <memory>
+#include <variant>
 
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type.h"
@@ -11,8 +12,15 @@
 
 namespace afc::editor {
 struct VisualOverlay {
-  std::shared_ptr<language::lazy_string::LazyString> content;  // May be null.
+  std::variant<
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
+      language::lazy_string::ColumnNumberDelta>
+      content = language::lazy_string::ColumnNumberDelta(1);
+
   LineModifierSet modifiers;
+
+  enum class Behavior { kReplace, kToggle, kOn };
+  Behavior behavior = Behavior::kReplace;
 
   bool operator==(const VisualOverlay& other) const {
     return content == other.content && modifiers == other.modifiers;
