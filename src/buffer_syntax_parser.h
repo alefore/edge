@@ -37,6 +37,13 @@ class BufferSyntaxParser {
 
   language::Observable& ObserveTrees();
 
+  // Based on `Data::tokens`, returns a list of all the ranges in the tree that
+  // intersect `relevant_range` and that contain exactly the token that's in
+  // `line_column`.
+  std::set<language::text::Range> GetRangesForToken(
+      language::text::LineColumn line_column,
+      language::text::Range relevant_range);
+
  private:
   mutable concurrent::ThreadPool thread_pool_ =
       concurrent::ThreadPool(1, nullptr);
@@ -52,6 +59,14 @@ class BufferSyntaxParser {
 
     language::NonNull<std::shared_ptr<const ParseTree>> tree =
         language::MakeNonNullShared<const ParseTree>(language::text::Range());
+
+    // We partition every leaf in `tree`. Each set in the partition contains all
+    // the leafs that have the same content. The value is the ID of a given
+    // partition and indexed `token_partition`.
+    std::unordered_map<language::text::Range, size_t> token_id;
+    // Stores the partition of tokens based on their content. The index are the
+    // values in `token_id`.
+    std::vector<std::set<language::text::Range>> token_partition;
 
     language::NonNull<std::shared_ptr<const ParseTree>> simplified_tree =
         language::MakeNonNullShared<const ParseTree>(language::text::Range());

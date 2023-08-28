@@ -532,6 +532,7 @@ class OpenBuffer {
 
   SeekInput NewSeekInput(Structure structure, Direction direction,
                          language::text::LineColumn* position) const;
+  void OnCursorMove();
 
   const Options options_;
   const language::NonNull<std::unique_ptr<transformation::Input::Adapter>>

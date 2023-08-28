@@ -2233,6 +2233,9 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
       .Transform([root_this = ptr_this_->ToRoot()](EmptyValue) {
         if (root_this.ptr()->last_transformation_stack_.empty())
           root_this.ptr()->undo_state_.CommitCurrent();
+
+        root_this.ptr()->OnCursorMove();
+
         // This proceeds in the background but we can only start it once the
         // transformation is evaluated (since we don't know the cursor
         // position otherwise).
@@ -2436,6 +2439,33 @@ void OpenBuffer::UpdateLastAction() {
               },
               [] {});
         }});
+  }
+}
+void OpenBuffer::OnCursorMove() {
+  BufferWidget& leaf = editor().buffer_tree().GetActiveLeaf();
+  static const VisualOverlayPriority kPriority = VisualOverlayPriority(0);
+  static const VisualOverlayKey kKey = VisualOverlayKey(L"token");
+  visual_overlay_map_[kPriority].erase(kKey);
+  if (std::optional<language::gc::Root<OpenBuffer>> leaf_buffer = leaf.Lock();
+      leaf_buffer.has_value() && &leaf_buffer->ptr().value() == this) {
+    LineColumn view_start = leaf.view_start();
+    VisitPointer(
+        display_data().view_size().Get(),
+        [&](LineColumnDelta view_size) {
+          std::set<language::text::Range> ranges =
+              buffer_syntax_parser_.GetRangesForToken(
+                  AdjustLineColumn(position()),
+                  Range(view_start, view_start + view_size));
+          for (const language::text::Range& range : ranges) {
+            visual_overlay_map_[kPriority][kKey].insert(
+                {range.begin,
+                 VisualOverlay{
+                     .content =
+                         nullptr,  // std::move(NewLazyString(L"foo").get_unique()),
+                     .modifiers = {LineModifier::kUnderline}}});
+          }
+        },
+        [] {});
   }
 }
 
