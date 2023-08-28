@@ -245,19 +245,21 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
   CompositeTransformation::Output output =
       CompositeTransformation::Output::SetPosition(center);
 
+  static const VisualOverlayPriority kPriority = VisualOverlayPriority(1);
+  static const VisualOverlayKey kKey = VisualOverlayKey(L"bisect");
   switch (input.mode) {
     case transformation::Input::Mode::kFinal:
       break;
     case transformation::Input::Mode::kPreview:
       VisualOverlayMap overlays;
       if (range.value().begin != center)
-        overlays.insert(
+        overlays[kPriority][kKey].insert(
             {range.value().begin,
              afc::editor::VisualOverlay{
                  .content = std::move(NewLazyString(L"⟦").get_unique()),
                  .modifiers = {LineModifier::kReverse}}});
       if (range.value().end != center)
-        overlays.insert(
+        overlays[kPriority][kKey].insert(
             {range.value().end,
              afc::editor::VisualOverlay{
                  .content = std::move(NewLazyString(L"⟧").get_unique()),

@@ -174,14 +174,16 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
   for (std::pair<Identifier, std::map<Identifier, LineColumn>> group :
        matches) {
     for (std::pair<Identifier, LineColumn> match : group.second) {
+      static const VisualOverlayPriority kPriority = VisualOverlayPriority(1);
+      static const VisualOverlayKey kKey = VisualOverlayKey(L"bisect");
       const Line& line = GetLine(match.second, input.buffer.contents());
-      overlays.insert(std::make_pair(
+      overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
           afc::editor::VisualOverlay{
               .content = line.Substring(match.second.column, kQueryLength)
                              .get_shared(),
               .modifiers = {LineModifier::kUnderline}}));
-      overlays.insert(std::make_pair(
+      overlays[kPriority][kKey].insert(std::make_pair(
           match.second + kQueryLength,
           afc::editor::VisualOverlay{
               .content =

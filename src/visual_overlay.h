@@ -19,8 +19,21 @@ struct VisualOverlay {
   }
 };
 
-using VisualOverlayMapInternal =
-    std::multimap<language::text::LineColumn, VisualOverlay>;
+GHOST_TYPE(VisualOverlayKey, std::wstring);
+
+// Larger numbers take precedence.
+GHOST_TYPE(VisualOverlayPriority, int);
+}  // namespace afc::editor
+
+GHOST_TYPE_TOP_LEVEL(afc::editor::VisualOverlayKey);
+GHOST_TYPE_TOP_LEVEL(afc::editor::VisualOverlayPriority);
+
+namespace afc::editor {
+using VisualOverlayMapInternal = std::map<
+    VisualOverlayPriority,
+    std::map<VisualOverlayKey,
+             std::multimap<language::text::LineColumn, VisualOverlay>>>;
+
 GHOST_TYPE_CONTAINER(VisualOverlayMap, VisualOverlayMapInternal);
 }  // namespace afc::editor
 

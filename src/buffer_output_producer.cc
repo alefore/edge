@@ -45,21 +45,32 @@ LineWithCursor::Generator ApplyVisualOverlay(
       std::nullopt, [overlays, generator]() {
         auto output = generator.generate();
         LineBuilder line_options(output.line.value());
-        for (std::pair<LineColumn, VisualOverlay> overlay : overlays) {
-          ColumnNumber column = overlay.first.column;
-          NonNull<std::shared_ptr<LazyString>> content = VisitPointer(
-              overlay.second.content,
-              [](NonNull<std::shared_ptr<LazyString>> input) { return input; },
-              [&] {
-                return Substring(line_options.contents(), column,
-                                 ColumnNumberDelta(1));
-              });
-          for (ColumnNumberDelta i; i < content->size(); ++i) {
-            line_options.SetCharacter(column + i,
-                                      content->get(ColumnNumber() + i),
-                                      overlay.second.modifiers);
-          }
-        }
+        for (const std::pair<
+                 const VisualOverlayPriority,
+                 std::map<VisualOverlayKey,
+                          std::multimap<LineColumn, VisualOverlay>>>&
+                 priority_entry : overlays)
+          for (const std::pair<const VisualOverlayKey,
+                               std::multimap<LineColumn, VisualOverlay>>&
+                   key_entry : priority_entry.second)
+            for (const std::pair<const LineColumn, VisualOverlay>& overlay :
+                 key_entry.second) {
+              ColumnNumber column = overlay.first.column;
+              NonNull<std::shared_ptr<LazyString>> content = VisitPointer(
+                  overlay.second.content,
+                  [](NonNull<std::shared_ptr<LazyString>> input) {
+                    return input;
+                  },
+                  [&] {
+                    return Substring(line_options.contents(), column,
+                                     ColumnNumberDelta(1));
+                  });
+              for (ColumnNumberDelta i; i < content->size(); ++i) {
+                line_options.SetCharacter(column + i,
+                                          content->get(ColumnNumber() + i),
+                                          overlay.second.modifiers);
+              }
+            }
 
         output.line = MakeNonNullShared<Line>(std::move(line_options).Build());
         return output;
@@ -200,6 +211,34 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
   };
   return generator;
 }
+
+VisualOverlayMap FilterOverlays(const OpenBuffer& buffer,
+                                const Range& screen_line_range) {
+  VisualOverlayMap output;
+  for (const std::pair<const VisualOverlayPriority,
+                       std::map<VisualOverlayKey,
+                                std::multimap<LineColumn, VisualOverlay>>>&
+           priority_entry : buffer.visual_overlay_map())
+    for (const std::pair<const VisualOverlayKey,
+                         std::multimap<LineColumn, VisualOverlay>>& key_entry :
+         priority_entry.second) {
+      std::multimap<LineColumn, VisualOverlay> overlay_map;
+      if (auto overlay_it = overlay_map.lower_bound(screen_line_range.begin);
+          overlay_it != overlay_map.end() &&
+          overlay_it->first < screen_line_range.end) {
+        while (overlay_it != overlay_map.end() &&
+               overlay_it->first < screen_line_range.end) {
+          CHECK_EQ(overlay_it->first.line, screen_line_range.end.line);
+          CHECK_GE(overlay_it->first.column, screen_line_range.begin.column);
+          output[priority_entry.first][key_entry.first].insert(std::make_pair(
+              overlay_it->first - screen_line_range.begin.column.ToDelta(),
+              overlay_it->second));
+          ++overlay_it;
+        }
+      }
+    }
+  return output;
+}
 }  // namespace
 
 LineWithCursor::Generator::Vector ProduceBufferView(
@@ -320,22 +359,9 @@ LineWithCursor::Generator::Vector ProduceBufferView(
       generator = LineHighlighter(std::move(generator));
     }
 
-    if (auto overlay_it =
-            buffer.visual_overlay_map().lower_bound(screen_line.range.begin);
-        overlay_it != buffer.visual_overlay_map().end() &&
-        overlay_it->first < screen_line.range.end) {
-      VisualOverlayMap overlays;
-      while (overlay_it != buffer.visual_overlay_map().end() &&
-             overlay_it->first < screen_line.range.end) {
-        CHECK_EQ(overlay_it->first.line, screen_line.range.end.line);
-        CHECK_GE(overlay_it->first.column, screen_line.range.begin.column);
-        overlays.insert(std::make_pair(
-            overlay_it->first - screen_line.range.begin.column.ToDelta(),
-            overlay_it->second));
-        ++overlay_it;
-      }
+    if (VisualOverlayMap overlays = FilterOverlays(buffer, screen_line.range);
+        !overlays.empty())
       generator = ApplyVisualOverlay(std::move(overlays), std::move(generator));
-    }
 
     output.lines.push_back(generator);
   }
