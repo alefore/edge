@@ -47,6 +47,11 @@ LineModifier ModifierFromString(std::string modifier) {
   return LineModifier::kReset;  // Ugh.
 }
 
+void ToggleModifier(LineModifier m, LineModifierSet& output) {
+  if (auto results = output.insert(m); !results.second)
+    output.erase(results.first);
+}
+
 std::ostream& operator<<(std::ostream& os, const LineModifierSet& s) {
   std::string separator;
   os << "{";

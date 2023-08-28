@@ -33,6 +33,8 @@ using LineModifierSet =
 std::string ModifierToString(LineModifier modifier);
 LineModifier ModifierFromString(std::string modifier);
 
+void ToggleModifier(LineModifier m, LineModifierSet& output);
+
 std::ostream& operator<<(std::ostream& os, const LineModifierSet& s);
 
 }  // namespace afc::editor
