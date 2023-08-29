@@ -31,10 +31,14 @@ enum State {
   LINK,
   LINK_TEXT,
   LINK_URL,
+  SYMBOL,
 };
 
 class MarkdownParser : public TreeParser {
  public:
+  MarkdownParser(std::wstring symbol_characters)
+      : symbol_characters_(std::move(symbol_characters)) {}
+
   ParseTree FindChildren(const BufferContents& buffer, Range range) override {
     std::vector<size_t> states_stack = {DEFAULT};
     std::vector<ParseTree> trees = {ParseTree(range)};
@@ -112,9 +116,19 @@ class MarkdownParser : public TreeParser {
           HandleCloseLinkUrl(result);
           break;
         default:
-          seek.Once();
+          if (IsSymbol(seek.read())) {
+            result->Push(SYMBOL, ColumnNumberDelta(), {}, {});
+            while (!seek.AtRangeEnd() && IsSymbol(seek.read())) seek.Once();
+            result->PopBack();
+          } else {
+            seek.Once();
+          }
       }
     }
+  }
+
+  bool IsSymbol(int c) const {
+    return symbol_characters_.find(c) != symbol_characters_.npos;
   }
 
   void HandleOpenLink(ParseData* result) {
@@ -290,10 +304,13 @@ class MarkdownParser : public TreeParser {
     result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column.ToDelta(), {modifiers});
   }
+
+  const std::wstring symbol_characters_;
 };
 }  // namespace
 
-NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser() {
-  return NonNull<std::unique_ptr<MarkdownParser>>();
+NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
+    std::wstring symbol_characters) {
+  return NonNull<std::unique_ptr<MarkdownParser>>(std::move(symbol_characters));
 }
 }  // namespace afc::editor::parsers

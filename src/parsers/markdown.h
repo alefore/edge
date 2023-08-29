@@ -9,7 +9,8 @@
 namespace afc {
 namespace editor {
 namespace parsers {
-language::NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser();
+language::NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
+    std::wstring symbol_characters);
 }  // namespace parsers
 }  // namespace editor
 }  // namespace afc
