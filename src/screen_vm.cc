@@ -219,8 +219,8 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       L"set_size",
       vm::NewCallback(
           pool, PurityType::kUnknown,
-          [&pool](NonNull<std::shared_ptr<Screen>> screen,
-                  LineColumnDelta line_column_delta) {
+          [](NonNull<std::shared_ptr<Screen>> screen,
+             LineColumnDelta line_column_delta) {
             return futures::Past(VisitPointer(
                 NonNull<std::shared_ptr<ScreenVm>>::DynamicCast(screen),
                 [line_column_delta](
