@@ -15,7 +15,7 @@ namespace vm {
 using std::unique_ptr;
 
 class Expression;
-class Compilation;
+struct Compilation;
 
 language::NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     language::NonNull<std::unique_ptr<Expression>> func,

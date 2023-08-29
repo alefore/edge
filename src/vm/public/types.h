@@ -106,7 +106,7 @@ wstring TypesToString(const std::unordered_set<Type>& types);
 
 std::ostream& operator<<(std::ostream& os, const Type& value);
 
-struct Value;
+class Value;
 
 class ObjectType {
  private:
