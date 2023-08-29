@@ -36,7 +36,7 @@ class Bag {
   Bag& operator=(Bag&&) = default;
 
   struct iterator {
-    std::list<T>::iterator it;
+    typename std::list<T>::iterator it;
     size_t shard;
   };
 
@@ -159,7 +159,7 @@ class BagIterators {
       : bag_(bag), iterator_shards_(bag_.shards_.size()) {}
   BagIterators(BagIterators&&) = default;
 
-  void Add(Bag<T>::iterator it) {
+  void Add(typename Bag<T>::iterator it) {
     CHECK_EQ(iterator_shards_.size(), bag_.shards_.size());
     CHECK_LT(it.shard, iterator_shards_.size());
 
