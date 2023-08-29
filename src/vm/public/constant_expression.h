@@ -8,7 +8,7 @@
 
 namespace afc::vm {
 class Expression;
-struct Value;
+class Value;
 
 language::NonNull<std::unique_ptr<Expression>> NewVoidExpression(
     language::gc::Pool& pool);
