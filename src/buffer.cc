@@ -121,60 +121,76 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
       buffer.Read(buffer_variables::vm_lines_evaluation))
     return line;
 
-  auto compilation_result = buffer.CompileString(line->contents()->ToString());
-  if (IsError(compilation_result)) return line;
-  auto [expr, sub_environment] =
-      ValueOrDie(std::move(compilation_result), L"UpdateLineMetadata");
-  futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>> metadata_value(
-      futures::Future<NonNull<std::shared_ptr<LazyString>>>().value);
+  return std::visit(
+      overload{
+          [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
+                        language::gc::Root<vm::Environment>>
+                  compilation_result) {
+            futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>>
+                metadata_value(
+                    futures::Future<NonNull<std::shared_ptr<LazyString>>>()
+                        .value);
 
-  std::wstring description = L"C++: " + vm::TypesToString(expr->Types());
-  switch (expr->purity()) {
-    case vm::PurityType::kPure:
-    case vm::PurityType::kReader: {
-      description += L" ...";
-      if (expr->Types() == std::vector<vm::Type>({vm::types::Void{}})) {
-        LineBuilder line_builder(line.value());
-        line_builder.SetMetadata(std::nullopt);
-        return MakeNonNullShared<const Line>(std::move(line_builder).Build());
-      }
-      futures::Future<NonNull<std::shared_ptr<LazyString>>> metadata_future;
-      buffer.work_queue()->Schedule(WorkQueue::Callback{
-          .callback = [buffer = buffer.NewRoot(),
-                       expr = NonNull<std::shared_ptr<vm::Expression>>(
-                           std::move(expr)),
-                       sub_environment, consumer = metadata_future.consumer] {
-            buffer.ptr()
-                ->EvaluateExpression(expr.value(), sub_environment)
-                .Transform([](gc::Root<vm::Value> value) {
-                  std::ostringstream oss;
-                  oss << value.ptr().value();
-                  // TODO(2022-04-26): Improve futures to be able to remove
-                  // Success.
-                  return Success(NewLazyString(FromByteString(oss.str())));
-                })
-                .ConsumeErrors([](Error error) {
-                  return futures::Past(
-                      NewLazyString(L"E: " + std::move(error.read())));
-                })
-                .Transform(
-                    [consumer](NonNull<std::shared_ptr<LazyString>> output) {
-                      consumer(output);
-                      return Success();
-                    });
-          }});
-      metadata_value = std::move(metadata_future.value);
-    } break;
-    case vm::PurityType::kUnknown:
-      break;
-  }
+            std::wstring description =
+                L"C++: " + vm::TypesToString(compilation_result.first->Types());
+            switch (compilation_result.first->purity()) {
+              case vm::PurityType::kPure:
+              case vm::PurityType::kReader: {
+                description += L" ...";
+                if (compilation_result.first->Types() ==
+                    std::vector<vm::Type>({vm::types::Void{}})) {
+                  LineBuilder line_builder(line.value());
+                  line_builder.SetMetadata(std::nullopt);
+                  return MakeNonNullShared<const Line>(
+                      std::move(line_builder).Build());
+                }
+                futures::Future<NonNull<std::shared_ptr<LazyString>>>
+                    metadata_future;
+                NonNull<std::shared_ptr<vm::Expression>> expr =
+                    std::move(compilation_result.first);
+                buffer.work_queue()->Schedule(WorkQueue::Callback{
+                    .callback = [buffer = buffer.NewRoot(),
+                                 expr = std::move(expr),
+                                 sub_environment =
+                                     std::move(compilation_result.second),
+                                 consumer = metadata_future.consumer] {
+                      buffer.ptr()
+                          ->EvaluateExpression(expr.value(), sub_environment)
+                          .Transform([](gc::Root<vm::Value> value) {
+                            std::ostringstream oss;
+                            oss << value.ptr().value();
+                            // TODO(2022-04-26): Improve futures to be able to
+                            // remove Success.
+                            return Success(
+                                NewLazyString(FromByteString(oss.str())));
+                          })
+                          .ConsumeErrors([](Error error) {
+                            return futures::Past(NewLazyString(
+                                L"E: " + std::move(error.read())));
+                          })
+                          .Transform(
+                              [consumer](
+                                  NonNull<std::shared_ptr<LazyString>> output) {
+                                consumer(output);
+                                return Success();
+                              });
+                    }});
+                metadata_value = std::move(metadata_future.value);
+              } break;
+              case vm::PurityType::kUnknown:
+                break;
+            }
 
-  LineBuilder line_builder(line.value());
-  line_builder.SetMetadata(language::text::LineMetadataEntry{
-      .initial_value = NewLazyString(description),
-      .value = std::move(metadata_value)});
+            LineBuilder line_builder(line.value());
+            line_builder.SetMetadata(language::text::LineMetadataEntry{
+                .initial_value = NewLazyString(description),
+                .value = std::move(metadata_value)});
 
-  return MakeNonNullShared<const Line>(std::move(line_builder).Build());
+            return MakeNonNullShared<const Line>(
+                std::move(line_builder).Build());
+          },
+          [&](Error) { return line; }},
+      buffer.CompileString(line->contents()->ToString()));
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
@@ -236,16 +252,16 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
  public:
   TransformationInputAdapterImpl(OpenBuffer& buffer) : buffer_(buffer) {}
 
-  virtual const BufferContents& contents() const { return buffer_.contents(); }
+  const BufferContents& contents() const override { return buffer_.contents(); }
 
   void SetActiveCursors(std::vector<LineColumn> positions) override {
     buffer_.set_active_cursors(std::move(positions));
   }
 
-  virtual LineColumn InsertInPosition(
+  LineColumn InsertInPosition(
       const BufferContents& contents_to_insert,
       const LineColumn& input_position,
-      const std::optional<LineModifierSet>& modifiers) {
+      const std::optional<LineModifierSet>& modifiers) override {
     return buffer_.InsertInPosition(contents_to_insert, input_position,
                                     modifiers);
   }
@@ -1549,7 +1565,7 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
 
     BufferName name() override { return buffer_.name(); }
 
-    std::optional<infrastructure::FileDescriptor> fd() {
+    std::optional<infrastructure::FileDescriptor> fd() override {
       if (const FileDescriptorReader* fd = buffer_.fd(); fd != nullptr)
         return fd->fd();
       return std::nullopt;
