@@ -29,21 +29,15 @@ void LineMarks::RemoveSource(const BufferName& source) {
   for (auto& [target, source_target_marks] : it->second) {
     auto& target_marks = marks_by_target[target];
 
-    for (auto it = target_marks.marks.begin();
-         it != target_marks.marks.end();) {
-      if (it->second.source_buffer == source)
-        target_marks.marks.erase(it++);
-      else
-        ++it;
-    }
+    std::erase_if(target_marks.marks,
+                  [&](const std::pair<LineColumn, const Mark>& entry) {
+                    return entry.second.source_buffer == source;
+                  });
 
-    for (auto it = target_marks.expired_marks.begin();
-         it != target_marks.expired_marks.end();) {
-      if (it->second.source_buffer == source)
-        target_marks.expired_marks.erase(it++);
-      else
-        ++it;
-    }
+    std::erase_if(target_marks.expired_marks,
+                  [&](const std::pair<LineColumn, const ExpiredMark>& entry) {
+                    return entry.second.source_buffer == source;
+                  });
   }
   marks_by_source_target.erase(it);
 }
@@ -103,14 +97,10 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
     targets_to_process.push_back(target);
   }
   for (auto& target : targets_to_process) {
-    std::multimap<LineColumn, ExpiredMark>& target_expired_marks =
-        marks_by_target[target].expired_marks;
-    for (auto it = target_expired_marks.begin();
-         it != target_expired_marks.end();)
-      if (it->second.source_buffer == source)
-        target_expired_marks.erase(it++);
-      else
-        ++it;
+    std::erase_if(marks_by_target[target].expired_marks,
+                  [&](const std::pair<LineColumn, ExpiredMark>& entry) {
+                    return entry.second.source_buffer == source;
+                  });
   }
 }
 
