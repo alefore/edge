@@ -329,7 +329,8 @@ class State {
             return GetTransformation(operation_scope_, t);
           },
           command));
-      separator = transformation::VisualOverlay(VisualOverlayMap());
+      separator = transformation::VisualOverlay{.visual_overlay_map =
+                                                    VisualOverlayMap()};
     }
     stack.post_transformation_behavior =
         top_command_.post_transformation_behavior;
