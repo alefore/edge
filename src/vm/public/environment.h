@@ -4,16 +4,19 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
+#include "src/vm/public/callbacks.h"
 #include "src/vm/public/types.h"
 
 namespace afc::vm {
 
-struct Value;
+class Value;
 class ObjectType;
 namespace types {
 class ObjectName;
@@ -84,6 +87,14 @@ class Environment {
   const std::optional<language::gc::Ptr<Environment>> parent_environment_ =
       std::nullopt;
 };
+
+template <>
+const types::ObjectName VMTypeMapper<language::NonNull<
+    std::shared_ptr<std::vector<std::wstring>>>>::object_type_name;
+
+template <>
+const types::ObjectName VMTypeMapper<language::NonNull<
+    std::shared_ptr<std::set<std::wstring>>>>::object_type_name;
 
 }  // namespace afc::vm
 namespace afc::language::gc {
