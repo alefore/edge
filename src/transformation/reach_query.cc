@@ -190,6 +190,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
                                            LineModifier::kWhite}}));
     }
   }
-  return futures::Past(Output(VisualOverlay(std::move(overlays))));
+  return futures::Past(
+      Output(VisualOverlay{.visual_overlay_map = std::move(overlays)}));
 }
 }  // namespace afc::editor::transformation
