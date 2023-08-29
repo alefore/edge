@@ -7,8 +7,8 @@
 #include <unordered_set>
 
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/wstring.h"
 #include "src/language/text/line.h"
+#include "src/language/wstring.h"
 
 namespace afc {
 namespace editor {
@@ -19,6 +19,8 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewCopyCharBuffer;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 
 template <typename C, typename V>
 void CheckSingleton(C const container, V value) {

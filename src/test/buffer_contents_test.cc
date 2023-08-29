@@ -8,6 +8,7 @@
 
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/text/line.h"
 #include "src/language/wstring.h"
 #include "src/test/line_test.h"
 
@@ -20,6 +21,8 @@ using language::MakeNonNullShared;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
