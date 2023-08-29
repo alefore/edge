@@ -125,11 +125,12 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
     data_.contents =
         lazy_string::Append(std::move(data_.contents), std::move(str));
   } else {
+    NonNull<std::shared_ptr<lazy_string::LazyString>> suffix =
+        lazy_string::Substring(data_.contents, column + ColumnNumberDelta(1));
     data_.contents = lazy_string::Append(
         lazy_string::Substring(std::move(data_.contents), ColumnNumber(0),
                                column.ToDelta()),
-        std::move(str),
-        lazy_string::Substring(data_.contents, column + ColumnNumberDelta(1)));
+        std::move(str), std::move(suffix));
   }
 
   data_.metadata = std::nullopt;
