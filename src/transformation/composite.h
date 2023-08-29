@@ -14,7 +14,7 @@ class Pool;
 }
 namespace afc::editor {
 namespace transformation {
-class Stack;
+struct Stack;
 }
 
 // A particular type of transformation that doesn't directly modify the buffer
@@ -25,6 +25,8 @@ class Stack;
 // isolate the lower-level primitive transformations.
 class CompositeTransformation {
  public:
+  virtual ~CompositeTransformation() = default;
+
   virtual std::wstring Serialize() const = 0;
 
   struct Input {
