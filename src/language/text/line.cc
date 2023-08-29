@@ -471,7 +471,10 @@ ColumnNumber Line::EndColumn() const {
 
 bool Line::empty() const { return EndColumn().IsZero(); }
 
-wint_t Line::get(ColumnNumber column) const { return Get(column); }
+wint_t Line::get(ColumnNumber column) const {
+  CHECK_LT(column, EndColumn());
+  return data_.contents->get(column);
+}
 
 NonNull<std::shared_ptr<LazyString>> Line::Substring(
     ColumnNumber column, ColumnNumberDelta delta) const {
@@ -523,11 +526,6 @@ Line::Line(Line::Data data)
                       << "Line has newline character: " << contents->ToString();
                 });
 #endif
-}
-
-wint_t Line::Get(ColumnNumber column) const {
-  CHECK_LT(column, EndColumn());
-  return data_.contents->get(column);
 }
 
 }  // namespace afc::language::text

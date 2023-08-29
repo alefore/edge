@@ -114,9 +114,6 @@ class Line {
   explicit Line(Data data);
   static std::size_t ComputeHash(const Line::Data& data);
 
-  // TODO(trivial, 2023-08-27): Get rid of this method.
-  wint_t Get(language::lazy_string::ColumnNumber column) const;
-
   const Data data_;
   const size_t hash_;
 };
