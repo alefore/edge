@@ -8,7 +8,7 @@
 namespace afc::editor {
 class OpenBuffer;
 namespace transformation {
-class Stack;
+struct Stack;
 struct Result {
   Result(language::text::LineColumn input_position);
   Result(Result&&);
