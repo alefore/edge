@@ -368,8 +368,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](EditorState& editor_arg,
                          NonNull<std::shared_ptr<ForkCommandOptions>> options) {
-                        return std::move(
-                            ForkCommand(editor_arg, options.value()));
+                        return ForkCommand(editor_arg, options.value());
                       })
           .ptr());
 
