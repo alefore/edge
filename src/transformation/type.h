@@ -18,11 +18,11 @@ namespace transformation {
 using CompositePtr =
     language::NonNull<std::shared_ptr<editor::CompositeTransformation>>;
 
-class ModifiersAndComposite;
-class Repetitions;
-class Stack;
-class SwapActiveCursor;
-class VisualOverlay;
+struct ModifiersAndComposite;
+struct Repetitions;
+struct Stack;
+struct SwapActiveCursor;
+struct VisualOverlay;
 
 using Variant = std::variant<Delete, ModifiersAndComposite, CompositePtr,
                              Cursors, Insert, Repetitions, SetPosition, Stack,
@@ -41,8 +41,8 @@ void Register(vm::Environment* environment);
 
 void BaseTransformationRegister(vm::Environment* environment);
 
-class Result;
-class Input;
+struct Result;
+struct Input;
 futures::Value<Result> Apply(Variant base_transformation, const Input& input);
 
 std::wstring ToString(const Variant& transformation);
