@@ -223,7 +223,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
                   LineColumnDelta line_column_delta) {
             return futures::Past(VisitPointer(
                 NonNull<std::shared_ptr<ScreenVm>>::DynamicCast(screen),
-                [&pool, line_column_delta](
+                [line_column_delta](
                     NonNull<std::shared_ptr<ScreenVm>> vm_screen)
                     -> PossibleError {
                   vm_screen->set_size(line_column_delta);
