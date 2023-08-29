@@ -24,7 +24,7 @@ class WhileExpression : public Expression {
                   NonNull<std::shared_ptr<Expression>> body)
       : condition_(std::move(condition)), body_(std::move(body)) {}
 
-  std::vector<Type> Types() { return {types::Void{}}; }
+  std::vector<Type> Types() override { return {types::Void{}}; }
 
   std::unordered_set<Type> ReturnTypes() const override {
     return body_->ReturnTypes();
