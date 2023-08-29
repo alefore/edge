@@ -112,9 +112,9 @@ LineWithCursor LineWithCursor::View(
   LineBuilder line_output;
   ColumnNumber input_column = options.initial_column;
   LineWithCursor line_with_cursor;
-  auto modifiers_it = options.line.data_.modifiers.lower_bound(input_column);
-  if (!options.line.data_.modifiers.empty() &&
-      modifiers_it != options.line.data_.modifiers.begin()) {
+  auto modifiers_it = options.line.modifiers().lower_bound(input_column);
+  if (!options.line.modifiers().empty() &&
+      modifiers_it != options.line.modifiers().begin()) {
     line_output.set_modifiers(ColumnNumber(), std::prev(modifiers_it)->second);
   }
 
@@ -133,7 +133,7 @@ LineWithCursor LineWithCursor::View(
 
     ColumnNumber current_position =
         ColumnNumber() + line_output.contents()->size();
-    if (modifiers_it != options.line.data_.modifiers.end()) {
+    if (modifiers_it != options.line.modifiers().end()) {
       CHECK_GE(modifiers_it->first, input_column);
       if (modifiers_it->first == input_column) {
         line_output.set_modifiers(current_position, modifiers_it->second);

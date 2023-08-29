@@ -15,14 +15,9 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
-#include "src/language/observers.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 
-namespace afc::editor {
-// TODO(2023-08-22, easy): Remove this dependency.
-struct LineWithCursor;
-}  // namespace afc::editor
 namespace afc::language::text {
 struct LineMetadataEntry {
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
@@ -68,7 +63,8 @@ class Line {
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
   metadata_future() const;
 
-  std::map<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
+  const std::map<language::lazy_string::ColumnNumber,
+                 afc::editor::LineModifierSet>&
   modifiers() const {
     return data_.modifiers;
   }
@@ -109,7 +105,6 @@ class Line {
   };
 
   friend class LineBuilder;
-  friend struct editor::LineWithCursor;
 
   explicit Line(Data data);
   static std::size_t ComputeHash(const Line::Data& data);
