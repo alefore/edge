@@ -296,6 +296,9 @@ cc_library(
     name = "find_mode",
     srcs = ["find_mode.cc"],
     hdrs = ["find_mode.h"],
+    deps = [
+        "//src/transformation:composite",
+    ],
 )
 
 cc_library(

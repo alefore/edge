@@ -3,9 +3,7 @@
 
 #include <memory>
 
-#include "src/command.h"
-// TODO(trivial, 2023-08-28): Clean up this include.
-#include "src/editor.h"
+#include "src/transformation/composite.h"
 
 namespace afc::editor {
 class FindTransformation : public CompositeTransformation {
