@@ -2,6 +2,14 @@
 
 #include "src/language/wstring.h"
 
+namespace afc::vm {
+using language::NonNull;
+namespace gc = language::gc;
+template <>
+const types::ObjectName VMTypeMapper<
+    NonNull<std::shared_ptr<editor::Modifiers>>>::object_type_name =
+    types::ObjectName(L"Modifiers");
+}  // namespace afc::vm
 namespace afc::editor {
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
@@ -157,14 +165,4 @@ std::wstring Modifiers::Serialize() const {
   }
   return output;
 }
-
 }  // namespace afc::editor
-namespace afc::vm {
-using language::NonNull;
-namespace gc = language::gc;
-
-template <>
-const types::ObjectName VMTypeMapper<
-    NonNull<std::shared_ptr<editor::Modifiers>>>::object_type_name =
-    types::ObjectName(L"Modifiers");
-}  // namespace afc::vm
