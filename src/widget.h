@@ -12,7 +12,7 @@
 namespace afc::editor {
 class Widget {
  public:
-  ~Widget() = default;
+  virtual ~Widget() = default;
 
   struct OutputProducerOptions {
     language::text::LineColumnDelta size;
