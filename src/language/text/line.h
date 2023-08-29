@@ -34,9 +34,7 @@ struct LineMetadataEntry {
 
 struct OutgoingLink {
   std::wstring path;
-  // TODO(trivial, 2023-08-27): Once line.h is in src/language/text, remove
-  // the long namespace.
-  std::optional<language::text::LineColumn> line_column;
+  std::optional<LineColumn> line_column;
 };
 
 class LineBuilder;
