@@ -21,7 +21,7 @@
 
 namespace afc::editor {
 // TODO(2023-08-22, easy): Remove this dependency.
-class LineWithCursor;
+struct LineWithCursor;
 }  // namespace afc::editor
 namespace afc::language::text {
 struct LineMetadataEntry {
@@ -111,7 +111,7 @@ class Line {
   };
 
   friend class LineBuilder;
-  friend class editor::LineWithCursor;
+  friend struct editor::LineWithCursor;
 
   explicit Line(Data data);
   static std::size_t ComputeHash(const Line::Data& data);
