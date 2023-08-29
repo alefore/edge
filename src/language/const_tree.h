@@ -166,7 +166,7 @@ class ConstTree {
   struct ConstructorAccessTag {};
 
  public:
-  using ValueType = Block::ValueType;
+  using ValueType = typename Block::ValueType;
   using Ptr = std::shared_ptr<const ConstTree>;
 
   ConstTree(ConstructorAccessTag, std::shared_ptr<const Block> block,
