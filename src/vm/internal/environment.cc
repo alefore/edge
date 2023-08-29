@@ -15,7 +15,6 @@
 #include "src/vm/public/value.h"
 
 namespace afc::vm {
-namespace {
 using language::MakeNonNullUnique;
 using language::NonNull;
 namespace gc = language::gc;
@@ -29,7 +28,6 @@ template <>
 const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<std::set<int>>>>::object_type_name =
         types::ObjectName(L"SetInt");
-}  // namespace
 
 language::gc::Root<Environment> Environment::NewDefault(
     language::gc::Pool& pool) {
@@ -179,8 +177,8 @@ std::optional<gc::Root<Value>> Environment::Lookup(
   for (gc::Root<Value>& value : values) {
     if (auto callback = GetImplicitPromotion(value.ptr()->type, expected_type);
         callback != nullptr) {
-      return std::move(callback(
-          pool, pool.NewRoot(MakeNonNullUnique<Value>(value.ptr().value()))));
+      return callback(
+          pool, pool.NewRoot(MakeNonNullUnique<Value>(value.ptr().value())));
     }
   }
   return std::nullopt;
