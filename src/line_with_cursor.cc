@@ -149,27 +149,24 @@ LineWithCursor LineWithCursor::View(
       // compensate for wide characters (so we don't need to).
       line_with_cursor.cursor = current_position;
       if (!options.modifiers_main_cursor.empty()) {
-        line_output.set_modifiers(
-            current_position + ColumnNumberDelta(1),
-            line_output.data_.modifiers.empty()
-                ? LineModifierSet()
-                : line_output.data_.modifiers.rbegin()->second);
-        line_output.data_.modifiers[current_position].insert(
-            options.modifiers_main_cursor.begin(),
-            options.modifiers_main_cursor.end());
+        line_output.set_modifiers(current_position + ColumnNumberDelta(1),
+                                  line_output.modifiers_empty()
+                                      ? LineModifierSet()
+                                      : line_output.modifiers_last().second);
+        line_output.InsertModifiers(current_position,
+                                    options.modifiers_main_cursor);
       }
     } else if (options.inactive_cursor_columns.find(input_column) !=
                    options.inactive_cursor_columns.end() ||
                (input_column == input_end &&
                 !options.inactive_cursor_columns.empty() &&
                 *options.inactive_cursor_columns.rbegin() >= input_column)) {
-      line_output.data_.modifiers[current_position + ColumnNumberDelta(1)] =
-          line_output.data_.modifiers.empty()
-              ? LineModifierSet()
-              : line_output.data_.modifiers.rbegin()->second;
-      line_output.data_.modifiers[current_position].insert(
-          options.modifiers_inactive_cursors.begin(),
-          options.modifiers_inactive_cursors.end());
+      line_output.set_modifiers(current_position + ColumnNumberDelta(1),
+                                line_output.modifiers_empty()
+                                    ? LineModifierSet()
+                                    : line_output.modifiers_last().second);
+      line_output.InsertModifiers(current_position,
+                                  options.modifiers_inactive_cursors);
     }
 
     switch (c) {
@@ -197,12 +194,12 @@ LineWithCursor LineWithCursor::View(
     }
   }
 
-  line_output.data_.end_of_line_modifiers =
+  line_output.set_end_of_line_modifiers(
       input_column == options.line.EndColumn()
-          ? options.line.data_.end_of_line_modifiers
-          : (line_output.data_.modifiers.empty()
+          ? options.line.end_of_line_modifiers()
+          : (line_output.modifiers_empty()
                  ? LineModifierSet()
-                 : line_output.data_.modifiers.rbegin()->second);
+                 : line_output.modifiers_last().second));
   if (!line_with_cursor.cursor.has_value() &&
       options.active_cursor_column.has_value()) {
     // Same as above: we use the current position (rather than output_column)

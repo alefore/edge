@@ -402,6 +402,12 @@ LineBuilder& LineBuilder::insert_end_of_line_modifiers(LineModifierSet values) {
   return *this;
 }
 
+LineBuilder& LineBuilder::set_end_of_line_modifiers(
+    afc::editor::LineModifierSet values) {
+  data_.end_of_line_modifiers = std::move(values);
+  return *this;
+}
+
 LineModifierSet LineBuilder::copy_end_of_line_modifiers() const {
   return data_.end_of_line_modifiers;
 }
@@ -413,9 +419,19 @@ LineBuilder::modifiers() const {
 
 size_t LineBuilder::modifiers_size() const { return data_.modifiers.size(); }
 
+std::pair<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
+LineBuilder::modifiers_last() const {
+  return *data_.modifiers.rbegin();
+}
+
 void LineBuilder::InsertModifier(language::lazy_string::ColumnNumber position,
                                  LineModifier modifier) {
   data_.modifiers[position].insert(modifier);
+}
+void LineBuilder::InsertModifiers(
+    language::lazy_string::ColumnNumber position,
+    const afc::editor::LineModifierSet& modifiers) {
+  data_.modifiers[position].insert(modifiers.begin(), modifiers.end());
 }
 
 void LineBuilder::set_modifiers(language::lazy_string::ColumnNumber position,

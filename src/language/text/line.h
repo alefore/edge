@@ -185,14 +185,19 @@ class LineBuilder {
 
   LineBuilder& insert_end_of_line_modifiers(
       afc::editor::LineModifierSet values);
+  LineBuilder& set_end_of_line_modifiers(afc::editor::LineModifierSet values);
   afc::editor::LineModifierSet copy_end_of_line_modifiers() const;
 
   std::map<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
   modifiers() const;
   size_t modifiers_size() const;
   bool modifiers_empty() const;
+  std::pair<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
+  modifiers_last() const;
   void InsertModifier(language::lazy_string::ColumnNumber,
                       afc::editor::LineModifier);
+  void InsertModifiers(language::lazy_string::ColumnNumber,
+                       const afc::editor::LineModifierSet&);
   void set_modifiers(language::lazy_string::ColumnNumber,
                      afc::editor::LineModifierSet);
   void set_modifiers(std::map<language::lazy_string::ColumnNumber,
@@ -206,7 +211,6 @@ class LineBuilder {
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
 
  private:
-  friend editor::LineWithCursor;
   // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
   friend class std::hash<Line>;
 
