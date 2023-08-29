@@ -6,7 +6,7 @@
 #include "../public/vm.h"
 
 namespace afc::vm {
-class Compilation;
+struct Compilation;
 void StartNamespaceDeclaration(Compilation& compilation,
                                const std::wstring& name);
 

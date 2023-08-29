@@ -6,7 +6,7 @@
 #include <string>
 
 namespace afc::vm {
-class Compilation;
+struct Compilation;
 class Expression;
 
 // Symbols is a list of tokens, including namespace or class prefixes. The last

@@ -7,7 +7,7 @@
 #include "src/language/gc.h"
 
 namespace afc::vm {
-class Compilation;
+struct Compilation;
 
 // Temporary type used during compilation of a function expression. On `New`,
 // receives parameters from the function's declaration. These are used on

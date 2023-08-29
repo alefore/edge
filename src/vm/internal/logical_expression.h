@@ -3,13 +3,13 @@
 
 #include <memory>
 
-#include "src/language/safe_types.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/safe_types.h"
 
 namespace afc::vm {
 
 class Expression;
-class Compilation;
+struct Compilation;
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
 NewLogicalExpression(Compilation* compilation, bool identity,

@@ -4,8 +4,8 @@
 #include <memory>
 
 #include "../public/vm.h"
-#include "src/language/gc.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/gc.h"
 
 namespace afc {
 namespace vm {
@@ -13,7 +13,7 @@ namespace vm {
 using std::unique_ptr;
 
 class Evaluation;
-class Compilation;
+struct Compilation;
 
 class BinaryOperator : public Expression {
  public:

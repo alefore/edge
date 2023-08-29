@@ -4,11 +4,11 @@
 #include <memory>
 
 #include "../public/vm.h"
-#include "src/language/safe_types.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/safe_types.h"
 
 namespace afc::vm {
-class Compilation;
+struct Compilation;
 namespace types {
 class ObjectName;
 }

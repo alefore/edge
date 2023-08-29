@@ -12,7 +12,7 @@ namespace afc::vm {
 using std::unique_ptr;
 using std::wstring;
 
-class Compilation;
+struct Compilation;
 class Expression;
 
 // Declares a new variable of a given type.

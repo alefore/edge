@@ -4,7 +4,7 @@
 #include "../public/vm.h"
 
 namespace afc::vm {
-class Compilation;
+struct Compilation;
 class Expression;
 
 std::unique_ptr<Expression> NewReturnExpression(
