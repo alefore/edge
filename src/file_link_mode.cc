@@ -66,14 +66,14 @@ using language::text::LineNumber;
 namespace gc = language::gc;
 
 futures::Value<PossibleError> GenerateContents(
-    EditorState& editor_state, std::shared_ptr<struct stat> stat_buffer,
+    std::shared_ptr<struct stat> stat_buffer,
     std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer& target) {
   CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
   FUTURES_ASSIGN_OR_RETURN(
       Path path, Path::FromString(target.Read(buffer_variables::path)));
   LOG(INFO) << "GenerateContents: " << path;
   return file_system_driver->Stat(path).Transform(
-      [&editor_state, stat_buffer, file_system_driver, &target,
+      [stat_buffer, file_system_driver, &target,
        path](std::optional<struct stat> stat_results) {
         if (stat_results.has_value() &&
             target.Read(buffer_variables::clear_on_reload)) {
@@ -431,11 +431,9 @@ gc::Root<OpenBuffer> CreateBuffer(
   auto file_system_driver =
       std::make_shared<FileSystemDriver>(editor_state.thread_pool());
 
-  buffer_options->generate_contents = [&editor_state = options.editor_state,
-                                       stat_buffer,
+  buffer_options->generate_contents = [stat_buffer,
                                        file_system_driver](OpenBuffer& target) {
-    return GenerateContents(editor_state, stat_buffer, file_system_driver,
-                            target);
+    return GenerateContents(stat_buffer, file_system_driver, target);
   };
   buffer_options->handle_visit = [stat_buffer](OpenBuffer& buffer) {
     HandleVisit(*stat_buffer, buffer);
