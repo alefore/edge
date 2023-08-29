@@ -16,7 +16,7 @@ namespace vm {
 using std::unique_ptr;
 
 class Expression;
-struct Value;
+class Value;
 
 template <class T>
 struct VMTypeMapper {};
@@ -136,7 +136,7 @@ futures::ValueOrError<EvaluationOutput> RunCallback(
                     get(args.at(I).ptr().value())...)))));
   } else if constexpr (language::IsValueOrError<
                            typename ft::ReturnType::type>::value) {
-    using NestedType = std::remove_reference<decltype(std::get<0>(
+    using NestedType = typename std::remove_reference<decltype(std::get<0>(
         std::declval<typename ft::ReturnType::type>()))>::type;
     return callback(
                VMTypeMapper<typename std::remove_const<
@@ -153,7 +153,7 @@ futures::ValueOrError<EvaluationOutput> RunCallback(
           }
         });
   } else {
-    using NestedType = ft::ReturnType::type;
+    using NestedType = typename ft::ReturnType::type;
     return callback(
                VMTypeMapper<typename std::remove_const<
                    typename std::remove_reference<typename std::tuple_element<
@@ -189,8 +189,9 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
           return types::Void{};
         } else if constexpr (language::IsValueOrError<
                                  typename ft::ReturnType::type>::value) {
-          using NestedType = std::remove_reference<decltype(std::get<0>(
-              std::declval<typename ft::ReturnType::type>()))>::type;
+          using NestedType =
+              typename std::remove_reference<decltype(std::get<0>(
+                  std::declval<typename ft::ReturnType::type>()))>::type;
           return GetVMType<NestedType>::vmtype();
         } else if constexpr (std::is_same<typename ft::ReturnType::type,
                                           language::EmptyValue>::value) {
