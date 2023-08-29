@@ -55,11 +55,8 @@ struct ResolvePathOptions {
       EditorState& editor_state,
       std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver) {
     return GetSearchPaths(editor_state)
-        .Transform([&editor_state, file_system_driver](
-                       std::vector<infrastructure::Path> search_paths) {
-          return NewWithSearchPaths(editor_state, file_system_driver,
-                                    std::move(search_paths));
-        });
+        .Transform(std::bind_front(&NewWithSearchPaths, std::ref(editor_state),
+                                   file_system_driver));
   }
 
   static ResolvePathOptions NewWithSearchPaths(
@@ -69,11 +66,9 @@ struct ResolvePathOptions {
     return ResolvePathOptions{
         .search_paths = std::move(search_paths),
         .home_directory = editor_state.home_directory(),
-        .validator = [file_system_driver](const infrastructure::Path& path) {
-          return CanStatPath(
-              file_system_driver,
-              [](struct stat) { return language::Success(); }, path);
-        }};
+        .validator =
+            std::bind_front(CanStatPath, file_system_driver,
+                            [](struct stat) { return language::Success(); })};
   }
 
   // This is not a Path because it may contain various embedded tokens such as
