@@ -152,11 +152,12 @@ futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input);
 Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
                                wchar_t separator);
 
-Predictor DictionaryPredictor(
-    language::NonNull<std::shared_ptr<const OpenBuffer>> dictionary);
+Predictor DictionaryPredictor(language::gc::Root<const OpenBuffer> dictionary);
 
 // Based on the parse tree of the source_buffer.
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input);
+
+Predictor ComposePredictors(Predictor, Predictor);
 
 // Buffer must be a buffer given to a predictor by `Predict`. Registers a new
 // size of a prefix that has a match.

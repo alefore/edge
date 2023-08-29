@@ -29,6 +29,7 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::overload;
 using language::Success;
+using language::ValueOrError;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
@@ -306,56 +307,88 @@ class ExpandTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     using transformation::ModifiersAndComposite;
-    Output output;
-    if (input.position.column.IsZero()) return futures::Past(std::move(output));
+    auto output = std::make_shared<Output>();
+    if (input.position.column.IsZero())
+      return futures::Past(std::move(*output));
 
     auto line = input.buffer.LineAt(input.position.line);
     auto c = line->get(input.position.column.previous());
-    std::unique_ptr<CompositeTransformation> transformation;
+    futures::Value<std::unique_ptr<CompositeTransformation>> transformation =
+        futures::Past(nullptr);
     switch (c) {
       case 'r': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output.Push(DeleteLastCharacters(1 + symbol.size()));
+        output->Push(DeleteLastCharacters(1 + symbol.size()));
         std::visit(overload{IgnoreErrors{},
                             [&](Path path) {
-                              transformation = std::make_unique<ReadAndInsert>(
-                                  path, OpenFileIfFound);
+                              transformation =
+                                  futures::Past(std::make_unique<ReadAndInsert>(
+                                      path, OpenFileIfFound));
                             }},
                    Path::FromString(symbol));
       } break;
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);
-        output.Push(DeleteLastCharacters(1));
-        transformation =
-            std::make_unique<PredictorTransformation>(FilePredictor, path);
+        output->Push(DeleteLastCharacters(1));
+        transformation = futures::Past(
+            std::make_unique<PredictorTransformation>(FilePredictor, path));
       } break;
       case ' ': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output.Push(DeleteLastCharacters(1));
-        transformation = std::make_unique<PredictorTransformation>(
-            SyntaxBasedPredictor, symbol);
+        output->Push(DeleteLastCharacters(1));
+        futures::Value<Predictor> predictor =
+            futures::Past(SyntaxBasedPredictor);
+        if (ValueOrError<Path> path = Path::FromString(
+                input.buffer.Read(buffer_variables::dictionary));
+            !IsError(path)) {
+          predictor =
+              OpenFileIfFound(
+                  OpenFileOptions{
+                      .editor_state = input.buffer.editor(),
+                      .path = ValueOrDie(std::move(path)),
+                      .insertion_type = BuffersList::AddBufferType::kIgnore,
+                      .use_search_paths = false})
+                  .Transform([](gc::Root<OpenBuffer> dictionary) {
+                    return Success(ComposePredictors(
+                        DictionaryPredictor(std::move(dictionary)),
+                        SyntaxBasedPredictor));
+                  })
+                  .ConsumeErrors([](Error) -> futures::Value<Predictor> {
+                    return futures::Past(SyntaxBasedPredictor);
+                  });
+        }
+        transformation =
+            std::move(predictor).Transform([symbol](Predictor predictor) {
+              return std::make_unique<PredictorTransformation>(predictor,
+                                                               symbol);
+            });
       } break;
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output.Push(DeleteLastCharacters(1 + symbol.size() + 1));
-        transformation = std::make_unique<Execute>(symbol);
+        output->Push(DeleteLastCharacters(1 + symbol.size() + 1));
+        transformation = futures::Past(std::make_unique<Execute>(symbol));
       } break;
       case '.': {
         auto query = GetToken(input, buffer_variables::path_characters);
-        transformation = std::make_unique<InsertHistoryTransformation>(
-            DeleteLastCharacters(query.size() + 1), query);
+        transformation =
+            futures::Past(std::make_unique<InsertHistoryTransformation>(
+                DeleteLastCharacters(query.size() + 1), query));
       }
     }
-    VisitPointer(
-        std::move(transformation),
-        [&output](
-            NonNull<std::unique_ptr<CompositeTransformation>> transformation) {
-          output.Push(ModifiersAndComposite{.transformation =
-                                                std::move(transformation)});
-        },
-        [] {});
-
-    return futures::Past(std::move(output));
+    return std::move(transformation)
+        .Transform(
+            [output = std::move(output)](
+                std::unique_ptr<CompositeTransformation> transformation) {
+              VisitPointer(
+                  std::move(transformation),
+                  [&output](NonNull<std::unique_ptr<CompositeTransformation>>
+                                transformation) {
+                    output->Push(ModifiersAndComposite{
+                        .transformation = std::move(transformation)});
+                  },
+                  [] {});
+              return futures::Past(std::move(*output));
+            });
   }
 };
 }  // namespace

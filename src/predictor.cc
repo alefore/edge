@@ -651,4 +651,69 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
 }
+
+Predictor ComposePredictors(Predictor a, Predictor b) {
+  return [a, b](PredictorInput input) {
+    gc::Root<OpenBuffer> a_predictions =
+        OpenBuffer::New(OpenBuffer::Options{.editor = input.editor});
+    gc::Root<OpenBuffer> b_predictions =
+        OpenBuffer::New(OpenBuffer::Options{.editor = input.editor});
+    return a(PredictorInput{.editor = input.editor,
+                            .input = input.input,
+                            .predictions = a_predictions.ptr().value(),
+                            .source_buffers = input.source_buffers,
+                            .progress_channel = input.progress_channel,
+                            .abort_value = input.abort_value})
+        .Transform([input, b, b_predictions](PredictorOutput) {
+          return b({.editor = input.editor,
+                    .input = input.input,
+                    .predictions = b_predictions.ptr().value(),
+                    .source_buffers = input.source_buffers,
+                    .progress_channel = input.progress_channel,
+                    .abort_value = input.abort_value});
+        })
+        .Transform([a_predictions](PredictorOutput) {
+          return a_predictions.ptr()->WaitForEndOfFile();
+        })
+        .Transform([b_predictions](EmptyValue) {
+          return b_predictions.ptr()->WaitForEndOfFile();
+        })
+        .Transform([input, a_predictions, b_predictions](EmptyValue) {
+          LineNumber a_line;
+          LineNumber b_line;
+          auto advance = [&](const gc::Root<OpenBuffer>& b, LineNumber& p) {
+            CHECK_LT(p.ToDelta(), b.ptr()->contents().size());
+            input.predictions.AppendToLastLine(
+                b.ptr()->contents().at(p)->contents());
+            ++p;
+          };
+          while (a_line.ToDelta() < a_predictions.ptr()->contents().size() ||
+                 b_line.ToDelta() < b_predictions.ptr()->contents().size()) {
+            if (a_line.ToDelta() == a_predictions.ptr()->contents().size()) {
+              advance(b_predictions, b_line);
+            } else if (b_line.ToDelta() ==
+                       b_predictions.ptr()->contents().size()) {
+              advance(a_predictions, a_line);
+            } else {
+              std::wstring a_str =
+                  a_predictions.ptr()->contents().at(a_line)->ToString();
+              std::wstring b_str =
+                  b_predictions.ptr()->contents().at(b_line)->ToString();
+              if (a_str < b_str) {
+                advance(a_predictions, a_line);
+              } else if (b_str < a_str) {
+                advance(b_predictions, b_line);
+              } else {
+                advance(a_predictions, a_line);
+                ++b_line;
+              }
+            }
+            input.predictions.AppendRawLine(NonNull<std::shared_ptr<Line>>());
+          }
+          input.predictions.EndOfFile();
+          return PredictorOutput();
+        });
+  };
+}
+
 }  // namespace afc::editor
