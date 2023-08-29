@@ -34,13 +34,13 @@
 #include <type_traits>
 
 #include "src/concurrent/protected.h"
-#include "src/language/function_traits.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/function_traits.h"
 
 namespace afc::futures {
 
 template <typename Type>
-class Future;
+struct Future;
 
 template <typename Type>
 class Value;
@@ -106,7 +106,7 @@ template <class T>
 struct is_future {
  private:
   template <typename C>
-  static constexpr bool value_internal(C::IsFutureTag*) {
+  static constexpr bool value_internal(typename C::IsFutureTag*) {
     return true;
   };
 
@@ -308,14 +308,14 @@ Value<IterationControlCommand> ForEach(Iterator input_begin, Iterator end,
       consumer(IterationControlCommand::kContinue);
       return;
     }
-    callable(*begin).SetConsumer([consumer, begin, end, callable, resume](
-                                     IterationControlCommand result) mutable {
-      if (result == IterationControlCommand::kStop) {
-        consumer(result);
-      } else {
-        resume(++begin, resume);
-      }
-    });
+    callable(*begin).SetConsumer(
+        [consumer, begin, resume](IterationControlCommand result) mutable {
+          if (result == IterationControlCommand::kStop) {
+            consumer(result);
+          } else {
+            resume(++begin, resume);
+          }
+        });
   };
   resume_external(input_begin, resume_external);
   return std::move(output.value);
