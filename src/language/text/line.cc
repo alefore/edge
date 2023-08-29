@@ -418,6 +418,7 @@ LineBuilder::modifiers() const {
 }
 
 size_t LineBuilder::modifiers_size() const { return data_.modifiers.size(); }
+bool LineBuilder::modifiers_empty() const { return data_.modifiers.empty(); }
 
 std::pair<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
 LineBuilder::modifiers_last() const {
