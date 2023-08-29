@@ -576,9 +576,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
                              std::wstring)>(
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring command) {
-                options->command = std::move(command);
-              }))
+                 std::wstring value) { options->command = std::move(value); }))
           .ptr());
 
   fork_command_options.ptr()->AddField(
@@ -588,8 +586,8 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
                              std::wstring)>(
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring name) {
-                options->name = BufferName(std::move(name));
+                 std::wstring value) {
+                options->name = BufferName(std::move(value));
               }))
           .ptr());
 
@@ -600,13 +598,13 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
                              std::wstring)>(
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring insertion_type) {
-                if (insertion_type == L"visit") {
+                 std::wstring value) {
+                if (value == L"visit") {
                   options->insertion_type = BuffersList::AddBufferType::kVisit;
-                } else if (insertion_type == L"only_list") {
+                } else if (value == L"only_list") {
                   options->insertion_type =
                       BuffersList::AddBufferType::kOnlyList;
-                } else if (insertion_type == L"ignore") {
+                } else if (value == L"ignore") {
                   options->insertion_type = BuffersList::AddBufferType::kIgnore;
                 }
               }))
@@ -619,9 +617,9 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
                              std::wstring)>(
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring children_path) {
+                 std::wstring value) {
                 options->children_path =
-                    OptionalFrom(Path::FromString(std::move(children_path)));
+                    OptionalFrom(Path::FromString(std::move(value)));
               }))
           .ptr());
 
