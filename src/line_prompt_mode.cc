@@ -725,6 +725,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
       buffer.Set(buffer_variables::contents_type,
                  options_.prompt_contents_type);
       buffer.Reload();
+      InitializeBuffer(buffer, options_.initial_value);
       return buffer_root;
     }
     gc::Root<OpenBuffer> buffer_root =
@@ -739,11 +740,14 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     auto insert_results = options_.editor_state.buffers()->insert_or_assign(
         BufferName(L"- prompt"), buffer_root);
     CHECK(insert_results.second);
+    InitializeBuffer(buffer, options_.initial_value);
+    return buffer_root;
+  }
 
+  static void InitializeBuffer(OpenBuffer& buffer, std::wstring initial_value) {
     buffer.ApplyToCursors(transformation::Insert(
         {.contents_to_insert = MakeNonNullUnique<BufferContents>(
-             MakeNonNullShared<Line>(options_.initial_value))}));
-    return buffer_root;
+             MakeNonNullShared<Line>(initial_value))}));
   }
 
   // status_buffer is the buffer with the contents of the prompt. tokens_future
