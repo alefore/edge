@@ -277,8 +277,8 @@ void EditorState::CheckPosition() {
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
   OnError(buffer.PrepareToClose(),
-          [this, buffer = buffer.NewRoot()](
-              Error error) -> futures::Value<PossibleError> {
+          [buffer =
+               buffer.NewRoot()](Error error) -> futures::Value<PossibleError> {
             error = AugmentError(L"🖝  Unable to close (“*ad” to ignore): " +
                                      buffer.ptr()->Read(buffer_variables::name),
                                  error);
