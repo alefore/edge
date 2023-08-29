@@ -23,9 +23,9 @@
 #include "negate_expression.h"
 #include "return_expression.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
-#include "src/language/error/value_or_error.h"
 #include "src/language/wstring.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
@@ -573,9 +573,10 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
   if (!compilation.errors().empty()) {
     return MergeErrors(compilation.errors(), L", ");
   }
-  return VisitPointer(std::move(compilation.expr),
-                      &language::Success<NonNull<std::unique_ptr<Expression>>>,
-                      []() { return Error(L"Unexpected empty expression."); });
+  return language::VisitPointer(
+      std::move(compilation.expr),
+      &language::Success<NonNull<std::unique_ptr<Expression>>>,
+      []() { return Error(L"Unexpected empty expression."); });
 }
 }  // namespace
 
