@@ -406,7 +406,7 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
             });
       }};
   if (path.has_value()) {
-    resolve_path_options.path = path.value().read();
+    resolve_path_options.path = editor_state.expand_path(path.value()).read();
   }
 
   return ResolvePath(resolve_path_options)
@@ -460,7 +460,8 @@ gc::Root<OpenBuffer> CreateBuffer(
   if (resolve_path_output.has_value()) {
     buffer_options->path = resolve_path_output->path;
   } else if (options.path.has_value()) {
-    buffer_options->path = options.path.value();
+    buffer_options->path =
+        options.editor_state.expand_path(options.path.value());
   }
   buffer_options->log_supplier =
       [&editor_state = options.editor_state](Path edge_state_directory) {
@@ -526,9 +527,12 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                                   options.initial_search_paths.end());
               return ResolvePath(
                          ResolvePathOptions<EmptyValue>{
-                             .path = options.path.has_value()
-                                         ? options.path->read()
-                                         : L"",
+                             .path =
+                                 options.path.has_value()
+                                     ? options.editor_state
+                                           .expand_path(options.path.value())
+                                           .read()
+                                     : L"",
                              .search_paths = std::move(search_paths),
                              .home_directory =
                                  options.editor_state.home_directory(),
@@ -546,8 +550,9 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
 
 futures::Value<gc::Root<OpenBuffer>> OpenOrCreateFile(
     const OpenFileOptions& options) {
-  return OpenFileIfFound(options).ConsumeErrors(
-      [options](Error) { return futures::Past(CreateBuffer(options, {})); });
+  return OpenFileIfFound(options).ConsumeErrors([options](Error) {
+    return futures::Past(CreateBuffer(options, std::nullopt));
+  });
 }
 
 futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
