@@ -169,7 +169,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                                     return std::optional<std::optional<Path>>(
                                         path);
                                   }},
-                         std::move(Path::FromString(input)));
+                         Path::FromString(input));
                    }))
           .Set(&CommandLineValues::server, true),
 
