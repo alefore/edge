@@ -469,6 +469,8 @@ class Root {
   template <typename U>
   Root(const Root<U>& other) : Root(other.ptr_) {}
 
+  Root(const Root<T>& other) = default;
+
   template <typename U>
   Root(Root<U>&& other)
       : ptr_(std::move(other.ptr_)),
