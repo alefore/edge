@@ -84,7 +84,7 @@ struct Traits<std::set<ValueType>> : public TraitsBase {
 template <typename Container>
 void Export(language::gc::Pool& pool, Environment& environment) {
   using T = Traits<Container>;
-  using ContainerPtr = T::ContainerPtr;
+  using ContainerPtr = typename T::ContainerPtr;
   const types::ObjectName& object_type_name =
       VMTypeMapper<ContainerPtr>::object_type_name;
   const vm::Type vmtype = GetVMType<ContainerPtr>::vmtype();
