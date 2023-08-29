@@ -262,7 +262,7 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
             {range.value().end, afc::editor::VisualOverlay{
                                     .content = NewLazyString(L"⟧"),
                                     .modifiers = {LineModifier::kReverse}}});
-      output.Push(VisualOverlay(std::move(overlays)));
+      output.Push(VisualOverlay{.visual_overlay_map = std::move(overlays)});
       break;
   }
   return futures::Past(std::move(output));
