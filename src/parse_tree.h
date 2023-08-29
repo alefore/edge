@@ -115,6 +115,8 @@ std::ostream& operator<<(std::ostream& os, const ParseTree& lc);
 
 class TreeParser {
  public:
+  virtual ~TreeParser() = default;
+
   static bool IsNull(TreeParser*);
 
   virtual ParseTree FindChildren(const BufferContents& lines,
