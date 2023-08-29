@@ -725,7 +725,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
       buffer.Set(buffer_variables::contents_type,
                  options_.prompt_contents_type);
       buffer.Reload();
-      InitializeBuffer(buffer, options_.initial_value);
+      InitializePromptBuffer(buffer);
       return buffer_root;
     }
     gc::Root<OpenBuffer> buffer_root =
@@ -736,18 +736,18 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     buffer.Set(buffer_variables::delete_into_paste_buffer, false);
     buffer.Set(buffer_variables::save_on_close, false);
     buffer.Set(buffer_variables::persist_state, false);
-    buffer.Set(buffer_variables::contents_type, options_.prompt_contents_type);
-    auto insert_results = options_.editor_state.buffers()->insert_or_assign(
-        BufferName(L"- prompt"), buffer_root);
+    auto insert_results =
+        options_.editor_state.buffers()->insert_or_assign(name, buffer_root);
     CHECK(insert_results.second);
-    InitializeBuffer(buffer, options_.initial_value);
+    InitializePromptBuffer(buffer);
     return buffer_root;
   }
 
-  static void InitializeBuffer(OpenBuffer& buffer, std::wstring initial_value) {
+  void InitializePromptBuffer(OpenBuffer& buffer) const {
+    buffer.Set(buffer_variables::contents_type, options_.prompt_contents_type);
     buffer.ApplyToCursors(transformation::Insert(
         {.contents_to_insert = MakeNonNullUnique<BufferContents>(
-             MakeNonNullShared<Line>(initial_value))}));
+             MakeNonNullShared<Line>(options_.initial_value))}));
   }
 
   // status_buffer is the buffer with the contents of the prompt. tokens_future
