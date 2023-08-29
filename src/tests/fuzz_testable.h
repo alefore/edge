@@ -13,6 +13,8 @@ using Handler = std::function<void(Stream&)>;
 
 class FuzzTestable {
  public:
+  virtual ~FuzzTestable() = default;
+
   static void Test(Stream& input, FuzzTestable* testable);
 
   virtual std::vector<Handler> FuzzHandlers() = 0;
