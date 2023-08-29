@@ -519,8 +519,7 @@ void OpenBuffer::EndOfFile() {
   if (child_pid_ != -1) {
     int exit_status;
     if (waitpid(child_pid_, &exit_status, 0) == -1) {
-      status_.SetWarningText(L"waitpid failed: " +
-                             FromByteString(strerror(errno)));
+      status_.Set(Error(L"waitpid failed: " + FromByteString(strerror(errno))));
       return;
     }
     child_exit_status_ = exit_status;
@@ -882,7 +881,7 @@ void OpenBuffer::Reload() {
 futures::Value<PossibleError> OpenBuffer::Save() {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   if (options_.handle_save == nullptr) {
-    status_.SetWarningText(L"Buffer can't be saved.");
+    status_.InsertError(Error(L"Buffer can't be saved."));
     return futures::Past(PossibleError(Error(L"Buffer can't be saved.")));
   }
   return options_.handle_save(
@@ -1285,7 +1284,7 @@ void OpenBuffer::PushActiveCursors() {
 void OpenBuffer::PopActiveCursors() {
   auto stack_size = cursors_tracker_.Pop();
   if (stack_size == 0) {
-    status_.SetWarningText(L"cursors stack: -: Stack is empty!");
+    status_.InsertError(Error(L"cursors stack: -: Stack is empty!"));
     return;
   }
   status_.SetInformationText(L"cursors stack (" + to_wstring(stack_size - 1) +
@@ -1307,7 +1306,7 @@ void OpenBuffer::SetActiveCursorsToMarks() {
       cursors.insert(line_column);
     }
     if (cursors.empty()) {
-      status_.SetWarningText(L"Buffer has no marks!");
+      status_.InsertError(Error(L"Buffer has no marks!"));
       return;
     }
   }
@@ -1583,8 +1582,9 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
            audio::Frequency(659.25)});
     }
 
+    // TODO(trivial, 2023-08-29): Receive an Error object.
     void Warn(std::wstring warning_text) override {
-      buffer_.status().SetWarningText(warning_text);
+      buffer_.status().InsertError(Error(warning_text));
     }
 
     const BufferContents& contents() override { return buffer_.contents(); }
@@ -1626,7 +1626,7 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
   switch (signal.read()) {
     case SIGINT:
       if (terminal_ == nullptr ? child_pid_ == -1 : fd_ == nullptr) {
-        status_.SetWarningText(L"No subprocess found.");
+        status_.InsertError(Error(L"No subprocess found."));
       } else if (terminal_ == nullptr) {
         status_.SetInformationText(L"SIGINT >> pid:" + to_wstring(child_pid_));
         kill(child_pid_, signal.read());
@@ -1645,8 +1645,8 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
       break;
 
     default:
-      status_.SetWarningText(L"Unexpected signal received: " +
-                             to_wstring(signal.read()));
+      status_.InsertError(
+          Error(L"Unexpected signal received: " + to_wstring(signal.read())));
   }
 }
 
@@ -1691,9 +1691,9 @@ bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
       function_type == nullptr || function_type->inputs.size() != 1 ||
       !std::holds_alternative<vm::types::String>(function_type->output.get()) ||
       !std::holds_alternative<vm::types::String>(function_type->inputs[0])) {
-    status_.SetWarningText(
-        L": Unexpected type for keyboard text transformer: " +
-        vm::ToString(transformer.ptr()->type));
+    status_.InsertError(
+        Error(L": Unexpected type for keyboard text transformer: " +
+              vm::ToString(transformer.ptr()->type)));
     return false;
   }
   keyboard_text_transformers_.push_back(std::move(transformer));

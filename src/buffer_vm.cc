@@ -160,7 +160,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       L"SetWarningStatus",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer, std::wstring s) {
-                        buffer.ptr()->status().SetWarningText(s);
+                        buffer.ptr()->status().InsertError(Error(s));
                       })
           .ptr());
 

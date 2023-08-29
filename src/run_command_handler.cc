@@ -485,7 +485,7 @@ class ForkEditorCommand : public Command {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
       (buffer.has_value() ? buffer->ptr()->status() : editor_state_.status())
-          .SetWarningText(L"Oops, that structure is not handled.");
+          .InsertError(Error(L"Oops, that structure is not handled."));
     }
     editor_state_.ResetStructure();
   }
@@ -506,8 +506,8 @@ class ForkEditorCommand : public Command {
         std::move(arguments));
     if (expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
-      prompt_state.original_buffer.ptr()->status().SetWarningText(
-          L"Unable to compile (type mismatch).");
+      prompt_state.original_buffer.ptr()->status().InsertError(
+          Error(L"Unable to compile (type mismatch)."));
       return futures::Past(ColorizePromptOptions{.context = std::nullopt});
     }
     return prompt_state.original_buffer.ptr()

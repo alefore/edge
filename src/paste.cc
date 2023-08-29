@@ -11,6 +11,7 @@ namespace afc::editor {
 namespace {
 using infrastructure::FileDescriptor;
 using language::EmptyValue;
+using language::Error;
 using language::MakeNonNullUnique;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
@@ -50,7 +51,7 @@ class Paste : public Command {
           L"",
       };
       static int current_message = 0;
-      editor_state_.status().SetWarningText(errors[current_message++]);
+      editor_state_.status().InsertError(Error(errors[current_message++]));
       if (errors[current_message].empty()) {
         current_message = 0;
       }
@@ -76,7 +77,7 @@ class Paste : public Command {
                 L"",
             };
             static int current_message = 0;
-            buffer.status().SetWarningText(errors[current_message++]);
+            buffer.status().InsertError(Error(errors[current_message++]));
             if (errors[current_message].empty()) {
               current_message = 0;
             }
@@ -89,7 +90,7 @@ class Paste : public Command {
                  i++) {
               if (write(buffer.fd()->fd().read(), text.c_str(), text.size()) ==
                   -1) {
-                buffer.status().SetWarningText(L"Unable to paste.");
+                buffer.status().InsertError(Error(L"Unable to paste."));
                 break;
               }
             }

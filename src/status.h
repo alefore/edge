@@ -63,13 +63,11 @@ class Status {
   std::unique_ptr<StatusExpirationControl,
                   std::function<void(StatusExpirationControl*)>>
   SetExpiringInformationText(std::wstring text);
-  // TODO(trivial, 2023-08-24): Get rid of `SetWarningText`. Just use `Set`.
-  void SetWarningText(std::wstring text);
   // Prefer `InsertError` over `Set`.
   void Set(language::Error text);
 
   language::error::Log::InsertResult InsertError(
-      language::Error error, infrastructure::Duration duration);
+      language::Error error, infrastructure::Duration duration = 30.0);
 
   // Returns the time of the last call to a method in this class that changed
   // the state of this instance.

@@ -6,13 +6,15 @@
 
 namespace afc::editor {
 namespace {
-using language::NonNull;
 namespace gc = language::gc;
 namespace audio = infrastructure::audio;
 
+using language::Error;
+using language::NonNull;
+
 const bool prompt_tests_registration = tests::Register(
     L"StatusPrompt",
-    {{.name = L"SetWarningText",
+    {{.name = L"InsertError",
       .callback =
           [] {
             NonNull<std::unique_ptr<audio::Player>> audio_player =
@@ -20,7 +22,7 @@ const bool prompt_tests_registration = tests::Register(
             Status status(audio_player.value());
             gc::Root<OpenBuffer> prompt = NewBufferForTests();
             status.set_prompt(L">", prompt);
-            status.SetWarningText(L"Foobar");
+            status.InsertError(Error(L"Foobar"));
             CHECK(status.text() == L">");
             CHECK(&status.prompt_buffer().value().ptr().value() ==
                   &prompt.ptr().value());

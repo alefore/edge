@@ -225,8 +225,6 @@ Status::SetExpiringInformationText(std::wstring text) {
       });
 }
 
-void Status::SetWarningText(std::wstring text) { Set(Error(text)); }
-
 void Status::Set(Error error) {
   ValidatePreconditions();
 

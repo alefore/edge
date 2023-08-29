@@ -1170,10 +1170,9 @@ InsertModeOptions PromptState::insert_mode_options() {
                           prompt_state->status());
                     }
                   } else {
-                    prompt_state->editor_state().status().SetWarningText(
-                        L"Error: Predict: predictions buffer not "
-                        L"found: " +
-                        name.read());
+                    prompt_state->editor_state().status().InsertError(Error(
+                        L"Error: Predict: predictions buffer not found: " +
+                        name.read()));
                   }
                 });
             return true;

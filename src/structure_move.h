@@ -8,9 +8,9 @@
 
 namespace afc::editor {
 
-class OperationScopeBufferInformation;
+struct OperationScopeBufferInformation;
 class BufferContents;
-class Modifiers;
+struct Modifiers;
 
 std::optional<language::text::LineColumn> Move(
     const OperationScopeBufferInformation& scope, Structure structure,

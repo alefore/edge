@@ -322,8 +322,8 @@ class InsertMode : public EditorMode {
                       vm::NewConstantExpression(callback.value()),
                       std::move(args));
               if (expression->Types().empty()) {
-                buffer.status().SetWarningText(
-                    L"Unable to compile (type mismatch).");
+                buffer.status().InsertError(
+                    Error(L"Unable to compile (type mismatch)."));
                 return futures::Past(EmptyValue());
               }
               return buffer
@@ -542,8 +542,8 @@ class InsertMode : public EditorMode {
                  if (auto fd = buffer.fd(); fd != nullptr) {
                    if (write(fd->fd().read(), line_buffer.c_str(),
                              line_buffer.size()) == -1) {
-                     buffer.status().SetWarningText(
-                         L"Write failed: " + FromByteString(strerror(errno)));
+                     buffer.status().InsertError(Error(
+                         L"Write failed: " + FromByteString(strerror(errno))));
                    } else {
                      buffer.editor().StartHandlingInterrupts();
                    }

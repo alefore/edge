@@ -14,13 +14,14 @@
 #include "src/line_prompt_mode.h"
 
 namespace afc::editor {
+namespace gc = language::gc;
+
 using futures::DeleteNotification;
 using language::EmptyValue;
+using language::Error;
 using language::FromByteString;
 using language::NonNull;
 using language::lazy_string::LazyString;
-
-namespace gc = language::gc;
 
 namespace {
 
@@ -116,9 +117,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                     editor_state.Set(var, value);
                   } else {
                     // TODO(easy, 2022-06-05): Get rid of ToString.
-                    default_error_status.SetWarningText(
-                        L"Invalid value for double value “" + var->name() +
-                        L"”: " + input->ToString());
+                    default_error_status.InsertError(
+                        Error(L"Invalid value for double value “" +
+                              var->name() + L"”: " + input->ToString()));
                   }
                   return futures::Past(EmptyValue());
                 },
@@ -155,9 +156,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                 // TODO(easy, 2022-06-05): Get rid of ToString.
                 value = stoi(input->ToString());
               } catch (const std::invalid_argument& ia) {
-                default_error_status.SetWarningText(
-                    L"Invalid value for integer value “" + var->name() +
-                    L"”: " + FromByteString(ia.what()));
+                default_error_status.InsertError(
+                    Error(L"Invalid value for integer value “" + var->name() +
+                          L"”: " + FromByteString(ia.what())));
                 return futures::Past(EmptyValue());
               }
               editor_state.ForEachActiveBuffer(
@@ -194,9 +195,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                     });
               } else {
                 // TODO(easy, 2022-06-05): Get rid of ToString.
-                default_error_status.SetWarningText(
-                    L"Invalid value for double value “" + var->name() + L"”: " +
-                    input->ToString());
+                default_error_status.InsertError(
+                    Error(L"Invalid value for double value “" + var->name() +
+                          L"”: " + input->ToString()));
               }
               return futures::Past(EmptyValue());
             },
@@ -205,7 +206,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     return futures::Past(EmptyValue());
   }
 
-  default_error_status.SetWarningText(L"Unknown variable: " + name);
+  default_error_status.InsertError(Error(L"Unknown variable: " + name));
   return futures::Past(EmptyValue());
 }
 

@@ -119,7 +119,8 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
     buffer.status().SetInformationText(
         L"🌷Directory changed in disk since last read.");
   } else {
-    buffer.status().SetWarningText(L"🌷File changed in disk since last read.");
+    buffer.status().InsertError(
+        Error(L"🌷File changed in disk since last read."));
   }
 }
 

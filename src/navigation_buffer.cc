@@ -20,6 +20,7 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 namespace {
 using infrastructure::Path;
+using language::Error;
 using language::MakeNonNullShared;
 using language::PossibleError;
 using language::Success;
@@ -150,8 +151,8 @@ class NavigationBufferCommand : public Command {
   void ProcessInput(wint_t) override {
     std::optional<gc::Root<OpenBuffer>> source = editor_state_.current_buffer();
     if (!source.has_value()) {
-      editor_state_.status().SetWarningText(
-          L"NavigationBuffer needs an existing buffer.");
+      editor_state_.status().InsertError(
+          Error(L"NavigationBuffer needs an existing buffer."));
       return;
     }
 

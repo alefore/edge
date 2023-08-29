@@ -17,6 +17,7 @@
 #include "src/transformation/set_position.h"
 
 namespace afc::editor {
+using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
@@ -81,8 +82,8 @@ class MoveTransformation : public CompositeTransformation {
     if (!position.has_value()) {
       std::ostringstream oss;
       oss << structure;
-      input.buffer.status().SetWarningText(L"Unhandled structure: " +
-                                           language::FromByteString(oss.str()));
+      input.buffer.status().InsertError(Error(
+          L"Unhandled structure: " + language::FromByteString(oss.str())));
       return futures::Past(Output());
     }
 

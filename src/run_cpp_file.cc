@@ -55,8 +55,8 @@ futures::Value<PossibleError> RunCppFileHandler(
                  }),
              [buffer, input](Error error) {
                // TODO(easy, 2022-06-05): Get rid of ToString.
-               buffer->ptr()->status().SetWarningText(L"🗱  File not found: " +
-                                                      input->ToString());
+               buffer->ptr()->status().InsertError(
+                   Error(L"🗱  File not found: " + input->ToString()));
                return futures::Past(error);
              })
       .Transform([buffer, &editor_state,

@@ -106,8 +106,8 @@ void EditorState::NotifyInternalEvent() {
         return old_value;
       }) &&
       write(pipe_to_communicate_internal_events_.second.read(), " ", 1) == -1) {
-    status_.SetWarningText(L"Write to internal pipe failed: " +
-                           FromByteString(strerror(errno)));
+    status_.InsertError(Error(L"Write to internal pipe failed: " +
+                              FromByteString(strerror(errno))));
   }
 }
 

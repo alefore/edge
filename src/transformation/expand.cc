@@ -145,8 +145,8 @@ class InsertHistoryTransformation : public CompositeTransformation {
               transformation::Insert{.contents_to_insert = text->copy()});
         },
         [&] {
-          input.editor.status().SetWarningText(L"No matches: " +
-                                               search_options_.query);
+          input.editor.status().InsertError(
+              Error(L"No matches: " + search_options_.query));
         });
     return futures::Past(std::move(output));
   }
@@ -284,8 +284,7 @@ class Execute : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     return RunCppCommandShell(command_, input.editor)
-        .Transform([command_size = command_.size(),
-                    &editor = input.editor](gc::Root<vm::Value> value) {
+        .Transform([command_size = command_.size()](gc::Root<vm::Value> value) {
           Output output;
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
