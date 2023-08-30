@@ -271,13 +271,13 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
   return generator;
 }
 
-VisualOverlayMap FilterOverlays(const OpenBuffer& buffer,
+VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
                                 const Range& screen_line_range) {
   VisualOverlayMap output;
   for (const std::pair<const VisualOverlayPriority,
                        std::map<VisualOverlayKey,
                                 std::multimap<LineColumn, VisualOverlay>>>&
-           priority_entry : buffer.visual_overlay_map()) {
+           priority_entry : visual_overlay_map) {
     DVLOG(5) << "Visiting overlay priority: " << priority_entry.first;
     for (const std::pair<const VisualOverlayKey,
                          std::multimap<LineColumn, VisualOverlay>>& key_entry :
@@ -422,7 +422,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
       generator = LineHighlighter(std::move(generator));
     }
 
-    if (VisualOverlayMap overlays = FilterOverlays(buffer, screen_line.range);
+    if (VisualOverlayMap overlays =
+            FilterOverlays(buffer.visual_overlay_map(), screen_line.range);
         !overlays.empty())
       generator = ApplyVisualOverlay(std::move(overlays), std::move(generator));
 
