@@ -22,6 +22,7 @@ class BufferSyntaxParser {
     std::unordered_set<std::wstring> language_keywords;
     std::wstring symbol_characters;
     IdentifierBehavior identifier_behavior;
+    std::unique_ptr<const BufferContents> dictionary = nullptr;
   };
   void UpdateParser(ParserOptions options);
 

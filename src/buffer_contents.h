@@ -87,7 +87,7 @@ class BufferContents : public fuzz::FuzzTestable {
 
   template <class C>
   language::text::LineNumber upper_bound(
-      language::NonNull<std::shared_ptr<const language::text::Line>>& key,
+      const language::NonNull<std::shared_ptr<const language::text::Line>>& key,
       C compare) const {
     return language::text::LineNumber(Lines::UpperBound(lines_, key, compare));
   }

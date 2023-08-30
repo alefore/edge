@@ -299,10 +299,9 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
   for (auto* v :
        {buffer_variables::symbol_characters, buffer_variables::tree_parser,
         buffer_variables::language_keywords, buffer_variables::typos,
-        buffer_variables::identifier_behavior})
+        buffer_variables::identifier_behavior, buffer_variables::dictionary})
     string_variables_.ObserveValue(v).Add([this] {
       UpdateTreeParser();
-      MaybeStartUpdatingSyntaxTrees();
       return Observers::State::kAlive;
     });
 }
@@ -610,23 +609,58 @@ void OpenBuffer::ReadData() { ReadData(fd_); }
 void OpenBuffer::ReadErrorData() { ReadData(fd_error_); }
 
 void OpenBuffer::UpdateTreeParser() {
-  std::wistringstream typos_stream(Read(buffer_variables::typos));
-  std::wistringstream language_keywords(
-      Read(buffer_variables::language_keywords));
-  buffer_syntax_parser_.UpdateParser(
-      {.parser_name = Read(buffer_variables::tree_parser),
-       .typos_set =
-           std::unordered_set<wstring>{
-               std::istream_iterator<std::wstring, wchar_t>(typos_stream),
-               std::istream_iterator<std::wstring, wchar_t>()},
-       .language_keywords = std::unordered_set<wstring>(
-           std::istream_iterator<wstring, wchar_t>(language_keywords),
-           std::istream_iterator<wstring, wchar_t>()),
-       .symbol_characters = Read(buffer_variables::symbol_characters),
-       .identifier_behavior =
-           Read(buffer_variables::identifier_behavior) == L"color-by-hash"
-               ? IdentifierBehavior::kColorByHash
-               : IdentifierBehavior::kNone});
+  if (!ptr_this_.has_value()) return;
+  futures::Value<std::unique_ptr<BufferContents>> dictionary =
+      futures::Past(nullptr);
+  std::visit(
+      overload{
+          [&](Path dictionary_path) {
+            dictionary =
+                OpenFileIfFound(
+                    OpenFileOptions{
+                        .editor_state = editor(),
+                        .path = dictionary_path,
+                        .insertion_type = BuffersList::AddBufferType::kIgnore,
+                        .use_search_paths = false})
+                    .Transform([](gc::Root<OpenBuffer> dictionary_root) {
+                      return dictionary_root.ptr()
+                          ->WaitForEndOfFile()
+                          .Transform([dictionary_root](EmptyValue) {
+                            return Success(std::move(dictionary_root.ptr()
+                                                         ->contents()
+                                                         .copy()
+                                                         .get_unique()));
+                          });
+                    })
+                    .ConsumeErrors(
+                        [](Error) { return futures::Past(nullptr); });
+          },
+          IgnoreErrors{}},
+      Path::FromString(Read(buffer_variables::dictionary)));
+  std::move(dictionary)
+      .Transform([this, root_this = NewRoot()](
+                     std::unique_ptr<BufferContents> dictionary) {
+        std::wistringstream typos_stream(Read(buffer_variables::typos));
+        std::wistringstream language_keywords(
+            Read(buffer_variables::language_keywords));
+        buffer_syntax_parser_.UpdateParser(
+            {.parser_name = Read(buffer_variables::tree_parser),
+             .typos_set =
+                 std::unordered_set<wstring>{
+                     std::istream_iterator<std::wstring, wchar_t>(typos_stream),
+                     std::istream_iterator<std::wstring, wchar_t>()},
+             .language_keywords = std::unordered_set<wstring>(
+                 std::istream_iterator<wstring, wchar_t>(language_keywords),
+                 std::istream_iterator<wstring, wchar_t>()),
+             .symbol_characters = Read(buffer_variables::symbol_characters),
+             .identifier_behavior =
+                 Read(buffer_variables::identifier_behavior) == L"color-by-hash"
+                     ? IdentifierBehavior::kColorByHash
+                     : IdentifierBehavior::kNone,
+             .dictionary = std::move(dictionary)});
+        MaybeStartUpdatingSyntaxTrees();
+        return EmptyValue();
+      });
 }
 
 NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::parse_tree() const {
@@ -640,6 +674,7 @@ NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::simplified_parse_tree()
 
 void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   ptr_this_ = std::move(ptr_this);
+
   gc::WeakPtr<OpenBuffer> weak_this = ptr_this_->ToWeakPtr();
   buffer_syntax_parser_.ObserveTrees().Add(
       WeakPtrLockingObserver(weak_this, [](OpenBuffer& buffer) {

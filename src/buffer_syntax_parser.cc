@@ -29,8 +29,8 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
     } else if (options.parser_name == L"diff") {
       data.tree_parser = parsers::NewDiffTreeParser();
     } else if (options.parser_name == L"md") {
-      data.tree_parser =
-          parsers::NewMarkdownTreeParser(options.symbol_characters);
+      data.tree_parser = parsers::NewMarkdownTreeParser(
+          options.symbol_characters, std::move(options.dictionary));
     } else {
       data.tree_parser = NewNullTreeParser();
     }

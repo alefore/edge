@@ -5,17 +5,30 @@
 #include <algorithm>
 
 #include "src/buffer_contents.h"
+#include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/lazy_string/lowercase.h"
+#include "src/language/lazy_string/substring.h"
 #include "src/parse_tools.h"
 #include "src/seek.h"
 
 namespace afc::editor::parsers {
 namespace {
+using editor::LineModifier;
+using editor::LineModifierSet;
+using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
+using language::lazy_string::Substring;
+using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::Range;
+
+using ::operator<<;
 
 enum State {
   DEFAULT,
@@ -36,8 +49,13 @@ enum State {
 
 class MarkdownParser : public TreeParser {
  public:
-  MarkdownParser(std::wstring symbol_characters)
-      : symbol_characters_(std::move(symbol_characters)) {}
+  MarkdownParser(std::wstring symbol_characters,
+                 std::unique_ptr<const BufferContents> dictionary)
+      : symbol_characters_(std::move(symbol_characters)),
+        dictionary_(std::move(dictionary)) {
+    if (dictionary_ != nullptr)
+      LOG(INFO) << "Created with dictionary entries: " << dictionary_->size();
+  }
 
   ParseTree FindChildren(const BufferContents& buffer, Range range) override {
     std::vector<size_t> states_stack = {DEFAULT};
@@ -117,9 +135,16 @@ class MarkdownParser : public TreeParser {
           break;
         default:
           if (IsSymbol(seek.read())) {
-            result->Push(SYMBOL, ColumnNumberDelta(), {}, {});
+            LineColumn original_position = result->position();
             while (!seek.AtRangeEnd() && IsSymbol(seek.read())) seek.Once();
-            result->PopBack();
+            ColumnNumberDelta length =
+                result->position().column - original_position.column;
+            NonNull<std::shared_ptr<LazyString>> str = Substring(
+                result->buffer().at(original_position.line)->contents(),
+                original_position.column, length);
+            result->PushAndPop(length, IsTypo(str)
+                                           ? LineModifierSet{LineModifier::kRed}
+                                           : LineModifierSet{});
           } else {
             seek.Once();
           }
@@ -129,6 +154,24 @@ class MarkdownParser : public TreeParser {
 
   bool IsSymbol(int c) const {
     return symbol_characters_.find(c) != symbol_characters_.npos;
+  }
+
+  bool IsTypo(NonNull<std::shared_ptr<LazyString>> symbol) const {
+    if (dictionary_ == nullptr) return false;
+
+    LineNumber line = dictionary_->upper_bound(
+        MakeNonNullShared<const Line>(LineBuilder(LowerCase(symbol)).Build()),
+        [](const NonNull<std::shared_ptr<const Line>>& a,
+           const NonNull<std::shared_ptr<const Line>>& b) {
+          return a->ToString() < b->ToString();
+        });
+    if (line.IsZero()) return false;
+    if (symbol->ToString() == L"token")
+      LOG(INFO) << "XXXX: " << dictionary_->at(line)->contents()->ToString();
+
+    --line;
+    return LowerCase(dictionary_->at(line)->contents()).value() !=
+           LowerCase(symbol).value();
   }
 
   void HandleOpenLink(ParseData* result) {
@@ -306,11 +349,14 @@ class MarkdownParser : public TreeParser {
   }
 
   const std::wstring symbol_characters_;
+  const std::unique_ptr<const BufferContents> dictionary_;
 };
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
-    std::wstring symbol_characters) {
-  return NonNull<std::unique_ptr<MarkdownParser>>(std::move(symbol_characters));
+    std::wstring symbol_characters,
+    std::unique_ptr<const BufferContents> dictionary) {
+  return MakeNonNullUnique<MarkdownParser>(std::move(symbol_characters),
+                                           std::move(dictionary));
 }
 }  // namespace afc::editor::parsers
