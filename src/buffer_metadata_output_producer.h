@@ -4,6 +4,7 @@
 #include "src/buffer_contents_view_layout.h"
 #include "src/columns_vector.h"
 #include "src/line_with_cursor.h"
+#include "src/parse_tree.h"
 
 namespace afc::editor {
 class OpenBuffer;
