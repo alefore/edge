@@ -610,34 +610,22 @@ void OpenBuffer::ReadErrorData() { ReadData(fd_error_); }
 
 void OpenBuffer::UpdateTreeParser() {
   if (!ptr_this_.has_value()) return;
-  futures::Value<std::unique_ptr<BufferContents>> dictionary =
-      futures::Past(nullptr);
-  std::visit(
-      overload{
-          [&](Path dictionary_path) {
-            dictionary =
-                OpenFileIfFound(
-                    OpenFileOptions{
-                        .editor_state = editor(),
-                        .path = dictionary_path,
-                        .insertion_type = BuffersList::AddBufferType::kIgnore,
-                        .use_search_paths = false})
-                    .Transform([](gc::Root<OpenBuffer> dictionary_root) {
-                      return dictionary_root.ptr()
-                          ->WaitForEndOfFile()
-                          .Transform([dictionary_root](EmptyValue) {
-                            return Success(std::move(dictionary_root.ptr()
-                                                         ->contents()
-                                                         .copy()
-                                                         .get_unique()));
-                          });
-                    })
-                    .ConsumeErrors(
-                        [](Error) { return futures::Past(nullptr); });
-          },
-          IgnoreErrors{}},
-      Path::FromString(Read(buffer_variables::dictionary)));
-  std::move(dictionary)
+  futures::Past(Path::FromString(Read(buffer_variables::dictionary)))
+      .Transform([&](Path dictionary_path) {
+        return OpenFileIfFound(OpenFileOptions{
+            .editor_state = editor(),
+            .path = dictionary_path,
+            .insertion_type = BuffersList::AddBufferType::kIgnore,
+            .use_search_paths = false});
+      })
+      .Transform([](gc::Root<OpenBuffer> dictionary_root) {
+        return dictionary_root.ptr()->WaitForEndOfFile().Transform(
+            [dictionary_root](EmptyValue) {
+              return Success(std::move(
+                  dictionary_root.ptr()->contents().copy().get_unique()));
+            });
+      })
+      .ConsumeErrors([](Error) { return futures::Past(nullptr); })
       .Transform([this, root_this = NewRoot()](
                      std::unique_ptr<BufferContents> dictionary) {
         std::wistringstream typos_stream(Read(buffer_variables::typos));
