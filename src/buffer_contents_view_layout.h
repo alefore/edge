@@ -7,6 +7,7 @@
 #include <optional>
 #include <set>
 
+#include "src/buffer_contents.h"
 #include "src/line_output.h"
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
