@@ -28,6 +28,9 @@ struct Stack {
   std::list<Variant> stack;
   PostTransformationBehavior post_transformation_behavior =
       PostTransformationBehavior::kNone;
+
+  // Used if post_transformation_behavior is kCommandSystem.
+  std::wstring shell = L"";
 };
 
 Variant OptimizeBase(Stack stack);

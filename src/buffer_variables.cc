@@ -561,6 +561,17 @@ EdgeVariable<std::wstring>* const shell_command_help_filter =
             L"[^|;]*$")
         .Build();
 
+EdgeVariable<std::wstring>* const shell_command =
+    StringStruct()
+        ->Add()
+        .Name(L"shell_command")
+        .Description(
+            L"Command to run for an execution operation. Should use the "
+            L"environment variable EDGE_INPUT to load the contents that the "
+            L"user has selected.")
+        .DefaultValue(L"/usr/bin/bash $EDGE_INPUT")
+        .Build();
+
 EdgeVariable<std::wstring>* const cpp_prompt_namespaces =
     StringStruct()
         ->Add()

@@ -24,6 +24,7 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
+using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
@@ -344,10 +345,25 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             contents->FilterToRange(*delete_transformation.range);
             AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
                              NewLazyString(contents->ToString()));
+            std::wstring tmp_path = [&contents] {
+              char* tmp_path_bytes = strdup("/tmp/edge-commands-XXXXXX");
+              // TODO(async, easy, 2023-08-30): Use file_system_driver.
+              // TODO(easy, 2023-08-30): Check errors.
+              int tmp_fd = mkstemp(tmp_path_bytes);
+              std::wstring tmp_path =
+                  FromByteString(std::string(tmp_path_bytes));
+              free(tmp_path_bytes);
+              std::string data = ToByteString(contents->ToString());
+              write(tmp_fd, data.c_str(), data.size());
+              close(tmp_fd);
+              return tmp_path;
+            }();
             ForkCommand(input.buffer.editor(),
                         ForkCommandOptions{
-                            .command = contents->ToString(),
+                            .command = input.buffer.Read(
+                                buffer_variables::shell_command),
                             .environment = {
+                                {L"EDGE_INPUT", tmp_path},
                                 {L"EDGE_PARENT_BUFFER_PATH",
                                  input.buffer.Read(buffer_variables::path)}}});
             return futures::Past(std::move(*output));

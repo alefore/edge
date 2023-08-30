@@ -62,6 +62,7 @@ extern EdgeVariable<std::wstring>* const typos;
 extern EdgeVariable<std::wstring>* const directory_noise;
 extern EdgeVariable<std::wstring>* const contents_type;
 extern EdgeVariable<std::wstring>* const shell_command_help_filter;
+extern EdgeVariable<std::wstring>* const shell_command;
 extern EdgeVariable<std::wstring>* const cpp_prompt_namespaces;
 extern EdgeVariable<std::wstring>* const file_context_extensions;
 extern EdgeVariable<std::wstring>* const identifier_behavior;
