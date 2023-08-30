@@ -4,6 +4,7 @@
 #include <list>
 #include <memory>
 
+#include "src/buffer.h"
 #include "src/buffer_contents_view_layout.h"
 #include "src/buffer_display_data.h"
 #include "src/language/safe_types.h"
