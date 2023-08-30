@@ -292,6 +292,7 @@ src/undo_state.h \
 src/url.cc \
 src/url.h \
 src/variables.h \
+src/visual_overlay.cc \
 src/visual_overlay.h \
 src/vm/public/container.h \
 src/vm/public/escape.h \

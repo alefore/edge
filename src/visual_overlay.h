@@ -43,6 +43,12 @@ using VisualOverlayMapInternal = std::map<
              std::multimap<language::text::LineColumn, VisualOverlay>>>;
 
 GHOST_TYPE_CONTAINER(VisualOverlayMap, VisualOverlayMapInternal);
+
+// Returns a copy of visual_overlay_map that only contains overlays that
+// intersect screen_line_range.
+VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
+                                const language::text::Range& screen_line_range);
+
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_VISUAL_OVERLAY_H__
