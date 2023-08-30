@@ -4,7 +4,6 @@
 #include <list>
 #include <memory>
 
-#include "src/buffer.h"
 #include "src/language/text/line_column.h"
 #include "src/line_with_cursor.h"
 #include "src/vm/public/environment.h"
