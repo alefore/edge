@@ -4,10 +4,10 @@
 #include <list>
 #include <memory>
 
+#include "src/buffer.h"
 #include "src/buffer_contents_view_layout.h"
 #include "src/language/text/line_column.h"
 #include "src/line_with_cursor.h"
-#include "src/widget.h"
 
 namespace afc::editor {
 
