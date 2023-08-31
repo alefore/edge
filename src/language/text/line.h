@@ -215,9 +215,6 @@ class LineBuilder {
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
 
  private:
-  // TODO(easy, 2023-08-21): Remove this friend. Add a `hash` method.
-  friend class std::hash<Line>;
-
   explicit LineBuilder(Line::Data);
 
   Line::Data data_;
