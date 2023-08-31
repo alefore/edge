@@ -15,6 +15,8 @@ namespace error = language::error;
 
 using concurrent::VersionPropertyKey;
 using concurrent::VersionPropertyReceiver;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::Error;
 using language::MakeNonNullShared;
 using language::NonNull;

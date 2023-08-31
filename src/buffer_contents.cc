@@ -15,6 +15,7 @@
 
 namespace afc::editor {
 using infrastructure::Tracker;
+using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;

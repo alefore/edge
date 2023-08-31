@@ -17,6 +17,8 @@ extern "C" {
 #include "src/tests/fuzz.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::FromByteString;
 using language::MakeNonNullShared;
 using language::NonNull;

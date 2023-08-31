@@ -4,9 +4,7 @@
 
 #include <ostream>
 
-namespace afc {
-namespace editor {
-
+namespace afc::infrastructure::screen {
 const std::unordered_map<std::string, LineModifier>& ModifierNames() {
   static const std::unordered_map<std::string, LineModifier> values = {
       {"RESET", LineModifier::kReset},
@@ -63,5 +61,4 @@ std::ostream& operator<<(std::ostream& os, const LineModifierSet& s) {
   return os;
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::infrastructure::screen

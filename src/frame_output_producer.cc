@@ -9,6 +9,8 @@
 #include "src/language/lazy_string/padding.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::lazy_string::ColumnNumberDelta;
 using language::text::Line;
 using language::text::LineBuilder;

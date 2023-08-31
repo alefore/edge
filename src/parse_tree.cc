@@ -12,6 +12,8 @@ extern "C" {
 #include "src/language/lazy_string/substring.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::compute_hash;
 using language::hash_combine;
 using language::MakeHashableIteratorRange;

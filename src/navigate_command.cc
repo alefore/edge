@@ -19,6 +19,7 @@
 #include "src/transformation/type.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifier;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;

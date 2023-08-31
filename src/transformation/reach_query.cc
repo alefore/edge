@@ -3,16 +3,21 @@
 #include "src/buffer.h"
 #include "src/buffer_display_data.h"
 #include "src/buffer_variables.h"
+#include "src/infrastructure/screen/visual_overlay.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
-#include "src/visual_overlay.h"
 
 namespace afc::editor::transformation {
 using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
+using infrastructure::screen::VisualOverlayKey;
+using infrastructure::screen::VisualOverlayMap;
+using infrastructure::screen::VisualOverlayPriority;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineColumnDelta;
@@ -179,12 +184,12 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
       const Line& line = GetLine(match.second, input.buffer.contents());
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
-          afc::editor::VisualOverlay{
+          afc::infrastructure::screen::VisualOverlay{
               .content = line.Substring(match.second.column, kQueryLength),
               .modifiers = {LineModifier::kUnderline}}));
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second + kQueryLength,
-          afc::editor::VisualOverlay{
+          afc::infrastructure::screen::VisualOverlay{
               .content = NewLazyString(ColumnNumberDelta(1), match.first),
               .modifiers = LineModifierSet{LineModifier::kReverse,
                                            LineModifier::kWhite}}));

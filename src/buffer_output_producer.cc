@@ -10,6 +10,7 @@
 #include "src/buffer_variables.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/infrastructure/screen/visual_overlay.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/substring.h"
@@ -18,11 +19,16 @@
 #include "src/parse_tree.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
-#include "src/visual_overlay.h"
 
 namespace afc::editor {
 namespace {
 using infrastructure::Tracker;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
+using infrastructure::screen::VisualOverlay;
+using infrastructure::screen::VisualOverlayKey;
+using infrastructure::screen::VisualOverlayMap;
+using infrastructure::screen::VisualOverlayPriority;
 using language::compute_hash;
 using language::hash_combine;
 using language::MakeNonNullShared;
@@ -42,6 +48,8 @@ using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::Range;
 
+// TODO(trivial, 2023-08-30): Move this to
+// //src/infrastructure/screen:visual_overlay.
 void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
                         LineBuilder& output_line) {
   ColumnNumberDelta length =

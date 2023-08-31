@@ -23,6 +23,8 @@ namespace afc {
 namespace editor {
 namespace {
 using infrastructure::Tracker;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::CaptureAndHash;
 using language::MakeNonNullShared;
 using language::NonNull;

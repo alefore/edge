@@ -43,6 +43,8 @@ using futures::DeleteNotification;
 using futures::ListenableValue;
 using infrastructure::Path;
 using infrastructure::PathComponent;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::EmptyValue;
 using language::Error;
 using language::IgnoreErrors;

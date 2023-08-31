@@ -9,6 +9,8 @@
 #include "src/path_flags.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::CaptureAndHash;
 using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumberDelta;

@@ -10,6 +10,8 @@
 
 namespace afc::editor::parsers {
 namespace {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::NonNull;
 using language::lazy_string::ColumnNumberDelta;
 using language::text::LineColumn;

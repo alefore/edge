@@ -130,9 +130,9 @@ class BufferContents : public fuzz::FuzzTestable {
 
   // If modifiers is present, applies it to every character (overriding
   // modifiers from the source).
-  void insert(language::text::LineNumber position_line,
-              const BufferContents& source,
-              const std::optional<LineModifierSet>& modifiers);
+  void insert(
+      language::text::LineNumber position_line, const BufferContents& source,
+      const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
   // Delete characters from position.line in range [position.column,
   // position.column + amount). Amount must not be negative and it must be in a
@@ -151,7 +151,7 @@ class BufferContents : public fuzz::FuzzTestable {
   // case the character will just get appended (extending the line by exactly
   // one character).
   void SetCharacter(language::text::LineColumn position, int c,
-                    LineModifierSet modifiers);
+                    infrastructure::screen::LineModifierSet modifiers);
 
   void InsertCharacter(language::text::LineColumn position);
   void AppendToLine(language::text::LineNumber line,

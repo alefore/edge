@@ -797,11 +797,6 @@ cc_library(
 )
 
 cc_library(
-    name = "visual_overlay",
-    hdrs = ["visual_overlay.h"],
-)
-
-cc_library(
     name = "widget",
     srcs = ["widget.cc"],
     hdrs = ["widget.h"],

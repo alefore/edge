@@ -14,6 +14,10 @@ using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::VisualOverlayKey;
+using infrastructure::screen::VisualOverlayMap;
+using infrastructure::screen::VisualOverlayPriority;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::Range;
@@ -254,12 +258,12 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
       VisualOverlayMap overlays;
       if (range.value().begin != center)
         overlays[kPriority][kKey].insert(
-            {range.value().begin, afc::editor::VisualOverlay{
+            {range.value().begin, afc::infrastructure::screen::VisualOverlay{
                                       .content = NewLazyString(L"⟦"),
                                       .modifiers = {LineModifier::kReverse}}});
       if (range.value().end != center)
         overlays[kPriority][kKey].insert(
-            {range.value().end, afc::editor::VisualOverlay{
+            {range.value().end, afc::infrastructure::screen::VisualOverlay{
                                     .content = NewLazyString(L"⟧"),
                                     .modifiers = {LineModifier::kReverse}}});
       output.Push(VisualOverlay{.visual_overlay_map = std::move(overlays)});

@@ -45,7 +45,7 @@ class FileDescriptorReader {
     // it) is transferred to the FileDescriptorReader.
     infrastructure::FileDescriptor fd;
 
-    LineModifierSet modifiers;
+    infrastructure::screen::LineModifierSet modifiers;
 
     // We want to avoid potentially expensive/slow parsing operations in the
     // main thread. To achieve that, we receive a thread pool owned by our

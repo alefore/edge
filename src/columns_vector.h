@@ -15,7 +15,7 @@ struct ColumnsVector {
   // is shorter than its width. In this case, the padding will be a subset of
   // `head` followed by repetitions of `body`.
   struct Padding {
-    LineModifierSet modifiers = {};
+    infrastructure::screen::LineModifierSet modifiers = {};
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> head;
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> body;
   };

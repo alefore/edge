@@ -20,9 +20,9 @@ namespace lazy_string = language::lazy_string;
 
 using ::operator<<;
 
-using editor::LineModifier;
-using editor::LineModifierSet;
 using infrastructure::Tracker;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::compute_hash;
 using language::Error;
 using language::MakeHashableIteratorRange;
@@ -402,8 +402,7 @@ LineBuilder& LineBuilder::insert_end_of_line_modifiers(LineModifierSet values) {
   return *this;
 }
 
-LineBuilder& LineBuilder::set_end_of_line_modifiers(
-    afc::editor::LineModifierSet values) {
+LineBuilder& LineBuilder::set_end_of_line_modifiers(LineModifierSet values) {
   data_.end_of_line_modifiers = std::move(values);
   return *this;
 }
@@ -420,7 +419,7 @@ LineBuilder::modifiers() const {
 size_t LineBuilder::modifiers_size() const { return data_.modifiers.size(); }
 bool LineBuilder::modifiers_empty() const { return data_.modifiers.empty(); }
 
-std::pair<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
+std::pair<language::lazy_string::ColumnNumber, LineModifierSet>
 LineBuilder::modifiers_last() const {
   return *data_.modifiers.rbegin();
 }
@@ -429,9 +428,8 @@ void LineBuilder::InsertModifier(language::lazy_string::ColumnNumber position,
                                  LineModifier modifier) {
   data_.modifiers[position].insert(modifier);
 }
-void LineBuilder::InsertModifiers(
-    language::lazy_string::ColumnNumber position,
-    const afc::editor::LineModifierSet& modifiers) {
+void LineBuilder::InsertModifiers(language::lazy_string::ColumnNumber position,
+                                  const LineModifierSet& modifiers) {
   data_.modifiers[position].insert(modifiers.begin(), modifiers.end());
 }
 

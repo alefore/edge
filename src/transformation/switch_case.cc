@@ -13,6 +13,8 @@
 #include "src/transformation/vm.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::text::Line;

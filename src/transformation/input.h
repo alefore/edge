@@ -22,7 +22,8 @@ struct Input {
     virtual language::text::LineColumn InsertInPosition(
         const BufferContents& contents_to_insert,
         const language::text::LineColumn& input_position,
-        const std::optional<LineModifierSet>& modifiers) = 0;
+        const std::optional<infrastructure::screen::LineModifierSet>&
+            modifiers) = 0;
   };
 
   explicit Input(Adapter& adapter, editor::OpenBuffer& input_buffer);

@@ -23,6 +23,7 @@
 namespace afc::editor::operation {
 using futures::Past;
 using infrastructure::Tracker;
+using infrastructure::screen::VisualOverlayMap;
 using language::EmptyValue;
 using language::MakeNonNullUnique;
 using language::NonNull;

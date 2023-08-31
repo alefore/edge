@@ -10,6 +10,8 @@
 #include "src/language/lazy_string/char_buffer.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::EmptyString;
 using language::lazy_string::NewLazyString;

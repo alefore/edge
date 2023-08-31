@@ -97,7 +97,7 @@ class TerminalInputParser : public fuzz::FuzzTestable {
   language::lazy_string::ColumnNumber ProcessTerminalEscapeSequence(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
       language::lazy_string::ColumnNumber read_index,
-      LineModifierSet* modifiers);
+      infrastructure::screen::LineModifierSet* modifiers);
 
   void MoveToNextLine();
 

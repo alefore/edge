@@ -26,6 +26,8 @@
 #include "src/vm/public/function_call.h"
 
 namespace afc {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::EmptyValue;
 using language::NonNull;
 using language::VisitPointer;

@@ -18,6 +18,7 @@
 #include "src/file_descriptor_reader.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/screen/visual_overlay.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
@@ -34,7 +35,6 @@
 #include "src/transformation/type.h"
 #include "src/undo_state.h"
 #include "src/variables.h"
-#include "src/visual_overlay.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -238,7 +238,7 @@ class OpenBuffer {
   language::text::LineColumn InsertInPosition(
       const BufferContents& contents_to_insert,
       const language::text::LineColumn& position,
-      const std::optional<LineModifierSet>& modifiers);
+      const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
   // See BufferContents::AdjustLineColumn.
   // TODO(trivial, 2023-08-24): Get rid of this method; switch all callers to
@@ -498,9 +498,10 @@ class OpenBuffer {
   language::NonNull<std::shared_ptr<const ParseTree>>
   current_zoomed_out_parse_tree(language::text::LineNumberDelta lines) const;
 
-  const VisualOverlayMap& visual_overlay_map() const;
+  const infrastructure::screen::VisualOverlayMap& visual_overlay_map() const;
   // Returns the previous value.
-  VisualOverlayMap SetVisualOverlayMap(VisualOverlayMap value);
+  infrastructure::screen::VisualOverlayMap SetVisualOverlayMap(
+      infrastructure::screen::VisualOverlayMap value);
 
  private:
   // Code that would normally be in the constructor, but which may require the
@@ -578,7 +579,7 @@ class OpenBuffer {
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
   BufferContents contents_;
-  VisualOverlayMap visual_overlay_map_;
+  infrastructure::screen::VisualOverlayMap visual_overlay_map_;
 
   DiskState disk_state_ = DiskState::kCurrent;
   DiskState backup_state_ = DiskState::kCurrent;

@@ -67,7 +67,6 @@ extern "C" {
 namespace afc::editor {
 namespace gc = language::gc;
 namespace audio = infrastructure::audio;
-
 using concurrent::WorkQueue;
 using futures::IterationControlCommand;
 using infrastructure::AbsolutePath;
@@ -79,6 +78,12 @@ using infrastructure::Path;
 using infrastructure::PathComponent;
 using infrastructure::Tracker;
 using infrastructure::UpdateIfMillisecondsHavePassed;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
+using infrastructure::screen::VisualOverlay;
+using infrastructure::screen::VisualOverlayKey;
+using infrastructure::screen::VisualOverlayMap;
+using infrastructure::screen::VisualOverlayPriority;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;

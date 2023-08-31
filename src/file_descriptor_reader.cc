@@ -14,6 +14,7 @@
 namespace afc::editor {
 using infrastructure::FileDescriptor;
 using infrastructure::Tracker;
+using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;

@@ -109,6 +109,8 @@ src/infrastructure/time.cc \
 src/infrastructure/time.h \
 src/infrastructure/screen/line_modifier.cc \
 src/infrastructure/screen/line_modifier.h \
+src/infrastructure/screen/visual_overlay.cc \
+src/infrastructure/screen/visual_overlay.h \
 src/infrastructure/tracker.cc \
 src/infrastructure/tracker.h \
 src/insert_history.cc \
@@ -292,8 +294,6 @@ src/undo_state.h \
 src/url.cc \
 src/url.h \
 src/variables.h \
-src/visual_overlay.cc \
-src/visual_overlay.h \
 src/vm/public/container.h \
 src/vm/public/escape.h \
 src/vm/public/optional.h \

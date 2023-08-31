@@ -23,6 +23,7 @@
 
 namespace afc::editor {
 using futures::DeleteNotification;
+using infrastructure::screen::LineModifier;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;

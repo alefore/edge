@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
@@ -11,7 +12,7 @@ namespace afc::editor {
 
 struct Action {
   static Action Push(language::lazy_string::ColumnNumber column,
-                     LineModifierSet modifiers,
+                     infrastructure::screen::LineModifierSet modifiers,
                      std::unordered_set<ParseTreeProperty> properties) {
     return Action(PUSH, column, std::move(modifiers), std::move(properties));
   }
@@ -20,7 +21,8 @@ struct Action {
     return Action(POP, column, {}, {});
   }
 
-  static Action SetFirstChildModifiers(LineModifierSet modifiers);
+  static Action SetFirstChildModifiers(
+      infrastructure::screen::LineModifierSet modifiers);
 
   void Execute(std::vector<ParseTree>* trees, language::text::LineNumber line);
 
@@ -37,7 +39,7 @@ struct Action {
   language::lazy_string::ColumnNumber column;
 
   // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
-  LineModifierSet modifiers;
+  infrastructure::screen::LineModifierSet modifiers;
 
   // Used by PUSH.
   std::unordered_set<ParseTreeProperty> properties;
@@ -45,7 +47,7 @@ struct Action {
  private:
   Action(ActionType input_action_type,
          language::lazy_string::ColumnNumber input_column,
-         LineModifierSet input_modifiers,
+         infrastructure::screen::LineModifierSet input_modifiers,
          std::unordered_set<ParseTreeProperty> input_properties)
       : action_type(input_action_type),
         column(input_column),
@@ -86,7 +88,8 @@ class ParseData {
 
   void SetState(size_t state) { parse_results_.states_stack.back() = state; }
 
-  void SetFirstChildModifiers(LineModifierSet modifiers) {
+  void SetFirstChildModifiers(
+      infrastructure::screen::LineModifierSet modifiers) {
     parse_results_.actions.push_back(Action::SetFirstChildModifiers(modifiers));
   }
 
@@ -94,11 +97,11 @@ class ParseData {
 
   void Push(size_t nested_state,
             language::lazy_string::ColumnNumberDelta rewind_column,
-            LineModifierSet modifiers,
+            infrastructure::screen::LineModifierSet modifiers,
             std::unordered_set<ParseTreeProperty> properties);
 
   void PushAndPop(language::lazy_string::ColumnNumberDelta rewind_column,
-                  LineModifierSet modifiers);
+                  infrastructure::screen::LineModifierSet modifiers);
 
  private:
   const BufferContents& buffer_;

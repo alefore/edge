@@ -51,9 +51,9 @@ class ParseTree {
 
   size_t depth() const;
 
-  const LineModifierSet& modifiers() const;
-  void set_modifiers(LineModifierSet modifiers);
-  void InsertModifier(LineModifier modifier);
+  const infrastructure::screen::LineModifierSet& modifiers() const;
+  void set_modifiers(infrastructure::screen::LineModifierSet modifiers);
+  void InsertModifier(infrastructure::screen::LineModifier modifier);
 
   const std::vector<ParseTree>& children() const;
 
@@ -84,7 +84,7 @@ class ParseTree {
 
   language::text::Range range_;
   size_t depth_ = 0;
-  LineModifierSet modifiers_;
+  infrastructure::screen::LineModifierSet modifiers_;
   std::unordered_set<ParseTreeProperty> properties_;
 };
 

@@ -7,8 +7,7 @@
 
 #include "src/language/hash.h"
 
-namespace afc::editor {
-// TODO(trivial, 2023-08-24): This should be inside the language namespace.
+namespace afc::infrastructure::screen {
 enum class LineModifier {
   kReset,
   kBold,
@@ -37,6 +36,6 @@ void ToggleModifier(LineModifier m, LineModifierSet& output);
 
 std::ostream& operator<<(std::ostream& os, const LineModifierSet& s);
 
-}  // namespace afc::editor
+}  // namespace afc::infrastructure::screen
 
 #endif  // __AFC_EDITOR_INFRASTRUCTURE_LINE_MODIFIER_H__

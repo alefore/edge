@@ -1,12 +1,13 @@
 #ifndef __AFC_EDITOR_SCREEN_H__
 #define __AFC_EDITOR_SCREEN_H__
 
-#include "src/language/text/line_column.h"
 #include "src/language/text/line.h"
+#include "src/language/text/line_column.h"
 
 namespace afc {
 namespace editor {
 
+// TODO(2023-08-30, Trivial): Move to //src/infrastructure/screen.
 class Screen {
  public:
   Screen() = default;
@@ -56,7 +57,7 @@ class Screen {
       const language::NonNull<
           std::shared_ptr<language::lazy_string::LazyString>>& str) = 0;
 
-  virtual void SetModifier(LineModifier modifier) = 0;
+  virtual void SetModifier(infrastructure::screen::LineModifier modifier) = 0;
 
   virtual language::text::LineColumnDelta size() const = 0;
 };

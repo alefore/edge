@@ -64,11 +64,11 @@ class Line {
   metadata_future() const;
 
   const std::map<language::lazy_string::ColumnNumber,
-                 afc::editor::LineModifierSet>&
+                 afc::infrastructure::screen::LineModifierSet>&
   modifiers() const {
     return data_.modifiers;
   }
-  afc::editor::LineModifierSet end_of_line_modifiers() const {
+  afc::infrastructure::screen::LineModifierSet end_of_line_modifiers() const {
     return data_.end_of_line_modifiers;
   }
 
@@ -84,10 +84,11 @@ class Line {
         contents = language::lazy_string::EmptyString();
 
     // Columns without an entry here reuse the last present value. If no
-    // previous value, assume afc::editor::LineModifierSet(). There's no need to
-    // include RESET: it is assumed implicitly. In other words, modifiers don't
-    // carry over past an entry.
-    std::map<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
+    // previous value, assume afc::infrastructure::screen::LineModifierSet().
+    // There's no need to include RESET: it is assumed implicitly. In other
+    // words, modifiers don't carry over past an entry.
+    std::map<language::lazy_string::ColumnNumber,
+             afc::infrastructure::screen::LineModifierSet>
         modifiers = {};
 
     // The semantics of this is that any characters at the end of the line
@@ -97,7 +98,7 @@ class Line {
     // If two lines are concatenated, the end of line modifiers of the first
     // line is entirely ignored; it doesn't affect the first characters from the
     // second line.
-    afc::editor::LineModifierSet end_of_line_modifiers = {};
+    afc::infrastructure::screen::LineModifierSet end_of_line_modifiers = {};
 
     std::optional<LineMetadataEntry> metadata = std::nullopt;
     std::function<void()> explicit_delete_observer = nullptr;
@@ -139,20 +140,23 @@ class LineBuilder {
   //
   // `column` may be greater than size(), in which case the character will
   // just get appended (extending the line by exactly one character).
-  void SetCharacter(language::lazy_string::ColumnNumber column, int c,
-                    const afc::editor::LineModifierSet& modifiers);
+  void SetCharacter(
+      language::lazy_string::ColumnNumber column, int c,
+      const afc::infrastructure::screen::LineModifierSet& modifiers);
 
   void InsertCharacterAtPosition(language::lazy_string::ColumnNumber position);
-  void AppendCharacter(wchar_t c, afc::editor::LineModifierSet modifier);
+  void AppendCharacter(wchar_t c,
+                       afc::infrastructure::screen::LineModifierSet modifier);
   void AppendString(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
           suffix);
   void AppendString(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
           suffix,
-      std::optional<afc::editor::LineModifierSet> modifier);
-  void AppendString(std::wstring contents,
-                    std::optional<afc::editor::LineModifierSet> modifier);
+      std::optional<afc::infrastructure::screen::LineModifierSet> modifier);
+  void AppendString(
+      std::wstring contents,
+      std::optional<afc::infrastructure::screen::LineModifierSet> modifier);
   void Append(LineBuilder line);
 
   void SetExplicitDeleteObserver(std::function<void()> observer) {
@@ -176,27 +180,32 @@ class LineBuilder {
   // Delete characters from column (included) until the end.
   LineBuilder& DeleteSuffix(language::lazy_string::ColumnNumber column);
 
-  LineBuilder& SetAllModifiers(afc::editor::LineModifierSet value);
+  LineBuilder& SetAllModifiers(
+      afc::infrastructure::screen::LineModifierSet value);
 
   LineBuilder& insert_end_of_line_modifiers(
-      afc::editor::LineModifierSet values);
-  LineBuilder& set_end_of_line_modifiers(afc::editor::LineModifierSet values);
-  afc::editor::LineModifierSet copy_end_of_line_modifiers() const;
+      afc::infrastructure::screen::LineModifierSet values);
+  LineBuilder& set_end_of_line_modifiers(
+      afc::infrastructure::screen::LineModifierSet values);
+  afc::infrastructure::screen::LineModifierSet copy_end_of_line_modifiers()
+      const;
 
-  std::map<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
+  std::map<language::lazy_string::ColumnNumber,
+           afc::infrastructure::screen::LineModifierSet>
   modifiers() const;
   size_t modifiers_size() const;
   bool modifiers_empty() const;
-  std::pair<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
+  std::pair<language::lazy_string::ColumnNumber,
+            afc::infrastructure::screen::LineModifierSet>
   modifiers_last() const;
   void InsertModifier(language::lazy_string::ColumnNumber,
-                      afc::editor::LineModifier);
+                      afc::infrastructure::screen::LineModifier);
   void InsertModifiers(language::lazy_string::ColumnNumber,
-                       const afc::editor::LineModifierSet&);
+                       const afc::infrastructure::screen::LineModifierSet&);
   void set_modifiers(language::lazy_string::ColumnNumber,
-                     afc::editor::LineModifierSet);
+                     afc::infrastructure::screen::LineModifierSet);
   void set_modifiers(std::map<language::lazy_string::ColumnNumber,
-                              afc::editor::LineModifierSet>
+                              afc::infrastructure::screen::LineModifierSet>
                          value);
   void ClearModifiers();
 

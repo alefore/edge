@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_VISUAL_OVERLAY_H__
-#define __AFC_EDITOR_VISUAL_OVERLAY_H__
+#ifndef __AFC_INFRASTRUCTURE_SCREEN_VISUAL_OVERLAY_H__
+#define __AFC_INFRASTRUCTURE_SCREEN_VISUAL_OVERLAY_H__
 
 #include <map>
 #include <memory>
@@ -10,7 +10,7 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/text/line_column.h"
 
-namespace afc::editor {
+namespace afc::infrastructure::screen {
 struct VisualOverlay {
   std::variant<
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
@@ -31,12 +31,12 @@ GHOST_TYPE(VisualOverlayKey, std::wstring);
 
 // Larger numbers take precedence.
 GHOST_TYPE(VisualOverlayPriority, int);
-}  // namespace afc::editor
+}  // namespace afc::infrastructure::screen
 
-GHOST_TYPE_TOP_LEVEL(afc::editor::VisualOverlayKey);
-GHOST_TYPE_TOP_LEVEL(afc::editor::VisualOverlayPriority);
+GHOST_TYPE_TOP_LEVEL(afc::infrastructure::screen::VisualOverlayKey);
+GHOST_TYPE_TOP_LEVEL(afc::infrastructure::screen::VisualOverlayPriority);
 
-namespace afc::editor {
+namespace afc::infrastructure::screen {
 using VisualOverlayMapInternal = std::map<
     VisualOverlayPriority,
     std::map<VisualOverlayKey,
@@ -49,6 +49,6 @@ GHOST_TYPE_CONTAINER(VisualOverlayMap, VisualOverlayMapInternal);
 VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
                                 const language::text::Range& screen_line_range);
 
-}  // namespace afc::editor
+}  // namespace afc::infrastructure::screen
 
-#endif  // __AFC_EDITOR_VISUAL_OVERLAY_H__
+#endif  // __AFC_INFRASTRUCTURE_SCREEN_VISUAL_OVERLAY_H__

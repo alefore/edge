@@ -1,6 +1,7 @@
 #include "src/parse_tools.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifierSet;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::text::LineColumn;

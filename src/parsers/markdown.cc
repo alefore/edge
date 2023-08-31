@@ -13,8 +13,8 @@
 
 namespace afc::editor::parsers {
 namespace {
-using editor::LineModifier;
-using editor::LineModifierSet;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;

@@ -24,7 +24,7 @@ struct TokenAndModifiers {
   // corresponding portion from the value in `prompt` will be used.
   Token token;
   // Set of modifiers to apply.
-  LineModifierSet modifiers;
+  infrastructure::screen::LineModifierSet modifiers;
 };
 
 struct ColorizePromptOptions {

@@ -1,6 +1,6 @@
-#include "src/visual_overlay.h"
+#include "src/infrastructure/screen/visual_overlay.h"
 
-namespace afc::editor {
+namespace afc::infrastructure::screen {
 using language::text::LineColumn;
 using language::text::Range;
 
@@ -35,4 +35,4 @@ VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
   DVLOG(4) << "Output overlay priorities: " << output.size();
   return output;
 }
-}  // namespace afc::editor
+}  // namespace afc::infrastructure::screen

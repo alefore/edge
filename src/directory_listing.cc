@@ -14,6 +14,8 @@
 namespace afc::editor {
 using infrastructure::OpenDir;
 using infrastructure::Path;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;

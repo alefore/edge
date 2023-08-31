@@ -24,6 +24,8 @@
 
 namespace afc {
 namespace editor {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::CaptureAndHash;
 using language::HashableContainer;
 using language::MakeNonNullShared;

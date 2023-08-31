@@ -16,6 +16,8 @@ namespace {
 using concurrent::VersionPropertyKey;
 using futures::DeleteNotification;
 using futures::IterationControlCommand;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::EmptyValue;
 using language::Error;
 using language::IgnoreErrors;

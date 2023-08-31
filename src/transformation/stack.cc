@@ -17,6 +17,7 @@ namespace afc::editor {
 namespace transformation {
 using ::operator<<;
 
+using infrastructure::screen::LineModifier;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;

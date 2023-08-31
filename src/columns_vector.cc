@@ -11,12 +11,13 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/substring.h"
-#include "src/language/wstring.h"
 #include "src/language/text/line.h"
+#include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
 namespace {
+using infrastructure::screen::LineModifierSet;
 using language::compute_hash;
 using language::MakeHashableIteratorRange;
 using language::MakeNonNullShared;

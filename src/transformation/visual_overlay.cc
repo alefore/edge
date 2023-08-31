@@ -4,6 +4,7 @@
 #include "src/futures/futures.h"
 
 namespace afc::editor::transformation {
+using infrastructure::screen::VisualOverlayMap;
 
 futures::Value<Result> ApplyBase(const VisualOverlay& parameters, Input input) {
   VisualOverlayMap previous_value =

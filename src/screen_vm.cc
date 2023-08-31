@@ -18,6 +18,7 @@
 
 namespace afc {
 using infrastructure::FileDescriptor;
+using infrastructure::screen::ModifierFromString;
 using language::Error;
 using language::NonNull;
 using language::PossibleError;
@@ -42,6 +43,7 @@ const types::ObjectName
 namespace editor {
 using infrastructure::FileDescriptor;
 using infrastructure::Path;
+using infrastructure::screen::LineModifier;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::ToByteString;

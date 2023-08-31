@@ -23,6 +23,8 @@ using infrastructure::GetElapsedSecondsSince;
 using infrastructure::Path;
 using infrastructure::PathComponent;
 using infrastructure::Tracker;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
