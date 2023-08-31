@@ -1,5 +1,8 @@
 #include "src/concurrent/work_queue.h"
 
+#include <chrono>
+#include <thread>
+
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/time.h"
 #include "src/tests/tests.h"
@@ -86,9 +89,8 @@ const bool work_queue_tests_registration = tests::Register(
         // We know it hasn't been deleted since it contains a reference to
         // itself (in the first scheduled callback).
         work_queue_raw->Execute();
-        // TODO(trivial, 2023-08-29): The 0.01 below is casted to int, so no
-        // sleep happens.
-        while (!done.has_value()) sleep(0.01);
+        while (!done.has_value())
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }}});
 
 const bool work_queue_channel_tests_registration = tests::Register(
