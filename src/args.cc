@@ -30,7 +30,9 @@ using language::Error;
 using language::FromByteString;
 using language::IgnoreErrors;
 using language::overload;
+using language::Success;
 using language::ValueOrDie;
+using language::ValueOrError;
 using language::lazy_string::NewLazyString;
 
 namespace {
@@ -153,24 +155,16 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"you can run the client command again.")
           .Accept(L"path", L"Path to the pipe in which to run the server")
           .Set(&CommandLineValues::server_path,
-               std::function<std::optional<std::optional<Path>>(std::wstring,
-                                                                std::wstring*)>(
-                   [](std::wstring input, std::wstring* error_str)
-                       -> std::optional<std::optional<Path>> {
-                     if (input.empty()) {
-                       return {std::optional<Path>()};
-                     }
-                     return std::visit(
-                         overload{[&](Error error) {
-                                    *error_str = error.read();
-                                    return std::optional<std::optional<Path>>();
-                                  },
-                                  [](Path path) {
-                                    return std::optional<std::optional<Path>>(
-                                        path);
-                                  }},
-                         Path::FromString(input));
-                   }))
+               [](std::wstring input) -> ValueOrError<std::optional<Path>> {
+                 if (input.empty()) {
+                   return Success(std::optional<Path>());
+                 }
+                 ValueOrError<Path> output = Path::FromString(input);
+                 if (std::holds_alternative<Error>(output)) {
+                   return std::get<Error>(output);
+                 }
+                 return Success(OptionalFrom(output));
+               })
           .Set(&CommandLineValues::server, true),
 
       Handler<CommandLineValues>({L"client", L"c"},
@@ -178,18 +172,13 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Require(L"path",
                    L"Path to the pipe in which the daemon is listening")
           .Set(&CommandLineValues::client,
-               std::function<std::optional<std::optional<Path>>(std::wstring,
-                                                                std::wstring*)>(
-                   [](std::wstring input, std::wstring* error)
-                       -> std::optional<std::optional<Path>> {
-                     auto output = Path::FromString(input);
-                     if (std::holds_alternative<Error>(output)) {
-                       *error = std::get<Error>(output).read();
-                       return std::nullopt;
-                     }
-                     return std::optional<std::optional<Path>>(
-                         OptionalFrom(output));
-                   })),
+               [](std::wstring input) -> ValueOrError<std::optional<Path>> {
+                 ValueOrError<Path> output = Path::FromString(input);
+                 if (std::holds_alternative<Error>(output)) {
+                   return std::get<Error>(output);
+                 }
+                 return Success(OptionalFrom(output));
+               }),
 
       Handler<CommandLineValues>({L"mute"}, L"Disable audio output")
           .Set(&CommandLineValues::mute, true)
@@ -225,21 +214,20 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Require(L"benchmark", L"The benchmark to run.")
           .Set<std::wstring>(
               &CommandLineValues::benchmark,
-              [](std::wstring input,
-                 std::wstring* error) -> std::optional<std::wstring> {
+              [](std::wstring input) -> ValueOrError<std::wstring> {
                 auto benchmarks = tests::BenchmarkNames();
                 if (std::find(benchmarks.begin(), benchmarks.end(), input) !=
                     benchmarks.end()) {
                   return input;
                 }
-                *error = L"Invalid value (valid values: ";
+                std::wstring error = L"Invalid value (valid values: ";
                 std::wstring sep;
                 for (auto& b : benchmarks) {
-                  *error += sep + b;
+                  error += sep + b;
                   sep = L", ";
                 }
-                *error += L")";
-                return std::nullopt;
+                error += L")";
+                return Error(error);
               }),
 
       Handler<CommandLineValues>({L"view"}, L"Widget mode")
@@ -248,16 +236,15 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                    L"`default`.")
           .Set<CommandLineValues::ViewMode>(
               &CommandLineValues::view_mode,
-              [](std::wstring input, std::wstring* error)
-                  -> std::optional<CommandLineValues::ViewMode> {
+              [](std::wstring input)
+                  -> ValueOrError<CommandLineValues::ViewMode> {
                 if (input == L"all")
                   return CommandLineValues::ViewMode::kAllBuffers;
                 if (input == L"default")
                   return CommandLineValues::ViewMode::kDefault;
-                *error =
+                return Error(
                     L"Invalid value (valid values are `all` and `default`): " +
-                    input;
-                return std::nullopt;
+                    input);
               }),
 
       Handler<CommandLineValues>({L"fps"}, L"Frames per second")

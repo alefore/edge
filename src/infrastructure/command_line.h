@@ -38,6 +38,8 @@ extern "C" {
 #include <sysexits.h>
 }
 
+#include "src/language/error/value_or_error.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 
 namespace afc::command_line_arguments {
@@ -86,14 +88,13 @@ class Handler {
                 L"behavior",
                 L"The behavior for tests. Valid values are `run` and `list`.")
             .Set(&ParsedValues::tests_behavior,
-                 [](std::wstring input,
-                    std::wstring* error) -> std::optional<TestsBehavior> {
+                 [](std::wstring input)
+                     -> language::ValueOrError<TestsBehavior> {
                    if (input == L"run") return TestsBehavior::kRunAndExit;
                    if (input == L"list") return TestsBehavior::kListAndExit;
-                   *error =
+                   return language::Error(
                        L"Invalid value (valid values are `run` and `list`): " +
-                       input;
-                   return std::nullopt;
+                       input);
                  })};
   }
 
@@ -155,22 +156,21 @@ class Handler {
 
   // Class can be ParsedValues or a super-class of it. This is useful for fields
   // in StandardArguments.
-  // Callable should receive two arguments: std::wstring input, and
-  // std::wstring* error. It should return an std::optional<Type>.
+  // Callable should receive a std::wstring with the input. It should return a
+  // ValueOrError<Type>.
   template <typename Type, typename Class, typename Callable>
   Handler<ParsedValues>& Set(Type Class::*field, Callable callback) {
     return PushDelegate([field, callback](ParsingData<ParsedValues>* data) {
-      if (data->current_value.has_value()) {
-        // TODO(easy, 2023-07-04): Switch to ValueOrError.
-        std::wstring error;
-        auto value = callback(data->current_value.value(), &error);
-        if (!value.has_value()) {
-          std::cerr << data->output.binary_name << ": " << data->current_flag
-                    << ": " << error << std::endl;
-          exit(EX_USAGE);
-        }
-        (data->output.*field) = value.value();
-      }
+      if (data->current_value.has_value())
+        std::visit(
+            language::overload{
+                [data](language::Error error) {
+                  std::cerr << data->output.binary_name << ": "
+                            << data->current_flag << ": " << error << std::endl;
+                  exit(EX_USAGE);
+                },
+                [&](Type value) { (data->output.*field) = std::move(value); }},
+            callback(data->current_value.value()));
     });
   }
 
