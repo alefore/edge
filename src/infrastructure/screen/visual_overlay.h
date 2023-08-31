@@ -8,6 +8,8 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 
 namespace afc::infrastructure::screen {
@@ -49,6 +51,11 @@ GHOST_TYPE_CONTAINER(VisualOverlayMap, VisualOverlayMapInternal);
 VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
                                 const language::text::Range& screen_line_range);
 
-}  // namespace afc::infrastructure::screen
+// Returns a copy of Line after applying all overlays. The LineColumn.line
+// values in the keys will be ignored: all overlays in the map will be applied,
+// regardless of the line they declare.
+language::text::Line ApplyVisualOverlayMap(const VisualOverlayMap& overlays,
+                                           language::text::Line& line);
 
+}  // namespace afc::infrastructure::screen
 #endif  // __AFC_INFRASTRUCTURE_SCREEN_VISUAL_OVERLAY_H__

@@ -48,102 +48,13 @@ using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::Range;
 
-// TODO(trivial, 2023-08-30): Move this to
-// //src/infrastructure/screen:visual_overlay.
-void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
-                        LineBuilder& output_line) {
-  ColumnNumberDelta length =
-      std::visit(overload{[&](NonNull<std::shared_ptr<LazyString>> input) {
-                            return input->size();
-                          },
-                          [&](ColumnNumberDelta l) { return l; }},
-                 overlay.content);
-
-  if (column.ToDelta() > output_line.contents()->size()) return;
-  if ((column + length).ToDelta() > output_line.contents()->size())
-    length = output_line.contents()->size() - column.ToDelta();
-
-  std::map<language::lazy_string::ColumnNumber, afc::editor::LineModifierSet>
-      modifiers = output_line.modifiers();
-
-  switch (overlay.behavior) {
-    case VisualOverlay::Behavior::kReplace:
-      modifiers.erase(modifiers.lower_bound(column),
-                      modifiers.lower_bound(column + length));
-      modifiers.insert({column, overlay.modifiers});
-      modifiers.insert({column + length, {}});
-      break;
-
-    case VisualOverlay::Behavior::kToggle:
-    case VisualOverlay::Behavior::kOn:
-      LineModifierSet last_modifiers;
-      if (modifiers.find(column) == modifiers.end()) {
-        auto bound = modifiers.lower_bound(column);
-        if (bound == modifiers.begin())
-          modifiers.insert({column, {}});
-        else if (bound != modifiers.end())
-          modifiers.insert({column, std::prev(bound)->second});
-        else if (modifiers.empty())
-          modifiers.insert({column, {}});
-        else
-          modifiers.insert({column, modifiers.rbegin()->second});
-      }
-      for (auto it = modifiers.find(column);
-           it != modifiers.end() && it->first < column + length; ++it) {
-        last_modifiers = it->second;
-        for (auto& m : overlay.modifiers) switch (overlay.behavior) {
-            case VisualOverlay::Behavior::kReplace:
-              LOG(FATAL) << "Invalid behavior; internal error.";
-              break;
-
-            case VisualOverlay::Behavior::kOn:
-              it->second.insert(m);
-              break;
-
-            case VisualOverlay::Behavior::kToggle:
-              ToggleModifier(m, it->second);
-          }
-      }
-      if (column.ToDelta() + length == output_line.contents()->size())
-        output_line.insert_end_of_line_modifiers(last_modifiers);
-      else
-        modifiers.insert({column + length, last_modifiers});
-  }
-
-  std::visit(overload{[&](NonNull<std::shared_ptr<LazyString>> input) {
-                        for (ColumnNumberDelta i; i < input->size(); ++i)
-                          output_line.SetCharacter(
-                              column + i, input->get(ColumnNumber() + i), {});
-                      },
-                      [&](ColumnNumberDelta) {}},
-             overlay.content);
-  output_line.set_modifiers(modifiers);
-}
-
-NonNull<std::shared_ptr<Line>> ApplyVisualOverlayMap(
-    const VisualOverlayMap& overlays, Line& line) {
-  LineBuilder line_builder(line);
-  for (const std::pair<const VisualOverlayPriority,
-                       std::map<VisualOverlayKey,
-                                std::multimap<LineColumn, VisualOverlay>>>&
-           priority_entry : overlays)
-    for (const std::pair<const VisualOverlayKey,
-                         std::multimap<LineColumn, VisualOverlay>>& key_entry :
-         priority_entry.second)
-      for (const std::pair<const LineColumn, VisualOverlay>& overlay :
-           key_entry.second) {
-        ApplyVisualOverlay(overlay.first.column, overlay.second, line_builder);
-      }
-
-  return MakeNonNullShared<Line>(std::move(line_builder).Build());
-}
-
 LineWithCursor::Generator ApplyVisualOverlay(
     VisualOverlayMap overlays, LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
       std::nullopt, [overlays = std::move(overlays), generator]() {
-        return LineWithCursor{.line = ApplyVisualOverlayMap(
-                                  overlays, generator.generate().line.value())};
+        return LineWithCursor{
+            .line = MakeNonNullShared<Line>(ApplyVisualOverlayMap(
+                overlays, generator.generate().line.value()))};
       }};
 }
 
