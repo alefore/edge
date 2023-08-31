@@ -13,7 +13,7 @@
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/parse_tree.h"
-#include "src/screen.h"
+#include "src/infrastructure/screen/screen.h"
 
 namespace afc::editor {
 using language::MakeNonNullUnique;

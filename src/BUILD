@@ -88,10 +88,10 @@ cc_library(
         ":transformation",
         ":undo_state",
         ":variables",
-        ":visual_overlay",
         "//src/concurrent:work_queue",
         "//src/futures",
         "//src/infrastructure:dirname",
+        "//src/infrastructure/screen:visual_overlay",
         "//src/language:ghost_type",
         "//src/language:observers",
         "//src/language/lazy_string",
@@ -578,12 +578,6 @@ cc_library(
     name = "screen_curses",
     srcs = ["screen_curses.cc"],
     hdrs = ["screen_curses.h"],
-)
-
-cc_library(
-    name = "screen",
-    srcs = ["screen.cc"],
-    hdrs = ["screen.h"],
 )
 
 cc_library(

@@ -22,13 +22,13 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/command_line.h"
+#include "src/infrastructure/screen/screen.h"
 #include "src/infrastructure/time.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/run_command_handler.h"
-#include "src/screen.h"
 #include "src/screen_curses.h"
 #include "src/screen_vm.h"
 #include "src/server.h"
@@ -47,6 +47,7 @@ using afc::infrastructure::MillisecondsBetween;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::Screen;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;

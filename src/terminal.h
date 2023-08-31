@@ -7,9 +7,9 @@
 #include <string>
 
 #include "src/editor.h"
+#include "src/infrastructure/screen/screen.h"
 #include "src/line_with_cursor.h"
 #include "src/lru_cache.h"
-#include "src/screen.h"
 
 namespace afc {
 namespace editor {
@@ -37,18 +37,20 @@ class Terminal {
   Terminal();
 
   // Reads the widgets' state from editor_state and writes it to screen.
-  void Display(const EditorState& editor_state, Screen& screen,
+  void Display(const EditorState& editor_state,
+               infrastructure::screen::Screen& screen,
                const EditorState::ScreenState& screen_state);
 
  private:
   // Function that will draw a given line of output at the current position. It
   // also contains knowledge about where the cursor will be at the end.
   struct LineDrawer {
-    std::function<void(Screen&)> draw_callback;
+    std::function<void(infrastructure::screen::Screen&)> draw_callback;
     std::optional<language::lazy_string::ColumnNumber> cursor;
   };
 
-  void WriteLine(Screen& screen, language::text::LineNumber line,
+  void WriteLine(infrastructure::screen::Screen& screen,
+                 language::text::LineNumber line,
                  LineWithCursor::Generator line_with_cursor);
 
   // Returns a DrawLine that can be used to draw a given line.
@@ -56,7 +58,7 @@ class Terminal {
       LineWithCursor line_with_cursor,
       language::lazy_string::ColumnNumberDelta width);
 
-  void AdjustPosition(Screen& screen);
+  void AdjustPosition(infrastructure::screen::Screen& screen);
 
   // Position at which the cursor should be placed in the screen, if known.
   std::optional<language::text::LineColumn> cursor_position_;

@@ -6,11 +6,11 @@
 
 #include "src/editor.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/infrastructure/screen/screen.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
-#include "src/screen.h"
 #include "src/server.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
@@ -19,6 +19,7 @@
 namespace afc {
 using infrastructure::FileDescriptor;
 using infrastructure::screen::ModifierFromString;
+using infrastructure::screen::Screen;
 using language::Error;
 using language::NonNull;
 using language::PossibleError;
@@ -37,7 +38,7 @@ namespace gc = language::gc;
 namespace vm {
 template <>
 const types::ObjectName
-    VMTypeMapper<NonNull<std::shared_ptr<editor::Screen>>>::object_type_name =
+    VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::object_type_name =
         types::ObjectName(L"Screen");
 }  // namespace vm
 namespace editor {
@@ -253,8 +254,7 @@ std::unique_ptr<Screen> NewScreenVm(FileDescriptor fd) {
 }
 
 const vm::types::ObjectName& GetScreenVmType() {
-  return vm::VMTypeMapper<
-      NonNull<std::shared_ptr<editor::Screen>>>::object_type_name;
+  return vm::VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::object_type_name;
 }
 
 }  // namespace editor

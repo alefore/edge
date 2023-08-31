@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "screen.h"
+#include "src/infrastructure/screen/screen.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/escape.h"
 
@@ -17,7 +17,8 @@ class Environment;
 namespace afc::editor {
 class EditorState;
 void RegisterScreenType(EditorState& editor, vm::Environment& environment);
-std::unique_ptr<Screen> NewScreenVm(infrastructure::FileDescriptor fd);
+std::unique_ptr<infrastructure::screen::Screen> NewScreenVm(
+    infrastructure::FileDescriptor fd);
 const vm::types::ObjectName& GetScreenVmType();
 }  // namespace afc::editor
 

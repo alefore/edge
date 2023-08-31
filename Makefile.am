@@ -109,6 +109,7 @@ src/infrastructure/time.cc \
 src/infrastructure/time.h \
 src/infrastructure/screen/line_modifier.cc \
 src/infrastructure/screen/line_modifier.h \
+src/infrastructure/screen/screen.h \
 src/infrastructure/screen/visual_overlay.cc \
 src/infrastructure/screen/visual_overlay.h \
 src/infrastructure/tracker.cc \
@@ -209,7 +210,6 @@ src/run_cpp_command.cc \
 src/run_cpp_command.h \
 src/run_cpp_file.cc \
 src/run_cpp_file.h \
-src/screen.h \
 src/screen_curses.cc \
 src/screen_curses.h \
 src/screen_vm.cc \
