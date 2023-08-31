@@ -234,10 +234,7 @@ struct hash<afc::language::text::Line> {
 
 template <>
 struct hash<afc::language::text::LineMetadataEntry> {
-  std::size_t operator()(const afc::language::text::LineMetadataEntry&) const {
-    // TODO(easy, 2023-08-27): Implement?
-    return 0;
-  }
+  std::size_t operator()(const afc::language::text::LineMetadataEntry& m) const;
 };
 }  // namespace std
 #endif  // __AFC_LANGUAGE_TEXT_LINE_H__

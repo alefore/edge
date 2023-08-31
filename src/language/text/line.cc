@@ -544,3 +544,10 @@ Line::Line(Line::Data data)
 }
 
 }  // namespace afc::language::text
+namespace std {
+std::size_t hash<afc::language::text::LineMetadataEntry>::operator()(
+    const afc::language::text::LineMetadataEntry& m) const {
+  return std::hash<afc::language::lazy_string::LazyString>{}(
+      m.value.get_copy().value_or(m.initial_value).value());
+}
+}  // namespace std
