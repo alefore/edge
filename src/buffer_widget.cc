@@ -415,6 +415,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   if (!buffer.Read(buffer_variables::paste_mode))
     input.buffer_display_data.AddDisplayWidth(output.lines.width);
 
+  output.lines.width = std::max(output.lines.width,
+                                input.buffer_display_data.max_display_width());
   output.lines = CenterOutput(std::move(output.lines), total_size.column,
                               GetBufferFlag(buffer));
   output.lines = CenterVertically(std::move(output.lines), status_lines.size(),
@@ -422,8 +424,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   CHECK_EQ(output.lines.size(), total_size.line - status_lines.size());
 
   if (!status_lines.size().IsZero()) {
-    output.lines.width = std::max(
-        output.lines.width, input.buffer_display_data.max_display_width());
     (buffer.status().GetType() == Status::Type::kPrompt ? output.lines
                                                         : status_lines)
         .RemoveCursor();
