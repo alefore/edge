@@ -120,28 +120,30 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
   output_line.set_modifiers(modifiers);
 }
 
+NonNull<std::shared_ptr<Line>> ApplyVisualOverlayMap(
+    const VisualOverlayMap& overlays, Line& line) {
+  LineBuilder line_builder(line);
+  for (const std::pair<const VisualOverlayPriority,
+                       std::map<VisualOverlayKey,
+                                std::multimap<LineColumn, VisualOverlay>>>&
+           priority_entry : overlays)
+    for (const std::pair<const VisualOverlayKey,
+                         std::multimap<LineColumn, VisualOverlay>>& key_entry :
+         priority_entry.second)
+      for (const std::pair<const LineColumn, VisualOverlay>& overlay :
+           key_entry.second) {
+        ApplyVisualOverlay(overlay.first.column, overlay.second, line_builder);
+      }
+
+  return MakeNonNullShared<Line>(std::move(line_builder).Build());
+}
+
 LineWithCursor::Generator ApplyVisualOverlay(
     VisualOverlayMap overlays, LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
       std::nullopt, [overlays = std::move(overlays), generator]() {
-        auto output = generator.generate();
-        LineBuilder line_options(output.line.value());
-        for (const std::pair<
-                 const VisualOverlayPriority,
-                 std::map<VisualOverlayKey,
-                          std::multimap<LineColumn, VisualOverlay>>>&
-                 priority_entry : overlays)
-          for (const std::pair<const VisualOverlayKey,
-                               std::multimap<LineColumn, VisualOverlay>>&
-                   key_entry : priority_entry.second)
-            for (const std::pair<const LineColumn, VisualOverlay>& overlay :
-                 key_entry.second) {
-              ApplyVisualOverlay(overlay.first.column, overlay.second,
-                                 line_options);
-            }
-
-        output.line = MakeNonNullShared<Line>(std::move(line_options).Build());
-        return output;
+        return LineWithCursor{.line = ApplyVisualOverlayMap(
+                                  overlays, generator.generate().line.value())};
       }};
 }
 
