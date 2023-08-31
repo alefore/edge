@@ -34,7 +34,7 @@ bool operator==(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator<(const LineColumnDelta& a, const LineColumnDelta& b);
 }  // namespace afc::language::text
-namespace afc::editor::fuzz {
+namespace afc::tests::fuzz {
 template <>
 struct Reader<afc::language::text::LineNumber> {
   static std::optional<afc::language::text::LineNumber> Read(
@@ -46,8 +46,7 @@ struct Reader<afc::language::lazy_string::ColumnNumber> {
   static std::optional<afc::language::lazy_string::ColumnNumber> Read(
       fuzz::Stream& input_stream);
 };
-}  // namespace afc::editor::fuzz
-
+}  // namespace afc::tests::fuzz
 namespace afc::language::text {
 // A position in a text buffer.
 struct LineColumn {
@@ -106,13 +105,13 @@ struct LineColumn {
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 }  // namespace afc::language::text
-namespace afc::editor::fuzz {
+namespace afc::tests::fuzz {
 template <>
 struct Reader<afc::language::text::LineColumn> {
   static std::optional<afc::language::text::LineColumn> Read(
       fuzz::Stream& input_stream);
 };
-}  // namespace afc::editor::fuzz
+}  // namespace afc::tests::fuzz
 
 namespace afc::language::text {
 // A range that contains every position i such that begin <= i < end.

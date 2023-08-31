@@ -9,9 +9,7 @@
 #include "glog/logging.h"
 #include "src/language/wstring.h"
 
-namespace afc {
-namespace editor {
-namespace fuzz {
+namespace afc::tests::fuzz {
 using language::FromByteString;
 
 std::optional<size_t> Reader<size_t>::Read(Stream& input_stream) {
@@ -48,6 +46,4 @@ Handler Call(std::function<void()> callback) {
   return [callback](std::ifstream&) { callback(); };
 }
 
-}  // namespace fuzz
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::tests::fuzz

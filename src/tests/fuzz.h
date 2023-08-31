@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_FUZZ_INPUT_H__
-#define __AFC_EDITOR_FUZZ_INPUT_H__
+#ifndef __AFC_TESTS_FUZZ_H__
+#define __AFC_TESTS_FUZZ_H__
 
 #include <algorithm>
 #include <fstream>
@@ -10,10 +10,7 @@
 #include "src/language/wstring.h"
 #include "src/tests/fuzz_testable.h"
 
-// TODO(trivial, 2023-08-27): Fix the namespaces.
-namespace afc {
-namespace editor {
-namespace fuzz {
+namespace afc::tests::fuzz {
 
 // value will never include '\n'.
 struct ShortRandomLine {
@@ -65,8 +62,6 @@ Handler Call(std::function<void(A)> callback) {
   };
 }
 
-}  // namespace fuzz
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::tests::fuzz
 
-#endif  // __AFC_EDITOR_FUZZ_INPUT_H__
+#endif  // __AFC_TESTS_FUZZ_H__

@@ -8,9 +8,7 @@
 #include "glog/logging.h"
 #include "src/language/wstring.h"
 
-namespace afc {
-namespace editor {
-namespace fuzz {
+namespace afc::tests::fuzz {
 
 /* static */
 void FuzzTestable::Test(Stream& input, FuzzTestable* fuzz_testable) {
@@ -28,6 +26,4 @@ void FuzzTestable::Test(Stream& input, FuzzTestable* fuzz_testable) {
   }
 }
 
-}  // namespace fuzz
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::tests::fuzz

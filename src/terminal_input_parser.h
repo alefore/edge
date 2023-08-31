@@ -29,7 +29,7 @@ class BufferName;
 // This input is received incrementally through `ProcessCommandInput`. As it is
 // decoded, `TerminalInputParser` calls the associated methods in the `Receiver`
 // instance.
-class TerminalInputParser : public fuzz::FuzzTestable {
+class TerminalInputParser : public tests::fuzz::FuzzTestable {
  public:
   class Receiver {
    public:
@@ -76,7 +76,7 @@ class TerminalInputParser : public fuzz::FuzzTestable {
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
       const std::function<void()>& new_line_callback);
 
-  std::vector<fuzz::Handler> FuzzHandlers() override;
+  std::vector<tests::fuzz::Handler> FuzzHandlers() override;
 
  private:
   struct Data {

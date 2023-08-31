@@ -98,8 +98,8 @@ void TerminalInputParser::ProcessCommandInput(
   data_->receiver->JumpToPosition(data_->position);
 }
 
-std::vector<fuzz::Handler> TerminalInputParser::FuzzHandlers() {
-  using namespace fuzz;
+std::vector<tests::fuzz::Handler> TerminalInputParser::FuzzHandlers() {
+  using namespace tests::fuzz;
   std::vector<Handler> output;
   output.push_back(Call(std::function<void()>([this]() { position(); })));
 

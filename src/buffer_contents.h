@@ -15,7 +15,7 @@
 namespace afc {
 namespace editor {
 
-class BufferContents : public fuzz::FuzzTestable {
+class BufferContents : public tests::fuzz::FuzzTestable {
   using Lines = language::ConstTree<
       language::VectorBlock<
           language::NonNull<std::shared_ptr<const language::text::Line>>, 256>,
@@ -187,7 +187,7 @@ class BufferContents : public fuzz::FuzzTestable {
   language::text::LineColumn AdjustLineColumn(
       language::text::LineColumn position) const;
 
-  std::vector<fuzz::Handler> FuzzHandlers() override;
+  std::vector<tests::fuzz::Handler> FuzzHandlers() override;
 
  private:
   template <typename Callback>

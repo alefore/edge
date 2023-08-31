@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 
-namespace afc::editor::fuzz {
+namespace afc::tests::fuzz {
 
 using Stream = std::ifstream;
 using Handler = std::function<void(Stream&)>;
@@ -20,6 +20,6 @@ class FuzzTestable {
   virtual std::vector<Handler> FuzzHandlers() = 0;
 };
 
-}  // namespace afc::editor::fuzz
+}  // namespace afc::tests::fuzz
 
 #endif  // __AFC_EDITOR_TESTS_FUZZ_TESTABLE_H__

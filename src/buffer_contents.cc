@@ -697,8 +697,8 @@ LineColumn BufferContents::AdjustLineColumn(LineColumn position) const {
   return position;
 }
 
-std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
-  using namespace fuzz;
+std::vector<tests::fuzz::Handler> BufferContents::FuzzHandlers() {
+  using namespace tests::fuzz;
   std::vector<Handler> output;
 
   // Call all our const methods that don't take any arguments.

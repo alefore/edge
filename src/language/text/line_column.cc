@@ -40,7 +40,7 @@ bool operator<(const LineColumnDelta& a, const LineColumnDelta& b) {
   return a.line < b.line || (a.line == b.line && a.column < b.column);
 }
 }  // namespace afc::language::text
-namespace afc::editor::fuzz {
+namespace afc::tests::fuzz {
 using language::lazy_string::ColumnNumber;
 using language::text::LineNumber;
 
@@ -65,7 +65,7 @@ std::optional<ColumnNumber> Reader<ColumnNumber>::Read(Stream& input_stream) {
   VLOG(9) << "Fuzz: Read: " << output;
   return output;
 };
-}  // namespace afc::editor::fuzz
+}  // namespace afc::tests::fuzz
 namespace afc::language::text {
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
   os << "["
@@ -148,12 +148,12 @@ std::wstring LineColumn::ToCppString() const {
 }
 
 }  // namespace afc::language::text
-namespace afc::editor::fuzz {
+namespace afc::tests::fuzz {
 using language::lazy_string::ColumnNumber;
 using language::text::LineColumn;
 using language::text::LineNumber;
 /* static */ std::optional<LineColumn> Reader<LineColumn>::Read(
-    fuzz::Stream& input_stream) {
+    Stream& input_stream) {
   auto line = Reader<LineNumber>::Read(input_stream);
   auto column = Reader<ColumnNumber>::Read(input_stream);
   if (!line.has_value() || !column.has_value()) {
@@ -164,4 +164,4 @@ using language::text::LineNumber;
   VLOG(9) << "Fuzz: Read: " << output;
   return output;
 }
-}  // namespace afc::editor::fuzz
+}  // namespace afc::tests::fuzz
