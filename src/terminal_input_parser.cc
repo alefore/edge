@@ -19,6 +19,7 @@ extern "C" {
 namespace afc::editor {
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
+using language::Error;
 using language::FromByteString;
 using language::MakeNonNullShared;
 using language::NonNull;
@@ -276,10 +277,10 @@ ColumnNumber TerminalInputParser::ProcessTerminalEscapeSequence(
               delta.line = LineNumberDelta(stoul(sequence));
             }
           } catch (const std::invalid_argument& ia) {
-            data_->receiver->Warn(
+            data_->receiver->Warn(Error(
                 L"Unable to parse sequence from terminal in 'home' command: "
                 L"\"" +
-                FromByteString(sequence) + L"\"");
+                FromByteString(sequence) + L"\""));
           }
           DLOG(INFO) << "Move cursor home: line: " << delta.line
                      << ", column: " << delta.column;
@@ -404,8 +405,8 @@ void TerminalInputParser::InternalUpdateSize(Data& data) {
 
   if (ioctl(fd->read(), TIOCSWINSZ, &screen_size) == -1) {
     LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
-    data.receiver->Warn(L"ioctl TIOCSWINSZ failed: " +
-                        FromByteString(strerror(errno)));
+    data.receiver->Warn(
+        Error(L"ioctl TIOCSWINSZ failed: " + FromByteString(strerror(errno))));
   }
 }
 

@@ -1610,10 +1610,7 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
            audio::Frequency(659.25)});
     }
 
-    // TODO(trivial, 2023-08-29): Receive an Error object.
-    void Warn(std::wstring warning_text) override {
-      buffer_.status().InsertError(Error(warning_text));
-    }
+    void Warn(Error error) override { buffer_.status().InsertError(error); }
 
     const BufferContents& contents() override { return buffer_.contents(); }
 

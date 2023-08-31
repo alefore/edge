@@ -10,6 +10,7 @@
 
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
@@ -53,7 +54,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
     view_size() = 0;
 
     virtual void Bell() = 0;
-    virtual void Warn(std::wstring warning_text) = 0;
+    virtual void Warn(language::Error error) = 0;
 
     virtual const BufferContents& contents() = 0;
 
