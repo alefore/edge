@@ -52,9 +52,10 @@ LineWithCursor::Generator ApplyVisualOverlay(
     VisualOverlayMap overlays, LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
       std::nullopt, [overlays = std::move(overlays), generator]() {
-        return LineWithCursor{
-            .line = MakeNonNullShared<Line>(ApplyVisualOverlayMap(
-                overlays, generator.generate().line.value()))};
+        LineWithCursor output = generator.generate();
+        output.line = MakeNonNullShared<Line>(
+            ApplyVisualOverlayMap(overlays, output.line.value()));
+        return output;
       }};
 }
 
