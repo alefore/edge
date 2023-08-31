@@ -53,8 +53,23 @@ class FilesWriter:
     if not self.dry_run:
       for path in self.files_to_delete:
         os.remove(path)
-      for path in self.file_mode:
-        os.chmod(path, self.file_mode[path])
+      if not self.diff:
+        for path in self.file_mode:
+          os.chmod(path, self.file_mode[path])
+
+    if self.diff:
+      for path, expected_mode in self.file_mode.items():
+        if path in self.files_with_errors:
+          continue
+        try:
+          found_mode = int(oct(os.stat(path).st_mode)[-3:], 8)
+          if found_mode != expected_mode:
+            print(f"{path}: Expected {oct(expected_mode)[2:]}: "
+                  f"Found {oct(found_mode)[2:]}")
+        except PermissionError as exception:
+          self.files_with_errors[path] = exception
+        except FileNotFoundError as exception:
+          self.files_with_errors[path] = exception
 
     if self.files_with_errors:
       for file, exception in self.files_with_errors.items():
