@@ -115,8 +115,6 @@ class ObjectType {
  public:
   ObjectType(const Type& type, ConstructorAccessKey);
 
-  // TODO(easy, 2023-01-31): Convert all callers to the version that takes the
-  // ObjectName.
   static language::gc::Root<ObjectType> New(afc::language::gc::Pool& pool,
                                             Type type_name);
 
