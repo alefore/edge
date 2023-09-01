@@ -166,8 +166,6 @@ class MarkdownParser : public TreeParser {
           return a->ToString() < b->ToString();
         });
     if (line.IsZero()) return false;
-    if (symbol->ToString() == L"token")
-      LOG(INFO) << "XXXX: " << dictionary_->at(line)->contents()->ToString();
 
     --line;
     return LowerCase(dictionary_->at(line)->contents()).value() !=
