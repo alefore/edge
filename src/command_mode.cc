@@ -299,13 +299,22 @@ class EnterInsertModeCommand : public Command {
                          std::optional<Modifiers> modifiers)
       : editor_state_(editor_state),
         modifiers_(std::move(modifiers)),
-        completion_model_(OpenOrCreateFile(OpenFileOptions{
-            .editor_state = editor_state_,
-            .path = Path::Join(
-                editor_state.edge_path().front(),
-                ValueOrDie(PathComponent::FromString(L"completion_model.txt"))),
-            .insertion_type = BuffersList::AddBufferType::kIgnore,
-            .use_search_paths = false})) {}
+        completion_model_(
+            OpenOrCreateFile(
+                OpenFileOptions{
+                    .editor_state = editor_state_,
+                    .path = Path::Join(editor_state.edge_path().front(),
+                                       ValueOrDie(PathComponent::FromString(
+                                           L"completion_model.txt"))),
+                    .insertion_type = BuffersList::AddBufferType::kIgnore,
+                    .use_search_paths = false})
+                .Transform([](gc::Root<OpenBuffer> buffer) {
+                  return buffer.ptr()->WaitForEndOfFile().Transform(
+                      [buffer](EmptyValue) {
+                        buffer.ptr()->SortAllContentsIgnoringCase();
+                        return buffer;
+                      });
+                })) {}
 
   std::wstring Description() const override { return L"enters insert mode"; }
   std::wstring Category() const override { return L"Edit"; }
