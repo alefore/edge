@@ -34,6 +34,7 @@ extern "C" {
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/observers_gc.h"
@@ -105,6 +106,7 @@ using language::WeakPtrLockingObserver;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
+using language::lazy_string::LowerCase;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
