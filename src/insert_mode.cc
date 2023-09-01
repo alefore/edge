@@ -20,8 +20,10 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
+#include "src/futures/listenable_value.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"
@@ -50,9 +52,13 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
+using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::OutgoingLink;
 using language::text::Range;
@@ -371,6 +377,16 @@ class InsertMode : public EditorMode {
             });
         return;
       }
+
+      case ' ':
+        ResetScrollBehavior();
+        ForEachActiveBuffer(buffers_, {' '},
+                            [options = options_](OpenBuffer& buffer) {
+                              CHECK(buffer.fd() == nullptr);
+                              StartModelCompletion(buffer, options);
+                              return futures::Past(EmptyValue());
+                            });
+        return;
     }
     ResetScrollBehavior();
 
@@ -553,6 +569,81 @@ class InsertMode : public EditorMode {
                })
         .Transform(
             [](futures::IterationControlCommand) { return EmptyValue(); });
+  }
+
+  static void StartModelCompletion(OpenBuffer& buffer,
+                                   InsertModeOptions options) {
+    // TODO(easy, 2023-09-01): Use //src/futures:serializer.
+    options.completion_model.AddListener([buffer_root = buffer.NewRoot(),
+                                          options](gc::Root<OpenBuffer>
+                                                       completion_model) {
+      auto InsertValue = [&](NonNull<std::shared_ptr<LazyString>> value)
+          -> futures::Value<EmptyValue> {
+        return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
+            .contents_to_insert = MakeNonNullShared<BufferContents>(
+                MakeNonNullShared<Line>(LineBuilder(std::move(value)).Build())),
+            .modifiers = {.insertion =
+                              options.editor_state.modifiers().insertion}});
+      };
+
+      LineColumn position = buffer_root.ptr()->position();
+      NonNull<std::shared_ptr<const Line>> line =
+          buffer_root.ptr()->contents().at(position.line);
+
+      ColumnNumber start = position.column;
+      CHECK_LE(start.ToDelta(), line->contents()->size());
+      while (!start.IsZero() &&
+             std::isalpha(line->get(start - ColumnNumberDelta(1))))
+        --start;
+      if (start == position.column) return InsertValue(NewLazyString(L" "));
+
+      NonNull<std::shared_ptr<LazyString>> token = LowerCase(
+          Substring(line->contents(), start, position.column - start));
+      // TODO(trivial, 2023-09-01): Handle the case where the last line is
+      // empty.
+      LineNumber model_line = completion_model.ptr()->contents().upper_bound(
+          MakeNonNullShared<const Line>(LineBuilder(token).Build()),
+          [](const NonNull<std::shared_ptr<const Line>>& a,
+             const NonNull<std::shared_ptr<const Line>>& b) {
+            return a->ToString() < b->ToString();
+          });
+      return VisitPointer(
+          ModelLineMatches(completion_model.ptr()->contents(), model_line,
+                           token.value()),
+          [&](NonNull<std::shared_ptr<LazyString>> value) {
+            transformation::Stack stack;
+            stack.PushBack(transformation::Delete{
+                .range = Range::InLine(position.line, start,
+                                       position.column - start)});
+            stack.PushBack(transformation::Insert{
+                .contents_to_insert =
+                    MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
+                        LineBuilder(
+                            Append(std::move(value), NewLazyString(L" ")))
+                            .Build())),
+                .modifiers = {.insertion =
+                                  options.editor_state.modifiers().insertion}});
+            return buffer_root.ptr()->ApplyToCursors(stack);
+          },
+          [&] { return InsertValue(NewLazyString(L" ")); });
+    });
+  }
+
+  static std::optional<NonNull<std::shared_ptr<LazyString>>> ModelLineMatches(
+      const BufferContents& contents, LineNumber line, LazyString& prefix) {
+    LOG(INFO) << "XXXX MATCH? " << contents.size() << ": " << line;
+    if (line > contents.EndLine()) return std::nullopt;
+    // TODO(easy, 2023-09-01): Avoid call to ToString, ugh.
+    NonNull<std::shared_ptr<LazyString>> model_line =
+        contents.at(line)->contents();
+    LOG(INFO) << "Check: " << prefix.ToString()
+              << " against: " << model_line->ToString();
+    size_t split = model_line->ToString().find_first_of(L" ");
+    if (split == std::wstring::npos) return std::nullopt;
+    NonNull<std::shared_ptr<LazyString>> model_prefix =
+        Substring(model_line, ColumnNumber(), ColumnNumberDelta(split));
+    if (model_prefix.value() != prefix) return std::nullopt;
+    return Substring(model_line, ColumnNumber(split + 1));
   }
 
   const InsertModeOptions options_;

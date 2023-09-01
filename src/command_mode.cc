@@ -64,10 +64,11 @@
 
 namespace afc::editor {
 namespace {
-
 using concurrent::WorkQueue;
 using infrastructure::AddSeconds;
 using infrastructure::Now;
+using infrastructure::Path;
+using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullShared;
@@ -296,7 +297,15 @@ class EnterInsertModeCommand : public Command {
  public:
   EnterInsertModeCommand(EditorState& editor_state,
                          std::optional<Modifiers> modifiers)
-      : editor_state_(editor_state), modifiers_(std::move(modifiers)) {}
+      : editor_state_(editor_state),
+        modifiers_(std::move(modifiers)),
+        completion_model_(OpenOrCreateFile(OpenFileOptions{
+            .editor_state = editor_state_,
+            .path = Path::Join(
+                editor_state.edge_path().front(),
+                ValueOrDie(PathComponent::FromString(L"completion_model.txt"))),
+            .insertion_type = BuffersList::AddBufferType::kIgnore,
+            .use_search_paths = false})) {}
 
   std::wstring Description() const override { return L"enters insert mode"; }
   std::wstring Category() const override { return L"Edit"; }
@@ -305,12 +314,14 @@ class EnterInsertModeCommand : public Command {
     if (modifiers_.has_value()) {
       editor_state_.set_modifiers(modifiers_.value());
     }
-    EnterInsertMode({.editor_state = editor_state_});
+    EnterInsertMode(InsertModeOptions{.editor_state = editor_state_,
+                                      .completion_model = completion_model_});
   }
 
  private:
   EditorState& editor_state_;
   const std::optional<Modifiers> modifiers_;
+  const futures::ListenableValue<gc::Root<OpenBuffer>> completion_model_;
 };
 
 class InsertionModifierCommand : public Command {

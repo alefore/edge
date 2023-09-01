@@ -1089,6 +1089,7 @@ InsertModeOptions PromptState::insert_mode_options() {
   return InsertModeOptions{
       .editor_state = editor_state(),
       .buffers = {{prompt_state->prompt_buffer()}},
+      .completion_model = OpenAnonymousBuffer(editor_state()),
       .modify_handler =
           [prompt_state](OpenBuffer& buffer) {
             CHECK_EQ(&buffer, &prompt_state->prompt_buffer().ptr().value());
