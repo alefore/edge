@@ -1014,6 +1014,21 @@ void OpenBuffer::SortContents(
   contents_.sort(first, last, compare);
 }
 
+void OpenBuffer::SortAllContents(
+    std::function<bool(const NonNull<std::shared_ptr<const Line>>&,
+                       const NonNull<std::shared_ptr<const Line>>&)>
+        compare) {
+  return SortContents(LineNumber(), EndLine() - LineNumberDelta(1),
+                      std::move(compare));
+}
+
+void OpenBuffer::SortAllContentsIgnoringCase() {
+  return SortAllContents([](const NonNull<std::shared_ptr<const Line>>& a,
+                            const NonNull<std::shared_ptr<const Line>>& b) {
+    return LowerCase(a->contents()).value() < LowerCase(b->contents()).value();
+  });
+}
+
 LineNumberDelta OpenBuffer::lines_size() const { return contents_.size(); }
 
 LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }

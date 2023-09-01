@@ -181,6 +181,13 @@ class OpenBuffer {
           const language::NonNull<
               std::shared_ptr<const language::text::Line>>&)>
           compare);
+  void SortAllContents(
+      std::function<bool(
+          const language::NonNull<std::shared_ptr<const language::text::Line>>&,
+          const language::NonNull<
+              std::shared_ptr<const language::text::Line>>&)>
+          compare);
+  void SortAllContentsIgnoringCase();
 
   language::text::LineNumberDelta lines_size() const;
   language::text::LineNumber EndLine() const;
