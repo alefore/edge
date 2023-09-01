@@ -1,0 +1,63 @@
+a a
+ab about
+ac abstraction
+ad and
+an an
+as as
+at at
+b be
+c can
+cs cities
+d decision
+df different
+ds distributed systems
+dse distributed systems efficiency
+e efficiency
+ep expectation
+eps expectations
+ex example
+f for
+fk feedback
+fr from
+fw following
+gc google.com
+gg Google
+g good
+h have
+ic impact
+ih in the
+i i
+in in
+ir important
+it it
+j just
+jr journal
+le leadership
+l large
+m md
+mr more
+n next
+o of
+ot of the
+p performance
+ps points
+ps ps
+pt point
+pu pueblos
+q question
+qs questions
+r are
+re related
+rsa richer semantic abstractions
+s should
+sw software
+te they
+th that
+ti this
+tl technical
+t the
+u you
+v very
+wk week
+w with
+zk zettelkasten
