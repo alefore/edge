@@ -586,7 +586,8 @@ class InsertMode : public EditorMode {
                               options.editor_state.modifiers().insertion}});
       };
 
-      LineColumn position = buffer_root.ptr()->position();
+      LineColumn position =
+          buffer_root.ptr()->AdjustLineColumn(buffer_root.ptr()->position());
       NonNull<std::shared_ptr<const Line>> line =
           buffer_root.ptr()->contents().at(position.line);
 
