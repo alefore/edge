@@ -64,13 +64,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
             << predictions_buffer.contents().size();
   if (predictions_buffer.lines_size() > LineNumberDelta(1))
-    predictions_buffer.SortContents(
-        LineNumber(0), predictions_buffer.EndLine() - LineNumberDelta(1),
-        [](const NonNull<std::shared_ptr<const Line>>& a,
-           const NonNull<std::shared_ptr<const Line>>& b) {
-          return LowerCase(a->contents()).value() <
-                 LowerCase(b->contents()).value();
-        });
+    predictions_buffer.SortAllContentsIgnoringCase();
 
   LOG(INFO) << "Removing duplicates.";
   for (auto line = LineNumber(1);
