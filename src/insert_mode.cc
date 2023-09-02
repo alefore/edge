@@ -14,6 +14,7 @@ extern "C" {
 #include "src/buffer_vm.h"
 #include "src/command.h"
 #include "src/command_mode.h"
+#include "src/completion_model.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
@@ -598,20 +599,11 @@ class InsertMode : public EditorMode {
         --start;
       if (start == position.column) return InsertValue(NewLazyString(L" "));
 
-      NonNull<std::shared_ptr<LazyString>> token = LowerCase(
-          Substring(line->contents(), start, position.column - start));
-      // TODO(trivial, 2023-09-01): Handle the case where the last line is
-      // empty.
-      LineNumber model_line = completion_model.ptr()->contents().upper_bound(
-          MakeNonNullShared<const Line>(LineBuilder(token).Build()),
-          [](const NonNull<std::shared_ptr<const Line>>& a,
-             const NonNull<std::shared_ptr<const Line>>& b) {
-            return a->ToString() < b->ToString();
-          });
+      completion::CompressedText token = completion::CompressedText(LowerCase(
+          Substring(line->contents(), start, position.column - start)));
       return VisitPointer(
-          ModelLineMatches(completion_model.ptr()->contents(), model_line,
-                           token.value()),
-          [&](NonNull<std::shared_ptr<LazyString>> value) {
+          completion::FindCompletion(completion_model, token),
+          [&](completion::Text completion_text) {
             transformation::Stack stack;
             stack.PushBack(transformation::Delete{
                 .range = Range::InLine(position.line, start,
@@ -619,8 +611,8 @@ class InsertMode : public EditorMode {
             stack.PushBack(transformation::Insert{
                 .contents_to_insert =
                     MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
-                        LineBuilder(
-                            Append(std::move(value), NewLazyString(L" ")))
+                        LineBuilder(Append(std::move(completion_text),
+                                           NewLazyString(L" ")))
                             .Build())),
                 .modifiers = {.insertion =
                                   options.editor_state.modifiers().insertion}});
@@ -628,23 +620,6 @@ class InsertMode : public EditorMode {
           },
           [&] { return InsertValue(NewLazyString(L" ")); });
     });
-  }
-
-  static std::optional<NonNull<std::shared_ptr<LazyString>>> ModelLineMatches(
-      const BufferContents& contents, LineNumber line, LazyString& prefix) {
-    LOG(INFO) << "XXXX MATCH? " << contents.size() << ": " << line;
-    if (line > contents.EndLine()) return std::nullopt;
-    // TODO(easy, 2023-09-01): Avoid call to ToString, ugh.
-    NonNull<std::shared_ptr<LazyString>> model_line =
-        contents.at(line)->contents();
-    LOG(INFO) << "Check: " << prefix.ToString()
-              << " against: " << model_line->ToString();
-    size_t split = model_line->ToString().find_first_of(L" ");
-    if (split == std::wstring::npos) return std::nullopt;
-    NonNull<std::shared_ptr<LazyString>> model_prefix =
-        Substring(model_line, ColumnNumber(), ColumnNumberDelta(split));
-    if (model_prefix.value() != prefix) return std::nullopt;
-    return Substring(model_line, ColumnNumber(split + 1));
   }
 
   const InsertModeOptions options_;

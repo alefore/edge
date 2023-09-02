@@ -300,8 +300,9 @@ class EnterInsertModeCommand : public Command {
                          std::optional<Modifiers> modifiers)
       : editor_state_(editor_state),
         modifiers_(std::move(modifiers)),
-        completion_model_(
-            completion::LoadModel(editor_state, L"completion_model.txt")) {}
+        completion_model_(completion::LoadModel(
+            editor_state,
+            ValueOrDie(PathComponent::FromString(L"completion_model.txt")))) {}
 
   std::wstring Description() const override { return L"enters insert mode"; }
   std::wstring Category() const override { return L"Edit"; }

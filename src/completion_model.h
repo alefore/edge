@@ -21,14 +21,12 @@ using CompletionModel = language::gc::Root<OpenBuffer>;
 GHOST_TYPE(
     CompressedText,
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
-GHOST_TYPE(
-    Text,
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
+using Text =
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
 
 futures::ListenableValue<CompletionModel> LoadModel(EditorState& editor,
                                                     infrastructure::Path path);
-futures::Value<std::optional<Text>> FindCompletion(
-    futures::ListenableValue<CompletionModel> model,
-    CompressedText compressed_text);
+std::optional<Text> FindCompletion(CompletionModel& model,
+                                   CompressedText compressed_text);
 }  // namespace afc::editor::completion
 #endif  // __AFC_EDITOR_COMPLETION_MODEL_H__
