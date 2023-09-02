@@ -37,6 +37,16 @@ struct ForkCommandOptions {
 
   // If non-empty, change to this directory in the children. Ignored if empty.
   std::optional<infrastructure::Path> children_path = std::nullopt;
+
+  // What should we do if the buffer already existed?
+  enum class ExistingBufferBehavior {
+    // Reuse it (initiates a reload).
+    kReuse,
+    // Ignore the previous buffer. Create a new one.
+    kIgnore
+  };
+  ExistingBufferBehavior existing_buffer_behavior =
+      ExistingBufferBehavior::kReuse;
 };
 
 language::NonNull<std::unique_ptr<Command>> NewForkCommand(
