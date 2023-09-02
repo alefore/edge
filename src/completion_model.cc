@@ -1,5 +1,6 @@
 #include "src/completion_model.h"
 
+#include "src/buffer_variables.h"
 #include "src/file_link_mode.h"
 
 namespace afc::editor::completion {
@@ -32,6 +33,7 @@ futures::ListenableValue<CompletionModel> LoadModel(EditorState& editor,
           .Transform([](gc::Root<OpenBuffer> buffer) {
             return buffer.ptr()->WaitForEndOfFile().Transform(
                 [buffer](EmptyValue) {
+                  buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
                   buffer.ptr()->SortAllContentsIgnoringCase();
                   return buffer;
                 });
