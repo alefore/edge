@@ -609,7 +609,8 @@ class InsertMode : public EditorMode {
                 completion::Text completion_text) {
               transformation::Stack stack;
               stack.PushBack(transformation::Delete{
-                  .range = Range::InLine(position_start, length)});
+                  .range = Range::InLine(position_start, length),
+                  .initiator = transformation::Delete::Initiator::kInternal});
               stack.PushBack(transformation::Insert{
                   .contents_to_insert =
                       MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
