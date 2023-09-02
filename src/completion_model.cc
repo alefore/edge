@@ -2,6 +2,8 @@
 
 #include "src/buffer_variables.h"
 #include "src/file_link_mode.h"
+#include "src/language/lazy_string/char_buffer.h"
+#include "src/tests/tests.h"
 
 namespace afc::editor::completion {
 using afc::futures::ListenableValue;
@@ -13,6 +15,7 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Substring;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -41,8 +44,8 @@ futures::ListenableValue<CompletionModel> LoadModel(EditorState& editor,
 }
 
 namespace {
-std::optional<Text> FindCompletion(const gc::Root<OpenBuffer>& model,
-                                   const CompressedText& compressed_text) {
+std::optional<Text> FindCompletionInModel(
+    const gc::Root<OpenBuffer>& model, const CompressedText& compressed_text) {
   const BufferContents& contents = model.ptr()->contents();
 
   VLOG(3) << "Starting completion with model with size: " << contents.size();
@@ -66,14 +69,18 @@ std::optional<Text> FindCompletion(const gc::Root<OpenBuffer>& model,
   if (split == std::wstring::npos) return std::nullopt;
   CompressedText model_compressed_text = CompressedText(
       Substring(line_contents, ColumnNumber(), ColumnNumberDelta(split)));
-  if (compressed_text != model_compressed_text) return std::nullopt;
+  if (compressed_text.value() != model_compressed_text.value()) {
+    VLOG(5) << "No match: [" << compressed_text->ToString() << "] != ["
+            << model_compressed_text->ToString() << "]";
+    return std::nullopt;
+  }
   Text output = Text(Substring(line_contents, ColumnNumber(split + 1)));
   VLOG(2) << "Found compression: " << compressed_text->ToString() << " -> "
           << output->ToString();
   return output;
 }
 
-futures::Value<std::optional<Text>> FindCompletion(
+futures::Value<std::optional<Text>> FindCompletionWithIndex(
     std::vector<ListenableValue<gc::Root<OpenBuffer>>> models,
     CompressedText compressed_text, size_t index) {
   if (index == models.size()) return futures::Past(std::optional<Text>());
@@ -82,18 +89,76 @@ futures::Value<std::optional<Text>> FindCompletion(
   return std::move(current_future)
       .Transform([models = std::move(models), compressed_text,
                   index](gc::Root<OpenBuffer> model) mutable {
-        if (std::optional<Text> result = FindCompletion(model, compressed_text);
+        if (std::optional<Text> result =
+                FindCompletionInModel(model, compressed_text);
             result.has_value())
           return futures::Past(result);
-        return FindCompletion(std::move(models), compressed_text, index + 1);
+        return FindCompletionWithIndex(std::move(models), compressed_text,
+                                       index + 1);
       });
 }
+
+gc::Root<OpenBuffer> CompletionModelForTests() {
+  gc::Root<OpenBuffer> buffer = NewBufferForTests();
+  buffer.ptr()->AppendToLastLine(NewLazyString(L"bb baby"));
+  buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
+  return buffer;
+}
+
+const bool find_completion_tests_registration = tests::Register(
+    L"CompletionModel::FindCompletion",
+    {
+        {.name = L"NoModelAvailable",
+         .callback =
+             [] {
+               std::optional<Text> output =
+                   FindCompletion({}, CompressedText(NewLazyString(L"foo")))
+                       .Get()
+                       .value();
+               CHECK(output == std::nullopt);
+             }},
+        {.name = L"EmptyModel",
+         .callback =
+             [] {
+               std::optional<Text> output =
+                   FindCompletion({futures::ListenableValue(
+                                      futures::Past(NewBufferForTests()))},
+                                  CompressedText(NewLazyString(L"foo")))
+                       .Get()
+                       .value();
+               CHECK(output == std::nullopt);
+             }},
+        {.name = L"NoMatch",
+         .callback =
+             [] {
+               std::optional<Text> output =
+                   FindCompletion({futures::ListenableValue(futures::Past(
+                                      CompletionModelForTests()))},
+                                  CompressedText(NewLazyString(L"foo")))
+                       .Get()
+                       .value();
+               CHECK(output == std::nullopt);
+             }},
+        {.name = L"Match",
+         .callback =
+             [] {
+               std::optional<Text> output =
+                   FindCompletion({futures::ListenableValue(futures::Past(
+                                      CompletionModelForTests()))},
+                                  CompressedText(NewLazyString(L"f")))
+                       .Get()
+                       .value();
+               CHECK(output->value() == NewLazyString(L"fox").value());
+             }},
+    });
+
 }  // namespace
 
 futures::Value<std::optional<Text>> FindCompletion(
     std::vector<futures::ListenableValue<CompletionModel>> models,
     CompressedText compressed_text) {
-  return FindCompletion(std::move(models), std::move(compressed_text), 0);
+  return FindCompletionWithIndex(std::move(models), std::move(compressed_text),
+                                 0);
 }
 
 }  // namespace afc::editor::completion
