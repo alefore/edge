@@ -51,6 +51,8 @@ using language::FromByteString;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
+using language::VisitOptionalCallback;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
@@ -574,11 +576,12 @@ class InsertMode : public EditorMode {
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
       OpenBuffer& buffer, InsertModeOptions options) {
-    auto InsertValue = [&buffer,
+    auto buffer_root = buffer.NewRoot();
+    auto InsertValue = [buffer_root,
                         insertion = options.editor_state.modifiers().insertion](
                            NonNull<std::shared_ptr<LazyString>> value)
         -> futures::Value<EmptyValue> {
-      return buffer.ApplyToCursors(transformation::Insert{
+      return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
           .contents_to_insert = MakeNonNullShared<BufferContents>(
               MakeNonNullShared<Line>(LineBuilder(std::move(value)).Build())),
           .modifiers = {.insertion = insertion}});
@@ -595,33 +598,28 @@ class InsertMode : public EditorMode {
       --start;
     if (start == position.column) return InsertValue(NewLazyString(L" "));
 
-    auto buffer_root = buffer.NewRoot();
     completion::CompressedText token = completion::CompressedText(
         LowerCase(Substring(line->contents(), start, position.column - start)));
 
     return completion::FindCompletion({options.completion_model}, token)
-        .Transform([buffer_root = buffer.NewRoot(),
-                    position_start = LineColumn(position.line, start), token,
-                    InsertValue,
-                    insertion = options.editor_state.modifiers().insertion](
-                       std::optional<completion::Text> completion_text) {
-          return VisitPointer(
-              completion_text,
-              [&](completion::Text completion_text) {
-                transformation::Stack stack;
-                stack.PushBack(transformation::Delete{
-                    .range = Range::InLine(position_start, token->size())});
-                stack.PushBack(transformation::Insert{
-                    .contents_to_insert = MakeNonNullShared<BufferContents>(
-                        MakeNonNullShared<Line>(
-                            LineBuilder(Append(std::move(completion_text),
-                                               NewLazyString(L" ")))
-                                .Build())),
-                    .modifiers = {.insertion = insertion}});
-                return buffer_root.ptr()->ApplyToCursors(stack);
-              },
-              [&] { return InsertValue(NewLazyString(L" ")); });
-        });
+        .Transform(VisitOptionalCallback(overload{
+            [buffer_root, position_start = LineColumn(position.line, start),
+             length = token->size(),
+             insertion = options.editor_state.modifiers().insertion](
+                completion::Text completion_text) {
+              transformation::Stack stack;
+              stack.PushBack(transformation::Delete{
+                  .range = Range::InLine(position_start, length)});
+              stack.PushBack(transformation::Insert{
+                  .contents_to_insert =
+                      MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
+                          LineBuilder(Append(std::move(completion_text),
+                                             NewLazyString(L" ")))
+                              .Build())),
+                  .modifiers = {.insertion = insertion}});
+              return buffer_root.ptr()->ApplyToCursors(stack);
+            },
+            [InsertValue] { return InsertValue(NewLazyString(L" ")); }}));
   }
 
   const InsertModeOptions options_;
