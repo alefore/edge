@@ -81,6 +81,7 @@
 #define GHOST_TYPE(ClassName, VariableType)                 \
   class ClassName {                                         \
    public:                                                  \
+    using ValueType = VariableType;                         \
     GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
     GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)              \
     GHOST_TYPE_EQ(ClassName, value);                        \
@@ -209,7 +210,7 @@
 
 #define GHOST_TYPE_CONTAINER(ClassName, VariableType)       \
   class ClassName {                                         \
-    using ContainerType = VariableType;                     \
+    using ValueType = VariableType;                         \
                                                             \
    public:                                                  \
     GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
@@ -234,9 +235,9 @@
 // Implementation:
 
 #define GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, variable) \
-  explicit ClassName(VariableType input_variable)                 \
-      : variable(std::move(input_variable)) {}                    \
-  explicit ClassName() {}
+  template <typename T = VariableType>                            \
+  explicit ClassName(VariableType input_variable = T())           \
+      : variable(std::move(input_variable)) {}
 
 #define GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName) \
   ClassName(ClassName&&) = default;                \
@@ -385,18 +386,24 @@
   }                                               \
   bool operator!=(const ClassName& other) const { return !(*this == other); }
 
-#define GHOST_TYPE_ORDER(ClassName, variable)     \
-  bool operator<(const ClassName& other) const {  \
-    return variable < other.variable;             \
-  }                                               \
-  bool operator<=(const ClassName& other) const { \
-    return variable <= other.variable;            \
-  }                                               \
-  bool operator>(const ClassName& other) const {  \
-    return variable > other.variable;             \
-  }                                               \
-  bool operator>=(const ClassName& other) const { \
-    return variable >= other.variable;            \
+// We use the template type T to use SFINAE to disable operators on ghost types
+// of variables that don'the define corresponding orders.
+#define GHOST_TYPE_ORDER(ClassName, variable)  \
+  template <typename T = ClassName::ValueType> \
+  bool operator<(const T& other) const {       \
+    return variable < other.variable;          \
+  }                                            \
+  template <typename T = ClassName::ValueType> \
+  bool operator<=(const T& other) const {      \
+    return variable <= other.variable;         \
+  }                                            \
+  template <typename T = ClassName::ValueType> \
+  bool operator>(const T& other) const {       \
+    return variable > other.variable;          \
+  }                                            \
+  template <typename T = ClassName::ValueType> \
+  bool operator>=(const T& other) const {      \
+    return variable >= other.variable;         \
   }
 
 // GHOST_TYPE_BEGIN_END declares `begin` and `end` methods for the ghost type.
@@ -457,78 +464,79 @@
 // We use the template type V to use SFINAE to disable this expression on ghost
 // types of containers that don't include a push_back method (such as
 // std::unordered_set).
-#define GHOST_TYPE_BACK                 \
-  template <typename V = ContainerType> \
-  auto& back() {                        \
-    auto& (V::*f)() = &V::back;         \
-    return (value.*f)();                \
+#define GHOST_TYPE_BACK             \
+  template <typename V = ValueType> \
+  auto& back() {                    \
+    auto& (V::*f)() = &V::back;     \
+    return (value.*f)();            \
   }
 
 // We use the template type V to use SFINAE to disable this expression on ghost
 // types of containers that don't include a push_back method (such as
 // std::unordered_set).
-#define GHOST_TYPE_PUSH_BACK                                        \
-  template <typename V = ContainerType>                             \
-  void push_back(const ContainerType::value_type& v) {              \
-    void (V::*f)(const ContainerType::value_type&) = &V::push_back; \
-    (value.*f)(v);                                                  \
+#define GHOST_TYPE_PUSH_BACK                                    \
+  template <typename V = ValueType>                             \
+  void push_back(const ValueType::value_type& v) {              \
+    void (V::*f)(const ValueType::value_type&) = &V::push_back; \
+    (value.*f)(v);                                              \
   }
 
 // We use the template type V to use SFINAE to disable this expression on ghost
 // types of containers that don't include a pop_back method (such as
 // std::unordered_set).
-#define GHOST_TYPE_POP_BACK             \
-  template <typename V = ContainerType> \
-  void pop_back() {                     \
-    void (V::*f)() = &V::pop_back;      \
-    (value.*f)();                       \
+#define GHOST_TYPE_POP_BACK         \
+  template <typename V = ValueType> \
+  void pop_back() {                 \
+    void (V::*f)() = &V::pop_back;  \
+    (value.*f)();                   \
   }
 
 // We use the template type V to use SFINAE to disable this expression on ghost
 // types of containers that don't include an insert method.
-#define GHOST_TYPE_INSERT                                                  \
-  template <typename V = ContainerType,                                    \
-            std::pair<ContainerType::iterator, bool> (V::*F)(              \
-                ContainerType::value_type&&) = &V::insert>                 \
-  auto insert(ContainerType::value_type&& v) {                             \
-    return (value.*F)(std::forward<ContainerType::value_type>(v));         \
-  }                                                                        \
-                                                                           \
-  template <typename V = ContainerType,                                    \
-            ContainerType::iterator (V::*F)(ContainerType::value_type&&) = \
-                &V::insert>                                                \
-  auto insert(ContainerType::value_type&& v) {                             \
-    return (value.*F)(std::forward<ContainerType::value_type>(v));         \
+#define GHOST_TYPE_INSERT                                                      \
+  template <typename V = ValueType,                                            \
+            std::pair<ValueType::iterator, bool> (V::*F)(                      \
+                ValueType::value_type&&) = &V::insert>                         \
+  auto insert(ValueType::value_type&& v) {                                     \
+    return (value.*F)(std::forward<ValueType::value_type>(v));                 \
+  }                                                                            \
+                                                                               \
+  template <typename V = ValueType,                                            \
+            ValueType::iterator (V::*F)(ValueType::value_type&&) = &V::insert> \
+  auto insert(ValueType::value_type&& v) {                                     \
+    return (value.*F)(std::forward<ValueType::value_type>(v));                 \
   }
 
-#define GHOST_TYPE_LOWER_BOUND                                       \
-  template <typename Key, typename V = ContainerType>                \
-  auto lower_bound(const Key& k) {                                   \
-    ContainerType::iterator (V::*f)(const Key& k) = &V::lower_bound; \
-    return (value.*f)(k);                                            \
-  }                                                                  \
-                                                                     \
-  template <typename Key, typename V = ContainerType>                \
-  auto lower_bound(const Key& k) const {                             \
-    ContainerType::const_iterator (V::*f)(const Key& k) const =      \
-        &V::lower_bound;                                             \
-    return (value.*f)(k);                                            \
+#define GHOST_TYPE_LOWER_BOUND                                               \
+  template <typename Key, typename V = ValueType>                            \
+  auto lower_bound(const Key& k) {                                           \
+    ValueType::iterator (V::*f)(const Key& k) = &V::lower_bound;             \
+    return (value.*f)(k);                                                    \
+  }                                                                          \
+                                                                             \
+  template <typename Key, typename V = ValueType>                            \
+  auto lower_bound(const Key& k) const {                                     \
+    ValueType::const_iterator (V::*f)(const Key& k) const = &V::lower_bound; \
+    return (value.*f)(k);                                                    \
   }
 
 #define GHOST_TYPE_OUTPUT_FRIEND(ClassName, variable)                      \
   friend std::ostream& operator<<(std::ostream& os, const ClassName& obj); \
   friend std::wstring to_wstring(const ClassName& obj);
 
+// We use the template type T to use SFINAE to disable operators on ghost types
+// of variables that don'the define corresponding operators.
 #define GHOST_TYPE_OUTPUT(ClassName, variable)                              \
   inline std::ostream& operator<<(std::ostream& os, const ClassName& obj) { \
     using ::operator<<;                                                     \
     os << "[" #ClassName ":" << obj.variable << "]";                        \
     return os;                                                              \
   }                                                                         \
+  template <typename T = ClassName::ValueType>                              \
   inline std::wstring to_wstring(const ClassName& obj) {                    \
-    using std::to_wstring;                                                  \
     using afc::language::to_wstring;                                        \
-    return to_wstring(obj.variable);                                        \
+    using std::to_wstring;                                                  \
+    return to_wstring(static_cast<T>(obj.variable));                        \
   }
 
 namespace afc::language {
