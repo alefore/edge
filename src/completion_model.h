@@ -16,11 +16,10 @@ namespace afc::editor::completion {
 
 // TODO(templates, 2023-09-02): Use GHOST_TYPE. That is tricky because we need
 // to be able to selectively disable some constructors, which requires finicky
-// SFINAE.
+// SFINAE. And operator<<.
 using CompletionModel = language::gc::Root<OpenBuffer>;
-GHOST_TYPE(
-    CompressedText,
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
+using CompressedText =
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
 using Text =
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
 

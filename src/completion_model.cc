@@ -44,19 +44,18 @@ std::optional<Text> FindCompletion(gc::Root<OpenBuffer>& model,
 
   // TODO(trivial, 2023-09-01): Handle the case where the last line is
   // empty.
-  LineNumber line =
-      contents.upper_bound(MakeNonNullShared<const Line>(
-                               LineBuilder(compressed_text.read()).Build()),
-                           [](const NonNull<std::shared_ptr<const Line>>& a,
-                              const NonNull<std::shared_ptr<const Line>>& b) {
-                             return a->ToString() < b->ToString();
-                           });
+  LineNumber line = contents.upper_bound(
+      MakeNonNullShared<const Line>(LineBuilder(compressed_text).Build()),
+      [](const NonNull<std::shared_ptr<const Line>>& a,
+         const NonNull<std::shared_ptr<const Line>>& b) {
+        return a->ToString() < b->ToString();
+      });
 
   if (line > contents.EndLine()) return std::nullopt;
   NonNull<std::shared_ptr<LazyString>> line_contents =
       contents.at(line)->contents();
   // TODO(easy, 2023-09-01): Avoid calls to ToString, ugh.
-  VLOG(5) << "Check: " << compressed_text
+  VLOG(5) << "Check: " << compressed_text->ToString()
           << " against: " << line_contents->ToString();
   size_t split = line_contents->ToString().find_first_of(L" ");
   if (split == std::wstring::npos) return std::nullopt;
