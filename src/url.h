@@ -2,14 +2,16 @@
 #define __AFC_EDITOR_URL_H__
 
 #include "src/infrastructure/dirname.h"
-#include "src/language/ghost_type.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/ghost_type.h"
 
 namespace afc::editor {
 
 class URL {
  public:
-  GHOST_TYPE_CONSTRUCTOR(URL, std::wstring, value_);
+  using ValueType = std::wstring;
+
+  GHOST_TYPE_CONSTRUCTOR(URL, ValueType, value_);
 
   static URL FromPath(infrastructure::Path path);
 
@@ -24,7 +26,7 @@ class URL {
   std::wstring ToString() const;
 
  private:
-  std::wstring value_;
+  ValueType value_;
 };
 
 }  // namespace afc::editor
