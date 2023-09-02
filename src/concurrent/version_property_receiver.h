@@ -19,6 +19,7 @@ namespace afc::concurrent {
 // TODO(easy, 2023-08-24): Why is this not just a single-line definition?
 class VersionPropertyKey {
  public:
+  using ValueType = std::wstring;
   GHOST_TYPE_CONSTRUCTOR(VersionPropertyKey, std::wstring, value);
   GHOST_TYPE_EQ(VersionPropertyKey, value);
   GHOST_TYPE_ORDER(VersionPropertyKey, value);
@@ -29,7 +30,7 @@ class VersionPropertyKey {
 
  private:
   friend class VersionPropertyReceiver;
-  std::wstring value;
+  ValueType value;
 };
 
 using ::operator<<;
