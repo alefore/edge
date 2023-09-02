@@ -532,11 +532,10 @@
     os << "[" #ClassName ":" << obj.variable << "]";                        \
     return os;                                                              \
   }                                                                         \
-  template <typename T = ClassName::ValueType>                              \
   inline std::wstring to_wstring(const ClassName& obj) {                    \
     using afc::language::to_wstring;                                        \
     using std::to_wstring;                                                  \
-    return to_wstring(static_cast<T>(obj.variable));                        \
+    return to_wstring(obj.variable);                                        \
   }
 
 namespace afc::language {
