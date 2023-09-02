@@ -15,6 +15,25 @@ git_push_options.set_command("test ! -f " + git_push_path.shell_escape() +
 git_push_options.set_insertion_type("ignore");
 editor.ForkCommand(git_push_options);
 
+if (Extension(path) == "py") {
+  // We deliberately won't escape `mypy` so that the home directory gets
+  // expanded.
+  string mypy = "~/bin/mypy";
+  ForkCommandOptions mypy_options = ForkCommandOptions();
+  mypy_options.set_command("test ! -x " + mypy + " || " + mypy + " " +
+                           path.shell_escape());
+  mypy_options.set_insertion_type("ignore");
+  Buffer mypy_buffer = editor.ForkCommand(mypy_options);
+  mypy_buffer.WaitForEndOfFile();
+
+  // TODO: Would be better to just insert buffer, somehow. Without having to
+  // re-run it. But I guess we don't currenlty have a mechanism to do that.
+  if (mypy_buffer.child_exit_status() != 0) {
+    mypy_options.set_insertion_type("visit");
+    editor.ForkCommand(mypy_options);
+  }
+}
+
 // if (path.starts_with("/home/alejo/edge/src")) {
 //   ForkCommandOptions options = ForkCommandOptions();
 //   options.set_command("make -j3");
