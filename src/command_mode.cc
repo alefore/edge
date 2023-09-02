@@ -16,6 +16,7 @@
 #include "src/command.h"
 #include "src/command_argument_mode.h"
 #include "src/command_with_modifiers.h"
+#include "src/completion_model.h"
 #include "src/concurrent/work_queue.h"
 #include "src/cpp_command.h"
 #include "src/file_descriptor_reader.h"
@@ -300,21 +301,7 @@ class EnterInsertModeCommand : public Command {
       : editor_state_(editor_state),
         modifiers_(std::move(modifiers)),
         completion_model_(
-            OpenOrCreateFile(
-                OpenFileOptions{
-                    .editor_state = editor_state_,
-                    .path = Path::Join(editor_state.edge_path().front(),
-                                       ValueOrDie(PathComponent::FromString(
-                                           L"completion_model.txt"))),
-                    .insertion_type = BuffersList::AddBufferType::kIgnore,
-                    .use_search_paths = false})
-                .Transform([](gc::Root<OpenBuffer> buffer) {
-                  return buffer.ptr()->WaitForEndOfFile().Transform(
-                      [buffer](EmptyValue) {
-                        buffer.ptr()->SortAllContentsIgnoringCase();
-                        return buffer;
-                      });
-                })) {}
+            completion::LoadModel(editor_state, L"completion_model.txt")) {}
 
   std::wstring Description() const override { return L"enters insert mode"; }
   std::wstring Category() const override { return L"Edit"; }
