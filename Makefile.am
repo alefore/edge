@@ -57,6 +57,8 @@ src/command_mode.cc \
 src/command_mode.h \
 src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
+src/completion_model.cc \
+src/completion_model.h \
 src/concurrent/bag.cc \
 src/concurrent/bag.h \
 src/concurrent/operation.cc \
