@@ -25,7 +25,6 @@ class QuitCommand : public Command {
   std::wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t) override {
-    std::wstring error_description;
     LOG(INFO) << "Triggering termination with value: " << exit_value_;
     editor_state_.Terminate(
         editor_state_.modifiers().strength <= Modifiers::Strength::kNormal
