@@ -120,6 +120,9 @@ struct Range {
   Range(LineColumn input_begin, LineColumn input_end)
       : begin(input_begin), end(input_end) {}
 
+  static Range InLine(LineColumn start,
+                      afc::language::lazy_string::ColumnNumberDelta size);
+
   static Range InLine(LineNumber line,
                       afc::language::lazy_string::ColumnNumber column,
                       afc::language::lazy_string::ColumnNumberDelta size);

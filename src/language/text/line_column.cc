@@ -92,9 +92,14 @@ std::wstring LineColumn::Serialize() const {
   return L"LineColumn(" + to_wstring(line) + L", " + to_wstring(column) + L")";
 }
 
+/* static */ Range Range::InLine(
+    LineColumn start, afc::language::lazy_string::ColumnNumberDelta size) {
+  return Range(start, LineColumn(start.line, start.column + size));
+}
+
 /* static */ Range Range::InLine(LineNumber line, ColumnNumber column,
                                  ColumnNumberDelta size) {
-  return Range(LineColumn(line, column), LineColumn(line, column + size));
+  return InLine(LineColumn(line, column), size);
 }
 
 language::ValueOrError<Range> Range::Union(const Range& other) const {
