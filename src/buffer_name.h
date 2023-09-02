@@ -19,6 +19,8 @@ class BufferName {
   // Name of a special buffer that contains text being inserted.
   static const BufferName& TextInsertion();
 
+  using ValueType = std::wstring;
+
   explicit BufferName(infrastructure::Path path);
 
   GHOST_TYPE_CONSTRUCTOR(BufferName, std::wstring, value);
@@ -30,7 +32,7 @@ class BufferName {
   const std::wstring& read() const;
 
  private:
-  std::wstring value;
+  ValueType value;
 };
 using ::operator<<;
 GHOST_TYPE_OUTPUT(BufferName, value);
