@@ -25,7 +25,8 @@ using Text =
 
 futures::ListenableValue<CompletionModel> LoadModel(EditorState& editor,
                                                     infrastructure::Path path);
-std::optional<Text> FindCompletion(CompletionModel& model,
-                                   CompressedText compressed_text);
+futures::Value<std::optional<Text>> FindCompletion(
+    std::vector<futures::ListenableValue<CompletionModel>> models,
+    CompressedText compressed_text);
 }  // namespace afc::editor::completion
 #endif  // __AFC_EDITOR_COMPLETION_MODEL_H__

@@ -38,8 +38,9 @@ futures::ListenableValue<CompletionModel> LoadModel(EditorState& editor,
           }));
 }
 
-std::optional<Text> FindCompletion(gc::Root<OpenBuffer>& model,
-                                   CompressedText compressed_text) {
+namespace {
+std::optional<Text> FindCompletion(const gc::Root<OpenBuffer>& model,
+                                   const CompressedText& compressed_text) {
   const BufferContents& contents = model.ptr()->contents();
 
   // TODO(trivial, 2023-09-01): Handle the case where the last line is
@@ -64,4 +65,28 @@ std::optional<Text> FindCompletion(gc::Root<OpenBuffer>& model,
   if (compressed_text != model_compressed_text) return std::nullopt;
   return Text(Substring(line_contents, ColumnNumber(split + 1)));
 }
+
+futures::Value<std::optional<Text>> FindCompletion(
+    std::vector<ListenableValue<gc::Root<OpenBuffer>>> models,
+    CompressedText compressed_text, size_t index) {
+  if (index == models.size()) return futures::Past(std::optional<Text>());
+  futures::Value<gc::Root<OpenBuffer>> current_future =
+      models[index].ToFuture();
+  return std::move(current_future)
+      .Transform([models = std::move(models), compressed_text,
+                  index](gc::Root<OpenBuffer> model) mutable {
+        if (std::optional<Text> result = FindCompletion(model, compressed_text);
+            result.has_value())
+          return futures::Past(result);
+        return FindCompletion(std::move(models), compressed_text, index + 1);
+      });
+}
+}  // namespace
+
+futures::Value<std::optional<Text>> FindCompletion(
+    std::vector<futures::ListenableValue<CompletionModel>> models,
+    CompressedText compressed_text) {
+  return FindCompletion(std::move(models), std::move(compressed_text), 0);
+}
+
 }  // namespace afc::editor::completion
