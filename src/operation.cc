@@ -111,6 +111,10 @@ std::wstring ToStatus(const CommandReachBisect& c) {
   return SerializeCall(L"Bisect", {StructureToString(c.structure), directions});
 }
 
+std::wstring ToStatus(const CommandSetShell& c) {
+  return SerializeCall(L"|", {c.input});
+}
+
 futures::Value<UndoCallback> ExecuteTransformation(
     EditorState& editor, ApplicationType application_type,
     transformation::Variant transformation) {
@@ -156,7 +160,7 @@ futures::Value<UndoCallback> ExecuteTransformation(
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
-    CommandReach reach) {
+    transformation::Stack&, CommandReach reach) {
   transformation::Stack transformation;
   for (int repetitions : reach.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
@@ -168,7 +172,7 @@ transformation::Stack GetTransformation(
 }
 
 transformation::ModifiersAndComposite GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>&,
+    const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandReachBegin reach_begin) {
   return transformation::ModifiersAndComposite{
       .modifiers = GetModifiers(reach_begin.structure, reach_begin.repetitions,
@@ -178,7 +182,7 @@ transformation::ModifiersAndComposite GetTransformation(
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
-    CommandReachLine reach_line) {
+    transformation::Stack&, CommandReachLine reach_line) {
   transformation::Stack transformation;
   for (int repetitions : reach_line.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
@@ -191,7 +195,7 @@ transformation::Stack GetTransformation(
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
-    CommandReachPage reach_page) {
+    transformation::Stack&, CommandReachPage reach_page) {
   transformation::Stack transformation;
   for (int repetitions : reach_page.repetitions.get_list()) {
     transformation.PushBack(transformation::ModifiersAndComposite{
@@ -203,7 +207,7 @@ transformation::Stack GetTransformation(
 }
 
 transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>&,
+    const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandReachQuery reach_query) {
   if (reach_query.query.empty()) return transformation::Stack{};
   transformation::Stack transformation;
@@ -214,13 +218,22 @@ transformation::Stack GetTransformation(
 }
 
 transformation::Stack GetTransformation(
-    const NonNull<std::shared_ptr<OperationScope>>&,
+    const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandReachBisect bisect) {
   transformation::Stack transformation;
   transformation.PushBack(MakeNonNullUnique<transformation::Bisect>(
       bisect.structure.value_or(Structure::kChar),
       std::move(bisect.directions)));
   return transformation;
+}
+
+transformation::Stack GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>&,
+    transformation::Stack& stack, CommandSetShell shell) {
+  stack.post_transformation_behavior =
+      transformation::Stack::PostTransformationBehavior::kCommandSystem;
+  stack.shell = transformation::ShellCommand(shell.input);
+  return transformation::Stack{};
 }
 
 class State {
@@ -316,6 +329,8 @@ class State {
 
   transformation::Variant PrepareStack() {
     transformation::Stack stack;
+    stack.post_transformation_behavior =
+        top_command_.post_transformation_behavior;
     // After each transformation (except for the last), we reset the visual
     // overlays. This allows us to clean up in case we have a
     // transformation::Bisect leaves visual overlays (that are no longer
@@ -327,15 +342,12 @@ class State {
           [&](auto t) -> transformation::Variant {
             static Tracker tracker(L"State::PrepareStack::GetTransformation");
             auto call = tracker.Call();
-            return GetTransformation(operation_scope_, t);
+            return GetTransformation(operation_scope_, stack, t);
           },
           command));
       separator = transformation::VisualOverlay{.visual_overlay_map =
                                                     VisualOverlayMap()};
     }
-    stack.post_transformation_behavior =
-        top_command_.post_transformation_behavior;
-
     return OptimizeBase(stack);
   }
 
@@ -637,6 +649,17 @@ bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
   return false;
 }
 
+bool ReceiveInput(CommandSetShell* output, wint_t c, State*) {
+  if (c == '\n' || static_cast<int>(c) == Terminal::ESCAPE) return false;
+  if (static_cast<int>(c) == Terminal::BACKSPACE) {
+    if (output->input.empty()) return false;
+    output->input.pop_back();
+    return true;
+  }
+  output->input.push_back(c);
+  return true;
+}
+
 class OperationMode : public EditorMode {
  public:
   OperationMode(TopCommand top_command, EditorState& editor_state)
@@ -746,6 +769,9 @@ class OperationMode : public EditorMode {
             break;
         }
         state_.set_top_command(top_command);
+        return true;
+      case L'|':
+        state_.Push(CommandSetShell{});
         return true;
       case L'+':
         switch (top_command.post_transformation_behavior) {
