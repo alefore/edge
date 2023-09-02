@@ -165,6 +165,15 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
+      L"child_exit_status",
+      vm::NewCallback(pool, PurityType::kReader,
+                      [](gc::Root<OpenBuffer> buffer) {
+                        return static_cast<int>(
+                            buffer.ptr()->child_exit_status().value_or(0));
+                      })
+          .ptr());
+
+  buffer_object_type.ptr()->AddField(
       L"line_count",
       vm::NewCallback(pool, PurityType::kReader,
                       [](gc::Root<OpenBuffer> buffer) {
