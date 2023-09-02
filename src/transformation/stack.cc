@@ -359,14 +359,19 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
               close(tmp_fd);
               return tmp_path;
             }();
-            ForkCommand(input.buffer.editor(),
-                        ForkCommandOptions{
-                            .command = input.buffer.Read(
-                                buffer_variables::shell_command),
-                            .environment = {
-                                {L"EDGE_INPUT", tmp_path},
-                                {L"EDGE_PARENT_BUFFER_PATH",
-                                 input.buffer.Read(buffer_variables::path)}}});
+            ForkCommand(
+                input.buffer.editor(),
+                ForkCommandOptions{
+                    .command = copy->shell.has_value()
+                                   ? copy->shell->read() + L" $EDGE_INPUT"
+                                   : input.buffer.Read(
+                                         buffer_variables::shell_command),
+                    .environment = {{L"EDGE_INPUT", tmp_path},
+                                    {L"EDGE_PARENT_BUFFER_PATH",
+                                     input.buffer.Read(
+                                         buffer_variables::path)}},
+                    .existing_buffer_behavior =
+                        ForkCommandOptions::ExistingBufferBehavior::kIgnore});
             return futures::Past(std::move(*output));
           }
           case Stack::PostTransformationBehavior::kCommandCpp:
