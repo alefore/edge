@@ -629,14 +629,17 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                  const ForkCommandOptions& options) {
   BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
-  if (auto it = editor_state.buffers()->find(name);
-      it != editor_state.buffers()->end()) {
-    gc::Root<OpenBuffer> buffer = it->second;
-    buffer.ptr()->ResetMode();
-    buffer.ptr()->Reload();
-    buffer.ptr()->set_current_position_line(LineNumber(0));
-    editor_state.AddBuffer(buffer, options.insertion_type);
-    return buffer;
+  if (options.existing_buffer_behavior ==
+      ForkCommandOptions::ExistingBufferBehavior::kReuse) {
+    if (auto it = editor_state.buffers()->find(name);
+        it != editor_state.buffers()->end()) {
+      gc::Root<OpenBuffer> buffer = it->second;
+      buffer.ptr()->ResetMode();
+      buffer.ptr()->Reload();
+      buffer.ptr()->set_current_position_line(LineNumber(0));
+      editor_state.AddBuffer(buffer, options.insertion_type);
+      return buffer;
+    }
   }
 
   NonNull<std::shared_ptr<CommandData>> command_data;
