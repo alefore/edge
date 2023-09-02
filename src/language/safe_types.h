@@ -284,6 +284,20 @@ decltype(std::declval<Callable>()(std::declval<T>())) VisitPointer(
     return null_callable();
   }
 }
+
+// Returns a
+template <typename Overloads>
+auto VisitOptionalCallback(Overloads overloads) {
+  return [overloads](
+             auto value) -> decltype(std::declval<Overloads>()(value.value())) {
+    if (value.has_value()) {
+      return overloads(std::move(value.value()));
+    } else {
+      return overloads();
+    }
+  };
+}
+
 }  // namespace afc::language
 namespace std {
 template <typename T>
