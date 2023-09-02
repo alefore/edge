@@ -13,16 +13,18 @@ extern "C" {
 #include <dirent.h>
 }
 
+#include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/language/error/value_or_error.h"
 #include "src/language/wstring.h"
 
 namespace afc::infrastructure {
 
 class PathComponent {
  public:
+  using ValueType = std::wstring;
+
   static language::ValueOrError<PathComponent> FromString(
       std::wstring component);
   static PathComponent WithExtension(const PathComponent& path,
@@ -46,7 +48,7 @@ class PathComponent {
   friend class Path;
   explicit PathComponent(std::wstring component);
 
-  std::wstring component_;
+  ValueType component_;
 };
 
 using ::operator<<;
@@ -55,6 +57,8 @@ GHOST_TYPE_OUTPUT(PathComponent, component_);
 class AbsolutePath;
 class Path {
  public:
+  using ValueType = std::wstring;
+
   Path(const Path&) = default;
   Path(Path&&) = default;
   Path(PathComponent path_component);
@@ -95,7 +99,7 @@ class Path {
   explicit Path(std::wstring path);
 
  private:
-  std::wstring path_;
+  ValueType path_;
 };
 
 class AbsolutePath : public Path {
