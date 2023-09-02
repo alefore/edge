@@ -10,6 +10,8 @@
 
 namespace afc::editor {
 namespace transformation {
+GHOST_TYPE(ShellCommand, std::wstring);
+
 struct Stack {
   enum PostTransformationBehavior {
     kNone,
@@ -30,7 +32,7 @@ struct Stack {
       PostTransformationBehavior::kNone;
 
   // Used if post_transformation_behavior is kCommandSystem.
-  std::wstring shell = L"";
+  std::optional<ShellCommand> shell = std::nullopt;
 };
 
 Variant OptimizeBase(Stack stack);
