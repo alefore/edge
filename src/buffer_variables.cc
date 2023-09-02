@@ -603,6 +603,17 @@ EdgeVariable<std::wstring>* const identifier_behavior =
             L"\"color-by-hash\" and empty string.")
         .Build();
 
+EdgeVariable<std::wstring>* const completion_model_paths =
+    StringStruct()
+        ->Add()
+        .Name(L"completion_model_paths")
+        .Key(L"t")
+        .Description(
+            L"Paths to completion model files. See doc/completion_model.md "
+            L"for details.")
+        .DefaultValue(L"en")
+        .Build();
+
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;

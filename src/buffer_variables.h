@@ -66,6 +66,7 @@ extern EdgeVariable<std::wstring>* const shell_command;
 extern EdgeVariable<std::wstring>* const cpp_prompt_namespaces;
 extern EdgeVariable<std::wstring>* const file_context_extensions;
 extern EdgeVariable<std::wstring>* const identifier_behavior;
+extern EdgeVariable<std::wstring>* const completion_model_paths;
 
 EdgeStruct<int>* IntStruct();
 extern EdgeVariable<int>* const line_width;
