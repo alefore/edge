@@ -30,7 +30,7 @@ if (Extension(path) == "py") {
   // re-run it. But I guess we don't currenlty have a mechanism to do that.
   if (mypy_buffer.child_exit_status() != 0) {
     mypy_options.set_insertion_type("visit");
-    editor.ForkCommand(mypy_options);
+    editor.ForkCommand(mypy_options).set_allow_dirty_delete(true);
   }
 }
 
