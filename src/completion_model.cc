@@ -45,6 +45,8 @@ std::optional<Text> FindCompletion(const gc::Root<OpenBuffer>& model,
                                    const CompressedText& compressed_text) {
   const BufferContents& contents = model.ptr()->contents();
 
+  VLOG(3) << "Starting completion with model with size: " << contents.size();
+
   // TODO(trivial, 2023-09-01): Handle the case where the last line is
   // empty.
   LineNumber line = contents.upper_bound(
@@ -65,7 +67,10 @@ std::optional<Text> FindCompletion(const gc::Root<OpenBuffer>& model,
   CompressedText model_compressed_text = CompressedText(
       Substring(line_contents, ColumnNumber(), ColumnNumberDelta(split)));
   if (compressed_text != model_compressed_text) return std::nullopt;
-  return Text(Substring(line_contents, ColumnNumber(split + 1)));
+  Text output = Text(Substring(line_contents, ColumnNumber(split + 1)));
+  VLOG(2) << "Found compression: " << compressed_text->ToString() << " -> "
+          << output->ToString();
+  return output;
 }
 
 futures::Value<std::optional<Text>> FindCompletion(
