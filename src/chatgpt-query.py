@@ -79,7 +79,7 @@ def main() -> None:
 
   SetApiKey(args.api_key)
 
-  log: List[ChatEntry] = None
+  log: List[ChatEntry] = []
   if args.conversation:
     try:
       log = LoadConversation(args.conversation)
@@ -89,7 +89,20 @@ def main() -> None:
     log = [CreateChatEntry(
                'system', GetInitialPrompt(args.prompt, args.default_prompt))]
 
-  log.append(CreateChatEntry('user', sys.stdin.read()))
+  logging.info("Reading input...")
+
+  edge_input = os.getenv("EDGE_INPUT")
+  if edge_input:
+    logging.info(f"Reading input from EDGE_INPUT: {edge_input}")
+    with open(edge_input, "r") as edge_file:
+      user_input = edge_file.read()
+  else:
+    logging.info(f"Reading input from stdin")
+    user_input = sys.stdin.read()
+
+  log.append(CreateChatEntry('user', user_input))
+
+  logging.info("Getting response...")
   response = Chat(log)
   print(response)
   if args.conversation:
