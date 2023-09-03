@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Set, TextIO, Tuple
 
 
 class FilesWriter:
+
   def __init__(self, output_directory: str, dry_run: bool, diff: bool):
     self.output_directory = output_directory
     self.dry_run: bool = dry_run
@@ -35,14 +36,15 @@ class FilesWriter:
     self.FlushFile()
     for input_path, actual_path in self.files_written.items():
       if self.diff:
-        result : subprocess.CompletedProcess = subprocess.run(
-            ['diff',
-             '--label',
-             os.path.join('/old/', os.path.relpath(input_path, start='/')),
-             '--label',
-             os.path.join('/new/', os.path.relpath(input_path, start='/')),
-             '-Naur', input_path,
-             actual_path], stdout=subprocess.PIPE,
+        result: subprocess.CompletedProcess = subprocess.run(
+            [
+                'diff', '--label',
+                os.path.join('/old/', os.path.relpath(input_path,
+                                                      start='/')), '--label',
+                os.path.join('/new/', os.path.relpath(input_path, start='/')),
+                '-Naur', input_path, actual_path
+            ],
+            stdout=subprocess.PIPE,
             text=True)
         if (result.stdout.strip()):
           print(result.stdout)
@@ -53,7 +55,7 @@ class FilesWriter:
         print(f"{input_path}{mode_string}")
 
     for package_name in self.debian_packages:
-        self._HandleDebianPackage(package_name)
+      self._HandleDebianPackage(package_name)
 
     if not self.dry_run:
       for path in self.files_to_delete:
@@ -144,7 +146,8 @@ class FilesWriter:
   def StartCollectingFile(self, path: str, mode: Optional[int]) -> None:
     self.FlushFile()
     self.collecting_dependencies = False
-    self.path = os.path.join(self.output_directory,
+    self.path = os.path.join(
+        self.output_directory,
         os.path.relpath(os.path.expanduser(path), start='/'))
     if mode:
       self.file_mode[self.path] = mode
@@ -170,8 +173,7 @@ def ProcessFile(writer: FilesWriter, input: TextIO) -> None:
   for line in input:
     line = line.rstrip()
 
-    match_file = re.match(
-        r"^File `(.*)` *(\(mode ([0-9]{3})\))?:$", line)
+    match_file = re.match(r"^File `(.*)` *(\(mode ([0-9]{3})\))?:$", line)
     match_dependencies = re.match(r"^Dependencies:$", line)
     match_debian_package = re.match(r"\* Debian package: `([^`]+)`$", line)
     if match_file:
@@ -198,10 +200,11 @@ def ProcessFile(writer: FilesWriter, input: TextIO) -> None:
 
   writer.FlushFile()
 
+
 def main() -> None:
   parser = argparse.ArgumentParser(
       description='Extract code from Markdown file and create corresponding '
-                  'files')
+      'files')
   parser.add_argument(
       '--output_directory',
       type=str,
@@ -237,5 +240,6 @@ def main() -> None:
     else:
       ProcessFile(writer, sys.stdin)
 
+
 if __name__ == "__main__":
-    main()
+  main()
