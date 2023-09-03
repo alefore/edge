@@ -7,7 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from typing import Dict, List, Optional, TextIO, Tuple
+from typing import Dict, List, Optional, Set, TextIO, Tuple
 
 
 class FilesWriter:
@@ -22,6 +22,8 @@ class FilesWriter:
     self.files_with_errors: Dict[str, Exception] = {}
     self.file_mode: Dict[str, int] = {}
 
+    self.collecting_dependencies: bool = False
+    self.debian_packages: Set[str] = set()
     self.path: str = ''
     self.content: List[str] = []
     self.prefix_empty_lines: int = 0
@@ -30,7 +32,7 @@ class FilesWriter:
     return self
 
   def __exit__(self, type, value, traceback) -> None:
-    self.Flush()
+    self.FlushFile()
     for input_path, actual_path in self.files_written.items():
       if self.diff:
         result : subprocess.CompletedProcess = subprocess.run(
@@ -49,6 +51,9 @@ class FilesWriter:
         if input_path in self.file_mode:
           mode_string = ' ' + oct(self.file_mode[input_path])[2:]
         print(f"{input_path}{mode_string}")
+
+    for package_name in self.debian_packages:
+        self._HandleDebianPackage(package_name)
 
     if not self.dry_run:
       for path in self.files_to_delete:
@@ -72,12 +77,12 @@ class FilesWriter:
           self.files_with_errors[path] = exception
 
     if self.files_with_errors:
-      for file, exception in self.files_with_errors.items():
-        print(f"{file}: {exception}", file=sys.stderr)
+      for file, exception_found in self.files_with_errors.items():
+        print(f"{file}: {exception_found}", file=sys.stderr)
       sys.exit(2)
 
-  def Flush(self) -> None:
-    if self.IsCollecting():
+  def FlushFile(self) -> None:
+    if self.IsCollectingFile():
       try:
         if self.path in self.files_with_errors:
           return
@@ -113,24 +118,51 @@ class FilesWriter:
         self.content = []
         self.prefix_empty_lines = 0
 
-  def StartCollecting(self, path: str, mode: Optional[int]) -> None:
-    self.Flush()
+  def AddDebianPackage(self, package_name: str) -> None:
+    assert not self.IsCollectingFile()
+    assert self.IsCollectingDependencies()
+    self.debian_packages.add(package_name)
+
+  def _HandleDebianPackage(self, package_name):
+    if self.dry_run:
+      print(f'Debian package: {package_name}')
+      return
+
+    if not self.diff:
+      subprocess.call(['su', '-c', f"apt-get install -y {package_name}"])
+      return
+
+    result: subprocess.CompletedProcess = subprocess.run(
+        ['dpkg', '-s', package_name], capture_output=True, text=True)
+    if 'Status: install ok installed' not in result.stdout:
+      print(f"Debian package missing: {package_name}")
+
+  def StartCollectingDependencies(self) -> None:
+    self.FlushFile()
+    self.collecting_dependencies = True
+
+  def StartCollectingFile(self, path: str, mode: Optional[int]) -> None:
+    self.FlushFile()
+    self.collecting_dependencies = False
     self.path = os.path.join(self.output_directory,
         os.path.relpath(os.path.expanduser(path), start='/'))
     if mode:
       self.file_mode[self.path] = mode
 
-  def IsCollecting(self) -> bool:
+  def IsCollectingFile(self) -> bool:
     return self.path != ''
 
+  def IsCollectingDependencies(self) -> bool:
+    return self.collecting_dependencies
+
   def AddCode(self, line) -> None:
-    if self.IsCollecting():
+    if self.IsCollectingFile():
       self.content.extend('\n' * self.prefix_empty_lines)
       self.prefix_empty_lines = 0
       self.content.append(line + '\n')
 
   def AddPrefixEmptyLine(self):
-    if self.IsCollecting() and self.content:
+    if self.IsCollectingFile() and self.content:
       self.prefix_empty_lines += 1
 
 
@@ -138,24 +170,33 @@ def ProcessFile(writer: FilesWriter, input: TextIO) -> None:
   for line in input:
     line = line.rstrip()
 
-    match = re.match(
+    match_file = re.match(
         r"^File `(.*)` *(\(mode ([0-9]{3})\))?:$", line)
-    if match:
+    match_dependencies = re.match(r"^Dependencies:$", line)
+    match_debian_package = re.match(r"\* Debian package: `([^`]+)`$", line)
+    if match_file:
       mode: Optional[int] = None
-      if match.group(3):
-        mode = int(match.group(3), 8)
-      writer.StartCollecting(match.group(1), mode)
+      if match_file.group(3):
+        mode = int(match_file.group(3), 8)
+      writer.StartCollectingFile(match_file.group(1), mode)
 
-    elif line.startswith("    "):
+    elif match_dependencies:
+      writer.FlushFile()
+      writer.StartCollectingDependencies()
+
+    elif line.startswith("    ") and writer.IsCollectingFile():
       writer.AddCode(line[4:])
 
     elif line == "":
       writer.AddPrefixEmptyLine()
 
-    else:
-      writer.Flush()
+    elif match_debian_package:
+      writer.AddDebianPackage(match_debian_package.group(1))
 
-  writer.Flush()
+    else:
+      writer.FlushFile()
+
+  writer.FlushFile()
 
 def main() -> None:
   parser = argparse.ArgumentParser(
