@@ -38,6 +38,9 @@ if (extension == "cc" || extension == "h" || extension == "cpp" ||
 } else if (extension == "sql" || extension == "sqlt" || extension == "sqlm") {
   reformat_command = "~/bin/format_sql <";
   reformat_command_in_place = "~/bin/format_sql -in_place";
+} else if (extension == "py") {
+  reformat_command = "~/bin/format_py <";
+  reformat_command_in_place = "~/bin/format_py -i";
 } else if (Basename(path) == "BUILD") {
   reformat_command = "buildifier <";
   reformat_command_in_place = "buildifier";
