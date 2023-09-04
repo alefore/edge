@@ -14,6 +14,8 @@ namespace afc {
 namespace editor {
 namespace testing {
 namespace {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;

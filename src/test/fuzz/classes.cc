@@ -22,6 +22,7 @@ extern "C" {
 
 using namespace afc::editor;
 namespace gc = afc::language::gc;
+namespace fuzz = afc::tests::fuzz;
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);

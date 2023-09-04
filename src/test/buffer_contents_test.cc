@@ -17,6 +17,8 @@ namespace editor {
 namespace testing {
 namespace {
 using ::operator<<;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
