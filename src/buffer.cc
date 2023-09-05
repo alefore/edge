@@ -1021,7 +1021,7 @@ void OpenBuffer::SortAllContents(
                        const NonNull<std::shared_ptr<const Line>>&)>
         compare) {
   if (EndLine().IsZero()) return;
-  SortContents(LineNumber(), EndLine() - LineNumberDelta(1),
+  SortContents(LineNumber(), EndLine() + LineNumberDelta(1),
                std::move(compare));
 }
 
