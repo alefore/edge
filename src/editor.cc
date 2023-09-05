@@ -830,7 +830,7 @@ BufferPosition EditorState::ReadPositionsStack() {
   CHECK(HasPositionsInStack());
   gc::Ptr<OpenBuffer> buffer =
       buffers_.find(PositionsBufferName())->second.ptr();
-  return PositionFromLine(buffer->current_line()->ToString());
+  return PositionFromLine(buffer->CurrentLine()->ToString());
 }
 
 bool EditorState::MovePositionsStack(Direction direction) {

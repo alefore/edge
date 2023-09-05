@@ -105,7 +105,7 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
         buffer.contents().at(position.line);
     DVLOG(5) << "Erasing line: " << line_contents->ToString();
     VisitPointer(
-        buffer.current_line()->outgoing_link(),
+        buffer.CurrentLine()->outgoing_link(),
         [&](const OutgoingLink& outgoing_link) {
           if (auto it = buffer.editor().buffers()->find(
                   BufferName(outgoing_link.path));

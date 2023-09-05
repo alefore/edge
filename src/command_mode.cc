@@ -449,13 +449,8 @@ class ActivateLink : public Command {
     VisitPointer(
         editor_state_.current_buffer(),
         [&](gc::Root<OpenBuffer> buffer) {
-          // TODO(easy, 2022-05-18): Use VisitPointer as well.
-          if (buffer.ptr()->current_line() == nullptr) {
-            return;
-          }
-
           VisitPointer(
-              buffer.ptr()->current_line()->outgoing_link(),
+              buffer.ptr()->CurrentLine()->outgoing_link(),
               [&](OutgoingLink outgoing_link) {
                 if (auto it = buffer.ptr()->editor().buffers()->find(
                         BufferName(outgoing_link.path));

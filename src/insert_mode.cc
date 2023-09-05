@@ -752,7 +752,7 @@ void EnterInsertMode(InsertModeOptions options) {
         for (gc::Root<OpenBuffer>& buffer_root :
              shared_options->buffers.value()) {
           VisitPointer(
-              buffer_root.ptr()->current_line()->outgoing_link(),
+              buffer_root.ptr()->CurrentLine()->outgoing_link(),
               [&](const OutgoingLink& link) {
                 if (auto it = buffer_root.ptr()->editor().buffers()->find(
                         BufferName(link.path));

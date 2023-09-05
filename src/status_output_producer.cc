@@ -175,19 +175,19 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 
   auto text = options.status.text();
   if (options.status.prompt_buffer().has_value()) {
-    auto contents = options.status.prompt_buffer()->ptr()->current_line();
-    CHECK(contents != nullptr);
+    NonNull<std::shared_ptr<const Line>> contents =
+        options.status.prompt_buffer()->ptr()->CurrentLine();
     auto column =
         std::min(contents->EndColumn(),
                  options.status.prompt_buffer()->ptr()->current_position_col());
     VLOG(5) << "Setting status cursor: " << column;
 
     line_options.AppendString(options.status.text(), LineModifierSet());
-    LineBuilder prefix(*contents);
+    LineBuilder prefix(contents.value());
     prefix.DeleteSuffix(column);
     line_options.Append(std::move(prefix));
     cursor = ColumnNumber(0) + line_options.contents()->size();
-    LineBuilder suffix(*contents);
+    LineBuilder suffix(contents.value());
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     line_options.Append(std::move(suffix));
     line_options.Append(

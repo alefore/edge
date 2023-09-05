@@ -1239,11 +1239,13 @@ LineColumn OpenBuffer::AdjustLineColumn(LineColumn position) const {
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
-  if (current_line() == nullptr) {
-    return;
-  }
-  set_current_position_col(
-      std::min(position().column, current_line()->EndColumn()));
+  VisitPointer(
+      CurrentLineOrNull(),
+      [&](NonNull<std::shared_ptr<const Line>> line) {
+        set_current_position_col(
+            std::min(position().column, line->EndColumn()));
+      },
+      [] {});
 }
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
@@ -1648,7 +1650,17 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
       MakeNonNullUnique<Adapter>(*this), contents_);
 }
 
-const std::shared_ptr<const Line> OpenBuffer::current_line() const {
+language::NonNull<std::shared_ptr<const language::text::Line>>
+OpenBuffer::CurrentLine() const {
+  LineNumber line = AdjustLineColumn(position()).line;
+  CHECK_LE(line, contents().EndLine());
+  std::shared_ptr<const language::text::Line> shared_output = LineAt(line);
+  CHECK(shared_output != nullptr);
+  return language::NonNull<std::shared_ptr<const language::text::Line>>::Unsafe(
+      std::move(shared_output));
+}
+
+std::shared_ptr<const Line> OpenBuffer::CurrentLineOrNull() const {
   return LineAt(position().line);
 }
 

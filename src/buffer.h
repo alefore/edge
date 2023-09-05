@@ -398,8 +398,13 @@ class OpenBuffer {
   /////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
 
+  // If the line is past the end of the file, returns the last available line
+  // (as if MaybeAdjustPositionCol had been called).
+  language::NonNull<std::shared_ptr<const language::text::Line>> CurrentLine()
+      const;
+
   // May return nullptr if the current_cursor is at the end of file.
-  const std::shared_ptr<const language::text::Line> current_line() const;
+  std::shared_ptr<const language::text::Line> CurrentLineOrNull() const;
 
   std::shared_ptr<const language::text::Line> LineAt(
       language::text::LineNumber line_number) const;

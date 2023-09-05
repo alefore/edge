@@ -462,7 +462,7 @@ class ForkEditorCommand : public Command {
         return;
       }
       VisitPointer(
-          buffer->ptr()->current_line(),
+          buffer->ptr()->CurrentLineOrNull(),
           [&](NonNull<std::shared_ptr<const Line>> current_line) {
             std::visit(
                 overload{

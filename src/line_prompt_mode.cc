@@ -959,9 +959,12 @@ class HistoryScrollBehavior : public ScrollBehavior {
             history.set_position(position);
             if (position.line < LineNumber(0) + history.contents().size()) {
               prompt_state->status().set_context(history_root);
-              if (history.current_line() != nullptr) {
-                line_to_insert = history.current_line();
-              }
+              VisitPointer(
+                  history.CurrentLineOrNull(),
+                  [&line_to_insert](NonNull<std::shared_ptr<const Line>> line) {
+                    line_to_insert = line.get_shared();
+                  },
+                  [] {});
             } else if (prompt_state->status().context() != previous_context) {
               prompt_state->status().set_context(previous_context);
               line_to_insert = original_input.get_shared();
@@ -1048,7 +1051,7 @@ class LinePromptCommand : public Command {
     if (editor_state_.structure() == Structure::kLine) {
       editor_state_.ResetStructure();
       VisitPointer(
-          buffer->ptr()->current_line(),
+          buffer->ptr()->CurrentLineOrNull(),
           [&](NonNull<std::shared_ptr<const Line>> line) {
             AddLineToHistory(editor_state_, options.history_file,
                              line->contents());
@@ -1113,7 +1116,7 @@ InsertModeOptions PromptState::insert_mode_options() {
       .new_line_handler =
           [prompt_state](OpenBuffer& buffer) {
             NonNull<std::shared_ptr<LazyString>> input =
-                buffer.current_line()->contents();
+                buffer.CurrentLine()->contents();
             AddLineToHistory(prompt_state->editor_state(),
                              prompt_state->options().history_file, input);
             auto ensure_survival_of_current_closure =
@@ -1123,7 +1126,7 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .start_completion =
           [prompt_state](OpenBuffer& buffer) {
-            auto input = buffer.current_line()->contents()->ToString();
+            auto input = buffer.CurrentLine()->contents()->ToString();
             LOG(INFO) << "Triggering predictions from: " << input;
             CHECK(prompt_state->status().prompt_extra_information() != nullptr);
             Predict({.editor_state = prompt_state->editor_state(),

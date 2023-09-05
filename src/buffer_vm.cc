@@ -114,7 +114,7 @@ void RegisterBufferFields(
 gc::Root<OpenBuffer> MaybeFollowOutgoingLink(gc::Root<OpenBuffer> buffer) {
   if (buffer.ptr()->editor().structure() == Structure::kLine) {
     return VisitPointer(
-        buffer.ptr()->current_line()->outgoing_link(),
+        buffer.ptr()->CurrentLine()->outgoing_link(),
         [&](const OutgoingLink& link) {
           if (auto it =
                   buffer.ptr()->editor().buffers()->find(BufferName(link.path));
