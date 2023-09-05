@@ -45,6 +45,7 @@ extern "C" {
 
 namespace afc::editor {
 using futures::DeleteNotification;
+using infrastructure::Path;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
@@ -577,9 +578,10 @@ class InsertMode : public EditorMode {
   static futures::Value<EmptyValue> ApplyCompletionModel(
       OpenBuffer& buffer, InsertModeOptions options) {
     auto buffer_root = buffer.NewRoot();
+
+    auto insertion = options.editor_state.modifiers().insertion;
     auto InsertValue = [buffer_root,
-                        insertion = options.editor_state.modifiers().insertion](
-                           NonNull<std::shared_ptr<LazyString>> value)
+                        insertion](NonNull<std::shared_ptr<LazyString>> value)
         -> futures::Value<EmptyValue> {
       return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
           .contents_to_insert = MakeNonNullShared<BufferContents>(
@@ -587,9 +589,10 @@ class InsertMode : public EditorMode {
           .modifiers = {.insertion = insertion}});
     };
 
-    LineColumn position = buffer.AdjustLineColumn(buffer.position());
+    LineColumn position =
+        buffer_root.ptr()->AdjustLineColumn(buffer_root.ptr()->position());
     NonNull<std::shared_ptr<const Line>> line =
-        buffer.contents().at(position.line);
+        buffer_root.ptr()->contents().at(position.line);
 
     ColumnNumber start = position.column;
     CHECK_LE(start.ToDelta(), line->contents()->size());
@@ -601,12 +604,15 @@ class InsertMode : public EditorMode {
     completion::CompressedText token = completion::CompressedText(
         LowerCase(Substring(line->contents(), start, position.column - start)));
 
-    return completion::FindCompletion({options.completion_model}, token)
+    std::vector<futures::Value<completion::CompletionModel>> models;
+    models.push_back(completion::LoadModel(
+        buffer.editor(),
+        ValueOrDie(Path::FromString(L"completion_models/default"))));
+    return completion::FindCompletion(std::move(models), token)
         .Transform(VisitOptionalCallback(overload{
             [buffer_root, position_start = LineColumn(position.line, start),
              length = token->size(),
-             insertion = options.editor_state.modifiers().insertion](
-                completion::Text completion_text) {
+             insertion](completion::Text completion_text) {
               transformation::Stack stack;
               stack.PushBack(transformation::Delete{
                   .range = Range::InLine(position_start, length),

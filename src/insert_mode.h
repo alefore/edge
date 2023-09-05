@@ -54,12 +54,6 @@ struct InsertModeOptions {
   std::optional<std::vector<language::gc::Root<OpenBuffer>>> buffers =
       std::nullopt;
 
-  // The buffer with the model to use for completion. All lines will be sorted
-  // and each line should be of the form "input output", where "input" is a
-  // short sequence of alphabetic characters that, when inserted, will be
-  // expanded to "output".
-  futures::ListenableValue<language::gc::Root<OpenBuffer>> completion_model;
-
   // Optional function to run whenever the contents of a buffer are modified. If
   // `buffers` contains multiple buffers, this will be called multiple times
   // (once for each buffer each time it is modified).

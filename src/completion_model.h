@@ -23,10 +23,10 @@ using CompressedText =
 using Text =
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
 
-futures::ListenableValue<CompletionModel> LoadModel(EditorState& editor,
-                                                    infrastructure::Path path);
+futures::Value<CompletionModel> LoadModel(EditorState& editor,
+                                          infrastructure::Path path);
 futures::Value<std::optional<Text>> FindCompletion(
-    std::vector<futures::ListenableValue<CompletionModel>> models,
+    std::vector<futures::Value<CompletionModel>> models,
     CompressedText compressed_text);
 }  // namespace afc::editor::completion
 #endif  // __AFC_EDITOR_COMPLETION_MODEL_H__

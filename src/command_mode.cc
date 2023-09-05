@@ -298,11 +298,7 @@ class EnterInsertModeCommand : public Command {
  public:
   EnterInsertModeCommand(EditorState& editor_state,
                          std::optional<Modifiers> modifiers)
-      : editor_state_(editor_state),
-        modifiers_(std::move(modifiers)),
-        completion_model_(completion::LoadModel(
-            editor_state,
-            ValueOrDie(Path::FromString(L"completion_models/default")))) {}
+      : editor_state_(editor_state), modifiers_(std::move(modifiers)) {}
 
   std::wstring Description() const override { return L"enters insert mode"; }
   std::wstring Category() const override { return L"Edit"; }
@@ -311,14 +307,12 @@ class EnterInsertModeCommand : public Command {
     if (modifiers_.has_value()) {
       editor_state_.set_modifiers(modifiers_.value());
     }
-    EnterInsertMode(InsertModeOptions{.editor_state = editor_state_,
-                                      .completion_model = completion_model_});
+    EnterInsertMode(InsertModeOptions{.editor_state = editor_state_});
   }
 
  private:
   EditorState& editor_state_;
   const std::optional<Modifiers> modifiers_;
-  const futures::ListenableValue<gc::Root<OpenBuffer>> completion_model_;
 };
 
 class InsertionModifierCommand : public Command {
