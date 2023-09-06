@@ -384,12 +384,14 @@ class InsertMode : public EditorMode {
 
       case ' ':
         ResetScrollBehavior();
-        ForEachActiveBuffer(buffers_, {' '},
-                            [options = options_](OpenBuffer& buffer) {
-                              CHECK(buffer.fd() == nullptr);
-                              ApplyCompletionModel(buffer, options);
-                              return futures::Past(EmptyValue());
-                            });
+        ForEachActiveBuffer(
+            buffers_, {' '},
+            [modify_mode = options_.editor_state.modifiers().insertion](
+                OpenBuffer& buffer) {
+              CHECK(buffer.fd() == nullptr);
+              ApplyCompletionModel(buffer, modify_mode);
+              return futures::Past(EmptyValue());
+            });
         return;
     }
     ResetScrollBehavior();
@@ -576,17 +578,16 @@ class InsertMode : public EditorMode {
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
-      OpenBuffer& buffer, InsertModeOptions options) {
+      OpenBuffer& buffer, Modifiers::ModifyMode modify_mode) {
     auto buffer_root = buffer.NewRoot();
 
-    auto insertion = options.editor_state.modifiers().insertion;
     auto InsertValue = [buffer_root,
-                        insertion](NonNull<std::shared_ptr<LazyString>> value)
+                        modify_mode](NonNull<std::shared_ptr<LazyString>> value)
         -> futures::Value<EmptyValue> {
       return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
           .contents_to_insert = MakeNonNullShared<BufferContents>(
               MakeNonNullShared<Line>(LineBuilder(std::move(value)).Build())),
-          .modifiers = {.insertion = insertion}});
+          .modifiers = {.insertion = modify_mode}});
     };
 
     LineColumn position =
@@ -612,7 +613,7 @@ class InsertMode : public EditorMode {
         .Transform(VisitOptionalCallback(overload{
             [buffer_root, position_start = LineColumn(position.line, start),
              length = token->size(),
-             insertion](completion::Text completion_text) {
+             modify_mode](completion::Text completion_text) {
               transformation::Stack stack;
               stack.PushBack(transformation::Delete{
                   .range = Range::InLine(position_start, length),
@@ -623,7 +624,7 @@ class InsertMode : public EditorMode {
                           LineBuilder(Append(std::move(completion_text),
                                              NewLazyString(L" ")))
                               .Build())),
-                  .modifiers = {.insertion = insertion}});
+                  .modifiers = {.insertion = modify_mode}});
               return buffer_root.ptr()->ApplyToCursors(stack);
             },
             [InsertValue] { return InsertValue(NewLazyString(L" ")); }}));
