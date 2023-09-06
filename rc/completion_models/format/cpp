@@ -1,0 +1,10 @@
+wl while
+sm std::move
+ic include
+df define
+rn return
+vd void
+dl double
+fe false
+te true
+sg string
