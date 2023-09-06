@@ -61,7 +61,16 @@ void HandleFileTypes(string basename, string extension) {
   if (extension == "py") {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
+    buffer.set_completion_model_paths("format/py iso-639/en");
     buffer.SetStatus("🔡 Python file (" + extension + ")");
+    return;
+  }
+
+  if (extension == "sql" || extension == "sqlm") {
+    buffer.set_paragraph_line_prefix_characters(" -");
+    buffer.set_line_prefix_characters(" #");
+    buffer.set_completion_model_paths("format/sql iso-639/en");
+    buffer.SetStatus("🔡 SQL file (" + extension + ")");
     return;
   }
 
