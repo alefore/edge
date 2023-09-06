@@ -23,8 +23,8 @@ if (buffer.buffer_list_context_lines() < 5) {
 
 void AddContextExtension(string ext) {
   if (buffer.file_context_extensions().find(ext, 0) == -1) {
-    buffer.set_file_context_extensions(buffer.file_context_extensions() +
-                                     " " + ext);
+    buffer.set_file_context_extensions(buffer.file_context_extensions() + " " +
+                                       ext);
   }
 }
 
@@ -33,6 +33,7 @@ void HandleFileTypes(string basename, string extension) {
       extension == "cpp") {
     CppMode();
     buffer.SetStatus("🔡 C++ file (" + extension + ")");
+    buffer.set_completion_model_paths("iso-639/en format/cpp");
     return;
   }
 
