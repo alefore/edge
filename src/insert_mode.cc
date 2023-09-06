@@ -26,9 +26,11 @@ extern "C" {
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
+#include "src/tokenize.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
@@ -46,6 +48,7 @@ extern "C" {
 namespace afc::editor {
 using futures::DeleteNotification;
 using infrastructure::Path;
+using infrastructure::PathComponent;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
@@ -581,6 +584,30 @@ class InsertMode : public EditorMode {
       OpenBuffer& buffer, Modifiers::ModifyMode modify_mode) {
     auto buffer_root = buffer.NewRoot();
 
+    std::vector<futures::Value<completion::CompletionModel>> models;
+
+    if (std::vector<Token> paths = TokenizeBySpaces(
+            NewLazyString(buffer.Read(buffer_variables::completion_model_paths))
+                .value());
+        !paths.empty()) {
+      for (const Token& path_str : paths)
+        std::visit(
+            overload{[&](Path path) {
+                       models.push_back(completion::LoadModel(
+                           buffer.editor(),
+                           Path::Join(ValueOrDie(PathComponent::FromString(
+                                          L"completion_models")),
+                                      std::move(path))));
+                     },
+                     language::IgnoreErrors{}},
+            Path::FromString(path_str.value));
+    }
+
+    if (models.empty()) {
+      VLOG(5) << "No tokens found in buffer_variables::completion_model_paths.";
+      return futures::Past(EmptyValue());
+    }
+
     auto InsertValue = [buffer_root,
                         modify_mode](NonNull<std::shared_ptr<LazyString>> value)
         -> futures::Value<EmptyValue> {
@@ -605,10 +632,6 @@ class InsertMode : public EditorMode {
     completion::CompressedText token = completion::CompressedText(
         LowerCase(Substring(line->contents(), start, position.column - start)));
 
-    std::vector<futures::Value<completion::CompletionModel>> models;
-    models.push_back(completion::LoadModel(
-        buffer.editor(),
-        ValueOrDie(Path::FromString(L"completion_models/default"))));
     return completion::FindCompletion(std::move(models), token)
         .Transform(VisitOptionalCallback(overload{
             [buffer_root, position_start = LineColumn(position.line, start),
