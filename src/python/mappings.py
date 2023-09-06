@@ -59,7 +59,7 @@ class TextMapping:
     for sentence in sentences:
       chain: List[Text] = []
       for word in re.findall(r'\b\w+\b', sentence):
-        if Text(word) in self.dictionary:
+        if not self.dictionary or Text(word) in self.dictionary:
           chain = chain[-2:] + [Text(word)]
           for i in range(0, len(chain)):
             self.freq_dict[Text(' '.join(chain[i:]))] += 1
@@ -184,16 +184,13 @@ if __name__ == "__main__":
   parser.add_argument(
       '--model', help='Path to a model file ("source target" lines).')
   parser.add_argument(
-      '--dictionary',
-      required=True,
-      action='append',
-      help='Path to a dictionary file.')
+      '--dictionary', action='append', help='Path to a dictionary file.')
   parser.add_argument(
       'files', nargs='+', help='List of markdown files to process.')
   args = parser.parse_args()
 
   mapper = TextMapping()
-  for file in args.dictionary:
+  for file in args.dictionary or []:
     mapper.LoadDictionaryFile(file)
   if args.model:
     mapper.LoadModel(args.model)
