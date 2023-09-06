@@ -611,7 +611,7 @@ EdgeVariable<std::wstring>* const completion_model_paths =
         .Description(
             L"Paths to completion model files. See doc/completion_model.md "
             L"for details.")
-        .DefaultValue(L"en")
+        .DefaultValue(L"iso-639/en")
         .Build();
 
 EdgeStruct<int>* IntStruct() {
