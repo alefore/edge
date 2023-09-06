@@ -12,6 +12,7 @@ from typing import Dict, List, NewType, Optional, Set
 CompressedText = NewType('CompressedText', str)
 Text = NewType('Text', str)
 
+
 def Difficulty(word: Text) -> float:
   left: str = "qwert" + "asdfg" + "zxcvb" + "äáé"
   right: str = "yuiophjkl;nm"
@@ -37,7 +38,9 @@ def Difficulty(word: Text) -> float:
       saving += 0.1
   return saving
 
+
 class TextMapping:
+
   def __init__(self, penalty: float = 0.2):
     self.dictionary: Set[Text] = set()
     self.penalty: float = penalty
@@ -91,10 +94,14 @@ class TextMapping:
   def _FindMapping(self, prefix: CompressedText):
     if prefix in self.model:
       return
-    possible_words = [word for word in self.freq_dict.keys()
-                      if self._IsViableMapping(prefix, word)]
+    possible_words = [
+        word for word in self.freq_dict.keys()
+        if self._IsViableMapping(prefix, word)
+    ]
     if possible_words:
-      self.mappings[prefix] = heapq.nlargest(4, possible_words,
+      self.mappings[prefix] = heapq.nlargest(
+          4,
+          possible_words,
           key=lambda word: self.CompressionIndex(prefix, word))
     else:
       print(f"No words found for: {prefix}", file=sys.stderr)
@@ -132,7 +139,8 @@ class TextMapping:
     print(f"Words in corpus: {len(self.freq_dict)}", file=sys.stderr)
 
     for word, prefixes in reverse_dict.items():
-      print(f"{word} (freq: {self.freq_dict[word]}) {prefixes}", file=sys.stderr)
+      print(
+          f"{word} (freq: {self.freq_dict[word]}) {prefixes}", file=sys.stderr)
 
     self.ShowModel()
     self.ShowTotalCompressionIndex()
@@ -145,22 +153,23 @@ class TextMapping:
   def ShowModel(self):
     prefix: CompressedText
     for prefix in sorted(
-        self.model,
-        key = lambda p: self.CompressionIndex(p, self.model[p])):
+        self.model, key=lambda p: self.CompressionIndex(p, self.model[p])):
       word: Text = self.model[prefix]
       compression = round(self.CompressionIndex(prefix, word))
       other_options: str = ""
       if prefix in self.mappings:
         other_options = ''.join(f", {f} {self._GetWordData(prefix, f)}"
-            for f in self.mappings[prefix]
-            if f != word)
-      print(f"{prefix} {word} # {self._GetWordData(prefix, word)}{other_options}")
+                                for f in self.mappings[prefix]
+                                if f != word)
+      print(
+          f"{prefix} {word} # {self._GetWordData(prefix, word)}{other_options}")
 
   def ShowTotalCompressionIndex(self):
     best_model: Dict[Text, CompressedText] = {}
     for prefix, word in self.model.items():
       new_value: float = self.CompressionIndex(prefix, word)
-      if word in best_model and self.CompressionIndex(best_model[word], word) > new_value:
+      if word in best_model and self.CompressionIndex(best_model[word],
+                                                      word) > new_value:
         continue
       best_model[word] = prefix
     assert len(set(best_model.values())) == len(best_model)
@@ -168,15 +177,19 @@ class TextMapping:
     index = sum(self.CompressionIndex(p, w) for w, p in best_model.items())
     print(f"Total compression: {index}", file=sys.stderr)
 
+
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(
       description="Generate mappings based on a corpus and dictionary.")
-  parser.add_argument('--model',
-      help='Path to a model file ("source target" lines).')
-  parser.add_argument('--dictionary', required=True, action='append',
+  parser.add_argument(
+      '--model', help='Path to a model file ("source target" lines).')
+  parser.add_argument(
+      '--dictionary',
+      required=True,
+      action='append',
       help='Path to a dictionary file.')
-  parser.add_argument('files', nargs='+',
-      help='List of markdown files to process.')
+  parser.add_argument(
+      'files', nargs='+', help='List of markdown files to process.')
   args = parser.parse_args()
 
   mapper = TextMapping()
