@@ -174,7 +174,7 @@ void TestCases() {
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("i forero");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  CHECK(editor_state.current_buffer()->ptr()->current_line()->ToString() ==
+  CHECK(editor_state.current_buffer()->ptr()->CurrentLineOrNull()->ToString() ==
         L"alejo forero");
   editor_state.ProcessInputString("gde\n");
   CHECK(editor_state.current_buffer()->ptr()->ToString().empty());
@@ -223,10 +223,11 @@ void TestCases() {
            ColumnNumber(0));
 
   editor_state.ProcessInputString("d2e]\n");
-  CHECK_EQ(
-      ToByteString(
-          editor_state.current_buffer()->ptr()->current_line()->ToString()),
-      "cuervo");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()
+                            ->ptr()
+                            ->CurrentLineOrNull()
+                            ->ToString()),
+           "cuervo");
 
   editor_state.ProcessInputString("pp");
   CHECK_EQ(editor_state.current_buffer()->ptr()->contents().size(),
