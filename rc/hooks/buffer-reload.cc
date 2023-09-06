@@ -33,7 +33,7 @@ void HandleFileTypes(string basename, string extension) {
       extension == "cpp") {
     CppMode();
     buffer.SetStatus("🔡 C++ file (" + extension + ")");
-    buffer.set_completion_model_paths("iso-639/en format/cpp");
+    buffer.set_completion_model_paths("format/cpp iso-639/en");
     return;
   }
 
