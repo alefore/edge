@@ -40,7 +40,6 @@ extern "C" {
 namespace afc::editor {
 namespace gc = language::gc;
 namespace error = language::error;
-
 using concurrent::ThreadPool;
 using concurrent::WorkQueue;
 using infrastructure::AddSeconds;
@@ -52,6 +51,7 @@ using language::Error;
 using language::FromByteString;
 using language::IgnoreErrors;
 using language::MakeNonNullShared;
+using language ::MakeNonNullUnique;
 using language::NonNull;
 using language::Observers;
 using language::overload;
@@ -124,6 +124,22 @@ void ReclaimAndSchedule(gc::Pool& pool, WorkQueue& work_queue) {
       }});
 }
 
+class BuffersListAdapter : public BuffersList::CustomerAdapter {
+ public:
+  BuffersListAdapter(EditorState& editor) : editor_(editor) {}
+
+  std::vector<gc::Root<OpenBuffer>> active_buffers() override {
+    return editor_.active_buffers();
+  }
+
+  bool multiple_buffers_mode() override {
+    return editor_.Read(editor_variables::multiple_buffers);
+  }
+
+ private:
+  const EditorState& editor_;
+};
+
 EditorState::EditorState(CommandLineValues args,
                          infrastructure::audio::Player& audio_player)
     : work_queue_(WorkQueue::New()),
@@ -155,7 +171,7 @@ EditorState::EditorState(CommandLineValues args,
                                     FileDescriptor(output[1]));
       }()),
       audio_player_(audio_player),
-      buffer_tree_(*this),
+      buffer_tree_(MakeNonNullUnique<BuffersListAdapter>(*this)),
       status_(audio_player_) {
   work_queue_->OnSchedule().Add([this] {
     NotifyInternalEvent();

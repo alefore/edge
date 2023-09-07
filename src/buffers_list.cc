@@ -6,7 +6,6 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
-#include "src/editor.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
@@ -17,6 +16,7 @@
 #include "src/language/overload.h"
 #include "src/tests/tests.h"
 #include "src/widget.h"
+#include "src/widget_list.h"
 
 namespace afc::editor {
 using infrastructure::GetElapsedSecondsSince;
@@ -664,13 +664,13 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 }
 }  // namespace
 
-BuffersList::BuffersList(const EditorState& editor_state)
-    : BuffersList(editor_state,
+BuffersList::BuffersList(NonNull<std::unique_ptr<CustomerAdapter>> customer)
+    : BuffersList(std::move(customer),
                   MakeNonNullUnique<BufferWidget>(BufferWidget::Options{})) {}
 
-BuffersList::BuffersList(const EditorState& editor_state,
+BuffersList::BuffersList(NonNull<std::unique_ptr<CustomerAdapter>> customer,
                          NonNull<std::unique_ptr<BufferWidget>> widget)
-    : editor_state_(editor_state),
+    : customer_(std::move(customer)),
       active_buffer_widget_(widget.get()),
       widget_(std::move(widget)) {}
 
@@ -891,7 +891,7 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
             << " buffers with lines: " << layout.lines;
 
     std::set<NonNull<const OpenBuffer*>> active_buffers;
-    for (gc::Root<OpenBuffer>& b : editor_state_.active_buffers()) {
+    for (gc::Root<OpenBuffer>& b : customer_->active_buffers()) {
       active_buffers.insert(
           NonNull<const OpenBuffer*>::AddressOf(b.ptr().value()));
     }
@@ -1007,7 +1007,7 @@ void BuffersList::Update() {
     widgets.push_back(MakeNonNullUnique<BufferWidget>(BufferWidget::Options{
         .buffer = buffer.ptr().ToWeakPtr(),
         .is_active = widgets.size() == index_active ||
-                     editor_state_.Read(editor_variables::multiple_buffers),
+                     customer_->multiple_buffers_mode(),
         .position_in_parent =
             (buffers.size() > 1 ? widgets.size() : std::optional<size_t>())}));
   }

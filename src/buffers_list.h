@@ -16,7 +16,16 @@ namespace afc::editor {
 // numbered list of buffers; at the bottom, displays a given widget.
 class BuffersList {
  public:
-  BuffersList(const EditorState& editor_state);
+  class CustomerAdapter {
+   public:
+    virtual ~CustomerAdapter() = default;
+
+    virtual std::vector<language::gc::Root<OpenBuffer>> active_buffers() = 0;
+
+    virtual bool multiple_buffers_mode() = 0;
+  };
+
+  BuffersList(language::NonNull<std::unique_ptr<CustomerAdapter>> customer);
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
   void AddBuffer(language::gc::Root<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
@@ -47,10 +56,10 @@ class BuffersList {
   void Update();
 
  private:
-  BuffersList(const EditorState& editor_state,
+  BuffersList(language::NonNull<std::unique_ptr<CustomerAdapter>> customer,
               language::NonNull<std::unique_ptr<BufferWidget>> buffer_widget);
 
-  const EditorState& editor_state_;
+  const language ::NonNull<std::unique_ptr<CustomerAdapter>> customer_;
   std::vector<language::gc::Root<OpenBuffer>> buffers_;
 
   // Points to the BufferWidget that corresponds to the active buffer.
