@@ -9,8 +9,12 @@ namespace afc::editor::completion {
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language ::overload;
+using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -28,6 +32,20 @@ namespace gc = afc::language::gc;
 using CompletionModel = language::gc::Root<OpenBuffer>;
 
 namespace {
+struct ParsedLine {
+  CompressedText compressed_text;
+  Text text;
+};
+
+ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
+  // TODO(easy, 2023-09-07): Avoid call to ToString.
+  size_t split = line->ToString().find_first_of(L" ");
+  if (split == std::wstring::npos) return Error(L"No space found.");
+  return ParsedLine{.compressed_text = CompressedText(Substring(
+                        line, ColumnNumber(), ColumnNumberDelta(split))),
+                    .text = Text(Substring(line, ColumnNumber(split + 1)))};
+}
+
 void PrepareBuffer(OpenBuffer& buffer) {
   LOG(INFO) << "Completion Model preparing buffer: " << buffer.name();
   buffer.Set(buffer_variables::allow_dirty_delete, true);
@@ -73,8 +91,6 @@ const bool prepare_buffer_tests_registration = tests::Register(
         CHECK(buffer.ptr()->contents().ToString() == L"b baby\nf fox");
       }}});
 
-}  // namespace
-
 futures::Value<CompletionModel> LoadModel(EditorState& editor, Path path) {
   return OpenOrCreateFile(
              OpenFileOptions{
@@ -90,7 +106,6 @@ futures::Value<CompletionModel> LoadModel(EditorState& editor, Path path) {
       });
 }
 
-namespace {
 std::optional<Text> FindCompletionInModel(
     const gc::Root<OpenBuffer>& model, const CompressedText& compressed_text) {
   const BufferContents& contents = model.ptr()->contents();
@@ -114,19 +129,24 @@ std::optional<Text> FindCompletionInModel(
   // TODO(easy, 2023-09-01): Avoid calls to ToString, ugh.
   VLOG(5) << "Check: " << compressed_text->ToString()
           << " against: " << line_contents->ToString();
-  size_t split = line_contents->ToString().find_first_of(L" ");
-  if (split == std::wstring::npos) return std::nullopt;
-  CompressedText model_compressed_text = CompressedText(
-      Substring(line_contents, ColumnNumber(), ColumnNumberDelta(split)));
-  if (compressed_text.value() != model_compressed_text.value()) {
-    VLOG(5) << "No match: [" << compressed_text->ToString() << "] != ["
-            << model_compressed_text->ToString() << "]";
-    return std::nullopt;
-  }
-  Text output = Text(Substring(line_contents, ColumnNumber(split + 1)));
-  VLOG(2) << "Found compression: " << compressed_text->ToString() << " -> "
-          << output->ToString();
-  return output;
+  return std::visit(
+      overload{[&](const ParsedLine& parsed_line) -> std::optional<Text> {
+                 if (compressed_text.value() !=
+                     parsed_line.compressed_text.value()) {
+                   VLOG(5) << "No match: ["
+                           << parsed_line.compressed_text->ToString()
+                           << "] != ["
+                           << parsed_line.compressed_text->ToString() << "]";
+                   return std::nullopt;
+                 }
+
+                 VLOG(2) << "Found compression: "
+                         << parsed_line.compressed_text->ToString() << " -> "
+                         << parsed_line.text->ToString();
+                 return parsed_line.text;
+               },
+               [](Error) { return std::optional<Text>(); }},
+      Parse(contents.at(line)->contents()));
 }
 
 const bool find_completion_tests_registration = tests::Register(
@@ -159,40 +179,61 @@ const bool find_completion_tests_registration = tests::Register(
 ModelSupplier::ModelSupplier(EditorState& editor) : editor_(editor) {}
 
 futures::Value<std::optional<Text>> ModelSupplier::FindCompletion(
-    std::vector<infrastructure::Path> models, CompressedText compressed_text) {
+    std::vector<Path> models, CompressedText compressed_text) {
   return FindCompletionWithIndex(
-      std::make_shared<std::vector<infrastructure::Path>>(std::move(models)),
-      std::move(compressed_text), 0, data_);
+      editor_, data_, std::make_shared<std::vector<Path>>(std::move(models)),
+      std::move(compressed_text), 0);
 }
 
 /* static */
 futures::Value<std::optional<Text>> ModelSupplier::FindCompletionWithIndex(
-    std::shared_ptr<std::vector<infrastructure::Path>> models_list,
-    CompressedText compressed_text, size_t index,
-    NonNull<std::shared_ptr<concurrent::Protected<Data>>> data) {
+    EditorState& editor,
+    NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
+    std::shared_ptr<std::vector<Path>> models_list,
+    CompressedText compressed_text, size_t index) {
   if (index == models_list->size()) return futures::Past(std::optional<Text>());
 
-  futures::Value<gc::Root<OpenBuffer>> current_future =
+  futures::ListenableValue<gc::Root<OpenBuffer>> current_future =
       data->lock([&](Data& locked_data) {
-        infrastructure::Path path = models_list->at(index);
+        Path path = models_list->at(index);
         if (auto it = locked_data.models.find(path);
             it != locked_data.models.end())
-          return it->second.ToFuture();
-        return locked_data.models
-            .insert({path, futures::ListenableValue(LoadModel(editor_, path))})
-            .first->second.ToFuture();
+          return it->second;
+        auto output =
+            locked_data.models
+                .insert(
+                    {path, futures::ListenableValue(LoadModel(editor, path))})
+                .first->second;
+        output.AddListener([data, path](const gc::Root<OpenBuffer>& buffer) {
+          data->lock([&](Data& data_locked) {
+            UpdateReverseTable(data_locked, path, buffer.ptr()->contents());
+          });
+        });
+        return output;
       });
 
   return std::move(current_future)
-      .Transform([this, models_list = std::move(models_list), compressed_text,
-                  index, data](gc::Root<OpenBuffer> model) mutable {
+      .ToFuture()
+      .Transform([&editor, data, models_list = std::move(models_list),
+                  compressed_text, index](gc::Root<OpenBuffer> model) mutable {
         if (std::optional<Text> result =
                 FindCompletionInModel(model, compressed_text);
             result.has_value())
           return futures::Past(result);
-        return FindCompletionWithIndex(std::move(models_list), compressed_text,
-                                       index + 1, data);
+        return FindCompletionWithIndex(editor, data, std::move(models_list),
+                                       compressed_text, index + 1);
       });
+}
+/* static */ void ModelSupplier::UpdateReverseTable(
+    Data& data, const Path& path, const BufferContents& contents) {
+  contents.ForEach([&](const Line& line) {
+    std::visit(overload{[&path, &data](const ParsedLine& line) {
+                          data.reverse_table[line.text->ToString()].insert(
+                              {path, line.compressed_text});
+                        },
+                        IgnoreErrors{}},
+               Parse(line.contents()));
+  });
 }
 
 }  // namespace afc::editor::completion

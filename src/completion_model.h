@@ -37,14 +37,19 @@ class ModelSupplier {
 
   struct Data;
 
-  /* static */ futures::Value<std::optional<Text>> FindCompletionWithIndex(
+  static futures::Value<std::optional<Text>> FindCompletionWithIndex(
+      EditorState& editor,
+      language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
       std::shared_ptr<std::vector<infrastructure::Path>> models,
-      CompressedText compressed_text, size_t index,
-      language::NonNull<std::shared_ptr<concurrent::Protected<Data>>>
-          models_map);
+      CompressedText compressed_text, size_t index);
+
+  static void UpdateReverseTable(Data& data, const infrastructure::Path& path,
+                                 const BufferContents& contents);
 
   struct Data {
     ModelsMap models;
+    std::map<std::wstring, std::map<infrastructure::Path, CompressedText>>
+        reverse_table;
   };
 
   EditorState& editor_;
