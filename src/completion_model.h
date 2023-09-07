@@ -32,18 +32,24 @@ class ModelSupplier {
 
  private:
   using CompletionModel = language::gc::Root<OpenBuffer>;
-  using ModelsMap = concurrent::Protected<std::map<
-      infrastructure::Path, futures::ListenableValue<CompletionModel>>>;
+  using ModelsMap =
+      std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>;
+
+  struct Data;
 
   /* static */ futures::Value<std::optional<Text>> FindCompletionWithIndex(
       std::shared_ptr<std::vector<infrastructure::Path>> models,
       CompressedText compressed_text, size_t index,
-      language::NonNull<std::shared_ptr<ModelsMap>> models_map);
+      language::NonNull<std::shared_ptr<concurrent::Protected<Data>>>
+          models_map);
+
+  struct Data {
+    ModelsMap models;
+  };
 
   EditorState& editor_;
-
-  const language::NonNull<std::shared_ptr<ModelsMap>> models_ =
-      language::MakeNonNullShared<ModelsMap>();
+  const language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_ =
+      language::MakeNonNullShared<concurrent::Protected<Data>>();
 };
 
 }  // namespace afc::editor::completion

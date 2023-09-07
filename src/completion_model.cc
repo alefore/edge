@@ -162,36 +162,36 @@ futures::Value<std::optional<Text>> ModelSupplier::FindCompletion(
     std::vector<infrastructure::Path> models, CompressedText compressed_text) {
   return FindCompletionWithIndex(
       std::make_shared<std::vector<infrastructure::Path>>(std::move(models)),
-      std::move(compressed_text), 0, models_);
+      std::move(compressed_text), 0, data_);
 }
 
 /* static */
 futures::Value<std::optional<Text>> ModelSupplier::FindCompletionWithIndex(
     std::shared_ptr<std::vector<infrastructure::Path>> models_list,
     CompressedText compressed_text, size_t index,
-    NonNull<std::shared_ptr<ModelsMap>> models_map) {
+    NonNull<std::shared_ptr<concurrent::Protected<Data>>> data) {
   if (index == models_list->size()) return futures::Past(std::optional<Text>());
 
-  futures::Value<gc::Root<OpenBuffer>> current_future = models_map->lock(
-      [&](std::map<infrastructure::Path,
-                   futures::ListenableValue<CompletionModel>>& models) {
+  futures::Value<gc::Root<OpenBuffer>> current_future =
+      data->lock([&](Data& locked_data) {
         infrastructure::Path path = models_list->at(index);
-        if (auto it = models.find(path); it != models.end())
+        if (auto it = locked_data.models.find(path);
+            it != locked_data.models.end())
           return it->second.ToFuture();
-        return models
+        return locked_data.models
             .insert({path, futures::ListenableValue(LoadModel(editor_, path))})
             .first->second.ToFuture();
       });
 
   return std::move(current_future)
       .Transform([this, models_list = std::move(models_list), compressed_text,
-                  index, models_map](gc::Root<OpenBuffer> model) mutable {
+                  index, data](gc::Root<OpenBuffer> model) mutable {
         if (std::optional<Text> result =
                 FindCompletionInModel(model, compressed_text);
             result.has_value())
           return futures::Past(result);
         return FindCompletionWithIndex(std::move(models_list), compressed_text,
-                                       index + 1, models_map);
+                                       index + 1, data);
       });
 }
 
