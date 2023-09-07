@@ -738,6 +738,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     buffer.Set(buffer_variables::delete_into_paste_buffer, false);
     buffer.Set(buffer_variables::save_on_close, false);
     buffer.Set(buffer_variables::persist_state, false);
+    buffer.Set(buffer_variables::completion_model_paths, L"");
     auto insert_results =
         options_.editor_state.buffers()->insert_or_assign(name, buffer_root);
     CHECK(insert_results.second);
