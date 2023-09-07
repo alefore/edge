@@ -392,8 +392,7 @@ class InsertMode : public EditorMode {
             [modify_mode = options_.editor_state.modifiers().insertion](
                 OpenBuffer& buffer) {
               CHECK(buffer.fd() == nullptr);
-              ApplyCompletionModel(buffer, modify_mode);
-              return futures::Past(EmptyValue());
+              return ApplyCompletionModel(buffer, modify_mode);
             });
         return;
     }
