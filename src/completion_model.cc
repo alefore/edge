@@ -25,6 +25,8 @@ using ::operator<<;
 
 namespace gc = afc::language::gc;
 
+using CompletionModel = language::gc::Root<OpenBuffer>;
+
 namespace {
 void PrepareBuffer(OpenBuffer& buffer) {
   LOG(INFO) << "Completion Model preparing buffer: " << buffer.name();
@@ -127,95 +129,69 @@ std::optional<Text> FindCompletionInModel(
   return output;
 }
 
-futures::Value<std::optional<Text>> FindCompletionWithIndex(
-    std::shared_ptr<std::vector<futures::Value<gc::Root<OpenBuffer>>>> models,
-    CompressedText compressed_text, size_t index) {
-  if (index == models->size()) return futures::Past(std::optional<Text>());
-  futures::Value<gc::Root<OpenBuffer>> current_future =
-      std::move(models->at(index));
-  return std::move(current_future)
-      .Transform([models = std::move(models), compressed_text,
-                  index](gc::Root<OpenBuffer> model) mutable {
-        if (std::optional<Text> result =
-                FindCompletionInModel(model, compressed_text);
-            result.has_value())
-          return futures::Past(result);
-        return FindCompletionWithIndex(std::move(models), compressed_text,
-                                       index + 1);
-      });
-}
-
 const bool find_completion_tests_registration = tests::Register(
-    L"CompletionModel::FindCompletion",
+    L"completion::FindCompletionInModel",
     {
-        {.name = L"NoModelAvailable",
-         .callback =
-             [] {
-               std::optional<Text> output =
-                   FindCompletion({}, CompressedText(NewLazyString(L"foo")))
-                       .Get()
-                       .value();
-               CHECK(output == std::nullopt);
-             }},
         {.name = L"EmptyModel",
          .callback =
              [] {
-               std::vector<futures::Value<CompletionModel>> models;
-               models.push_back(futures::Past(NewBufferForTests()));
-               std::optional<Text> output =
-                   FindCompletion(std::move(models),
-                                  CompressedText(NewLazyString(L"foo")))
-                       .Get()
-                       .value();
-               CHECK(output == std::nullopt);
+               CHECK(FindCompletionInModel(NewBufferForTests(),
+                                           CompressedText(NewLazyString(
+                                               L"foo"))) == std::nullopt);
              }},
         {.name = L"NoMatch",
          .callback =
              [] {
-               std::vector<futures::Value<CompletionModel>> models;
-               models.push_back(futures::Past(CompletionModelForTests()));
-               std::optional<Text> output =
-                   FindCompletion(std::move(models),
-                                  CompressedText(NewLazyString(L"foo")))
-                       .Get()
-                       .value();
-               CHECK(output == std::nullopt);
+               CHECK(FindCompletionInModel(CompletionModelForTests(),
+                                           CompressedText(NewLazyString(
+                                               L"foo"))) == std::nullopt);
              }},
         {.name = L"Match",
          .callback =
              [] {
-               std::vector<futures::Value<CompletionModel>> models;
-               models.push_back(futures::Past(CompletionModelForTests()));
-               std::optional<Text> output =
-                   FindCompletion(std::move(models),
-                                  CompressedText(NewLazyString(L"f")))
-                       .Get()
-                       .value();
-               CHECK(output->value() == NewLazyString(L"fox").value());
+               CHECK(FindCompletionInModel(CompletionModelForTests(),
+                                           CompressedText(NewLazyString(L"f")))
+                         ->value() == NewLazyString(L"fox").value());
              }},
     });
 }  // namespace
 
-futures::Value<std::optional<Text>> FindCompletion(
-    std::vector<futures::Value<CompletionModel>> models,
-    CompressedText compressed_text) {
-  return FindCompletionWithIndex(
-      std::make_shared<std::vector<futures::Value<CompletionModel>>>(
-          std::move(models)),
-      std::move(compressed_text), 0);
-}
-
 ModelSupplier::ModelSupplier(EditorState& editor) : editor_(editor) {}
 
-futures::Value<CompletionModel> ModelSupplier::Get(infrastructure::Path path) {
-  return models_.lock(
+futures::Value<std::optional<Text>> ModelSupplier::FindCompletion(
+    std::vector<infrastructure::Path> models, CompressedText compressed_text) {
+  return FindCompletionWithIndex(
+      std::make_shared<std::vector<infrastructure::Path>>(std::move(models)),
+      std::move(compressed_text), 0, models_);
+}
+
+/* static */
+futures::Value<std::optional<Text>> ModelSupplier::FindCompletionWithIndex(
+    std::shared_ptr<std::vector<infrastructure::Path>> models_list,
+    CompressedText compressed_text, size_t index,
+    NonNull<std::shared_ptr<ModelsMap>> models_map) {
+  if (index == models_list->size()) return futures::Past(std::optional<Text>());
+
+  futures::Value<gc::Root<OpenBuffer>> current_future = models_map->lock(
       [&](std::map<infrastructure::Path,
                    futures::ListenableValue<CompletionModel>>& models) {
+        infrastructure::Path path = models_list->at(index);
         if (auto it = models.find(path); it != models.end())
           return it->second.ToFuture();
         return models
             .insert({path, futures::ListenableValue(LoadModel(editor_, path))})
             .first->second.ToFuture();
+      });
+
+  return std::move(current_future)
+      .Transform([this, models_list = std::move(models_list), compressed_text,
+                  index, models_map](gc::Root<OpenBuffer> model) mutable {
+        if (std::optional<Text> result =
+                FindCompletionInModel(model, compressed_text);
+            result.has_value())
+          return futures::Past(result);
+        return FindCompletionWithIndex(std::move(models_list), compressed_text,
+                                       index + 1, models_map);
       });
 }
 

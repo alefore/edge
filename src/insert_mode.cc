@@ -589,24 +589,22 @@ class InsertMode : public EditorMode {
           completion_model_supplier) {
     auto buffer_root = buffer.NewRoot();
 
-    auto models = std::make_shared<
-        std::vector<futures::Value<completion::CompletionModel>>>();
+    auto model_paths = std::make_shared<std::vector<infrastructure::Path>>();
 
     if (std::vector<Token> paths = TokenizeBySpaces(
             NewLazyString(buffer.Read(buffer_variables::completion_model_paths))
                 .value());
         !paths.empty()) {
       for (const Token& path_str : paths)
-        std::visit(
-            overload{[&](Path path) {
-                       VLOG(5) << "Loading model: " << path;
-                       models->push_back(completion_model_supplier->Get(
-                           Path::Join(ValueOrDie(PathComponent::FromString(
-                                          L"completion_models")),
-                                      std::move(path))));
-                     },
-                     language::IgnoreErrors{}},
-            Path::FromString(path_str.value));
+        std::visit(overload{[&](Path path) {
+                              VLOG(5) << "Loading model: " << path;
+                              model_paths->push_back(Path::Join(
+                                  ValueOrDie(PathComponent::FromString(
+                                      L"completion_models")),
+                                  std::move(path)));
+                            },
+                            language::IgnoreErrors{}},
+                   Path::FromString(path_str.value));
     }
 
     auto InsertValue = [buffer_root,
@@ -618,7 +616,7 @@ class InsertMode : public EditorMode {
           .modifiers = {.insertion = modify_mode}});
     };
 
-    if (models->empty()) {
+    if (model_paths->empty()) {
       VLOG(5) << "No tokens found in buffer_variables::completion_model_paths.";
       return InsertValue(NewLazyString(L" "));
     }
@@ -639,9 +637,11 @@ class InsertMode : public EditorMode {
         LowerCase(Substring(line->contents(), start, position.column - start)));
 
     return InsertValue(NewLazyString(L" "))
-        .Transform([models = std::move(models), token, start, position,
-                    modify_mode, buffer_root, InsertValue](EmptyValue) mutable {
-          return completion::FindCompletion(std::move(*models), token)
+        .Transform([model_paths = std::move(model_paths), token, start,
+                    position, modify_mode, buffer_root, InsertValue,
+                    completion_model_supplier](EmptyValue) mutable {
+          return completion_model_supplier
+              ->FindCompletion(std::move(*model_paths), token)
               .Transform(VisitOptionalCallback(overload{
                   [buffer_root,
                    position_start = LineColumn(position.line, start),

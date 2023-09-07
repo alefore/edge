@@ -18,26 +18,32 @@ namespace afc::editor::completion {
 // TODO(templates, 2023-09-02): Use GHOST_TYPE. That is tricky because we need
 // to be able to selectively disable some constructors, which requires finicky
 // SFINAE. And operator<<.
-using CompletionModel = language::gc::Root<OpenBuffer>;
 using CompressedText =
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
 using Text =
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
 
-futures::Value<std::optional<Text>> FindCompletion(
-    std::vector<futures::Value<CompletionModel>> models,
-    CompressedText compressed_text);
-
 class ModelSupplier {
  public:
   ModelSupplier(EditorState& editor);
-  futures::Value<CompletionModel> Get(infrastructure::Path path);
+
+  futures::Value<std::optional<Text>> FindCompletion(
+      std::vector<infrastructure::Path> models, CompressedText compressed_text);
 
  private:
+  using CompletionModel = language::gc::Root<OpenBuffer>;
+  using ModelsMap = concurrent::Protected<std::map<
+      infrastructure::Path, futures::ListenableValue<CompletionModel>>>;
+
+  /* static */ futures::Value<std::optional<Text>> FindCompletionWithIndex(
+      std::shared_ptr<std::vector<infrastructure::Path>> models,
+      CompressedText compressed_text, size_t index,
+      language::NonNull<std::shared_ptr<ModelsMap>> models_map);
+
   EditorState& editor_;
-  concurrent::Protected<
-      std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>>
-      models_;
+
+  const language::NonNull<std::shared_ptr<ModelsMap>> models_ =
+      language::MakeNonNullShared<ModelsMap>();
 };
 
 }  // namespace afc::editor::completion
