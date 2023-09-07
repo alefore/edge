@@ -354,6 +354,10 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
                        LOG(INFO) << name() << ": State persisted.";
                        if (child_pid_ != -1) {
                          if (Read(buffer_variables::term_on_close)) {
+                           if (on_exit_handler_ != nullptr) {
+                             return futures::Past(PossibleError(
+                                 Error(L"Already waiting for termination.")));
+                           }
                            LOG(INFO)
                                << "Sending termination and preparing handler: "
                                << Read(buffer_variables::name);
