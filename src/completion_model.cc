@@ -27,6 +27,7 @@ namespace gc = afc::language::gc;
 
 namespace {
 void PrepareBuffer(OpenBuffer& buffer) {
+  LOG(INFO) << "Completion Model preparing buffer: " << buffer.name();
   buffer.Set(buffer_variables::allow_dirty_delete, true);
   buffer.SortAllContentsIgnoringCase();
   LineNumber empty_lines_start;
@@ -202,6 +203,20 @@ futures::Value<std::optional<Text>> FindCompletion(
       std::make_shared<std::vector<futures::Value<CompletionModel>>>(
           std::move(models)),
       std::move(compressed_text), 0);
+}
+
+ModelSupplier::ModelSupplier(EditorState& editor) : editor_(editor) {}
+
+futures::Value<CompletionModel> ModelSupplier::Get(infrastructure::Path path) {
+  return models_.lock(
+      [&](std::map<infrastructure::Path,
+                   futures::ListenableValue<CompletionModel>>& models) {
+        if (auto it = models.find(path); it != models.end())
+          return it->second.ToFuture();
+        return models
+            .insert({path, futures::ListenableValue(LoadModel(editor_, path))})
+            .first->second.ToFuture();
+      });
 }
 
 }  // namespace afc::editor::completion

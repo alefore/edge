@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "src/buffer.h"
+#include "src/concurrent/protected.h"
 #include "src/editor.h"
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
@@ -23,10 +24,21 @@ using CompressedText =
 using Text =
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
 
-futures::Value<CompletionModel> LoadModel(EditorState& editor,
-                                          infrastructure::Path path);
 futures::Value<std::optional<Text>> FindCompletion(
     std::vector<futures::Value<CompletionModel>> models,
     CompressedText compressed_text);
+
+class ModelSupplier {
+ public:
+  ModelSupplier(EditorState& editor);
+  futures::Value<CompletionModel> Get(infrastructure::Path path);
+
+ private:
+  EditorState& editor_;
+  concurrent::Protected<
+      std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>>
+      models_;
+};
+
 }  // namespace afc::editor::completion
 #endif  // __AFC_EDITOR_COMPLETION_MODEL_H__

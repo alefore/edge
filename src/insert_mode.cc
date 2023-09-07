@@ -173,7 +173,9 @@ class InsertMode : public EditorMode {
       : options_(std::move(options)),
         buffers_(MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(
             options_.buffers->begin(), options_.buffers->end())),
-        current_insertion_(NewInsertion(options_.editor_state)) {
+        current_insertion_(NewInsertion(options_.editor_state)),
+        completion_model_supplier_(MakeNonNullShared<completion::ModelSupplier>(
+            options_.editor_state)) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());
     CHECK(!options_.buffers.value().empty());
@@ -389,10 +391,12 @@ class InsertMode : public EditorMode {
         ResetScrollBehavior();
         ForEachActiveBuffer(
             buffers_, {' '},
-            [modify_mode = options_.editor_state.modifiers().insertion](
-                OpenBuffer& buffer) {
+            [modify_mode = options_.editor_state.modifiers().insertion,
+             completion_model_supplier =
+                 completion_model_supplier_](OpenBuffer& buffer) {
               CHECK(buffer.fd() == nullptr);
-              return ApplyCompletionModel(buffer, modify_mode);
+              return ApplyCompletionModel(buffer, modify_mode,
+                                          completion_model_supplier);
             });
         return;
     }
@@ -580,7 +584,9 @@ class InsertMode : public EditorMode {
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
-      OpenBuffer& buffer, Modifiers::ModifyMode modify_mode) {
+      OpenBuffer& buffer, Modifiers::ModifyMode modify_mode,
+      NonNull<std::shared_ptr<completion::ModelSupplier>>
+          completion_model_supplier) {
     auto buffer_root = buffer.NewRoot();
 
     auto models = std::make_shared<
@@ -594,8 +600,7 @@ class InsertMode : public EditorMode {
         std::visit(
             overload{[&](Path path) {
                        VLOG(5) << "Loading model: " << path;
-                       models->push_back(completion::LoadModel(
-                           buffer.editor(),
+                       models->push_back(completion_model_supplier->Get(
                            Path::Join(ValueOrDie(PathComponent::FromString(
                                           L"completion_models")),
                                       std::move(path))));
@@ -687,6 +692,9 @@ class InsertMode : public EditorMode {
 
   std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>
       current_insertion_;
+
+  NonNull<std::shared_ptr<completion::ModelSupplier>>
+      completion_model_supplier_;
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
