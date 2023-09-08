@@ -609,11 +609,26 @@ class InsertMode : public EditorMode {
     return output;
   }
 
+  static Range GetTokenRange(OpenBuffer& buffer) {
+    const LineColumn position = buffer.AdjustLineColumn(buffer.position());
+    const NonNull<std::shared_ptr<const Line>> line =
+        buffer.contents().at(position.line);
+
+    ColumnNumber start = position.column;
+    CHECK_LE(start.ToDelta(), line->contents()->size());
+    while (!start.IsZero() &&
+           (std::isalpha(line->get(start - ColumnNumberDelta(1))) ||
+            line->get(start - ColumnNumberDelta(1)) == L'\''))
+      --start;
+    return Range::InLine(position.line, start, position.column - start);
+  }
+
   static futures::Value<EmptyValue> ApplyCompletionModel(
       OpenBuffer& buffer, Modifiers::ModifyMode modify_mode,
       NonNull<std::shared_ptr<completion::ModelSupplier>>
           completion_model_supplier) {
     const auto model_paths = CompletionModelPaths(buffer);
+    Range token_range = GetTokenRange(buffer);
     const LineColumn position = buffer.AdjustLineColumn(buffer.position());
     futures::Value<EmptyValue> output =
         buffer.ApplyToCursors(transformation::Insert{
@@ -631,18 +646,13 @@ class InsertMode : public EditorMode {
         buffer.contents().at(position.line);
 
     auto buffer_root = buffer.NewRoot();
-
-    ColumnNumber start = position.column;
-    CHECK_LE(start.ToDelta(), line->contents()->size());
-    while (!start.IsZero() &&
-           (std::isalpha(line->get(start - ColumnNumberDelta(1))) ||
-            line->get(start - ColumnNumberDelta(1)) == L'\''))
-      --start;
-    if (start == position.column) {
+    if (token_range.IsEmpty()) {
       VLOG(5) << "Unable to rewind for completion token.";
       static const wchar_t kCompletionDisableSuffix = L'-';
-      if (!start.IsZero() &&
-          line->get(start - ColumnNumberDelta(1)) == kCompletionDisableSuffix) {
+      if (token_range.end.column >= ColumnNumber(2) &&
+          line->get(token_range.end.column - ColumnNumberDelta(1)) ==
+              kCompletionDisableSuffix &&
+          line->get(token_range.end.column - ColumnNumberDelta(2)) != L' ') {
         return std::move(output).Transform([buffer_root, position](EmptyValue) {
           VLOG(3) << "Found completion disabling suffix; removing it.";
           transformation::Stack stack;
@@ -651,27 +661,28 @@ class InsertMode : public EditorMode {
                                      position.column - ColumnNumberDelta(1),
                                      ColumnNumberDelta(1)),
               .initiator = transformation::Delete::Initiator::kInternal});
-          stack.PushBack(transformation::SetPosition(position.column +
-                                                     ColumnNumberDelta(1)));
+          stack.PushBack(transformation::SetPosition(position.column));
           return buffer_root.ptr()->ApplyToCursors(std::move(stack));
         });
       }
       return output;
     }
 
-    completion::CompressedText token = completion::CompressedText(
-        LowerCase(Substring(line->contents(), start, position.column - start)));
+    completion::CompressedText token = completion::CompressedText(LowerCase(
+        Substring(line->contents(), token_range.begin.column,
+                  token_range.end.column - token_range.begin.column)));
     // TODO(easy, 2023-09-08): Get rid of call to ToString.
     VLOG(6) << "Found completion token: " << token->ToString();
 
     return std::move(output).Transform([model_paths = std::move(model_paths),
-                                        token, start, position, modify_mode,
+                                        token, position, modify_mode,
                                         buffer_root, completion_model_supplier](
                                            EmptyValue) mutable {
       return completion_model_supplier
           ->FindCompletion(std::move(*model_paths.get_shared()), token)
           .Transform([buffer_root, token,
-                      position_start = LineColumn(position.line, start),
+                      position_start = LineColumn(
+                          position.line, position.column - token->size()),
                       length = token->size(), modify_mode](
                          completion::ModelSupplier::QueryOutput output) {
             return std::visit(
