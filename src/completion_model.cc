@@ -178,7 +178,7 @@ const bool find_completion_tests_registration = tests::Register(
 
 ModelSupplier::ModelSupplier(EditorState& editor) : editor_(editor) {}
 
-futures::Value<std::optional<Text>> ModelSupplier::FindCompletion(
+futures::Value<ModelSupplier::QueryOutput> ModelSupplier::FindCompletion(
     std::vector<Path> models, CompressedText compressed_text) {
   return FindCompletionWithIndex(
       editor_, data_, std::make_shared<std::vector<Path>>(std::move(models)),
@@ -186,12 +186,25 @@ futures::Value<std::optional<Text>> ModelSupplier::FindCompletion(
 }
 
 /* static */
-futures::Value<std::optional<Text>> ModelSupplier::FindCompletionWithIndex(
+futures::Value<ModelSupplier::QueryOutput>
+ModelSupplier::FindCompletionWithIndex(
     EditorState& editor,
     NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
     std::shared_ptr<std::vector<Path>> models_list,
     CompressedText compressed_text, size_t index) {
-  if (index == models_list->size()) return futures::Past(std::optional<Text>());
+  if (index == models_list->size())
+    return futures::Past(
+        data->lock([&](const Data& locked_data) -> QueryOutput {
+          Text text = compressed_text;
+          if (auto text_it = locked_data.reverse_table.find(text->ToString());
+              text_it != locked_data.reverse_table.end()) {
+            for (const Path& path : *models_list)
+              if (auto path_it = text_it->second.find(path);
+                  path_it != text_it->second.end())
+                return Suggestion{.compressed_text = path_it->second};
+          }
+          return NothingFound{};
+        }));
 
   futures::ListenableValue<gc::Root<OpenBuffer>> current_future =
       data->lock([&](Data& locked_data) {
@@ -214,14 +227,16 @@ futures::Value<std::optional<Text>> ModelSupplier::FindCompletionWithIndex(
 
   return std::move(current_future)
       .ToFuture()
-      .Transform([&editor, data, models_list = std::move(models_list),
-                  compressed_text, index](gc::Root<OpenBuffer> model) mutable {
+      .Transform([&editor, data = std::move(data),
+                  models_list = std::move(models_list), compressed_text,
+                  index](gc::Root<OpenBuffer> model) mutable {
         if (std::optional<Text> result =
                 FindCompletionInModel(model, compressed_text);
             result.has_value())
-          return futures::Past(result);
-        return FindCompletionWithIndex(editor, data, std::move(models_list),
-                                       compressed_text, index + 1);
+          return futures::Past(QueryOutput(*result));
+        return FindCompletionWithIndex(editor, std::move(data),
+                                       std::move(models_list), compressed_text,
+                                       index + 1);
       });
 }
 /* static */ void ModelSupplier::UpdateReverseTable(

@@ -646,6 +646,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
                   &filter_buffer](FilterSortHistorySyncOutput output) {
         LOG(INFO) << "Receiving output from history evaluator.";
         if (!output.errors.empty()) {
+          // TODO(P1, 2023-09-08): Uh, why do we let it expire immediately?
           editor_state.status().SetExpiringInformationText(
               output.errors.front().read());
         }

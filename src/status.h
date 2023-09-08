@@ -62,6 +62,8 @@ class Status {
   // the token expire).
   std::unique_ptr<StatusExpirationControl,
                   std::function<void(StatusExpirationControl*)>>
+  // TODO(trivial, 2023-09-08): Add version based on LazyString and start
+  // deprecation.
   SetExpiringInformationText(std::wstring text);
   // Prefer `InsertError` over `Set`.
   void Set(language::Error text);

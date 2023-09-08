@@ -15,6 +15,7 @@ extern "C" {
 #include "src/command.h"
 #include "src/command_mode.h"
 #include "src/completion_model.h"
+#include "src/concurrent/work_queue.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
@@ -22,6 +23,7 @@ extern "C" {
 #include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
+#include "src/infrastructure/time.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
@@ -46,7 +48,10 @@ extern "C" {
 #include "src/vm/public/value.h"
 
 namespace afc::editor {
+using concurrent::WorkQueue;
 using futures::DeleteNotification;
+using infrastructure::AddSeconds;
+using infrastructure::Now;
 using infrastructure::Path;
 using infrastructure::PathComponent;
 using language::EmptyValue;
@@ -642,33 +647,57 @@ class InsertMode : public EditorMode {
                     completion_model_supplier](EmptyValue) mutable {
           return completion_model_supplier
               ->FindCompletion(std::move(*model_paths), token)
-              .Transform(VisitOptionalCallback(overload{
-                  [buffer_root,
-                   position_start = LineColumn(position.line, start),
-                   length = token->size(),
-                   modify_mode](completion::Text completion_text) {
-                    transformation::Stack stack;
-                    stack.PushBack(transformation::Delete{
-                        .range = Range::InLine(position_start, length),
-                        .initiator =
-                            transformation::Delete::Initiator::kInternal});
-                    const ColumnNumberDelta completion_text_size =
-                        completion_text->size();
-                    stack.PushBack(transformation::Insert{
-                        .contents_to_insert = MakeNonNullShared<BufferContents>(
-                            MakeNonNullShared<Line>(
-                                LineBuilder(std::move(completion_text))
-                                    .Build())),
-                        .modifiers = {.insertion = modify_mode},
-                        .position = position_start});
-                    stack.PushBack(transformation::SetPosition(
-                        position_start.column + completion_text_size +
-                        ColumnNumberDelta(1)));
-                    return buffer_root.ptr()->ApplyToCursors(stack);
-                  },
-                  [InsertValue] { return futures::Past(EmptyValue()); }}));
+              .Transform([buffer_root, InsertValue, token,
+                          position_start = LineColumn(position.line, start),
+                          length = token->size(), modify_mode](
+                             completion::ModelSupplier::QueryOutput output) {
+                return std::visit(
+                    overload{
+                        [&](completion::Text completion_text) {
+                          transformation::Stack stack;
+                          stack.PushBack(transformation::Delete{
+                              .range = Range::InLine(position_start, length),
+                              .initiator = transformation::Delete::Initiator::
+                                  kInternal});
+                          const ColumnNumberDelta completion_text_size =
+                              completion_text->size();
+                          stack.PushBack(transformation::Insert{
+                              .contents_to_insert =
+                                  MakeNonNullShared<BufferContents>(
+                                      MakeNonNullShared<Line>(
+                                          LineBuilder(
+                                              std::move(completion_text))
+                                              .Build())),
+                              .modifiers = {.insertion = modify_mode},
+                              .position = position_start});
+                          stack.PushBack(transformation::SetPosition(
+                              position_start.column + completion_text_size +
+                              ColumnNumberDelta(1)));
+                          return buffer_root.ptr()->ApplyToCursors(stack);
+                        },
+                        [buffer_root,
+                         token](completion::Suggestion suggestion) {
+                          std::wstring suggestion_text =
+                              L"`" + suggestion.compressed_text->ToString() +
+                              L"` is an alias for `" + token->ToString() + L"`";
+                          std::shared_ptr<StatusExpirationControl> expiration =
+                              buffer_root.ptr()
+                                  ->status()
+                                  .SetExpiringInformationText(suggestion_text);
+                          buffer_root.ptr()->work_queue()->Schedule(
+                              WorkQueue::Callback{
+                                  .time = AddSeconds(Now(), 2.0),
+                                  .callback = [expiration] {}});
+                          return futures::Past(EmptyValue());
+                        },
+                        [](completion::NothingFound) {
+                          return futures::Past(EmptyValue());
+                        }},
+                    output);
+              });
         });
   }
+
   const InsertModeOptions options_;
 
   // Copy of the contents of options_.buffers. shared_ptr to make it easy for it

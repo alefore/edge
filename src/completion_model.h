@@ -23,11 +23,19 @@ using CompressedText =
 using Text =
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
 
+struct NothingFound {};
+
+struct Suggestion {
+  CompressedText compressed_text;
+};
+
+// TODO(trivial, 2023-09-08): Rename to ModelManager.
 class ModelSupplier {
  public:
   ModelSupplier(EditorState& editor);
 
-  futures::Value<std::optional<Text>> FindCompletion(
+  using QueryOutput = std::variant<Text, Suggestion, NothingFound>;
+  futures::Value<QueryOutput> FindCompletion(
       std::vector<infrastructure::Path> models, CompressedText compressed_text);
 
  private:
@@ -37,7 +45,7 @@ class ModelSupplier {
 
   struct Data;
 
-  static futures::Value<std::optional<Text>> FindCompletionWithIndex(
+  static futures::Value<QueryOutput> FindCompletionWithIndex(
       EditorState& editor,
       language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
       std::shared_ptr<std::vector<infrastructure::Path>> models,
