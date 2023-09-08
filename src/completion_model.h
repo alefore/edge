@@ -39,7 +39,7 @@ class CompletionModelManager {
                                     CompressedText compressed_text);
 
  private:
-  using CompletionModel = language::gc::Root<OpenBuffer>;
+  using CompletionModel = BufferContents;
   using ModelsMap =
       std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>;
 

@@ -212,7 +212,7 @@ CompletionModelManager::FindCompletionWithIndex(
           return NothingFound{};
         }));
 
-  futures::ListenableValue<gc::Root<OpenBuffer>> current_future =
+  futures::ListenableValue<BufferContents> current_future =
       data->lock([&](Data& locked_data) {
         Path path = models_list->at(index);
         if (auto it = locked_data.models.find(path);
@@ -227,7 +227,7 @@ CompletionModelManager::FindCompletionWithIndex(
                            return buffer.ptr()->WaitForEndOfFile().Transform(
                                [buffer](EmptyValue) {
                                  PrepareBuffer(buffer.ptr().value());
-                                 return buffer;
+                                 return buffer.ptr()->contents();
                                });
                          }))})
                 .first->second;
@@ -236,14 +236,13 @@ CompletionModelManager::FindCompletionWithIndex(
         // AddListener below. If that happens, we'll deadlock. Figure out a
         // better solution.
         if (output.has_value()) {
-          UpdateReverseTable(locked_data, path,
-                             output.get_copy()->ptr()->contents());
+          UpdateReverseTable(locked_data, path, output.get_copy().value());
         } else {
           LOG(INFO) << "Adding listener to update reverse table.";
-          output.AddListener([data, path](const gc::Root<OpenBuffer>& buffer) {
+          output.AddListener([data, path](const BufferContents& contents) {
             LOG(INFO) << "Updating reverse table.";
             data->lock([&](Data& data_locked) {
-              UpdateReverseTable(data_locked, path, buffer.ptr()->contents());
+              UpdateReverseTable(data_locked, path, contents);
             });
           });
         }
@@ -254,9 +253,9 @@ CompletionModelManager::FindCompletionWithIndex(
       .ToFuture()
       .Transform([buffer_loader = std::move(buffer_loader),
                   data = std::move(data), models_list = std::move(models_list),
-                  compressed_text, index](gc::Root<OpenBuffer> model) mutable {
+                  compressed_text, index](BufferContents contents) mutable {
         if (std::optional<Text> result =
-                FindCompletionInModel(model.ptr()->contents(), compressed_text);
+                FindCompletionInModel(contents, compressed_text);
             result.has_value())
           return futures::Past(QueryOutput(*result));
         return FindCompletionWithIndex(buffer_loader, std::move(data),
