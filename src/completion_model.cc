@@ -49,8 +49,7 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
           Substring(line, ColumnNumber(split + 1)))};
 }
 
-BufferContents PrepareBuffer(OpenBuffer& buffer) {
-  BufferContents contents = buffer.contents();
+BufferContents PrepareBuffer(BufferContents contents) {
   contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
                 [](const NonNull<std::shared_ptr<const Line>>& a,
                    const NonNull<std::shared_ptr<const Line>>& b) {
@@ -75,17 +74,14 @@ BufferContents CompletionModelForTests() {
   buffer.ptr()->AppendToLastLine(NewLazyString(L"bb baby"));
   buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
   buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"i i"));
-  return PrepareBuffer(buffer.ptr().value());
+  return PrepareBuffer(buffer.ptr()->contents());
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
     L"CompletionModelManager::PrepareBuffer",
     {{.name = L"EmptyBuffer",
       .callback =
-          [] {
-            gc::Root<OpenBuffer> buffer = NewBufferForTests();
-            CHECK(PrepareBuffer(buffer.ptr().value()).ToString() == L"");
-          }},
+          [] { CHECK(PrepareBuffer(BufferContents()).ToString() == L""); }},
      {.name = L"UnsortedBuffer", .callback = [] {
         gc::Root<OpenBuffer> buffer = NewBufferForTests();
         buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
@@ -94,7 +90,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
         buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"b baby"));
         buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L""));
         CHECK(buffer.ptr()->contents().ToString() == L"\nf fox\n\n\nb baby\n");
-        CHECK(PrepareBuffer(buffer.ptr().value()).ToString() ==
+        CHECK(PrepareBuffer(buffer.ptr()->contents()).ToString() ==
               L"b baby\nf fox");
       }}});
 
@@ -231,7 +227,7 @@ CompletionModelManager::FindCompletionWithIndex(
                                  LOG(INFO)
                                      << "Completion Model preparing buffer: "
                                      << buffer.ptr()->name();
-                                 return PrepareBuffer(buffer.ptr().value());
+                                 return PrepareBuffer(buffer.ptr()->contents());
                                });
                          }))})
                 .first->second;
