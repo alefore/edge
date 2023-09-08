@@ -30,8 +30,6 @@ using ::operator<<;
 
 namespace gc = afc::language::gc;
 
-using CompletionModel = language::gc::Root<OpenBuffer>;
-
 namespace {
 struct ParsedLine {
   CompletionModelManager::CompressedText compressed_text;
@@ -73,7 +71,7 @@ gc::Root<OpenBuffer> CompletionModelForTests() {
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
-    L"CompletionModel::PrepareBuffer",
+    L"CompletionModelManager::PrepareBuffer",
     {{.name = L"EmptyBuffer",
       .callback =
           [] {
