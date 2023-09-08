@@ -83,15 +83,14 @@ const bool prepare_buffer_tests_registration = tests::Register(
       .callback =
           [] { CHECK(PrepareBuffer(BufferContents()).ToString() == L""); }},
      {.name = L"UnsortedBuffer", .callback = [] {
-        gc::Root<OpenBuffer> buffer = NewBufferForTests();
-        buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
-        buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L""));
-        buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L""));
-        buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"b baby"));
-        buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L""));
-        CHECK(buffer.ptr()->contents().ToString() == L"\nf fox\n\n\nb baby\n");
-        CHECK(PrepareBuffer(buffer.ptr()->contents()).ToString() ==
-              L"b baby\nf fox");
+        BufferContents contents;
+        contents.push_back(MakeNonNullShared<Line>(L"f fox"));
+        contents.push_back(MakeNonNullShared<Line>(L""));
+        contents.push_back(MakeNonNullShared<Line>(L""));
+        contents.push_back(MakeNonNullShared<Line>(L"b baby"));
+        contents.push_back(MakeNonNullShared<Line>(L""));
+        CHECK(contents.ToString() == L"\nf fox\n\n\nb baby\n");
+        CHECK(PrepareBuffer(contents).ToString() == L"b baby\nf fox");
       }}});
 
 std::optional<CompletionModelManager::Text> FindCompletionInModel(
