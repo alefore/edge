@@ -179,8 +179,14 @@ class InsertMode : public EditorMode {
         buffers_(MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(
             options_.buffers->begin(), options_.buffers->end())),
         current_insertion_(NewInsertion(options_.editor_state)),
-        completion_model_supplier_(
-            MakeNonNullShared<CompletionModelManager>(options_.editor_state)) {
+        completion_model_supplier_(MakeNonNullShared<CompletionModelManager>(
+            [&editor = options_.editor_state](Path path) {
+              return OpenOrCreateFile(OpenFileOptions{
+                  .editor_state = editor,
+                  .path = Path::Join(editor.edge_path().front(), path),
+                  .insertion_type = BuffersList::AddBufferType::kIgnore,
+                  .use_search_paths = false});
+            })) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());
     CHECK(!options_.buffers.value().empty());

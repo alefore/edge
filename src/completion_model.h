@@ -5,7 +5,6 @@
 
 #include "src/buffer.h"
 #include "src/concurrent/protected.h"
-#include "src/editor.h"
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
 #include "src/infrastructure/dirname.h"
@@ -30,7 +29,10 @@ class CompletionModelManager {
     CompressedText compressed_text;
   };
 
-  CompletionModelManager(EditorState& editor);
+  using BufferLoader =
+      std::function<futures::Value<language::gc::Root<OpenBuffer>>(
+          infrastructure::Path)>;
+  CompletionModelManager(BufferLoader buffer_loader);
 
   using QueryOutput = std::variant<Text, Suggestion, NothingFound>;
   futures::Value<QueryOutput> Query(std::vector<infrastructure::Path> models,
@@ -44,7 +46,7 @@ class CompletionModelManager {
   struct Data;
 
   static futures::Value<QueryOutput> FindCompletionWithIndex(
-      EditorState& editor,
+      BufferLoader buffer_loader,
       language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
       std::shared_ptr<std::vector<infrastructure::Path>> models,
       CompressedText compressed_text, size_t index);
@@ -58,7 +60,7 @@ class CompletionModelManager {
         reverse_table;
   };
 
-  EditorState& editor_;
+  const BufferLoader buffer_loader_;
   const language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_ =
       language::MakeNonNullShared<concurrent::Protected<Data>>();
 };

@@ -95,21 +95,6 @@ const bool prepare_buffer_tests_registration = tests::Register(
         CHECK(buffer.ptr()->contents().ToString() == L"b baby\nf fox");
       }}});
 
-futures::Value<CompletionModel> LoadModel(EditorState& editor, Path path) {
-  return OpenOrCreateFile(
-             OpenFileOptions{
-                 .editor_state = editor,
-                 .path = Path::Join(editor.edge_path().front(), path),
-                 .insertion_type = BuffersList::AddBufferType::kIgnore,
-                 .use_search_paths = false})
-      .Transform([](gc::Root<OpenBuffer> buffer) {
-        return buffer.ptr()->WaitForEndOfFile().Transform([buffer](EmptyValue) {
-          PrepareBuffer(buffer.ptr().value());
-          return buffer;
-        });
-      });
-}
-
 std::optional<CompletionModelManager::Text> FindCompletionInModel(
     const gc::Root<OpenBuffer>& model,
     const CompletionModelManager::CompressedText& compressed_text) {
@@ -194,22 +179,23 @@ const bool find_completion_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-CompletionModelManager::CompletionModelManager(EditorState& editor)
-    : editor_(editor) {}
+CompletionModelManager::CompletionModelManager(BufferLoader buffer_loader)
+    : buffer_loader_(std::move(buffer_loader)) {}
 
 futures::Value<CompletionModelManager::QueryOutput>
 CompletionModelManager::Query(
     std::vector<Path> models,
     CompletionModelManager::CompressedText compressed_text) {
   return FindCompletionWithIndex(
-      editor_, data_, std::make_shared<std::vector<Path>>(std::move(models)),
+      buffer_loader_, data_,
+      std::make_shared<std::vector<Path>>(std::move(models)),
       std::move(compressed_text), 0);
 }
 
 /* static */
 futures::Value<CompletionModelManager::QueryOutput>
 CompletionModelManager::FindCompletionWithIndex(
-    EditorState& editor,
+    BufferLoader buffer_loader,
     NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
     std::shared_ptr<std::vector<Path>> models_list,
     CompletionModelManager::CompressedText compressed_text, size_t index) {
@@ -236,7 +222,15 @@ CompletionModelManager::FindCompletionWithIndex(
         auto output =
             locked_data.models
                 .insert(
-                    {path, futures::ListenableValue(LoadModel(editor, path))})
+                    {path,
+                     futures::ListenableValue(buffer_loader(path).Transform(
+                         [](gc::Root<OpenBuffer> buffer) {
+                           return buffer.ptr()->WaitForEndOfFile().Transform(
+                               [buffer](EmptyValue) {
+                                 PrepareBuffer(buffer.ptr().value());
+                                 return buffer;
+                               });
+                         }))})
                 .first->second;
         output.AddListener([data, path](const gc::Root<OpenBuffer>& buffer) {
           data->lock([&](Data& data_locked) {
@@ -248,14 +242,14 @@ CompletionModelManager::FindCompletionWithIndex(
 
   return std::move(current_future)
       .ToFuture()
-      .Transform([&editor, data = std::move(data),
-                  models_list = std::move(models_list), compressed_text,
-                  index](gc::Root<OpenBuffer> model) mutable {
+      .Transform([buffer_loader = std::move(buffer_loader),
+                  data = std::move(data), models_list = std::move(models_list),
+                  compressed_text, index](gc::Root<OpenBuffer> model) mutable {
         if (std::optional<Text> result =
                 FindCompletionInModel(model, compressed_text);
             result.has_value())
           return futures::Past(QueryOutput(*result));
-        return FindCompletionWithIndex(editor, std::move(data),
+        return FindCompletionWithIndex(buffer_loader, std::move(data),
                                        std::move(models_list), compressed_text,
                                        index + 1);
       });
