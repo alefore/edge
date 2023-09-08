@@ -6,6 +6,7 @@
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/language//safe_types.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/line_prompt_mode.h"
@@ -24,7 +25,9 @@ using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Observers;
+using language::Success;
 using language::ToByteString;
+using language::ValueOrError;
 using language::lazy_string::Append;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::EmptyString;
@@ -39,21 +42,19 @@ using vm::Type;
 namespace gc = language::gc;
 
 namespace {
-// TODO(easy, 2023-09-08): Use ValueOrError.
 struct BackgroundReadDirOutput {
-  std::optional<std::wstring> error_description;
   std::vector<dirent> directories;
   std::vector<dirent> regular_files;
   std::vector<dirent> noise;
 };
 
-BackgroundReadDirOutput ReadDir(Path path, std::wregex noise_regex) {
+ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
+                                              std::wregex noise_regex) {
   BackgroundReadDirOutput output;
   auto dir = OpenDir(path.read());
   if (dir == nullptr) {
-    output.error_description =
-        L"Unable to open directory: " + FromByteString(strerror(errno));
-    return output;
+    return Error(L"Unable to open directory: " +
+                 FromByteString(strerror(errno)));
   }
   struct dirent* entry;
   while ((entry = readdir(dir.get())) != nullptr) {
@@ -187,29 +188,27 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
   output.Set(buffer_variables::atomic_lines, true);
   output.Set(buffer_variables::allow_dirty_delete, true);
   output.Set(buffer_variables::tree_parser, L"md");
+  output.AppendToLastLine(NewLazyString(L"# 🗁  File listing: " + path.read()));
+  output.AppendEmptyLine();
+
   return output.editor()
       .thread_pool()
       .Run([path,
-            noise_regexp = output.Read(buffer_variables::directory_noise)]() {
+            noise_regexp = output.Read(buffer_variables::directory_noise)] {
         return ReadDir(path, std::wregex(noise_regexp));
       })
       .Transform([&output, path](BackgroundReadDirOutput results) {
         auto disk_state_freezer = output.FreezeDiskState();
-        if (results.error_description.has_value()) {
-          output.status().SetInformationText(results.error_description.value());
-          output.AppendLine(
-              NewLazyString(std::move(results.error_description.value())));
-          return EmptyValue();
-        }
-
-        output.AppendToLastLine(
-            NewLazyString(L"# 🗁  File listing: " + path.read()));
-        output.AppendEmptyLine();
-
         ShowFiles(L"🗁  Directories", std::move(results.directories), output);
         ShowFiles(L"🗀  Files", std::move(results.regular_files), output);
         ShowFiles(L"🗐  Noise", std::move(results.noise), output);
-        return EmptyValue();
+        return Success();
+      })
+      .ConsumeErrors([&output](Error error) {
+        auto disk_state_freezer = output.FreezeDiskState();
+        output.status().InsertError(error);
+        output.AppendLine(NewLazyString(std::move(error.read())));
+        return futures::Past(EmptyValue());
       });
 }
 }  // namespace afc::editor
