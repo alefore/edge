@@ -65,6 +65,8 @@ gc::Root<OpenBuffer> CompletionModelForTests() {
   gc::Root<OpenBuffer> buffer = NewBufferForTests();
   buffer.ptr()->AppendToLastLine(NewLazyString(L"bb baby"));
   buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
+  buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"i i"));
+  PrepareBuffer(buffer.ptr().value());
   return buffer;
 }
 
@@ -140,6 +142,12 @@ std::optional<Text> FindCompletionInModel(
                    return std::nullopt;
                  }
 
+                 if (compressed_text.value() == parsed_line.text.value()) {
+                   VLOG(4) << "Found a match, but the line has compressed text "
+                              "identical to parsed text, so we'll skip it.";
+                   return std::nullopt;
+                 }
+
                  VLOG(2) << "Found compression: "
                          << parsed_line.compressed_text->ToString() << " -> "
                          << parsed_line.text->ToString();
@@ -151,29 +159,32 @@ std::optional<Text> FindCompletionInModel(
 
 const bool find_completion_tests_registration = tests::Register(
     L"completion::FindCompletionInModel",
-    {
-        {.name = L"EmptyModel",
-         .callback =
-             [] {
-               CHECK(FindCompletionInModel(NewBufferForTests(),
-                                           CompressedText(NewLazyString(
-                                               L"foo"))) == std::nullopt);
-             }},
-        {.name = L"NoMatch",
-         .callback =
-             [] {
-               CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                           CompressedText(NewLazyString(
-                                               L"foo"))) == std::nullopt);
-             }},
-        {.name = L"Match",
-         .callback =
-             [] {
-               CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                           CompressedText(NewLazyString(L"f")))
-                         ->value() == NewLazyString(L"fox").value());
-             }},
-    });
+    {{.name = L"EmptyModel",
+      .callback =
+          [] {
+            CHECK(FindCompletionInModel(
+                      NewBufferForTests(),
+                      CompressedText(NewLazyString(L"foo"))) == std::nullopt);
+          }},
+     {.name = L"NoMatch",
+      .callback =
+          [] {
+            CHECK(FindCompletionInModel(
+                      CompletionModelForTests(),
+                      CompressedText(NewLazyString(L"foo"))) == std::nullopt);
+          }},
+     {.name = L"Match",
+      .callback =
+          [] {
+            CHECK(FindCompletionInModel(CompletionModelForTests(),
+                                        CompressedText(NewLazyString(L"f")))
+                      ->value() == NewLazyString(L"fox").value());
+          }},
+     {.name = L"IdenticalMatch", .callback = [] {
+        CHECK(FindCompletionInModel(CompletionModelForTests(),
+                                    CompressedText(NewLazyString(L"i"))) ==
+              std::nullopt);
+      }}});
 }  // namespace
 
 ModelSupplier::ModelSupplier(EditorState& editor) : editor_(editor) {}
@@ -243,8 +254,9 @@ ModelSupplier::FindCompletionWithIndex(
     Data& data, const Path& path, const BufferContents& contents) {
   contents.ForEach([&](const Line& line) {
     std::visit(overload{[&path, &data](const ParsedLine& line) {
-                          data.reverse_table[line.text->ToString()].insert(
-                              {path, line.compressed_text});
+                          if (line.text.value() != line.compressed_text.value())
+                            data.reverse_table[line.text->ToString()].insert(
+                                {path, line.compressed_text});
                         },
                         IgnoreErrors{}},
                Parse(line.contents()));
