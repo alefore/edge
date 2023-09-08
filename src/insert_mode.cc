@@ -181,11 +181,19 @@ class InsertMode : public EditorMode {
         current_insertion_(NewInsertion(options_.editor_state)),
         completion_model_supplier_(MakeNonNullShared<CompletionModelManager>(
             [&editor = options_.editor_state](Path path) {
-              return OpenOrCreateFile(OpenFileOptions{
-                  .editor_state = editor,
-                  .path = Path::Join(editor.edge_path().front(), path),
-                  .insertion_type = BuffersList::AddBufferType::kIgnore,
-                  .use_search_paths = false});
+              return OpenOrCreateFile(
+                         OpenFileOptions{
+                             .editor_state = editor,
+                             .path =
+                                 Path::Join(editor.edge_path().front(), path),
+                             .insertion_type =
+                                 BuffersList::AddBufferType::kIgnore,
+                             .use_search_paths = false})
+                  .Transform([](gc::Root<OpenBuffer> buffer) {
+                    buffer.ptr()->Set(buffer_variables::allow_dirty_delete,
+                                      true);
+                    return buffer;
+                  });
             })) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());

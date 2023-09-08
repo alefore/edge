@@ -51,7 +51,6 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
 
 void PrepareBuffer(OpenBuffer& buffer) {
   LOG(INFO) << "Completion Model preparing buffer: " << buffer.name();
-  buffer.Set(buffer_variables::allow_dirty_delete, true);
   buffer.SortAllContentsIgnoringCase();
   LineNumber empty_lines_start;
   while (empty_lines_start < buffer.contents().EndLine() &&
