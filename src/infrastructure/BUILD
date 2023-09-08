@@ -17,6 +17,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:wstring",
+        "//src/language/error:value_or_error",
         "//src/tests",
     ],
 )
