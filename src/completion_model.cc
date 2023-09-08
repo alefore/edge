@@ -12,6 +12,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language ::overload;
 using afc::language::ValueOrError;
@@ -232,11 +233,22 @@ CompletionModelManager::FindCompletionWithIndex(
                                });
                          }))})
                 .first->second;
-        output.AddListener([data, path](const gc::Root<OpenBuffer>& buffer) {
-          data->lock([&](Data& data_locked) {
-            UpdateReverseTable(data_locked, path, buffer.ptr()->contents());
+        // TODO(P2, 2023-09-08, RaceCondition): There's a race here where output
+        // may get a value after this check but before the execution of
+        // AddListener below. If that happens, we'll deadlock. Figure out a
+        // better solution.
+        if (output.has_value()) {
+          UpdateReverseTable(locked_data, path,
+                             output.get_copy()->ptr()->contents());
+        } else {
+          LOG(INFO) << "Adding listener to update reverse table.";
+          output.AddListener([data, path](const gc::Root<OpenBuffer>& buffer) {
+            LOG(INFO) << "Updating reverse table.";
+            data->lock([&](Data& data_locked) {
+              UpdateReverseTable(data_locked, path, buffer.ptr()->contents());
+            });
           });
-        });
+        }
         return output;
       });
 
@@ -267,4 +279,102 @@ CompletionModelManager::FindCompletionWithIndex(
   });
 }
 
+namespace {
+const bool completion_model_manager_tests_registration =
+    tests::Register(L"CompletionModelManager", [] {
+      auto paths = MakeNonNullShared<std::vector<Path>>();
+      auto GetManager = [paths] {
+        return MakeNonNullUnique<CompletionModelManager>([paths](Path path) {
+          LOG(INFO) << "Creating buffer for: " << path;
+          paths->push_back(path);
+          gc::Root<OpenBuffer> output = OpenBuffer::New(
+              {.editor = EditorForTests(),
+               .name = EditorForTests().GetUnusedBufferName(L"test buffer")});
+          output.ptr()->AppendToLastLine(NewLazyString(L"bb baby"));
+          output.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
+          output.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"i i"));
+          return futures::Past(output);
+        });
+      };
+      return std::vector<tests::Test>(
+          {{.name = L"Creation",
+            .callback =
+                [GetManager, paths] {
+                  GetManager();
+                  CHECK(paths->empty());
+                }},
+           {.name = L"SimpleQueryNothing",
+            .callback =
+                [GetManager, paths] {
+                  CHECK(std::holds_alternative<
+                        CompletionModelManager::NothingFound>(
+                      GetManager()
+                          ->Query({ValueOrDie(Path::FromString(L"en"))},
+                                  CompletionModelManager::CompressedText(
+                                      NewLazyString(L"nothing")))
+                          .Get()
+                          .value()));
+                  CHECK(paths.value() ==
+                        std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
+                }},
+           {.name = L"SimpleQueryWithMatch",
+            .callback =
+                [GetManager, paths] {
+                  CompletionModelManager::QueryOutput output =
+                      GetManager()
+                          ->Query({ValueOrDie(Path::FromString(L"en"))},
+                                  CompletionModelManager::CompressedText(
+                                      NewLazyString(L"f")))
+                          .Get()
+                          .value();
+                  CHECK(paths.value() ==
+                        std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
+                  CHECK(
+                      std::get<CompletionModelManager::Text>(output).value() ==
+                      CompletionModelManager::Text(NewLazyString(L"fox"))
+                          .value());
+                }},
+           {.name = L"SimpleQueryWithReverseMatch",
+            .callback =
+                [GetManager, paths] {
+                  CompletionModelManager::QueryOutput output =
+                      GetManager()
+                          ->Query({ValueOrDie(Path::FromString(L"en"))},
+                                  CompletionModelManager::CompressedText(
+                                      NewLazyString(L"fox")))
+                          .Get()
+                          .value();
+                  CHECK(paths.value() ==
+                        std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
+                  CHECK(std::get<CompletionModelManager::Suggestion>(output)
+                            .compressed_text.value() ==
+                        CompletionModelManager::CompressedText(
+                            NewLazyString(L"f"))
+                            .value());
+                }},
+           {.name = L"RepeatedQuerySameModel", .callback = [GetManager, paths] {
+              NonNull<std::unique_ptr<CompletionModelManager>> manager =
+                  GetManager();
+              std::vector<Path> input_paths = {
+                  ValueOrDie(Path::FromString(L"en"))};
+              for (int i = 0; i < 10; i++) {
+                CHECK(std::get<CompletionModelManager::CompressedText>(
+                          manager
+                              ->Query(input_paths,
+                                      CompletionModelManager::CompressedText(
+                                          NewLazyString(L"f")))
+                              .Get()
+                              .value())
+                          .value() ==
+                      CompletionModelManager::Text(NewLazyString(L"fox"))
+                          .value());
+              }
+              // The gist of the test is here:
+              CHECK_EQ(paths->size(), 1ul);
+            }}});
+      // TODO(trivial, 2023-09-08): Add more tests. Test calls with multiple
+      // models: the first model in the order should take precedence. Also
+      // assert that repeated models are OK and won't cause problems.
+    }());
+}  // namespace
 }  // namespace afc::editor
