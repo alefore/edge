@@ -61,13 +61,13 @@ void PrepareBuffer(OpenBuffer& buffer) {
   }
 }
 
-gc::Root<OpenBuffer> CompletionModelForTests() {
+BufferContents CompletionModelForTests() {
   gc::Root<OpenBuffer> buffer = NewBufferForTests();
   buffer.ptr()->AppendToLastLine(NewLazyString(L"bb baby"));
   buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
   buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"i i"));
   PrepareBuffer(buffer.ptr().value());
-  return buffer;
+  return buffer.ptr()->contents();
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
@@ -147,7 +147,7 @@ const bool find_completion_tests_registration = tests::Register(
     {{.name = L"EmptyModel",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(NewBufferForTests().ptr()->contents(),
+            CHECK(FindCompletionInModel(BufferContents(),
                                         CompletionModelManager::CompressedText(
                                             NewLazyString(L"foo"))) ==
                   std::nullopt);
@@ -155,22 +155,21 @@ const bool find_completion_tests_registration = tests::Register(
      {.name = L"NoMatch",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(
-                      CompletionModelForTests().ptr()->contents(),
-                      CompletionModelManager::CompressedText(
-                          NewLazyString(L"foo"))) == std::nullopt);
+            CHECK(FindCompletionInModel(CompletionModelForTests(),
+                                        CompletionModelManager::CompressedText(
+                                            NewLazyString(L"foo"))) ==
+                  std::nullopt);
           }},
      {.name = L"Match",
       .callback =
           [] {
-            CHECK(
-                FindCompletionInModel(
-                    CompletionModelForTests().ptr()->contents(),
-                    CompletionModelManager::CompressedText(NewLazyString(L"f")))
-                    ->value() == NewLazyString(L"fox").value());
+            CHECK(FindCompletionInModel(CompletionModelForTests(),
+                                        CompletionModelManager::CompressedText(
+                                            NewLazyString(L"f")))
+                      ->value() == NewLazyString(L"fox").value());
           }},
      {.name = L"IdenticalMatch", .callback = [] {
-        CHECK(FindCompletionInModel(CompletionModelForTests().ptr()->contents(),
+        CHECK(FindCompletionInModel(CompletionModelForTests(),
                                     CompletionModelManager::CompressedText(
                                         NewLazyString(L"i"))) == std::nullopt);
       }}});
