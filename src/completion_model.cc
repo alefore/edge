@@ -1,9 +1,8 @@
 #include "src/completion_model.h"
 
-#include "src/buffer_variables.h"
-#include "src/file_link_mode.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
+#include "src/language/lazy_string/substring.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
@@ -218,17 +217,8 @@ CompletionModelManager::FindCompletionWithIndex(
         auto output =
             locked_data.models
                 .insert(
-                    {path,
-                     futures::ListenableValue(buffer_loader(path).Transform(
-                         [](gc::Root<OpenBuffer> buffer) {
-                           return buffer.ptr()->WaitForEndOfFile().Transform(
-                               [buffer](EmptyValue) {
-                                 LOG(INFO)
-                                     << "Completion Model preparing buffer: "
-                                     << buffer.ptr()->name();
-                                 return PrepareBuffer(buffer.ptr()->contents());
-                               });
-                         }))})
+                    {path, futures::ListenableValue(
+                               buffer_loader(path).Transform(PrepareBuffer))})
                 .first->second;
         // TODO(P2, 2023-09-08, RaceCondition): There's a race here where output
         // may get a value after this check but before the execution of
@@ -283,13 +273,11 @@ const bool completion_model_manager_tests_registration =
         return MakeNonNullUnique<CompletionModelManager>([paths](Path path) {
           LOG(INFO) << "Creating buffer for: " << path;
           paths->push_back(path);
-          gc::Root<OpenBuffer> output = OpenBuffer::New(
-              {.editor = EditorForTests(),
-               .name = EditorForTests().GetUnusedBufferName(L"test buffer")});
-          output.ptr()->AppendToLastLine(NewLazyString(L"bb baby"));
-          output.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
-          output.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"i i"));
-          return futures::Past(output);
+          BufferContents contents;
+          contents.push_back(L"bb baby");
+          contents.push_back(L"f fox");
+          contents.push_back(L"i i");
+          return futures::Past(std::move(contents));
         });
       };
       return std::vector<tests::Test>(

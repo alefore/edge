@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "src/buffer.h"
+#include "src/buffer_contents.h"
 #include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
@@ -30,8 +30,7 @@ class CompletionModelManager {
   };
 
   using BufferLoader =
-      std::function<futures::Value<language::gc::Root<OpenBuffer>>(
-          infrastructure::Path)>;
+      std::function<futures::Value<BufferContents>(infrastructure::Path)>;
   CompletionModelManager(BufferLoader buffer_loader);
 
   using QueryOutput = std::variant<Text, Suggestion, NothingFound>;

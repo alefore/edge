@@ -192,7 +192,10 @@ class InsertMode : public EditorMode {
                   .Transform([](gc::Root<OpenBuffer> buffer) {
                     buffer.ptr()->Set(buffer_variables::allow_dirty_delete,
                                       true);
-                    return buffer;
+                    return buffer.ptr()->WaitForEndOfFile().Transform(
+                        [buffer](EmptyValue) {
+                          return buffer.ptr()->contents();
+                        });
                   });
             })) {
     CHECK(options_.escape_handler);
