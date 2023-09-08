@@ -271,12 +271,30 @@ const bool completion_model_manager_tests_registration =
           LOG(INFO) << "Creating buffer for: " << path;
           paths->push_back(path);
           BufferContents contents;
-          contents.push_back(L"bb baby");
-          contents.push_back(L"f fox");
-          contents.push_back(L"i i");
+          if (path == ValueOrDie(Path::FromString(L"en"))) {
+            contents.push_back(L"bb baby");
+            contents.push_back(L"f fox");
+            contents.push_back(L"i i");
+          } else {
+            contents.push_back(L"f firulais");
+            contents.push_back(L"p perrito");
+          }
           return futures::Past(std::move(contents));
         });
       };
+      auto TestQuery =
+          [](const NonNull<std::unique_ptr<CompletionModelManager>>& manager,
+             const std::vector<std::wstring>& models,
+             std::wstring compressed_text) {
+            std::vector<infrastructure::Path> model_paths;
+            for (const std::wstring& path : models)
+              model_paths.push_back(ValueOrDie(Path::FromString(path)));
+            return manager
+                ->Query(model_paths, CompletionModelManager::CompressedText(
+                                         NewLazyString(compressed_text)))
+                .Get()
+                .value();
+          };
       return std::vector<tests::Test>(
           {{.name = L"Creation",
             .callback =
@@ -286,28 +304,18 @@ const bool completion_model_manager_tests_registration =
                 }},
            {.name = L"SimpleQueryNothing",
             .callback =
-                [GetManager, paths] {
+                [GetManager, TestQuery, paths] {
                   CHECK(std::holds_alternative<
                         CompletionModelManager::NothingFound>(
-                      GetManager()
-                          ->Query({ValueOrDie(Path::FromString(L"en"))},
-                                  CompletionModelManager::CompressedText(
-                                      NewLazyString(L"nothing")))
-                          .Get()
-                          .value()));
+                      TestQuery(GetManager(), {L"en"}, L"nothing")));
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
                 }},
            {.name = L"SimpleQueryWithMatch",
             .callback =
-                [GetManager, paths] {
+                [GetManager, TestQuery, paths] {
                   CompletionModelManager::QueryOutput output =
-                      GetManager()
-                          ->Query({ValueOrDie(Path::FromString(L"en"))},
-                                  CompletionModelManager::CompressedText(
-                                      NewLazyString(L"f")))
-                          .Get()
-                          .value();
+                      TestQuery(GetManager(), {L"en"}, L"f");
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
                   CHECK(
@@ -317,14 +325,9 @@ const bool completion_model_manager_tests_registration =
                 }},
            {.name = L"SimpleQueryWithReverseMatch",
             .callback =
-                [GetManager, paths] {
+                [GetManager, TestQuery, paths] {
                   CompletionModelManager::QueryOutput output =
-                      GetManager()
-                          ->Query({ValueOrDie(Path::FromString(L"en"))},
-                                  CompletionModelManager::CompressedText(
-                                      NewLazyString(L"fox")))
-                          .Get()
-                          .value();
+                      TestQuery(GetManager(), {L"en"}, L"fox");
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
                   CHECK(std::get<CompletionModelManager::Suggestion>(output)
@@ -333,29 +336,45 @@ const bool completion_model_manager_tests_registration =
                             NewLazyString(L"f"))
                             .value());
                 }},
-           {.name = L"RepeatedQuerySameModel", .callback = [GetManager, paths] {
-              NonNull<std::unique_ptr<CompletionModelManager>> manager =
+           {.name = L"RepeatedQuerySameModel",
+            .callback =
+                [GetManager, TestQuery, paths] {
+                  const NonNull<std::unique_ptr<CompletionModelManager>>
+                      manager = GetManager();
+                  for (int i = 0; i < 10; i++) {
+                    CHECK(std::get<CompletionModelManager::CompressedText>(
+                              TestQuery(manager, {L"en"}, L"f"))
+                              .value() ==
+                          CompletionModelManager::Text(NewLazyString(L"fox"))
+                              .value());
+                  }
+                  // The gist of the test is here:
+                  CHECK_EQ(paths->size(), 1ul);
+                }},
+           {.name = L"MultiModelQuery",
+            .callback = [GetManager, TestQuery, paths] {
+              const NonNull<std::unique_ptr<CompletionModelManager>> manager =
                   GetManager();
-              std::vector<Path> input_paths = {
-                  ValueOrDie(Path::FromString(L"en"))};
-              for (int i = 0; i < 10; i++) {
-                CHECK(std::get<CompletionModelManager::CompressedText>(
-                          manager
-                              ->Query(input_paths,
-                                      CompletionModelManager::CompressedText(
-                                          NewLazyString(L"f")))
-                              .Get()
-                              .value())
-                          .value() ==
-                      CompletionModelManager::Text(NewLazyString(L"fox"))
-                          .value());
-              }
-              // The gist of the test is here:
-              CHECK_EQ(paths->size(), 1ul);
+              CHECK(
+                  std::get<CompletionModelManager::CompressedText>(
+                      TestQuery(manager, {L"en", L"en"}, L"f"))
+                      .value() ==
+                  CompletionModelManager::Text(NewLazyString(L"fox")).value());
+              CHECK(
+                  std::get<CompletionModelManager::CompressedText>(
+                      TestQuery(manager, {L"en", L"es"}, L"f"))
+                      .value() ==
+                  CompletionModelManager::Text(NewLazyString(L"fox")).value());
+              CHECK(std::get<CompletionModelManager::CompressedText>(
+                        TestQuery(manager, {L"en", L"es"}, L"p"))
+                        .value() ==
+                    CompletionModelManager::Text(NewLazyString(L"perrito"))
+                        .value());
+              CHECK(
+                  std::holds_alternative<CompletionModelManager::NothingFound>(
+                      TestQuery(manager, {L"en", L"es"}, L"rock")));
+              CHECK_EQ(paths->size(), 2ul);
             }}});
-      // TODO(trivial, 2023-09-08): Add more tests. Test calls with multiple
-      // models: the first model in the order should take precedence. Also
-      // assert that repeated models are OK and won't cause problems.
     }());
 }  // namespace
 }  // namespace afc::editor
