@@ -2,6 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
@@ -26,6 +27,7 @@ using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ToByteString;
+using language::lazy_string::Append;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
@@ -42,7 +44,8 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
   if (value.IsVoid()) return;
   std::ostringstream oss;
   oss << value;
-  buffer.status().SetInformationText(L"Value: " + FromByteString(oss.str()));
+  buffer.status().SetInformationText(Append(
+      NewLazyString(L"Value: "), NewLazyString(FromByteString(oss.str()))));
   if (delete_buffer != nullptr) {
     std::istringstream iss(oss.str());
     for (std::string line_str; std::getline(iss, line_str);) {
@@ -68,7 +71,8 @@ futures::Value<PossibleError> PreviewCppExpression(
             return Success();
           })
           .ConsumeErrors([&buffer](Error error) {
-            buffer.status().SetInformationText(L"E: " + error.read());
+            buffer.status().SetInformationText(
+                Append(NewLazyString(L"E: "), NewLazyString(error.read())));
             return futures::Past(EmptyValue());
           })
           .Transform([](EmptyValue) { return futures::Past(Success()); });
@@ -93,7 +97,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
             [&buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
                   LineModifier::kRed, LineModifier::kUnderline};
-              buffer.status().SetInformationText(error.read());
+              buffer.status().SetInformationText(NewLazyString(error.read()));
               return futures::Past(EmptyValue());
             })
         .Transform([delete_transformation, input](EmptyValue) {
@@ -318,9 +322,12 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                       contents->EndLine() <
                           LineNumber(input.buffer.Read(
                               buffer_variables::analyze_content_lines_limit))) {
-                    input.buffer.status().SetInformationText(
-                        L"Selection: " +
-                        ToString(AnalyzeContent(contents.value())));
+                    // TODO(easy, 2023-09-08): Change ToString to return a lazy
+                    // string.
+                    input.buffer.status().SetInformationText(Append(
+                        NewLazyString(L"Selection: "),
+                        NewLazyString(
+                            ToString(AnalyzeContent(contents.value())))));
                   }
                   return futures::Past(std::move(*output));
                 });

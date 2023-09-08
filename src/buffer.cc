@@ -568,24 +568,27 @@ void OpenBuffer::EndOfFile() {
 
 void OpenBuffer::SendEndOfFileToProcess() {
   if (fd() == nullptr) {
-    status().SetInformationText(L"No active subprocess for current buffer.");
+    status().SetInformationText(
+        NewLazyString(L"No active subprocess for current buffer."));
     return;
   }
   if (Read(buffer_variables::pts)) {
     char str[1] = {4};
     if (write(fd()->fd().read(), str, sizeof(str)) == -1) {
-      status().SetInformationText(L"Sending EOF failed: " +
-                                  FromByteString(strerror(errno)));
+      status().SetInformationText(
+          Append(NewLazyString(L"Sending EOF failed: "),
+                 NewLazyString(FromByteString(strerror(errno)))));
       return;
     }
-    status().SetInformationText(L"EOF sent");
+    status().SetInformationText(NewLazyString(L"EOF sent"));
   } else {
     if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
-      status().SetInformationText(L"shutdown(SHUT_WR) failed: " +
-                                  FromByteString(strerror(errno)));
+      status().SetInformationText(
+          Append(NewLazyString(L"shutdown(SHUT_WR) failed: "),
+                 NewLazyString(FromByteString(strerror(errno)))));
       return;
     }
-    status().SetInformationText(L"shutdown sent");
+    status().SetInformationText(NewLazyString(L"shutdown sent"));
   }
 }
 
@@ -1329,8 +1332,9 @@ void OpenBuffer::ToggleActiveCursors() {
 
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
-  status_.SetInformationText(L"cursors stack (" + to_wstring(stack_size) +
-                             L"): +");
+  status_.SetInformationText(Append(NewLazyString(L"cursors stack ("),
+                                    NewLazyString(to_wstring(stack_size)),
+                                    NewLazyString(L"): +")));
 }
 
 void OpenBuffer::PopActiveCursors() {
@@ -1339,8 +1343,9 @@ void OpenBuffer::PopActiveCursors() {
     status_.InsertError(Error(L"cursors stack: -: Stack is empty!"));
     return;
   }
-  status_.SetInformationText(L"cursors stack (" + to_wstring(stack_size - 1) +
-                             L"): -");
+  status_.SetInformationText(Append(NewLazyString(L"cursors stack ("),
+                                    NewLazyString(to_wstring(stack_size - 1)),
+                                    NewLazyString(L"): -")));
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
@@ -1417,7 +1422,7 @@ void OpenBuffer::CreateCursor() {
       range.begin = tmp_first;
     }
   }
-  status_.SetInformationText(L"Cursor created.");
+  status_.SetInformationText(NewLazyString(L"Cursor created."));
 }
 
 LineColumn OpenBuffer::FindNextCursor(LineColumn position,
@@ -1687,12 +1692,14 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
       if (terminal_ == nullptr ? child_pid_ == -1 : fd_ == nullptr) {
         status_.InsertError(Error(L"No subprocess found."));
       } else if (terminal_ == nullptr) {
-        status_.SetInformationText(L"SIGINT >> pid:" + to_wstring(child_pid_));
+        status_.SetInformationText(
+            Append(NewLazyString(L"SIGINT >> pid:"),
+                   NewLazyString(to_wstring(child_pid_))));
         kill(child_pid_, signal.read());
       } else {
         string sequence(1, 0x03);
         (void)write(fd_->fd().read(), sequence.c_str(), sequence.size());
-        status_.SetInformationText(L"SIGINT");
+        status_.SetInformationText(NewLazyString(L"SIGINT"));
       }
       break;
 

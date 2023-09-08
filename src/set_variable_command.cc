@@ -9,6 +9,9 @@
 #include "src/command_mode.h"
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
+#include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
@@ -21,7 +24,9 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::NonNull;
+using language::lazy_string::Append;
 using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 namespace {
 
@@ -80,9 +85,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                    [var, input](OpenBuffer& buffer) {
                      // TODO(easy, 2022-06-05): Get rid of calls to ToString.
                      buffer.Set(var, input->ToString());
-                     // TODO(easy, 2022-06-05): Get rid of calls to ToString.
-                     buffer.status().SetInformationText(var->name() + L" := " +
-                                                        input->ToString());
+                     buffer.status().SetInformationText(
+                         Append(NewLazyString(var->name()),
+                                NewLazyString(L" := "), input));
                      return futures::Past(EmptyValue());
                    });
              },
@@ -97,7 +102,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
     editor_state.toggle_bool_variable(var);
     editor_state.ResetRepetitions();
     editor_state.status().SetInformationText(
-        (editor_state.Read(var) ? L"🗸 " : L"⛶ ") + name);
+        Append(NewLazyString(editor_state.Read(var) ? L"🗸 " : L"⛶ "),
+               NewLazyString(name)));
     return futures::Past(EmptyValue());
   }
   if (auto var = editor_variables::DoubleStruct()->find_variable(name);
@@ -133,7 +139,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
         .ForEachActiveBuffer([var, name](OpenBuffer& buffer) {
           buffer.toggle_bool_variable(var);
           buffer.status().SetInformationText(
-              (buffer.Read(var) ? L"🗸 " : L"⛶ ") + name);
+              Append(NewLazyString((buffer.Read(var) ? L"🗸 " : L"⛶ ")),
+                     NewLazyString(name)));
           return futures::Past(EmptyValue());
         })
         .Transform([&editor_state](EmptyValue) {

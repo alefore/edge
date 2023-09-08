@@ -60,6 +60,7 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
+using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineNumber;
 
@@ -117,7 +118,7 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
   }
   if (S_ISDIR(stat_buffer.st_mode)) {
     buffer.status().SetInformationText(
-        L"🌷Directory changed in disk since last read.");
+        NewLazyString(L"🌷Directory changed in disk since last read."));
   } else {
     buffer.status().InsertError(
         Error(L"🌷File changed in disk since last read."));
@@ -165,8 +166,9 @@ futures::Value<PossibleError> Save(
             .Transform([stat_buffer, options, buffer, path](EmptyValue) {
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
-                  buffer.ptr()->status().SetInformationText(L"🖫 Saved: " +
-                                                            path.read());
+                  buffer.ptr()->status().SetInformationText(
+                      Append(NewLazyString(L"🖫 Saved: "),
+                             NewLazyString(path.read())));
                   // TODO(easy): Move this to the caller, for symmetry with
                   // kBackup case.
                   // TODO: Since the save is async, what if the contents have

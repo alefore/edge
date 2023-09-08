@@ -205,10 +205,6 @@ void Status::SetInformationText(NonNull<std::shared_ptr<LazyString>> text) {
   ValidatePreconditions();
 }
 
-void Status::SetInformationText(std::wstring text) {
-  return SetInformationText(NewLazyString(text));
-}
-
 struct StatusExpirationControl {
   std::weak_ptr<Status::Data> data;
 };

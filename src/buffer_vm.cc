@@ -17,6 +17,7 @@
 namespace afc::vm {
 using language::MakeNonNullShared;
 using language::NonNull;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 
@@ -152,7 +153,8 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       L"SetStatus",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer, std::wstring s) {
-                        buffer.ptr()->status().SetInformationText(s);
+                        buffer.ptr()->status().SetInformationText(
+                            NewLazyString(s));
                       })
           .ptr());
 

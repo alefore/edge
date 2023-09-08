@@ -4,6 +4,7 @@
 #include "src/buffer_variables.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/predictor.h"
@@ -31,6 +32,7 @@ using language::overload;
 using language::Success;
 using language::ValueOrError;
 using language::VisitPointer;
+using language::lazy_string::Append;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
@@ -103,9 +105,10 @@ class PredictorTransformation : public CompositeTransformation {
                 text.substr(0, results->predictor_output.longest_prefix.read());
             if (!prefix.empty()) {
               VLOG(5) << "Setting buffer status.";
-              buffer.status().SetInformationText(
-                  L"No matches found. Longest prefix with matches: \"" +
-                  prefix + L"\"");
+              buffer.status().SetInformationText(Append(
+                  NewLazyString(
+                      L"No matches found. Longest prefix with matches: \""),
+                  NewLazyString(prefix), NewLazyString(L"\"")));
             }
             return Output();
           }

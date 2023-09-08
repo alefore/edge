@@ -7,6 +7,7 @@
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/terminal.h"
 
 namespace afc::editor {
@@ -35,6 +36,8 @@ class CommandArgumentMode : public EditorMode {
     std::function<bool(wint_t, Argument&)> char_consumer;
 
     // Returns the string to show in the status.
+    //
+    // TODO(easy, 2023-09-08): Change this to return a LazyString.
     std::function<std::wstring(const Argument&)> status_factory;
 
     std::function<futures::Value<language::EmptyValue>()> undo = nullptr;
@@ -104,7 +107,8 @@ class CommandArgumentMode : public EditorMode {
   futures::Value<language::EmptyValue> Transform(
       CommandArgumentModeApplyMode apply_mode, Argument argument) {
     options_.editor_state.status().SetInformationText(
-        options_.status_factory(argument));
+        language::lazy_string::NewLazyString(
+            options_.status_factory(argument)));
     return options_.apply(apply_mode, std::move(argument));
   }
 

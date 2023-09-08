@@ -5,6 +5,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
 #include "src/search_handler.h"
@@ -29,6 +30,7 @@ using language::Success;
 using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 using language::text::LineColumn;
 using language::text::Range;
 
@@ -351,7 +353,8 @@ class SearchCommand : public Command {
       Range range =
           buffer.FindPartialRange(editor.modifiers(), buffer.position());
       if (range.begin == range.end) {
-        buffer.status().SetInformationText(L"Unable to extract region.");
+        buffer.status().SetInformationText(
+            NewLazyString(L"Unable to extract region."));
         return std::nullopt;
       }
       CHECK_LE(range.begin, range.end);

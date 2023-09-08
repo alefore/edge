@@ -242,7 +242,7 @@ class InsertMode : public EditorMode {
             [options = options_, old_literal](OpenBuffer& buffer) {
               if (buffer.fd() != nullptr) {
                 if (old_literal) {
-                  buffer.status().SetInformationText(L"ESC");
+                  buffer.status().SetInformationText(NewLazyString(L"ESC"));
                 } else {
                   buffer.status().Reset();
                 }
@@ -823,8 +823,8 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
     }
   }
   for (gc::Root<OpenBuffer>& buffer_root : options.buffers.value()) {
-    buffer_root.ptr()->status().SetInformationText(
-        buffer_root.ptr()->fd() == nullptr ? L"🔡" : L"🔡 (raw)");
+    buffer_root.ptr()->status().SetInformationText(NewLazyString(
+        buffer_root.ptr()->fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
   }
 
   options.editor_state.set_keyboard_redirect(

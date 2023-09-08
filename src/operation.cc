@@ -8,6 +8,8 @@
 #include "src/futures/futures.h"
 #include "src/futures/serializer.h"
 #include "src/goto_command.h"
+#include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/operation_scope.h"
 #include "src/set_mode_command.h"
@@ -27,6 +29,8 @@ using infrastructure::screen::VisualOverlayMap;
 using language::EmptyValue;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::lazy_string::Append;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 
@@ -719,8 +723,10 @@ class OperationMode : public EditorMode {
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
 
   void ShowStatus() {
-    editor_state_.status().SetInformationText(ToStatus(state_.top_command()) +
-                                              L":" + state_.GetStatusString());
+    // TODO(easy, 2023-09-08): Change ToStatus to return LazyString.
+    editor_state_.status().SetInformationText(
+        Append(NewLazyString(ToStatus(state_.top_command())),
+               NewLazyString(L":"), NewLazyString(state_.GetStatusString())));
   }
 
   void PushDefault() { PushCommand(CommandReach()); }

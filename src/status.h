@@ -59,9 +59,6 @@ class Status {
   void SetInformationText(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
 
-  // TODO(trivial, 2023-09-08): Remove this, switch to LazyString version.
-  void SetInformationText(std::wstring text);
-
   // Sets the status to a given text and returns an opaque token. The caller
   // uses the opaque token to control when the text given is retired (by letting
   // the token expire).
