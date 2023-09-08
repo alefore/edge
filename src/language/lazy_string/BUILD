@@ -42,6 +42,7 @@ cc_library(
     name = "lowercase",
     srcs = ["lowercase.cc"],
     hdrs = ["lowercase.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":char_buffer",
         ":lazy_string",
