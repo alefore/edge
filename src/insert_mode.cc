@@ -612,22 +612,20 @@ class InsertMode : public EditorMode {
                    Path::FromString(path_str.value));
     }
 
-    auto InsertValue = [buffer_root,
-                        modify_mode](NonNull<std::shared_ptr<LazyString>> value)
-        -> futures::Value<EmptyValue> {
-      return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
-          .contents_to_insert = MakeNonNullShared<BufferContents>(
-              MakeNonNullShared<Line>(LineBuilder(std::move(value)).Build())),
-          .modifiers = {.insertion = modify_mode}});
-    };
+    LineColumn position =
+        buffer_root.ptr()->AdjustLineColumn(buffer_root.ptr()->position());
+    futures::Value<EmptyValue> output =
+        buffer_root.ptr()->ApplyToCursors(transformation::Insert{
+            .contents_to_insert =
+                MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
+                    LineBuilder(NewLazyString(L" ")).Build())),
+            .modifiers = {.insertion = modify_mode}});
 
     if (model_paths->empty()) {
       VLOG(5) << "No tokens found in buffer_variables::completion_model_paths.";
-      return InsertValue(NewLazyString(L" "));
+      return output;
     }
 
-    LineColumn position =
-        buffer_root.ptr()->AdjustLineColumn(buffer_root.ptr()->position());
     NonNull<std::shared_ptr<const Line>> line =
         buffer_root.ptr()->contents().at(position.line);
 
@@ -636,66 +634,66 @@ class InsertMode : public EditorMode {
     while (!start.IsZero() &&
            std::isalpha(line->get(start - ColumnNumberDelta(1))))
       --start;
-    if (start == position.column) return InsertValue(NewLazyString(L" "));
+    if (start == position.column) {
+      VLOG(5) << "Unable to rewind for completion token.";
+      return output;
+    }
 
     completion::CompressedText token = completion::CompressedText(
         LowerCase(Substring(line->contents(), start, position.column - start)));
+    // TODO(easy, 2023-09-08): Get rid of call to ToString.
+    VLOG(6) << "Found completion token: " << token->ToString();
 
-    return InsertValue(NewLazyString(L" "))
-        .Transform([model_paths = std::move(model_paths), token, start,
-                    position, modify_mode, buffer_root,
-                    completion_model_supplier](EmptyValue) mutable {
-          return completion_model_supplier
-              ->FindCompletion(std::move(*model_paths), token)
-              .Transform([buffer_root, token,
-                          position_start = LineColumn(position.line, start),
-                          length = token->size(), modify_mode](
-                             completion::ModelSupplier::QueryOutput output) {
-                return std::visit(
-                    overload{
-                        [&](completion::Text completion_text) {
-                          transformation::Stack stack;
-                          stack.PushBack(transformation::Delete{
-                              .range = Range::InLine(position_start, length),
-                              .initiator = transformation::Delete::Initiator::
-                                  kInternal});
-                          const ColumnNumberDelta completion_text_size =
-                              completion_text->size();
-                          stack.PushBack(transformation::Insert{
-                              .contents_to_insert =
-                                  MakeNonNullShared<BufferContents>(
-                                      MakeNonNullShared<Line>(
-                                          LineBuilder(
-                                              std::move(completion_text))
-                                              .Build())),
-                              .modifiers = {.insertion = modify_mode},
-                              .position = position_start});
-                          stack.PushBack(transformation::SetPosition(
-                              position_start.column + completion_text_size +
-                              ColumnNumberDelta(1)));
-                          return buffer_root.ptr()->ApplyToCursors(stack);
-                        },
-                        [buffer_root,
-                         token](completion::Suggestion suggestion) {
-                          std::wstring suggestion_text =
-                              L"`" + suggestion.compressed_text->ToString() +
-                              L"` is an alias for `" + token->ToString() + L"`";
-                          std::shared_ptr<StatusExpirationControl> expiration =
-                              buffer_root.ptr()
-                                  ->status()
-                                  .SetExpiringInformationText(suggestion_text);
-                          buffer_root.ptr()->work_queue()->Schedule(
-                              WorkQueue::Callback{
-                                  .time = AddSeconds(Now(), 2.0),
-                                  .callback = [expiration] {}});
-                          return futures::Past(EmptyValue());
-                        },
-                        [](completion::NothingFound) {
-                          return futures::Past(EmptyValue());
-                        }},
-                    output);
-              });
-        });
+    return std::move(output).Transform([model_paths = std::move(model_paths),
+                                        token, start, position, modify_mode,
+                                        buffer_root, completion_model_supplier](
+                                           EmptyValue) mutable {
+      return completion_model_supplier
+          ->FindCompletion(std::move(*model_paths), token)
+          .Transform([buffer_root, token,
+                      position_start = LineColumn(position.line, start),
+                      length = token->size(), modify_mode](
+                         completion::ModelSupplier::QueryOutput output) {
+            return std::visit(
+                overload{
+                    [&](completion::Text completion_text) {
+                      transformation::Stack stack;
+                      stack.PushBack(transformation::Delete{
+                          .range = Range::InLine(position_start, length),
+                          .initiator =
+                              transformation::Delete::Initiator::kInternal});
+                      const ColumnNumberDelta completion_text_size =
+                          completion_text->size();
+                      stack.PushBack(transformation::Insert{
+                          .contents_to_insert = MakeNonNullShared<
+                              BufferContents>(MakeNonNullShared<Line>(
+                              LineBuilder(std::move(completion_text)).Build())),
+                          .modifiers = {.insertion = modify_mode},
+                          .position = position_start});
+                      stack.PushBack(transformation::SetPosition(
+                          position_start.column + completion_text_size +
+                          ColumnNumberDelta(1)));
+                      return buffer_root.ptr()->ApplyToCursors(stack);
+                    },
+                    [buffer_root, token](completion::Suggestion suggestion) {
+                      std::wstring suggestion_text =
+                          L"`" + suggestion.compressed_text->ToString() +
+                          L"` is an alias for `" + token->ToString() + L"`";
+                      std::shared_ptr<StatusExpirationControl> expiration =
+                          buffer_root.ptr()
+                              ->status()
+                              .SetExpiringInformationText(suggestion_text);
+                      buffer_root.ptr()->work_queue()->Schedule(
+                          WorkQueue::Callback{.time = AddSeconds(Now(), 2.0),
+                                              .callback = [expiration] {}});
+                      return futures::Past(EmptyValue());
+                    },
+                    [](completion::NothingFound) {
+                      return futures::Past(EmptyValue());
+                    }},
+                output);
+          });
+    });
   }
 
   const InsertModeOptions options_;
