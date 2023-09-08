@@ -629,7 +629,6 @@ class InsertMode : public EditorMode {
           completion_model_supplier) {
     const auto model_paths = CompletionModelPaths(buffer);
     Range token_range = GetTokenRange(buffer);
-    const LineColumn position = buffer.AdjustLineColumn(buffer.position());
     futures::Value<EmptyValue> output =
         buffer.ApplyToCursors(transformation::Insert{
             .contents_to_insert =
@@ -642,6 +641,7 @@ class InsertMode : public EditorMode {
       return output;
     }
 
+    const LineColumn position = buffer.AdjustLineColumn(buffer.position());
     const NonNull<std::shared_ptr<const Line>> line =
         buffer.contents().at(position.line);
 
