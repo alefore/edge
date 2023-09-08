@@ -21,7 +21,6 @@ class Player;
 }
 namespace afc::editor {
 
-class OpenBuffer;
 class BufferContents;
 class BufferName;
 
