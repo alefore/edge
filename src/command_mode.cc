@@ -516,9 +516,10 @@ class ResetStateCommand : public Command {
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
       buffer.work_queue()->Schedule(WorkQueue::Callback{
           .time = AddSeconds(Now(), 0.2),
-          .callback =
-              [status_expiration = std::shared_ptr<StatusExpirationControl>(
-                   buffer.status().SetExpiringInformationText(L"ESC"))] {}});
+          .callback = [status_expiration =
+                           std::shared_ptr<StatusExpirationControl>(
+                               buffer.status().SetExpiringInformationText(
+                                   NewLazyString(L"ESC")))] {}});
       return futures::Past(EmptyValue());
     });
     editor_state_.set_modifiers(Modifiers());

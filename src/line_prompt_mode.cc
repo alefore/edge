@@ -648,7 +648,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
         if (!output.errors.empty()) {
           // TODO(P1, 2023-09-08): Uh, why do we let it expire immediately?
           editor_state.status().SetExpiringInformationText(
-              output.errors.front().read());
+              NewLazyString(output.errors.front().read()));
         }
         if (!abort_value.has_value()) {
           for (auto& line : output.lines) {

@@ -2011,7 +2011,9 @@ OpenBuffer::OpenBufferForCurrentPosition(
                              [status_expiration = std::shared_ptr<
                                   StatusExpirationControl>(
                                   editor.status().SetExpiringInformationText(
-                                      L"Open: " + url.ToString()))] {}});
+                                      Append(NewLazyString(L"Open: "),
+                                             NewLazyString(url.ToString()))))] {
+                             }});
                      ForkCommand(editor,
                                  ForkCommandOptions{
                                      .command = L"xdg-open " +

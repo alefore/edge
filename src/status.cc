@@ -233,12 +233,6 @@ Status::SetExpiringInformationText(NonNull<std::shared_ptr<LazyString>> text) {
       });
 }
 
-std::unique_ptr<StatusExpirationControl,
-                std::function<void(StatusExpirationControl*)>>
-Status::SetExpiringInformationText(std::wstring text) {
-  return SetExpiringInformationText(NewLazyString(text));
-}
-
 void Status::Set(Error error) {
   ValidatePreconditions();
 

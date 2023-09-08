@@ -67,10 +67,6 @@ class Status {
   SetExpiringInformationText(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
           text);
-  // TODO(trivial, 2023-09-08): Remove this, switch to LazyString version.
-  std::unique_ptr<StatusExpirationControl,
-                  std::function<void(StatusExpirationControl*)>>
-  SetExpiringInformationText(std::wstring text);
   // Prefer `InsertError` over `Set`.
   void Set(language::Error text);
 

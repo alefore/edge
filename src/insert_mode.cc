@@ -63,6 +63,7 @@ using language::NonNull;
 using language::overload;
 using language::VisitOptionalCallback;
 using language::VisitPointer;
+using language::lazy_string::Append;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
@@ -383,7 +384,7 @@ class InsertMode : public EditorMode {
           DLOG(INFO) << "Set literal.";
           status_expiration_for_literal_ =
               options_.editor_state.status().SetExpiringInformationText(
-                  L"<literal>");
+                  NewLazyString(L"<literal>"));
           return;
         }
         break;
@@ -681,11 +682,11 @@ class InsertMode : public EditorMode {
       OpenBuffer& buffer,
       CompletionModelManager::CompressedText compressed_text,
       CompletionModelManager::Text text) {
-    std::wstring suggestion_text = L"`" + compressed_text->ToString() +
-                                   L"` is an alias for `" + text->ToString() +
-                                   L"`";
     std::shared_ptr<StatusExpirationControl> expiration =
-        buffer.status().SetExpiringInformationText(suggestion_text);
+        buffer.status().SetExpiringInformationText(
+            Append(NewLazyString(L"`"), compressed_text,
+                   Append(NewLazyString(L"` is an alias for `"), text,
+                          NewLazyString(L"`"))));
     buffer.work_queue()->Schedule(WorkQueue::Callback{
         .time = AddSeconds(Now(), 2.0), .callback = [expiration] {}});
   }

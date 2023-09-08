@@ -1,5 +1,6 @@
 #include "src/buffer.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/status.h"
 #include "src/tests/tests.h"
@@ -11,6 +12,7 @@ namespace audio = infrastructure::audio;
 
 using language::Error;
 using language::NonNull;
+using language::lazy_string::NewLazyString;
 
 const bool prompt_tests_registration = tests::Register(
     L"StatusPrompt",
@@ -33,7 +35,7 @@ const bool prompt_tests_registration = tests::Register(
         Status status(audio_player.value());
         gc::Root<OpenBuffer> prompt = NewBufferForTests();
         status.set_prompt(L">", prompt);
-        status.SetExpiringInformationText(L"Foobar");
+        status.SetExpiringInformationText(NewLazyString(L"Foobar"));
         CHECK(status.text() == L">");
         CHECK(&status.prompt_buffer().value().ptr().value() ==
               &prompt.ptr().value());
