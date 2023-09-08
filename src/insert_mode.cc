@@ -592,9 +592,8 @@ class InsertMode : public EditorMode {
       OpenBuffer& buffer, Modifiers::ModifyMode modify_mode,
       NonNull<std::shared_ptr<completion::ModelSupplier>>
           completion_model_supplier) {
-    auto buffer_root = buffer.NewRoot();
-
-    auto model_paths = std::make_shared<std::vector<infrastructure::Path>>();
+    const auto model_paths =
+        std::make_shared<std::vector<infrastructure::Path>>();
 
     if (std::vector<Token> paths = TokenizeBySpaces(
             NewLazyString(buffer.Read(buffer_variables::completion_model_paths))
@@ -612,10 +611,9 @@ class InsertMode : public EditorMode {
                    Path::FromString(path_str.value));
     }
 
-    LineColumn position =
-        buffer_root.ptr()->AdjustLineColumn(buffer_root.ptr()->position());
+    const LineColumn position = buffer.AdjustLineColumn(buffer.position());
     futures::Value<EmptyValue> output =
-        buffer_root.ptr()->ApplyToCursors(transformation::Insert{
+        buffer.ApplyToCursors(transformation::Insert{
             .contents_to_insert =
                 MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
                     LineBuilder(NewLazyString(L" ")).Build())),
@@ -626,8 +624,10 @@ class InsertMode : public EditorMode {
       return output;
     }
 
-    NonNull<std::shared_ptr<const Line>> line =
-        buffer_root.ptr()->contents().at(position.line);
+    const NonNull<std::shared_ptr<const Line>> line =
+        buffer.contents().at(position.line);
+
+    auto buffer_root = buffer.NewRoot();
 
     ColumnNumber start = position.column;
     CHECK_LE(start.ToDelta(), line->contents()->size());
@@ -640,19 +640,18 @@ class InsertMode : public EditorMode {
       static const wchar_t kCompletionDisableSuffix = L'-';
       if (!start.IsZero() &&
           line->get(start - ColumnNumberDelta(1)) == kCompletionDisableSuffix) {
-        output =
-            std::move(output).Transform([buffer_root, position](EmptyValue) {
-              VLOG(3) << "Found completion disabling suffix; removing it.";
-              transformation::Stack stack;
-              stack.PushBack(transformation::Delete{
-                  .range = Range::InLine(position.line,
-                                         position.column - ColumnNumberDelta(1),
-                                         ColumnNumberDelta(1)),
-                  .initiator = transformation::Delete::Initiator::kInternal});
-              stack.PushBack(transformation::SetPosition(position.column +
-                                                         ColumnNumberDelta(1)));
-              return buffer_root.ptr()->ApplyToCursors(std::move(stack));
-            });
+        return std::move(output).Transform([buffer_root, position](EmptyValue) {
+          VLOG(3) << "Found completion disabling suffix; removing it.";
+          transformation::Stack stack;
+          stack.PushBack(transformation::Delete{
+              .range = Range::InLine(position.line,
+                                     position.column - ColumnNumberDelta(1),
+                                     ColumnNumberDelta(1)),
+              .initiator = transformation::Delete::Initiator::kInternal});
+          stack.PushBack(transformation::SetPosition(position.column +
+                                                     ColumnNumberDelta(1)));
+          return buffer_root.ptr()->ApplyToCursors(std::move(stack));
+        });
       }
       return output;
     }
