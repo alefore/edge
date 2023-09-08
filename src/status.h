@@ -11,6 +11,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
@@ -55,6 +56,10 @@ class Status {
 
   language::text::Line prompt_extra_information_line() const;
 
+  void SetInformationText(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
+
+  // TODO(trivial, 2023-09-08): Remove this, switch to LazyString version.
   void SetInformationText(std::wstring text);
 
   // Sets the status to a given text and returns an opaque token. The caller
@@ -62,8 +67,12 @@ class Status {
   // the token expire).
   std::unique_ptr<StatusExpirationControl,
                   std::function<void(StatusExpirationControl*)>>
-  // TODO(trivial, 2023-09-08): Add version based on LazyString and start
-  // deprecation.
+  SetExpiringInformationText(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+          text);
+  // TODO(trivial, 2023-09-08): Remove this, switch to LazyString version.
+  std::unique_ptr<StatusExpirationControl,
+                  std::function<void(StatusExpirationControl*)>>
   SetExpiringInformationText(std::wstring text);
   // Prefer `InsertError` over `Set`.
   void Set(language::Error text);

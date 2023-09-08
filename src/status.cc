@@ -6,6 +6,8 @@
 #include <memory>
 
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
 
@@ -22,6 +24,8 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::overload;
 using language::VisitPointer;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 
@@ -188,15 +192,21 @@ Line Status::prompt_extra_information_line() const {
   return std::move(options).Build();
 }
 
-void Status::SetInformationText(std::wstring text) {
+void Status::SetInformationText(NonNull<std::shared_ptr<LazyString>> text) {
   ValidatePreconditions();
-  LOG(INFO) << "SetInformationText: " << text;
+  // TODO(easy, 2023-09-08): Avoid call to ToString.
+  LOG(INFO) << "SetInformationText: " << text->ToString();
   if (data_->prompt_buffer.has_value()) {
     return;
   }
+  // TODO(easy, 2023-09-08): Avoid call to ToString.
   data_ = MakeNonNullShared<Data>(
-      Data{.type = Type::kInformation, .text = std::move(text)});
+      Data{.type = Type::kInformation, .text = text->ToString()});
   ValidatePreconditions();
+}
+
+void Status::SetInformationText(std::wstring text) {
+  return SetInformationText(NewLazyString(text));
 }
 
 struct StatusExpirationControl {
@@ -205,7 +215,7 @@ struct StatusExpirationControl {
 
 std::unique_ptr<StatusExpirationControl,
                 std::function<void(StatusExpirationControl*)>>
-Status::SetExpiringInformationText(std::wstring text) {
+Status::SetExpiringInformationText(NonNull<std::shared_ptr<LazyString>> text) {
   ValidatePreconditions();
   SetInformationText(text);
   ValidatePreconditions();
@@ -225,6 +235,12 @@ Status::SetExpiringInformationText(std::wstring text) {
             [] {});
         delete status_expiration_control;
       });
+}
+
+std::unique_ptr<StatusExpirationControl,
+                std::function<void(StatusExpirationControl*)>>
+Status::SetExpiringInformationText(std::wstring text) {
+  return SetExpiringInformationText(NewLazyString(text));
 }
 
 void Status::Set(Error error) {
