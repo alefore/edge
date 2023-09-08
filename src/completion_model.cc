@@ -97,9 +97,6 @@ std::optional<CompletionModelManager::Text> FindCompletionInModel(
     const CompletionModelManager::CompressedText& compressed_text) {
   VLOG(3) << "Starting completion with model with size: " << contents.size()
           << " token: " << compressed_text->ToString();
-
-  // TODO(trivial, 2023-09-01): Handle the case where the last line is
-  // empty.
   LineNumber line = contents.upper_bound(
       MakeNonNullShared<const Line>(LineBuilder(compressed_text).Build()),
       [](const NonNull<std::shared_ptr<const Line>>& a,
