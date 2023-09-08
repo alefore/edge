@@ -560,10 +560,16 @@ futures::Value<gc::Root<OpenBuffer>> OpenOrCreateFile(
 futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
     EditorState& editor_state) {
   return OpenOrCreateFile(
-      OpenFileOptions{.editor_state = editor_state,
-                      .path = std::nullopt,
-                      .insertion_type = BuffersList::AddBufferType::kIgnore,
-                      .use_search_paths = false});
+             OpenFileOptions{
+                 .editor_state = editor_state,
+                 .path = std::nullopt,
+                 .insertion_type = BuffersList::AddBufferType::kIgnore,
+                 .use_search_paths = false})
+      .Transform([](gc::Root<OpenBuffer> buffer_root) {
+        // Wait until we've fully evaluated buffer-reload.cc on the buffer.
+        return buffer_root.ptr()->WaitForEndOfFile().Transform(
+            [buffer_root](EmptyValue) { return buffer_root; });
+      });
 }
 
 }  // namespace afc::editor
