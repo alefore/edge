@@ -643,11 +643,11 @@ class InsertMode : public EditorMode {
 
     return InsertValue(NewLazyString(L" "))
         .Transform([model_paths = std::move(model_paths), token, start,
-                    position, modify_mode, buffer_root, InsertValue,
+                    position, modify_mode, buffer_root,
                     completion_model_supplier](EmptyValue) mutable {
           return completion_model_supplier
               ->FindCompletion(std::move(*model_paths), token)
-              .Transform([buffer_root, InsertValue, token,
+              .Transform([buffer_root, token,
                           position_start = LineColumn(position.line, start),
                           length = token->size(), modify_mode](
                              completion::ModelSupplier::QueryOutput output) {
