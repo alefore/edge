@@ -29,6 +29,7 @@ cc_library(
     hdrs = ["environment.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":callbacks",
         ":types",
     ],
 )
