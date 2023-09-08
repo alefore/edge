@@ -218,6 +218,19 @@ cc_library(
 )
 
 cc_library(
+    name = "completion_model",
+    srcs = ["completion_model.cc"],
+    hdrs = ["completion_model.h"],
+    deps = [
+        ":buffer_contents",
+        "//src/concurrent:protected",
+        "//src/futures",
+        "//src/language/lazy_string:lowercase",
+        "//src/language/lazy_string:substring",
+    ],
+)
+
+cc_library(
     name = "cursors",
     srcs = ["cursors.cc"],
     hdrs = ["cursors.h"],
