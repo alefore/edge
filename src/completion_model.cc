@@ -5,7 +5,7 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor::completion {
+namespace afc::editor {
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::language::EmptyValue;
@@ -33,17 +33,19 @@ using CompletionModel = language::gc::Root<OpenBuffer>;
 
 namespace {
 struct ParsedLine {
-  CompressedText compressed_text;
-  Text text;
+  CompletionModelManager::CompressedText compressed_text;
+  CompletionModelManager::Text text;
 };
 
 ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
   // TODO(easy, 2023-09-07): Avoid call to ToString.
   size_t split = line->ToString().find_first_of(L" ");
   if (split == std::wstring::npos) return Error(L"No space found.");
-  return ParsedLine{.compressed_text = CompressedText(Substring(
-                        line, ColumnNumber(), ColumnNumberDelta(split))),
-                    .text = Text(Substring(line, ColumnNumber(split + 1)))};
+  return ParsedLine{
+      .compressed_text = CompletionModelManager::CompressedText(
+          Substring(line, ColumnNumber(), ColumnNumberDelta(split))),
+      .text = CompletionModelManager::Text(
+          Substring(line, ColumnNumber(split + 1)))};
 }
 
 void PrepareBuffer(OpenBuffer& buffer) {
@@ -108,8 +110,9 @@ futures::Value<CompletionModel> LoadModel(EditorState& editor, Path path) {
       });
 }
 
-std::optional<Text> FindCompletionInModel(
-    const gc::Root<OpenBuffer>& model, const CompressedText& compressed_text) {
+std::optional<CompletionModelManager::Text> FindCompletionInModel(
+    const gc::Root<OpenBuffer>& model,
+    const CompletionModelManager::CompressedText& compressed_text) {
   const BufferContents& contents = model.ptr()->contents();
 
   VLOG(3) << "Starting completion with model with size: " << contents.size()
@@ -132,28 +135,29 @@ std::optional<Text> FindCompletionInModel(
   VLOG(5) << "Check: " << compressed_text->ToString()
           << " against: " << line_contents->ToString();
   return std::visit(
-      overload{[&](const ParsedLine& parsed_line) -> std::optional<Text> {
-                 if (compressed_text.value() !=
-                     parsed_line.compressed_text.value()) {
-                   VLOG(5) << "No match: ["
-                           << parsed_line.compressed_text->ToString()
-                           << "] != ["
-                           << parsed_line.compressed_text->ToString() << "]";
-                   return std::nullopt;
-                 }
+      overload{
+          [&](const ParsedLine& parsed_line)
+              -> std::optional<CompletionModelManager::Text> {
+            if (compressed_text.value() !=
+                parsed_line.compressed_text.value()) {
+              VLOG(5) << "No match: ["
+                      << parsed_line.compressed_text->ToString() << "] != ["
+                      << parsed_line.compressed_text->ToString() << "]";
+              return std::nullopt;
+            }
 
-                 if (compressed_text.value() == parsed_line.text.value()) {
-                   VLOG(4) << "Found a match, but the line has compressed text "
-                              "identical to parsed text, so we'll skip it.";
-                   return std::nullopt;
-                 }
+            if (compressed_text.value() == parsed_line.text.value()) {
+              VLOG(4) << "Found a match, but the line has compressed text "
+                         "identical to parsed text, so we'll skip it.";
+              return std::nullopt;
+            }
 
-                 VLOG(2) << "Found compression: "
-                         << parsed_line.compressed_text->ToString() << " -> "
-                         << parsed_line.text->ToString();
-                 return parsed_line.text;
-               },
-               [](Error) { return std::optional<Text>(); }},
+            VLOG(2) << "Found compression: "
+                    << parsed_line.compressed_text->ToString() << " -> "
+                    << parsed_line.text->ToString();
+            return parsed_line.text;
+          },
+          [](Error) { return std::optional<CompletionModelManager::Text>(); }},
       Parse(contents.at(line)->contents()));
 }
 
@@ -162,47 +166,53 @@ const bool find_completion_tests_registration = tests::Register(
     {{.name = L"EmptyModel",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(
-                      NewBufferForTests(),
-                      CompressedText(NewLazyString(L"foo"))) == std::nullopt);
+            CHECK(FindCompletionInModel(NewBufferForTests(),
+                                        CompletionModelManager::CompressedText(
+                                            NewLazyString(L"foo"))) ==
+                  std::nullopt);
           }},
      {.name = L"NoMatch",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(
-                      CompletionModelForTests(),
-                      CompressedText(NewLazyString(L"foo"))) == std::nullopt);
+            CHECK(FindCompletionInModel(CompletionModelForTests(),
+                                        CompletionModelManager::CompressedText(
+                                            NewLazyString(L"foo"))) ==
+                  std::nullopt);
           }},
      {.name = L"Match",
       .callback =
           [] {
             CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                        CompressedText(NewLazyString(L"f")))
+                                        CompletionModelManager::CompressedText(
+                                            NewLazyString(L"f")))
                       ->value() == NewLazyString(L"fox").value());
           }},
      {.name = L"IdenticalMatch", .callback = [] {
         CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                    CompressedText(NewLazyString(L"i"))) ==
-              std::nullopt);
+                                    CompletionModelManager::CompressedText(
+                                        NewLazyString(L"i"))) == std::nullopt);
       }}});
 }  // namespace
 
-ModelSupplier::ModelSupplier(EditorState& editor) : editor_(editor) {}
+CompletionModelManager::CompletionModelManager(EditorState& editor)
+    : editor_(editor) {}
 
-futures::Value<ModelSupplier::QueryOutput> ModelSupplier::FindCompletion(
-    std::vector<Path> models, CompressedText compressed_text) {
+futures::Value<CompletionModelManager::QueryOutput>
+CompletionModelManager::Query(
+    std::vector<Path> models,
+    CompletionModelManager::CompressedText compressed_text) {
   return FindCompletionWithIndex(
       editor_, data_, std::make_shared<std::vector<Path>>(std::move(models)),
       std::move(compressed_text), 0);
 }
 
 /* static */
-futures::Value<ModelSupplier::QueryOutput>
-ModelSupplier::FindCompletionWithIndex(
+futures::Value<CompletionModelManager::QueryOutput>
+CompletionModelManager::FindCompletionWithIndex(
     EditorState& editor,
     NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
     std::shared_ptr<std::vector<Path>> models_list,
-    CompressedText compressed_text, size_t index) {
+    CompletionModelManager::CompressedText compressed_text, size_t index) {
   if (index == models_list->size())
     return futures::Past(
         data->lock([&](const Data& locked_data) -> QueryOutput {
@@ -250,7 +260,7 @@ ModelSupplier::FindCompletionWithIndex(
                                        index + 1);
       });
 }
-/* static */ void ModelSupplier::UpdateReverseTable(
+/* static */ void CompletionModelManager::UpdateReverseTable(
     Data& data, const Path& path, const BufferContents& contents) {
   contents.ForEach([&](const Line& line) {
     std::visit(overload{[&path, &data](const ParsedLine& line) {
@@ -263,4 +273,4 @@ ModelSupplier::FindCompletionWithIndex(
   });
 }
 
-}  // namespace afc::editor::completion
+}  // namespace afc::editor

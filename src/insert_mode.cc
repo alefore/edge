@@ -179,8 +179,8 @@ class InsertMode : public EditorMode {
         buffers_(MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(
             options_.buffers->begin(), options_.buffers->end())),
         current_insertion_(NewInsertion(options_.editor_state)),
-        completion_model_supplier_(MakeNonNullShared<completion::ModelSupplier>(
-            options_.editor_state)) {
+        completion_model_supplier_(
+            MakeNonNullShared<CompletionModelManager>(options_.editor_state)) {
     CHECK(options_.escape_handler);
     CHECK(options_.buffers.has_value());
     CHECK(!options_.buffers.value().empty());
@@ -427,26 +427,26 @@ class InsertMode : public EditorMode {
               .Transform([buffer_root, completion_model_supplier](EmptyValue) {
                 Range token_range = GetTokenRange(buffer_root.ptr().value());
                 if (token_range.IsEmpty()) return futures::Past(EmptyValue{});
-                completion::CompressedText token = GetCompletionToken(
-                    buffer_root.ptr()->contents(), token_range);
+                CompletionModelManager::CompressedText token =
+                    GetCompletionToken(buffer_root.ptr()->contents(),
+                                       token_range);
                 return completion_model_supplier
-                    ->FindCompletion(std::move(CompletionModelPaths(
-                                                   buffer_root.ptr().value())
-                                                   .value()),
-                                     token)
-                    .Transform(
-                        [buffer_root,
-                         token](completion::ModelSupplier::QueryOutput output) {
-                          std::visit(overload{[](completion::NothingFound) {},
-                                              [](completion::Suggestion) {},
-                                              [&](completion::Text text) {
-                                                ShowSuggestion(
-                                                    buffer_root.ptr().value(),
+                    ->Query(std::move(
+                                CompletionModelPaths(buffer_root.ptr().value())
+                                    .value()),
+                            token)
+                    .Transform([buffer_root, token](
+                                   CompletionModelManager::QueryOutput output) {
+                      std::visit(
+                          overload{[](CompletionModelManager::NothingFound) {},
+                                   [](CompletionModelManager::Suggestion) {},
+                                   [&](CompletionModelManager::Text text) {
+                                     ShowSuggestion(buffer_root.ptr().value(),
                                                     token, text);
-                                              }},
-                                     output);
-                          return futures::Past(EmptyValue{});
-                        });
+                                   }},
+                          output);
+                      return futures::Past(EmptyValue{});
+                    });
               })
               .Transform(
                   ModifyHandler<EmptyValue>(options.modify_handler, buffer));
@@ -649,9 +649,9 @@ class InsertMode : public EditorMode {
     return Range::InLine(position.line, start, position.column - start);
   }
 
-  static completion::CompressedText GetCompletionToken(
+  static CompletionModelManager::CompressedText GetCompletionToken(
       const BufferContents& buffer_contents, Range token_range) {
-    completion::CompressedText output = LowerCase(
+    CompletionModelManager::CompressedText output = LowerCase(
         Substring(buffer_contents.at(token_range.begin.line)->contents(),
                   token_range.begin.column,
                   token_range.end.column - token_range.begin.column));
@@ -660,9 +660,10 @@ class InsertMode : public EditorMode {
     return output;
   }
 
-  static void ShowSuggestion(OpenBuffer& buffer,
-                             completion::CompressedText compressed_text,
-                             completion::Text text) {
+  static void ShowSuggestion(
+      OpenBuffer& buffer,
+      CompletionModelManager::CompressedText compressed_text,
+      CompletionModelManager::Text text) {
     std::wstring suggestion_text = L"`" + compressed_text->ToString() +
                                    L"` is an alias for `" + text->ToString() +
                                    L"`";
@@ -674,7 +675,7 @@ class InsertMode : public EditorMode {
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
       OpenBuffer& buffer, Modifiers::ModifyMode modify_mode,
-      NonNull<std::shared_ptr<completion::ModelSupplier>>
+      NonNull<std::shared_ptr<CompletionModelManager>>
           completion_model_supplier) {
     const auto model_paths = CompletionModelPaths(buffer);
     const LineColumn position = buffer.AdjustLineColumn(buffer.position());
@@ -717,22 +718,22 @@ class InsertMode : public EditorMode {
       return output;
     }
 
-    completion::CompressedText token =
+    CompletionModelManager::CompressedText token =
         GetCompletionToken(buffer.contents(), token_range);
     return std::move(output).Transform([model_paths = std::move(model_paths),
                                         token, position, modify_mode,
                                         buffer_root, completion_model_supplier](
                                            EmptyValue) mutable {
       return completion_model_supplier
-          ->FindCompletion(std::move(model_paths.value()), token)
+          ->Query(std::move(model_paths.value()), token)
           .Transform([buffer_root, token,
                       position_start = LineColumn(
                           position.line, position.column - token->size()),
-                      length = token->size(), modify_mode](
-                         completion::ModelSupplier::QueryOutput output) {
+                      length = token->size(),
+                      modify_mode](CompletionModelManager::QueryOutput output) {
             return std::visit(
                 overload{
-                    [&](completion::Text completion_text) {
+                    [&](CompletionModelManager::Text completion_text) {
                       transformation::Stack stack;
                       stack.PushBack(transformation::Delete{
                           .range = Range::InLine(position_start, length),
@@ -752,13 +753,14 @@ class InsertMode : public EditorMode {
                       return buffer_root.ptr()->ApplyToCursors(
                           std::move(stack));
                     },
-                    [buffer_root, token](completion::Suggestion suggestion) {
+                    [buffer_root,
+                     token](CompletionModelManager::Suggestion suggestion) {
                       ShowSuggestion(buffer_root.ptr().value(),
                                      suggestion.compressed_text,
-                                     completion::Text(token));
+                                     CompletionModelManager::Text(token));
                       return futures::Past(EmptyValue());
                     },
-                    [](completion::NothingFound) {
+                    [](CompletionModelManager::NothingFound) {
                       return futures::Past(EmptyValue());
                     }},
                 output);
@@ -790,8 +792,7 @@ class InsertMode : public EditorMode {
   std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>
       current_insertion_;
 
-  NonNull<std::shared_ptr<completion::ModelSupplier>>
-      completion_model_supplier_;
+  NonNull<std::shared_ptr<CompletionModelManager>> completion_model_supplier_;
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {

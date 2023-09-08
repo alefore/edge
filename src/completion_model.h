@@ -13,30 +13,28 @@
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 
-namespace afc::editor::completion {
-
-// TODO(templates, 2023-09-02): Use GHOST_TYPE. That is tricky because we need
-// to be able to selectively disable some constructors, which requires finicky
-// SFINAE. And operator<<.
-using CompressedText =
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
-using Text =
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
-
-struct NothingFound {};
-
-struct Suggestion {
-  CompressedText compressed_text;
-};
-
-// TODO(trivial, 2023-09-08): Rename to ModelManager.
-class ModelSupplier {
+namespace afc::editor {
+class CompletionModelManager {
  public:
-  ModelSupplier(EditorState& editor);
+  // TODO(templates, 2023-09-02): Use GHOST_TYPE. That is tricky because we need
+  // to be able to selectively disable some constructors, which requires finicky
+  // SFINAE. And operator<<.
+  using CompressedText =
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
+  using Text =
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
+
+  struct NothingFound {};
+
+  struct Suggestion {
+    CompressedText compressed_text;
+  };
+
+  CompletionModelManager(EditorState& editor);
 
   using QueryOutput = std::variant<Text, Suggestion, NothingFound>;
-  futures::Value<QueryOutput> FindCompletion(
-      std::vector<infrastructure::Path> models, CompressedText compressed_text);
+  futures::Value<QueryOutput> Query(std::vector<infrastructure::Path> models,
+                                    CompressedText compressed_text);
 
  private:
   using CompletionModel = language::gc::Root<OpenBuffer>;
@@ -65,5 +63,5 @@ class ModelSupplier {
       language::MakeNonNullShared<concurrent::Protected<Data>>();
 };
 
-}  // namespace afc::editor::completion
+}  // namespace afc::editor
 #endif  // __AFC_EDITOR_COMPLETION_MODEL_H__
