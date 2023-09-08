@@ -70,11 +70,11 @@ BufferContents PrepareBuffer(BufferContents contents) {
 }
 
 BufferContents CompletionModelForTests() {
-  gc::Root<OpenBuffer> buffer = NewBufferForTests();
-  buffer.ptr()->AppendToLastLine(NewLazyString(L"bb baby"));
-  buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
-  buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"i i"));
-  return PrepareBuffer(buffer.ptr()->contents());
+  BufferContents contents;
+  contents.push_back(L"bb baby");
+  contents.push_back(L"f fox");
+  contents.push_back(L"i i");
+  return PrepareBuffer(std::move(contents));
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
