@@ -588,21 +588,17 @@ class InsertMode : public EditorMode {
             [](futures::IterationControlCommand) { return EmptyValue(); });
   }
 
-  static futures::Value<EmptyValue> ApplyCompletionModel(
-      OpenBuffer& buffer, Modifiers::ModifyMode modify_mode,
-      NonNull<std::shared_ptr<completion::ModelSupplier>>
-          completion_model_supplier) {
-    const auto model_paths =
-        std::make_shared<std::vector<infrastructure::Path>>();
-
+  static NonNull<std::shared_ptr<std::vector<Path>>> CompletionModelPaths(
+      const OpenBuffer& buffer) {
+    auto output = MakeNonNullShared<std::vector<Path>>();
     if (std::vector<Token> paths = TokenizeBySpaces(
             NewLazyString(buffer.Read(buffer_variables::completion_model_paths))
                 .value());
         !paths.empty()) {
       for (const Token& path_str : paths)
-        std::visit(overload{[&](Path path) {
+        std::visit(overload{[&output](Path path) {
                               VLOG(5) << "Loading model: " << path;
-                              model_paths->push_back(Path::Join(
+                              output->push_back(Path::Join(
                                   ValueOrDie(PathComponent::FromString(
                                       L"completion_models")),
                                   std::move(path)));
@@ -610,7 +606,14 @@ class InsertMode : public EditorMode {
                             language::IgnoreErrors{}},
                    Path::FromString(path_str.value));
     }
+    return output;
+  }
 
+  static futures::Value<EmptyValue> ApplyCompletionModel(
+      OpenBuffer& buffer, Modifiers::ModifyMode modify_mode,
+      NonNull<std::shared_ptr<completion::ModelSupplier>>
+          completion_model_supplier) {
+    const auto model_paths = CompletionModelPaths(buffer);
     const LineColumn position = buffer.AdjustLineColumn(buffer.position());
     futures::Value<EmptyValue> output =
         buffer.ApplyToCursors(transformation::Insert{
@@ -666,7 +669,7 @@ class InsertMode : public EditorMode {
                                         buffer_root, completion_model_supplier](
                                            EmptyValue) mutable {
       return completion_model_supplier
-          ->FindCompletion(std::move(*model_paths), token)
+          ->FindCompletion(std::move(*model_paths.get_shared()), token)
           .Transform([buffer_root, token,
                       position_start = LineColumn(position.line, start),
                       length = token->size(), modify_mode](
