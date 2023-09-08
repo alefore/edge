@@ -410,10 +410,12 @@ class InsertMode : public EditorMode {
     // TODO: Apply TransformKeyboardText for buffers with fd?
     ForEachActiveBuffer(
         buffers_, {static_cast<char>(c)},
-        [c, options = options_](OpenBuffer& buffer) {
+        [c, options = options_,
+         completion_model_supplier =
+             completion_model_supplier_](OpenBuffer& buffer) {
+          gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
           return buffer.TransformKeyboardText(std::wstring(1, c))
-              .Transform([options,
-                          buffer_root = buffer.NewRoot()](std::wstring value) {
+              .Transform([options, buffer_root](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
                     .contents_to_insert = MakeNonNullShared<BufferContents>(
@@ -421,6 +423,30 @@ class InsertMode : public EditorMode {
                     .modifiers = {
                         .insertion =
                             options.editor_state.modifiers().insertion}});
+              })
+              .Transform([buffer_root, completion_model_supplier](EmptyValue) {
+                Range token_range = GetTokenRange(buffer_root.ptr().value());
+                if (token_range.IsEmpty()) return futures::Past(EmptyValue{});
+                completion::CompressedText token = GetCompletionToken(
+                    buffer_root.ptr()->contents(), token_range);
+                return completion_model_supplier
+                    ->FindCompletion(std::move(CompletionModelPaths(
+                                                   buffer_root.ptr().value())
+                                                   .value()),
+                                     token)
+                    .Transform(
+                        [buffer_root,
+                         token](completion::ModelSupplier::QueryOutput output) {
+                          std::visit(overload{[](completion::NothingFound) {},
+                                              [](completion::Suggestion) {},
+                                              [&](completion::Text text) {
+                                                ShowSuggestion(
+                                                    buffer_root.ptr().value(),
+                                                    token, text);
+                                              }},
+                                     output);
+                          return futures::Past(EmptyValue{});
+                        });
               })
               .Transform(
                   ModifyHandler<EmptyValue>(options.modify_handler, buffer));
@@ -623,11 +649,35 @@ class InsertMode : public EditorMode {
     return Range::InLine(position.line, start, position.column - start);
   }
 
+  static completion::CompressedText GetCompletionToken(
+      const BufferContents& buffer_contents, Range token_range) {
+    completion::CompressedText output = LowerCase(
+        Substring(buffer_contents.at(token_range.begin.line)->contents(),
+                  token_range.begin.column,
+                  token_range.end.column - token_range.begin.column));
+    // TODO(easy, 2023-09-08): Get rid of call to ToString.
+    VLOG(6) << "Found completion token: " << output->ToString();
+    return output;
+  }
+
+  static void ShowSuggestion(OpenBuffer& buffer,
+                             completion::CompressedText compressed_text,
+                             completion::Text text) {
+    std::wstring suggestion_text = L"`" + compressed_text->ToString() +
+                                   L"` is an alias for `" + text->ToString() +
+                                   L"`";
+    std::shared_ptr<StatusExpirationControl> expiration =
+        buffer.status().SetExpiringInformationText(suggestion_text);
+    buffer.work_queue()->Schedule(WorkQueue::Callback{
+        .time = AddSeconds(Now(), 2.0), .callback = [expiration] {}});
+  }
+
   static futures::Value<EmptyValue> ApplyCompletionModel(
       OpenBuffer& buffer, Modifiers::ModifyMode modify_mode,
       NonNull<std::shared_ptr<completion::ModelSupplier>>
           completion_model_supplier) {
     const auto model_paths = CompletionModelPaths(buffer);
+    const LineColumn position = buffer.AdjustLineColumn(buffer.position());
     Range token_range = GetTokenRange(buffer);
     futures::Value<EmptyValue> output =
         buffer.ApplyToCursors(transformation::Insert{
@@ -641,7 +691,6 @@ class InsertMode : public EditorMode {
       return output;
     }
 
-    const LineColumn position = buffer.AdjustLineColumn(buffer.position());
     const NonNull<std::shared_ptr<const Line>> line =
         buffer.contents().at(position.line);
 
@@ -668,18 +717,14 @@ class InsertMode : public EditorMode {
       return output;
     }
 
-    completion::CompressedText token = completion::CompressedText(LowerCase(
-        Substring(line->contents(), token_range.begin.column,
-                  token_range.end.column - token_range.begin.column)));
-    // TODO(easy, 2023-09-08): Get rid of call to ToString.
-    VLOG(6) << "Found completion token: " << token->ToString();
-
+    completion::CompressedText token =
+        GetCompletionToken(buffer.contents(), token_range);
     return std::move(output).Transform([model_paths = std::move(model_paths),
                                         token, position, modify_mode,
                                         buffer_root, completion_model_supplier](
                                            EmptyValue) mutable {
       return completion_model_supplier
-          ->FindCompletion(std::move(*model_paths.get_shared()), token)
+          ->FindCompletion(std::move(model_paths.value()), token)
           .Transform([buffer_root, token,
                       position_start = LineColumn(
                           position.line, position.column - token->size()),
@@ -708,16 +753,9 @@ class InsertMode : public EditorMode {
                           std::move(stack));
                     },
                     [buffer_root, token](completion::Suggestion suggestion) {
-                      std::wstring suggestion_text =
-                          L"`" + suggestion.compressed_text->ToString() +
-                          L"` is an alias for `" + token->ToString() + L"`";
-                      std::shared_ptr<StatusExpirationControl> expiration =
-                          buffer_root.ptr()
-                              ->status()
-                              .SetExpiringInformationText(suggestion_text);
-                      buffer_root.ptr()->work_queue()->Schedule(
-                          WorkQueue::Callback{.time = AddSeconds(Now(), 2.0),
-                                              .callback = [expiration] {}});
+                      ShowSuggestion(buffer_root.ptr().value(),
+                                     suggestion.compressed_text,
+                                     completion::Text(token));
                       return futures::Past(EmptyValue());
                     },
                     [](completion::NothingFound) {
