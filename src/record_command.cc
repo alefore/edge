@@ -16,11 +16,13 @@ extern "C" {
 #include "src/buffer.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/language/lazy_string/char_buffer.h"
 
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::VisitPointer;
+using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 
@@ -40,10 +42,12 @@ class RecordCommand : public Command {
           OpenBuffer& buffer = buffer_root.ptr().value();
           if (buffer.HasTransformationStack()) {
             buffer.PopTransformationStack();
-            buffer.status().SetInformationText(L"Recording: stop");
+            buffer.status().SetInformationText(
+                NewLazyString(L"Recording: stop"));
           } else {
             buffer.PushTransformationStack();
-            buffer.status().SetInformationText(L"Recording: start");
+            buffer.status().SetInformationText(
+                NewLazyString(L"Recording: start"));
           }
           buffer.ResetMode();
         },

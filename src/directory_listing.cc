@@ -6,6 +6,7 @@
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/language//safe_types.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/line_prompt_mode.h"
 #include "src/vm/public/constant_expression.h"
@@ -24,6 +25,7 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Observers;
 using language::ToByteString;
+using language::lazy_string::Append;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::EmptyString;
 using language::lazy_string::LazyString;
@@ -37,6 +39,7 @@ using vm::Type;
 namespace gc = language::gc;
 
 namespace {
+// TODO(easy, 2023-09-08): Use ValueOrError.
 struct BackgroundReadDirOutput {
   std::optional<std::wstring> error_description;
   std::vector<dirent> directories;
@@ -76,9 +79,11 @@ BackgroundReadDirOutput ReadDir(Path path, std::wregex noise_regex) {
 
 void StartDeleteFile(EditorState& editor_state, std::wstring path) {
   int result = unlink(ToByteString(path).c_str());
-  editor_state.status().SetInformationText(
-      path + L": unlink: " +
-      (result == 0 ? L"done" : L"ERROR: " + FromByteString(strerror(errno))));
+  editor_state.status().SetInformationText(Append(
+      NewLazyString(path), NewLazyString(L": unlink: "),
+      NewLazyString(result == 0
+                        ? L"done"
+                        : L"ERROR: " + FromByteString(strerror(errno)))));
 }
 
 language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,

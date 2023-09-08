@@ -23,6 +23,7 @@ using infrastructure::screen::LineModifier;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
+using language::lazy_string::NewLazyString;
 using language::text::LineColumn;
 using language::text::LineNumber;
 
@@ -297,7 +298,7 @@ NavigateState InitialState(EditorState& editor_state) {
     };
   } else {
     editor_state.status().SetInformationText(
-        L"Navigate not handled for current mode.");
+        NewLazyString(L"Navigate not handled for current mode."));
   }
   return initial_state;
 }

@@ -25,6 +25,7 @@ extern "C" {
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/overload.h"
@@ -40,6 +41,9 @@ extern "C" {
 namespace afc::editor {
 namespace gc = language::gc;
 namespace error = language::error;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
 using concurrent::ThreadPool;
 using concurrent::WorkQueue;
 using infrastructure::AddSeconds;
@@ -461,8 +465,9 @@ BufferName EditorState::GetUnusedBufferName(const std::wstring& prefix) {
 void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
-  status().SetInformationText(L"Exit: Preparing to close buffers (" +
-                              std::to_wstring(buffers_.size()) + L")");
+  status().SetInformationText(Append(
+      NewLazyString(L"Exit: Preparing to close buffers ("),
+      NewLazyString(std::to_wstring(buffers_.size())), NewLazyString(L")")));
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<std::wstring> buffers_with_problems;
@@ -530,13 +535,14 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         }
         LOG(INFO) << "Terminating.";
         status().SetInformationText(
-            L"Exit: All buffers closed, shutting down.");
+            NewLazyString(L"Exit: All buffers closed, shutting down."));
         exit_value_ = exit_value;
       });
 
   auto decrement = [this, pending_buffers](
                        const gc::Root<OpenBuffer>& buffer_done, PossibleError) {
     pending_buffers->erase(buffer_done);
+    // TODO(easy, 2023-09-08): Convert `extra` to LazyString.
     std::wstring extra;
     std::wstring separator = L": ";
     int count = 0;
@@ -549,9 +555,10 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       }
       count++;
     }
-    status().SetInformationText(L"Exit: Closing buffers: Remaining: " +
-                                std::to_wstring(pending_buffers->size()) +
-                                extra);
+    status().SetInformationText(
+        Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
+               NewLazyString(std::to_wstring(pending_buffers->size())),
+               NewLazyString(extra)));
   };
 
   for (const auto& it : buffers_) {

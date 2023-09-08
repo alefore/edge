@@ -7,6 +7,7 @@
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/infrastructure/audio.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
@@ -27,6 +28,7 @@ using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::ValueOrError;
+using language::lazy_string::Append;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
@@ -276,7 +278,8 @@ void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
   std::optional<std::vector<LineColumn>> results =
       OptionalFrom(SearchHandler(editor_state, options, buffer.contents()));
   if (!results.has_value() || results->empty()) {
-    buffer.status().SetInformationText(L"No matches: " + options.search_query);
+    buffer.status().SetInformationText(Append(
+        NewLazyString(L"No matches: "), NewLazyString(options.search_query)));
   } else {
     buffer.set_position(results.value()[0]);
     editor_state.PushCurrentPosition();
@@ -293,7 +296,7 @@ void HandleSearchResults(
   }
 
   if (results->empty()) {
-    buffer.status().SetInformationText(L"🔍 No results.");
+    buffer.status().SetInformationText(NewLazyString(L"🔍 No results."));
     audio::BeepFrequencies(buffer.editor().audio_player(), 0.1,
                            {audio::Frequency(659.25), audio::Frequency(440.0),
                             audio::Frequency(440.0)});
@@ -309,11 +312,13 @@ void HandleSearchResults(
 
   size_t size = results->size();
   if (size == 1) {
-    buffer.status().SetInformationText(L"🔍 1 result.");
+    buffer.status().SetInformationText(NewLazyString(L"🔍 1 result."));
   } else {
+    // TODO(easy, 2023-09-08): Convert `results_prefix` to use Padding?
     wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');
-    buffer.status().SetInformationText(results_prefix + L" Results: " +
-                                       std::to_wstring(size));
+    buffer.status().SetInformationText(
+        Append(NewLazyString(results_prefix), NewLazyString(L" Results: "),
+               NewLazyString(std::to_wstring(size))));
   }
   vector<audio::Frequency> frequencies = {
       audio::Frequency(440.0), audio::Frequency(440.0),

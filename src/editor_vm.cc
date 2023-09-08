@@ -337,7 +337,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       L"SetStatus",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](EditorState& editor_arg, std::wstring s) {
-                        editor_arg.status().SetInformationText(s);
+                        editor_arg.status().SetInformationText(
+                            NewLazyString(s));
                       })
           .ptr());
 

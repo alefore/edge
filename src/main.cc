@@ -56,6 +56,7 @@ using afc::language::overload;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::LineColumnDelta;
 
@@ -231,25 +232,28 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
   return server_address;
 }
 
-std::wstring GetGreetingMessage() {
-  static std::vector<std::wstring> errors({
-      L"Welcome to Edge!",
-      L"Edge, your favorite text editor.",
-      L"It looks like you're writing a letter. Would you like help?",
-      L"Edge, a text editor.",
-      L"All modules are now active.",
-      L"Booting up Edge. . . . . . . . . . . . . DONE",
-      L"What are you up to today?",
-      L"Stop trying to calm the storm. Calm yourself, the storm will pass.",
-      L"Learn to be indifferent to what makes no difference.",
-      L"Whatever can happen at any time can happen today.",
-      L"The trouble is, you think you have time.",
-      L"Happiness is here, and now.",
-      L"The journey of a thousand miles begins with a single step.",
-      L"Every moment is a fresh beginning.",
-      L"Action is the foundational key to all success.",
+NonNull<std::shared_ptr<LazyString>> GetGreetingMessage() {
+  static const std::vector<NonNull<std::shared_ptr<LazyString>>> errors({
+      NewLazyString(L"Welcome to Edge!"),
+      NewLazyString(L"Edge, your favorite text editor."),
+      NewLazyString(
+          L"It looks like you're writing a letter. Would you like help?"),
+      NewLazyString(L"Edge, a text editor."),
+      NewLazyString(L"All modules are now active."),
+      NewLazyString(L"Booting up Edge. . . . . . . . . . . . . DONE"),
+      NewLazyString(L"What are you up to today?"),
+      NewLazyString(L"Stop trying to calm the storm. Calm yourself, the storm "
+                    L"will pass."),
+      NewLazyString(L"Learn to be indifferent to what makes no difference."),
+      NewLazyString(L"Whatever can happen at any time can happen today."),
+      NewLazyString(L"The trouble is, you think you have time."),
+      NewLazyString(L"Happiness is here, and now."),
+      NewLazyString(
+          L"The journey of a thousand miles begins with a single step."),
+      NewLazyString(L"Every moment is a fresh beginning."),
+      NewLazyString(L"Action is the foundational key to all success."),
   });
-  return errors[rand() % errors.size()];
+  return errors.at(rand() % errors.size());
 }
 
 void RedrawScreens(const CommandLineValues& args,
