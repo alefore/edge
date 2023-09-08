@@ -3,6 +3,7 @@
 #include "src/buffer_variables.h"
 #include "src/file_link_mode.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
@@ -19,6 +20,7 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language ::lazy_string::LowerCase;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Substring;
 using afc::language::text::Line;
@@ -47,18 +49,25 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
           Substring(line, ColumnNumber(split + 1)))};
 }
 
-void PrepareBuffer(OpenBuffer& buffer) {
-  LOG(INFO) << "Completion Model preparing buffer: " << buffer.name();
-  buffer.SortAllContentsIgnoringCase();
+BufferContents PrepareBuffer(OpenBuffer& buffer) {
+  BufferContents contents = buffer.contents();
+  contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
+                [](const NonNull<std::shared_ptr<const Line>>& a,
+                   const NonNull<std::shared_ptr<const Line>>& b) {
+                  return LowerCase(a->contents()).value() <
+                         LowerCase(b->contents()).value();
+                });
   LineNumber empty_lines_start;
-  while (empty_lines_start < buffer.contents().EndLine() &&
-         buffer.contents().at(empty_lines_start)->contents()->size().IsZero())
+  while (empty_lines_start < contents.EndLine() &&
+         contents.at(empty_lines_start)->contents()->size().IsZero())
     ++empty_lines_start;
   if (!empty_lines_start.IsZero()) {
     LOG(INFO) << "Deleting empty lines: " << empty_lines_start << " to "
-              << buffer.contents().EndLine();
-    buffer.EraseLines(LineNumber(), empty_lines_start);
+              << contents.EndLine();
+    contents.EraseLines(LineNumber(), empty_lines_start,
+                        BufferContents::CursorsBehavior ::kUnmodified);
   }
+  return contents;
 }
 
 BufferContents CompletionModelForTests() {
@@ -66,8 +75,7 @@ BufferContents CompletionModelForTests() {
   buffer.ptr()->AppendToLastLine(NewLazyString(L"bb baby"));
   buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"f fox"));
   buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"i i"));
-  PrepareBuffer(buffer.ptr().value());
-  return buffer.ptr()->contents();
+  return PrepareBuffer(buffer.ptr().value());
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
@@ -76,8 +84,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
       .callback =
           [] {
             gc::Root<OpenBuffer> buffer = NewBufferForTests();
-            PrepareBuffer(buffer.ptr().value());
-            CHECK(buffer.ptr()->contents().ToString() == L"");
+            CHECK(PrepareBuffer(buffer.ptr().value()).ToString() == L"");
           }},
      {.name = L"UnsortedBuffer", .callback = [] {
         gc::Root<OpenBuffer> buffer = NewBufferForTests();
@@ -87,10 +94,8 @@ const bool prepare_buffer_tests_registration = tests::Register(
         buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L"b baby"));
         buffer.ptr()->AppendRawLine(MakeNonNullShared<Line>(L""));
         CHECK(buffer.ptr()->contents().ToString() == L"\nf fox\n\n\nb baby\n");
-        PrepareBuffer(buffer.ptr().value());
-        LOG(INFO) << "After sort: [" << buffer.ptr()->contents().ToString()
-                  << "]";
-        CHECK(buffer.ptr()->contents().ToString() == L"b baby\nf fox");
+        CHECK(PrepareBuffer(buffer.ptr().value()).ToString() ==
+              L"b baby\nf fox");
       }}});
 
 std::optional<CompletionModelManager::Text> FindCompletionInModel(
@@ -223,8 +228,10 @@ CompletionModelManager::FindCompletionWithIndex(
                          [](gc::Root<OpenBuffer> buffer) {
                            return buffer.ptr()->WaitForEndOfFile().Transform(
                                [buffer](EmptyValue) {
-                                 PrepareBuffer(buffer.ptr().value());
-                                 return buffer.ptr()->contents();
+                                 LOG(INFO)
+                                     << "Completion Model preparing buffer: "
+                                     << buffer.ptr()->name();
+                                 return PrepareBuffer(buffer.ptr().value());
                                });
                          }))})
                 .first->second;
