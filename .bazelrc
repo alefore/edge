@@ -1,0 +1,18 @@
+# Set C++ standard to C++20.
+build --copt=-std=c++20
+# Enable debugging information
+build --copt=-g
+# Enable common warning flags
+build --copt=-Wall
+build --copt=-Wextra
+# Set preprocessor definition
+build --copt=-DDOCDIR='"$(docdir)"'
+# Enable specific error flags
+build --copt=-Werror=return-type
+build --copt=-Werror=switch
+build --copt=-Werror=unused-function
+build --copt=-Werror=missing-field-initializers
+build --copt=-Werror=unused-but-set-variable
+build --copt=-Werror=range-loop-construct
+# Enable shadow warnings
+build --copt=-Wshadow
