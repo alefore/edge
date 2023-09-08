@@ -637,6 +637,23 @@ class InsertMode : public EditorMode {
       --start;
     if (start == position.column) {
       VLOG(5) << "Unable to rewind for completion token.";
+      static const wchar_t kCompletionDisableSuffix = L'-';
+      if (!start.IsZero() &&
+          line->get(start - ColumnNumberDelta(1)) == kCompletionDisableSuffix) {
+        output =
+            std::move(output).Transform([buffer_root, position](EmptyValue) {
+              VLOG(3) << "Found completion disabling suffix; removing it.";
+              transformation::Stack stack;
+              stack.PushBack(transformation::Delete{
+                  .range = Range::InLine(position.line,
+                                         position.column - ColumnNumberDelta(1),
+                                         ColumnNumberDelta(1)),
+                  .initiator = transformation::Delete::Initiator::kInternal});
+              stack.PushBack(transformation::SetPosition(position.column +
+                                                         ColumnNumberDelta(1)));
+              return buffer_root.ptr()->ApplyToCursors(std::move(stack));
+            });
+      }
       return output;
     }
 
@@ -674,7 +691,8 @@ class InsertMode : public EditorMode {
                       stack.PushBack(transformation::SetPosition(
                           position_start.column + completion_text_size +
                           ColumnNumberDelta(1)));
-                      return buffer_root.ptr()->ApplyToCursors(stack);
+                      return buffer_root.ptr()->ApplyToCursors(
+                          std::move(stack));
                     },
                     [buffer_root, token](completion::Suggestion suggestion) {
                       std::wstring suggestion_text =
