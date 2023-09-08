@@ -373,6 +373,16 @@ const bool completion_model_manager_tests_registration =
               CHECK(
                   std::holds_alternative<CompletionModelManager::NothingFound>(
                       TestQuery(manager, {L"en", L"es"}, L"rock")));
+    // This shows a bug in the implementation: we shouldn't give a
+    // recommendation for a compressed-text that is unreachable (because a model
+    // with higher priority takes precedence). So we have it uncommented for
+    // now.
+    // TODO(P2, 2023-09-08): Fix the bug and uncomment the test.
+#if 0
+              CHECK(
+                  std::holds_alternative<CompletionModelManager::NothingFound>(
+                      TestQuery(manager, {L"en", L"es"}, L"firulais")));
+#endif
               CHECK_EQ(paths->size(), 2ul);
             }}});
     }());
