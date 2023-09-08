@@ -117,6 +117,8 @@ cc_library(
     hdrs = ["repetitions.h"],
     deps = [
         ":input",
+        ":result",
+        ":type",
     ],
 )
 
@@ -130,9 +132,9 @@ cc_library(
     srcs = ["set_position.cc"],
     hdrs = ["set_position.h"],
     deps = [
-        ":composite",
         ":input",
         ":result",
+        ":stack",
         "//src/futures",
         "//src/language/text:line_column",
         "//src/language/text:line_column_vm",
@@ -148,6 +150,7 @@ cc_library(
     deps = [
         ":input",
         ":result",
+        ":type",
     ],
 )
 
@@ -188,7 +191,9 @@ cc_library(
     srcs = ["visual_overlay.cc"],
     hdrs = ["visual_overlay.h"],
     deps = [
+        ":input",
         "//src/futures",
+        "//src/infrastructure/screen:visual_overlay",
     ],
 )
 
@@ -196,4 +201,8 @@ cc_library(
     name = "vm",
     srcs = ["vm.cc"],
     hdrs = ["vm.h"],
+    deps = [
+        ":type",
+        "//src/language:safe_types",
+    ],
 )
