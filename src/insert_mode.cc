@@ -632,7 +632,8 @@ class InsertMode : public EditorMode {
     ColumnNumber start = position.column;
     CHECK_LE(start.ToDelta(), line->contents()->size());
     while (!start.IsZero() &&
-           std::isalpha(line->get(start - ColumnNumberDelta(1))))
+           (std::isalpha(line->get(start - ColumnNumberDelta(1))) ||
+            line->get(start - ColumnNumberDelta(1)) == L'\''))
       --start;
     if (start == position.column) {
       VLOG(5) << "Unable to rewind for completion token.";
