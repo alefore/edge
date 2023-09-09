@@ -30,6 +30,8 @@ using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::Range;
 
+void NullBufferContentsObserver::LinesInserted(LineNumber, LineNumberDelta) {}
+
 void NullBufferContentsObserver::Notify(
     const infrastructure::screen::CursorsTracker::Transformation&) {}
 
@@ -457,9 +459,7 @@ void BufferContents::insert(LineNumber position_line,
     return true;
   });
   lines_ = Lines::Append(prefix, suffix);
-  observer_->Notify(CursorsTracker::Transformation()
-                        .WithBegin(LineColumn(position_line))
-                        .LineDelta(source.size()));
+  observer_->LinesInserted(position_line, source.size());
 }
 
 bool BufferContents::EveryLine(
@@ -505,9 +505,7 @@ void BufferContents::insert_line(LineNumber line_position,
   CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.read());
   lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
   CHECK_EQ(Lines::Size(lines_), original_size + 1);
-  observer_->Notify(CursorsTracker::Transformation()
-                        .WithBegin(LineColumn(line_position))
-                        .LineDelta(LineNumberDelta(1)));
+  observer_->LinesInserted(line_position, LineNumberDelta(1));
 }
 
 void BufferContents::set_line(LineNumber position,
@@ -673,8 +671,9 @@ const bool push_back_wstring_tests_registration = tests::Register(
 }
 
 void BufferContents::push_back(NonNull<std::shared_ptr<const Line>> line) {
+  LineNumber position = EndLine();
   lines_ = Lines::PushBack(std::move(lines_), line);
-  observer_->Notify({});
+  observer_->LinesInserted(position + LineNumberDelta(1), LineNumberDelta(1));
 }
 
 void BufferContents::append_back(
@@ -687,8 +686,9 @@ void BufferContents::append_back(
   static Tracker tracker(L"BufferContents::append_back::append");
   auto tracker_call = tracker.Call();
 
+  LineNumber position = EndLine();
   lines_ = Lines::Append(lines_, subtree);
-  observer_->Notify({});
+  observer_->LinesInserted(position, LineNumberDelta(lines.size()));
 }
 
 LineColumn BufferContents::AdjustLineColumn(LineColumn position) const {

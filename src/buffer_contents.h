@@ -18,12 +18,16 @@ namespace editor {
 class BufferContentsObserver {
  public:
   virtual ~BufferContentsObserver() = default;
+  virtual void LinesInserted(language::text::LineNumber position,
+                             language::text::LineNumberDelta lines) = 0;
   virtual void Notify(
       const infrastructure::screen::CursorsTracker::Transformation&) = 0;
 };
 
 class NullBufferContentsObserver : public BufferContentsObserver {
  public:
+  void LinesInserted(language::text::LineNumber position,
+                     language::text::LineNumberDelta lines) override;
   void Notify(
       const infrastructure::screen::CursorsTracker::Transformation&) override;
 };

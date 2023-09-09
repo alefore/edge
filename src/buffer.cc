@@ -283,6 +283,12 @@ class OpenBufferBufferContentsObserver : public BufferContentsObserver {
  public:
   void SetOpenBuffer(gc::WeakPtr<OpenBuffer> buffer) { buffer_ = buffer; }
 
+  void LinesInserted(LineNumber position, LineNumberDelta lines_inserted) {
+    Notify(CursorsTracker::Transformation()
+               .WithBegin(LineColumn(position))
+               .LineDelta(lines_inserted));
+  }
+
   void Notify(const CursorsTracker::Transformation& transformation) override {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
