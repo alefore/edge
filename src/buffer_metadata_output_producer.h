@@ -18,7 +18,8 @@ struct BufferMetadataOutputOptions {
 };
 
 // OutputProducer that prints the metadata that is usually shown right after the
-// contents of the buffer (at the right side).
+// contents of the buffer (at the right side). This includes information from
+// LineMarks and the syntax tree.
 //
 // Generates one element for each value in screen_lines.
 ColumnsVector::Column BufferMetadataOutput(BufferMetadataOutputOptions options);
