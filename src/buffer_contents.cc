@@ -32,6 +32,7 @@ using language::text::Range;
 
 void NullBufferContentsObserver::LinesInserted(LineNumber, LineNumberDelta) {}
 void NullBufferContentsObserver::LinesErased(LineNumber, LineNumberDelta) {}
+void NullBufferContentsObserver::SplitLine(LineColumn) {}
 
 void NullBufferContentsObserver::Notify(
     const infrastructure::screen::CursorsTracker::Transformation&) {}
@@ -497,7 +498,8 @@ size_t BufferContents::CountCharacters() const {
 }
 
 void BufferContents::insert_line(LineNumber line_position,
-                                 NonNull<std::shared_ptr<const Line>> line) {
+                                 NonNull<std::shared_ptr<const Line>> line,
+                                 CursorsBehavior cursors_behavior) {
   LOG(INFO) << "Inserting line at position: " << line_position;
   size_t original_size = Lines::Size(lines_);
   auto prefix = Lines::Prefix(lines_, line_position.read());
@@ -506,7 +508,12 @@ void BufferContents::insert_line(LineNumber line_position,
   CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.read());
   lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
   CHECK_EQ(Lines::Size(lines_), original_size + 1);
-  observer_->LinesInserted(line_position, LineNumberDelta(1));
+  switch (cursors_behavior) {
+    case CursorsBehavior::kUnmodified:
+      break;
+    case CursorsBehavior::kAdjust:
+      observer_->LinesInserted(line_position, LineNumberDelta(1));
+  }
 }
 
 void BufferContents::set_line(LineNumber position,
@@ -522,8 +529,9 @@ void BufferContents::set_line(LineNumber position,
   // TODO: Why no notify observer_?
 }
 
-void BufferContents::DeleteCharactersFromLine(LineColumn position,
-                                              ColumnNumberDelta amount) {
+void BufferContents::DeleteCharactersFromLine(
+    LineColumn position, ColumnNumberDelta amount,
+    CursorsBehavior cursors_behavior) {
   if (amount == ColumnNumberDelta(0)) {
     return;
   }
@@ -535,17 +543,22 @@ void BufferContents::DeleteCharactersFromLine(LineColumn position,
       [&](LineBuilder& options) {
         options.DeleteCharacters(position.column, amount);
       },
-      CursorsTracker::Transformation()
-          .WithBegin(position)
-          .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
-          .ColumnDelta(-amount)
-          .ColumnLowerBound(position.column));
+      cursors_behavior == CursorsBehavior::kAdjust
+          ? std::make_optional(
+                CursorsTracker::Transformation()
+                    .WithBegin(position)
+                    .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
+                    .ColumnDelta(-amount)
+                    .ColumnLowerBound(position.column))
+          : std::optional<CursorsTracker::Transformation>());
 }
 
-void BufferContents::DeleteToLineEnd(LineColumn position) {
+void BufferContents::DeleteToLineEnd(LineColumn position,
+                                     CursorsBehavior cursors_behavior) {
   if (position.column < at(position.line)->EndColumn()) {
     return DeleteCharactersFromLine(
-        position, at(position.line)->EndColumn() - position.column);
+        position, at(position.line)->EndColumn() - position.column,
+        cursors_behavior);
   }
 }
 
@@ -593,17 +606,13 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
 }
 
 void BufferContents::SplitLine(LineColumn position) {
-  // TODO: Can maybe combine this with next for fewer updates.
   LineBuilder builder(at(position.line).value());
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   insert_line(position.line + LineNumberDelta(1),
-              MakeNonNullShared<Line>(std::move(builder).Build()));
-  observer_->Notify(CursorsTracker::Transformation()
-                        .WithBegin(position)
-                        .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
-                        .LineDelta(LineNumberDelta(1))
-                        .ColumnDelta(-position.column.ToDelta()));
-  DeleteToLineEnd(position);
+              MakeNonNullShared<Line>(std::move(builder).Build()),
+              CursorsBehavior::kUnmodified);
+  observer_->SplitLine(position);
+  DeleteToLineEnd(position, CursorsBehavior::kUnmodified);
 }
 
 void BufferContents::FoldNextLine(LineNumber position) {

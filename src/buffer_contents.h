@@ -22,6 +22,7 @@ class BufferContentsObserver {
                              language::text::LineNumberDelta size) = 0;
   virtual void LinesErased(language::text::LineNumber position,
                            language::text::LineNumberDelta size) = 0;
+  virtual void SplitLine(language::text::LineColumn position) = 0;
   virtual void Notify(
       const infrastructure::screen::CursorsTracker::Transformation&) = 0;
 };
@@ -32,6 +33,7 @@ class NullBufferContentsObserver : public BufferContentsObserver {
                      language::text::LineNumberDelta size) override;
   void LinesErased(language::text::LineNumber position,
                    language::text::LineNumberDelta size) override;
+  void SplitLine(language::text::LineColumn position) override;
   void Notify(
       const infrastructure::screen::CursorsTracker::Transformation&) override;
 };
@@ -115,9 +117,12 @@ class BufferContents : public tests::fuzz::FuzzTestable {
 
   size_t CountCharacters() const;
 
+  enum class CursorsBehavior { kAdjust, kUnmodified };
+
   void insert_line(
       language::text::LineNumber line_position,
-      language::NonNull<std::shared_ptr<const language::text::Line>> line);
+      language::NonNull<std::shared_ptr<const language::text::Line>> line,
+      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust);
 
   // Does not call observer_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
@@ -160,9 +165,12 @@ class BufferContents : public tests::fuzz::FuzzTestable {
   // valid range.
   void DeleteCharactersFromLine(
       language::text::LineColumn position,
-      language::lazy_string::ColumnNumberDelta amount);
+      language::lazy_string::ColumnNumberDelta amount,
+      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust);
   // Delete characters from position.line in range [position.column, ...).
-  void DeleteToLineEnd(language::text::LineColumn position);
+  void DeleteToLineEnd(
+      language::text::LineColumn position,
+      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust);
 
   // Sets the character and modifiers in a given position.
   //
@@ -177,8 +185,6 @@ class BufferContents : public tests::fuzz::FuzzTestable {
   void InsertCharacter(language::text::LineColumn position);
   void AppendToLine(language::text::LineNumber line,
                     language::text::Line line_to_append);
-
-  enum class CursorsBehavior { kAdjust, kUnmodified };
 
   void EraseLines(language::text::LineNumber first,
                   language::text::LineNumber last,
@@ -210,16 +216,22 @@ class BufferContents : public tests::fuzz::FuzzTestable {
 
  private:
   template <typename Callback>
-  void TransformLine(language::text::LineNumber line_number,
-                     Callback callback) {
-    TransformLine(line_number, std::move(callback),
-                  infrastructure::screen::CursorsTracker::Transformation());
+  void TransformLine(
+      language::text::LineNumber line_number, Callback callback,
+      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust) {
+    TransformLine(
+        line_number, std::move(callback),
+        cursors_behavior == CursorsBehavior::kAdjust
+            ? std::make_optional(
+                  infrastructure::screen::CursorsTracker::Transformation())
+            : std::nullopt);
   }
 
   template <typename Callback>
-  void TransformLine(language::text::LineNumber line_number, Callback callback,
-                     infrastructure::screen::CursorsTracker::Transformation
-                         cursors_transformation) {
+  void TransformLine(
+      language::text::LineNumber line_number, Callback callback,
+      std::optional<infrastructure::screen::CursorsTracker::Transformation>
+          cursors_transformation) {
     static infrastructure::Tracker tracker(L"BufferContents::TransformLine");
     auto tracker_call = tracker.Call();
     if (lines_ == nullptr) {
@@ -231,7 +243,8 @@ class BufferContents : public tests::fuzz::FuzzTestable {
     set_line(line_number,
              language::MakeNonNullShared<const language::text::Line>(
                  std::move(options).Build()));
-    observer_->Notify(cursors_transformation);
+    if (cursors_transformation.has_value())
+      observer_->Notify(*cursors_transformation);
   }
 
   Lines::Ptr lines_ = Lines::PushBack(nullptr, {});

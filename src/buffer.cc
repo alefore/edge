@@ -284,9 +284,16 @@ class OpenBufferBufferContentsObserver : public BufferContentsObserver {
   void SetOpenBuffer(gc::WeakPtr<OpenBuffer> buffer) { buffer_ = buffer; }
 
   void LinesInserted(LineNumber position, LineNumberDelta size) override {
-    Notify(CursorsTracker::Transformation()
-               .WithBegin(LineColumn(position))
-               .LineDelta(size));
+    std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
+    if (!root_this.has_value()) return;
+    CHECK_GE(root_this->ptr()->EndLine() + LineNumberDelta(1), position + size);
+    if (LineColumn(position) + size >= LineColumn(root_this->ptr()->EndLine()))
+      Notify({});
+    else
+      Notify(CursorsTracker::Transformation()
+                 .WithBegin(LineColumn(position))
+                 .WithEnd(LineColumn(root_this->ptr()->EndLine()) - size)
+                 .LineDelta(size));
   }
 
   void LinesErased(LineNumber position, LineNumberDelta size) override {
@@ -295,6 +302,18 @@ class OpenBufferBufferContentsObserver : public BufferContentsObserver {
                .WithBegin(LineColumn(position))
                .LineDelta(-size)
                .LineLowerBound(position));
+  }
+
+  void SplitLine(LineColumn position) override {
+    // Move down all cursors after (including) position.line + 1. No cursor will
+    // be left in position.line + LineNumberDelta(1).
+    LinesInserted(position.line + LineNumberDelta(1), LineNumberDelta(1));
+    // Shift down the cursors in the reminder of the line.
+    Notify(CursorsTracker::Transformation()
+               .WithBegin(position)
+               .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
+               .LineDelta(LineNumberDelta(1))
+               .ColumnDelta(-position.column.ToDelta()));
   }
 
   void Notify(const CursorsTracker::Transformation& transformation) override {
