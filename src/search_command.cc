@@ -96,8 +96,9 @@ const bool merge_into_tests_registration =
     }());
 
 void DoSearch(OpenBuffer& buffer, SearchOptions options) {
-  ValueOrError<std::vector<LineColumn>> output =
-      SearchHandler(buffer.editor(), options, buffer.contents());
+  ValueOrError<std::vector<LineColumn>> output = SearchHandler(
+      buffer.editor().work_queue(), buffer.editor().modifiers().direction,
+      options, buffer.contents());
   HandleSearchResults(output, buffer);
 }
 

@@ -26,7 +26,7 @@ bool IsMatch(EditorState& editor,
              const InsertHistory::SearchOptions& search_options,
              const BufferContents& candidate) {
   ValueOrError<std::vector<LineColumn>> matches = SearchHandler(
-      editor,
+      editor.work_queue(), editor.modifiers().direction,
       afc::editor::SearchOptions{.search_query = search_options.query,
                                  .required_positions = 1,
                                  .case_sensitive = false},

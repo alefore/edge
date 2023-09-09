@@ -41,8 +41,10 @@ struct SearchOptions {
   bool case_sensitive;
 };
 
+// TODO(easy, 2023-09-09): Document why we receive a work_queue.
 language::ValueOrError<std::vector<language::text::LineColumn>> SearchHandler(
-    EditorState& editor_state, const SearchOptions& options,
+    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
+    Direction direction, const SearchOptions& options,
     const BufferContents& buffer);
 
 void HandleSearchResults(

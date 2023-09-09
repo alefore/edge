@@ -168,10 +168,16 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
 
 // Returns all matches starting at start. If end is not nullptr, only matches
 // in the region enclosed by start and *end will be returned.
+//
+// TODO(trivial, 2023-09-09): Just inline as SearchHandler?
 ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
     const BufferContents& contents) {
+  if (options.search_query.empty()) {
+    return {};
+  }
+
   auto dummy_progress_channel = std::make_unique<ProgressChannel>(
       work_queue, [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
@@ -266,21 +272,17 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
 }
 
 ValueOrError<std::vector<LineColumn>> SearchHandler(
-    EditorState& editor_state, const SearchOptions& options,
+    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
+    Direction direction, const SearchOptions& options,
     const BufferContents& buffer) {
-  if (options.search_query.empty()) {
-    return {};
-  }
-
-  return PerformSearchWithDirection(editor_state.work_queue(),
-                                    editor_state.modifiers().direction, options,
-                                    buffer);
+  return PerformSearchWithDirection(work_queue, direction, options, buffer);
 }
 
 void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
                      OpenBuffer& buffer) {
-  std::optional<std::vector<LineColumn>> results =
-      OptionalFrom(SearchHandler(editor_state, options, buffer.contents()));
+  std::optional<std::vector<LineColumn>> results = OptionalFrom(SearchHandler(
+      editor_state.work_queue(), editor_state.modifiers().direction, options,
+      buffer.contents()));
   if (!results.has_value() || results->empty()) {
     buffer.status().SetInformationText(Append(
         NewLazyString(L"No matches: "), NewLazyString(options.search_query)));
