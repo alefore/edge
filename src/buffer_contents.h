@@ -51,6 +51,7 @@ class NullBufferContentsObserver : public BufferContentsObserver {
 
 // TODO(trivial, 2023-09-10): Rename to a more fitting name. Perhaps
 // LineSequence.
+// TODO(trivial, 2023-09-10): Move to //src/language/text.
 class BufferContents : public tests::fuzz::FuzzTestable {
   using Lines = language::ConstTree<
       language::VectorBlock<
