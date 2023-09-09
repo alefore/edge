@@ -30,18 +30,12 @@ using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::Range;
 
-BufferContents::BufferContents() : BufferContents(UpdateListener()) {}
-
 BufferContents::BufferContents(NonNull<std::shared_ptr<const Line>> line)
     : lines_(Lines::PushBack(nullptr, std::move(line))),
       update_listener_([](const CursorsTracker::Transformation&) {}) {}
 
-BufferContents::BufferContents(UpdateListener update_listener)
-    : update_listener_(update_listener != nullptr
-                           ? std::move(update_listener)
-                           : [](const CursorsTracker::Transformation&) {}) {
-  CHECK(update_listener_ != nullptr);
-}
+BufferContents::BufferContents()
+    : update_listener_([](const CursorsTracker::Transformation&) {}) {}
 
 LineNumber BufferContents::EndLine() const {
   return LineNumber(0) + size() - LineNumberDelta(1);

@@ -30,7 +30,6 @@ class BufferContents : public tests::fuzz::FuzzTestable {
 
   explicit BufferContents(
       language::NonNull<std::shared_ptr<const language::text::Line>> line);
-  explicit BufferContents(UpdateListener update_listener);
 
   wint_t character_at(const language::text::LineColumn& position) const;
 
