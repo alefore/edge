@@ -151,24 +151,25 @@ const bool find_position_in_screen_tests_registration = tests::Register(
       }}});
 
 BufferContentsViewLayout::Line GetScreenLine(
-    const BufferContentsViewLayout::Input& options,
+    const BufferContents& contents, std::optional<LineColumn> active_position,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
     LineNumber line, ColumnRange column_range) {
-  Range range = Range::InLine(line, column_range.begin,
-                              column_range.end - column_range.begin);
+  CHECK_LE(line, contents.EndLine());
+  Range range =
+      Range(LineColumn(line, column_range.begin),
+            LineColumn(line, column_range.end < contents.at(line)->EndColumn()
+                                 ? column_range.end
+                                 : std::numeric_limits<ColumnNumber>::max()));
 
   auto contains_cursor = [&](ColumnNumber column) {
-    CHECK_LE(line, options.contents.EndLine());
-    if (column < column_range.begin) return false;
-    if (column < column_range.end) return true;
-    return range.end.column == options.contents.at(line)->EndColumn();
+    return range.Contains(LineColumn(line, column));
   };
 
   BufferContentsViewLayout::Line output{
       .range = range,
-      .has_active_cursor = options.active_position.has_value() &&
-                           line == options.active_position->line &&
-                           contains_cursor(options.active_position->column),
+      .has_active_cursor = active_position.has_value() &&
+                           line == active_position->line &&
+                           contains_cursor(active_position->column),
       .current_cursors = {}};
 
   if (auto cursors_it = cursors.find(line); cursors_it != cursors.end()) {
@@ -179,6 +180,19 @@ BufferContentsViewLayout::Line GetScreenLine(
 
   return output;
 }
+
+const bool get_screen_line_tests_registration = tests::Register(
+    L"GetScreenLine",
+    {{.name = L"SimpleLine", .callback = [] {
+        BufferContents contents;
+        contents.AppendToLine(LineNumber(0), Line(L"foo"));
+        BufferContentsViewLayout::Line output =
+            GetScreenLine(contents, std::nullopt, {}, LineNumber(0),
+                          ColumnRange{ColumnNumber(0), ColumnNumber(3)});
+        CHECK_EQ(output.range.end,
+                 LineColumn(LineNumber(0),
+                            std::numeric_limits<ColumnNumber>::max()));
+      }}});
 
 std::vector<BufferContentsViewLayout::Line> PrependLines(
     const BufferContentsViewLayout::Input& options,
@@ -194,7 +208,8 @@ std::vector<BufferContentsViewLayout::Line> PrependLines(
   }
   std::vector<BufferContentsViewLayout::Line> lines_to_insert;
   for (auto& r : line_breaks) {
-    lines_to_insert.push_back(GetScreenLine(options, cursors, line, r));
+    lines_to_insert.push_back(GetScreenLine(
+        options.contents, options.active_position, cursors, line, r));
   }
   auto insert_start = lines_to_insert.begin();
   if (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
@@ -289,8 +304,9 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
     }
     while (LineNumberDelta(output.lines.size()) < options.lines_shown &&
            !line_breaks.empty()) {
-      output.lines.push_back(
-          GetScreenLine(options, cursors, line, line_breaks.front()));
+      output.lines.push_back(GetScreenLine(options.contents,
+                                           options.active_position, cursors,
+                                           line, line_breaks.front()));
       line_breaks.pop_front();
       DVLOG(5) << "Added screen line for line: " << line
                << ", range: " << output.lines.back().range;
@@ -409,6 +425,11 @@ const bool buffer_contents_view_layout_tests_registration =
                callback(options);
              }});
       };
+      auto RangeToLineEnd = [](LineColumn p) {
+        return Range(
+            p, LineColumn(p.line, std::numeric_limits<ColumnNumber>::max()));
+      };
+
       return std::vector<tests::Test>(
           {new_test(
                L"Construction",
@@ -419,9 +440,7 @@ const bool buffer_contents_view_layout_tests_registration =
                           LineColumn(LineNumber(4), ColumnNumber(3));
                       options.begin = LineColumn(LineNumber(7));
                       CHECK_EQ(get_ranges(options)[0],
-                               Range::InLine(
-                                   LineNumber(2), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("2cuervo") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(2))));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(2)}));
                     }),
@@ -432,9 +451,7 @@ const bool buffer_contents_view_layout_tests_registration =
                           LineColumn(LineNumber(4), ColumnNumber(3));
                       options.begin = LineColumn(LineNumber(7));
                       CHECK_EQ(get_ranges(options)[0],
-                               Range::InLine(
-                                   LineNumber(4), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("4blah") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(4))));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(0)}));
                     }),
@@ -445,9 +462,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.margin_lines = LineNumberDelta(4);
                       options.begin = LineColumn(LineNumber(7));
                       CHECK_EQ(get_ranges(options)[0],
-                               Range::InLine(LineNumber(0), ColumnNumber(0),
-                                             ColumnNumberDelta(
-                                                 sizeof("0alejandro") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(0))));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(2)}));
                     }),
@@ -460,33 +475,28 @@ const bool buffer_contents_view_layout_tests_registration =
                                    (options.lines_shown - LineNumberDelta(1)),
                                LineNumber(4));
                       CHECK_EQ(get_ranges(options)[0],
-                               Range::InLine(
-                                   LineNumber(4), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("4blah") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(4))));
                       CHECK_EQ(LineNumber(11) - LineNumber(4),
                                LineNumberDelta(7));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(7)}));
                     }),
-           new_test(
-               L"BottomMarginForceScrollToBottom",
-               [&](auto options) {
-                 options.active_position =
-                     LineColumn(LineNumber(14), ColumnNumber(3));
-                 options.margin_lines = LineNumberDelta(5);
-                 options.begin = LineColumn(LineNumber(3));
-                 CHECK_EQ(LineNumber(16) -
-                              (options.lines_shown - LineNumberDelta(1)),
-                          LineNumber(7));
-                 CHECK_EQ(
-                     get_ranges(options)[0],
-                     Range::InLine(
-                         LineNumber(7), ColumnNumber(),
-                         ColumnNumberDelta(sizeof("7something or other") - 1)));
-                 CHECK_EQ(LineNumber(14) - LineNumber(7), LineNumberDelta(7));
-                 CHECK(get_active_cursors(options) ==
-                       std::vector<LineNumber>({LineNumber(7)}));
-               }),
+           new_test(L"BottomMarginForceScrollToBottom",
+                    [&](auto options) {
+                      options.active_position =
+                          LineColumn(LineNumber(14), ColumnNumber(3));
+                      options.margin_lines = LineNumberDelta(5);
+                      options.begin = LineColumn(LineNumber(3));
+                      CHECK_EQ(LineNumber(16) -
+                                   (options.lines_shown - LineNumberDelta(1)),
+                               LineNumber(7));
+                      CHECK_EQ(get_ranges(options)[0],
+                               RangeToLineEnd(LineColumn(LineNumber(7))));
+                      CHECK_EQ(LineNumber(14) - LineNumber(7),
+                               LineNumberDelta(7));
+                      CHECK(get_active_cursors(options) ==
+                            std::vector<LineNumber>({LineNumber(7)}));
+                    }),
            new_test(L"TopMarginWithLineWraps",
                     [&](auto options) {
                       options.begin = LineColumn(LineNumber(11));
@@ -499,9 +509,8 @@ const bool buffer_contents_view_layout_tests_registration =
                       CHECK_EQ(ranges[0],
                                Range::InLine(LineNumber(1), ColumnNumber(4),
                                              ColumnNumberDelta(2)));
-                      CHECK_EQ(ranges[1],
-                               Range::InLine(LineNumber(1), ColumnNumber(6),
-                                             ColumnNumberDelta(1)));
+                      CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn(
+                                              LineNumber(1), ColumnNumber(6))));
                       CHECK_EQ(ranges[2],
                                Range::InLine(LineNumber(2), ColumnNumber(0),
                                              ColumnNumberDelta(2)));
@@ -513,9 +522,8 @@ const bool buffer_contents_view_layout_tests_registration =
                                Range::InLine(LineNumber(2), ColumnNumber(4),
                                              ColumnNumberDelta(2)));
                       // Next line:
-                      CHECK_EQ(ranges[5],
-                               Range::InLine(LineNumber(2), ColumnNumber(6),
-                                             ColumnNumberDelta(1)));
+                      CHECK_EQ(ranges[5], RangeToLineEnd(LineColumn(
+                                              LineNumber(2), ColumnNumber(6))));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(4)}));
                     }),
@@ -532,29 +540,28 @@ const bool buffer_contents_view_layout_tests_registration =
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(7)}));
                     }),
-           new_test(L"BottomMarginWithLineWrapsForceScrollToBottom",
-                    [&](auto options) {
-                      options.active_position =
-                          LineColumn(LineNumber(15), ColumnNumber(3));
-                      options.margin_lines = LineNumberDelta(20);
-                      options.columns_shown = ColumnNumberDelta(2);
-                      options.lines_shown = LineNumberDelta(50);
-                      auto ranges = get_ranges(options);
-                      CHECK_EQ(ranges[49],
-                               Range::InLine(LineNumber(16), ColumnNumber(4),
-                                             ColumnNumberDelta(2)));
-                      CHECK_EQ(ranges[48],
-                               Range::InLine(LineNumber(16), ColumnNumber(2),
-                                             ColumnNumberDelta(2)));
-                      CHECK_EQ(ranges[47],
-                               Range::InLine(LineNumber(16), ColumnNumber(0),
-                                             ColumnNumberDelta(2)));
-                      CHECK_EQ(ranges[46],
-                               Range::InLine(LineNumber(15), ColumnNumber(4),
-                                             ColumnNumberDelta(1)));
-                      CHECK(get_active_cursors(options) ==
-                            std::vector<LineNumber>({LineNumber(45)}));
-                    }),
+           new_test(
+               L"BottomMarginWithLineWrapsForceScrollToBottom",
+               [&](auto options) {
+                 options.active_position =
+                     LineColumn(LineNumber(15), ColumnNumber(3));
+                 options.margin_lines = LineNumberDelta(20);
+                 options.columns_shown = ColumnNumberDelta(2);
+                 options.lines_shown = LineNumberDelta(50);
+                 auto ranges = get_ranges(options);
+                 CHECK_EQ(ranges[49], RangeToLineEnd(LineColumn(
+                                          LineNumber(16), ColumnNumber(4))));
+                 CHECK_EQ(ranges[48],
+                          Range::InLine(LineNumber(16), ColumnNumber(2),
+                                        ColumnNumberDelta(2)));
+                 CHECK_EQ(ranges[47],
+                          Range::InLine(LineNumber(16), ColumnNumber(0),
+                                        ColumnNumberDelta(2)));
+                 CHECK_EQ(ranges[46], RangeToLineEnd(LineColumn(
+                                          LineNumber(15), ColumnNumber(4))));
+                 CHECK(get_active_cursors(options) ==
+                       std::vector<LineNumber>({LineNumber(45)}));
+               }),
            new_test(L"EverythingFits",
                     [&](auto options) {
                       options.active_position =
@@ -564,13 +571,9 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto ranges = get_ranges(options);
                       CHECK_EQ(ranges.size(), size_t(17));
                       CHECK_EQ(ranges[0],
-                               Range::InLine(LineNumber(0), ColumnNumber(0),
-                                             ColumnNumberDelta(
-                                                 sizeof("0alejandro") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(0))));
                       CHECK_EQ(ranges[16],
-                               Range::InLine(
-                                   LineNumber(16), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(10)}));
                     }),
@@ -582,8 +585,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto ranges = get_ranges(options);
                       CHECK_EQ(ranges.size(), size_t(5));
                       CHECK_EQ(ranges[0],
-                               Range::InLine(LineNumber(3), ColumnNumber(0),
-                                             ColumnNumberDelta()));
+                               RangeToLineEnd(LineColumn(LineNumber(3))));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>());
                     }),
@@ -593,13 +595,9 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.status_lines = LineNumberDelta(5);
                       auto ranges = get_ranges(options);
                       CHECK_EQ(ranges.size(), size_t(15));
-                      CHECK_EQ(ranges[0],
-                               Range::InLine(LineNumber(0), ColumnNumber(0),
-                                             ColumnNumberDelta(
-                                                 sizeof("0alejandro") - 1)));
+                      CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn()));
                       CHECK_EQ(ranges[14],
-                               Range::InLine(LineNumber(14), ColumnNumber(0),
-                                             ColumnNumberDelta()));
+                               RangeToLineEnd(LineColumn(LineNumber(14))));
                     }),
            new_test(L"StatusEatsFromEmptyAtBottom",
                     [&](auto options) {
@@ -610,13 +608,9 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto ranges = get_ranges(options);
                       CHECK_EQ(ranges.size(), size_t(15));
                       CHECK_EQ(ranges[0],
-                               Range::InLine(
-                                   LineNumber(2), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("2cuervo") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(2))));
                       CHECK_EQ(ranges[14],
-                               Range::InLine(
-                                   LineNumber(16), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                     }),
            new_test(L"CursorWhenPositionAtEndFits",
                     [&](auto options) {
@@ -626,9 +620,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
                       CHECK_EQ(output.lines.back().range,
-                               Range::InLine(
-                                   LineNumber(16), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionAtEndDrops",
@@ -639,9 +631,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 9ul);
                       CHECK_EQ(output.lines.back().range,
-                               Range::InLine(
-                                   LineNumber(16), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionPastEndFits",
@@ -652,9 +642,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
                       CHECK_EQ(output.lines.back().range,
-                               Range::InLine(
-                                   LineNumber(16), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionPastEndDrops",
@@ -665,9 +653,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 8ul);
                       CHECK_EQ(output.lines.back().range,
-                               Range::InLine(
-                                   LineNumber(16), ColumnNumber(0),
-                                   ColumnNumberDelta(sizeof("16lynx") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"ViewStartWithPositionAtEnd",
@@ -680,9 +666,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 2ul);
                       CHECK_EQ(output.lines.front().range,
-                               Range::InLine(
-                                   LineNumber(15), ColumnNumber(),
-                                   ColumnNumberDelta(sizeof("15dog") - 1)));
+                               RangeToLineEnd(LineColumn(LineNumber(15))));
                       CHECK_EQ(output.view_start, LineColumn(LineNumber(15)));
                     }),
            new_test(L"StatusDownWhenFits",
