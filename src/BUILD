@@ -231,20 +231,6 @@ cc_library(
 )
 
 cc_library(
-    name = "cursors",
-    srcs = ["cursors.cc"],
-    hdrs = ["cursors.h"],
-    visibility = ["//src/transformation:__pkg__"],
-    deps = [
-        "//src/futures",
-        "//src/language/lazy_string:append",
-        "//src/language/lazy_string:char_buffer",
-        "//src/language/lazy_string:substring",
-        "//src/language/text:line_column",
-    ],
-)
-
-cc_library(
     name = "direction",
     srcs = ["direction.cc"],
     hdrs = ["direction.h"],
