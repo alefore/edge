@@ -1,15 +1,15 @@
 #ifndef __AFC_EDITOR_CURSORS_TRANSFORMATION_H__
 #define __AFC_EDITOR_CURSORS_TRANSFORMATION_H__
 
-#include "src/cursors.h"
 #include "src/futures/futures.h"
+#include "src/infrastructure/screen/cursors.h"
 #include "src/language/text/line_column.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
 
 namespace afc::editor::transformation {
 struct Cursors {
-  editor::CursorsSet cursors;
+  infrastructure::screen::CursorsSet cursors;
   language::text::LineColumn active;
 };
 

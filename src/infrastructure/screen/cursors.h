@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_CURSORS_H__
-#define __AFC_EDITOR_CURSORS_H__
+#ifndef __AFC_INFRASTRUCTURE_SCREEN_CURSORS_H__
+#define __AFC_INFRASTRUCTURE_SCREEN_CURSORS_H__
 
 #include <glog/logging.h>
 
@@ -13,9 +13,7 @@
 #include "src/futures/futures.h"
 #include "src/language/text/line_column.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::infrastructure::screen {
 // A multiset of language::text::LineColumn entries, with a specific one
 // designated as the "active" one. The language::text::LineColumn entries aren't
 // bound to any specific buffer, so they may exceed past the length of any and
@@ -250,7 +248,5 @@ std::ostream& operator<<(std::ostream& os,
 bool operator==(const CursorsTracker::Transformation& a,
                 const CursorsTracker::Transformation& b);
 
-}  // namespace editor
-}  // namespace afc
-
-#endif  // __AFC_EDITOR_CURSORS_H__
+}  // namespace afc::infrastructure::screen
+#endif  // __AFC_INFRASTRUCTURE_SCREEN_CURSORS_H__

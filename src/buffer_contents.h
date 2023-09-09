@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-#include "src/cursors.h"
+#include "src/infrastructure/screen/cursors.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/const_tree.h"
 #include "src/language/safe_types.h"
@@ -22,8 +22,8 @@ class BufferContents : public tests::fuzz::FuzzTestable {
       256>;
 
  public:
-  using UpdateListener =
-      std::function<void(const CursorsTracker::Transformation&)>;
+  using UpdateListener = std::function<void(
+      const infrastructure::screen::CursorsTracker::Transformation&)>;
 
   BufferContents();
   virtual ~BufferContents() = default;
@@ -125,7 +125,7 @@ class BufferContents : public tests::fuzz::FuzzTestable {
     for (auto& line : lines) {
       lines_ = Lines::PushBack(std::move(lines_), std::move(line));
     }
-    update_listener_(CursorsTracker::Transformation());
+    update_listener_(infrastructure::screen::CursorsTracker::Transformation());
   }
 
   // If modifiers is present, applies it to every character (overriding
@@ -194,12 +194,13 @@ class BufferContents : public tests::fuzz::FuzzTestable {
   void TransformLine(language::text::LineNumber line_number,
                      Callback callback) {
     TransformLine(line_number, std::move(callback),
-                  CursorsTracker::Transformation());
+                  infrastructure::screen::CursorsTracker::Transformation());
   }
 
   template <typename Callback>
   void TransformLine(language::text::LineNumber line_number, Callback callback,
-                     CursorsTracker::Transformation cursors_transformation) {
+                     infrastructure::screen::CursorsTracker::Transformation
+                         cursors_transformation) {
     static infrastructure::Tracker tracker(L"BufferContents::TransformLine");
     auto tracker_call = tracker.Call();
     if (lines_ == nullptr) {

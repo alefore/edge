@@ -71,8 +71,6 @@ src/concurrent/version_property_receiver.cc \
 src/concurrent/version_property_receiver.h \
 src/concurrent/work_queue.cc \
 src/concurrent/work_queue.h \
-src/cursors.cc \
-src/cursors.h \
 src/direction.cc \
 src/directory_listing.h \
 src/directory_listing.cc \
@@ -109,6 +107,8 @@ src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
+src/infrastructure/screen/cursors.cc \
+src/infrastructure/screen/cursors.h \
 src/infrastructure/screen/line_modifier.cc \
 src/infrastructure/screen/line_modifier.h \
 src/infrastructure/screen/screen.h \

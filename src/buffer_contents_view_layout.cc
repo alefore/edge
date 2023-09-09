@@ -19,6 +19,7 @@
 
 namespace afc::editor {
 namespace {
+using infrastructure::screen::CursorsSet;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::text::Line;

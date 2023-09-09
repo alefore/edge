@@ -17,10 +17,12 @@
 #include "src/transformation/set_position.h"
 
 namespace afc::editor {
+using infrastructure::screen::CursorsSet;
 using language::Error;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
+
 namespace transformation {
 futures::Value<Result> ApplyBase(const SwapActiveCursor& swap_active_cursor,
                                  Input input) {

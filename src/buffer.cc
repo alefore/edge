@@ -79,6 +79,8 @@ using infrastructure::Path;
 using infrastructure::PathComponent;
 using infrastructure::Tracker;
 using infrastructure::UpdateIfMillisecondsHavePassed;
+using infrastructure::screen::CursorsSet;
+using infrastructure::screen::CursorsTracker;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
 using infrastructure::screen::VisualOverlay;

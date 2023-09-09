@@ -78,7 +78,7 @@ struct SeekInput {
   std::wstring line_prefix_characters;
   std::wstring symbol_characters;
   language::NonNull<std::shared_ptr<const ParseTree>> parse_tree;
-  const CursorsSet* cursors;
+  const infrastructure::screen::CursorsSet* cursors;
   // Input-output parameter.
   //
   // TODO(easy, 2023-08-17): Replace with an output parameter.

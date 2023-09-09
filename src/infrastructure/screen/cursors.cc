@@ -1,4 +1,4 @@
-#include "src/cursors.h"
+#include "src/infrastructure/screen/cursors.h"
 
 #include <algorithm>
 #include <cmath>
@@ -11,7 +11,7 @@
 #include "src/language/lazy_string/substring.h"
 #include "src/language/wstring.h"
 
-namespace afc::editor {
+namespace afc::infrastructure::screen {
 using language::EmptyValue;
 using language::MakeNonNullShared;
 using language::NonNull;
@@ -524,4 +524,4 @@ bool operator==(const CursorsTracker::Transformation& a,
          a.column_lower_bound == b.column_lower_bound;
 }
 
-}  // namespace afc::editor
+}  // namespace afc::infrastructure::screen

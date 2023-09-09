@@ -13,11 +13,11 @@
 #include "src/buffer_name.h"
 #include "src/buffer_syntax_parser.h"
 #include "src/concurrent/work_queue.h"
-#include "src/cursors.h"
 #include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/screen/cursors.h"
 #include "src/infrastructure/screen/visual_overlay.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -266,12 +266,14 @@ class OpenBuffer {
   // contents() is empty).
   void CheckPosition();
 
-  CursorsSet& FindOrCreateCursors(const std::wstring& name);
+  infrastructure::screen::CursorsSet& FindOrCreateCursors(
+      const std::wstring& name);
   // May return nullptr.
-  const CursorsSet* FindCursors(const std::wstring& name) const;
+  const infrastructure::screen::CursorsSet* FindCursors(
+      const std::wstring& name) const;
 
-  CursorsSet& active_cursors();
-  const CursorsSet& active_cursors() const;
+  infrastructure::screen::CursorsSet& active_cursors();
+  const infrastructure::screen::CursorsSet& active_cursors() const;
 
   // Removes all active cursors and replaces them with the ones given. The old
   // cursors are saved and can be restored with ToggleActiveCursors.
@@ -626,7 +628,7 @@ class OpenBuffer {
   std::list<language::NonNull<std::unique_ptr<transformation::Stack>>>
       last_transformation_stack_;
 
-  CursorsTracker cursors_tracker_;
+  infrastructure::screen::CursorsTracker cursors_tracker_;
 
   size_t tree_depth_ = 0;
 

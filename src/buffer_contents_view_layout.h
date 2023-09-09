@@ -20,7 +20,7 @@ struct BufferContentsViewLayout {
     // If present, adjusts the view (`begin`) to contain this location.
     std::optional<language::text::LineColumn> active_position;
 
-    const CursorsSet& active_cursors;
+    const infrastructure::screen::CursorsSet& active_cursors;
 
     LineWrapStyle line_wrap_style;
     std::wstring symbol_characters;
