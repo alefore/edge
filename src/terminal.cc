@@ -50,29 +50,30 @@ constexpr int Terminal::CTRL_K;
 Terminal::Terminal() : lines_cache_(1024) {}
 
 namespace {
-LineWithCursor::Generator::Vector GetLines(const EditorState& editor_state,
-                                           const Screen& screen) {
+LineWithCursor::Generator::Vector GetLines(
+    const BuffersList& buffers_list, const Status& editor_status,
+    const Modifiers& modifiers,
+    std::optional<gc::Root<OpenBuffer>> current_buffer, const Screen& screen) {
   LineColumnDelta screen_size = screen.size();
   LineWithCursor::Generator::Vector status_lines =
-      StatusOutput({.status = editor_state.status(),
+      StatusOutput({.status = editor_status,
                     .buffer = nullptr,
-                    .modifiers = editor_state.modifiers(),
+                    .modifiers = modifiers,
                     .size = screen_size});
 
-  std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   LineWithCursor::Generator::Vector output =
-      editor_state.buffer_tree().GetLines(Widget::OutputProducerOptions{
+      buffers_list.GetLines(Widget::OutputProducerOptions{
           .size = LineColumnDelta(screen_size.line, screen_size.column),
           .main_cursor_display =
-              (editor_state.status().GetType() == Status::Type::kPrompt ||
-               (buffer.has_value() &&
-                buffer->ptr()->status().GetType() == Status::Type::kPrompt))
+              (editor_status.GetType() == Status::Type::kPrompt ||
+               (current_buffer.has_value() &&
+                current_buffer->ptr()->status().GetType() ==
+                    Status::Type::kPrompt))
                   ? Widget::OutputProducerOptions::MainCursorDisplay::kInactive
                   : Widget::OutputProducerOptions::MainCursorDisplay::kActive});
   CHECK_EQ(output.size(), screen_size.line);
 
-  (editor_state.status().GetType() == Status::Type::kPrompt ? output
-                                                            : status_lines)
+  (editor_status.GetType() == Status::Type::kPrompt ? output : status_lines)
       .RemoveCursor();
 
   if (!status_lines.lines.empty()) {
@@ -104,7 +105,9 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
 
   LineColumnDelta screen_size = screen.size();
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
-  LineWithCursor::Generator::Vector lines = GetLines(editor_state, screen);
+  LineWithCursor::Generator::Vector lines =
+      GetLines(editor_state.buffer_tree(), editor_state.status(),
+               editor_state.modifiers(), editor_state.current_buffer(), screen);
   CHECK_EQ(lines.size(), screen_size.line);
   for (LineNumber line; line.ToDelta() < screen_size.line; ++line)
     WriteLine(screen, line, lines.lines[line.read()]);
