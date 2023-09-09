@@ -268,7 +268,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
 ValueOrError<std::vector<LineColumn>> SearchHandler(
     EditorState& editor_state, const SearchOptions& options,
     const BufferContents& buffer) {
-  if (!editor_state.has_current_buffer() || options.search_query.empty()) {
+  if (options.search_query.empty()) {
     return {};
   }
 
