@@ -15,6 +15,19 @@
 namespace afc {
 namespace editor {
 
+class BufferContentsObserver {
+ public:
+  virtual ~BufferContentsObserver() = default;
+  virtual void Notify(
+      const infrastructure::screen::CursorsTracker::Transformation&) = 0;
+};
+
+class NullBufferContentsObserver : public BufferContentsObserver {
+ public:
+  void Notify(
+      const infrastructure::screen::CursorsTracker::Transformation&) override;
+};
+
 class BufferContents : public tests::fuzz::FuzzTestable {
   using Lines = language::ConstTree<
       language::VectorBlock<
@@ -22,14 +35,15 @@ class BufferContents : public tests::fuzz::FuzzTestable {
       256>;
 
  public:
-  using UpdateListener = std::function<void(
-      const infrastructure::screen::CursorsTracker::Transformation&)>;
-
   BufferContents();
-  virtual ~BufferContents() = default;
 
   explicit BufferContents(
+      language::NonNull<std::shared_ptr<BufferContentsObserver>> observer);
+
+  static BufferContents WithLine(
       language::NonNull<std::shared_ptr<const language::text::Line>> line);
+
+  virtual ~BufferContents() = default;
 
   wint_t character_at(const language::text::LineColumn& position) const;
 
@@ -97,7 +111,7 @@ class BufferContents : public tests::fuzz::FuzzTestable {
       language::text::LineNumber line_position,
       language::NonNull<std::shared_ptr<const language::text::Line>> line);
 
-  // Does not call update_listener_! That should be done by the caller. Avoid
+  // Does not call observer_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
   // semantic information about what you're doing).
   void set_line(
@@ -124,7 +138,7 @@ class BufferContents : public tests::fuzz::FuzzTestable {
     for (auto& line : lines) {
       lines_ = Lines::PushBack(std::move(lines_), std::move(line));
     }
-    update_listener_(infrastructure::screen::CursorsTracker::Transformation());
+    observer_->Notify(infrastructure::screen::CursorsTracker::Transformation());
   }
 
   // If modifiers is present, applies it to every character (overriding
@@ -178,8 +192,6 @@ class BufferContents : public tests::fuzz::FuzzTestable {
           language::NonNull<std::shared_ptr<const language::text::Line>>>
           lines);
 
-  void SetUpdateListener(UpdateListener update_listener);
-
   // Returns position, but ensuring that it is in a valid position in the
   // contents — that the line is valid, and that the column fits the length of
   // the line.
@@ -211,12 +223,16 @@ class BufferContents : public tests::fuzz::FuzzTestable {
     set_line(line_number,
              language::MakeNonNullShared<const language::text::Line>(
                  std::move(options).Build()));
-    update_listener_(cursors_transformation);
+    observer_->Notify(cursors_transformation);
   }
 
   Lines::Ptr lines_ = Lines::PushBack(nullptr, {});
 
-  UpdateListener update_listener_;
+  // TODO(2023-09-09, easy): Add const qualifier? This should be immutable. But
+  // that is challenging because it disables move construction... which would be
+  // fine (given that there's a copy method), but we use ListenableValues of
+  // this, and ListenableValue requires moves.
+  language::NonNull<std::shared_ptr<BufferContentsObserver>> observer_;
 };
 
 }  // namespace editor

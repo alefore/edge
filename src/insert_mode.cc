@@ -437,7 +437,8 @@ class InsertMode : public EditorMode {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
                     .contents_to_insert = MakeNonNullShared<BufferContents>(
-                        MakeNonNullShared<Line>(value)),
+                        BufferContents::WithLine(
+                            MakeNonNullShared<Line>(value))),
                     .modifiers = {
                         .insertion =
                             options.editor_state.modifiers().insertion}});
@@ -533,7 +534,8 @@ class InsertMode : public EditorMode {
             case Modifiers::ModifyMode::kOverwrite:
               stack.PushBack(transformation::Insert{
                   .contents_to_insert = MakeNonNullShared<BufferContents>(
-                      MakeNonNullShared<const Line>(L" ")),
+                      BufferContents::WithLine(
+                          MakeNonNullShared<const Line>(L" "))),
                   .final_position =
                       direction == Direction::kBackwards
                           ? transformation::Insert::FinalPosition::kStart
@@ -700,9 +702,9 @@ class InsertMode : public EditorMode {
     Range token_range = GetTokenRange(buffer);
     futures::Value<EmptyValue> output =
         buffer.ApplyToCursors(transformation::Insert{
-            .contents_to_insert =
-                MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
-                    LineBuilder(NewLazyString(L" ")).Build())),
+            .contents_to_insert = MakeNonNullShared<BufferContents>(
+                BufferContents::WithLine(MakeNonNullShared<Line>(
+                    LineBuilder(NewLazyString(L" ")).Build()))),
             .modifiers = {.insertion = modify_mode}});
 
     if (model_paths->empty()) {
@@ -760,9 +762,13 @@ class InsertMode : public EditorMode {
                       const ColumnNumberDelta completion_text_size =
                           completion_text->size();
                       stack.PushBack(transformation::Insert{
-                          .contents_to_insert = MakeNonNullShared<
-                              BufferContents>(MakeNonNullShared<Line>(
-                              LineBuilder(std::move(completion_text)).Build())),
+                          .contents_to_insert =
+                              MakeNonNullShared<BufferContents>(
+                                  BufferContents::WithLine(
+                                      MakeNonNullShared<Line>(
+                                          LineBuilder(
+                                              std::move(completion_text))
+                                              .Build()))),
                           .modifiers = {.insertion = modify_mode},
                           .position = position_start});
                       stack.PushBack(transformation::SetPosition(

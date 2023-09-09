@@ -49,6 +49,8 @@ class MapMode;
 class MapModeCommands;
 class UndoState;
 
+class OpenBufferBufferContentsObserver;
+
 class OpenBuffer {
   struct ConstructorAccessTag {};
 
@@ -518,6 +520,8 @@ class OpenBuffer {
       infrastructure::screen::VisualOverlayMap value);
 
  private:
+  friend OpenBufferBufferContentsObserver;
+
   // Code that would normally be in the constructor, but which may require the
   // use of `shared_from_this`. This function will be called by `New` after the
   // instance has been successfully installed into a std::shared_ptr.
@@ -591,6 +595,9 @@ class OpenBuffer {
   std::function<void()> on_exit_handler_;
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
+
+  language::NonNull<std::shared_ptr<OpenBufferBufferContentsObserver>>
+      contents_observer_;
 
   BufferContents contents_;
   infrastructure::screen::VisualOverlayMap visual_overlay_map_;

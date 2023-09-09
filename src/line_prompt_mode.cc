@@ -750,8 +750,9 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   void InitializePromptBuffer(OpenBuffer& buffer) const {
     buffer.Set(buffer_variables::contents_type, options_.prompt_contents_type);
     buffer.ApplyToCursors(transformation::Insert(
-        {.contents_to_insert = MakeNonNullUnique<BufferContents>(
-             MakeNonNullShared<Line>(options_.initial_value))}));
+        {.contents_to_insert =
+             MakeNonNullUnique<BufferContents>(BufferContents::WithLine(
+                 MakeNonNullShared<Line>(options_.initial_value)))}));
   }
 
   // status_buffer is the buffer with the contents of the prompt. tokens_future
@@ -1161,8 +1162,9 @@ InsertModeOptions PromptState::insert_mode_options() {
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Insert(
                             {.contents_to_insert = MakeNonNullUnique<
-                                 BufferContents>(MakeNonNullShared<Line>(
-                                 LineBuilder(std::move(line)).Build()))}));
+                                 BufferContents>(BufferContents::WithLine(
+                                 MakeNonNullShared<Line>(
+                                     LineBuilder(std::move(line)).Build())))}));
                     prompt_state->OnModify();
                     return;
                   }

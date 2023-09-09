@@ -30,12 +30,22 @@ using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::Range;
 
-BufferContents::BufferContents(NonNull<std::shared_ptr<const Line>> line)
-    : lines_(Lines::PushBack(nullptr, std::move(line))),
-      update_listener_([](const CursorsTracker::Transformation&) {}) {}
+void NullBufferContentsObserver::Notify(
+    const infrastructure::screen::CursorsTracker::Transformation&) {}
 
 BufferContents::BufferContents()
-    : update_listener_([](const CursorsTracker::Transformation&) {}) {}
+    : BufferContents(MakeNonNullShared<NullBufferContentsObserver>()) {}
+
+/* static */ BufferContents BufferContents::WithLine(
+    NonNull<std::shared_ptr<const Line>> line) {
+  BufferContents output;
+  output.lines_ = Lines::PushBack(nullptr, std::move(line));
+  return output;
+}
+
+BufferContents::BufferContents(
+    NonNull<std::shared_ptr<BufferContentsObserver>> observer)
+    : observer_(std::move(observer)) {}
 
 LineNumber BufferContents::EndLine() const {
   return LineNumber(0) + size() - LineNumberDelta(1);
@@ -447,9 +457,9 @@ void BufferContents::insert(LineNumber position_line,
     return true;
   });
   lines_ = Lines::Append(prefix, suffix);
-  update_listener_(CursorsTracker::Transformation()
-                       .WithBegin(LineColumn(position_line))
-                       .LineDelta(source.size()));
+  observer_->Notify(CursorsTracker::Transformation()
+                        .WithBegin(LineColumn(position_line))
+                        .LineDelta(source.size()));
 }
 
 bool BufferContents::EveryLine(
@@ -495,9 +505,9 @@ void BufferContents::insert_line(LineNumber line_position,
   CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.read());
   lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
   CHECK_EQ(Lines::Size(lines_), original_size + 1);
-  update_listener_(CursorsTracker::Transformation()
-                       .WithBegin(LineColumn(line_position))
-                       .LineDelta(LineNumberDelta(1)));
+  observer_->Notify(CursorsTracker::Transformation()
+                        .WithBegin(LineColumn(line_position))
+                        .LineDelta(LineNumberDelta(1)));
 }
 
 void BufferContents::set_line(LineNumber position,
@@ -510,7 +520,7 @@ void BufferContents::set_line(LineNumber position,
   }
 
   lines_ = lines_->Replace(position.read(), std::move(line));
-  // TODO: Why no notify update listeners?
+  // TODO: Why no notify observer_?
 }
 
 void BufferContents::DeleteCharactersFromLine(LineColumn position,
@@ -580,10 +590,10 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
   if (cursors_behavior == CursorsBehavior::kUnmodified) {
     return;
   }
-  update_listener_(CursorsTracker::Transformation()
-                       .WithBegin(LineColumn(first))
-                       .LineDelta(first - last)
-                       .LineLowerBound(first));
+  observer_->Notify(CursorsTracker::Transformation()
+                        .WithBegin(LineColumn(first))
+                        .LineDelta(first - last)
+                        .LineLowerBound(first));
 }
 
 void BufferContents::SplitLine(LineColumn position) {
@@ -592,11 +602,11 @@ void BufferContents::SplitLine(LineColumn position) {
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   insert_line(position.line + LineNumberDelta(1),
               MakeNonNullShared<Line>(std::move(builder).Build()));
-  update_listener_(CursorsTracker::Transformation()
-                       .WithBegin(position)
-                       .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
-                       .LineDelta(LineNumberDelta(1))
-                       .ColumnDelta(-position.column.ToDelta()));
+  observer_->Notify(CursorsTracker::Transformation()
+                        .WithBegin(position)
+                        .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
+                        .LineDelta(LineNumberDelta(1))
+                        .ColumnDelta(-position.column.ToDelta()));
   DeleteToLineEnd(position);
 }
 
@@ -609,10 +619,10 @@ void BufferContents::FoldNextLine(LineNumber position) {
   ColumnNumberDelta initial_size = at(position)->EndColumn().ToDelta();
   // TODO: Can maybe combine this with next for fewer updates.
   AppendToLine(position, at(next_line).value());
-  update_listener_(CursorsTracker::Transformation()
-                       .WithLineEq(position + LineNumberDelta(1))
-                       .LineDelta(LineNumberDelta(-1))
-                       .ColumnDelta(initial_size));
+  observer_->Notify(CursorsTracker::Transformation()
+                        .WithLineEq(position + LineNumberDelta(1))
+                        .LineDelta(LineNumberDelta(-1))
+                        .ColumnDelta(initial_size));
   EraseLines(next_line, position + LineNumberDelta(2),
              CursorsBehavior::kAdjust);
 }
@@ -664,7 +674,7 @@ const bool push_back_wstring_tests_registration = tests::Register(
 
 void BufferContents::push_back(NonNull<std::shared_ptr<const Line>> line) {
   lines_ = Lines::PushBack(std::move(lines_), line);
-  update_listener_({});
+  observer_->Notify({});
 }
 
 void BufferContents::append_back(
@@ -678,11 +688,7 @@ void BufferContents::append_back(
   auto tracker_call = tracker.Call();
 
   lines_ = Lines::Append(lines_, subtree);
-  update_listener_({});
-}
-
-void BufferContents::SetUpdateListener(UpdateListener update_listener) {
-  update_listener_ = std::move(update_listener);
+  observer_->Notify({});
 }
 
 LineColumn BufferContents::AdjustLineColumn(LineColumn position) const {

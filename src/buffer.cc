@@ -279,11 +279,48 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
   OpenBuffer& buffer_;
 };
 
+class OpenBufferBufferContentsObserver : public BufferContentsObserver {
+ public:
+  void SetOpenBuffer(gc::WeakPtr<OpenBuffer> buffer) { buffer_ = buffer; }
+
+  void Notify(const CursorsTracker::Transformation& transformation) override {
+    std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
+    if (!root_this.has_value()) return;
+    root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
+        .callback = WeakPtrLockingObserver(buffer_, [](OpenBuffer& buffer) {
+          buffer.MaybeStartUpdatingSyntaxTrees();
+        })});
+    root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
+    if (root_this->ptr()->Read(buffer_variables::persist_state)) {
+      switch (root_this->ptr()->backup_state_) {
+        case OpenBuffer::DiskState::kCurrent: {
+          root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
+          auto flush_backup_time = Now();
+          flush_backup_time.tv_sec += 30;
+          root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
+              .time = flush_backup_time,
+              .callback = [root_this] { root_this->ptr()->UpdateBackup(); }});
+        } break;
+
+        case OpenBuffer::DiskState::kStale:
+          break;  // Nothing.
+      }
+    }
+    root_this->ptr()->UpdateLastAction();
+    root_this->ptr()->cursors_tracker_.AdjustCursors(transformation);
+  }
+
+ private:
+  gc::WeakPtr<OpenBuffer> buffer_;
+};
+
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
       work_queue_(WorkQueue::New()),
+      contents_observer_(MakeNonNullShared<OpenBufferBufferContentsObserver>()),
+      contents_(contents_observer_),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
@@ -757,35 +794,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
           }},
       Path::FromString(Read(buffer_variables::path)));
 
-  contents_.SetUpdateListener(
-      [weak_this](const CursorsTracker::Transformation& transformation) {
-        std::optional<gc::Root<OpenBuffer>> root_this = weak_this.Lock();
-        if (!root_this.has_value()) return;
-        root_this->ptr()->work_queue_->Schedule(
-            WorkQueue::Callback{.callback = WeakPtrLockingObserver(
-                                    weak_this, [](OpenBuffer& buffer) {
-                                      buffer.MaybeStartUpdatingSyntaxTrees();
-                                    })});
-        root_this->ptr()->SetDiskState(DiskState::kStale);
-        if (root_this->ptr()->Read(buffer_variables::persist_state)) {
-          switch (root_this->ptr()->backup_state_) {
-            case DiskState::kCurrent: {
-              root_this->ptr()->backup_state_ = DiskState::kStale;
-              auto flush_backup_time = Now();
-              flush_backup_time.tv_sec += 30;
-              root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
-                  .time = flush_backup_time, .callback = [root_this] {
-                    root_this->ptr()->UpdateBackup();
-                  }});
-            } break;
-
-            case DiskState::kStale:
-              break;  // Nothing.
-          }
-        }
-        root_this->ptr()->UpdateLastAction();
-        root_this->ptr()->cursors_tracker_.AdjustCursors(transformation);
-      });
+  contents_observer_->SetOpenBuffer(weak_this);
 }
 
 void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {

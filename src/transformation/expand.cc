@@ -116,9 +116,9 @@ class PredictorTransformation : public CompositeTransformation {
           Output output;
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
-              .contents_to_insert =
-                  MakeNonNullShared<BufferContents>(MakeNonNullShared<Line>(
-                      results.value().common_prefix.value()))});
+              .contents_to_insert = MakeNonNullShared<BufferContents>(
+                  BufferContents::WithLine(MakeNonNullShared<Line>(
+                      results.value().common_prefix.value())))});
           return output;
         });
   }
@@ -292,8 +292,9 @@ class Execute : public CompositeTransformation {
           Output output;
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
-                .contents_to_insert = MakeNonNullShared<BufferContents>(
-                    MakeNonNullShared<Line>(value.ptr()->get_string()))});
+                .contents_to_insert =
+                    MakeNonNullShared<BufferContents>(BufferContents::WithLine(
+                        MakeNonNullShared<Line>(value.ptr()->get_string())))});
           }
           return futures::Past(Success(std::move(output)));
         })
