@@ -33,7 +33,7 @@ using language::text::Range;
 void NullBufferContentsObserver::LinesInserted(LineNumber, LineNumberDelta) {}
 void NullBufferContentsObserver::LinesErased(LineNumber, LineNumberDelta) {}
 void NullBufferContentsObserver::SplitLine(LineColumn) {}
-
+void NullBufferContentsObserver::FoldedLine(LineColumn) {}
 void NullBufferContentsObserver::Notify(
     const infrastructure::screen::CursorsTracker::Transformation&) {}
 
@@ -577,11 +577,14 @@ void BufferContents::InsertCharacter(LineColumn position) {
   });
 }
 
-void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
-  TransformLine(std::min(position, LineNumber() + size() - LineNumberDelta(1)),
-                [&](LineBuilder& options) {
-                  options.Append(LineBuilder(std::move(line_to_append)));
-                });
+void BufferContents::AppendToLine(LineNumber position, Line line_to_append,
+                                  CursorsBehavior cursors_behavior) {
+  TransformLine(
+      std::min(position, LineNumber() + size() - LineNumberDelta(1)),
+      [&](LineBuilder& options) {
+        options.Append(LineBuilder(std::move(line_to_append)));
+      },
+      cursors_behavior);
 }
 
 void BufferContents::EraseLines(LineNumber first, LineNumber last,
@@ -621,15 +624,11 @@ void BufferContents::FoldNextLine(LineNumber position) {
     return;
   }
 
-  ColumnNumberDelta initial_size = at(position)->EndColumn().ToDelta();
-  // TODO: Can maybe combine this with next for fewer updates.
-  AppendToLine(position, at(next_line).value());
-  observer_->Notify(CursorsTracker::Transformation()
-                        .WithLineEq(position + LineNumberDelta(1))
-                        .LineDelta(LineNumberDelta(-1))
-                        .ColumnDelta(initial_size));
+  ColumnNumber initial_size = at(position)->EndColumn();
+  AppendToLine(position, at(next_line).value(), CursorsBehavior::kUnmodified);
   EraseLines(next_line, position + LineNumberDelta(2),
-             CursorsBehavior::kAdjust);
+             CursorsBehavior::kUnmodified);
+  observer_->FoldedLine(LineColumn(position, initial_size));
 }
 
 void BufferContents::push_back(std::wstring str) {

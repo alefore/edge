@@ -23,6 +23,7 @@ class BufferContentsObserver {
   virtual void LinesErased(language::text::LineNumber position,
                            language::text::LineNumberDelta size) = 0;
   virtual void SplitLine(language::text::LineColumn position) = 0;
+  virtual void FoldedLine(language::text::LineColumn position) = 0;
   virtual void Notify(
       const infrastructure::screen::CursorsTracker::Transformation&) = 0;
 };
@@ -34,6 +35,7 @@ class NullBufferContentsObserver : public BufferContentsObserver {
   void LinesErased(language::text::LineNumber position,
                    language::text::LineNumberDelta size) override;
   void SplitLine(language::text::LineColumn position) override;
+  void FoldedLine(language::text::LineColumn position) override;
   void Notify(
       const infrastructure::screen::CursorsTracker::Transformation&) override;
 };
@@ -183,8 +185,9 @@ class BufferContents : public tests::fuzz::FuzzTestable {
                     infrastructure::screen::LineModifierSet modifiers);
 
   void InsertCharacter(language::text::LineColumn position);
-  void AppendToLine(language::text::LineNumber line,
-                    language::text::Line line_to_append);
+  void AppendToLine(
+      language::text::LineNumber line, language::text::Line line_to_append,
+      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust);
 
   void EraseLines(language::text::LineNumber first,
                   language::text::LineNumber last,

@@ -316,6 +316,17 @@ class OpenBufferBufferContentsObserver : public BufferContentsObserver {
                .ColumnDelta(-position.column.ToDelta()));
   }
 
+  void FoldedLine(LineColumn position) override {
+    // TODO: Can maybe combine for fewer updates?
+    // Move up cursors from the line that was folded, and increase their column.
+    Notify(CursorsTracker::Transformation()
+               .WithLineEq(position.line + LineNumberDelta(1))
+               .LineDelta(LineNumberDelta(-1))
+               .ColumnDelta(position.column.ToDelta()));
+    // Move up all cursors past the line that was folded and erased..
+    LinesErased(position.line + LineNumberDelta(1), LineNumberDelta(1));
+  }
+
   void Notify(const CursorsTracker::Transformation& transformation) override {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
