@@ -62,13 +62,13 @@ class LambdaExpression : public Expression {
     CHECK(std::get<types::Function>(type_).function_purity == body_->purity());
   }
 
-  std::vector<Type> Types() { return {type_}; }
+  std::vector<Type> Types() override { return {type_}; }
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override { return PurityType::kPure; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
-                                                   const Type& type) {
+                                                   const Type& type) override {
     auto promotion_function = GetImplicitPromotion(type_, type);
     CHECK(promotion_function != nullptr);
     return futures::Past(Success(EvaluationOutput::New(promotion_function(
