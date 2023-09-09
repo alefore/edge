@@ -49,6 +49,8 @@ class NullBufferContentsObserver : public BufferContentsObserver {
   void InsertedCharacter(language::text::LineColumn position) override;
 };
 
+// TODO(trivial, 2023-09-10): Rename to a more fitting name. Perhaps
+// LineSequence.
 class BufferContents : public tests::fuzz::FuzzTestable {
   using Lines = language::ConstTree<
       language::VectorBlock<
