@@ -28,7 +28,6 @@ cc_library(
     hdrs = ["buffer_contents.h"],
     visibility = ["//src/transformation:__pkg__"],
     deps = [
-        ":cursors",
         "//src/language:const_tree",
         "//src/language:safe_types",
         "//src/language/text:line",
@@ -78,7 +77,6 @@ cc_library(
         ":buffer_contents",
         ":buffer_name",
         ":buffer_syntax_parser",
-        ":cursors",
         ":file_descriptor_reader",
         ":line_marks",
         ":log",
@@ -91,6 +89,7 @@ cc_library(
         "//src/concurrent:work_queue",
         "//src/futures",
         "//src/infrastructure:dirname",
+        "//src/infrastructure/screen:cursors",
         "//src/infrastructure/screen:visual_overlay",
         "//src/language:ghost_type",
         "//src/language:observers",
