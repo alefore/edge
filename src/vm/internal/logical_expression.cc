@@ -27,7 +27,7 @@ class LogicalExpression : public Expression {
   std::vector<Type> Types() override { return {types::Bool{}}; }
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
-  PurityType purity() {
+  PurityType purity() override {
     return expr_a_->purity() == PurityType::kPure &&
                    expr_b_->purity() == PurityType::kPure
                ? PurityType::kPure
