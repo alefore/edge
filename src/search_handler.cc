@@ -5,7 +5,6 @@
 #include <set>
 
 #include "src/buffer_variables.h"
-#include "src/editor.h"
 #include "src/infrastructure/audio.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -278,18 +277,19 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
   return PerformSearchWithDirection(work_queue, direction, options, buffer);
 }
 
-void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
-                     OpenBuffer& buffer) {
-  std::optional<std::vector<LineColumn>> results = OptionalFrom(SearchHandler(
-      editor_state.work_queue(), editor_state.modifiers().direction, options,
-      buffer.contents()));
-  if (!results.has_value() || results->empty()) {
-    buffer.status().SetInformationText(Append(
-        NewLazyString(L"No matches: "), NewLazyString(options.search_query)));
-  } else {
-    buffer.set_position(results.value()[0]);
-    editor_state.PushCurrentPosition();
-  }
+ValueOrError<LineColumn> GetNextMatch(
+    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
+    Direction direction, const SearchOptions& options, OpenBuffer& buffer) {
+  // TODO(trivial, 2023-09-09): Switch to VisitPointer.
+  if (std::optional<std::vector<LineColumn>> results = OptionalFrom(
+          SearchHandler(work_queue, direction, options, buffer.contents()));
+      results.has_value() && !results->empty())
+    return results->at(0);
+
+  // TODO(easy, 2023-09-09): Get rid of ToString.
+  return Error(Append(NewLazyString(L"No matches: "),
+                      NewLazyString(options.search_query))
+                   ->ToString());
 }
 
 void HandleSearchResults(

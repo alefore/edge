@@ -42,6 +42,7 @@ namespace afc::editor {
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::VisitPointer;
+using language::lazy_string::NewLazyString;
 namespace {
 using concurrent::ThreadPool;
 using concurrent::WorkQueue;
@@ -60,8 +61,8 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
-using language::lazy_string::NewLazyString;
 using language::text::Line;
+using language::text::LineColumn;
 using language::text::LineNumber;
 
 namespace gc = language::gc;
@@ -505,7 +506,17 @@ gc::Root<OpenBuffer> CreateBuffer(
     SearchOptions search_options;
     search_options.starting_position = buffer.ptr()->position();
     search_options.search_query = resolve_path_output->pattern.value();
-    JumpToNextMatch(options.editor_state, search_options, buffer.ptr().value());
+    std::visit(overload{[&](LineColumn position) {
+                          buffer.ptr()->set_position(position);
+                          editor_state.PushCurrentPosition();
+                        },
+                        [&buffer](Error error) {
+                          buffer.ptr()->status().SetInformationText(
+                              NewLazyString(error.read()));
+                        }},
+               GetNextMatch(options.editor_state.work_queue(),
+                            options.editor_state.modifiers().direction,
+                            search_options, buffer.ptr().value()));
   }
   return buffer;
 }

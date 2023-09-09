@@ -13,7 +13,6 @@
 
 namespace afc {
 namespace editor {
-class EditorState;
 class OpenBuffer;
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
@@ -52,8 +51,9 @@ void HandleSearchResults(
         results_or_error,
     OpenBuffer& buffer);
 
-void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
-                     OpenBuffer& buffer);
+language::ValueOrError<language::text::LineColumn> GetNextMatch(
+    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
+    Direction direction, const SearchOptions& options, OpenBuffer& buffer);
 
 struct SearchResultsSummary {
   size_t matches = 0;
