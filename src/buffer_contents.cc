@@ -15,7 +15,6 @@
 
 namespace afc::editor {
 using infrastructure::Tracker;
-using infrastructure::screen::CursorsTracker;
 using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
@@ -34,8 +33,12 @@ void NullBufferContentsObserver::LinesInserted(LineNumber, LineNumberDelta) {}
 void NullBufferContentsObserver::LinesErased(LineNumber, LineNumberDelta) {}
 void NullBufferContentsObserver::SplitLine(LineColumn) {}
 void NullBufferContentsObserver::FoldedLine(LineColumn) {}
-void NullBufferContentsObserver::Notify(
-    const infrastructure::screen::CursorsTracker::Transformation&) {}
+void NullBufferContentsObserver::Sorted() {}
+void NullBufferContentsObserver::AppendedToLine(language::text::LineColumn) {}
+void NullBufferContentsObserver::DeletedCharacters(LineColumn,
+                                                   ColumnNumberDelta) {}
+void NullBufferContentsObserver::SetCharacter(LineColumn) {}
+void NullBufferContentsObserver::InsertedCharacter(LineColumn) {}
 
 BufferContents::BufferContents()
     : BufferContents(MakeNonNullShared<NullBufferContentsObserver>()) {}
@@ -538,19 +541,16 @@ void BufferContents::DeleteCharactersFromLine(
   CHECK_GT(amount, ColumnNumberDelta(0));
   CHECK_LE(position.column + amount, at(position.line)->EndColumn());
 
-  TransformLine(
-      position.line,
-      [&](LineBuilder& options) {
-        options.DeleteCharacters(position.column, amount);
-      },
-      cursors_behavior == CursorsBehavior::kAdjust
-          ? std::make_optional(
-                CursorsTracker::Transformation()
-                    .WithBegin(position)
-                    .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
-                    .ColumnDelta(-amount)
-                    .ColumnLowerBound(position.column))
-          : std::optional<CursorsTracker::Transformation>());
+  TransformLine(position.line, [&](LineBuilder& options) {
+    options.DeleteCharacters(position.column, amount);
+  });
+
+  switch (cursors_behavior) {
+    case CursorsBehavior::kUnmodified:
+      break;
+    case CursorsBehavior::kAdjust:
+      observer_->DeletedCharacters(position, amount);
+  }
 }
 
 void BufferContents::DeleteToLineEnd(LineColumn position,
@@ -569,22 +569,30 @@ void BufferContents::SetCharacter(LineColumn position, int c,
   TransformLine(position.line, [&](LineBuilder& options) {
     options.SetCharacter(position.column, c, modifiers);
   });
+
+  observer_->SetCharacter(position);
 }
 
 void BufferContents::InsertCharacter(LineColumn position) {
   TransformLine(position.line, [&](LineBuilder& options) {
     options.InsertCharacterAtPosition(position.column);
   });
+  observer_->InsertedCharacter(position);
 }
 
-void BufferContents::AppendToLine(LineNumber position, Line line_to_append,
+void BufferContents::AppendToLine(LineNumber line, Line line_to_append,
                                   CursorsBehavior cursors_behavior) {
-  TransformLine(
-      std::min(position, LineNumber() + size() - LineNumberDelta(1)),
-      [&](LineBuilder& options) {
-        options.Append(LineBuilder(std::move(line_to_append)));
-      },
-      cursors_behavior);
+  const LineColumn position = LineColumn(
+      std::min(line, EndLine()), at(std::min(line, EndLine()))->EndColumn());
+  TransformLine(position.line, [&](LineBuilder& options) {
+    options.Append(LineBuilder(std::move(line_to_append)));
+  });
+  switch (cursors_behavior) {
+    case CursorsBehavior::kUnmodified:
+      break;
+    case CursorsBehavior::kAdjust:
+      observer_->AppendedToLine(position);
+  }
 }
 
 void BufferContents::EraseLines(LineNumber first, LineNumber last,

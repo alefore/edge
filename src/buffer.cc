@@ -327,7 +327,26 @@ class OpenBufferBufferContentsObserver : public BufferContentsObserver {
     LinesErased(position.line + LineNumberDelta(1), LineNumberDelta(1));
   }
 
-  void Notify(const CursorsTracker::Transformation& transformation) override {
+  void Sorted() override { Notify({}); }
+
+  void AppendedToLine(language::text::LineColumn) override { Notify({}); }
+
+  void DeletedCharacters(LineColumn position,
+                         ColumnNumberDelta amount) override {
+    Notify(CursorsTracker::Transformation()
+               .WithBegin(position)
+               .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
+               .ColumnDelta(-amount)
+               .ColumnLowerBound(position.column));
+  }
+
+  void SetCharacter(LineColumn) override { Notify(); }
+
+  void InsertedCharacter(LineColumn) override { Notify(); }
+
+ private:
+  void Notify(std::optional<CursorsTracker::Transformation> transformation =
+                  std::nullopt) {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
     root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
@@ -351,7 +370,12 @@ class OpenBufferBufferContentsObserver : public BufferContentsObserver {
       }
     }
     root_this->ptr()->UpdateLastAction();
-    root_this->ptr()->cursors_tracker_.AdjustCursors(transformation);
+    VisitPointer(
+        transformation,
+        [&](const CursorsTracker::Transformation& transformation) {
+          root_this->ptr()->cursors_tracker_.AdjustCursors(transformation);
+        },
+        [] {});
   }
 
  private:

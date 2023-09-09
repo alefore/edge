@@ -4,6 +4,7 @@
 #include <string>
 
 #include "src/direction.h"
+#include "src/infrastructure/screen/cursors.h"
 #include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 

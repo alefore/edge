@@ -4,7 +4,6 @@
 #include <memory>
 #include <vector>
 
-#include "src/infrastructure/screen/cursors.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/const_tree.h"
 #include "src/language/safe_types.h"
@@ -24,8 +23,13 @@ class BufferContentsObserver {
                            language::text::LineNumberDelta size) = 0;
   virtual void SplitLine(language::text::LineColumn position) = 0;
   virtual void FoldedLine(language::text::LineColumn position) = 0;
-  virtual void Notify(
-      const infrastructure::screen::CursorsTracker::Transformation&) = 0;
+  virtual void Sorted() = 0;
+  virtual void AppendedToLine(language::text::LineColumn position) = 0;
+  virtual void DeletedCharacters(
+      language::text::LineColumn position,
+      language::lazy_string::ColumnNumberDelta amount) = 0;
+  virtual void SetCharacter(language::text::LineColumn position) = 0;
+  virtual void InsertedCharacter(language::text::LineColumn position) = 0;
 };
 
 class NullBufferContentsObserver : public BufferContentsObserver {
@@ -36,8 +40,13 @@ class NullBufferContentsObserver : public BufferContentsObserver {
                    language::text::LineNumberDelta size) override;
   void SplitLine(language::text::LineColumn position) override;
   void FoldedLine(language::text::LineColumn position) override;
-  void Notify(
-      const infrastructure::screen::CursorsTracker::Transformation&) override;
+  void Sorted() override;
+  void AppendedToLine(language::text::LineColumn position) override;
+  void DeletedCharacters(
+      language::text::LineColumn position,
+      language::lazy_string::ColumnNumberDelta amount) override;
+  void SetCharacter(language::text::LineColumn position) override;
+  void InsertedCharacter(language::text::LineColumn position) override;
 };
 
 class BufferContents : public tests::fuzz::FuzzTestable {
@@ -119,6 +128,8 @@ class BufferContents : public tests::fuzz::FuzzTestable {
 
   size_t CountCharacters() const;
 
+  // TODO(trivial, 2023-09-10): Rename this to a more fitting name. Perhaps:
+  // ObserverBehavior { kNotify, kHide }.
   enum class CursorsBehavior { kAdjust, kUnmodified };
 
   void insert_line(
@@ -153,7 +164,7 @@ class BufferContents : public tests::fuzz::FuzzTestable {
     for (auto& line : lines) {
       lines_ = Lines::PushBack(std::move(lines_), std::move(line));
     }
-    observer_->Notify(infrastructure::screen::CursorsTracker::Transformation());
+    observer_->Sorted();
   }
 
   // If modifiers is present, applies it to every character (overriding
@@ -219,22 +230,8 @@ class BufferContents : public tests::fuzz::FuzzTestable {
 
  private:
   template <typename Callback>
-  void TransformLine(
-      language::text::LineNumber line_number, Callback callback,
-      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust) {
-    TransformLine(
-        line_number, std::move(callback),
-        cursors_behavior == CursorsBehavior::kAdjust
-            ? std::make_optional(
-                  infrastructure::screen::CursorsTracker::Transformation())
-            : std::nullopt);
-  }
-
-  template <typename Callback>
-  void TransformLine(
-      language::text::LineNumber line_number, Callback callback,
-      std::optional<infrastructure::screen::CursorsTracker::Transformation>
-          cursors_transformation) {
+  void TransformLine(language::text::LineNumber line_number,
+                     Callback callback) {
     static infrastructure::Tracker tracker(L"BufferContents::TransformLine");
     auto tracker_call = tracker.Call();
     if (lines_ == nullptr) {
@@ -246,8 +243,6 @@ class BufferContents : public tests::fuzz::FuzzTestable {
     set_line(line_number,
              language::MakeNonNullShared<const language::text::Line>(
                  std::move(options).Build()));
-    if (cursors_transformation.has_value())
-      observer_->Notify(*cursors_transformation);
   }
 
   Lines::Ptr lines_ = Lines::PushBack(nullptr, {});
