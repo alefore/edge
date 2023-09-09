@@ -53,7 +53,8 @@ void HandleSearchResults(
 
 language::ValueOrError<language::text::LineColumn> GetNextMatch(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
-    Direction direction, const SearchOptions& options, OpenBuffer& buffer);
+    Direction direction, const SearchOptions& options,
+    const BufferContents& contents);
 
 struct SearchResultsSummary {
   size_t matches = 0;

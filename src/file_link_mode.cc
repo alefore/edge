@@ -516,7 +516,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                         }},
                GetNextMatch(options.editor_state.work_queue(),
                             options.editor_state.modifiers().direction,
-                            search_options, buffer.ptr().value()));
+                            search_options, buffer.ptr()->contents()));
   }
   return buffer;
 }
