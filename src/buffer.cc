@@ -283,10 +283,18 @@ class OpenBufferBufferContentsObserver : public BufferContentsObserver {
  public:
   void SetOpenBuffer(gc::WeakPtr<OpenBuffer> buffer) { buffer_ = buffer; }
 
-  void LinesInserted(LineNumber position, LineNumberDelta lines_inserted) {
+  void LinesInserted(LineNumber position, LineNumberDelta size) override {
     Notify(CursorsTracker::Transformation()
                .WithBegin(LineColumn(position))
-               .LineDelta(lines_inserted));
+               .LineDelta(size));
+  }
+
+  void LinesErased(LineNumber position, LineNumberDelta size) override {
+    CHECK_GE(size, LineNumberDelta(0));
+    Notify(CursorsTracker::Transformation()
+               .WithBegin(LineColumn(position))
+               .LineDelta(-size)
+               .LineLowerBound(position));
   }
 
   void Notify(const CursorsTracker::Transformation& transformation) override {

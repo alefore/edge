@@ -19,7 +19,9 @@ class BufferContentsObserver {
  public:
   virtual ~BufferContentsObserver() = default;
   virtual void LinesInserted(language::text::LineNumber position,
-                             language::text::LineNumberDelta lines) = 0;
+                             language::text::LineNumberDelta size) = 0;
+  virtual void LinesErased(language::text::LineNumber position,
+                           language::text::LineNumberDelta size) = 0;
   virtual void Notify(
       const infrastructure::screen::CursorsTracker::Transformation&) = 0;
 };
@@ -27,7 +29,9 @@ class BufferContentsObserver {
 class NullBufferContentsObserver : public BufferContentsObserver {
  public:
   void LinesInserted(language::text::LineNumber position,
-                     language::text::LineNumberDelta lines) override;
+                     language::text::LineNumberDelta size) override;
+  void LinesErased(language::text::LineNumber position,
+                   language::text::LineNumberDelta size) override;
   void Notify(
       const infrastructure::screen::CursorsTracker::Transformation&) override;
 };

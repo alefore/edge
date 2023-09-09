@@ -31,6 +31,7 @@ using language::text::LineNumberDelta;
 using language::text::Range;
 
 void NullBufferContentsObserver::LinesInserted(LineNumber, LineNumberDelta) {}
+void NullBufferContentsObserver::LinesErased(LineNumber, LineNumberDelta) {}
 
 void NullBufferContentsObserver::Notify(
     const infrastructure::screen::CursorsTracker::Transformation&) {}
@@ -575,7 +576,7 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
   if (first == last) {
     return;  // Optimization to avoid notifying listeners.
   }
-  CHECK_LE(first, last);
+  CHECK_LT(first, last);
   CHECK_LE(last, LineNumber(0) + size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
   lines_ = Lines::Append(Lines::Prefix(lines_, first.read()),
@@ -588,10 +589,7 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
   if (cursors_behavior == CursorsBehavior::kUnmodified) {
     return;
   }
-  observer_->Notify(CursorsTracker::Transformation()
-                        .WithBegin(LineColumn(first))
-                        .LineDelta(first - last)
-                        .LineLowerBound(first));
+  observer_->LinesErased(first, last - first);
 }
 
 void BufferContents::SplitLine(LineColumn position) {
