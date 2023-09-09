@@ -169,11 +169,11 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
 // Returns all matches starting at start. If end is not nullptr, only matches
 // in the region enclosed by start and *end will be returned.
 ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
-    EditorState& editor_state, const SearchOptions& options,
+    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
+    Direction direction, const SearchOptions& options,
     const BufferContents& contents) {
-  auto direction = editor_state.modifiers().direction;
   auto dummy_progress_channel = std::make_unique<ProgressChannel>(
-      editor_state.work_queue(), [](ProgressInformation) {},
+      work_queue, [](ProgressInformation) {},
       WorkQueueChannelConsumeMode::kLastAvailable);
   ASSIGN_OR_RETURN(
       std::vector<LineColumn> results,
@@ -227,9 +227,11 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
   options.search_query = input.input;
   options.starting_position = buffer.position();
 
-  ASSIGN_OR_RETURN(std::vector<LineColumn> positions,
-                   buffer.status().LogErrors(PerformSearchWithDirection(
-                       input.editor, options, buffer.contents())));
+  ASSIGN_OR_RETURN(
+      std::vector<LineColumn> positions,
+      buffer.status().LogErrors(PerformSearchWithDirection(
+          input.editor.work_queue(), input.editor.modifiers().direction,
+          options, buffer.contents())));
 
   // Get the first kMatchesLimit matches:
   for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit;
@@ -270,7 +272,9 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
     return {};
   }
 
-  return PerformSearchWithDirection(editor_state, options, buffer);
+  return PerformSearchWithDirection(editor_state.work_queue(),
+                                    editor_state.modifiers().direction, options,
+                                    buffer);
 }
 
 void JumpToNextMatch(EditorState& editor_state, const SearchOptions& options,
