@@ -17,7 +17,12 @@ void ClangFormatOnSave() {
                       "\", false); original_buffer.Reload(); "
                       "original_buffer.SetStatus(\"clang-reformat 🗸\");'");
   options.set_insertion_type("ignore");
-  editor.ForkCommand(options);
+  Buffer clang_buffer = editor.ForkCommand(options);
+
+  // We deliberately wait, in case other hooks want to execute further commands
+  // on the file: we'd like those commands to get the updated (reformatted)
+  // contents.
+  clang_buffer.WaitForEndOfFile();
 }
 
 void ClangFormatToggle() {
