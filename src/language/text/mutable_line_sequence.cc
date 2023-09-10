@@ -103,7 +103,7 @@ MutableLineSequence MutableLineSequenceForTests() {
   output.push_back(L"forero");
   output.push_back(L"cuervo");
   LOG(INFO) << "Contents: " << output.snapshot().ToString();
-  return output;
+  return std::move(output);
 }
 
 const bool filter_to_range_tests_registration = tests::Register(
@@ -608,6 +608,26 @@ void MutableLineSequence::SplitLine(LineColumn position) {
               CursorsBehavior::kUnmodified);
   observer_->SplitLine(position);
   DeleteToLineEnd(position, CursorsBehavior::kUnmodified);
+}
+
+namespace {
+const bool split_line_tests_registration = tests::Register(
+    L"MutableLineSequence::SplitLine",
+    {
+        {.name = L"Normal",
+         .callback =
+             [] {
+               MutableLineSequence contents;
+               contents.push_back(L"foo");
+               contents.push_back(L"alejandro");
+               contents.push_back(L"forero");
+               CHECK(contents.snapshot().ToString() ==
+                     L"\nfoo\nalejandro\nforero");
+               contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)));
+               CHECK(contents.snapshot().ToString() ==
+                     L"\nfoo\nale\njandro\nforero");
+             }},
+    });
 }
 
 void MutableLineSequence::FoldNextLine(LineNumber position) {
