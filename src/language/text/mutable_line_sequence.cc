@@ -208,13 +208,6 @@ const bool filter_to_range_tests_registration = tests::Register(
     });
 }  // namespace
 
-wint_t MutableLineSequence::character_at(const LineColumn& position) const {
-  CHECK_LE(position.line, EndLine());
-  auto line = at(position.line);
-  return position.column >= line->EndColumn() ? L'\n'
-                                              : line->get(position.column);
-}
-
 LineColumn MutableLineSequence::PositionBefore(LineColumn position) const {
   if (position.line > EndLine()) {
     position.line = EndLine();
