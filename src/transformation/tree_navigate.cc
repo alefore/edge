@@ -20,7 +20,7 @@ futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
   NonNull<std::shared_ptr<const ParseTree>> root = input.buffer.parse_tree();
   NonNull<const ParseTree*> tree = root.get();
   auto next_position = input.position;
-  Seek(input.buffer.contents(), &next_position).Once();
+  Seek(input.buffer.contents().snapshot(), &next_position).Once();
 
   while (true) {
     // Find the first relevant child at the current level.
@@ -46,7 +46,7 @@ futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
   }
 
   auto last_position = tree->range().end;
-  Seek(input.buffer.contents(), &last_position).Backwards().Once();
+  Seek(input.buffer.contents().snapshot(), &last_position).Backwards().Once();
   return futures::Past(Output::SetPosition(
       input.position == last_position ? tree->range().begin : last_position));
 }

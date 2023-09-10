@@ -65,7 +65,7 @@ class ParseData {
   ParseData(const language::text::MutableLineSequence& buffer,
             std::vector<size_t> initial_states,
             language::text::LineColumn limit)
-      : buffer_(buffer), seek_(buffer_, &position_) {
+      : buffer_(buffer), seek_(buffer_.snapshot(), &position_) {
     parse_results_.states_stack = std::move(initial_states);
     seek_.WithRange(language::text::Range(language::text::LineColumn(), limit))
         .WrappingLines();

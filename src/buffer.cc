@@ -1588,7 +1588,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   if (modifiers.direction == Direction::kBackwards &&
       modifiers.structure != Structure::kTree) {
     // TODO: Handle this in structure.
-    Seek(contents_, &position).Backwards().WrappingLines().Once();
+    Seek(contents_.snapshot(), &position).Backwards().WrappingLines().Once();
   }
 
   output.begin = position;
@@ -1608,7 +1608,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     case Modifiers::LIMIT_CURRENT: {
       if (SeekToLimit(
               NewSeekInput(modifiers.structure, backward, &output.begin))) {
-        Seek(contents_, &output.begin)
+        Seek(contents_.snapshot(), &output.begin)
             .WrappingLines()
             .WithDirection(forward)
             .Once();
@@ -1662,7 +1662,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     output.end = output.begin;
     output.begin = tmp;
     if (move_start) {
-      Seek(contents_, &output.begin).WrappingLines().Once();
+      Seek(contents_.snapshot(), &output.begin).WrappingLines().Once();
     }
   }
   LOG(INFO) << "After wrap: " << output;
