@@ -622,7 +622,8 @@ void OpenBuffer::ClearContents(
     MutableLineSequence::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
   options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
-  options_.editor.line_marks().ExpireMarksFromSource(contents(), name());
+  options_.editor.line_marks().ExpireMarksFromSource(contents().snapshot(),
+                                                     name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
                        cursors_behavior);
   if (terminal_ != nullptr) {
@@ -1296,6 +1297,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
   }
 }
 
+// TODO(trivial, 2023-09-10): Receive contents_to_insert as LineSequence.
 LineColumn OpenBuffer::InsertInPosition(
     const MutableLineSequence& contents_to_insert,
     const LineColumn& input_position,
@@ -1312,7 +1314,8 @@ LineColumn OpenBuffer::InsertInPosition(
     position.column = contents_.at(position.line)->EndColumn();
   }
   contents_.SplitLine(position);
-  contents_.insert(position.line.next(), contents_to_insert, modifiers);
+  contents_.insert(position.line.next(), contents_to_insert.snapshot(),
+                   modifiers);
   contents_.FoldNextLine(position.line);
   SetMutableLineSequenceLineMetadata(*this, contents_, position.line);
 

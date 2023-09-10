@@ -45,11 +45,14 @@ class LineSequence {
   // if the callback returns false. Returns true iff the callback always
   // returned true.
   bool EveryLine(
-      const std::function<bool(LineNumber, const Line&)>& callback) const;
+      const std::function<bool(
+          LineNumber, const language::NonNull<std::shared_ptr<const Line>>&)>&
+          callback) const;
 
   // Convenience wrappers of the above.
-  void ForEach(
-      const std::function<void(const language::text::Line&)>& callback) const;
+  void ForEach(const std::function<
+               void(const language::NonNull<std::shared_ptr<const Line>>&)>&
+                   callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
 
   wint_t character_at(const LineColumn& position) const;

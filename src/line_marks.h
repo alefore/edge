@@ -55,7 +55,7 @@ struct LineMarks {
 
   void RemoveSource(const BufferName& source);
 
-  void ExpireMarksFromSource(const language::text::MutableLineSequence& source_buffer,
+  void ExpireMarksFromSource(const language::text::LineSequence& source_buffer,
                              const BufferName& source);
   void RemoveExpiredMarksFromSource(const BufferName& source);
 

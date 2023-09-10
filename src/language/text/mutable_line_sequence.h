@@ -163,8 +163,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // If modifiers is present, applies it to every character (overriding
   // modifiers from the source).
   void insert(
-      language::text::LineNumber position_line,
-      const MutableLineSequence& source,
+      language::text::LineNumber position_line, const LineSequence& source,
       const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
   // Delete characters from position.line in range [position.column,

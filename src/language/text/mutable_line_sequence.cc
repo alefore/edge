@@ -437,20 +437,21 @@ const bool position_after_tests_registration = tests::Register(
 }
 
 void MutableLineSequence::insert(
-    LineNumber position_line, const MutableLineSequence& source,
+    LineNumber position_line, const LineSequence& source,
     const std::optional<LineModifierSet>& modifiers) {
   CHECK_LE(position_line, EndLine());
   auto prefix = Lines::Prefix(lines_, position_line.read());
   auto suffix = Lines::Suffix(lines_, position_line.read());
-  Lines::Every(source.lines_, [&](NonNull<std::shared_ptr<const Line>> line) {
+  source.ForEach([&](const NonNull<std::shared_ptr<const Line>>& line) {
+    NonNull<std::shared_ptr<const Line>> line_to_insert = line;
     VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
             << (modifiers.has_value() ? modifiers->size() : -1);
     if (modifiers.has_value()) {
-      LineBuilder builder(line.value());
+      LineBuilder builder(line_to_insert.value());
       builder.SetAllModifiers(modifiers.value());
-      line = MakeNonNullShared<Line>(std::move(builder).Build());
+      line_to_insert = MakeNonNullShared<Line>(std::move(builder).Build());
     }
-    prefix = Lines::PushBack(prefix, line);
+    prefix = Lines::PushBack(prefix, line_to_insert);
     return true;
   });
   lines_ = Lines::Append(prefix, suffix);
