@@ -104,10 +104,9 @@ PossibleError FinishClassDeclaration(
   compilation.environment =
       class_environment.ptr()->parent_environment()->ToRoot();
 
-  std::map<std::wstring, Value> values;
   class_environment.ptr()->ForEachNonRecursive(
-      [&values, &class_object_type, class_type, &pool](
-          std::wstring name, const gc::Ptr<Value>& value) {
+      [&class_object_type, class_type, &pool](std::wstring name,
+                                              const gc::Ptr<Value>& value) {
         class_object_type.ptr()->AddField(
             name, BuildGetter(pool, class_type, value->type, name).ptr());
         class_object_type.ptr()->AddField(
@@ -118,7 +117,7 @@ PossibleError FinishClassDeclaration(
   auto purity = constructor_expression->purity();
   gc::Root<Value> constructor = Value::NewFunction(
       pool, PurityType::kPure, class_type, {},
-      [constructor_expression, class_environment, class_type, values](
+      [constructor_expression, class_environment, class_type](
           std::vector<gc::Root<Value>>, Trampoline& trampoline) {
         gc::Root<Environment> instance_environment =
             trampoline.pool().NewRoot(MakeNonNullUnique<Environment>(
