@@ -116,6 +116,7 @@ using language::text::LineColumn;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::MutableLineSequence;
 using language::text::MutableLineSequenceObserver;
 using language::text::Range;
@@ -264,8 +265,8 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
  public:
   TransformationInputAdapterImpl(OpenBuffer& buffer) : buffer_(buffer) {}
 
-  const MutableLineSequence& contents() const override {
-    return buffer_.contents();
+  const LineSequence contents() const override {
+    return buffer_.contents().snapshot();
   }
 
   void SetActiveCursors(std::vector<LineColumn> positions) override {
@@ -273,8 +274,7 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
   }
 
   LineColumn InsertInPosition(
-      const MutableLineSequence& contents_to_insert,
-      const LineColumn& input_position,
+      const LineSequence& contents_to_insert, const LineColumn& input_position,
       const std::optional<LineModifierSet>& modifiers) override {
     return buffer_.InsertInPosition(contents_to_insert, input_position,
                                     modifiers);
@@ -1297,10 +1297,8 @@ void OpenBuffer::DeleteRange(const Range& range) {
   }
 }
 
-// TODO(trivial, 2023-09-10): Receive contents_to_insert as LineSequence.
 LineColumn OpenBuffer::InsertInPosition(
-    const MutableLineSequence& contents_to_insert,
-    const LineColumn& input_position,
+    const LineSequence& contents_to_insert, const LineColumn& input_position,
     const std::optional<LineModifierSet>& modifiers) {
   VLOG(5) << "InsertInPosition: " << input_position << " "
           << (modifiers.has_value() ? modifiers.value().size() : 1);
@@ -1314,8 +1312,7 @@ LineColumn OpenBuffer::InsertInPosition(
     position.column = contents_.at(position.line)->EndColumn();
   }
   contents_.SplitLine(position);
-  contents_.insert(position.line.next(), contents_to_insert.snapshot(),
-                   modifiers);
+  contents_.insert(position.line.next(), contents_to_insert, modifiers);
   contents_.FoldNextLine(position.line);
   SetMutableLineSequenceLineMetadata(*this, contents_, position.line);
 
@@ -1732,8 +1729,8 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
 
     void Warn(Error error) override { buffer_.status().InsertError(error); }
 
-    const MutableLineSequence& contents() override {
-      return buffer_.contents();
+    const LineSequence contents() override {
+      return buffer_.contents().snapshot();
     }
 
     LineColumn current_widget_view_start() override {
@@ -2016,7 +2013,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 
   if (!initial_url.has_value()) {
     std::wstring line = GetCurrentToken(
-        {.contents = buffer.contents(),
+        {.contents = buffer.contents().snapshot(),
          .line_column = adjusted_position,
          .token_characters = buffer.Read(buffer_variables::path_characters)});
 

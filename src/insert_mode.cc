@@ -107,13 +107,13 @@ class NewLineTransformation : public CompositeTransformation {
 
     Output output;
     {
-      NonNull<std::shared_ptr<MutableLineSequence>> contents_to_insert;
       LineBuilder line_without_suffix(*line);
       line_without_suffix.DeleteSuffix(prefix_end);
-      contents_to_insert->push_back(
-          MakeNonNullShared<Line>(std::move(line_without_suffix).Build()));
-      output.Push(transformation::Insert{.contents_to_insert =
-                                             std::move(contents_to_insert)});
+      output.Push(transformation::Insert{
+          .contents_to_insert = MutableLineSequence::WithLine(
+                                    MakeNonNullShared<Line>(
+                                        std::move(line_without_suffix).Build()))
+                                    .snapshot()});
     }
 
     output.Push(transformation::SetPosition(input.position));
@@ -172,7 +172,7 @@ NewInsertion(EditorState& editor) {
                          std::function<void(MutableLineSequence*)>>(
       new MutableLineSequence(), [&editor](MutableLineSequence* value) {
         CHECK(value != nullptr);
-        editor.insert_history().Append(*value);
+        editor.insert_history().Append(value->snapshot());
         delete value;
       });
 }
@@ -440,10 +440,9 @@ class InsertMode : public EditorMode {
               .Transform([options, buffer_root](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
-                    .contents_to_insert =
-                        MakeNonNullShared<MutableLineSequence>(
-                            MutableLineSequence::WithLine(
-                                MakeNonNullShared<Line>(value))),
+                    .contents_to_insert = MutableLineSequence::WithLine(
+                                              MakeNonNullShared<Line>(value))
+                                              .snapshot(),
                     .modifiers = {
                         .insertion =
                             options.editor_state.modifiers().insertion}});
@@ -538,9 +537,9 @@ class InsertMode : public EditorMode {
               break;
             case Modifiers::ModifyMode::kOverwrite:
               stack.PushBack(transformation::Insert{
-                  .contents_to_insert = MakeNonNullShared<MutableLineSequence>(
-                      MutableLineSequence::WithLine(
-                          MakeNonNullShared<const Line>(L" "))),
+                  .contents_to_insert = MutableLineSequence::WithLine(
+                                            MakeNonNullShared<const Line>(L" "))
+                                            .snapshot(),
                   .final_position =
                       direction == Direction::kBackwards
                           ? transformation::Insert::FinalPosition::kStart
@@ -706,9 +705,11 @@ class InsertMode : public EditorMode {
     Range token_range = GetTokenRange(buffer);
     futures::Value<EmptyValue> output =
         buffer.ApplyToCursors(transformation::Insert{
-            .contents_to_insert = MakeNonNullShared<MutableLineSequence>(
-                MutableLineSequence::WithLine(MakeNonNullShared<Line>(
-                    LineBuilder(NewLazyString(L" ")).Build()))),
+            .contents_to_insert =
+                MutableLineSequence::WithLine(
+                    MakeNonNullShared<Line>(
+                        LineBuilder(NewLazyString(L" ")).Build()))
+                    .snapshot(),
             .modifiers = {.insertion = modify_mode}});
 
     if (model_paths->empty()) {
@@ -767,12 +768,11 @@ class InsertMode : public EditorMode {
                           completion_text->size();
                       stack.PushBack(transformation::Insert{
                           .contents_to_insert =
-                              MakeNonNullShared<MutableLineSequence>(
-                                  MutableLineSequence::WithLine(
-                                      MakeNonNullShared<Line>(
-                                          LineBuilder(
-                                              std::move(completion_text))
-                                              .Build()))),
+                              MutableLineSequence::WithLine(
+                                  MakeNonNullShared<Line>(
+                                      LineBuilder(std::move(completion_text))
+                                          .Build()))
+                                  .snapshot(),
                           .modifiers = {.insertion = modify_mode},
                           .position = position_start});
                       stack.PushBack(transformation::SetPosition(

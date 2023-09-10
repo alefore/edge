@@ -28,7 +28,7 @@ std::wstring SwitchCaseTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
     Input input) const {
-  NonNull<std::unique_ptr<MutableLineSequence>> contents_to_insert;
+  MutableLineSequence contents_to_insert;
   VLOG(5) << "Switch Case Transformation at " << input.position << ": "
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin;
@@ -36,12 +36,12 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
     NonNull<std::shared_ptr<const Line>> line =
         input.buffer.contents().at(i.line);
     if (i.column >= line->EndColumn()) {  // Switch to the next line.
-      contents_to_insert->push_back(NonNull<std::shared_ptr<Line>>());
+      contents_to_insert.push_back(NonNull<std::shared_ptr<Line>>());
       i = LineColumn(i.line + LineNumberDelta(1));
     } else {
       wchar_t c = line->get(i.column);
-      contents_to_insert->AppendToLine(
-          contents_to_insert->EndLine(),
+      contents_to_insert.AppendToLine(
+          contents_to_insert.EndLine(),
           Line(std::wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       i.column++;
     }
@@ -51,14 +51,14 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
 
   output.Push(transformation::Delete{
       .modifiers = {.repetitions =
-                        contents_to_insert->snapshot().CountCharacters(),
+                        contents_to_insert.snapshot().CountCharacters(),
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::kDoNothing},
       .mode = transformation::Input::Mode::kFinal,
       .initiator = transformation::Delete::Initiator::kInternal});
 
   output.Push(transformation::Insert{
-      .contents_to_insert = std::move(contents_to_insert),
+      .contents_to_insert = contents_to_insert.snapshot(),
       .final_position = input.modifiers.direction == Direction::kBackwards
                             ? transformation::Insert::FinalPosition::kStart
                             : transformation::Insert::FinalPosition::kEnd,

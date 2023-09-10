@@ -7,27 +7,23 @@ namespace afc::editor {
 using language::NonNull;
 using language::ValueOrError;
 using language::text::LineColumn;
-using language::text::MutableLineSequence;
+using language::text::LineSequence;
 
 using ::operator<<;
 
 // TODO(trivial, 2023-09-10): Probably should receive LineSequence.
-void InsertHistory::Append(const MutableLineSequence& insertion) {
+void InsertHistory::Append(const LineSequence& insertion) {
   if (insertion.range().IsEmpty()) return;
-  VLOG(5) << "Inserting to history: " << insertion.snapshot().ToString();
-  history_.push_back(insertion.copy());
+  VLOG(5) << "Inserting to history: " << insertion.ToString();
+  history_.push_back(insertion);
 }
 
-const std::vector<
-    language::NonNull<std::unique_ptr<const MutableLineSequence>>>&
-InsertHistory::get() const {
-  return history_;
-}
+const std::vector<LineSequence>& InsertHistory::get() const { return history_; }
 
 namespace {
 bool IsMatch(EditorState& editor,
              const InsertHistory::SearchOptions& search_options,
-             const MutableLineSequence& candidate) {
+             const LineSequence& candidate) {
   ValueOrError<std::vector<LineColumn>> matches = SearchHandler(
       editor.work_queue(), editor.modifiers().direction,
       afc::editor::SearchOptions{.search_query = search_options.query,
@@ -40,14 +36,12 @@ bool IsMatch(EditorState& editor,
 }
 }  // namespace
 
-std::optional<NonNull<const MutableLineSequence*>> InsertHistory::Search(
+std::optional<LineSequence> InsertHistory::Search(
     EditorState& editor, InsertHistory::SearchOptions search_options) {
   if (history_.empty()) return std::nullopt;
-  std::vector<NonNull<const MutableLineSequence*>> matches;
+  std::vector<LineSequence> matches;
   for (auto it = history_.rbegin(); it != history_.rend(); ++it) {
-    if (IsMatch(editor, search_options, it->value()))
-      matches.push_back(
-          NonNull<const MutableLineSequence*>::AddressOf(it->value()));
+    if (IsMatch(editor, search_options, *it)) matches.emplace_back(*it);
   }
   // TODO(2022-05-23): Sort matches with Bayes.
   if (!matches.empty()) return matches.front();

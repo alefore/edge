@@ -15,12 +15,12 @@ struct Input {
   class Adapter {
    public:
     virtual ~Adapter() = default;
-    virtual const language::text::MutableLineSequence& contents() const = 0;
+    virtual const language::text::LineSequence contents() const = 0;
 
     virtual void SetActiveCursors(
         std::vector<language::text::LineColumn> positions) = 0;
     virtual language::text::LineColumn InsertInPosition(
-        const language::text::MutableLineSequence& contents_to_insert,
+        const language::text::LineSequence& contents_to_insert,
         const language::text::LineColumn& input_position,
         const std::optional<infrastructure::screen::LineModifierSet>&
             modifiers) = 0;

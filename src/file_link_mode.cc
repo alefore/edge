@@ -80,7 +80,8 @@ futures::Value<PossibleError> GenerateContents(
        path](std::optional<struct stat> stat_results) {
         if (stat_results.has_value() &&
             target.Read(buffer_variables::clear_on_reload)) {
-          target.ClearContents(MutableLineSequence::CursorsBehavior::kUnmodified);
+          target.ClearContents(
+              MutableLineSequence::CursorsBehavior::kUnmodified);
           target.SetDiskState(OpenBuffer::DiskState::kCurrent);
         }
         if (!stat_results.has_value()) {
@@ -229,7 +230,8 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 // Caller must ensure that file_system_driver survives until the future is
 // notified.
 futures::Value<PossibleError> SaveContentsToFile(
-    const Path& path, NonNull<std::unique_ptr<const MutableLineSequence>> contents,
+    const Path& path,
+    NonNull<std::unique_ptr<const MutableLineSequence>> contents,
     ThreadPool& thread_pool, FileSystemDriver& file_system_driver) {
   Path tmp_path =
       Path::Join(ValueOrDie(path.Dirname()),
@@ -251,8 +253,9 @@ futures::Value<PossibleError> SaveContentsToFile(
                                        stat_value.st_mode);
       })
       .Transform([&thread_pool, path,
-                  contents = NonNull<std::shared_ptr<const MutableLineSequence>>(
-                      std::move(contents)),
+                  contents =
+                      NonNull<std::shared_ptr<const MutableLineSequence>>(
+                          std::move(contents)),
                   tmp_path, &file_system_driver](FileDescriptor fd) {
         CHECK_NE(fd.read(), -1);
         return OnError(
@@ -507,17 +510,18 @@ gc::Root<OpenBuffer> CreateBuffer(
     SearchOptions search_options;
     search_options.starting_position = buffer.ptr()->position();
     search_options.search_query = resolve_path_output->pattern.value();
-    std::visit(overload{[&](LineColumn position) {
-                          buffer.ptr()->set_position(position);
-                          editor_state.PushCurrentPosition();
-                        },
-                        [&buffer](Error error) {
-                          buffer.ptr()->status().SetInformationText(
-                              NewLazyString(error.read()));
-                        }},
-               GetNextMatch(options.editor_state.work_queue(),
-                            options.editor_state.modifiers().direction,
-                            search_options, buffer.ptr()->contents()));
+    std::visit(
+        overload{[&](LineColumn position) {
+                   buffer.ptr()->set_position(position);
+                   editor_state.PushCurrentPosition();
+                 },
+                 [&buffer](Error error) {
+                   buffer.ptr()->status().SetInformationText(
+                       NewLazyString(error.read()));
+                 }},
+        GetNextMatch(options.editor_state.work_queue(),
+                     options.editor_state.modifiers().direction, search_options,
+                     buffer.ptr()->contents().snapshot()));
   }
   return buffer;
 }

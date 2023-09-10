@@ -14,7 +14,7 @@ namespace afc::language::text {
 class MutableLineSequence;
 // TODO: Add more methods here.
 
-// This class is deeply immutable, therefore thread-safe.
+// This class is thread-compatible.
 class LineSequence {
  private:
   using Lines = language::ConstTree<
@@ -25,6 +25,8 @@ class LineSequence {
  public:
   LineSequence() = default;
   LineSequence(const LineSequence&) = default;
+  LineSequence(LineSequence&&) = default;
+  LineSequence& operator=(const LineSequence&) = default;
 
   std::wstring ToString() const;
 

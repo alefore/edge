@@ -15,11 +15,9 @@ class InsertHistory {
  public:
   InsertHistory() = default;
 
-  void Append(const language::text::MutableLineSequence& insertion);
+  void Append(const language::text::LineSequence& insertion);
 
-  const std::vector<
-      language::NonNull<std::unique_ptr<const language::text::MutableLineSequence>>>&
-  get() const;
+  const std::vector<language::text::LineSequence>& get() const;
 
   struct SearchOptions {
     std::wstring query;
@@ -27,13 +25,11 @@ class InsertHistory {
 
   // Return the entry from the history that best fits `search_options`. For now,
   // that's just the most recent entry.
-  std::optional<language::NonNull<const language::text::MutableLineSequence*>> Search(
+  std::optional<language::text::LineSequence> Search(
       EditorState& editor, SearchOptions search_options);
 
  private:
-  std::vector<
-      language::NonNull<std::unique_ptr<const language::text::MutableLineSequence>>>
-      history_;
+  std::vector<language::text::LineSequence> history_;
 };
 }  // namespace afc::editor
 

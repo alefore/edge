@@ -23,6 +23,7 @@ using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
+using language::text::LineSequence;
 using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
@@ -127,7 +128,7 @@ class HelpCommand : public Command {
     editor_state_.ResetRepetitions();
   }
 
-  static MutableLineSequence GenerateContents(const MapModeCommands& commands,
+  static LineSequence GenerateContents(const MapModeCommands& commands,
                                        const OpenBuffer& buffer) {
     MutableLineSequence output;
     output.AppendToLine(LineNumber(), Line(L"# Edge - Help"));
@@ -151,7 +152,7 @@ class HelpCommand : public Command {
                       [](const int& value) { return std::to_wstring(value); });
 
     CommandLineVariables(output);
-    return output;
+    return output.snapshot();
   }
 
  private:
@@ -244,7 +245,8 @@ class HelpCommand : public Command {
 
   template <typename T, typename C>
   static void DescribeVariables(std::wstring type_name,
-                                const OpenBuffer& source, MutableLineSequence& output,
+                                const OpenBuffer& source,
+                                MutableLineSequence& output,
                                 EdgeStruct<T>* variables, C print) {
     StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {

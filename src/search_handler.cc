@@ -34,7 +34,7 @@ using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
-using language::text::MutableLineSequence;
+using language::text::LineSequence;
 using language::text::Range;
 
 namespace gc = language::gc;
@@ -76,7 +76,7 @@ auto GetRegexTraits(bool case_sensitive) {
 }
 
 ValueOrError<std::vector<LineColumn>> PerformSearch(
-    const SearchOptions& options, const MutableLineSequence& contents,
+    const SearchOptions& options, const LineSequence& contents,
     ProgressChannel* progress_channel) {
   std::vector<LineColumn> positions;
 
@@ -91,19 +91,21 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     return error;
   }
 
-  bool searched_every_line = contents.EveryLine([&](LineNumber position,
-                                                    const Line& line) {
-    auto matches = GetMatches(line.ToString(), pattern);
-    for (const auto& column : matches) {
-      positions.push_back(LineColumn(position, column));
-    }
-    if (!matches.empty())
-      progress_channel->Push(ProgressInformation{
-          .counters = {{VersionPropertyKey(L"matches"), positions.size()}}});
-    return !options.abort_value.has_value() &&
-           (!options.required_positions.has_value() ||
-            options.required_positions.value() > positions.size());
-  });
+  bool searched_every_line =
+      contents.EveryLine([&](LineNumber position,
+                             const NonNull<std::shared_ptr<const Line>>& line) {
+        auto matches = GetMatches(line->ToString(), pattern);
+        for (const auto& column : matches) {
+          positions.push_back(LineColumn(position, column));
+        }
+        if (!matches.empty())
+          progress_channel->Push(
+              ProgressInformation{.counters = {{VersionPropertyKey(L"matches"),
+                                                positions.size()}}});
+        return !options.abort_value.has_value() &&
+               (!options.required_positions.has_value() ||
+                options.required_positions.value() > positions.size());
+      });
   if (!searched_every_line)
     progress_channel->Push(
         ProgressInformation{.values = {{VersionPropertyKey(L"partial"), L""}}});
@@ -132,18 +134,17 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
 }
 
 std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
-    SearchOptions search_options, const MutableLineSequence& contents,
+    SearchOptions search_options, const LineSequence& contents,
     ProgressChannel& progress_channel) {
   // TODO(easy, 2022-04-14): Why is this here?
   search_options.required_positions = 100;
   // Must take special care to only capture instances of thread-safe classes:
   return std::bind_front(
       [search_options, &progress_channel](
-          const NonNull<std::shared_ptr<MutableLineSequence>>& buffer_contents)
-          -> ValueOrError<SearchResultsSummary> {
-        ASSIGN_OR_RETURN(auto search_results,
-                         PerformSearch(search_options, buffer_contents.value(),
-                                       &progress_channel));
+          LineSequence buffer_contents) -> ValueOrError<SearchResultsSummary> {
+        ASSIGN_OR_RETURN(
+            auto search_results,
+            PerformSearch(search_options, buffer_contents, &progress_channel));
         return SearchResultsSummary{
             .matches = search_results.size(),
             .search_completion =
@@ -151,7 +152,7 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
                     ? SearchResultsSummary::SearchCompletion::kInterrupted
                     : SearchResultsSummary::SearchCompletion::kFull};
       },
-      NonNull<std::shared_ptr<MutableLineSequence>>(contents.copy()));
+      std::move(contents));
 }
 
 std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
@@ -173,7 +174,7 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
 ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
-    const MutableLineSequence& contents) {
+    const LineSequence& contents) {
   if (options.search_query.empty()) {
     return {};
   }
@@ -237,7 +238,7 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
       std::vector<LineColumn> positions,
       buffer.status().LogErrors(PerformSearchWithDirection(
           input.editor.work_queue(), input.editor.modifiers().direction,
-          options, buffer.contents())));
+          options, buffer.contents().snapshot())));
 
   // Get the first kMatchesLimit matches:
   for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit;
@@ -274,14 +275,14 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
 ValueOrError<std::vector<LineColumn>> SearchHandler(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
-    const MutableLineSequence& buffer) {
+    const LineSequence& buffer) {
   return PerformSearchWithDirection(work_queue, direction, options, buffer);
 }
 
 ValueOrError<LineColumn> GetNextMatch(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
-    const MutableLineSequence& contents) {
+    const LineSequence& contents) {
   // TODO(trivial, 2023-09-09): Switch to VisitPointer.
   if (std::optional<std::vector<LineColumn>> results =
           OptionalFrom(SearchHandler(work_queue, direction, options, contents));

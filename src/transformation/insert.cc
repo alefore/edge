@@ -41,7 +41,7 @@ transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
 
 futures::Value<transformation::Result> ApplyBase(const Insert& options,
                                                  transformation::Input input) {
-  size_t length = options.contents_to_insert->snapshot().CountCharacters();
+  size_t length = options.contents_to_insert.CountCharacters();
   if (length == 0) {
     return futures::Past(transformation::Result(input.position));
   }
@@ -55,9 +55,8 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
 
   LineColumn start_position = result->position;
   for (size_t i = 0; i < options.modifiers.repetitions.value_or(1); i++) {
-    result->position =
-        input.adapter.InsertInPosition(options.contents_to_insert.value(),
-                                       result->position, options.modifiers_set);
+    result->position = input.adapter.InsertInPosition(
+        options.contents_to_insert, result->position, options.modifiers_set);
   }
   LineColumn final_position = result->position;
 
@@ -97,7 +96,7 @@ std::wstring ToStringBase(const Insert& options) {
   std::wstring output = L"InsertTransformationBuilder()";
   output += L".set_text(" +
             vm::EscapedString::FromString(
-                options.contents_to_insert->at(LineNumber(0))->contents())
+                options.contents_to_insert.at(LineNumber(0))->contents())
                 .CppRepresentation() +
             L")";
   output += L".set_modifiers(" + options.modifiers.Serialize() + L")";
@@ -124,23 +123,23 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
           [](NonNull<std::shared_ptr<Insert>> options, std::wstring text) {
-            NonNull<std::shared_ptr<MutableLineSequence>> buffer;
+            MutableLineSequence output;
             ColumnNumber line_start;
             for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
                  ++i) {
               if (text[i.read()] == L'\n') {
                 VLOG(8) << "Adding line from " << line_start << " to " << i;
-                buffer->push_back(MakeNonNullShared<Line>(text.substr(
+                output.push_back(MakeNonNullShared<Line>(text.substr(
                     line_start.read(), (ColumnNumber(i) - line_start).read())));
                 line_start = ColumnNumber(i) + ColumnNumberDelta(1);
               }
             }
-            buffer->push_back(
+            output.push_back(
                 MakeNonNullShared<Line>(text.substr(line_start.read())));
-            buffer->EraseLines(
+            output.EraseLines(
                 LineNumber(), LineNumber(1),
                 MutableLineSequence::CursorsBehavior::kUnmodified);
-            options->contents_to_insert = std::move(buffer);
+            options->contents_to_insert = output.snapshot();
             return options;
           })
           .ptr());

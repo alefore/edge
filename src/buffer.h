@@ -246,13 +246,13 @@ class OpenBuffer {
   // If modifiers is present, applies it to every character (overriding the
   // modifiers from `insertion`; that is, from the input).
   language::text::LineColumn InsertInPosition(
-      const language::text::MutableLineSequence& contents_to_insert,
+      const language::text::LineSequence& contents_to_insert,
       const language::text::LineColumn& position,
       const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
   // See MutableLineSequence::AdjustLineColumn.
   // TODO(trivial, 2023-08-24): Get rid of this method; switch all callers to
-  // MutableLineSequence.
+  // LineSequence.
   language::text::LineColumn AdjustLineColumn(
       language::text::LineColumn position) const;
 

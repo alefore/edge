@@ -203,7 +203,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     VLOG(5) << "Preparing delete buffer.";
     output->added_to_paste_buffer = true;
     input.delete_buffer->ApplyToCursors(transformation::Insert{
-        .contents_to_insert = delete_buffer.ptr()->contents().copy()});
+        .contents_to_insert = delete_buffer.ptr()->contents().snapshot()});
   }
 
   if (options.modifiers.text_delete_behavior ==
@@ -223,7 +223,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
                   delete_buffer](transformation::Result result) mutable {
         output->MergeFrom(std::move(result));
         transformation::Insert insert_options{
-            .contents_to_insert = delete_buffer.ptr()->contents().copy(),
+            .contents_to_insert = delete_buffer.ptr()->contents().snapshot(),
             .final_position =
                 options.modifiers.direction == Direction::kForwards
                     ? Insert::FinalPosition::kEnd

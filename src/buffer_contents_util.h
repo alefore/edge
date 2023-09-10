@@ -9,7 +9,7 @@
 
 namespace afc::editor {
 struct CurrentTokenOptions {
-  const language::text::MutableLineSequence& contents;
+  const language::text::LineSequence& contents;
   language::text::LineColumn line_column;
   std::wstring token_characters;
 };

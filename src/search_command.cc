@@ -98,7 +98,7 @@ const bool merge_into_tests_registration =
 void DoSearch(OpenBuffer& buffer, SearchOptions options) {
   ValueOrError<std::vector<LineColumn>> output = SearchHandler(
       buffer.editor().work_queue(), buffer.editor().modifiers().direction,
-      options, buffer.contents());
+      options, buffer.contents().snapshot());
   HandleSearchResults(output, buffer);
 }
 
@@ -294,7 +294,8 @@ class SearchCommand : public Command {
                                     << buffer.Read(buffer_variables::name);
                             return editor_state.thread_pool()
                                 .Run(BackgroundSearchCallback(
-                                    search_options.value(), buffer.contents(),
+                                    search_options.value(),
+                                    buffer.contents().snapshot(),
                                     progress_channel.value()))
                                 .Transform(
                                     [results, abort_value, line, buffer_root,

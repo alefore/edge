@@ -54,7 +54,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
     virtual void Bell() = 0;
     virtual void Warn(language::Error error) = 0;
 
-    virtual const language::text::MutableLineSequence& contents() = 0;
+    virtual const language::text::LineSequence contents() = 0;
 
     // Return the position of the start of the current view.
     virtual language::text::LineColumn current_widget_view_start() = 0;

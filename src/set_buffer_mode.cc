@@ -353,7 +353,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                          .required_positions = 1,
                          .case_sensitive = buffer.Read(
                              buffer_variables::search_case_sensitive)},
-                        buffer.contents(), *progress_channel))
+                        buffer.contents().snapshot(), *progress_channel))
                     .Transform([new_state, progress_channel,
                                 index](SearchResultsSummary search_output) {
                       if (search_output.matches > 0) {

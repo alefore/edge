@@ -65,6 +65,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
@@ -379,6 +380,8 @@ struct FilterSortHistorySyncOutput {
   std::vector<NonNull<std::shared_ptr<Line>>> lines;
 };
 
+// TODO(trivial, 2023-09-10): Avoid wrapping in `history_contents`. Just receive
+// a LineSequence.
 FilterSortHistorySyncOutput FilterSortHistorySync(
     DeleteNotification::Value abort_value, std::wstring filter,
     NonNull<std::shared_ptr<MutableLineSequence>> history_contents,
@@ -752,8 +755,9 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     buffer.Set(buffer_variables::contents_type, options_.prompt_contents_type);
     buffer.ApplyToCursors(transformation::Insert(
         {.contents_to_insert =
-             MakeNonNullUnique<MutableLineSequence>(MutableLineSequence::WithLine(
-                 MakeNonNullShared<Line>(options_.initial_value)))}));
+             MutableLineSequence::WithLine(
+                 MakeNonNullShared<Line>(options_.initial_value))
+                 .snapshot()}));
   }
 
   // status_buffer is the buffer with the contents of the prompt. tokens_future
@@ -945,7 +949,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
     if (delta == LineNumberDelta(+1) && !filtered_history_.has_value()) {
-      ReplaceContents(buffer, MakeNonNullShared<MutableLineSequence>());
+      ReplaceContents(buffer, LineSequence());
       return;
     }
     filtered_history_.AddListener(
@@ -974,21 +978,20 @@ class HistoryScrollBehavior : public ScrollBehavior {
               line_to_insert = original_input.get_shared();
             }
           }
-          NonNull<std::shared_ptr<MutableLineSequence>> contents_to_insert;
+          MutableLineSequence contents_to_insert;
           VisitPointer(
               line_to_insert,
               [&](NonNull<std::shared_ptr<const Line>> line) {
                 VLOG(5) << "Inserting line: " << line->ToString();
-                contents_to_insert->AppendToLine(LineNumber(), line.value());
+                contents_to_insert.AppendToLine(LineNumber(), line.value());
               },
               [] {});
-          ReplaceContents(buffer, contents_to_insert);
+          ReplaceContents(buffer, contents_to_insert.snapshot());
         });
   }
 
-  static void ReplaceContents(
-      OpenBuffer& buffer,
-      NonNull<std::shared_ptr<MutableLineSequence>> contents_to_insert) {
+  static void ReplaceContents(OpenBuffer& buffer,
+                              LineSequence contents_to_insert) {
     buffer.ApplyToCursors(transformation::Delete{
         .modifiers = {.structure = Structure::kLine,
                       .paste_buffer_behavior =
@@ -1162,10 +1165,11 @@ InsertModeOptions PromptState::insert_mode_options() {
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Insert(
-                            {.contents_to_insert = MakeNonNullUnique<
-                                 MutableLineSequence>(MutableLineSequence::WithLine(
-                                 MakeNonNullShared<Line>(
-                                     LineBuilder(std::move(line)).Build())))}));
+                            {.contents_to_insert =
+                                 MutableLineSequence::WithLine(
+                                     MakeNonNullShared<Line>(
+                                         LineBuilder(std::move(line)).Build()))
+                                     .snapshot()}));
                     prompt_state->OnModify();
                     return;
                   }

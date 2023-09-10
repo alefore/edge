@@ -100,7 +100,7 @@ class Paste : public Command {
           buffer.MaybeAdjustPositionCol();
           LOG(INFO) << "Found paste buffer, pasting...";
           return buffer.ApplyToCursors(transformation::Insert{
-              .contents_to_insert = paste_buffer.ptr()->contents().copy(),
+              .contents_to_insert = paste_buffer.ptr()->contents().snapshot(),
               .modifiers = {.insertion = editor_state.modifiers().insertion,
                             .repetitions = editor_state.repetitions()}});
         })

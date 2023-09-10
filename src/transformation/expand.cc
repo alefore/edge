@@ -40,6 +40,7 @@ using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
+using language::text::LineSequence;
 using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
@@ -117,9 +118,11 @@ class PredictorTransformation : public CompositeTransformation {
           Output output;
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
-              .contents_to_insert = MakeNonNullShared<MutableLineSequence>(
-                  MutableLineSequence::WithLine(MakeNonNullShared<Line>(
-                      results.value().common_prefix.value())))});
+              .contents_to_insert =
+                  MutableLineSequence::WithLine(
+                      MakeNonNullShared<Line>(
+                          results.value().common_prefix.value()))
+                      .snapshot()});
           return output;
         });
   }
@@ -144,10 +147,10 @@ class InsertHistoryTransformation : public CompositeTransformation {
     Output output;
     VisitPointer(
         input.editor.insert_history().Search(input.editor, search_options_),
-        [&](NonNull<const MutableLineSequence*> text) {
+        [&](LineSequence text) {
           output.Push(delete_transformation_);
           output.Push(
-              transformation::Insert{.contents_to_insert = text->copy()});
+              transformation::Insert{.contents_to_insert = std::move(text)});
         },
         [&] {
           input.editor.status().InsertError(
@@ -231,7 +234,7 @@ class ReadAndInsert : public CompositeTransformation {
                     Output output;
                     output.Push(transformation::Insert{
                         .contents_to_insert =
-                            buffer_to_insert.ptr()->contents().copy()});
+                            buffer_to_insert.ptr()->contents().snapshot()});
                     LineColumn position = buffer_to_insert.ptr()->position();
                     if (position.line.IsZero()) {
                       position.column += input.position.column.ToDelta();
@@ -294,8 +297,9 @@ class Execute : public CompositeTransformation {
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
                 .contents_to_insert =
-                    MakeNonNullShared<MutableLineSequence>(MutableLineSequence::WithLine(
-                        MakeNonNullShared<Line>(value.ptr()->get_string())))});
+                    MutableLineSequence::WithLine(
+                        MakeNonNullShared<Line>(value.ptr()->get_string()))
+                        .snapshot()});
           }
           return futures::Past(Success(std::move(output)));
         })

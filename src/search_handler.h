@@ -44,7 +44,7 @@ struct SearchOptions {
 language::ValueOrError<std::vector<language::text::LineColumn>> SearchHandler(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
-    const language::text::MutableLineSequence& buffer);
+    const language::text::LineSequence& buffer);
 
 void HandleSearchResults(
     const language::ValueOrError<std::vector<language::text::LineColumn>>&
@@ -54,7 +54,7 @@ void HandleSearchResults(
 language::ValueOrError<language::text::LineColumn> GetNextMatch(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
-    const language::text::MutableLineSequence& contents);
+    const language::text::LineSequence& contents);
 
 struct SearchResultsSummary {
   size_t matches = 0;
@@ -78,7 +78,7 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b);
 // `BackgroundSearchCallback` has returned).
 std::function<language::ValueOrError<SearchResultsSummary>()>
 BackgroundSearchCallback(SearchOptions search_options,
-                         const language::text::MutableLineSequence& contents,
+                         const language::text::LineSequence& contents,
                          ProgressChannel&);
 
 }  // namespace editor
