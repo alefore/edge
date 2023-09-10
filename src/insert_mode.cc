@@ -73,6 +73,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::MutableLineSequence;
 using language::text::OutgoingLink;
 using language::text::Range;
@@ -451,7 +452,7 @@ class InsertMode : public EditorMode {
                 Range token_range = GetTokenRange(buffer_root.ptr().value());
                 if (token_range.IsEmpty()) return futures::Past(EmptyValue{});
                 CompletionModelManager::CompressedText token =
-                    GetCompletionToken(buffer_root.ptr()->contents(),
+                    GetCompletionToken(buffer_root.ptr()->contents().snapshot(),
                                        token_range);
                 return completion_model_supplier
                     ->Query(std::move(
@@ -674,7 +675,7 @@ class InsertMode : public EditorMode {
   }
 
   static CompletionModelManager::CompressedText GetCompletionToken(
-      const MutableLineSequence& buffer_contents, Range token_range) {
+      const LineSequence& buffer_contents, Range token_range) {
     CompletionModelManager::CompressedText output = LowerCase(
         Substring(buffer_contents.at(token_range.begin.line)->contents(),
                   token_range.begin.column,
@@ -744,7 +745,7 @@ class InsertMode : public EditorMode {
     }
 
     CompletionModelManager::CompressedText token =
-        GetCompletionToken(buffer.contents(), token_range);
+        GetCompletionToken(buffer.contents().snapshot(), token_range);
     return std::move(output).Transform([model_paths = std::move(model_paths),
                                         token, position, modify_mode,
                                         buffer_root, completion_model_supplier](
