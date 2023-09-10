@@ -78,8 +78,8 @@ class MoveTransformation : public CompositeTransformation {
     }
 
     auto position = Move(operation_scope_.value().get(input.buffer), structure,
-                         input.buffer.contents(), input.original_position,
-                         input.range, input.modifiers);
+                         input.buffer.contents().snapshot(),
+                         input.original_position, input.range, input.modifiers);
 
     if (!position.has_value()) {
       std::ostringstream oss;

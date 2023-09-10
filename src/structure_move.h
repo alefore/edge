@@ -14,7 +14,7 @@ struct Modifiers;
 
 std::optional<language::text::LineColumn> Move(
     const OperationScopeBufferInformation& scope, Structure structure,
-    const language::text::MutableLineSequence& contents,
+    const language::text::LineSequence& contents,
     language::text::LineColumn position, language::text::Range range,
     const Modifiers& modifiers);
 
