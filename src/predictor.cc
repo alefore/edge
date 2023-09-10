@@ -517,8 +517,9 @@ const bool buffer_tests_registration =
                const NonNull<std::shared_ptr<const Line>>& b) {
               return a->ToString() < b->ToString();
             });
-        VLOG(5) << "Contents: " << buffer.ptr()->contents().ToString();
-        return buffer.ptr()->contents().ToString();
+        VLOG(5) << "Contents: "
+                << buffer.ptr()->contents().snapshot().ToString();
+        return buffer.ptr()->contents().snapshot().ToString();
       };
       auto test_predict = [&](std::wstring input,
                               std::function<void(PredictResults)> callback) {

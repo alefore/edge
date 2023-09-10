@@ -166,9 +166,10 @@ class FindCompletionCommand : public Command {
   EditorState& editor_state_;
 };
 
-std::unique_ptr<MutableLineSequence, std::function<void(MutableLineSequence*)>> NewInsertion(
-    EditorState& editor) {
-  return std::unique_ptr<MutableLineSequence, std::function<void(MutableLineSequence*)>>(
+std::unique_ptr<MutableLineSequence, std::function<void(MutableLineSequence*)>>
+NewInsertion(EditorState& editor) {
+  return std::unique_ptr<MutableLineSequence,
+                         std::function<void(MutableLineSequence*)>>(
       new MutableLineSequence(), [&editor](MutableLineSequence* value) {
         CHECK(value != nullptr);
         editor.insert_history().Append(*value);
@@ -439,8 +440,10 @@ class InsertMode : public EditorMode {
               .Transform([options, buffer_root](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
-                    .contents_to_insert = MakeNonNullShared<MutableLineSequence>(
-                        MutableLineSequence::WithLine(MakeNonNullShared<Line>(value))),
+                    .contents_to_insert =
+                        MakeNonNullShared<MutableLineSequence>(
+                            MutableLineSequence::WithLine(
+                                MakeNonNullShared<Line>(value))),
                     .modifiers = {
                         .insertion =
                             options.editor_state.modifiers().insertion}});
@@ -535,8 +538,8 @@ class InsertMode : public EditorMode {
               break;
             case Modifiers::ModifyMode::kOverwrite:
               stack.PushBack(transformation::Insert{
-                  .contents_to_insert =
-                      MakeNonNullShared<MutableLineSequence>(MutableLineSequence::WithLine(
+                  .contents_to_insert = MakeNonNullShared<MutableLineSequence>(
+                      MutableLineSequence::WithLine(
                           MakeNonNullShared<const Line>(L" "))),
                   .final_position =
                       direction == Direction::kBackwards
@@ -763,10 +766,13 @@ class InsertMode : public EditorMode {
                       const ColumnNumberDelta completion_text_size =
                           completion_text->size();
                       stack.PushBack(transformation::Insert{
-                          .contents_to_insert = MakeNonNullShared<MutableLineSequence>(
-                              MutableLineSequence::WithLine(MakeNonNullShared<Line>(
-                                  LineBuilder(std::move(completion_text))
-                                      .Build()))),
+                          .contents_to_insert =
+                              MakeNonNullShared<MutableLineSequence>(
+                                  MutableLineSequence::WithLine(
+                                      MakeNonNullShared<Line>(
+                                          LineBuilder(
+                                              std::move(completion_text))
+                                              .Build()))),
                           .modifiers = {.insertion = modify_mode},
                           .position = position_start});
                       stack.PushBack(transformation::SetPosition(
@@ -811,7 +817,8 @@ class InsertMode : public EditorMode {
   NonNull<std::unique_ptr<DeleteNotification>>
       scroll_behavior_abort_notification_;
 
-  std::unique_ptr<MutableLineSequence, std::function<void(MutableLineSequence*)>>
+  std::unique_ptr<MutableLineSequence,
+                  std::function<void(MutableLineSequence*)>>
       current_insertion_;
 
   NonNull<std::shared_ptr<CompletionModelManager>> completion_model_supplier_;

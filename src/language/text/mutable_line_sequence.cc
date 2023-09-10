@@ -98,7 +98,7 @@ MutableLineSequence MutableLineSequenceForTests() {
   output.AppendToLine(LineNumber(), Line(L"alejandro"));
   output.push_back(L"forero");
   output.push_back(L"cuervo");
-  LOG(INFO) << "Contents: " << output.ToString();
+  LOG(INFO) << "Contents: " << output.snapshot().ToString();
   return output;
 }
 
@@ -110,22 +110,22 @@ const bool filter_to_range_tests_registration = tests::Register(
              [] {
                MutableLineSequence empty;
                empty.FilterToRange(Range());
-               CHECK(empty.ToString() == L"");
+               CHECK(empty.snapshot().ToString() == L"");
              }},
         {.name = L"EmptyRange",
          .callback =
              [] {
                auto buffer = MutableLineSequenceForTests();
                buffer.FilterToRange(Range());
-               CHECK(buffer.ToString() == L"");
+               CHECK(buffer.snapshot().ToString() == L"");
              }},
         {.name = L"WholeRange",
          .callback =
              [] {
                auto buffer = MutableLineSequenceForTests();
                buffer.FilterToRange(buffer.range());
-               CHECK(buffer.ToString() ==
-                     MutableLineSequenceForTests().ToString());
+               CHECK(buffer.snapshot().ToString() ==
+                     MutableLineSequenceForTests().snapshot().ToString());
              }},
         {.name = L"FirstLineFewChars",
          .callback =
@@ -133,7 +133,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                auto buffer = MutableLineSequenceForTests();
                buffer.FilterToRange(Range{
                    LineColumn(), LineColumn(LineNumber(0), ColumnNumber(3))});
-               CHECK(buffer.ToString() == L"ale");
+               CHECK(buffer.snapshot().ToString() == L"ale");
              }},
         {.name = L"FirstLineExcludingBreak",
          .callback =
@@ -141,7 +141,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                auto buffer = MutableLineSequenceForTests();
                buffer.FilterToRange(Range{
                    LineColumn(), LineColumn(LineNumber(0), ColumnNumber(9))});
-               CHECK(buffer.ToString() == L"alejandro");
+               CHECK(buffer.snapshot().ToString() == L"alejandro");
              }},
         {.name = L"FirstLineIncludingBreak",
          .callback =
@@ -149,7 +149,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                auto buffer = MutableLineSequenceForTests();
                buffer.FilterToRange(Range{
                    LineColumn(), LineColumn(LineNumber(1), ColumnNumber(0))});
-               CHECK(buffer.ToString() == L"alejandro\n");
+               CHECK(buffer.snapshot().ToString() == L"alejandro\n");
              }},
         {.name = L"FirstLineMiddleChars",
          .callback =
@@ -158,7 +158,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(0), ColumnNumber(2)),
                          LineColumn(LineNumber(0), ColumnNumber(5))});
-               CHECK(buffer.ToString() == L"eja");
+               CHECK(buffer.snapshot().ToString() == L"eja");
              }},
         {.name = L"MultiLineMiddle",
          .callback =
@@ -167,7 +167,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(0), ColumnNumber(2)),
                          LineColumn(LineNumber(2), ColumnNumber(3))});
-               CHECK(buffer.ToString() == L"ejandro\nforero\ncue");
+               CHECK(buffer.snapshot().ToString() == L"ejandro\nforero\ncue");
              }},
         {.name = L"LastLineFewChars",
          .callback =
@@ -176,7 +176,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(2), ColumnNumber(2)),
                          LineColumn(LineNumber(2), ColumnNumber(6))});
-               CHECK(buffer.ToString() == L"ervo");
+               CHECK(buffer.snapshot().ToString() == L"ervo");
              }},
         {.name = L"LastLineExcludingBreak",
          .callback =
@@ -185,7 +185,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(2), ColumnNumber()),
                          LineColumn(LineNumber(2), ColumnNumber(6))});
-               CHECK(buffer.ToString() == L"cuervo");
+               CHECK(buffer.snapshot().ToString() == L"cuervo");
              }},
         {.name = L"LastLineIncludingBreak",
          .callback =
@@ -194,7 +194,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(1), ColumnNumber(6)),
                          LineColumn(LineNumber(2), ColumnNumber(6))});
-               CHECK(buffer.ToString() == L"\ncuervo");
+               CHECK(buffer.snapshot().ToString() == L"\ncuervo");
              }},
         {.name = L"LastLineMiddleChars",
          .callback =
@@ -203,7 +203,7 @@ const bool filter_to_range_tests_registration = tests::Register(
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(2), ColumnNumber(2)),
                          LineColumn(LineNumber(2), ColumnNumber(5))});
-               CHECK(buffer.ToString() == L"erv");
+               CHECK(buffer.snapshot().ToString() == L"erv");
              }},
     });
 }  // namespace
@@ -443,16 +443,6 @@ const bool position_after_tests_registration = tests::Register(
       }}});
 }
 
-std::wstring MutableLineSequence::ToString() const {
-  std::wstring output;
-  output.reserve(CountCharacters());
-  EveryLine([&output](LineNumber position, const Line& line) {
-    output.append((position == LineNumber(0) ? L"" : L"\n") + line.ToString());
-    return true;
-  });
-  return output;
-}
-
 void MutableLineSequence::insert(
     LineNumber position_line, const MutableLineSequence& source,
     const std::optional<LineModifierSet>& modifiers) {
@@ -669,7 +659,7 @@ const bool push_back_wstring_tests_registration = tests::Register(
              [] {
                MutableLineSequence contents;
                contents.push_back(L"");
-               CHECK(contents.ToString() == L"\n");
+               CHECK(contents.snapshot().ToString() == L"\n");
                CHECK_EQ(contents.EndLine(), LineNumber(1));
              }},
         {.name = L"SingleLine",
@@ -677,7 +667,7 @@ const bool push_back_wstring_tests_registration = tests::Register(
              [] {
                MutableLineSequence contents;
                contents.push_back(L"foo");
-               CHECK(contents.ToString() == L"\nfoo");
+               CHECK(contents.snapshot().ToString() == L"\nfoo");
                CHECK_EQ(contents.EndLine(), LineNumber(1));
              }},
         {.name = L"MultiLine",
@@ -685,7 +675,8 @@ const bool push_back_wstring_tests_registration = tests::Register(
              [] {
                MutableLineSequence contents;
                contents.push_back(L"foo\nbar\nhey\n\n\nquux");
-               CHECK(contents.ToString() == L"\nfoo\nbar\nhey\n\n\nquux");
+               CHECK(contents.snapshot().ToString() ==
+                     L"\nfoo\nbar\nhey\n\n\nquux");
                CHECK_EQ(contents.EndLine(), LineNumber(6));
              }},
     });
@@ -730,7 +721,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
     copy();
     back();
     front();
-    ToString();
+    snapshot().ToString();
     CountCharacters();
   })));
 

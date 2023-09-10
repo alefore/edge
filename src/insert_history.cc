@@ -11,13 +11,15 @@ using language::text::MutableLineSequence;
 
 using ::operator<<;
 
+// TODO(trivial, 2023-09-10): Probably should receive LineSequence.
 void InsertHistory::Append(const MutableLineSequence& insertion) {
   if (insertion.range().IsEmpty()) return;
-  VLOG(5) << "Inserting to history: " << insertion.ToString();
+  VLOG(5) << "Inserting to history: " << insertion.snapshot().ToString();
   history_.push_back(insertion.copy());
 }
 
-const std::vector<language::NonNull<std::unique_ptr<const MutableLineSequence>>>&
+const std::vector<
+    language::NonNull<std::unique_ptr<const MutableLineSequence>>>&
 InsertHistory::get() const {
   return history_;
 }
@@ -44,7 +46,8 @@ std::optional<NonNull<const MutableLineSequence*>> InsertHistory::Search(
   std::vector<NonNull<const MutableLineSequence*>> matches;
   for (auto it = history_.rbegin(); it != history_.rend(); ++it) {
     if (IsMatch(editor, search_options, it->value()))
-      matches.push_back(NonNull<const MutableLineSequence*>::AddressOf(it->value()));
+      matches.push_back(
+          NonNull<const MutableLineSequence*>::AddressOf(it->value()));
   }
   // TODO(2022-05-23): Sort matches with Bayes.
   if (!matches.empty()) return matches.front();

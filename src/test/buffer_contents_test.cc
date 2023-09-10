@@ -1,14 +1,14 @@
-#include "src/buffer_contents.h"
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>
 
+#include "src/infrastructure/screen/cursors.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line.h"
+#include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/test/line_test.h"
 
@@ -17,6 +17,7 @@ namespace editor {
 namespace testing {
 namespace {
 using ::operator<<;
+using infrastructure::screen::CursorsTracker;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
@@ -37,12 +38,16 @@ void TestMutableLineSequenceSnapshot() {
         MakeNonNullShared<Line>(LineBuilder(NewLazyString(s)).Build()));
   }
   auto copy = contents.copy();
-  CHECK_EQ("\nalejandro\nforero\ncuervo", ToByteString(contents.ToString()));
-  CHECK_EQ("\nalejandro\nforero\ncuervo", ToByteString(copy->ToString()));
+  CHECK_EQ("\nalejandro\nforero\ncuervo",
+           ToByteString(contents.snapshot().ToString()));
+  CHECK_EQ("\nalejandro\nforero\ncuervo",
+           ToByteString(copy->snapshot().ToString()));
 
   contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)));
-  CHECK_EQ("\nalejandro\nfor\nero\ncuervo", ToByteString(contents.ToString()));
-  CHECK_EQ("\nalejandro\nforero\ncuervo", ToByteString(copy->ToString()));
+  CHECK_EQ("\nalejandro\nfor\nero\ncuervo",
+           ToByteString(contents.snapshot().ToString()));
+  CHECK_EQ("\nalejandro\nforero\ncuervo",
+           ToByteString(copy->snapshot().ToString()));
 }
 
 void TestBufferInsertModifiers() {

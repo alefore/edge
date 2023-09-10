@@ -1770,7 +1770,7 @@ std::shared_ptr<const Line> OpenBuffer::LineAt(LineNumber line_number) const {
   return contents_.at(line_number).get_shared();
 }
 
-wstring OpenBuffer::ToString() const { return contents_.ToString(); }
+wstring OpenBuffer::ToString() const { return contents_.snapshot().ToString(); }
 
 const struct timespec OpenBuffer::time_last_exit() const {
   return time_last_exit_;
@@ -1984,7 +1984,7 @@ ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
       tree.properties().end()) {
     auto contents = buffer.contents().copy();
     contents->FilterToRange(tree.range());
-    return URL(contents->ToString());
+    return URL(contents->snapshot().ToString());
   }
   for (const auto& child : tree.children()) {
     if (ValueOrError<URL> output = FindLinkTarget(buffer, child);

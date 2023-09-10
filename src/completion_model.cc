@@ -49,6 +49,7 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
           Substring(line, ColumnNumber(split + 1)))};
 }
 
+// TODO(trivial, 2023-09-10): Should probably return a LineSequence.
 MutableLineSequence PrepareBuffer(MutableLineSequence contents) {
   contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
                 [](const NonNull<std::shared_ptr<const Line>>& a,
@@ -81,7 +82,10 @@ const bool prepare_buffer_tests_registration = tests::Register(
     L"CompletionModelManager::PrepareBuffer",
     {{.name = L"EmptyBuffer",
       .callback =
-          [] { CHECK(PrepareBuffer(MutableLineSequence()).ToString() == L""); }},
+          [] {
+            CHECK(PrepareBuffer(MutableLineSequence()).snapshot().ToString() ==
+                  L"");
+          }},
      {.name = L"UnsortedBuffer", .callback = [] {
         MutableLineSequence contents;
         contents.push_back(MakeNonNullShared<Line>(L"f fox"));
@@ -89,8 +93,9 @@ const bool prepare_buffer_tests_registration = tests::Register(
         contents.push_back(MakeNonNullShared<Line>(L""));
         contents.push_back(MakeNonNullShared<Line>(L"b baby"));
         contents.push_back(MakeNonNullShared<Line>(L""));
-        CHECK(contents.ToString() == L"\nf fox\n\n\nb baby\n");
-        CHECK(PrepareBuffer(contents).ToString() == L"b baby\nf fox");
+        CHECK(contents.snapshot().ToString() == L"\nf fox\n\n\nb baby\n");
+        CHECK(PrepareBuffer(contents).snapshot().ToString() ==
+              L"b baby\nf fox");
       }}});
 
 std::optional<CompletionModelManager::Text> FindCompletionInModel(
@@ -240,7 +245,8 @@ CompletionModelManager::FindCompletionWithIndex(
       .ToFuture()
       .Transform([buffer_loader = std::move(buffer_loader),
                   data = std::move(data), models_list = std::move(models_list),
-                  compressed_text, index](MutableLineSequence contents) mutable {
+                  compressed_text,
+                  index](MutableLineSequence contents) mutable {
         if (std::optional<Text> result =
                 FindCompletionInModel(contents, compressed_text);
             result.has_value())

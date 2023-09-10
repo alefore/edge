@@ -139,8 +139,10 @@ bool tests_registration = tests::Register(
 
             Paste(buffer.editor()).ProcessInput('x');
 
-            LOG(INFO) << "Contents: " << buffer.contents().ToString();
-            CHECK(buffer.contents().ToString() == L"\nQu\nFoo\nBarux");
+            LOG(INFO) << "Contents: "
+                      << buffer.contents().snapshot().ToString();
+            CHECK(buffer.contents().snapshot().ToString() ==
+                  L"\nQu\nFoo\nBarux");
           }},
      {.name = L"PasteWithFileDescriptor", .callback = [] {
         gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(

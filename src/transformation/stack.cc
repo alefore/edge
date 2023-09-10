@@ -59,8 +59,9 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 
 futures::Value<PossibleError> PreviewCppExpression(
     OpenBuffer& buffer, const MutableLineSequence& expression_str) {
-  FUTURES_ASSIGN_OR_RETURN(auto compilation_result,
-                           buffer.CompileString(expression_str.ToString()));
+  FUTURES_ASSIGN_OR_RETURN(
+      auto compilation_result,
+      buffer.CompileString(expression_str.snapshot().ToString()));
   auto [expression, environment] = std::move(compilation_result);
   buffer.status().Reset();
   switch (expression->purity()) {
@@ -106,7 +107,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
                        input.NewChild(delete_transformation->range->begin));
         });
   }
-  return input.buffer.EvaluateString(contents->ToString())
+  return input.buffer.EvaluateString(contents->snapshot().ToString())
       .Transform([input](gc::Root<vm::Value> value) {
         ShowValue(input.buffer, input.delete_buffer, value.ptr().value());
         Result output(input.position);
@@ -352,8 +353,10 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             NonNull<std::unique_ptr<MutableLineSequence>> contents =
                 input.buffer.contents().copy();
             contents->FilterToRange(*delete_transformation.range);
+            // TODO(trivial, 2023-09-10): Avoid call to ToString? Add method
+            // that returns a LazyString and use it.
             AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
-                             NewLazyString(contents->ToString()));
+                             NewLazyString(contents->snapshot().ToString()));
             std::wstring tmp_path = [&contents] {
               char* tmp_path_bytes = strdup("/tmp/edge-commands-XXXXXX");
               // TODO(async, easy, 2023-08-30): Use file_system_driver.
@@ -362,7 +365,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
               std::wstring tmp_path =
                   FromByteString(std::string(tmp_path_bytes));
               free(tmp_path_bytes);
-              std::string data = ToByteString(contents->ToString());
+              std::string data = ToByteString(contents->snapshot().ToString());
               write(tmp_fd, data.c_str(), data.size());
               close(tmp_fd);
               return tmp_path;

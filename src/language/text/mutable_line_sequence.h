@@ -84,6 +84,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   language::NonNull<std::unique_ptr<MutableLineSequence>> copy() const;
 
   // Drops all contents outside of a specific range.
+  // TODO(trivial): This should be a pure method of LineSequence.
   void FilterToRange(language::text::Range range);
 
   language::NonNull<std::shared_ptr<const language::text::Line>> at(
@@ -114,8 +115,6 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void ForEach(
       const std::function<void(const language::text::Line&)>& callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
-
-  std::wstring ToString() const;
 
   template <class C>
   language::text::LineNumber upper_bound(
