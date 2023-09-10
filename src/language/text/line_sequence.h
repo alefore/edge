@@ -40,6 +40,8 @@ class LineSequence {
   language::NonNull<std::shared_ptr<const Line>> back() const;
   language::NonNull<std::shared_ptr<const Line>> front() const;
 
+  wint_t character_at(const LineColumn& position) const;
+
   LineColumn AdjustLineColumn(LineColumn position) const;
 
   bool EveryLine(

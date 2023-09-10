@@ -62,6 +62,13 @@ NonNull<std::shared_ptr<const Line>> LineSequence::front() const {
   return at(LineNumber(0));
 }
 
+wint_t LineSequence::character_at(const LineColumn& position) const {
+  CHECK_LE(position.line, EndLine());
+  auto line = at(position.line);
+  return position.column >= line->EndColumn() ? L'\n'
+                                              : line->get(position.column);
+}
+
 LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(size(), LineNumberDelta(0));
   position.line = std::min(position.line, EndLine());
