@@ -4,6 +4,8 @@ ct const
 lg language
 ssp std::shared_ptr
 sup std::unique_ptr
+mnns MakeNonNullShared<
+mnnu MakeNonNullUnique<
 nnu NonNull<std::unique_ptr<
 nns NonNull<std::shared_ptr<
 ic include
