@@ -32,11 +32,11 @@ using language::text::LineColumn;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 
 TerminalInputParser::TerminalInputParser(
     NonNull<std::unique_ptr<TerminalInputParser::Receiver>> receiver,
-    LineSequence& contents)
+    MutableLineSequence& contents)
     : data_(MakeNonNullShared<Data>(
           Data{.receiver = std::move(receiver), .contents = contents})) {
   data_->receiver->view_size().Add(Observers::LockingObserver(

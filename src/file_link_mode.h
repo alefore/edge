@@ -18,7 +18,7 @@ namespace editor {
 // Saves the contents of the buffer to the path given.
 futures::Value<language::PossibleError> SaveContentsToFile(
     const infrastructure::Path& path,
-    language::NonNull<std::unique_ptr<const language::text::LineSequence>>
+    language::NonNull<std::unique_ptr<const language::text::MutableLineSequence>>
         contents,
     concurrent::ThreadPool& thread_pool,
     infrastructure::FileSystemDriver& file_system_driver);

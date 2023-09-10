@@ -54,7 +54,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
     virtual void Bell() = 0;
     virtual void Warn(language::Error error) = 0;
 
-    virtual const language::text::LineSequence& contents() = 0;
+    virtual const language::text::MutableLineSequence& contents() = 0;
 
     // Return the position of the start of the current view.
     virtual language::text::LineColumn current_widget_view_start() = 0;
@@ -63,7 +63,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
   };
 
   TerminalInputParser(language::NonNull<std::unique_ptr<Receiver>> receiver,
-                      language::text::LineSequence& contents);
+                      language::text::MutableLineSequence& contents);
 
   // Propagates the last view size to buffer->fd().
   void UpdateSize();
@@ -86,7 +86,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
     language::NonNull<std::unique_ptr<Receiver>> receiver;
 
     // TODO: Find a way to remove this? I.e. always use buffer_.
-    language::text::LineSequence& contents;
+    language::text::MutableLineSequence& contents;
 
     language::text::LineColumn position = language::text::LineColumn();
   };

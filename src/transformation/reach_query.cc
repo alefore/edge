@@ -23,7 +23,7 @@ using language::text::LineColumn;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 
 using ::operator<<;
 
@@ -31,7 +31,7 @@ namespace {
 static const ColumnNumberDelta kQueryLength = ColumnNumberDelta(2);
 
 const Line& GetLine(const LineColumn& position,
-                    const LineSequence& contents) {
+                    const MutableLineSequence& contents) {
   return contents.at(position.line).value();
 }
 
@@ -70,7 +70,7 @@ using PositionIdentifierMap =
     std::map<Identifier, std::map<Identifier, LineColumn>>;
 
 bool FindSyntheticIdentifier(LineColumn position,
-                             const LineSequence& contents,
+                             const MutableLineSequence& contents,
                              PositionIdentifierMap& output) {
   static const std::wstring kIdentifiers =
       L"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -93,7 +93,7 @@ bool FindSyntheticIdentifier(LineColumn position,
 }
 
 PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
-                                      const LineSequence& contents) {
+                                      const MutableLineSequence& contents) {
   PositionIdentifierMap output;
   std::vector<LineColumn> pending;
 

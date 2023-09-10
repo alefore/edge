@@ -15,7 +15,7 @@ using language::NonNull;
 using language::Observers;
 using language::text::LineColumn;
 using language::text::LineNumberDelta;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 using language::text::Range;
 
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
@@ -69,14 +69,14 @@ std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(
 }
 
 namespace {
-std::wstring GetSymbol(const Range& range, const LineSequence& contents) {
+std::wstring GetSymbol(const Range& range, const MutableLineSequence& contents) {
   return contents.at(range.begin.line)
       ->Substring(range.begin.column, range.end.column - range.begin.column)
       ->ToString();
 }
 
 void PrepareTokenPartition(
-    NonNull<const ParseTree*> tree, const LineSequence& contents,
+    NonNull<const ParseTree*> tree, const MutableLineSequence& contents,
     std::unordered_map<language::text::Range, size_t>& output_token_id,
     std::vector<std::set<language::text::Range>>& output_token_partition) {
   std::vector<NonNull<const ParseTree*>> trees = {tree};
@@ -103,9 +103,9 @@ void PrepareTokenPartition(
 }  // namespace
 
 void BufferSyntaxParser::Parse(
-    NonNull<std::unique_ptr<LineSequence>> contents) {
+    NonNull<std::unique_ptr<MutableLineSequence>> contents) {
   data_->lock([&pool = thread_pool_, data_ptr = data_, observers = observers_,
-               shared_contents = NonNull<std::shared_ptr<LineSequence>>(
+               shared_contents = NonNull<std::shared_ptr<MutableLineSequence>>(
                    std::move(contents))](Data& data) {
     if (TreeParser::IsNull(data.tree_parser.get().get())) return;
 

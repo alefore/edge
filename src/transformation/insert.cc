@@ -18,7 +18,7 @@ using language::lazy_string::ColumnNumberDelta;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
 namespace vm {
@@ -124,7 +124,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
           [](NonNull<std::shared_ptr<Insert>> options, std::wstring text) {
-            NonNull<std::shared_ptr<LineSequence>> buffer;
+            NonNull<std::shared_ptr<MutableLineSequence>> buffer;
             ColumnNumber line_start;
             for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(text.size());
                  ++i) {
@@ -138,7 +138,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
             buffer->push_back(
                 MakeNonNullShared<Line>(text.substr(line_start.read())));
             buffer->EraseLines(LineNumber(), LineNumber(1),
-                               LineSequence::CursorsBehavior::kUnmodified);
+                               MutableLineSequence::CursorsBehavior::kUnmodified);
             options->contents_to_insert = std::move(buffer);
             return options;
           })

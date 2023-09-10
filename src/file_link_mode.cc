@@ -64,7 +64,7 @@ using language::lazy_string::ColumnNumber;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
 
@@ -80,7 +80,7 @@ futures::Value<PossibleError> GenerateContents(
        path](std::optional<struct stat> stat_results) {
         if (stat_results.has_value() &&
             target.Read(buffer_variables::clear_on_reload)) {
-          target.ClearContents(LineSequence::CursorsBehavior::kUnmodified);
+          target.ClearContents(MutableLineSequence::CursorsBehavior::kUnmodified);
           target.SetDiskState(OpenBuffer::DiskState::kCurrent);
         }
         if (!stat_results.has_value()) {
@@ -206,7 +206,7 @@ futures::Value<PossibleError> Save(
 
 futures::Value<PossibleError> SaveContentsToOpenFile(
     ThreadPool& thread_pool, Path path, FileDescriptor fd,
-    NonNull<std::shared_ptr<const LineSequence>> contents) {
+    NonNull<std::shared_ptr<const MutableLineSequence>> contents) {
   return thread_pool.Run([contents, path, fd]() {
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
     std::optional<PossibleError> error;
@@ -229,7 +229,7 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 // Caller must ensure that file_system_driver survives until the future is
 // notified.
 futures::Value<PossibleError> SaveContentsToFile(
-    const Path& path, NonNull<std::unique_ptr<const LineSequence>> contents,
+    const Path& path, NonNull<std::unique_ptr<const MutableLineSequence>> contents,
     ThreadPool& thread_pool, FileSystemDriver& file_system_driver) {
   Path tmp_path =
       Path::Join(ValueOrDie(path.Dirname()),
@@ -251,7 +251,7 @@ futures::Value<PossibleError> SaveContentsToFile(
                                        stat_value.st_mode);
       })
       .Transform([&thread_pool, path,
-                  contents = NonNull<std::shared_ptr<const LineSequence>>(
+                  contents = NonNull<std::shared_ptr<const MutableLineSequence>>(
                       std::move(contents)),
                   tmp_path, &file_system_driver](FileDescriptor fd) {
         CHECK_NE(fd.read(), -1);

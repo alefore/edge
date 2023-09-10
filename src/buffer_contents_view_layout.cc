@@ -26,7 +26,7 @@ using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 using language::text::Range;
 
 std::list<ColumnRange> ComputeBreaks(
@@ -152,7 +152,7 @@ const bool find_position_in_screen_tests_registration = tests::Register(
       }}});
 
 BufferContentsViewLayout::Line GetScreenLine(
-    const LineSequence& contents, std::optional<LineColumn> active_position,
+    const MutableLineSequence& contents, std::optional<LineColumn> active_position,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
     LineNumber line, ColumnRange column_range) {
   CHECK_LE(line, contents.EndLine());
@@ -185,7 +185,7 @@ BufferContentsViewLayout::Line GetScreenLine(
 const bool get_screen_line_tests_registration = tests::Register(
     L"GetScreenLine",
     {{.name = L"SimpleLine", .callback = [] {
-        LineSequence contents;
+        MutableLineSequence contents;
         contents.AppendToLine(LineNumber(0), Line(L"foo"));
         BufferContentsViewLayout::Line output =
             GetScreenLine(contents, std::nullopt, {}, LineNumber(0),
@@ -389,7 +389,7 @@ const bool buffer_contents_view_layout_tests_registration =
       auto new_test = [](std::wstring name, auto callback) {
         return tests::Test(
             {.name = name, .callback = [callback]() {
-               auto contents = std::make_shared<LineSequence>();
+               auto contents = std::make_shared<MutableLineSequence>();
                contents->AppendToLine(LineNumber(), Line(L"0alejandro"));
                for (const auto& s : std::list<std::wstring>{
                         L"1forero",

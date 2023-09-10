@@ -8,10 +8,10 @@ using language::lazy_string::ColumnNumber;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 using language::text::Range;
 
-Seek::Seek(const LineSequence& contents, LineColumn* position)
+Seek::Seek(const MutableLineSequence& contents, LineColumn* position)
     : contents_(contents),
       position_(position),
       range_(LineColumn(), LineColumn(contents_.EndLine().next())) {}

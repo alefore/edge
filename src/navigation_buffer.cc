@@ -33,7 +33,7 @@ using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumberDelta;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 using language::text::OutgoingLink;
 
 namespace gc = language::gc;
@@ -113,7 +113,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, gc::WeakPtr<OpenBuffer> source_weak,
     OpenBuffer& target) {
-  target.ClearContents(LineSequence::CursorsBehavior::kUnmodified);
+  target.ClearContents(MutableLineSequence::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state.edge_path()) {
     target.EvaluateFile(Path::Join(
         dir, ValueOrDie(Path::FromString(L"hooks/navigation-buffer-reload.cc"),

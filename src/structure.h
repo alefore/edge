@@ -9,7 +9,7 @@
 #include "src/parse_tree.h"
 
 namespace afc::language::text {
-class LineSequence;
+class MutableLineSequence;
 }
 namespace afc ::editor {
 class DeleteOptions;
@@ -74,7 +74,7 @@ StructureSearchRange GetStructureSearchRange(Structure structure);
 // of the type specified that starts after position. No-op if we're already
 // inside the structure.
 struct SeekInput {
-  const language::text::LineSequence& contents;
+  const language::text::MutableLineSequence& contents;
   Structure structure;
   Direction direction;
   std::wstring line_prefix_characters;

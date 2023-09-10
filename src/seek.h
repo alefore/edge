@@ -10,7 +10,7 @@ namespace editor {
 
 class Seek {
  public:
-  Seek(const language::text::LineSequence& contents,
+  Seek(const language::text::MutableLineSequence& contents,
        language::text::LineColumn* position);
 
   enum Result { DONE, UNABLE_TO_ADVANCE };
@@ -48,7 +48,7 @@ class Seek {
   bool Advance(language::text::LineColumn* position) const;
   bool AdvanceLine(language::text::LineColumn* position) const;
 
-  const language::text::LineSequence& contents_;
+  const language::text::MutableLineSequence& contents_;
   language::text::LineColumn* const position_;
 
   bool wrapping_lines_ = false;

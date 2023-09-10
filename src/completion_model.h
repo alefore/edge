@@ -30,7 +30,7 @@ class CompletionModelManager {
   };
 
   using BufferLoader =
-      std::function<futures::Value<language::text::LineSequence>(
+      std::function<futures::Value<language::text::MutableLineSequence>(
           infrastructure::Path)>;
   CompletionModelManager(BufferLoader buffer_loader);
 
@@ -39,7 +39,7 @@ class CompletionModelManager {
                                     CompressedText compressed_text);
 
  private:
-  using CompletionModel = language::text::LineSequence;
+  using CompletionModel = language::text::MutableLineSequence;
   using ModelsMap =
       std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>;
 
@@ -52,7 +52,7 @@ class CompletionModelManager {
       CompressedText compressed_text, size_t index);
 
   static void UpdateReverseTable(Data& data, const infrastructure::Path& path,
-                                 const language::text::LineSequence& contents);
+                                 const language::text::MutableLineSequence& contents);
 
   struct Data {
     ModelsMap models;

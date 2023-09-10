@@ -21,7 +21,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
 namespace {
@@ -302,7 +302,7 @@ const bool buffer_positions_tests_registration = tests::Register(
         buffer.ptr()->active_cursors().set_active(insertion_iterator);
         CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(5)));
 
-        buffer.ptr()->ClearContents(LineSequence::CursorsBehavior::kUnmodified);
+        buffer.ptr()->ClearContents(MutableLineSequence::CursorsBehavior::kUnmodified);
 
         CHECK_EQ(buffer.ptr()->contents().size(), LineNumberDelta(1));
         CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(5)));

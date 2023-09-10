@@ -26,7 +26,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 using language::text::Range;
 
 using ::operator<<;
@@ -51,14 +51,14 @@ enum State {
 class MarkdownParser : public TreeParser {
  public:
   MarkdownParser(std::wstring symbol_characters,
-                 std::unique_ptr<const LineSequence> dictionary)
+                 std::unique_ptr<const MutableLineSequence> dictionary)
       : symbol_characters_(std::move(symbol_characters)),
         dictionary_(std::move(dictionary)) {
     if (dictionary_ != nullptr)
       LOG(INFO) << "Created with dictionary entries: " << dictionary_->size();
   }
 
-  ParseTree FindChildren(const LineSequence& buffer, Range range) override {
+  ParseTree FindChildren(const MutableLineSequence& buffer, Range range) override {
     std::vector<size_t> states_stack = {DEFAULT};
     std::vector<ParseTree> trees = {ParseTree(range)};
     range.ForEachLine([&](LineNumber i) {
@@ -348,13 +348,13 @@ class MarkdownParser : public TreeParser {
   }
 
   const std::wstring symbol_characters_;
-  const std::unique_ptr<const LineSequence> dictionary_;
+  const std::unique_ptr<const MutableLineSequence> dictionary_;
 };
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
     std::wstring symbol_characters,
-    std::unique_ptr<const LineSequence> dictionary) {
+    std::unique_ptr<const MutableLineSequence> dictionary) {
   return MakeNonNullUnique<MarkdownParser>(std::move(symbol_characters),
                                            std::move(dictionary));
 }

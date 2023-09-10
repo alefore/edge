@@ -20,7 +20,7 @@ extern "C" {
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/tests/fuzz.h"
 
-using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
 using namespace afc::editor;
 namespace gc = afc::language::gc;
 namespace fuzz = afc::tests::fuzz;
@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
   EditorState editor(CommandLineValues(), audio_player.value());
   OpenBuffer::Options options{.editor = editor};
   gc::Root<OpenBuffer> buffer = OpenBuffer::New(options);
-  if (class_name == "LineSequence") {
-    fuzz_testable = std::make_unique<LineSequence>();
+  if (class_name == "MutableLineSequence") {
+    fuzz_testable = std::make_unique<MutableLineSequence>();
   } else if (class_name == "BufferTerminal") {
     fuzz_testable = std::move(buffer.ptr()->NewTerminal().get_unique());
   }

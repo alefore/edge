@@ -14,7 +14,7 @@ namespace afc::editor {
 using infrastructure::Tracker;
 using language::lazy_string::NewLazyString;
 using language::text::LineColumn;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 
 void LineMarks::AddMark(Mark mark) {
   marks_by_source_target[mark.source_buffer][mark.target_buffer].marks.insert(
@@ -43,7 +43,7 @@ void LineMarks::RemoveSource(const BufferName& source) {
   marks_by_source_target.erase(it);
 }
 
-void LineMarks::ExpireMarksFromSource(const LineSequence& source_buffer,
+void LineMarks::ExpireMarksFromSource(const MutableLineSequence& source_buffer,
                                       const BufferName& source) {
   static Tracker tracker(L"LineMarks::ExpireMarksFromSource");
   auto call = tracker.Call();

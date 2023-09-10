@@ -12,12 +12,12 @@ using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::text::LineColumn;
-using language::text::LineSequence;
+using language::text::MutableLineSequence;
 
 namespace {
 futures::Value<PossibleError> InsertHistoryBufferContents(OpenBuffer& output) {
-  output.ClearContents(LineSequence::CursorsBehavior::kUnmodified);
-  for (const NonNull<std::unique_ptr<const LineSequence>>& contents :
+  output.ClearContents(MutableLineSequence::CursorsBehavior::kUnmodified);
+  for (const NonNull<std::unique_ptr<const MutableLineSequence>>& contents :
        output.editor().insert_history().get()) {
     LineColumn position = output.contents().range().end;
     output.InsertInPosition(contents.value(), position, {});

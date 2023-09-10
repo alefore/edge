@@ -4,7 +4,7 @@
 namespace afc {
 namespace editor {
 namespace testing {
-void LineSequenceTests();
+void MutableLineSequenceTests();
 }  // namespace testing
 }  // namespace editor
 }  // namespace afc

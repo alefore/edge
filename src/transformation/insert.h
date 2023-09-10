@@ -21,7 +21,7 @@ struct Insert {
 
   // This would ideally be unique_ptr, but then `Insert` wouldn't be copyable
   // (which would make transformation::Variant non-copyable).
-  language::NonNull<std::shared_ptr<const language::text::LineSequence>>
+  language::NonNull<std::shared_ptr<const language::text::MutableLineSequence>>
       contents_to_insert;
 
   editor::Modifiers modifiers = Modifiers();

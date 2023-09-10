@@ -173,7 +173,7 @@ class OpenBuffer {
   void SendEndOfFileToProcess();
 
   void ClearContents(
-      language::text::LineSequence::CursorsBehavior cursors_behavior);
+      language::text::MutableLineSequence::CursorsBehavior cursors_behavior);
   void AppendEmptyLine();
 
   // Sort all lines in range [first, last) according to a compare function.
@@ -246,13 +246,13 @@ class OpenBuffer {
   // If modifiers is present, applies it to every character (overriding the
   // modifiers from `insertion`; that is, from the input).
   language::text::LineColumn InsertInPosition(
-      const language::text::LineSequence& contents_to_insert,
+      const language::text::MutableLineSequence& contents_to_insert,
       const language::text::LineColumn& position,
       const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
-  // See LineSequence::AdjustLineColumn.
+  // See MutableLineSequence::AdjustLineColumn.
   // TODO(trivial, 2023-08-24): Get rid of this method; switch all callers to
-  // LineSequence.
+  // MutableLineSequence.
   language::text::LineColumn AdjustLineColumn(
       language::text::LineColumn position) const;
 
@@ -422,7 +422,9 @@ class OpenBuffer {
   //
   // TODO(easy, 2023-08-21): Stop passing a reference to TerminalInputParser;
   // instead, extend TerminalInputParser::Receiver.
-  const language::text::LineSequence& contents() const { return contents_; }
+  const language::text::MutableLineSequence& contents() const {
+    return contents_;
+  }
 
   BufferName name() const;
 
@@ -600,7 +602,7 @@ class OpenBuffer {
   language::NonNull<std::shared_ptr<OpenBufferMutableLineSequenceObserver>>
       contents_observer_;
 
-  language::text::LineSequence contents_;
+  language::text::MutableLineSequence contents_;
   infrastructure::screen::VisualOverlayMap visual_overlay_map_;
 
   DiskState disk_state_ = DiskState::kCurrent;

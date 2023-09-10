@@ -47,22 +47,38 @@ class NullMutableLineSequenceObserver : public MutableLineSequenceObserver {
   void InsertedCharacter(language::text::LineColumn position) override;
 };
 
-class LineSequence : public tests::fuzz::FuzzTestable {
+// TODO: Add more methods here.
+class MutableLineSequence;
+class LineSequence {
+ private:
   using Lines = language::ConstTree<
       language::VectorBlock<
           language::NonNull<std::shared_ptr<const language::text::Line>>, 256>,
       256>;
 
  public:
-  LineSequence();
+ private:
+  friend MutableLineSequence;
+  Lines::Ptr lines_ = Lines::PushBack(nullptr, {});
+};
 
-  explicit LineSequence(
+// TODO(trivial): Move to separate compilation unit.
+class MutableLineSequence : public tests::fuzz::FuzzTestable {
+  using Lines = language::ConstTree<
+      language::VectorBlock<
+          language::NonNull<std::shared_ptr<const language::text::Line>>, 256>,
+      256>;
+
+ public:
+  MutableLineSequence();
+
+  explicit MutableLineSequence(
       language::NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer);
 
-  static LineSequence WithLine(
+  static MutableLineSequence WithLine(
       language::NonNull<std::shared_ptr<const language::text::Line>> line);
 
-  virtual ~LineSequence() = default;
+  virtual ~MutableLineSequence() = default;
 
   wint_t character_at(const language::text::LineColumn& position) const;
 
@@ -81,7 +97,7 @@ class LineSequence : public tests::fuzz::FuzzTestable {
 
   // Returns a copy of the contents of the tree. No actual copying takes place.
   // This is dirt cheap. The updates listener isn't copied.
-  language::NonNull<std::unique_ptr<LineSequence>> copy() const;
+  language::NonNull<std::unique_ptr<MutableLineSequence>> copy() const;
 
   // Drops all contents outside of a specific range.
   void FilterToRange(language::text::Range range);
@@ -168,7 +184,8 @@ class LineSequence : public tests::fuzz::FuzzTestable {
   // If modifiers is present, applies it to every character (overriding
   // modifiers from the source).
   void insert(
-      language::text::LineNumber position_line, const LineSequence& source,
+      language::text::LineNumber position_line,
+      const MutableLineSequence& source,
       const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
   // Delete characters from position.line in range [position.column,
@@ -230,7 +247,8 @@ class LineSequence : public tests::fuzz::FuzzTestable {
   template <typename Callback>
   void TransformLine(language::text::LineNumber line_number,
                      Callback callback) {
-    static infrastructure::Tracker tracker(L"LineSequence::TransformLine");
+    static infrastructure::Tracker tracker(
+        L"MutableLineSequence::TransformLine");
     auto tracker_call = tracker.Call();
     if (lines_ == nullptr) {
       lines_ = Lines::PushBack(nullptr, {});

@@ -16,7 +16,7 @@
 namespace afc::editor {
 struct BufferContentsViewLayout {
   struct Input {
-    const language::text::LineSequence& contents;
+    const language::text::MutableLineSequence& contents;
 
     // If present, adjusts the view (`begin`) to contain this location.
     std::optional<language::text::LineColumn> active_position;

@@ -22,7 +22,7 @@ using namespace afc::editor;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
-using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
 
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -32,7 +32,7 @@ int main(int, char** argv) {
 
   std::wifstream input(argv[1]);
 
-  LineSequence contents;
+  MutableLineSequence contents;
   for (std::wstring line; std::getline(input, line, L'\n');) {
     LineBuilder options(NewLazyString(line));
     contents.AppendToLine(contents.EndLine(), std::move(options).Build());

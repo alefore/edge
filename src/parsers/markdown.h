@@ -12,7 +12,7 @@ namespace editor {
 namespace parsers {
 language::NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
     std::wstring symbol_characters,
-    std::unique_ptr<const language::text::LineSequence> dictionary);
+    std::unique_ptr<const language::text::MutableLineSequence> dictionary);
 }  // namespace parsers
 }  // namespace editor
 }  // namespace afc
