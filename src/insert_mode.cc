@@ -200,7 +200,7 @@ class InsertMode : public EditorMode {
                                       true);
                     return buffer.ptr()->WaitForEndOfFile().Transform(
                         [buffer](EmptyValue) {
-                          return buffer.ptr()->contents();
+                          return buffer.ptr()->contents().snapshot();
                         });
                   });
             })) {

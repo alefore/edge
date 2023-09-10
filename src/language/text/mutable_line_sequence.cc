@@ -50,6 +50,10 @@ MutableLineSequence::MutableLineSequence(
     NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer)
     : observer_(std::move(observer)) {}
 
+MutableLineSequence::MutableLineSequence(LineSequence lines)
+    : lines_(std::move(lines.lines_)),
+      observer_(MakeNonNullShared<NullMutableLineSequenceObserver>()) {}
+
 LineSequence MutableLineSequence::snapshot() const {
   return LineSequence(lines_);
 }

@@ -57,6 +57,8 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   explicit MutableLineSequence(
       language::NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer);
 
+  explicit MutableLineSequence(LineSequence lines);
+
   static MutableLineSequence WithLine(
       language::NonNull<std::shared_ptr<const language::text::Line>> line);
 

@@ -50,14 +50,14 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
           Substring(line, ColumnNumber(split + 1)))};
 }
 
-// TODO(trivial, 2023-09-10): Should probably return a LineSequence.
-MutableLineSequence PrepareBuffer(MutableLineSequence contents) {
-  contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
-                [](const NonNull<std::shared_ptr<const Line>>& a,
-                   const NonNull<std::shared_ptr<const Line>>& b) {
-                  return LowerCase(a->contents()).value() <
-                         LowerCase(b->contents()).value();
-                });
+LineSequence PrepareBuffer(LineSequence contents) {
+  MutableLineSequence mutable_contents(contents);
+  mutable_contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
+                        [](const NonNull<std::shared_ptr<const Line>>& a,
+                           const NonNull<std::shared_ptr<const Line>>& b) {
+                          return LowerCase(a->contents()).value() <
+                                 LowerCase(b->contents()).value();
+                        });
   LineNumber empty_lines_start;
   while (empty_lines_start < contents.EndLine() &&
          contents.at(empty_lines_start)->contents()->size().IsZero())
@@ -65,10 +65,11 @@ MutableLineSequence PrepareBuffer(MutableLineSequence contents) {
   if (!empty_lines_start.IsZero()) {
     LOG(INFO) << "Deleting empty lines: " << empty_lines_start << " to "
               << contents.EndLine();
-    contents.EraseLines(LineNumber(), empty_lines_start,
-                        MutableLineSequence::CursorsBehavior ::kUnmodified);
+    mutable_contents.EraseLines(
+        LineNumber(), empty_lines_start,
+        MutableLineSequence::CursorsBehavior ::kUnmodified);
   }
-  return contents;
+  return mutable_contents.snapshot();
 }
 
 LineSequence CompletionModelForTests() {
@@ -76,7 +77,7 @@ LineSequence CompletionModelForTests() {
   contents.push_back(L"bb baby");
   contents.push_back(L"f fox");
   contents.push_back(L"i i");
-  return PrepareBuffer(std::move(contents)).snapshot();
+  return PrepareBuffer(contents.snapshot());
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
@@ -84,7 +85,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
     {{.name = L"EmptyBuffer",
       .callback =
           [] {
-            CHECK(PrepareBuffer(MutableLineSequence()).snapshot().ToString() ==
+            CHECK(PrepareBuffer(MutableLineSequence().snapshot()).ToString() ==
                   L"");
           }},
      {.name = L"UnsortedBuffer", .callback = [] {
@@ -95,7 +96,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
         contents.push_back(MakeNonNullShared<Line>(L"b baby"));
         contents.push_back(MakeNonNullShared<Line>(L""));
         CHECK(contents.snapshot().ToString() == L"\nf fox\n\n\nb baby\n");
-        CHECK(PrepareBuffer(contents).snapshot().ToString() ==
+        CHECK(PrepareBuffer(contents.snapshot()).ToString() ==
               L"b baby\nf fox");
       }}});
 
@@ -212,7 +213,7 @@ CompletionModelManager::FindCompletionWithIndex(
           return NothingFound{};
         }));
 
-  futures::ListenableValue<MutableLineSequence> current_future =
+  futures::ListenableValue<LineSequence> current_future =
       data->lock([&](Data& locked_data) {
         Path path = models_list->at(index);
         if (auto it = locked_data.models.find(path);
@@ -229,13 +230,13 @@ CompletionModelManager::FindCompletionWithIndex(
         // AddListener below. If that happens, we'll deadlock. Figure out a
         // better solution.
         if (output.has_value()) {
-          UpdateReverseTable(locked_data, path, output.get_copy()->snapshot());
+          UpdateReverseTable(locked_data, path, output.get_copy().value());
         } else {
           LOG(INFO) << "Adding listener to update reverse table.";
-          output.AddListener([data, path](const MutableLineSequence& contents) {
+          output.AddListener([data, path](const LineSequence& contents) {
             LOG(INFO) << "Updating reverse table.";
             data->lock([&](Data& data_locked) {
-              UpdateReverseTable(data_locked, path, contents.snapshot());
+              UpdateReverseTable(data_locked, path, contents);
             });
           });
         }
@@ -246,10 +247,9 @@ CompletionModelManager::FindCompletionWithIndex(
       .ToFuture()
       .Transform([buffer_loader = std::move(buffer_loader),
                   data = std::move(data), models_list = std::move(models_list),
-                  compressed_text,
-                  index](MutableLineSequence contents) mutable {
+                  compressed_text, index](LineSequence contents) mutable {
         if (std::optional<Text> result =
-                FindCompletionInModel(contents.snapshot(), compressed_text);
+                FindCompletionInModel(contents, compressed_text);
             result.has_value())
           return futures::Past(QueryOutput(*result));
         return FindCompletionWithIndex(buffer_loader, std::move(data),
@@ -287,7 +287,7 @@ const bool completion_model_manager_tests_registration =
             contents.push_back(L"f firulais");
             contents.push_back(L"p perrito");
           }
-          return futures::Past(std::move(contents));
+          return futures::Past(contents.snapshot());
         });
       };
       auto TestQuery =

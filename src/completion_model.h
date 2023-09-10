@@ -30,7 +30,7 @@ class CompletionModelManager {
   };
 
   using BufferLoader =
-      std::function<futures::Value<language::text::MutableLineSequence>(
+      std::function<futures::Value<language::text::LineSequence>(
           infrastructure::Path)>;
   CompletionModelManager(BufferLoader buffer_loader);
 
@@ -39,8 +39,7 @@ class CompletionModelManager {
                                     CompressedText compressed_text);
 
  private:
-  // TODO(trivial, 2023-09-10): :s/Mutable// in the next line (and everywhere).
-  using CompletionModel = language::text::MutableLineSequence;
+  using CompletionModel = language::text::LineSequence;
   using ModelsMap =
       std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>;
 
