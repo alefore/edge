@@ -86,10 +86,6 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // This is dirt cheap. The updates listener isn't copied.
   language::NonNull<std::unique_ptr<MutableLineSequence>> copy() const;
 
-  // Drops all contents outside of a specific range.
-  // TODO(trivial): This should be a pure method of LineSequence.
-  void FilterToRange(language::text::Range range);
-
   language::NonNull<std::shared_ptr<const language::text::Line>> at(
       language::text::LineNumber line_number) const {
     CHECK_LT(line_number, language::text::LineNumber(0) + size());

@@ -28,6 +28,11 @@ class LineSequence {
   LineSequence(LineSequence&&) = default;
   LineSequence& operator=(const LineSequence&) = default;
 
+  static LineSequence ForTests(std::vector<std::wstring> inputs);
+
+  // Returns a new LineSequence that contains a subset of the current one.
+  LineSequence ViewRange(language::text::Range range);
+
   std::wstring ToString() const;
 
   LineNumberDelta size() const;

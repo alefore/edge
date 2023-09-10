@@ -272,8 +272,8 @@ auto VisitPointer(std::weak_ptr<T> t, Callable callable,
 }
 
 template <typename T, typename Callable, typename NullCallable>
-decltype(std::declval<Callable>()(std::declval<T>())) VisitPointer(
-    std::optional<T> t, Callable callable, NullCallable null_callable) {
+decltype(std::declval<Callable>()(std::declval<T>())) VisitOptional(
+    Callable callable, NullCallable null_callable, std::optional<T> t) {
   // Most of the time the non-null case returns a more generic type (typically a
   // ValueOrError vs an Error), so we assume that VisitPointer will return the
   // type of the `callable` (and let the return value of `null_callable` be
@@ -285,7 +285,12 @@ decltype(std::declval<Callable>()(std::declval<T>())) VisitPointer(
   }
 }
 
-// Returns a
+template <typename T, typename Callable, typename NullCallable>
+decltype(std::declval<Callable>()(std::declval<T>())) VisitPointer(
+    std::optional<T> t, Callable callable, NullCallable null_callable) {
+  return VisitOptional(callable, null_callable, t);
+}
+
 template <typename Overloads>
 auto VisitOptionalCallback(Overloads overloads) {
   return [overloads](

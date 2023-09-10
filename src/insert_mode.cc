@@ -231,7 +231,7 @@ class InsertMode : public EditorMode {
             // Whatever was being typed, was probably just for completion
             // purposes; we might as well not let it be added to the history (so
             // as to not pollute it).
-            current_insertion_->FilterToRange(Range());
+            current_insertion_->DeleteToLineEnd(LineColumn());
             return;
           }
         }

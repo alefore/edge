@@ -23,6 +23,159 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
 
+using ::operator<<;
+
+/* static */ LineSequence LineSequence::ForTests(
+    std::vector<std::wstring> inputs) {
+  CHECK(!inputs.empty());
+  Lines::Ptr output = nullptr;
+  for (const std::wstring& input : inputs) {
+    output = Lines::PushBack(output, MakeNonNullShared<Line>(input));
+  }
+  return LineSequence(std::move(output));
+}
+
+LineSequence LineSequence::ViewRange(Range range) {
+  CHECK_LE(range.begin, range.end);
+  CHECK_LE(range.end.line, EndLine());
+  Lines::Ptr output = lines_;
+
+  output = Lines::Suffix(Lines::Prefix(output, range.end.line.read() + 1),
+                         range.begin.line.read());
+
+  if (range.end.column < output->Get(output->size() - 1)->EndColumn()) {
+    LineBuilder replacement(output->Get(output->size() - 1).value());
+    replacement.DeleteSuffix(range.end.column);
+    output = output->Replace(
+        output->size() - 1,
+        MakeNonNullShared<Line>(std::move(replacement).Build()));
+  }
+
+  if (!range.begin.column.IsZero()) {
+    LineBuilder replacement(output->Get(0).value());
+    replacement.DeleteCharacters(
+        ColumnNumber(0),
+        std::min(output->Get(0)->EndColumn(), range.begin.column).ToDelta());
+    output = output->Replace(
+        0, MakeNonNullShared<Line>(std::move(replacement).Build()));
+  }
+
+  return LineSequence(std::move(output));
+}
+
+namespace {
+LineSequence LineSequenceForTests() {
+  LineSequence output =
+      LineSequence::ForTests({L"alejandro", L"forero", L"cuervo"});
+  LOG(INFO) << "Contents: " << output.ToString();
+  return output;
+}
+
+const bool filter_to_range_tests_registration = tests::Register(
+    L"LineSequence::ViewRange",
+    {
+        {.name = L"EmptyInput",
+         .callback =
+             [] {
+               CHECK(LineSequence().ViewRange(Range()).ToString() == L"");
+             }},
+        {.name = L"EmptyRange",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests().ViewRange(Range()).ToString() ==
+                     L"");
+             }},
+        {.name = L"WholeRange",
+         .callback =
+             [] {
+               LineSequence buffer = LineSequenceForTests();
+               CHECK(buffer.ViewRange(buffer.range()).ToString() ==
+                     buffer.ToString());
+             }},
+        {.name = L"FirstLineFewChars",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(),
+                                   LineColumn(LineNumber(0), ColumnNumber(3))})
+                         .ToString() == L"ale");
+             }},
+        {.name = L"FirstLineExcludingBreak",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(),
+                                   LineColumn(LineNumber(0), ColumnNumber(9))})
+                         .ToString() == L"alejandro");
+             }},
+        {.name = L"FirstLineIncludingBreak",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(),
+                                   LineColumn(LineNumber(1), ColumnNumber(0))})
+                         .ToString() == L"alejandro\n");
+             }},
+        {.name = L"FirstLineMiddleChars",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(LineNumber(0), ColumnNumber(2)),
+                                   LineColumn(LineNumber(0), ColumnNumber(5))})
+                         .ToString() == L"eja");
+             }},
+        {.name = L"MultiLineMiddle",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(LineNumber(0), ColumnNumber(2)),
+                                   LineColumn(LineNumber(2), ColumnNumber(3))})
+                         .ToString() == L"ejandro\nforero\ncue");
+             }},
+        {.name = L"LastLineFewChars",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(LineNumber(2), ColumnNumber(2)),
+                                   LineColumn(LineNumber(2), ColumnNumber(6))})
+                         .ToString() == L"ervo");
+             }},
+        {.name = L"LastLineExcludingBreak",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(LineNumber(2), ColumnNumber()),
+                                   LineColumn(LineNumber(2), ColumnNumber(6))})
+                         .ToString() == L"cuervo");
+             }},
+        {.name = L"LastLineIncludingBreak",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(LineNumber(1), ColumnNumber(6)),
+                                   LineColumn(LineNumber(2), ColumnNumber(6))})
+                         .ToString() == L"\ncuervo");
+             }},
+        {.name = L"LastLineMiddleChars",
+         .callback =
+             [] {
+               CHECK(LineSequenceForTests()
+                         .ViewRange(
+                             Range{LineColumn(LineNumber(2), ColumnNumber(2)),
+                                   LineColumn(LineNumber(2), ColumnNumber(5))})
+                         .ToString() == L"erv");
+             }},
+    });
+}  // namespace
+
 std::wstring LineSequence::ToString() const {
   std::wstring output;
   output.reserve(CountCharacters());
@@ -31,6 +184,7 @@ std::wstring LineSequence::ToString() const {
     output.append((position == LineNumber(0) ? L"" : L"\n") + line->ToString());
     return true;
   });
+  VLOG(10) << "ToString: " << output;
   return output;
 }
 

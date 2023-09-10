@@ -1980,9 +1980,9 @@ ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
                                  const ParseTree& tree) {
   if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
       tree.properties().end()) {
-    auto contents = buffer.contents().copy();
-    contents->FilterToRange(tree.range());
-    return URL(contents->snapshot().ToString());
+    // TODO(2023-09-10, easy): Change URL to use LazyString and avoid call to
+    // ToString here.
+    return URL(buffer.contents().snapshot().ViewRange(tree.range()).ToString());
   }
   for (const auto& child : tree.children()) {
     if (ValueOrError<URL> output = FindLinkTarget(buffer, child);

@@ -86,15 +86,14 @@ futures::Value<PossibleError> PreviewCppExpression(
 
 futures::Value<Result> HandleCommandCpp(Input input,
                                         Delete original_delete_transformation) {
-  NonNull<std::unique_ptr<MutableLineSequence>> contents =
-      input.buffer.contents().copy();
-  contents->FilterToRange(*original_delete_transformation.range);
+  LineSequence contents = input.buffer.contents().snapshot().ViewRange(
+      *original_delete_transformation.range);
   if (input.mode == Input::Mode::kPreview) {
     auto delete_transformation =
         std::make_shared<Delete>(std::move(original_delete_transformation));
     delete_transformation->preview_modifiers = {LineModifier::kGreen,
                                                 LineModifier::kUnderline};
-    return PreviewCppExpression(input.buffer, contents->snapshot())
+    return PreviewCppExpression(input.buffer, contents)
         .ConsumeErrors(
             [&buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
@@ -107,7 +106,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
                        input.NewChild(delete_transformation->range->begin));
         });
   }
-  return input.buffer.EvaluateString(contents->snapshot().ToString())
+  // TODO(easy, 2023-09-10): Don't do ToString?
+  return input.buffer.EvaluateString(contents.ToString())
       .Transform([input](gc::Root<vm::Value> value) {
         ShowValue(input.buffer, input.delete_buffer, value.ptr().value());
         Result output(input.position);
@@ -311,26 +311,24 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             .initiator = transformation::Delete::Initiator::kInternal};
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone: {
-            NonNull<std::shared_ptr<MutableLineSequence>> contents =
-                input.buffer.contents().copy();
-            contents->FilterToRange(range);
+            LineSequence contents =
+                input.buffer.contents().snapshot().ViewRange(range);
             input.buffer.status().Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
-            return PreviewCppExpression(input.buffer, contents->snapshot())
+            return PreviewCppExpression(input.buffer, contents)
                 .ConsumeErrors(
                     [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([input, output, contents](EmptyValue) {
                   if (input.mode == Input::Mode::kPreview &&
                       input.buffer.status().text().empty() &&
-                      contents->EndLine() <
+                      contents.EndLine() <
                           LineNumber(input.buffer.Read(
                               buffer_variables::analyze_content_lines_limit))) {
                     // TODO(easy, 2023-09-08): Change ToString to return a lazy
                     // string.
                     input.buffer.status().SetInformationText(Append(
                         NewLazyString(L"Selection: "),
-                        NewLazyString(
-                            ToString(AnalyzeContent(contents->snapshot())))));
+                        NewLazyString(ToString(AnalyzeContent(contents)))));
                   }
                   return futures::Past(std::move(*output));
                 });
@@ -351,14 +349,14 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   LineModifier::kGreen, LineModifier::kUnderline};
               return Apply(delete_transformation, input.NewChild(range.begin));
             }
-            NonNull<std::unique_ptr<MutableLineSequence>> contents =
-                input.buffer.contents().copy();
-            contents->FilterToRange(*delete_transformation.range);
+            LineSequence contents =
+                input.buffer.contents().snapshot().ViewRange(
+                    *delete_transformation.range);
             // TODO(trivial, 2023-09-10): Avoid call to ToString? Add method
             // that returns a LazyString and use it.
             AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
-                             NewLazyString(contents->snapshot().ToString()));
-            std::wstring tmp_path = [&contents] {
+                             NewLazyString(contents.ToString()));
+            std::wstring tmp_path = [contents] {
               char* tmp_path_bytes = strdup("/tmp/edge-commands-XXXXXX");
               // TODO(async, easy, 2023-08-30): Use file_system_driver.
               // TODO(easy, 2023-08-30): Check errors.
@@ -366,7 +364,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
               std::wstring tmp_path =
                   FromByteString(std::string(tmp_path_bytes));
               free(tmp_path_bytes);
-              std::string data = ToByteString(contents->snapshot().ToString());
+              std::string data = ToByteString(contents.ToString());
               write(tmp_fd, data.c_str(), data.size());
               close(tmp_fd);
               return tmp_path;
