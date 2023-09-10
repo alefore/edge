@@ -41,7 +41,7 @@ transformation::Delete GetCharactersDeleteOptions(size_t repetitions) {
 
 futures::Value<transformation::Result> ApplyBase(const Insert& options,
                                                  transformation::Input input) {
-  size_t length = options.contents_to_insert->CountCharacters();
+  size_t length = options.contents_to_insert->snapshot().CountCharacters();
   if (length == 0) {
     return futures::Past(transformation::Result(input.position));
   }
@@ -137,8 +137,9 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
             }
             buffer->push_back(
                 MakeNonNullShared<Line>(text.substr(line_start.read())));
-            buffer->EraseLines(LineNumber(), LineNumber(1),
-                               MutableLineSequence::CursorsBehavior::kUnmodified);
+            buffer->EraseLines(
+                LineNumber(), LineNumber(1),
+                MutableLineSequence::CursorsBehavior::kUnmodified);
             options->contents_to_insert = std::move(buffer);
             return options;
           })

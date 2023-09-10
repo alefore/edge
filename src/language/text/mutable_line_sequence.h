@@ -121,8 +121,6 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
     return language::text::LineNumber(Lines::UpperBound(lines_, key, compare));
   }
 
-  size_t CountCharacters() const;
-
   // TODO(trivial, 2023-09-10): Rename this to a more fitting name. Perhaps:
   // ObserverBehavior { kNotify, kHide }.
   enum class CursorsBehavior { kAdjust, kUnmodified };

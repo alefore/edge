@@ -479,17 +479,6 @@ void MutableLineSequence::ForEach(
   ForEach([callback](const Line& line) { callback(line.ToString()); });
 }
 
-size_t MutableLineSequence::CountCharacters() const {
-  ColumnNumberDelta output;
-  ForEach([&output](const Line& line) {
-    output += line.EndColumn().ToDelta() + ColumnNumberDelta(sizeof("\n") - 1);
-  });
-  if (output > ColumnNumberDelta(0)) {
-    output--;  // Last line has no \n.
-  }
-  return output.read();
-}
-
 void MutableLineSequence::insert_line(LineNumber line_position,
                                       NonNull<std::shared_ptr<const Line>> line,
                                       CursorsBehavior cursors_behavior) {
@@ -715,7 +704,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
     back();
     front();
     snapshot().ToString();
-    CountCharacters();
+    snapshot().CountCharacters();
   })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(

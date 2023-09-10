@@ -25,8 +25,7 @@ using language::lazy_string::NewLazyString;
 
 std::wstring LineSequence::ToString() const {
   std::wstring output;
-  // TODO(trivial, 2023-09-10): Enable.
-  // output.reserve(CountCharacters());
+  output.reserve(CountCharacters());
   EveryLine([&output](LineNumber position, const Line& line) {
     output.append((position == LineNumber(0) ? L"" : L"\n") + line.ToString());
     return true;
@@ -46,6 +45,17 @@ Range LineSequence::range() const {
   return Range(LineColumn(), LineColumn(EndLine(), back()->EndColumn()));
 }
 
+size_t LineSequence::CountCharacters() const {
+  ColumnNumberDelta output;
+  ForEach([&output](const Line& line) {
+    output += line.EndColumn().ToDelta() + ColumnNumberDelta(sizeof("\n") - 1);
+  });
+  if (output > ColumnNumberDelta(0)) {
+    output--;  // Last line has no \n.
+  }
+  return output.read();
+}
+
 NonNull<std::shared_ptr<const Line>> LineSequence::at(
     LineNumber line_number) const {
   CHECK_LT(line_number, LineNumber(0) + size());
@@ -62,6 +72,28 @@ NonNull<std::shared_ptr<const Line>> LineSequence::front() const {
   return at(LineNumber(0));
 }
 
+bool LineSequence::EveryLine(
+    const std::function<bool(LineNumber, const Line&)>& callback) const {
+  LineNumber line_number;
+  return Lines::Every(lines_,
+                      [&](const NonNull<std::shared_ptr<const Line>>& line) {
+                        return callback(line_number++, line.value());
+                      });
+}
+
+void LineSequence::ForEach(
+    const std::function<void(const Line&)>& callback) const {
+  EveryLine([callback](LineNumber, const Line& line) {
+    callback(line);
+    return true;
+  });
+}
+
+void LineSequence::ForEach(
+    const std::function<void(std::wstring)>& callback) const {
+  ForEach([callback](const Line& line) { callback(line.ToString()); });
+}
+
 wint_t LineSequence::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());
   auto line = at(position.line);
@@ -75,14 +107,4 @@ LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
   position.column = std::min(at(position.line)->EndColumn(), position.column);
   return position;
 }
-
-bool LineSequence::EveryLine(
-    const std::function<bool(LineNumber, const Line&)>& callback) const {
-  LineNumber line_number;
-  return Lines::Every(lines_,
-                      [&](const NonNull<std::shared_ptr<const Line>>& line) {
-                        return callback(line_number++, line.value());
-                      });
-}
-
 }  // namespace afc::language::text

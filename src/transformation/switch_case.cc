@@ -50,7 +50,8 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
   Output output = Output::SetPosition(input.range.begin);
 
   output.Push(transformation::Delete{
-      .modifiers = {.repetitions = contents_to_insert->CountCharacters(),
+      .modifiers = {.repetitions =
+                        contents_to_insert->snapshot().CountCharacters(),
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::kDoNothing},
       .mode = transformation::Input::Mode::kFinal,

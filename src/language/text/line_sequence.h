@@ -40,12 +40,21 @@ class LineSequence {
   language::NonNull<std::shared_ptr<const Line>> back() const;
   language::NonNull<std::shared_ptr<const Line>> front() const;
 
+  // Iterates: runs the callback on every line in the buffer, passing as the
+  // first argument the line count (starts counting at 0). Stops the iteration
+  // if the callback returns false. Returns true iff the callback always
+  // returned true.
+  bool EveryLine(
+      const std::function<bool(LineNumber, const Line&)>& callback) const;
+
+  // Convenience wrappers of the above.
+  void ForEach(
+      const std::function<void(const language::text::Line&)>& callback) const;
+  void ForEach(const std::function<void(std::wstring)>& callback) const;
+
   wint_t character_at(const LineColumn& position) const;
 
   LineColumn AdjustLineColumn(LineColumn position) const;
-
-  bool EveryLine(
-      const std::function<bool(LineNumber, const Line&)>& callback) const;
 
  private:
   friend MutableLineSequence;
