@@ -16,8 +16,6 @@ src/naive_bayes.cc \
 src/naive_bayes.h \
 src/buffer.cc \
 src/buffer.h \
-src/language/text/line_sequence.cc \
-src/language/text/line_sequence.h \
 src/buffer_contents_util.cc \
 src/buffer_contents_util.h \
 src/buffer_contents_view_layout.h \
@@ -161,6 +159,9 @@ src/language/text/line_column.cc \
 src/language/text/line_column.h \
 src/language/text/line_column_vm.cc \
 src/language/text/line_column_vm.h \
+src/language/text/line_sequence.cc \
+src/language/text/line_sequence.h \
+src/language/text/mutable_line_sequence.h \
 src/language/wstring.cc \
 src/language/wstring.h \
 src/line_output.cc \
