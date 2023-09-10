@@ -1469,7 +1469,7 @@ void OpenBuffer::set_current_cursor(LineColumn new_value) {
 SeekInput OpenBuffer::NewSeekInput(Structure structure, Direction direction,
                                    LineColumn* position) const {
   return SeekInput{
-      .contents = contents(),
+      .contents = contents().snapshot(),
       .structure = structure,
       .direction = direction,
       .line_prefix_characters = Read(buffer_variables::line_prefix_characters),

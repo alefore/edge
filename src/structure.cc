@@ -28,7 +28,7 @@ Seek StartSeekToLimit(const SeekInput& input) {
         input.contents.at(input.position->line)->EndColumn();
     //}
   }
-  return Seek(input.contents.snapshot(), input.position);
+  return Seek(input.contents, input.position);
 }
 
 bool FindTreeRange(const NonNull<std::shared_ptr<const ParseTree>>& root,
@@ -192,14 +192,14 @@ void SeekToNext(SeekInput input) {
       return;
 
     case Structure::kWord:
-      Seek(input.contents.snapshot(), input.position)
+      Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .WrappingLines()
           .UntilCurrentCharIsAlpha();
       return;
 
     case Structure::kSymbol:
-      Seek(input.contents.snapshot(), input.position)
+      Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .WrappingLines()
           .UntilCurrentCharIn(input.symbol_characters);
@@ -208,8 +208,7 @@ void SeekToNext(SeekInput input) {
     case Structure::kLine:
       switch (input.direction) {
         case Direction::kForwards: {
-          auto seek =
-              Seek(input.contents.snapshot(), input.position).WrappingLines();
+          auto seek = Seek(input.contents, input.position).WrappingLines();
           if (seek.read() == L'\n') seek.Once();
           return;
         }
@@ -232,14 +231,14 @@ void SeekToNext(SeekInput input) {
       return;
 
     case Structure::kSentence:
-      Seek(input.contents.snapshot(), input.position)
+      Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .WrappingLines()
           .UntilCurrentCharNotIn(spaces);
       return;
 
     case Structure::kParagraph:
-      Seek(input.contents.snapshot(), input.position)
+      Seek(input.contents, input.position)
           .WithDirection(input.direction)
           .UntilNextLineIsNotSubsetOf(input.line_prefix_characters);
       return;
@@ -256,7 +255,7 @@ bool SeekToLimit(SeekInput input) {
 
     case Structure::kWord: {
       StartSeekToLimit(input);
-      auto seek = Seek(input.contents.snapshot(), input.position)
+      auto seek = Seek(input.contents, input.position)
                       .WithDirection(input.direction)
                       .WrappingLines();
       if (input.direction == Direction::kForwards &&
@@ -275,7 +274,7 @@ bool SeekToLimit(SeekInput input) {
 
     case Structure::kSymbol:
       StartSeekToLimit(input);
-      return Seek(input.contents.snapshot(), input.position)
+      return Seek(input.contents, input.position)
                  .WithDirection(input.direction)
                  .WrappingLines()
                  .UntilCurrentCharNotIn(input.symbol_characters) == Seek::DONE;
@@ -289,7 +288,7 @@ bool SeekToLimit(SeekInput input) {
           return true;
         case Direction::kBackwards:
           input.position->column = ColumnNumber(0);
-          return Seek(input.contents.snapshot(), input.position)
+          return Seek(input.contents, input.position)
                      .WrappingLines()
                      .WithDirection(input.direction)
                      .Once() == Seek::DONE;
@@ -342,9 +341,7 @@ bool SeekToLimit(SeekInput input) {
         return false;
       }
       if (input.direction == Direction::kBackwards) {
-        Seek(input.contents.snapshot(), &boundary)
-            .WithDirection(input.direction)
-            .Once();
+        Seek(input.contents, &boundary).WithDirection(input.direction).Once();
       }
       *input.position = boundary;
     }
@@ -353,14 +350,14 @@ bool SeekToLimit(SeekInput input) {
     case Structure::kSentence: {
       StartSeekToLimit(input);
       if (input.direction == Direction::kBackwards) {
-        Seek(input.contents.snapshot(), input.position)
+        Seek(input.contents, input.position)
             .Backwards()
             .WrappingLines()
             .UntilCurrentCharNotIn(exclamation_signs + spaces);
       }
 
       while (true) {
-        Seek seek(input.contents.snapshot(), input.position);
+        Seek seek(input.contents, input.position);
         seek.WithDirection(input.direction);
         if (seek.UntilCurrentCharIn(exclamation_signs) == Seek::DONE) {
           if (input.direction == Direction::kForwards) {

@@ -74,8 +74,7 @@ StructureSearchRange GetStructureSearchRange(Structure structure);
 // of the type specified that starts after position. No-op if we're already
 // inside the structure.
 struct SeekInput {
-  // TODO(trivial, 2023-09-10): This should be LineSequence.
-  const language::text::MutableLineSequence& contents;
+  language::text::LineSequence contents;
   Structure structure;
   Direction direction;
   std::wstring line_prefix_characters;

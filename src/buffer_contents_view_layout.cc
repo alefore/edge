@@ -20,6 +20,7 @@
 namespace afc::editor {
 namespace {
 using infrastructure::screen::CursorsSet;
+using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::text::Line;
@@ -186,11 +187,11 @@ BufferContentsViewLayout::Line GetScreenLine(
 const bool get_screen_line_tests_registration = tests::Register(
     L"GetScreenLine",
     {{.name = L"SimpleLine", .callback = [] {
-        MutableLineSequence contents;
-        contents.AppendToLine(LineNumber(0), Line(L"foo"));
-        BufferContentsViewLayout::Line output =
-            GetScreenLine(contents.snapshot(), std::nullopt, {}, LineNumber(0),
-                          ColumnRange{ColumnNumber(0), ColumnNumber(3)});
+        BufferContentsViewLayout::Line output = GetScreenLine(
+            MutableLineSequence::WithLine(MakeNonNullShared<Line>(Line(L"foo")))
+                .snapshot(),
+            std::nullopt, {}, LineNumber(0),
+            ColumnRange{ColumnNumber(0), ColumnNumber(3)});
         CHECK_EQ(output.range.end,
                  LineColumn(LineNumber(0),
                             std::numeric_limits<ColumnNumber>::max()));

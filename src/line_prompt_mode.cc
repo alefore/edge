@@ -380,11 +380,9 @@ struct FilterSortHistorySyncOutput {
   std::vector<NonNull<std::shared_ptr<Line>>> lines;
 };
 
-// TODO(trivial, 2023-09-10): Avoid wrapping in `history_contents`. Just receive
-// a LineSequence.
 FilterSortHistorySyncOutput FilterSortHistorySync(
     DeleteNotification::Value abort_value, std::wstring filter,
-    NonNull<std::shared_ptr<MutableLineSequence>> history_contents,
+    LineSequence history_contents,
     std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
         features) {
   FilterSortHistorySyncOutput output;
@@ -396,89 +394,94 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
       history_prompt_tokens;
   std::vector<Token> filter_tokens =
       TokenizeBySpaces(NewLazyString(filter).value());
-  history_contents->EveryLine([&](LineNumber, const Line& line) {
-    VLOG(8) << "Considering line: " << line.ToString();
-    auto warn_if = [&](bool condition, Error error) {
-      if (condition) {
-        // We don't use AugmentError because we'd rather append to the
-        // end of the description, not the beginning.
-        error = Error(error.read() + L": " + line.contents()->ToString());
-        VLOG(5) << "Found error: " << error;
-        output.errors.push_back(error);
-      }
-      return condition;
-    };
-    if (line.empty()) return true;
-    ValueOrError<std::unordered_multimap<std::wstring,
-                                         NonNull<std::shared_ptr<LazyString>>>>
-        line_keys_or_error = ParseHistoryLine(line.contents());
-    auto* line_keys = std::get_if<0>(&line_keys_or_error);
-    if (line_keys == nullptr) {
-      output.errors.push_back(std::get<Error>(line_keys_or_error));
-      return !abort_value.has_value();
-    }
-    auto range = line_keys->equal_range(L"prompt");
-    int prompt_count = std::distance(range.first, range.second);
-    if (warn_if(prompt_count == 0,
-                Error(L"Line is missing `prompt` section")) ||
-        warn_if(prompt_count != 1,
-                Error(L"Line has multiple `prompt` sections"))) {
-      return !abort_value.has_value();
-    }
+  history_contents.EveryLine(
+      [&](LineNumber, const NonNull<std::shared_ptr<const Line>>& line) {
+        VLOG(8) << "Considering line: " << line->ToString();
+        auto warn_if = [&](bool condition, Error error) {
+          if (condition) {
+            // We don't use AugmentError because we'd rather append to the
+            // end of the description, not the beginning.
+            error = Error(error.read() + L": " + line->contents()->ToString());
+            VLOG(5) << "Found error: " << error;
+            output.errors.push_back(error);
+          }
+          return condition;
+        };
+        if (line->empty()) return true;
+        ValueOrError<std::unordered_multimap<
+            std::wstring, NonNull<std::shared_ptr<LazyString>>>>
+            line_keys_or_error = ParseHistoryLine(line->contents());
+        auto* line_keys = std::get_if<0>(&line_keys_or_error);
+        if (line_keys == nullptr) {
+          output.errors.push_back(std::get<Error>(line_keys_or_error));
+          return !abort_value.has_value();
+        }
+        auto range = line_keys->equal_range(L"prompt");
+        int prompt_count = std::distance(range.first, range.second);
+        if (warn_if(prompt_count == 0,
+                    Error(L"Line is missing `prompt` section")) ||
+            warn_if(prompt_count != 1,
+                    Error(L"Line has multiple `prompt` sections"))) {
+          return !abort_value.has_value();
+        }
 
-    std::visit(
-        overload{
-            [range](Error error) {
-              LOG(INFO) << AugmentError(
-                  L"Unescaping string: " + range.first->second->ToString(),
-                  error);
-            },
-            [&](vm::EscapedString cpp_string) {
-              VLOG(8) << "Considering history value: "
-                      << cpp_string.EscapedRepresentation();
-              NonNull<std::shared_ptr<LazyString>> prompt_value =
-                  cpp_string.OriginalString();
-              if (FindFirstColumnWithPredicate(
-                      prompt_value.value(),
-                      [](ColumnNumber, wchar_t c) { return c == L'\n'; })
-                      .has_value()) {
-                VLOG(5) << "Ignoring value that contains a new line character.";
-                return;
-              }
-              std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-                  prompt_value, TokenizeNameForPrefixSearches(prompt_value));
-              // TODO(easy, 2022-11-26): Get rid of call ToString.
-              naive_bayes::Event event_key(
-                  cpp_string.OriginalString()->ToString());
-              std::vector<naive_bayes::FeaturesSet>* features_output = nullptr;
-              if (filter_tokens.empty()) {
-                VLOG(6) << "Accepting value (empty filters): "
-                        << line.ToString();
-                features_output = &history_data[event_key];
-              } else if (auto match =
-                             FindFilterPositions(filter_tokens, line_tokens);
-                         match.has_value()) {
-                VLOG(5) << "Accepting value, produced a match: "
-                        << line.ToString();
-                features_output = &history_data[event_key];
-                history_prompt_tokens.insert(
-                    {event_key, std::move(match.value())});
-              } else {
-                VLOG(6) << "Ignoring value, no match: " << line.ToString();
-                return;
-              }
-              naive_bayes::FeaturesSet current_features;
-              for (auto& [key, value] : *line_keys) {
-                if (key != L"prompt") {
-                  current_features.insert(naive_bayes::Feature(
-                      key + L":" + QuoteString(value)->ToString()));
-                }
-              }
-              features_output->push_back(std::move(current_features));
-            }},
-        vm::EscapedString::Parse(range.first->second));
-    return !abort_value.has_value();
-  });
+        std::visit(
+            overload{
+                [range](Error error) {
+                  LOG(INFO) << AugmentError(
+                      L"Unescaping string: " + range.first->second->ToString(),
+                      error);
+                },
+                [&](vm::EscapedString cpp_string) {
+                  VLOG(8) << "Considering history value: "
+                          << cpp_string.EscapedRepresentation();
+                  NonNull<std::shared_ptr<LazyString>> prompt_value =
+                      cpp_string.OriginalString();
+                  if (FindFirstColumnWithPredicate(
+                          prompt_value.value(),
+                          [](ColumnNumber, wchar_t c) { return c == L'\n'; })
+                          .has_value()) {
+                    VLOG(5)
+                        << "Ignoring value that contains a new line character.";
+                    return;
+                  }
+                  std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+                      prompt_value,
+                      TokenizeNameForPrefixSearches(prompt_value));
+                  // TODO(easy, 2022-11-26): Get rid of call ToString.
+                  naive_bayes::Event event_key(
+                      cpp_string.OriginalString()->ToString());
+                  std::vector<naive_bayes::FeaturesSet>* features_output =
+                      nullptr;
+                  if (filter_tokens.empty()) {
+                    VLOG(6) << "Accepting value (empty filters): "
+                            << line->contents().value();
+                    features_output = &history_data[event_key];
+                  } else if (auto match = FindFilterPositions(filter_tokens,
+                                                              line_tokens);
+                             match.has_value()) {
+                    VLOG(5) << "Accepting value, produced a match: "
+                            << line->contents().value();
+                    features_output = &history_data[event_key];
+                    history_prompt_tokens.insert(
+                        {event_key, std::move(match.value())});
+                  } else {
+                    VLOG(6) << "Ignoring value, no match: "
+                            << line->contents().value();
+                    return;
+                  }
+                  naive_bayes::FeaturesSet current_features;
+                  for (auto& [key, value] : *line_keys) {
+                    if (key != L"prompt") {
+                      current_features.insert(naive_bayes::Feature(
+                          key + L":" + QuoteString(value)->ToString()));
+                    }
+                  }
+                  features_output->push_back(std::move(current_features));
+                }},
+            vm::EscapedString::Parse(range.first->second));
+        return !abort_value.has_value();
+      });
 
   VLOG(4) << "Matches found: " << history_data.read().size();
 
@@ -514,10 +517,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             std::unordered_multimap<std::wstring,
                                     NonNull<std::shared_ptr<LazyString>>>
                 features;
-            MutableLineSequence history_contents;
-            FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(DeleteNotification::Never(), L"",
-                                      history_contents.copy(), features);
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                DeleteNotification::Never(), L"", LineSequence(), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"NoMatch",
@@ -531,7 +532,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             history_contents.push_back(L"prompt:\"foo\"");
             FilterSortHistorySyncOutput output =
                 FilterSortHistorySync(DeleteNotification::Never(), L"quux",
-                                      history_contents.copy(), features);
+                                      history_contents.snapshot(), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"MatchAfterEscape",
@@ -544,7 +545,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             history_contents.push_back(L"prompt:\"foo\\\\nbardo\"");
             FilterSortHistorySyncOutput output =
                 FilterSortHistorySync(DeleteNotification::Never(), L"nbar",
-                                      history_contents.copy(), features);
+                                      history_contents.snapshot(), features);
             CHECK_EQ(output.lines.size(), 1ul);
             Line& line = output.lines[0].value();
             CHECK(line.ToString() == L"foo\\nbardo");
@@ -577,7 +578,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             history_contents.push_back(L"prompt:\"foo\\nbar\"");
             FilterSortHistorySyncOutput output =
                 FilterSortHistorySync(DeleteNotification::Never(), L"nbar",
-                                      history_contents.copy(), features);
+                                      history_contents.snapshot(), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"IgnoresInvalidEntries",
@@ -593,7 +594,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             history_contents.push_back(L"prompt:\"foo \\o bar \\\"");
             FilterSortHistorySyncOutput output =
                 FilterSortHistorySync(DeleteNotification::Never(), L"f",
-                                      history_contents.copy(), features);
+                                      history_contents.snapshot(), features);
             CHECK_EQ(output.lines.size(), 1ul);
             CHECK(output.lines[0]->ToString() == L"foo");
           }},
@@ -607,7 +608,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             history_contents.push_back(L"prompt:\"ls\n\"");
             FilterSortHistorySyncOutput output =
                 FilterSortHistorySync(DeleteNotification::Never(), L"ls",
-                                      history_contents.copy(), features);
+                                      history_contents.snapshot(), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"HistoryWithEscapedNewLine", .callback = [] {
@@ -618,7 +619,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
         history_contents.push_back(L"prompt:\"ls\\n\"");
         FilterSortHistorySyncOutput output =
             FilterSortHistorySync(DeleteNotification::Never(), L"ls",
-                                  history_contents.copy(), features);
+                                  history_contents.snapshot(), features);
         CHECK_EQ(output.lines.size(), 0ul);
       }}});
 
@@ -640,11 +641,10 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
       ->WaitForEndOfFile()
       .Transform([&editor_state, filter_buffer_root, history_buffer,
                   abort_value, filter](EmptyValue) {
-        NonNull<std::shared_ptr<MutableLineSequence>> history_contents =
-            history_buffer.ptr()->contents().copy();
-        return editor_state.thread_pool().Run(std::bind_front(
-            FilterSortHistorySync, abort_value, filter, history_contents,
-            GetCurrentFeatures(editor_state)));
+        return editor_state.thread_pool().Run(
+            std::bind_front(FilterSortHistorySync, abort_value, filter,
+                            history_buffer.ptr()->contents().snapshot(),
+                            GetCurrentFeatures(editor_state)));
       })
       .Transform([&editor_state, abort_value, filter_buffer_root,
                   &filter_buffer](FilterSortHistorySyncOutput output) {
