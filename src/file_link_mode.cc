@@ -64,6 +64,7 @@ using language::lazy_string::ColumnNumber;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
+using language::text::LineSequence;
 using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
@@ -161,7 +162,7 @@ futures::Value<PossibleError> Save(
 
   return std::move(path_future)
       .Transform([stat_buffer, options, buffer = buffer.NewRoot()](Path path) {
-        return SaveContentsToFile(path, buffer.ptr()->contents().copy(),
+        return SaveContentsToFile(path, buffer.ptr()->contents().snapshot(),
                                   buffer.ptr()->editor().thread_pool(),
                                   buffer.ptr()->file_system_driver())
             .Transform(
@@ -205,15 +206,17 @@ futures::Value<PossibleError> Save(
       });
 }
 
-futures::Value<PossibleError> SaveContentsToOpenFile(
-    ThreadPool& thread_pool, Path path, FileDescriptor fd,
-    NonNull<std::shared_ptr<const MutableLineSequence>> contents) {
+futures::Value<PossibleError> SaveContentsToOpenFile(ThreadPool& thread_pool,
+                                                     Path path,
+                                                     FileDescriptor fd,
+                                                     LineSequence contents) {
   return thread_pool.Run([contents, path, fd]() {
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
     std::optional<PossibleError> error;
-    contents->EveryLine([&](LineNumber position, const Line& line) {
+    contents.EveryLine([&](LineNumber position,
+                           const NonNull<std::shared_ptr<const Line>>& line) {
       std::string str = (position == LineNumber(0) ? "" : "\n") +
-                        ToByteString(line.ToString());
+                        ToByteString(line->ToString());
       if (write(fd.read(), str.c_str(), str.size()) == -1) {
         error = Error(path.read() + L": write failed: " +
                       std::to_wstring(fd.read()) + L": " +
@@ -230,9 +233,8 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
 // Caller must ensure that file_system_driver survives until the future is
 // notified.
 futures::Value<PossibleError> SaveContentsToFile(
-    const Path& path,
-    NonNull<std::unique_ptr<const MutableLineSequence>> contents,
-    ThreadPool& thread_pool, FileSystemDriver& file_system_driver) {
+    const Path& path, LineSequence contents, ThreadPool& thread_pool,
+    FileSystemDriver& file_system_driver) {
   Path tmp_path =
       Path::Join(ValueOrDie(path.Dirname()),
                  ValueOrDie(PathComponent::FromString(
@@ -252,11 +254,8 @@ futures::Value<PossibleError> SaveContentsToFile(
         return file_system_driver.Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
                                        stat_value.st_mode);
       })
-      .Transform([&thread_pool, path,
-                  contents =
-                      NonNull<std::shared_ptr<const MutableLineSequence>>(
-                          std::move(contents)),
-                  tmp_path, &file_system_driver](FileDescriptor fd) {
+      .Transform([&thread_pool, path, contents = std::move(contents), tmp_path,
+                  &file_system_driver](FileDescriptor fd) {
         CHECK_NE(fd.read(), -1);
         return OnError(
                    SaveContentsToOpenFile(thread_pool, tmp_path, fd, contents),

@@ -607,7 +607,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         contents->push_back(L"");
 
         return futures::OnError(
-            SaveContentsToFile(path, std::move(contents),
+            SaveContentsToFile(path, contents->snapshot(),
                                editor().thread_pool(), file_system_driver()),
             [root_this](Error error) {
               error =
