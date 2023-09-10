@@ -22,7 +22,7 @@ using language::lazy_string::LazyString;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
+using language::text::LineSequence;
 using language::text::Range;
 
 namespace {
@@ -60,7 +60,7 @@ class CppTreeParser : public TreeParser {
         identifier_behavior_(identifier_behavior),
         cache_(1) {}
 
-  ParseTree FindChildren(const MutableLineSequence& contents, Range range) override {
+  ParseTree FindChildren(const LineSequence& contents, Range range) override {
     static Tracker top_tracker(L"CppTreeParser::FindChildren");
     auto top_call = top_tracker.Call();
     cache_.SetMaxSize(contents.size().read());

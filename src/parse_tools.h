@@ -62,16 +62,16 @@ struct ParseResults {
 
 class ParseData {
  public:
-  ParseData(const language::text::MutableLineSequence& buffer,
+  ParseData(const language::text::LineSequence& buffer,
             std::vector<size_t> initial_states,
             language::text::LineColumn limit)
-      : buffer_(buffer), seek_(buffer_.snapshot(), &position_) {
+      : buffer_(buffer), seek_(buffer_, &position_) {
     parse_results_.states_stack = std::move(initial_states);
     seek_.WithRange(language::text::Range(language::text::LineColumn(), limit))
         .WrappingLines();
   }
 
-  const language::text::MutableLineSequence& buffer() const { return buffer_; }
+  const language::text::LineSequence& buffer() const { return buffer_; }
 
   Seek& seek() { return seek_; }
 
@@ -105,7 +105,7 @@ class ParseData {
                   infrastructure::screen::LineModifierSet modifiers);
 
  private:
-  const language::text::MutableLineSequence& buffer_;
+  const language::text::LineSequence& buffer_;
   ParseResults parse_results_;
   language::text::LineColumn position_;
   Seek seek_;

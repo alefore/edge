@@ -17,14 +17,14 @@ using language::lazy_string::ColumnNumberDelta;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
+using language::text::LineSequence;
 using language::text::Range;
 
 enum State { DEFAULT, HEADERS, SECTION, CONTENTS };
 
 class DiffParser : public TreeParser {
  public:
-  ParseTree FindChildren(const MutableLineSequence& buffer, Range range) override {
+  ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     std::vector<size_t> states_stack = {DEFAULT};
     std::vector<ParseTree> trees = {ParseTree(range)};
 

@@ -22,12 +22,11 @@ class BufferSyntaxParser {
     std::unordered_set<std::wstring> language_keywords;
     std::wstring symbol_characters;
     IdentifierBehavior identifier_behavior;
-    std::unique_ptr<const language::text::MutableLineSequence> dictionary = nullptr;
+    language::text::LineSequence dictionary;
   };
   void UpdateParser(ParserOptions options);
 
-  void Parse(language::NonNull<std::unique_ptr<language::text::MutableLineSequence>>
-                 contents);
+  void Parse(language::text::LineSequence contents);
 
   language::NonNull<std::shared_ptr<const ParseTree>> tree() const;
   language::NonNull<std::shared_ptr<const ParseTree>> simplified_tree() const;

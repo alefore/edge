@@ -114,13 +114,6 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
       const std::function<void(const language::text::Line&)>& callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
 
-  template <class C>
-  language::text::LineNumber upper_bound(
-      const language::NonNull<std::shared_ptr<const language::text::Line>>& key,
-      C compare) const {
-    return language::text::LineNumber(Lines::UpperBound(lines_, key, compare));
-  }
-
   // TODO(trivial, 2023-09-10): Rename this to a more fitting name. Perhaps:
   // ObserverBehavior { kNotify, kHide }.
   enum class CursorsBehavior { kAdjust, kUnmodified };

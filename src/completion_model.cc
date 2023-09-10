@@ -26,6 +26,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
 using ::operator<<;
@@ -70,12 +71,12 @@ MutableLineSequence PrepareBuffer(MutableLineSequence contents) {
   return contents;
 }
 
-MutableLineSequence CompletionModelForTests() {
+LineSequence CompletionModelForTests() {
   MutableLineSequence contents;
   contents.push_back(L"bb baby");
   contents.push_back(L"f fox");
   contents.push_back(L"i i");
-  return PrepareBuffer(std::move(contents));
+  return PrepareBuffer(std::move(contents)).snapshot();
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
@@ -99,7 +100,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
       }}});
 
 std::optional<CompletionModelManager::Text> FindCompletionInModel(
-    const MutableLineSequence& contents,
+    const LineSequence& contents,
     const CompletionModelManager::CompressedText& compressed_text) {
   VLOG(3) << "Starting completion with model with size: " << contents.size()
           << " token: " << compressed_text->ToString();
@@ -149,7 +150,7 @@ const bool find_completion_tests_registration = tests::Register(
     {{.name = L"EmptyModel",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(MutableLineSequence(),
+            CHECK(FindCompletionInModel(LineSequence(),
                                         CompletionModelManager::CompressedText(
                                             NewLazyString(L"foo"))) ==
                   std::nullopt);
@@ -248,7 +249,7 @@ CompletionModelManager::FindCompletionWithIndex(
                   compressed_text,
                   index](MutableLineSequence contents) mutable {
         if (std::optional<Text> result =
-                FindCompletionInModel(contents, compressed_text);
+                FindCompletionInModel(contents.snapshot(), compressed_text);
             result.has_value())
           return futures::Past(QueryOutput(*result));
         return FindCompletionWithIndex(buffer_loader, std::move(data),

@@ -15,7 +15,7 @@ using language::NonNull;
 using language::Observers;
 using language::text::LineColumn;
 using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
+using language::text::LineSequence;
 using language::text::Range;
 
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
@@ -31,7 +31,7 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
       data.tree_parser = parsers::NewDiffTreeParser();
     } else if (options.parser_name == L"md") {
       data.tree_parser = parsers::NewMarkdownTreeParser(
-          options.symbol_characters, std::move(options.dictionary));
+          options.symbol_characters, options.dictionary);
     } else {
       data.tree_parser = NewNullTreeParser();
     }
@@ -69,14 +69,14 @@ std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(
 }
 
 namespace {
-std::wstring GetSymbol(const Range& range, const MutableLineSequence& contents) {
+std::wstring GetSymbol(const Range& range, const LineSequence& contents) {
   return contents.at(range.begin.line)
       ->Substring(range.begin.column, range.end.column - range.begin.column)
       ->ToString();
 }
 
 void PrepareTokenPartition(
-    NonNull<const ParseTree*> tree, const MutableLineSequence& contents,
+    NonNull<const ParseTree*> tree, const LineSequence& contents,
     std::unordered_map<language::text::Range, size_t>& output_token_id,
     std::vector<std::set<language::text::Range>>& output_token_partition) {
   std::vector<NonNull<const ParseTree*>> trees = {tree};
@@ -102,47 +102,44 @@ void PrepareTokenPartition(
 }
 }  // namespace
 
-void BufferSyntaxParser::Parse(
-    NonNull<std::unique_ptr<MutableLineSequence>> contents) {
+void BufferSyntaxParser::Parse(const LineSequence contents) {
   data_->lock([&pool = thread_pool_, data_ptr = data_, observers = observers_,
-               shared_contents = NonNull<std::shared_ptr<MutableLineSequence>>(
-                   std::move(contents))](Data& data) {
+               contents = std::move(contents)](Data& data) {
     if (TreeParser::IsNull(data.tree_parser.get().get())) return;
 
     data.cancel_state = MakeNonNullUnique<DeleteNotification>();
 
-    pool.RunIgnoringResult(
-        [shared_contents, parser = data.tree_parser,
-         cancel_value = data.cancel_state->listenable_value(), data_ptr,
-         observers] {
-          static Tracker tracker(
-              L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
-          auto tracker_call = tracker.Call();
-          VLOG(3) << "Executing parse tree update.";
-          if (cancel_value.has_value()) return;
-          NonNull<std::shared_ptr<const ParseTree>> tree =
-              MakeNonNullShared<const ParseTree>(parser->FindChildren(
-                  shared_contents.value(), shared_contents->range()));
+    pool.RunIgnoringResult([contents, parser = data.tree_parser,
+                            cancel_value =
+                                data.cancel_state->listenable_value(),
+                            data_ptr, observers] {
+      static Tracker tracker(
+          L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
+      auto tracker_call = tracker.Call();
+      VLOG(3) << "Executing parse tree update.";
+      if (cancel_value.has_value()) return;
+      NonNull<std::shared_ptr<const ParseTree>> tree =
+          MakeNonNullShared<const ParseTree>(
+              parser->FindChildren(contents, contents.range()));
 
-          std::unordered_map<language::text::Range, size_t> token_id;
-          std::vector<std::set<language::text::Range>> token_partition;
-          PrepareTokenPartition(tree.get(), shared_contents.value(), token_id,
-                                token_partition);
-          DVLOG(5) << "Generated partitions: [entries: " << token_id.size()
-                   << "][sets: " << token_partition.size() << "]";
-          data_ptr->lock(
-              [cancel_value, tree, token_id = std::move(token_id),
-               token_partition = std::move(token_partition),
-               simplified_tree = MakeNonNullShared<const ParseTree>(
-                   SimplifyTree(tree.value()))](Data& data_nested) mutable {
-                if (cancel_value.has_value()) return;
-                data_nested.tree = std::move(tree);
-                data_nested.token_id = std::move(token_id);
-                data_nested.token_partition = std::move(token_partition);
-                data_nested.simplified_tree = std::move(simplified_tree);
-              });
-          observers->Notify();
-        });
+      std::unordered_map<language::text::Range, size_t> token_id;
+      std::vector<std::set<language::text::Range>> token_partition;
+      PrepareTokenPartition(tree.get(), contents, token_id, token_partition);
+      DVLOG(5) << "Generated partitions: [entries: " << token_id.size()
+               << "][sets: " << token_partition.size() << "]";
+      data_ptr->lock(
+          [cancel_value, tree, token_id = std::move(token_id),
+           token_partition = std::move(token_partition),
+           simplified_tree = MakeNonNullShared<const ParseTree>(
+               SimplifyTree(tree.value()))](Data& data_nested) mutable {
+            if (cancel_value.has_value()) return;
+            data_nested.tree = std::move(tree);
+            data_nested.token_id = std::move(token_id);
+            data_nested.token_partition = std::move(token_partition);
+            data_nested.simplified_tree = std::move(simplified_tree);
+          });
+      observers->Notify();
+    });
   });
 }
 

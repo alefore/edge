@@ -750,13 +750,11 @@ void OpenBuffer::UpdateTreeParser() {
       .Transform([](gc::Root<OpenBuffer> dictionary_root) {
         return dictionary_root.ptr()->WaitForEndOfFile().Transform(
             [dictionary_root](EmptyValue) {
-              return Success(std::move(
-                  dictionary_root.ptr()->contents().copy().get_unique()));
+              return Success(dictionary_root.ptr()->contents().snapshot());
             });
       })
-      .ConsumeErrors([](Error) { return futures::Past(nullptr); })
-      .Transform([this, root_this = NewRoot()](
-                     std::unique_ptr<MutableLineSequence> dictionary) {
+      .ConsumeErrors([](Error) { return futures::Past(LineSequence()); })
+      .Transform([this, root_this = NewRoot()](LineSequence dictionary) {
         std::wistringstream typos_stream(Read(buffer_variables::typos));
         std::wistringstream language_keywords(
             Read(buffer_variables::language_keywords));
@@ -874,7 +872,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 }
 
 void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
-  buffer_syntax_parser_.Parse(contents_.copy());
+  buffer_syntax_parser_.Parse(contents_.snapshot());
 }
 
 void OpenBuffer::StartNewLine(NonNull<std::shared_ptr<const Line>> line) {

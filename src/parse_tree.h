@@ -118,7 +118,7 @@ class TreeParser {
 
   static bool IsNull(TreeParser*);
 
-  virtual ParseTree FindChildren(const language::text::MutableLineSequence& lines,
+  virtual ParseTree FindChildren(const language::text::LineSequence& lines,
                                  language::text::Range range) = 0;
 };
 

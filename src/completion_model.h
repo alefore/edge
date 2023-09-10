@@ -39,6 +39,7 @@ class CompletionModelManager {
                                     CompressedText compressed_text);
 
  private:
+  // TODO(trivial, 2023-09-10): :s/Mutable// in the next line (and everywhere).
   using CompletionModel = language::text::MutableLineSequence;
   using ModelsMap =
       std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>;
@@ -51,8 +52,9 @@ class CompletionModelManager {
       std::shared_ptr<std::vector<infrastructure::Path>> models,
       CompressedText compressed_text, size_t index);
 
-  static void UpdateReverseTable(Data& data, const infrastructure::Path& path,
-                                 const language::text::MutableLineSequence& contents);
+  static void UpdateReverseTable(
+      Data& data, const infrastructure::Path& path,
+      const language::text::MutableLineSequence& contents);
 
   struct Data {
     ModelsMap models;

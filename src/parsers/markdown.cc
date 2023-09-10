@@ -26,7 +26,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
+using language::text::LineSequence;
 using language::text::Range;
 
 using ::operator<<;
@@ -50,15 +50,13 @@ enum State {
 
 class MarkdownParser : public TreeParser {
  public:
-  MarkdownParser(std::wstring symbol_characters,
-                 std::unique_ptr<const MutableLineSequence> dictionary)
+  MarkdownParser(std::wstring symbol_characters, LineSequence dictionary)
       : symbol_characters_(std::move(symbol_characters)),
         dictionary_(std::move(dictionary)) {
-    if (dictionary_ != nullptr)
-      LOG(INFO) << "Created with dictionary entries: " << dictionary_->size();
+    LOG(INFO) << "Created with dictionary entries: " << dictionary_.size();
   }
 
-  ParseTree FindChildren(const MutableLineSequence& buffer, Range range) override {
+  ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     std::vector<size_t> states_stack = {DEFAULT};
     std::vector<ParseTree> trees = {ParseTree(range)};
     range.ForEachLine([&](LineNumber i) {
@@ -158,9 +156,7 @@ class MarkdownParser : public TreeParser {
   }
 
   bool IsTypo(NonNull<std::shared_ptr<LazyString>> symbol) const {
-    if (dictionary_ == nullptr) return false;
-
-    LineNumber line = dictionary_->upper_bound(
+    LineNumber line = dictionary_.upper_bound(
         MakeNonNullShared<const Line>(LineBuilder(LowerCase(symbol)).Build()),
         [](const NonNull<std::shared_ptr<const Line>>& a,
            const NonNull<std::shared_ptr<const Line>>& b) {
@@ -169,7 +165,7 @@ class MarkdownParser : public TreeParser {
     if (line.IsZero()) return false;
 
     --line;
-    return LowerCase(dictionary_->at(line)->contents()).value() !=
+    return LowerCase(dictionary_.at(line)->contents()).value() !=
            LowerCase(symbol).value();
   }
 
@@ -348,13 +344,12 @@ class MarkdownParser : public TreeParser {
   }
 
   const std::wstring symbol_characters_;
-  const std::unique_ptr<const MutableLineSequence> dictionary_;
+  const LineSequence dictionary_;
 };
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
-    std::wstring symbol_characters,
-    std::unique_ptr<const MutableLineSequence> dictionary) {
+    std::wstring symbol_characters, LineSequence dictionary) {
   return MakeNonNullUnique<MarkdownParser>(std::move(symbol_characters),
                                            std::move(dictionary));
 }
