@@ -50,26 +50,24 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
           Substring(line, ColumnNumber(split + 1)))};
 }
 
-LineSequence PrepareBuffer(LineSequence contents) {
-  MutableLineSequence mutable_contents(contents);
-  mutable_contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
-                        [](const NonNull<std::shared_ptr<const Line>>& a,
-                           const NonNull<std::shared_ptr<const Line>>& b) {
-                          return LowerCase(a->contents()).value() <
-                                 LowerCase(b->contents()).value();
-                        });
+LineSequence PrepareBuffer(MutableLineSequence contents) {
+  contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
+                [](const NonNull<std::shared_ptr<const Line>>& a,
+                   const NonNull<std::shared_ptr<const Line>>& b) {
+                  return LowerCase(a->contents()).value() <
+                         LowerCase(b->contents()).value();
+                });
   LineNumber empty_lines_start;
   while (empty_lines_start < contents.EndLine() &&
          contents.at(empty_lines_start)->contents()->size().IsZero())
     ++empty_lines_start;
   if (!empty_lines_start.IsZero()) {
-    LOG(INFO) << "Deleting empty lines: " << empty_lines_start << " to "
-              << contents.EndLine();
-    mutable_contents.EraseLines(
-        LineNumber(), empty_lines_start,
-        MutableLineSequence::CursorsBehavior ::kUnmodified);
+    LOG(INFO) << "Deleting empty lines: " << LineNumber() << " to "
+              << empty_lines_start;
+    contents.EraseLines(LineNumber(), empty_lines_start,
+                        MutableLineSequence::CursorsBehavior ::kUnmodified);
   }
-  return mutable_contents.snapshot();
+  return contents.snapshot();
 }
 
 LineSequence CompletionModelForTests() {
@@ -77,7 +75,7 @@ LineSequence CompletionModelForTests() {
   contents.push_back(L"bb baby");
   contents.push_back(L"f fox");
   contents.push_back(L"i i");
-  return PrepareBuffer(contents.snapshot());
+  return PrepareBuffer(std::move(contents));
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
@@ -85,8 +83,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
     {{.name = L"EmptyBuffer",
       .callback =
           [] {
-            CHECK(PrepareBuffer(MutableLineSequence().snapshot()).ToString() ==
-                  L"");
+            CHECK(PrepareBuffer(MutableLineSequence()).ToString() == L"");
           }},
      {.name = L"UnsortedBuffer", .callback = [] {
         MutableLineSequence contents;
@@ -96,8 +93,9 @@ const bool prepare_buffer_tests_registration = tests::Register(
         contents.push_back(MakeNonNullShared<Line>(L"b baby"));
         contents.push_back(MakeNonNullShared<Line>(L""));
         CHECK(contents.snapshot().ToString() == L"\nf fox\n\n\nb baby\n");
-        CHECK(PrepareBuffer(contents.snapshot()).ToString() ==
-              L"b baby\nf fox");
+        std::wstring result = PrepareBuffer(std::move(contents)).ToString();
+        LOG(INFO) << "Result: [" << result << "]";
+        CHECK(result == L"b baby\nf fox");
       }}});
 
 std::optional<CompletionModelManager::Text> FindCompletionInModel(
@@ -221,9 +219,12 @@ CompletionModelManager::FindCompletionWithIndex(
           return it->second;
         auto output =
             locked_data.models
-                .insert(
-                    {path, futures::ListenableValue(
-                               buffer_loader(path).Transform(PrepareBuffer))})
+                .insert({path,
+                         futures::ListenableValue(buffer_loader(path).Transform(
+                             [](LineSequence buffer) {
+                               return PrepareBuffer(
+                                   MutableLineSequence(std::move(buffer)));
+                             }))})
                 .first->second;
         // TODO(P2, 2023-09-08, RaceCondition): There's a race here where output
         // may get a value after this check but before the execution of
