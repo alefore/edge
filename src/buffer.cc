@@ -899,7 +899,7 @@ void OpenBuffer::AppendLines(
     auto tracker_call = tracker.Call();
     ResolvePathOptions<EmptyValue>::New(
         editor(), std::make_shared<FileSystemDriver>(editor().thread_pool()))
-        .Transform([buffer_name = name(), lines_added, contents = contents_,
+        .Transform([buffer_name = name(), lines_added, &contents = contents_,
                     start_new_section, &editor = editor()](
                        ResolvePathOptions<EmptyValue> options) {
           for (LineNumberDelta i; i < lines_added; ++i) {
