@@ -62,6 +62,8 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   virtual ~MutableLineSequence() = default;
 
+  LineSequence snapshot() const;
+
   wint_t character_at(const language::text::LineColumn& position) const;
 
   language::text::LineColumn PositionBefore(

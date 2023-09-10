@@ -8,14 +8,11 @@
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
-// TODO(trivial): Once we've moved customers accordingly, get rid of this
-// include. Customers of MutableLineSequence should include it directly.
-#include "src/language/text/mutable_line_sequence.h"
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::language::text {
-// TODO: Add more methods here.
 class MutableLineSequence;
+// TODO: Add more methods here.
 class LineSequence {
  private:
   using Lines = language::ConstTree<
@@ -24,9 +21,19 @@ class LineSequence {
       256>;
 
  public:
+  LineSequence() = default;
+  LineSequence(const LineSequence&) = default;
+
  private:
   friend MutableLineSequence;
+  LineSequence(Lines::Ptr lines) : lines_(lines) {}
+
   Lines::Ptr lines_ = Lines::PushBack(nullptr, {});
 };
 }  // namespace afc::language::text
+
+// TODO(trivial): Once we've moved customers accordingly, get rid of this
+// include. Customers of MutableLineSequence should include it directly.
+#include "src/language/text/mutable_line_sequence.h"
+
 #endif  // __AFC_LANGUAGE_TEXT_LINE_SEQUENCE_H__
