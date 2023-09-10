@@ -81,6 +81,8 @@ using vm::VMTypeMapper;
 
 namespace gc = language::gc;
 
+using ::operator<<;
+
 namespace {
 class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
@@ -675,8 +677,7 @@ class InsertMode : public EditorMode {
         Substring(buffer_contents.at(token_range.begin.line)->contents(),
                   token_range.begin.column,
                   token_range.end.column - token_range.begin.column));
-    // TODO(easy, 2023-09-08): Get rid of call to ToString.
-    VLOG(6) << "Found completion token: " << output->ToString();
+    VLOG(6) << "Found completion token: " << output.value();
     return output;
   }
 

@@ -26,6 +26,9 @@ class LazyString {
 NonNull<std::shared_ptr<LazyString>> EmptyString();
 
 bool operator==(const LazyString& a, const LazyString& b);
+
+std::ostream& operator<<(std::ostream& os,
+                         const afc::language::lazy_string::LazyString& obj);
 }  // namespace afc::language::lazy_string
 
 GHOST_TYPE_TOP_LEVEL(afc::language::lazy_string::ColumnNumber)

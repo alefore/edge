@@ -4,10 +4,12 @@
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/wstring.h"
 
 namespace afc::language::lazy_string {
 namespace {
 using infrastructure::Tracker;
+using ::operator<<;
 
 class EmptyStringImpl : public LazyString {
  public:
@@ -53,4 +55,12 @@ bool operator==(const LazyString& a, const LazyString& b) {
             return b.get(column) != c;
           }).has_value();
 }
+
+std::ostream& operator<<(std::ostream& os,
+                         const afc::language::lazy_string::LazyString& obj) {
+  // TODO(P2): Find another way to implement this.
+  os << obj.ToString();
+  return os;
+}
+
 }  // namespace afc::language::lazy_string
