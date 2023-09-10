@@ -108,13 +108,13 @@ class NewLineTransformation : public CompositeTransformation {
 
     Output output;
     {
+      MutableLineSequence contents_to_insert;
       LineBuilder line_without_suffix(*line);
       line_without_suffix.DeleteSuffix(prefix_end);
-      output.Push(transformation::Insert{
-          .contents_to_insert = MutableLineSequence::WithLine(
-                                    MakeNonNullShared<Line>(
-                                        std::move(line_without_suffix).Build()))
-                                    .snapshot()});
+      contents_to_insert.push_back(
+          MakeNonNullShared<Line>(std::move(line_without_suffix).Build()));
+      output.Push(transformation::Insert{.contents_to_insert =
+                                             contents_to_insert.snapshot()});
     }
 
     output.Push(transformation::SetPosition(input.position));
