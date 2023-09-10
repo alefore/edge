@@ -1,4 +1,4 @@
-#include "src/buffer_contents.h"
+#include "src/language/text/line_sequence.h"
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +13,7 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
+namespace afc::language::text {
 using infrastructure::Tracker;
 using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
@@ -22,53 +22,49 @@ using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::Range;
 
-void NullBufferContentsObserver::LinesInserted(LineNumber, LineNumberDelta) {}
-void NullBufferContentsObserver::LinesErased(LineNumber, LineNumberDelta) {}
-void NullBufferContentsObserver::SplitLine(LineColumn) {}
-void NullBufferContentsObserver::FoldedLine(LineColumn) {}
-void NullBufferContentsObserver::Sorted() {}
-void NullBufferContentsObserver::AppendedToLine(language::text::LineColumn) {}
-void NullBufferContentsObserver::DeletedCharacters(LineColumn,
-                                                   ColumnNumberDelta) {}
-void NullBufferContentsObserver::SetCharacter(LineColumn) {}
-void NullBufferContentsObserver::InsertedCharacter(LineColumn) {}
+void NullMutableLineSequenceObserver::LinesInserted(LineNumber,
+                                                    LineNumberDelta) {}
+void NullMutableLineSequenceObserver::LinesErased(LineNumber, LineNumberDelta) {
+}
+void NullMutableLineSequenceObserver::SplitLine(LineColumn) {}
+void NullMutableLineSequenceObserver::FoldedLine(LineColumn) {}
+void NullMutableLineSequenceObserver::Sorted() {}
+void NullMutableLineSequenceObserver::AppendedToLine(LineColumn) {}
+void NullMutableLineSequenceObserver::DeletedCharacters(LineColumn,
+                                                        ColumnNumberDelta) {}
+void NullMutableLineSequenceObserver::SetCharacter(LineColumn) {}
+void NullMutableLineSequenceObserver::InsertedCharacter(LineColumn) {}
 
-BufferContents::BufferContents()
-    : BufferContents(MakeNonNullShared<NullBufferContentsObserver>()) {}
+LineSequence::LineSequence()
+    : LineSequence(MakeNonNullShared<NullMutableLineSequenceObserver>()) {}
 
-/* static */ BufferContents BufferContents::WithLine(
+/* static */ LineSequence LineSequence::WithLine(
     NonNull<std::shared_ptr<const Line>> line) {
-  BufferContents output;
+  LineSequence output;
   output.lines_ = Lines::PushBack(nullptr, std::move(line));
   return output;
 }
 
-BufferContents::BufferContents(
-    NonNull<std::shared_ptr<BufferContentsObserver>> observer)
+LineSequence::LineSequence(
+    NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer)
     : observer_(std::move(observer)) {}
 
-LineNumber BufferContents::EndLine() const {
+LineNumber LineSequence::EndLine() const {
   return LineNumber(0) + size() - LineNumberDelta(1);
 }
 
-Range BufferContents::range() const {
+Range LineSequence::range() const {
   return Range(LineColumn(), LineColumn(EndLine(), back()->EndColumn()));
 }
 
-NonNull<std::unique_ptr<BufferContents>> BufferContents::copy() const {
-  NonNull<std::unique_ptr<BufferContents>> output;
+NonNull<std::unique_ptr<LineSequence>> LineSequence::copy() const {
+  NonNull<std::unique_ptr<LineSequence>> output;
   output->lines_ = lines_;
   return output;
 }
 
-void BufferContents::FilterToRange(Range range) {
+void LineSequence::FilterToRange(Range range) {
   CHECK_LE(range.end.line, EndLine());
   // Drop the tail.
   if (range.end.line < EndLine()) {
@@ -92,8 +88,8 @@ void BufferContents::FilterToRange(Range range) {
 namespace {
 using ::operator<<;
 
-BufferContents BufferContentsForTests() {
-  BufferContents output;
+LineSequence LineSequenceForTests() {
+  LineSequence output;
   output.AppendToLine(LineNumber(), Line(L"alejandro"));
   output.push_back(L"forero");
   output.push_back(L"cuervo");
@@ -102,33 +98,33 @@ BufferContents BufferContentsForTests() {
 }
 
 const bool filter_to_range_tests_registration = tests::Register(
-    L"BufferContents::FilterToRange",
+    L"LineSequence::FilterToRange",
     {
         {.name = L"EmptyInput",
          .callback =
              [] {
-               BufferContents empty;
+               LineSequence empty;
                empty.FilterToRange(Range());
                CHECK(empty.ToString() == L"");
              }},
         {.name = L"EmptyRange",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(Range());
                CHECK(buffer.ToString() == L"");
              }},
         {.name = L"WholeRange",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(buffer.range());
-               CHECK(buffer.ToString() == BufferContentsForTests().ToString());
+               CHECK(buffer.ToString() == LineSequenceForTests().ToString());
              }},
         {.name = L"FirstLineFewChars",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(Range{
                    LineColumn(), LineColumn(LineNumber(0), ColumnNumber(3))});
                CHECK(buffer.ToString() == L"ale");
@@ -136,7 +132,7 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"FirstLineExcludingBreak",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(Range{
                    LineColumn(), LineColumn(LineNumber(0), ColumnNumber(9))});
                CHECK(buffer.ToString() == L"alejandro");
@@ -144,7 +140,7 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"FirstLineIncludingBreak",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(Range{
                    LineColumn(), LineColumn(LineNumber(1), ColumnNumber(0))});
                CHECK(buffer.ToString() == L"alejandro\n");
@@ -152,7 +148,7 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"FirstLineMiddleChars",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(0), ColumnNumber(2)),
                          LineColumn(LineNumber(0), ColumnNumber(5))});
@@ -161,7 +157,7 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"MultiLineMiddle",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(0), ColumnNumber(2)),
                          LineColumn(LineNumber(2), ColumnNumber(3))});
@@ -170,7 +166,7 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"LastLineFewChars",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(2), ColumnNumber(2)),
                          LineColumn(LineNumber(2), ColumnNumber(6))});
@@ -179,7 +175,7 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"LastLineExcludingBreak",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(2), ColumnNumber()),
                          LineColumn(LineNumber(2), ColumnNumber(6))});
@@ -188,7 +184,7 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"LastLineIncludingBreak",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(1), ColumnNumber(6)),
                          LineColumn(LineNumber(2), ColumnNumber(6))});
@@ -197,7 +193,7 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"LastLineMiddleChars",
          .callback =
              [] {
-               auto buffer = BufferContentsForTests();
+               auto buffer = LineSequenceForTests();
                buffer.FilterToRange(
                    Range{LineColumn(LineNumber(2), ColumnNumber(2)),
                          LineColumn(LineNumber(2), ColumnNumber(5))});
@@ -206,14 +202,14 @@ const bool filter_to_range_tests_registration = tests::Register(
     });
 }  // namespace
 
-wint_t BufferContents::character_at(const LineColumn& position) const {
+wint_t LineSequence::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());
   auto line = at(position.line);
   return position.column >= line->EndColumn() ? L'\n'
                                               : line->get(position.column);
 }
 
-LineColumn BufferContents::PositionBefore(LineColumn position) const {
+LineColumn LineSequence::PositionBefore(LineColumn position) const {
   if (position.line > EndLine()) {
     position.line = EndLine();
     position.column = at(position.line)->EndColumn();
@@ -231,40 +227,40 @@ LineColumn BufferContents::PositionBefore(LineColumn position) const {
 
 namespace {
 const bool position_before_tests_registration = tests::Register(
-    L"BufferContents::PositionBefore",
+    L"LineSequence::PositionBefore",
     {{.name = L"EmptyBufferZeroLineColumn",
       .callback =
-          [] { CHECK_EQ(BufferContents().PositionBefore({}), LineColumn()); }},
+          [] { CHECK_EQ(LineSequence().PositionBefore({}), LineColumn()); }},
      {.name = L"EmptyBufferZeroLine",
       .callback =
           [] {
-            CHECK_EQ(BufferContents().PositionBefore(
-                         {LineNumber(), ColumnNumber(10)}),
-                     LineColumn());
+            CHECK_EQ(
+                LineSequence().PositionBefore({LineNumber(), ColumnNumber(10)}),
+                LineColumn());
           }},
      {.name = L"EmptyBufferNormalLineColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContents().PositionBefore(
+            CHECK_EQ(LineSequence().PositionBefore(
                          {LineNumber(25), ColumnNumber(10)}),
                      LineColumn());
           }},
      {.name = L"NormalBufferZeroLineColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionBefore({}), LineColumn());
+            CHECK_EQ(LineSequenceForTests().PositionBefore({}), LineColumn());
           }},
      {.name = L"NormalBufferZeroLineNormalColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionBefore(
+            CHECK_EQ(LineSequenceForTests().PositionBefore(
                          {LineNumber(), ColumnNumber(4)}),
                      LineColumn(LineNumber(), ColumnNumber(3)));
           }},
      {.name = L"NormalBufferZeroLineLargeColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionBefore(
+            CHECK_EQ(LineSequenceForTests().PositionBefore(
                          {LineNumber(), ColumnNumber(30)}),
                      LineColumn(LineNumber(),
                                 ColumnNumber(sizeof("alejandro") - 1)));
@@ -272,7 +268,7 @@ const bool position_before_tests_registration = tests::Register(
      {.name = L"NormalBufferNormalLineZeroColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionBefore(
+            CHECK_EQ(LineSequenceForTests().PositionBefore(
                          {LineNumber(1), ColumnNumber()}),
                      LineColumn(LineNumber(0),
                                 ColumnNumber(sizeof("alejandro") - 1)));
@@ -280,7 +276,7 @@ const bool position_before_tests_registration = tests::Register(
      {.name = L"NormalBufferNormalLineNormalColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionBefore(
+            CHECK_EQ(LineSequenceForTests().PositionBefore(
                          {LineNumber(1), ColumnNumber(4)}),
                      LineColumn(LineNumber(1), ColumnNumber(3)));
           }},
@@ -288,18 +284,18 @@ const bool position_before_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                BufferContentsForTests().PositionBefore(
+                LineSequenceForTests().PositionBefore(
                     {LineNumber(1), ColumnNumber(30)}),
                 LineColumn(LineNumber(1), ColumnNumber(sizeof("forero") - 1)));
           }},
      {.name = L"NormalBufferLargeLineColumn", .callback = [] {
-        CHECK_EQ(BufferContentsForTests().PositionBefore(
+        CHECK_EQ(LineSequenceForTests().PositionBefore(
                      {LineNumber(25), ColumnNumber(10)}),
                  LineColumn(LineNumber(2), ColumnNumber(6)));
       }}});
 }
 
-LineColumn BufferContents::PositionAfter(LineColumn position) const {
+LineColumn LineSequence::PositionAfter(LineColumn position) const {
   if (position.line > EndLine()) {
     position.line = EndLine();
     position.column = at(position.line)->EndColumn();
@@ -316,34 +312,34 @@ LineColumn BufferContents::PositionAfter(LineColumn position) const {
 
 namespace {
 const bool position_after_tests_registration = tests::Register(
-    L"BufferContents::PositionAfter",
+    L"LineSequence::PositionAfter",
     {{.name = L"EmptyBufferZeroLineColumn",
       .callback =
-          [] { CHECK_EQ(BufferContents().PositionAfter({}), LineColumn()); }},
+          [] { CHECK_EQ(LineSequence().PositionAfter({}), LineColumn()); }},
      {.name = L"EmptyBufferZeroLine",
       .callback =
           [] {
-            CHECK_EQ(BufferContents().PositionAfter(
-                         {LineNumber(0), ColumnNumber(10)}),
-                     LineColumn());
+            CHECK_EQ(
+                LineSequence().PositionAfter({LineNumber(0), ColumnNumber(10)}),
+                LineColumn());
           }},
      {.name = L"EmptyBufferNormalLineColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContents().PositionAfter(
+            CHECK_EQ(LineSequence().PositionAfter(
                          {LineNumber(25), ColumnNumber(10)}),
                      LineColumn());
           }},
      {.name = L"NormalBufferZeroLineColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter({}),
+            CHECK_EQ(LineSequenceForTests().PositionAfter({}),
                      LineColumn(LineNumber(0), ColumnNumber(1)));
           }},
      {.name = L"NormalBufferZeroLineNormalColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter(
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
                          {LineNumber(0), ColumnNumber(4)}),
                      LineColumn(LineNumber(), ColumnNumber(5)));
           }},
@@ -351,49 +347,49 @@ const bool position_after_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                BufferContentsForTests().PositionAfter(
+                LineSequenceForTests().PositionAfter(
                     {LineNumber(0), ColumnNumber(sizeof("alejandro") - 1)}),
                 LineColumn(LineNumber(1), ColumnNumber(0)));
           }},
      {.name = L"NormalBufferZeroLineLargeColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter(
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
                          {LineNumber(0), ColumnNumber(30)}),
                      LineColumn(LineNumber(1), ColumnNumber(0)));
           }},
      {.name = L"NormalBufferNormalLineZeroColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter(
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
                          {LineNumber(1), ColumnNumber(0)}),
                      LineColumn(LineNumber(1), ColumnNumber(1)));
           }},
      {.name = L"NormalBufferNormalLineNormalColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter(
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
                          {LineNumber(1), ColumnNumber(3)}),
                      LineColumn(LineNumber(1), ColumnNumber(4)));
           }},
      {.name = L"NormalBufferNormalLineEndColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter(
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
                          {LineNumber(1), ColumnNumber(sizeof("forero") - 1)}),
                      LineColumn(LineNumber(2), ColumnNumber(0)));
           }},
      {.name = L"NormalBufferEndLineZeroColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter(
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
                          {LineNumber(2), ColumnNumber(0)}),
                      LineColumn(LineNumber(2), ColumnNumber(1)));
           }},
      {.name = L"NormalBufferEndLineNormalColumn",
       .callback =
           [] {
-            CHECK_EQ(BufferContentsForTests().PositionAfter(
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
                          {LineNumber(2), ColumnNumber(3)}),
                      LineColumn(LineNumber(2), ColumnNumber(4)));
           }},
@@ -401,7 +397,7 @@ const bool position_after_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                BufferContentsForTests().PositionAfter(
+                LineSequenceForTests().PositionAfter(
                     {LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)}),
                 LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
           }},
@@ -409,7 +405,7 @@ const bool position_after_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                BufferContentsForTests().PositionAfter(
+                LineSequenceForTests().PositionAfter(
                     {LineNumber(2), ColumnNumber(30)}),
                 LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
           }},
@@ -417,7 +413,7 @@ const bool position_after_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                BufferContentsForTests().PositionBefore(
+                LineSequenceForTests().PositionBefore(
                     {LineNumber(25), ColumnNumber(0)}),
                 LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
           }},
@@ -425,18 +421,18 @@ const bool position_after_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(
-                BufferContentsForTests().PositionBefore(
+                LineSequenceForTests().PositionBefore(
                     {LineNumber(25), ColumnNumber(3)}),
                 LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
           }},
      {.name = L"NormalBufferLargeLineLargeColumn", .callback = [] {
-        CHECK_EQ(BufferContentsForTests().PositionBefore(
+        CHECK_EQ(LineSequenceForTests().PositionBefore(
                      {LineNumber(25), ColumnNumber(30)}),
                  LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
       }}});
 }
 
-std::wstring BufferContents::ToString() const {
+std::wstring LineSequence::ToString() const {
   std::wstring output;
   output.reserve(CountCharacters());
   EveryLine([&output](LineNumber position, const Line& line) {
@@ -446,9 +442,8 @@ std::wstring BufferContents::ToString() const {
   return output;
 }
 
-void BufferContents::insert(LineNumber position_line,
-                            const BufferContents& source,
-                            const std::optional<LineModifierSet>& modifiers) {
+void LineSequence::insert(LineNumber position_line, const LineSequence& source,
+                          const std::optional<LineModifierSet>& modifiers) {
   CHECK_LE(position_line, EndLine());
   auto prefix = Lines::Prefix(lines_, position_line.read());
   auto suffix = Lines::Suffix(lines_, position_line.read());
@@ -467,7 +462,7 @@ void BufferContents::insert(LineNumber position_line,
   observer_->LinesInserted(position_line, source.size());
 }
 
-bool BufferContents::EveryLine(
+bool LineSequence::EveryLine(
     const std::function<bool(LineNumber, const Line&)>& callback) const {
   LineNumber line_number;
   return Lines::Every(lines_,
@@ -476,7 +471,7 @@ bool BufferContents::EveryLine(
                       });
 }
 
-void BufferContents::ForEach(
+void LineSequence::ForEach(
     const std::function<void(const Line&)>& callback) const {
   EveryLine([callback](LineNumber, const Line& line) {
     callback(line);
@@ -484,12 +479,12 @@ void BufferContents::ForEach(
   });
 }
 
-void BufferContents::ForEach(
+void LineSequence::ForEach(
     const std::function<void(std::wstring)>& callback) const {
   ForEach([callback](const Line& line) { callback(line.ToString()); });
 }
 
-size_t BufferContents::CountCharacters() const {
+size_t LineSequence::CountCharacters() const {
   ColumnNumberDelta output;
   ForEach([&output](const Line& line) {
     output += line.EndColumn().ToDelta() + ColumnNumberDelta(sizeof("\n") - 1);
@@ -500,9 +495,9 @@ size_t BufferContents::CountCharacters() const {
   return output.read();
 }
 
-void BufferContents::insert_line(LineNumber line_position,
-                                 NonNull<std::shared_ptr<const Line>> line,
-                                 CursorsBehavior cursors_behavior) {
+void LineSequence::insert_line(LineNumber line_position,
+                               NonNull<std::shared_ptr<const Line>> line,
+                               CursorsBehavior cursors_behavior) {
   LOG(INFO) << "Inserting line at position: " << line_position;
   size_t original_size = Lines::Size(lines_);
   auto prefix = Lines::Prefix(lines_, line_position.read());
@@ -519,9 +514,9 @@ void BufferContents::insert_line(LineNumber line_position,
   }
 }
 
-void BufferContents::set_line(LineNumber position,
-                              NonNull<std::shared_ptr<const Line>> line) {
-  static Tracker tracker(L"BufferContents::set_line");
+void LineSequence::set_line(LineNumber position,
+                            NonNull<std::shared_ptr<const Line>> line) {
+  static Tracker tracker(L"LineSequence::set_line");
   auto tracker_call = tracker.Call();
 
   if (position.ToDelta() >= size()) {
@@ -532,9 +527,9 @@ void BufferContents::set_line(LineNumber position,
   // TODO: Why no notify observer_?
 }
 
-void BufferContents::DeleteCharactersFromLine(
-    LineColumn position, ColumnNumberDelta amount,
-    CursorsBehavior cursors_behavior) {
+void LineSequence::DeleteCharactersFromLine(LineColumn position,
+                                            ColumnNumberDelta amount,
+                                            CursorsBehavior cursors_behavior) {
   if (amount == ColumnNumberDelta(0)) {
     return;
   }
@@ -553,8 +548,8 @@ void BufferContents::DeleteCharactersFromLine(
   }
 }
 
-void BufferContents::DeleteToLineEnd(LineColumn position,
-                                     CursorsBehavior cursors_behavior) {
+void LineSequence::DeleteToLineEnd(LineColumn position,
+                                   CursorsBehavior cursors_behavior) {
   if (position.column < at(position.line)->EndColumn()) {
     return DeleteCharactersFromLine(
         position, at(position.line)->EndColumn() - position.column,
@@ -562,8 +557,8 @@ void BufferContents::DeleteToLineEnd(LineColumn position,
   }
 }
 
-void BufferContents::SetCharacter(LineColumn position, int c,
-                                  LineModifierSet modifiers) {
+void LineSequence::SetCharacter(LineColumn position, int c,
+                                LineModifierSet modifiers) {
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers.size();
   TransformLine(position.line, [&](LineBuilder& options) {
@@ -573,15 +568,15 @@ void BufferContents::SetCharacter(LineColumn position, int c,
   observer_->SetCharacter(position);
 }
 
-void BufferContents::InsertCharacter(LineColumn position) {
+void LineSequence::InsertCharacter(LineColumn position) {
   TransformLine(position.line, [&](LineBuilder& options) {
     options.InsertCharacterAtPosition(position.column);
   });
   observer_->InsertedCharacter(position);
 }
 
-void BufferContents::AppendToLine(LineNumber line, Line line_to_append,
-                                  CursorsBehavior cursors_behavior) {
+void LineSequence::AppendToLine(LineNumber line, Line line_to_append,
+                                CursorsBehavior cursors_behavior) {
   const LineColumn position = LineColumn(
       std::min(line, EndLine()), at(std::min(line, EndLine()))->EndColumn());
   TransformLine(position.line, [&](LineBuilder& options) {
@@ -595,8 +590,8 @@ void BufferContents::AppendToLine(LineNumber line, Line line_to_append,
   }
 }
 
-void BufferContents::EraseLines(LineNumber first, LineNumber last,
-                                CursorsBehavior cursors_behavior) {
+void LineSequence::EraseLines(LineNumber first, LineNumber last,
+                              CursorsBehavior cursors_behavior) {
   if (first == last) {
     return;  // Optimization to avoid notifying listeners.
   }
@@ -616,7 +611,7 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
   observer_->LinesErased(first, last - first);
 }
 
-void BufferContents::SplitLine(LineColumn position) {
+void LineSequence::SplitLine(LineColumn position) {
   LineBuilder builder(at(position.line).value());
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   insert_line(position.line + LineNumberDelta(1),
@@ -626,7 +621,7 @@ void BufferContents::SplitLine(LineColumn position) {
   DeleteToLineEnd(position, CursorsBehavior::kUnmodified);
 }
 
-void BufferContents::FoldNextLine(LineNumber position) {
+void LineSequence::FoldNextLine(LineNumber position) {
   auto next_line = position + LineNumberDelta(1);
   if (next_line.ToDelta() >= size()) {
     return;
@@ -639,7 +634,7 @@ void BufferContents::FoldNextLine(LineNumber position) {
   observer_->FoldedLine(LineColumn(position, initial_size));
 }
 
-void BufferContents::push_back(std::wstring str) {
+void LineSequence::push_back(std::wstring str) {
   ColumnNumber start;
   for (ColumnNumber i; i < ColumnNumber(str.size()); ++i) {
     wchar_t c = str[i.read()];
@@ -655,12 +650,12 @@ void BufferContents::push_back(std::wstring str) {
 
 namespace {
 const bool push_back_wstring_tests_registration = tests::Register(
-    L"BufferContents::push_back(std::wstring)",
+    L"LineSequence::push_back(std::wstring)",
     {
         {.name = L"EmptyInput",
          .callback =
              [] {
-               BufferContents contents;
+               LineSequence contents;
                contents.push_back(L"");
                CHECK(contents.ToString() == L"\n");
                CHECK_EQ(contents.EndLine(), LineNumber(1));
@@ -668,7 +663,7 @@ const bool push_back_wstring_tests_registration = tests::Register(
         {.name = L"SingleLine",
          .callback =
              [] {
-               BufferContents contents;
+               LineSequence contents;
                contents.push_back(L"foo");
                CHECK(contents.ToString() == L"\nfoo");
                CHECK_EQ(contents.EndLine(), LineNumber(1));
@@ -676,7 +671,7 @@ const bool push_back_wstring_tests_registration = tests::Register(
         {.name = L"MultiLine",
          .callback =
              [] {
-               BufferContents contents;
+               LineSequence contents;
                contents.push_back(L"foo\nbar\nhey\n\n\nquux");
                CHECK(contents.ToString() == L"\nfoo\nbar\nhey\n\n\nquux");
                CHECK_EQ(contents.EndLine(), LineNumber(6));
@@ -684,20 +679,20 @@ const bool push_back_wstring_tests_registration = tests::Register(
     });
 }
 
-void BufferContents::push_back(NonNull<std::shared_ptr<const Line>> line) {
+void LineSequence::push_back(NonNull<std::shared_ptr<const Line>> line) {
   LineNumber position = EndLine();
   lines_ = Lines::PushBack(std::move(lines_), line);
   observer_->LinesInserted(position + LineNumberDelta(1), LineNumberDelta(1));
 }
 
-void BufferContents::append_back(
+void LineSequence::append_back(
     std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
-  static Tracker tracker_subtree(L"BufferContents::append_back::subtree");
+  static Tracker tracker_subtree(L"LineSequence::append_back::subtree");
   auto tracker_subtree_call = tracker_subtree.Call();
   Lines::Ptr subtree = Lines::FromRange(lines.begin(), lines.end());
   tracker_subtree_call = nullptr;
 
-  static Tracker tracker(L"BufferContents::append_back::append");
+  static Tracker tracker(L"LineSequence::append_back::append");
   auto tracker_call = tracker.Call();
 
   LineNumber position = EndLine();
@@ -705,14 +700,14 @@ void BufferContents::append_back(
   observer_->LinesInserted(position, LineNumberDelta(lines.size()));
 }
 
-LineColumn BufferContents::AdjustLineColumn(LineColumn position) const {
+LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(size(), LineNumberDelta(0));
   position.line = std::min(position.line, EndLine());
   position.column = std::min(at(position.line)->EndColumn(), position.column);
   return position;
 }
 
-std::vector<tests::fuzz::Handler> BufferContents::FuzzHandlers() {
+std::vector<tests::fuzz::Handler> LineSequence::FuzzHandlers() {
   using namespace tests::fuzz;
   std::vector<Handler> output;
 
@@ -786,4 +781,4 @@ std::vector<tests::fuzz::Handler> BufferContents::FuzzHandlers() {
   return output;
 }
 
-}  // namespace afc::editor
+}  // namespace afc::language::text

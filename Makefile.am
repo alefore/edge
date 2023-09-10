@@ -16,8 +16,8 @@ src/naive_bayes.cc \
 src/naive_bayes.h \
 src/buffer.cc \
 src/buffer.h \
-src/buffer_contents.cc \
-src/buffer_contents.h \
+src/language/text/line_sequence.cc \
+src/language/text/line_sequence.h \
 src/buffer_contents_util.cc \
 src/buffer_contents_util.h \
 src/buffer_contents_view_layout.h \

@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_BUFFER_CONTENTS_H__
-#define __AFC_EDITOR_BUFFER_CONTENTS_H__
+#ifndef __AFC_LANGUAGE_TEXT_LINE_SEQUENCE_H__
+#define __AFC_LANGUAGE_TEXT_LINE_SEQUENCE_H__
 
 #include <memory>
 #include <vector>
@@ -11,12 +11,10 @@
 #include "src/language/text/line_column.h"
 #include "src/tests/fuzz_testable.h"
 
-namespace afc {
-namespace editor {
-
-class BufferContentsObserver {
+namespace afc::language::text {
+class MutableLineSequenceObserver {
  public:
-  virtual ~BufferContentsObserver() = default;
+  virtual ~MutableLineSequenceObserver() = default;
   virtual void LinesInserted(language::text::LineNumber position,
                              language::text::LineNumberDelta size) = 0;
   virtual void LinesErased(language::text::LineNumber position,
@@ -32,7 +30,7 @@ class BufferContentsObserver {
   virtual void InsertedCharacter(language::text::LineColumn position) = 0;
 };
 
-class NullBufferContentsObserver : public BufferContentsObserver {
+class NullMutableLineSequenceObserver : public MutableLineSequenceObserver {
  public:
   void LinesInserted(language::text::LineNumber position,
                      language::text::LineNumberDelta size) override;
@@ -49,25 +47,22 @@ class NullBufferContentsObserver : public BufferContentsObserver {
   void InsertedCharacter(language::text::LineColumn position) override;
 };
 
-// TODO(trivial, 2023-09-10): Rename to a more fitting name. Perhaps
-// LineSequence.
-// TODO(trivial, 2023-09-10): Move to //src/language/text.
-class BufferContents : public tests::fuzz::FuzzTestable {
+class LineSequence : public tests::fuzz::FuzzTestable {
   using Lines = language::ConstTree<
       language::VectorBlock<
           language::NonNull<std::shared_ptr<const language::text::Line>>, 256>,
       256>;
 
  public:
-  BufferContents();
+  LineSequence();
 
-  explicit BufferContents(
-      language::NonNull<std::shared_ptr<BufferContentsObserver>> observer);
+  explicit LineSequence(
+      language::NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer);
 
-  static BufferContents WithLine(
+  static LineSequence WithLine(
       language::NonNull<std::shared_ptr<const language::text::Line>> line);
 
-  virtual ~BufferContents() = default;
+  virtual ~LineSequence() = default;
 
   wint_t character_at(const language::text::LineColumn& position) const;
 
@@ -86,7 +81,7 @@ class BufferContents : public tests::fuzz::FuzzTestable {
 
   // Returns a copy of the contents of the tree. No actual copying takes place.
   // This is dirt cheap. The updates listener isn't copied.
-  language::NonNull<std::unique_ptr<BufferContents>> copy() const;
+  language::NonNull<std::unique_ptr<LineSequence>> copy() const;
 
   // Drops all contents outside of a specific range.
   void FilterToRange(language::text::Range range);
@@ -173,7 +168,7 @@ class BufferContents : public tests::fuzz::FuzzTestable {
   // If modifiers is present, applies it to every character (overriding
   // modifiers from the source).
   void insert(
-      language::text::LineNumber position_line, const BufferContents& source,
+      language::text::LineNumber position_line, const LineSequence& source,
       const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
   // Delete characters from position.line in range [position.column,
@@ -235,7 +230,7 @@ class BufferContents : public tests::fuzz::FuzzTestable {
   template <typename Callback>
   void TransformLine(language::text::LineNumber line_number,
                      Callback callback) {
-    static infrastructure::Tracker tracker(L"BufferContents::TransformLine");
+    static infrastructure::Tracker tracker(L"LineSequence::TransformLine");
     auto tracker_call = tracker.Call();
     if (lines_ == nullptr) {
       lines_ = Lines::PushBack(nullptr, {});
@@ -254,10 +249,8 @@ class BufferContents : public tests::fuzz::FuzzTestable {
   // that is challenging because it disables move construction... which would be
   // fine (given that there's a copy method), but we use ListenableValues of
   // this, and ListenableValue requires moves.
-  language::NonNull<std::shared_ptr<BufferContentsObserver>> observer_;
+  language::NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer_;
 };
 
-}  // namespace editor
-}  // namespace afc
-
-#endif  // __AFC_EDITOR_BUFFER_CONTENTS_H__
+}  // namespace afc::language::text
+#endif  // __AFC_LANGUAGE_TEXT_LINE_SEQUENCE_H__

@@ -26,6 +26,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
 
 using ::operator<<;
 
@@ -48,7 +49,7 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
           Substring(line, ColumnNumber(split + 1)))};
 }
 
-BufferContents PrepareBuffer(BufferContents contents) {
+LineSequence PrepareBuffer(LineSequence contents) {
   contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
                 [](const NonNull<std::shared_ptr<const Line>>& a,
                    const NonNull<std::shared_ptr<const Line>>& b) {
@@ -63,13 +64,13 @@ BufferContents PrepareBuffer(BufferContents contents) {
     LOG(INFO) << "Deleting empty lines: " << empty_lines_start << " to "
               << contents.EndLine();
     contents.EraseLines(LineNumber(), empty_lines_start,
-                        BufferContents::CursorsBehavior ::kUnmodified);
+                        LineSequence::CursorsBehavior ::kUnmodified);
   }
   return contents;
 }
 
-BufferContents CompletionModelForTests() {
-  BufferContents contents;
+LineSequence CompletionModelForTests() {
+  LineSequence contents;
   contents.push_back(L"bb baby");
   contents.push_back(L"f fox");
   contents.push_back(L"i i");
@@ -80,9 +81,9 @@ const bool prepare_buffer_tests_registration = tests::Register(
     L"CompletionModelManager::PrepareBuffer",
     {{.name = L"EmptyBuffer",
       .callback =
-          [] { CHECK(PrepareBuffer(BufferContents()).ToString() == L""); }},
+          [] { CHECK(PrepareBuffer(LineSequence()).ToString() == L""); }},
      {.name = L"UnsortedBuffer", .callback = [] {
-        BufferContents contents;
+        LineSequence contents;
         contents.push_back(MakeNonNullShared<Line>(L"f fox"));
         contents.push_back(MakeNonNullShared<Line>(L""));
         contents.push_back(MakeNonNullShared<Line>(L""));
@@ -93,7 +94,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
       }}});
 
 std::optional<CompletionModelManager::Text> FindCompletionInModel(
-    const BufferContents& contents,
+    const LineSequence& contents,
     const CompletionModelManager::CompressedText& compressed_text) {
   VLOG(3) << "Starting completion with model with size: " << contents.size()
           << " token: " << compressed_text->ToString();
@@ -143,7 +144,7 @@ const bool find_completion_tests_registration = tests::Register(
     {{.name = L"EmptyModel",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(BufferContents(),
+            CHECK(FindCompletionInModel(LineSequence(),
                                         CompletionModelManager::CompressedText(
                                             NewLazyString(L"foo"))) ==
                   std::nullopt);
@@ -205,7 +206,7 @@ CompletionModelManager::FindCompletionWithIndex(
           return NothingFound{};
         }));
 
-  futures::ListenableValue<BufferContents> current_future =
+  futures::ListenableValue<LineSequence> current_future =
       data->lock([&](Data& locked_data) {
         Path path = models_list->at(index);
         if (auto it = locked_data.models.find(path);
@@ -225,7 +226,7 @@ CompletionModelManager::FindCompletionWithIndex(
           UpdateReverseTable(locked_data, path, output.get_copy().value());
         } else {
           LOG(INFO) << "Adding listener to update reverse table.";
-          output.AddListener([data, path](const BufferContents& contents) {
+          output.AddListener([data, path](const LineSequence& contents) {
             LOG(INFO) << "Updating reverse table.";
             data->lock([&](Data& data_locked) {
               UpdateReverseTable(data_locked, path, contents);
@@ -239,7 +240,7 @@ CompletionModelManager::FindCompletionWithIndex(
       .ToFuture()
       .Transform([buffer_loader = std::move(buffer_loader),
                   data = std::move(data), models_list = std::move(models_list),
-                  compressed_text, index](BufferContents contents) mutable {
+                  compressed_text, index](LineSequence contents) mutable {
         if (std::optional<Text> result =
                 FindCompletionInModel(contents, compressed_text);
             result.has_value())
@@ -250,7 +251,7 @@ CompletionModelManager::FindCompletionWithIndex(
       });
 }
 /* static */ void CompletionModelManager::UpdateReverseTable(
-    Data& data, const Path& path, const BufferContents& contents) {
+    Data& data, const Path& path, const LineSequence& contents) {
   contents.ForEach([&](const Line& line) {
     std::visit(overload{[&path, &data](const ParsedLine& line) {
                           if (line.text.value() != line.compressed_text.value())
@@ -270,7 +271,7 @@ const bool completion_model_manager_tests_registration =
         return MakeNonNullUnique<CompletionModelManager>([paths](Path path) {
           LOG(INFO) << "Creating buffer for: " << path;
           paths->push_back(path);
-          BufferContents contents;
+          LineSequence contents;
           if (path == ValueOrDie(Path::FromString(L"en"))) {
             contents.push_back(L"bb baby");
             contents.push_back(L"f fox");

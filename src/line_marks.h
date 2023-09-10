@@ -9,11 +9,10 @@
 #include "src/buffer_name.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc {
 namespace editor {
-
-class BufferContents;
 
 struct LineMarks {
  public:
@@ -56,7 +55,7 @@ struct LineMarks {
 
   void RemoveSource(const BufferName& source);
 
-  void ExpireMarksFromSource(const BufferContents& source_buffer,
+  void ExpireMarksFromSource(const language::text::LineSequence& source_buffer,
                              const BufferName& source);
   void RemoveExpiredMarksFromSource(const BufferName& source);
 

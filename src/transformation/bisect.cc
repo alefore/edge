@@ -20,6 +20,7 @@ using infrastructure::screen::VisualOverlayMap;
 using infrastructure::screen::VisualOverlayPriority;
 using language::text::LineColumn;
 using language::text::LineNumber;
+using language::text::LineSequence;
 using language::text::Range;
 
 using ::operator<<;
@@ -128,7 +129,7 @@ const bool adjust_range_tests_registration = tests::Register(
                   LineColumn(LineNumber(2), ColumnNumber(16))));
       }}});
 
-Range GetRange(const BufferContents& contents, Direction initial_direction,
+Range GetRange(const LineSequence& contents, Direction initial_direction,
                Structure structure, LineColumn position) {
   if (structure == Structure::kChar) {
     switch (initial_direction) {

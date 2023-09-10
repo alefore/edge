@@ -2,7 +2,7 @@
 
 #include <glog/logging.h>
 
-#include "src/buffer_contents.h"
+#include "src/language/text/line_sequence.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"

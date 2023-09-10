@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "src/buffer_contents.h"
+#include "src/language/text/line_sequence.h"
 #include "src/futures/futures.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"

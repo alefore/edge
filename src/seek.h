@@ -1,16 +1,17 @@
 #ifndef __AFC_EDITOR_SEEK_H__
 #define __AFC_EDITOR_SEEK_H__
 
-#include "src/buffer_contents.h"
 #include "src/direction.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc {
 namespace editor {
 
 class Seek {
  public:
-  Seek(const BufferContents& contents, language::text::LineColumn* position);
+  Seek(const language::text::LineSequence& contents,
+       language::text::LineColumn* position);
 
   enum Result { DONE, UNABLE_TO_ADVANCE };
 
@@ -47,7 +48,7 @@ class Seek {
   bool Advance(language::text::LineColumn* position) const;
   bool AdvanceLine(language::text::LineColumn* position) const;
 
-  const BufferContents& contents_;
+  const language::text::LineSequence& contents_;
   language::text::LineColumn* const position_;
 
   bool wrapping_lines_ = false;

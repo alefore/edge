@@ -7,16 +7,17 @@ namespace afc::editor {
 using language::NonNull;
 using language::ValueOrError;
 using language::text::LineColumn;
+using language::text::LineSequence;
 
 using ::operator<<;
 
-void InsertHistory::Append(const BufferContents& insertion) {
+void InsertHistory::Append(const LineSequence& insertion) {
   if (insertion.range().IsEmpty()) return;
   VLOG(5) << "Inserting to history: " << insertion.ToString();
   history_.push_back(insertion.copy());
 }
 
-const std::vector<language::NonNull<std::unique_ptr<const BufferContents>>>&
+const std::vector<language::NonNull<std::unique_ptr<const LineSequence>>>&
 InsertHistory::get() const {
   return history_;
 }
@@ -24,7 +25,7 @@ InsertHistory::get() const {
 namespace {
 bool IsMatch(EditorState& editor,
              const InsertHistory::SearchOptions& search_options,
-             const BufferContents& candidate) {
+             const LineSequence& candidate) {
   ValueOrError<std::vector<LineColumn>> matches = SearchHandler(
       editor.work_queue(), editor.modifiers().direction,
       afc::editor::SearchOptions{.search_query = search_options.query,
@@ -37,13 +38,13 @@ bool IsMatch(EditorState& editor,
 }
 }  // namespace
 
-std::optional<NonNull<const BufferContents*>> InsertHistory::Search(
+std::optional<NonNull<const LineSequence*>> InsertHistory::Search(
     EditorState& editor, InsertHistory::SearchOptions search_options) {
   if (history_.empty()) return std::nullopt;
-  std::vector<NonNull<const BufferContents*>> matches;
+  std::vector<NonNull<const LineSequence*>> matches;
   for (auto it = history_.rbegin(); it != history_.rend(); ++it) {
     if (IsMatch(editor, search_options, it->value()))
-      matches.push_back(NonNull<const BufferContents*>::AddressOf(it->value()));
+      matches.push_back(NonNull<const LineSequence*>::AddressOf(it->value()));
   }
   // TODO(2022-05-23): Sort matches with Bayes.
   if (!matches.empty()) return matches.front();

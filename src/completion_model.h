@@ -3,7 +3,6 @@
 
 #include <memory>
 
-#include "src/buffer_contents.h"
 #include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
@@ -11,6 +10,7 @@
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
 class CompletionModelManager {
@@ -30,7 +30,8 @@ class CompletionModelManager {
   };
 
   using BufferLoader =
-      std::function<futures::Value<BufferContents>(infrastructure::Path)>;
+      std::function<futures::Value<language::text::LineSequence>(
+          infrastructure::Path)>;
   CompletionModelManager(BufferLoader buffer_loader);
 
   using QueryOutput = std::variant<Text, Suggestion, NothingFound>;
@@ -38,7 +39,7 @@ class CompletionModelManager {
                                     CompressedText compressed_text);
 
  private:
-  using CompletionModel = BufferContents;
+  using CompletionModel = language::text::LineSequence;
   using ModelsMap =
       std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>;
 
@@ -51,7 +52,7 @@ class CompletionModelManager {
       CompressedText compressed_text, size_t index);
 
   static void UpdateReverseTable(Data& data, const infrastructure::Path& path,
-                                 const BufferContents& contents);
+                                 const language::text::LineSequence& contents);
 
   struct Data {
     ModelsMap models;

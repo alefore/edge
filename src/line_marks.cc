@@ -5,15 +5,16 @@
 #include <string>
 #include <vector>
 
-#include "src/buffer_contents.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
 
 namespace afc::editor {
 using infrastructure::Tracker;
 using language::lazy_string::NewLazyString;
 using language::text::LineColumn;
+using language::text::LineSequence;
 
 void LineMarks::AddMark(Mark mark) {
   marks_by_source_target[mark.source_buffer][mark.target_buffer].marks.insert(
@@ -42,7 +43,7 @@ void LineMarks::RemoveSource(const BufferName& source) {
   marks_by_source_target.erase(it);
 }
 
-void LineMarks::ExpireMarksFromSource(const BufferContents& source_buffer,
+void LineMarks::ExpireMarksFromSource(const LineSequence& source_buffer,
                                       const BufferName& source) {
   static Tracker tracker(L"LineMarks::ExpireMarksFromSource");
   auto call = tracker.Call();

@@ -23,6 +23,7 @@ using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
+using language::text::LineSequence;
 
 namespace gc = language::gc;
 
@@ -126,9 +127,9 @@ class HelpCommand : public Command {
     editor_state_.ResetRepetitions();
   }
 
-  static BufferContents GenerateContents(const MapModeCommands& commands,
-                                         const OpenBuffer& buffer) {
-    BufferContents output;
+  static LineSequence GenerateContents(const MapModeCommands& commands,
+                                       const OpenBuffer& buffer) {
+    LineSequence output;
     output.AppendToLine(LineNumber(), Line(L"# Edge - Help"));
     output.push_back(L"");
 
@@ -154,13 +155,13 @@ class HelpCommand : public Command {
   }
 
  private:
-  static void StartSection(std::wstring section, BufferContents& buffer) {
+  static void StartSection(std::wstring section, LineSequence& buffer) {
     buffer.push_back(std::move(section));
     buffer.push_back(L"");
   }
 
   static void ShowCommands(const MapModeCommands& commands,
-                           BufferContents& output) {
+                           LineSequence& output) {
     StartSection(L"## Commands", output);
 
     output.push_back(
@@ -180,7 +181,7 @@ class HelpCommand : public Command {
 
   // This is public for testability.
   static void ShowEnvironment(const OpenBuffer& original_buffer,
-                              BufferContents& output) {
+                              LineSequence& output) {
     StartSection(L"## Environment", output);
 
     const gc::Ptr<vm::Environment> environment = original_buffer.environment();
@@ -243,8 +244,7 @@ class HelpCommand : public Command {
 
   template <typename T, typename C>
   static void DescribeVariables(std::wstring type_name,
-                                const OpenBuffer& source,
-                                BufferContents& output,
+                                const OpenBuffer& source, LineSequence& output,
                                 EdgeStruct<T>* variables, C print) {
     StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {
@@ -275,7 +275,7 @@ class HelpCommand : public Command {
     output.push_back(L"");
   }
 
-  static void CommandLineVariables(BufferContents& output) {
+  static void CommandLineVariables(LineSequence& output) {
     StartSection(L"## Command line arguments", output);
     using command_line_arguments::Handler;
     auto handlers = CommandLineArgs();

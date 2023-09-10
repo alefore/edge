@@ -6,6 +6,7 @@
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/screen/screen.h"
 #include "src/insert_mode.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -13,7 +14,6 @@
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 #include "src/parse_tree.h"
-#include "src/infrastructure/screen/screen.h"
 
 namespace afc::editor {
 using language::MakeNonNullUnique;
@@ -33,6 +33,7 @@ using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::OutgoingLink;
 
 namespace gc = language::gc;
@@ -112,7 +113,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, gc::WeakPtr<OpenBuffer> source_weak,
     OpenBuffer& target) {
-  target.ClearContents(BufferContents::CursorsBehavior::kUnmodified);
+  target.ClearContents(LineSequence::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state.edge_path()) {
     target.EvaluateFile(Path::Join(
         dir, ValueOrDie(Path::FromString(L"hooks/navigation-buffer-reload.cc"),

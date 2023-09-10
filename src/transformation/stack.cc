@@ -35,6 +35,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::Range;
 
 namespace gc = language::gc;
@@ -57,7 +58,7 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 }
 
 futures::Value<PossibleError> PreviewCppExpression(
-    OpenBuffer& buffer, const BufferContents& expression_str) {
+    OpenBuffer& buffer, const LineSequence& expression_str) {
   FUTURES_ASSIGN_OR_RETURN(auto compilation_result,
                            buffer.CompileString(expression_str.ToString()));
   auto [expression, environment] = std::move(compilation_result);
@@ -84,7 +85,7 @@ futures::Value<PossibleError> PreviewCppExpression(
 
 futures::Value<Result> HandleCommandCpp(Input input,
                                         Delete original_delete_transformation) {
-  NonNull<std::unique_ptr<BufferContents>> contents =
+  NonNull<std::unique_ptr<LineSequence>> contents =
       input.buffer.contents().copy();
   contents->FilterToRange(*original_delete_transformation.range);
   if (input.mode == Input::Mode::kPreview) {
@@ -215,7 +216,7 @@ std::wstring ToString(const ContentStats& stats) {
          L" C:" + std::to_wstring(stats.characters);
 }
 
-ContentStats AnalyzeContent(const BufferContents& contents) {
+ContentStats AnalyzeContent(const LineSequence& contents) {
   ContentStats output{.lines = contents.EndLine().read() + 1};
   contents.ForEach([&output](const Line& line) {
     ColumnNumber i;
@@ -238,14 +239,14 @@ const bool analyze_content_tests_registration = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            CHECK(AnalyzeContent(BufferContents()) ==
+            CHECK(AnalyzeContent(LineSequence()) ==
                   ContentStats(
                       {.lines = 1, .words = 0, .alnums = 0, .characters = 0}));
           }},
      {.name = L"SingleWord",
       .callback =
           [] {
-            BufferContents contents;
+            LineSequence contents;
             contents.AppendToLine(LineNumber(), Line(L"foo"));
             CHECK(AnalyzeContent(contents) ==
                   ContentStats(
@@ -254,7 +255,7 @@ const bool analyze_content_tests_registration = tests::Register(
      {.name = L"SingleLine",
       .callback =
           [] {
-            BufferContents contents;
+            LineSequence contents;
             contents.AppendToLine(LineNumber(), Line(L"foo bar hey alejo"));
             CHECK(AnalyzeContent(contents) ==
                   ContentStats({.lines = 1,
@@ -265,7 +266,7 @@ const bool analyze_content_tests_registration = tests::Register(
      {.name = L"SpacesSingleLine",
       .callback =
           [] {
-            BufferContents contents;
+            LineSequence contents;
             contents.AppendToLine(LineNumber(),
                                   Line(L"   foo    bar   hey   alejo   "));
             CHECK(AnalyzeContent(contents) ==
@@ -275,7 +276,7 @@ const bool analyze_content_tests_registration = tests::Register(
                                 .characters = 30}));
           }},
      {.name = L"VariousEmptyLines", .callback = [] {
-        BufferContents contents;
+        LineSequence contents;
         contents.append_back({MakeNonNullShared<const Line>(L"foo"),
                               {},
                               {},
@@ -308,7 +309,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             .initiator = transformation::Delete::Initiator::kInternal};
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone: {
-            NonNull<std::shared_ptr<BufferContents>> contents =
+            NonNull<std::shared_ptr<LineSequence>> contents =
                 input.buffer.contents().copy();
             contents->FilterToRange(range);
             input.buffer.status().Reset();
@@ -348,7 +349,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   LineModifier::kGreen, LineModifier::kUnderline};
               return Apply(delete_transformation, input.NewChild(range.begin));
             }
-            NonNull<std::unique_ptr<BufferContents>> contents =
+            NonNull<std::unique_ptr<LineSequence>> contents =
                 input.buffer.contents().copy();
             contents->FilterToRange(*delete_transformation.range);
             AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),

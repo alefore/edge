@@ -56,6 +56,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 
 namespace gc = language::gc;
 
@@ -573,7 +574,7 @@ const bool buffer_tests_registration =
 Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
   return [dictionary_root](PredictorInput input) {
     const OpenBuffer& dictionary = dictionary_root.ptr().value();
-    const BufferContents& contents = dictionary.contents();
+    const LineSequence& contents = dictionary.contents();
     auto input_line = MakeNonNullShared<const Line>(
         LineBuilder(NewLazyString(input.input)).Build());
 

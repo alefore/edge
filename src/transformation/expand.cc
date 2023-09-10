@@ -40,6 +40,7 @@ using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
+using language::text::LineSequence;
 
 namespace gc = language::gc;
 
@@ -116,8 +117,8 @@ class PredictorTransformation : public CompositeTransformation {
           Output output;
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
-              .contents_to_insert = MakeNonNullShared<BufferContents>(
-                  BufferContents::WithLine(MakeNonNullShared<Line>(
+              .contents_to_insert = MakeNonNullShared<LineSequence>(
+                  LineSequence::WithLine(MakeNonNullShared<Line>(
                       results.value().common_prefix.value())))});
           return output;
         });
@@ -143,7 +144,7 @@ class InsertHistoryTransformation : public CompositeTransformation {
     Output output;
     VisitPointer(
         input.editor.insert_history().Search(input.editor, search_options_),
-        [&](NonNull<const BufferContents*> text) {
+        [&](NonNull<const LineSequence*> text) {
           output.Push(delete_transformation_);
           output.Push(
               transformation::Insert{.contents_to_insert = text->copy()});
@@ -293,7 +294,7 @@ class Execute : public CompositeTransformation {
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
                 .contents_to_insert =
-                    MakeNonNullShared<BufferContents>(BufferContents::WithLine(
+                    MakeNonNullShared<LineSequence>(LineSequence::WithLine(
                         MakeNonNullShared<Line>(value.ptr()->get_string())))});
           }
           return futures::Past(Success(std::move(output)));

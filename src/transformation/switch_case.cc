@@ -20,6 +20,7 @@ using language::NonNull;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 
 std::wstring SwitchCaseTransformation::Serialize() const {
   return L"SwitchCaseTransformation();";
@@ -27,7 +28,7 @@ std::wstring SwitchCaseTransformation::Serialize() const {
 
 futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
     Input input) const {
-  NonNull<std::unique_ptr<BufferContents>> contents_to_insert;
+  NonNull<std::unique_ptr<LineSequence>> contents_to_insert;
   VLOG(5) << "Switch Case Transformation at " << input.position << ": "
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin;

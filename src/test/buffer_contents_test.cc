@@ -28,9 +28,10 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 
-void TestBufferContentsSnapshot() {
-  BufferContents contents;
+void TestLineSequenceSnapshot() {
+  LineSequence contents;
   for (auto& s : {L"alejandro", L"forero", L"cuervo"}) {
     contents.push_back(
         MakeNonNullShared<Line>(LineBuilder(NewLazyString(s)).Build()));
@@ -45,7 +46,7 @@ void TestBufferContentsSnapshot() {
 }
 
 void TestBufferInsertModifiers() {
-  BufferContents contents;
+  LineSequence contents;
   LineBuilder options(NewLazyString(L"alejo"));
   options.set_modifiers(ColumnNumber(0), LineModifierSet{LineModifier::kCyan});
 
@@ -163,7 +164,7 @@ void TestBufferInsertModifiers() {
 
 void TestCursorsMove() {
   std::vector<CursorsTracker::Transformation> transformations;
-  BufferContents contents([&](const CursorsTracker::Transformation& t) {
+  LineSequence contents([&](const CursorsTracker::Transformation& t) {
     transformations.push_back(t);
   });
   contents.set_line(LineNumber(0),
@@ -180,12 +181,12 @@ void TestCursorsMove() {
 }
 }  // namespace
 
-void BufferContentsTests() {
-  LOG(INFO) << "BufferContents tests: start.";
-  TestBufferContentsSnapshot();
+void LineSequenceTests() {
+  LOG(INFO) << "LineSequence tests: start.";
+  TestLineSequenceSnapshot();
   TestBufferInsertModifiers();
   TestCursorsMove();
-  LOG(INFO) << "BufferContents tests: done.";
+  LOG(INFO) << "LineSequence tests: done.";
 }
 
 }  // namespace testing

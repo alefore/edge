@@ -7,12 +7,12 @@ extern "C" {
 #include <sys/ioctl.h>
 }
 
-#include "src/buffer_contents.h"
 #include "src/buffer_name.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/tests/fuzz.h"
 
@@ -32,10 +32,11 @@ using language::text::LineColumn;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 
 TerminalInputParser::TerminalInputParser(
     NonNull<std::unique_ptr<TerminalInputParser::Receiver>> receiver,
-    BufferContents& contents)
+    LineSequence& contents)
     : data_(MakeNonNullShared<Data>(
           Data{.receiver = std::move(receiver), .contents = contents})) {
   data_->receiver->view_size().Add(Observers::LockingObserver(

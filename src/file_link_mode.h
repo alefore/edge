@@ -10,6 +10,7 @@
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/text/line_sequence.h"
 #include "src/widget_list.h"
 
 namespace afc {
@@ -17,7 +18,8 @@ namespace editor {
 // Saves the contents of the buffer to the path given.
 futures::Value<language::PossibleError> SaveContentsToFile(
     const infrastructure::Path& path,
-    language::NonNull<std::unique_ptr<const BufferContents>> contents,
+    language::NonNull<std::unique_ptr<const language::text::LineSequence>>
+        contents,
     concurrent::ThreadPool& thread_pool,
     infrastructure::FileSystemDriver& file_system_driver);
 

@@ -716,7 +716,7 @@ int main(int, char** argv) {
   signal(SIGPIPE, SIG_IGN);
   google::InitGoogleLogging(argv[0]);
 
-  testing::BufferContentsTests();
+  testing::LineSequenceTests();
   testing::LineTests();
   LOG(INFO) << "Basic tests";
   TestCases();

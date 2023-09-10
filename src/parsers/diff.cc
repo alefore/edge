@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include "src/buffer_contents.h"
+#include "src/language/text/line_sequence.h"
 #include "src/parse_tools.h"
 #include "src/seek.h"
 
@@ -17,13 +17,14 @@ using language::lazy_string::ColumnNumberDelta;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::Range;
 
 enum State { DEFAULT, HEADERS, SECTION, CONTENTS };
 
 class DiffParser : public TreeParser {
  public:
-  ParseTree FindChildren(const BufferContents& buffer, Range range) override {
+  ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     std::vector<size_t> states_stack = {DEFAULT};
     std::vector<ParseTree> trees = {ParseTree(range)};
 

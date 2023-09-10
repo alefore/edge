@@ -73,6 +73,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::OutgoingLink;
 using language::text::Range;
 
@@ -106,7 +107,7 @@ class NewLineTransformation : public CompositeTransformation {
 
     Output output;
     {
-      NonNull<std::shared_ptr<BufferContents>> contents_to_insert;
+      NonNull<std::shared_ptr<LineSequence>> contents_to_insert;
       LineBuilder line_without_suffix(*line);
       line_without_suffix.DeleteSuffix(prefix_end);
       contents_to_insert->push_back(
@@ -165,10 +166,10 @@ class FindCompletionCommand : public Command {
   EditorState& editor_state_;
 };
 
-std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>
-NewInsertion(EditorState& editor) {
-  return std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>(
-      new BufferContents(), [&editor](BufferContents* value) {
+std::unique_ptr<LineSequence, std::function<void(LineSequence*)>> NewInsertion(
+    EditorState& editor) {
+  return std::unique_ptr<LineSequence, std::function<void(LineSequence*)>>(
+      new LineSequence(), [&editor](LineSequence* value) {
         CHECK(value != nullptr);
         editor.insert_history().Append(*value);
         delete value;
@@ -438,9 +439,8 @@ class InsertMode : public EditorMode {
               .Transform([options, buffer_root](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
-                    .contents_to_insert = MakeNonNullShared<BufferContents>(
-                        BufferContents::WithLine(
-                            MakeNonNullShared<Line>(value))),
+                    .contents_to_insert = MakeNonNullShared<LineSequence>(
+                        LineSequence::WithLine(MakeNonNullShared<Line>(value))),
                     .modifiers = {
                         .insertion =
                             options.editor_state.modifiers().insertion}});
@@ -535,8 +535,8 @@ class InsertMode : public EditorMode {
               break;
             case Modifiers::ModifyMode::kOverwrite:
               stack.PushBack(transformation::Insert{
-                  .contents_to_insert = MakeNonNullShared<BufferContents>(
-                      BufferContents::WithLine(
+                  .contents_to_insert =
+                      MakeNonNullShared<LineSequence>(LineSequence::WithLine(
                           MakeNonNullShared<const Line>(L" "))),
                   .final_position =
                       direction == Direction::kBackwards
@@ -672,7 +672,7 @@ class InsertMode : public EditorMode {
   }
 
   static CompletionModelManager::CompressedText GetCompletionToken(
-      const BufferContents& buffer_contents, Range token_range) {
+      const LineSequence& buffer_contents, Range token_range) {
     CompletionModelManager::CompressedText output = LowerCase(
         Substring(buffer_contents.at(token_range.begin.line)->contents(),
                   token_range.begin.column,
@@ -703,8 +703,8 @@ class InsertMode : public EditorMode {
     Range token_range = GetTokenRange(buffer);
     futures::Value<EmptyValue> output =
         buffer.ApplyToCursors(transformation::Insert{
-            .contents_to_insert = MakeNonNullShared<BufferContents>(
-                BufferContents::WithLine(MakeNonNullShared<Line>(
+            .contents_to_insert = MakeNonNullShared<LineSequence>(
+                LineSequence::WithLine(MakeNonNullShared<Line>(
                     LineBuilder(NewLazyString(L" ")).Build()))),
             .modifiers = {.insertion = modify_mode}});
 
@@ -763,13 +763,10 @@ class InsertMode : public EditorMode {
                       const ColumnNumberDelta completion_text_size =
                           completion_text->size();
                       stack.PushBack(transformation::Insert{
-                          .contents_to_insert =
-                              MakeNonNullShared<BufferContents>(
-                                  BufferContents::WithLine(
-                                      MakeNonNullShared<Line>(
-                                          LineBuilder(
-                                              std::move(completion_text))
-                                              .Build()))),
+                          .contents_to_insert = MakeNonNullShared<LineSequence>(
+                              LineSequence::WithLine(MakeNonNullShared<Line>(
+                                  LineBuilder(std::move(completion_text))
+                                      .Build()))),
                           .modifiers = {.insertion = modify_mode},
                           .position = position_start});
                       stack.PushBack(transformation::SetPosition(
@@ -814,7 +811,7 @@ class InsertMode : public EditorMode {
   NonNull<std::unique_ptr<DeleteNotification>>
       scroll_behavior_abort_notification_;
 
-  std::unique_ptr<BufferContents, std::function<void(BufferContents*)>>
+  std::unique_ptr<LineSequence, std::function<void(LineSequence*)>>
       current_insertion_;
 
   NonNull<std::shared_ptr<CompletionModelManager>> completion_model_supplier_;

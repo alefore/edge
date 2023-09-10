@@ -4,12 +4,12 @@
 #include <memory>
 #include <string>
 
-#include "src/buffer_contents.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
 struct CurrentTokenOptions {
-  const BufferContents& contents;
+  const language::text::LineSequence& contents;
   language::text::LineColumn line_column;
   std::wstring token_characters;
 };

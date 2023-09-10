@@ -8,12 +8,13 @@
 #include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 
-namespace afc {
-namespace editor {
+namespace afc::language::text {
+class LineSequence;
+}
+namespace afc ::editor {
 class DeleteOptions;
 class Transformation;
 class OpenBuffer;
-class BufferContents;
 class ParseTree;
 
 enum class Structure {
@@ -73,7 +74,7 @@ StructureSearchRange GetStructureSearchRange(Structure structure);
 // of the type specified that starts after position. No-op if we're already
 // inside the structure.
 struct SeekInput {
-  const BufferContents& contents;
+  const language::text::LineSequence& contents;
   Structure structure;
   Direction direction;
   std::wstring line_prefix_characters;
@@ -92,7 +93,6 @@ void SeekToNext(SeekInput input);
 // structure. Returns a boolean indicating whether it successfully found a
 // position outside of the structure.
 bool SeekToLimit(SeekInput input);
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_VM_STRUCTURE_H__

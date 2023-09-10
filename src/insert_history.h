@@ -5,8 +5,8 @@
 #include <optional>
 #include <vector>
 
-#include "src/buffer_contents.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
 class EditorState;
@@ -15,9 +15,10 @@ class InsertHistory {
  public:
   InsertHistory() = default;
 
-  void Append(const BufferContents& insertion);
+  void Append(const language::text::LineSequence& insertion);
 
-  const std::vector<language::NonNull<std::unique_ptr<const BufferContents>>>&
+  const std::vector<
+      language::NonNull<std::unique_ptr<const language::text::LineSequence>>>&
   get() const;
 
   struct SearchOptions {
@@ -26,11 +27,12 @@ class InsertHistory {
 
   // Return the entry from the history that best fits `search_options`. For now,
   // that's just the most recent entry.
-  std::optional<language::NonNull<const BufferContents*>> Search(
+  std::optional<language::NonNull<const language::text::LineSequence*>> Search(
       EditorState& editor, SearchOptions search_options);
 
  private:
-  std::vector<language::NonNull<std::unique_ptr<const BufferContents>>>
+  std::vector<
+      language::NonNull<std::unique_ptr<const language::text::LineSequence>>>
       history_;
 };
 }  // namespace afc::editor

@@ -1,8 +1,8 @@
 #include <glog/logging.h>
 
-#include "src/buffer_contents.h"
 #include "src/direction.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/text/line_sequence.h"
 #include "src/modifiers.h"
 #include "src/operation_scope_buffer_information.h"
 #include "src/structure.h"
@@ -15,6 +15,7 @@ using language::lazy_string::ColumnNumberDelta;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::Range;
 
 namespace {
@@ -84,7 +85,7 @@ bool compute_page_move_lines_test_registration = tests::Register(
 
 std::optional<LineColumn> Move(
     const OperationScopeBufferInformation& buffer_information,
-    Structure structure, const BufferContents& contents, LineColumn position,
+    Structure structure, const LineSequence& contents, LineColumn position,
     Range range, const Modifiers& modifiers) {
   switch (structure) {
     case Structure::kChar:

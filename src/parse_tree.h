@@ -6,14 +6,13 @@
 #include <string>
 #include <unordered_set>
 
-#include "src/buffer_contents.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
-class BufferContents;
 enum class IdentifierBehavior { kNone, kColorByHash };
 
 class ParseTreeProperty {
@@ -119,7 +118,7 @@ class TreeParser {
 
   static bool IsNull(TreeParser*);
 
-  virtual ParseTree FindChildren(const BufferContents& lines,
+  virtual ParseTree FindChildren(const language::text::LineSequence& lines,
                                  language::text::Range range) = 0;
 };
 

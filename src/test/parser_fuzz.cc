@@ -10,6 +10,7 @@
 #include "src/tree.h"
 
 using namespace afc::editor;
+using language::text::LineSequence;
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -28,7 +29,7 @@ int main(int argc, char** argv) {
   std::wstringstream ss(wstring(buffer, len));
   std::wstring line;
 
-  BufferContents contents;
+  LineSequence contents;
   while (std::getline(ss, line, '\n')) {
     Line::Options options;
     options.contents = NewLazyString(line);
@@ -36,7 +37,7 @@ int main(int argc, char** argv) {
     contents.push_back(std::make_shared<Line>());
   }
 
-  parser->FindChildren(const BufferContents& lines, ParseTree* root) = 0;
+  parser->FindChildren(const LineSequence& lines, ParseTree* root) = 0;
 
   return 0;
 }

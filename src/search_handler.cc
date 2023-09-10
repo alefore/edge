@@ -34,6 +34,7 @@ using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
+using language::text::LineSequence;
 using language::text::Range;
 
 namespace gc = language::gc;
@@ -75,7 +76,7 @@ auto GetRegexTraits(bool case_sensitive) {
 }
 
 ValueOrError<std::vector<LineColumn>> PerformSearch(
-    const SearchOptions& options, const BufferContents& contents,
+    const SearchOptions& options, const LineSequence& contents,
     ProgressChannel* progress_channel) {
   std::vector<LineColumn> positions;
 
@@ -131,14 +132,14 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
 }
 
 std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
-    SearchOptions search_options, const BufferContents& contents,
+    SearchOptions search_options, const LineSequence& contents,
     ProgressChannel& progress_channel) {
   // TODO(easy, 2022-04-14): Why is this here?
   search_options.required_positions = 100;
   // Must take special care to only capture instances of thread-safe classes:
   return std::bind_front(
       [search_options, &progress_channel](
-          const NonNull<std::shared_ptr<BufferContents>>& buffer_contents)
+          const NonNull<std::shared_ptr<LineSequence>>& buffer_contents)
           -> ValueOrError<SearchResultsSummary> {
         ASSIGN_OR_RETURN(auto search_results,
                          PerformSearch(search_options, buffer_contents.value(),
@@ -150,7 +151,7 @@ std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
                     ? SearchResultsSummary::SearchCompletion::kInterrupted
                     : SearchResultsSummary::SearchCompletion::kFull};
       },
-      NonNull<std::shared_ptr<BufferContents>>(contents.copy()));
+      NonNull<std::shared_ptr<LineSequence>>(contents.copy()));
 }
 
 std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
@@ -172,7 +173,7 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
 ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
-    const BufferContents& contents) {
+    const LineSequence& contents) {
   if (options.search_query.empty()) {
     return {};
   }
@@ -273,14 +274,14 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
 ValueOrError<std::vector<LineColumn>> SearchHandler(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
-    const BufferContents& buffer) {
+    const LineSequence& buffer) {
   return PerformSearchWithDirection(work_queue, direction, options, buffer);
 }
 
 ValueOrError<LineColumn> GetNextMatch(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
-    const BufferContents& contents) {
+    const LineSequence& contents) {
   // TODO(trivial, 2023-09-09): Switch to VisitPointer.
   if (std::optional<std::vector<LineColumn>> results =
           OptionalFrom(SearchHandler(work_queue, direction, options, contents));

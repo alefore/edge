@@ -7,6 +7,7 @@
 
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_sequence.h"
 #include "src/modifiers.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
@@ -14,14 +15,14 @@
 
 namespace afc::editor {
 class EditorState;
-class BufferContents;
 namespace transformation {
 struct Insert {
   std::wstring Serialize() const;
 
   // This would ideally be unique_ptr, but then `Insert` wouldn't be copyable
   // (which would make transformation::Variant non-copyable).
-  language::NonNull<std::shared_ptr<const BufferContents>> contents_to_insert;
+  language::NonNull<std::shared_ptr<const language::text::LineSequence>>
+      contents_to_insert;
 
   editor::Modifiers modifiers = Modifiers();
 

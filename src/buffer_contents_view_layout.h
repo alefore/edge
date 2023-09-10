@@ -7,8 +7,8 @@
 #include <optional>
 #include <set>
 
-#include "src/buffer_contents.h"
 #include "src/infrastructure/screen/cursors.h"
+#include "src/language/text/line_sequence.h"
 #include "src/line_output.h"
 #include "src/line_with_cursor.h"
 #include "src/widget.h"
@@ -16,7 +16,7 @@
 namespace afc::editor {
 struct BufferContentsViewLayout {
   struct Input {
-    const BufferContents& contents;
+    const language::text::LineSequence& contents;
 
     // If present, adjusts the view (`begin`) to contain this location.
     std::optional<language::text::LineColumn> active_position;

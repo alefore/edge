@@ -14,14 +14,13 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/line_sequence.h"
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::infrastructure::audio {
 class Player;
 }
 namespace afc::editor {
-
-class BufferContents;
 class BufferName;
 
 // Decodes input from a terminal-associated file descriptor.
@@ -55,7 +54,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
     virtual void Bell() = 0;
     virtual void Warn(language::Error error) = 0;
 
-    virtual const BufferContents& contents() = 0;
+    virtual const language::text::LineSequence& contents() = 0;
 
     // Return the position of the start of the current view.
     virtual language::text::LineColumn current_widget_view_start() = 0;
@@ -64,7 +63,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
   };
 
   TerminalInputParser(language::NonNull<std::unique_ptr<Receiver>> receiver,
-                      BufferContents& contents);
+                      language::text::LineSequence& contents);
 
   // Propagates the last view size to buffer->fd().
   void UpdateSize();
@@ -87,7 +86,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
     language::NonNull<std::unique_ptr<Receiver>> receiver;
 
     // TODO: Find a way to remove this? I.e. always use buffer_.
-    BufferContents& contents;
+    language::text::LineSequence& contents;
 
     language::text::LineColumn position = language::text::LineColumn();
   };

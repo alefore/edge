@@ -9,7 +9,6 @@
 #include <memory>
 #include <vector>
 
-#include "src/buffer_contents.h"
 #include "src/buffer_name.h"
 #include "src/buffer_syntax_parser.h"
 #include "src/concurrent/work_queue.h"
@@ -25,6 +24,7 @@
 #include "src/language/observers.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/line_sequence.h"
 #include "src/line_marks.h"
 #include "src/log.h"
 #include "src/parse_tree.h"
@@ -49,7 +49,7 @@ class MapMode;
 class MapModeCommands;
 class UndoState;
 
-class OpenBufferBufferContentsObserver;
+class OpenBufferMutableLineSequenceObserver;
 
 class OpenBuffer {
   struct ConstructorAccessTag {};
@@ -172,7 +172,8 @@ class OpenBuffer {
   // If the buffer has a child process, sends EndOfFile to it.
   void SendEndOfFileToProcess();
 
-  void ClearContents(BufferContents::CursorsBehavior cursors_behavior);
+  void ClearContents(
+      language::text::LineSequence::CursorsBehavior cursors_behavior);
   void AppendEmptyLine();
 
   // Sort all lines in range [first, last) according to a compare function.
@@ -245,13 +246,13 @@ class OpenBuffer {
   // If modifiers is present, applies it to every character (overriding the
   // modifiers from `insertion`; that is, from the input).
   language::text::LineColumn InsertInPosition(
-      const BufferContents& contents_to_insert,
+      const language::text::LineSequence& contents_to_insert,
       const language::text::LineColumn& position,
       const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
-  // See BufferContents::AdjustLineColumn.
+  // See LineSequence::AdjustLineColumn.
   // TODO(trivial, 2023-08-24): Get rid of this method; switch all callers to
-  // BufferContents.
+  // LineSequence.
   language::text::LineColumn AdjustLineColumn(
       language::text::LineColumn position) const;
 
@@ -421,7 +422,7 @@ class OpenBuffer {
   //
   // TODO(easy, 2023-08-21): Stop passing a reference to TerminalInputParser;
   // instead, extend TerminalInputParser::Receiver.
-  const BufferContents& contents() const { return contents_; }
+  const language::text::LineSequence& contents() const { return contents_; }
 
   BufferName name() const;
 
@@ -520,7 +521,7 @@ class OpenBuffer {
       infrastructure::screen::VisualOverlayMap value);
 
  private:
-  friend OpenBufferBufferContentsObserver;
+  friend OpenBufferMutableLineSequenceObserver;
 
   // Code that would normally be in the constructor, but which may require the
   // use of `shared_from_this`. This function will be called by `New` after the
@@ -596,10 +597,10 @@ class OpenBuffer {
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
-  language::NonNull<std::shared_ptr<OpenBufferBufferContentsObserver>>
+  language::NonNull<std::shared_ptr<OpenBufferMutableLineSequenceObserver>>
       contents_observer_;
 
-  BufferContents contents_;
+  language::text::LineSequence contents_;
   infrastructure::screen::VisualOverlayMap visual_overlay_map_;
 
   DiskState disk_state_ = DiskState::kCurrent;

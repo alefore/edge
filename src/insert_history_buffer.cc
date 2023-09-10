@@ -1,22 +1,23 @@
 #include "src/insert_history_buffer.h"
 
 #include "src/buffer.h"
-#include "src/buffer_contents.h"
 #include "src/buffer_variables.h"
 #include "src/buffers_list.h"
 #include "src/editor.h"
 #include "src/insert_history.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
 using language::NonNull;
 using language::PossibleError;
 using language::Success;
 using language::text::LineColumn;
+using language::text::LineSequence;
 
 namespace {
 futures::Value<PossibleError> InsertHistoryBufferContents(OpenBuffer& output) {
-  output.ClearContents(BufferContents::CursorsBehavior::kUnmodified);
-  for (const NonNull<std::unique_ptr<const BufferContents>>& contents :
+  output.ClearContents(LineSequence::CursorsBehavior::kUnmodified);
+  for (const NonNull<std::unique_ptr<const LineSequence>>& contents :
        output.editor().insert_history().get()) {
     LineColumn position = output.contents().range().end;
     output.InsertInPosition(contents.value(), position, {});

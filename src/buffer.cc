@@ -116,6 +116,8 @@ using language::text::LineColumn;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
+using language::text::MutableLineSequenceObserver;
 using language::text::Range;
 
 namespace {
@@ -203,8 +205,8 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
-void SetBufferContentsLineMetadata(OpenBuffer& buffer, BufferContents& contents,
-                                   LineNumber position) {
+void SetLineSequenceLineMetadata(OpenBuffer& buffer, LineSequence& contents,
+                                 LineNumber position) {
   contents.set_line(position,
                     UpdateLineMetadata(buffer, buffer.contents().at(position)));
 }
@@ -261,15 +263,14 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
  public:
   TransformationInputAdapterImpl(OpenBuffer& buffer) : buffer_(buffer) {}
 
-  const BufferContents& contents() const override { return buffer_.contents(); }
+  const LineSequence& contents() const override { return buffer_.contents(); }
 
   void SetActiveCursors(std::vector<LineColumn> positions) override {
     buffer_.set_active_cursors(std::move(positions));
   }
 
   LineColumn InsertInPosition(
-      const BufferContents& contents_to_insert,
-      const LineColumn& input_position,
+      const LineSequence& contents_to_insert, const LineColumn& input_position,
       const std::optional<LineModifierSet>& modifiers) override {
     return buffer_.InsertInPosition(contents_to_insert, input_position,
                                     modifiers);
@@ -279,7 +280,8 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
   OpenBuffer& buffer_;
 };
 
-class OpenBufferBufferContentsObserver : public BufferContentsObserver {
+class OpenBufferMutableLineSequenceObserver
+    : public MutableLineSequenceObserver {
  public:
   void SetOpenBuffer(gc::WeakPtr<OpenBuffer> buffer) { buffer_ = buffer; }
 
@@ -387,7 +389,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
       work_queue_(WorkQueue::New()),
-      contents_observer_(MakeNonNullShared<OpenBufferBufferContentsObserver>()),
+      contents_observer_(
+          MakeNonNullShared<OpenBufferMutableLineSequenceObserver>()),
       contents_(contents_observer_),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
@@ -553,7 +556,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
             Path::Join(edge_state_directory,
                        ValueOrDie(PathComponent::FromString(L".edge_state")));
         LOG(INFO) << "PersistState: Preparing state file: " << path;
-        NonNull<std::unique_ptr<BufferContents>> contents;
+        NonNull<std::unique_ptr<LineSequence>> contents;
         contents->push_back(L"// State of file: " + path.read());
         contents->push_back(L"");
 
@@ -611,8 +614,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
       });
 }
 
-void OpenBuffer::ClearContents(
-    BufferContents::CursorsBehavior cursors_behavior) {
+void OpenBuffer::ClearContents(LineSequence::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
   options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
   options_.editor.line_marks().ExpireMarksFromSource(contents(), name());
@@ -748,7 +750,7 @@ void OpenBuffer::UpdateTreeParser() {
       })
       .ConsumeErrors([](Error) { return futures::Past(nullptr); })
       .Transform([this, root_this = NewRoot()](
-                     std::unique_ptr<BufferContents> dictionary) {
+                     std::unique_ptr<LineSequence> dictionary) {
         std::wistringstream typos_stream(Read(buffer_variables::typos));
         std::wistringstream language_keywords(
             Read(buffer_variables::language_keywords));
@@ -834,7 +836,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
     Set(buffer_variables::show_in_buffers_list, false);
     Set(buffer_variables::delete_into_paste_buffer, false);
   }
-  ClearContents(BufferContents::CursorsBehavior::kUnmodified);
+  ClearContents(LineSequence::CursorsBehavior::kUnmodified);
 
   std::visit(
       overload{
@@ -1138,7 +1140,7 @@ OpenBuffer::default_commands() {
 void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
   CHECK_LE(first, last);
   CHECK_LE(last, LineNumber(0) + contents_.size());
-  contents_.EraseLines(first, last, BufferContents::CursorsBehavior::kAdjust);
+  contents_.EraseLines(first, last, LineSequence::CursorsBehavior::kAdjust);
 }
 
 void OpenBuffer::InsertLine(LineNumber line_position,
@@ -1189,7 +1191,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
   AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()));
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
                        contents_.EndLine(),
-                       BufferContents::CursorsBehavior::kUnmodified);
+                       LineSequence::CursorsBehavior::kUnmodified);
 }
 
 ValueOrError<
@@ -1276,7 +1278,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
   if (range.begin.line == range.end.line) {
     contents_.DeleteCharactersFromLine(range.begin,
                                        range.end.column - range.begin.column);
-    SetBufferContentsLineMetadata(*this, contents_, range.begin.line);
+    SetLineSequenceLineMetadata(*this, contents_, range.begin.line);
   } else {
     contents_.DeleteToLineEnd(range.begin);
     contents_.DeleteCharactersFromLine(LineColumn(range.end.line),
@@ -1284,12 +1286,12 @@ void OpenBuffer::DeleteRange(const Range& range) {
     // Lines in the middle.
     EraseLines(range.begin.line + LineNumberDelta(1), range.end.line);
     contents_.FoldNextLine(range.begin.line);
-    SetBufferContentsLineMetadata(*this, contents_, range.begin.line);
+    SetLineSequenceLineMetadata(*this, contents_, range.begin.line);
   }
 }
 
 LineColumn OpenBuffer::InsertInPosition(
-    const BufferContents& contents_to_insert, const LineColumn& input_position,
+    const LineSequence& contents_to_insert, const LineColumn& input_position,
     const std::optional<LineModifierSet>& modifiers) {
   VLOG(5) << "InsertInPosition: " << input_position << " "
           << (modifiers.has_value() ? modifiers.value().size() : 1);
@@ -1305,7 +1307,7 @@ LineColumn OpenBuffer::InsertInPosition(
   contents_.SplitLine(position);
   contents_.insert(position.line.next(), contents_to_insert, modifiers);
   contents_.FoldNextLine(position.line);
-  SetBufferContentsLineMetadata(*this, contents_, position.line);
+  SetLineSequenceLineMetadata(*this, contents_, position.line);
 
   LineNumber last_line =
       position.line + contents_to_insert.size() - LineNumberDelta(1);
@@ -1315,7 +1317,7 @@ LineColumn OpenBuffer::InsertInPosition(
   ColumnNumber column = line->EndColumn();
 
   contents_.FoldNextLine(last_line);
-  SetBufferContentsLineMetadata(*this, contents_, last_line);
+  SetLineSequenceLineMetadata(*this, contents_, last_line);
   return LineColumn(last_line, column);
 }
 
@@ -1720,7 +1722,7 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
 
     void Warn(Error error) override { buffer_.status().InsertError(error); }
 
-    const BufferContents& contents() override { return buffer_.contents(); }
+    const LineSequence& contents() override { return buffer_.contents(); }
 
     LineColumn current_widget_view_start() override {
       return buffer_.editor().buffer_tree().GetActiveLeaf().view_start();
@@ -1870,7 +1872,7 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
                                FileDescriptor input_error_fd,
                                bool fd_is_terminal, pid_t child_pid) {
   if (Read(buffer_variables::clear_on_reload)) {
-    ClearContents(BufferContents::CursorsBehavior::kUnmodified);
+    ClearContents(LineSequence::CursorsBehavior::kUnmodified);
     SetDiskState(DiskState::kCurrent);
   }
 

@@ -23,6 +23,7 @@ using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::Range;
 
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
@@ -206,7 +207,7 @@ const ParseTree& FollowRoute(const ParseTree& root,
 namespace {
 class NullTreeParser : public TreeParser {
  public:
-  ParseTree FindChildren(const BufferContents&, Range range) override {
+  ParseTree FindChildren(const LineSequence&, Range range) override {
     return ParseTree(range);
   }
 };
@@ -220,7 +221,7 @@ class WordsTreeParser : public TreeParser {
         typos_(typos),
         delegate_(std::move(delegate)) {}
 
-  ParseTree FindChildren(const BufferContents& buffer, Range range) override {
+  ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     ParseTree output(range);
     range.ForEachLine([&](LineNumber line) {
       const Line& contents = buffer.at(line).value();
@@ -280,7 +281,7 @@ class LineTreeParser : public TreeParser {
   LineTreeParser(NonNull<std::unique_ptr<TreeParser>> delegate)
       : delegate_(std::move(delegate)) {}
 
-  ParseTree FindChildren(const BufferContents& buffer, Range range) override {
+  ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     ParseTree output(range);
     range.ForEachLine([&](LineNumber line) {
       auto contents = buffer.at(line);
