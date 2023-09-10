@@ -229,13 +229,13 @@ CompletionModelManager::FindCompletionWithIndex(
         // AddListener below. If that happens, we'll deadlock. Figure out a
         // better solution.
         if (output.has_value()) {
-          UpdateReverseTable(locked_data, path, output.get_copy().value());
+          UpdateReverseTable(locked_data, path, output.get_copy()->snapshot());
         } else {
           LOG(INFO) << "Adding listener to update reverse table.";
           output.AddListener([data, path](const MutableLineSequence& contents) {
             LOG(INFO) << "Updating reverse table.";
             data->lock([&](Data& data_locked) {
-              UpdateReverseTable(data_locked, path, contents);
+              UpdateReverseTable(data_locked, path, contents.snapshot());
             });
           });
         }
@@ -258,15 +258,15 @@ CompletionModelManager::FindCompletionWithIndex(
       });
 }
 /* static */ void CompletionModelManager::UpdateReverseTable(
-    Data& data, const Path& path, const MutableLineSequence& contents) {
-  contents.ForEach([&](const Line& line) {
+    Data& data, const Path& path, const LineSequence& contents) {
+  contents.ForEach([&](const NonNull<std::shared_ptr<const Line>>& line) {
     std::visit(overload{[&path, &data](const ParsedLine& line) {
                           if (line.text.value() != line.compressed_text.value())
                             data.reverse_table[line.text->ToString()].insert(
                                 {path, line.compressed_text});
                         },
                         IgnoreErrors{}},
-               Parse(line.contents()));
+               Parse(line->contents()));
   });
 }
 

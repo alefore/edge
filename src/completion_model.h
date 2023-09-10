@@ -52,9 +52,8 @@ class CompletionModelManager {
       std::shared_ptr<std::vector<infrastructure::Path>> models,
       CompressedText compressed_text, size_t index);
 
-  static void UpdateReverseTable(
-      Data& data, const infrastructure::Path& path,
-      const language::text::MutableLineSequence& contents);
+  static void UpdateReverseTable(Data& data, const infrastructure::Path& path,
+                                 const language::text::LineSequence& contents);
 
   struct Data {
     ModelsMap models;

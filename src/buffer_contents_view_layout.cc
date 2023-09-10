@@ -26,6 +26,7 @@ using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::MutableLineSequence;
 using language::text::Range;
 
@@ -152,7 +153,7 @@ const bool find_position_in_screen_tests_registration = tests::Register(
       }}});
 
 BufferContentsViewLayout::Line GetScreenLine(
-    const MutableLineSequence& contents, std::optional<LineColumn> active_position,
+    const LineSequence& contents, std::optional<LineColumn> active_position,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
     LineNumber line, ColumnRange column_range) {
   CHECK_LE(line, contents.EndLine());
@@ -188,7 +189,7 @@ const bool get_screen_line_tests_registration = tests::Register(
         MutableLineSequence contents;
         contents.AppendToLine(LineNumber(0), Line(L"foo"));
         BufferContentsViewLayout::Line output =
-            GetScreenLine(contents, std::nullopt, {}, LineNumber(0),
+            GetScreenLine(contents.snapshot(), std::nullopt, {}, LineNumber(0),
                           ColumnRange{ColumnNumber(0), ColumnNumber(3)});
         CHECK_EQ(output.range.end,
                  LineColumn(LineNumber(0),
@@ -389,8 +390,8 @@ const bool buffer_contents_view_layout_tests_registration =
       auto new_test = [](std::wstring name, auto callback) {
         return tests::Test(
             {.name = name, .callback = [callback]() {
-               auto contents = std::make_shared<MutableLineSequence>();
-               contents->AppendToLine(LineNumber(), Line(L"0alejandro"));
+               MutableLineSequence contents;
+               contents.AppendToLine(LineNumber(), Line(L"0alejandro"));
                for (const auto& s : std::list<std::wstring>{
                         L"1forero",
                         L"2cuervo",
@@ -409,10 +410,10 @@ const bool buffer_contents_view_layout_tests_registration =
                         L"15dog",
                         L"16lynx",
                     })
-                 contents->push_back(s);
+                 contents.push_back(s);
                static CursorsSet active_cursors;
                BufferContentsViewLayout::Input options{
-                   .contents = *contents,
+                   .contents = contents.snapshot(),
                    .active_position = LineColumn(),
                    .active_cursors = active_cursors,
                    .line_wrap_style = LineWrapStyle::kBreakWords,
