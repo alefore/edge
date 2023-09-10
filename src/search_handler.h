@@ -40,6 +40,9 @@ struct SearchOptions {
   bool case_sensitive;
 };
 
+// Returns all matches starting at start. If end is not nullptr, only matches
+// in the region enclosed by start and *end will be returned.
+//
 // TODO(easy, 2023-09-09): Document why we receive a work_queue.
 language::ValueOrError<std::vector<language::text::LineColumn>> SearchHandler(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,

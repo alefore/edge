@@ -167,11 +167,51 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
   return results;
 }
 
-// Returns all matches starting at start. If end is not nullptr, only matches
-// in the region enclosed by start and *end will be returned.
-//
-// TODO(trivial, 2023-09-09): Just inline as SearchHandler?
-ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
+PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
+                             std::set<std::wstring>& matches) {
+  SearchOptions options;
+  options.search_query = input.input;
+  options.starting_position = buffer.position();
+
+  ASSIGN_OR_RETURN(
+      std::vector<LineColumn> positions,
+      buffer.status().LogErrors(SearchHandler(
+          input.editor.work_queue(), input.editor.modifiers().direction,
+          options, buffer.contents().snapshot())));
+
+  // Get the first kMatchesLimit matches:
+  for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit;
+       i++) {
+    auto position = positions[i];
+    if (i == 0) {
+      buffer.set_position(position);
+    }
+    CHECK_LT(position.line, buffer.EndLine());
+    auto line = buffer.LineAt(position.line);
+    CHECK_LT(position.column, line->EndColumn());
+    matches.insert(RegexEscape(line->Substring(position.column)));
+  }
+  return Success();
+}
+
+futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
+  std::set<std::wstring> matches;
+  for (gc::Root<OpenBuffer>& search_buffer : input.source_buffers) {
+    SearchInBuffer(input, search_buffer.ptr().value(), matches);
+  }
+  if (!matches.empty()) {
+    // Add the matches to the predictions buffer.
+    for (auto& match : matches) {
+      input.predictions.AppendToLastLine(NewLazyString(std::move(match)));
+      input.predictions.AppendRawLine(MakeNonNullShared<Line>());
+    }
+  }
+  input.predictions.EndOfFile();
+  return input.predictions.WaitForEndOfFile().Transform(
+      [](EmptyValue) { return PredictorOutput(); });
+}
+
+ValueOrError<std::vector<LineColumn>> SearchHandler(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
     const LineSequence& contents) {
@@ -226,57 +266,6 @@ ValueOrError<std::vector<LineColumn>> PerformSearchWithDirection(
   }
 
   return head;
-}
-
-PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
-                             std::set<std::wstring>& matches) {
-  SearchOptions options;
-  options.search_query = input.input;
-  options.starting_position = buffer.position();
-
-  ASSIGN_OR_RETURN(
-      std::vector<LineColumn> positions,
-      buffer.status().LogErrors(PerformSearchWithDirection(
-          input.editor.work_queue(), input.editor.modifiers().direction,
-          options, buffer.contents().snapshot())));
-
-  // Get the first kMatchesLimit matches:
-  for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit;
-       i++) {
-    auto position = positions[i];
-    if (i == 0) {
-      buffer.set_position(position);
-    }
-    CHECK_LT(position.line, buffer.EndLine());
-    auto line = buffer.LineAt(position.line);
-    CHECK_LT(position.column, line->EndColumn());
-    matches.insert(RegexEscape(line->Substring(position.column)));
-  }
-  return Success();
-}
-
-futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
-  std::set<std::wstring> matches;
-  for (gc::Root<OpenBuffer>& search_buffer : input.source_buffers) {
-    SearchInBuffer(input, search_buffer.ptr().value(), matches);
-  }
-  if (!matches.empty()) {
-    // Add the matches to the predictions buffer.
-    for (auto& match : matches) {
-      input.predictions.AppendToLastLine(NewLazyString(std::move(match)));
-      input.predictions.AppendRawLine(MakeNonNullShared<Line>());
-    }
-  }
-  input.predictions.EndOfFile();
-  return input.predictions.WaitForEndOfFile().Transform(
-      [](EmptyValue) { return PredictorOutput(); });
-}
-
-ValueOrError<std::vector<LineColumn>> SearchHandler(
-    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
-    Direction direction, const SearchOptions& options,
-    const LineSequence& buffer) {
-  return PerformSearchWithDirection(work_queue, direction, options, buffer);
 }
 
 ValueOrError<LineColumn> GetNextMatch(
