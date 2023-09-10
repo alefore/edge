@@ -272,7 +272,6 @@ ValueOrError<LineColumn> GetNextMatch(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
     const LineSequence& contents) {
-  // TODO(trivial, 2023-09-09): Switch to VisitPointer.
   if (std::optional<std::vector<LineColumn>> results =
           OptionalFrom(SearchHandler(work_queue, direction, options, contents));
       results.has_value() && !results->empty())
