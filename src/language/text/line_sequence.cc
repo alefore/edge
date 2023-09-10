@@ -51,6 +51,10 @@ MutableLineSequence::MutableLineSequence(
     NonNull<std::shared_ptr<MutableLineSequenceObserver>> observer)
     : observer_(std::move(observer)) {}
 
+LineSequence MutableLineSequence::snapshot() const {
+  return LineSequence(lines_);
+}
+
 LineNumber MutableLineSequence::EndLine() const {
   return LineNumber(0) + size() - LineNumberDelta(1);
 }
