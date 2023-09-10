@@ -13,16 +13,37 @@
 namespace afc::language::text {
 class MutableLineSequence;
 // TODO: Add more methods here.
+
+// This class is deeply immutable, therefore thread-safe.
 class LineSequence {
  private:
   using Lines = language::ConstTree<
-      language::VectorBlock<
-          language::NonNull<std::shared_ptr<const language::text::Line>>, 256>,
+      language::VectorBlock<language::NonNull<std::shared_ptr<const Line>>,
+                            256>,
       256>;
 
  public:
   LineSequence() = default;
   LineSequence(const LineSequence&) = default;
+
+  std::wstring ToString() const;
+
+  LineNumberDelta size() const;
+  // The last valid line (which can be fed to `at`).
+  LineNumber EndLine() const;
+  Range range() const;
+
+  size_t CountCharacters() const;
+
+  language::NonNull<std::shared_ptr<const Line>> at(
+      LineNumber line_number) const;
+  language::NonNull<std::shared_ptr<const Line>> back() const;
+  language::NonNull<std::shared_ptr<const Line>> front() const;
+
+  LineColumn AdjustLineColumn(LineColumn position) const;
+
+  bool EveryLine(
+      const std::function<bool(LineNumber, const Line&)>& callback) const;
 
  private:
   friend MutableLineSequence;
