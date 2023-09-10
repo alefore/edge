@@ -23,15 +23,14 @@ using language::text::LineColumn;
 using language::text::LineColumnDelta;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
+using language::text::LineSequence;
 
 using ::operator<<;
 
 namespace {
 static const ColumnNumberDelta kQueryLength = ColumnNumberDelta(2);
 
-const Line& GetLine(const LineColumn& position,
-                    const MutableLineSequence& contents) {
+const Line& GetLine(const LineColumn& position, const LineSequence& contents) {
   return contents.at(position.line).value();
 }
 
@@ -44,7 +43,7 @@ std::vector<LineColumn> FindPositions(const std::wstring& query,
   if (view_size == std::nullopt) return output;
   LineNumber end_line = view_start.line + view_size->line;
   while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
-    const Line& line = GetLine(view_start, buffer.contents());
+    const Line& line = GetLine(view_start, buffer.contents().snapshot());
     while (view_start.column + std::max(kQueryLength + ColumnNumberDelta(1),
                                         ColumnNumberDelta(query.size())) <=
            line.EndColumn()) {
@@ -69,8 +68,7 @@ using Identifier = wchar_t;
 using PositionIdentifierMap =
     std::map<Identifier, std::map<Identifier, LineColumn>>;
 
-bool FindSyntheticIdentifier(LineColumn position,
-                             const MutableLineSequence& contents,
+bool FindSyntheticIdentifier(LineColumn position, const LineSequence& contents,
                              PositionIdentifierMap& output) {
   static const std::wstring kIdentifiers =
       L"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -93,7 +91,7 @@ bool FindSyntheticIdentifier(LineColumn position,
 }
 
 PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
-                                      const MutableLineSequence& contents) {
+                                      const LineSequence& contents) {
   PositionIdentifierMap output;
   std::vector<LineColumn> pending;
 
@@ -146,7 +144,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
 
   PositionIdentifierMap matches = FindIdentifiers(
       FindPositions(query_.substr(0, kQueryLength.read()), input.buffer),
-      input.buffer.contents());
+      input.buffer.contents().snapshot());
 
   LOG(INFO) << "Found matches: " << matches.size();
 
@@ -182,7 +180,8 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     for (std::pair<Identifier, LineColumn> match : group.second) {
       static const VisualOverlayPriority kPriority = VisualOverlayPriority(1);
       static const VisualOverlayKey kKey = VisualOverlayKey(L"bisect");
-      const Line& line = GetLine(match.second, input.buffer.contents());
+      const Line& line =
+          GetLine(match.second, input.buffer.contents().snapshot());
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
           afc::infrastructure::screen::VisualOverlay{

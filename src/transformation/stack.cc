@@ -35,6 +35,7 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::LineSequence;
 using language::text::MutableLineSequence;
 using language::text::Range;
 
@@ -58,10 +59,9 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 }
 
 futures::Value<PossibleError> PreviewCppExpression(
-    OpenBuffer& buffer, const MutableLineSequence& expression_str) {
-  FUTURES_ASSIGN_OR_RETURN(
-      auto compilation_result,
-      buffer.CompileString(expression_str.snapshot().ToString()));
+    OpenBuffer& buffer, const LineSequence& expression_str) {
+  FUTURES_ASSIGN_OR_RETURN(auto compilation_result,
+                           buffer.CompileString(expression_str.ToString()));
   auto [expression, environment] = std::move(compilation_result);
   buffer.status().Reset();
   switch (expression->purity()) {
@@ -94,7 +94,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         std::make_shared<Delete>(std::move(original_delete_transformation));
     delete_transformation->preview_modifiers = {LineModifier::kGreen,
                                                 LineModifier::kUnderline};
-    return PreviewCppExpression(input.buffer, contents.value())
+    return PreviewCppExpression(input.buffer, contents->snapshot())
         .ConsumeErrors(
             [&buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
@@ -217,15 +217,15 @@ std::wstring ToString(const ContentStats& stats) {
          L" C:" + std::to_wstring(stats.characters);
 }
 
-ContentStats AnalyzeContent(const MutableLineSequence& contents) {
+ContentStats AnalyzeContent(const LineSequence& contents) {
   ContentStats output{.lines = contents.EndLine().read() + 1};
-  contents.ForEach([&output](const Line& line) {
+  contents.ForEach([&output](const NonNull<std::shared_ptr<const Line>>& line) {
     ColumnNumber i;
-    output.characters += line.EndColumn().read();
-    while (i < line.EndColumn()) {
-      while (i < line.EndColumn() && !isalnum(line.get(i))) ++i;
-      if (i < line.EndColumn()) ++output.words;
-      while (i < line.EndColumn() && isalnum(line.get(i))) {
+    output.characters += line->EndColumn().read();
+    while (i < line->EndColumn()) {
+      while (i < line->EndColumn() && !isalnum(line->get(i))) ++i;
+      if (i < line->EndColumn()) ++output.words;
+      while (i < line->EndColumn() && isalnum(line->get(i))) {
         ++i;
         ++output.alnums;
       }
@@ -240,37 +240,37 @@ const bool analyze_content_tests_registration = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            CHECK(AnalyzeContent(MutableLineSequence()) ==
+            CHECK(AnalyzeContent(LineSequence()) ==
                   ContentStats(
                       {.lines = 1, .words = 0, .alnums = 0, .characters = 0}));
           }},
      {.name = L"SingleWord",
       .callback =
           [] {
-            MutableLineSequence contents;
-            contents.AppendToLine(LineNumber(), Line(L"foo"));
-            CHECK(AnalyzeContent(contents) ==
+            CHECK(AnalyzeContent(MutableLineSequence::WithLine(
+                                     MakeNonNullShared<Line>(Line(L"foo")))
+                                     .snapshot()) ==
                   ContentStats(
                       {.lines = 1, .words = 1, .alnums = 3, .characters = 3}));
           }},
      {.name = L"SingleLine",
       .callback =
           [] {
-            MutableLineSequence contents;
-            contents.AppendToLine(LineNumber(), Line(L"foo bar hey alejo"));
-            CHECK(AnalyzeContent(contents) ==
-                  ContentStats({.lines = 1,
-                                .words = 4,
-                                .alnums = 3 + 3 + 3 + 5,
-                                .characters = 17}));
+            CHECK(AnalyzeContent(
+                      MutableLineSequence::WithLine(
+                          MakeNonNullShared<Line>(Line(L"foo bar hey alejo")))
+                          .snapshot()) == ContentStats({.lines = 1,
+                                                        .words = 4,
+                                                        .alnums = 3 + 3 + 3 + 5,
+                                                        .characters = 17}));
           }},
      {.name = L"SpacesSingleLine",
       .callback =
           [] {
-            MutableLineSequence contents;
-            contents.AppendToLine(LineNumber(),
-                                  Line(L"   foo    bar   hey   alejo   "));
-            CHECK(AnalyzeContent(contents) ==
+            CHECK(AnalyzeContent(MutableLineSequence::WithLine(
+                                     MakeNonNullShared<Line>(Line(
+                                         L"   foo    bar   hey   alejo   ")))
+                                     .snapshot()) ==
                   ContentStats({.lines = 1,
                                 .words = 4,
                                 .alnums = 3 + 3 + 3 + 5,
@@ -283,10 +283,11 @@ const bool analyze_content_tests_registration = tests::Register(
                               {},
                               {},
                               MakeNonNullShared<const Line>(L"bar")});
-        CHECK(AnalyzeContent(contents) == ContentStats({.lines = 6,
-                                                        .words = 2,
-                                                        .alnums = 3 + 3,
-                                                        .characters = 3 + 3}));
+        CHECK(AnalyzeContent(contents.snapshot()) ==
+              ContentStats({.lines = 6,
+                            .words = 2,
+                            .alnums = 3 + 3,
+                            .characters = 3 + 3}));
       }}});
 }  // namespace
 
@@ -315,7 +316,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             contents->FilterToRange(range);
             input.buffer.status().Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
-            return PreviewCppExpression(input.buffer, contents.value())
+            return PreviewCppExpression(input.buffer, contents->snapshot())
                 .ConsumeErrors(
                     [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([input, output, contents](EmptyValue) {
@@ -329,7 +330,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                     input.buffer.status().SetInformationText(Append(
                         NewLazyString(L"Selection: "),
                         NewLazyString(
-                            ToString(AnalyzeContent(contents.value())))));
+                            ToString(AnalyzeContent(contents->snapshot())))));
                   }
                   return futures::Past(std::move(*output));
                 });
