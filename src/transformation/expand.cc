@@ -41,7 +41,6 @@ using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineSequence;
-using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
 
@@ -119,10 +118,8 @@ class PredictorTransformation : public CompositeTransformation {
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
               .contents_to_insert =
-                  MutableLineSequence::WithLine(
-                      MakeNonNullShared<Line>(
-                          results.value().common_prefix.value()))
-                      .snapshot()});
+                  LineSequence::WithLine(MakeNonNullShared<Line>(
+                      results.value().common_prefix.value()))});
           return output;
         });
   }
@@ -296,10 +293,8 @@ class Execute : public CompositeTransformation {
           Output output;
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
-                .contents_to_insert =
-                    MutableLineSequence::WithLine(
-                        MakeNonNullShared<Line>(value.ptr()->get_string()))
-                        .snapshot()});
+                .contents_to_insert = LineSequence::WithLine(
+                    MakeNonNullShared<Line>(value.ptr()->get_string()))});
           }
           return futures::Past(Success(std::move(output)));
         })

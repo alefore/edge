@@ -108,9 +108,9 @@ class NewLineTransformation : public CompositeTransformation {
 
     Output output;
     {
-      MutableLineSequence contents_to_insert;
       LineBuilder line_without_suffix(*line);
       line_without_suffix.DeleteSuffix(prefix_end);
+      MutableLineSequence contents_to_insert;
       contents_to_insert.push_back(
           MakeNonNullShared<Line>(std::move(line_without_suffix).Build()));
       output.Push(transformation::Insert{.contents_to_insert =
@@ -441,9 +441,8 @@ class InsertMode : public EditorMode {
               .Transform([options, buffer_root](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
-                    .contents_to_insert = MutableLineSequence::WithLine(
-                                              MakeNonNullShared<Line>(value))
-                                              .snapshot(),
+                    .contents_to_insert =
+                        LineSequence::WithLine(MakeNonNullShared<Line>(value)),
                     .modifiers = {
                         .insertion =
                             options.editor_state.modifiers().insertion}});
@@ -538,9 +537,8 @@ class InsertMode : public EditorMode {
               break;
             case Modifiers::ModifyMode::kOverwrite:
               stack.PushBack(transformation::Insert{
-                  .contents_to_insert = MutableLineSequence::WithLine(
-                                            MakeNonNullShared<const Line>(L" "))
-                                            .snapshot(),
+                  .contents_to_insert =
+                      LineSequence::WithLine(MakeNonNullShared<Line>(L" ")),
                   .final_position =
                       direction == Direction::kBackwards
                           ? transformation::Insert::FinalPosition::kStart
@@ -707,10 +705,8 @@ class InsertMode : public EditorMode {
     futures::Value<EmptyValue> output =
         buffer.ApplyToCursors(transformation::Insert{
             .contents_to_insert =
-                MutableLineSequence::WithLine(
-                    MakeNonNullShared<Line>(
-                        LineBuilder(NewLazyString(L" ")).Build()))
-                    .snapshot(),
+                LineSequence::WithLine(MakeNonNullShared<Line>(
+                    LineBuilder(NewLazyString(L" ")).Build())),
             .modifiers = {.insertion = modify_mode}});
 
     if (model_paths->empty()) {
@@ -769,11 +765,9 @@ class InsertMode : public EditorMode {
                           completion_text->size();
                       stack.PushBack(transformation::Insert{
                           .contents_to_insert =
-                              MutableLineSequence::WithLine(
-                                  MakeNonNullShared<Line>(
-                                      LineBuilder(std::move(completion_text))
-                                          .Build()))
-                                  .snapshot(),
+                              LineSequence::WithLine(MakeNonNullShared<Line>(
+                                  LineBuilder(std::move(completion_text))
+                                      .Build())),
                           .modifiers = {.insertion = modify_mode},
                           .position = position_start});
                       stack.PushBack(transformation::SetPosition(

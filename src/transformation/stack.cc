@@ -36,7 +36,6 @@ using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::LineSequence;
-using language::text::MutableLineSequence;
 using language::text::Range;
 
 namespace gc = language::gc;
@@ -247,9 +246,7 @@ const bool analyze_content_tests_registration = tests::Register(
      {.name = L"SingleWord",
       .callback =
           [] {
-            CHECK(AnalyzeContent(MutableLineSequence::WithLine(
-                                     MakeNonNullShared<Line>(Line(L"foo")))
-                                     .snapshot()) ==
+            CHECK(AnalyzeContent(LineSequence::ForTests({L"foo"})) ==
                   ContentStats(
                       {.lines = 1, .words = 1, .alnums = 3, .characters = 3}));
           }},
@@ -257,33 +254,25 @@ const bool analyze_content_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(AnalyzeContent(
-                      MutableLineSequence::WithLine(
-                          MakeNonNullShared<Line>(Line(L"foo bar hey alejo")))
-                          .snapshot()) == ContentStats({.lines = 1,
-                                                        .words = 4,
-                                                        .alnums = 3 + 3 + 3 + 5,
-                                                        .characters = 17}));
+                      LineSequence::ForTests({L"foo bar hey alejo"})) ==
+                  ContentStats({.lines = 1,
+                                .words = 4,
+                                .alnums = 3 + 3 + 3 + 5,
+                                .characters = 17}));
           }},
      {.name = L"SpacesSingleLine",
       .callback =
           [] {
-            CHECK(AnalyzeContent(MutableLineSequence::WithLine(
-                                     MakeNonNullShared<Line>(Line(
-                                         L"   foo    bar   hey   alejo   ")))
-                                     .snapshot()) ==
+            CHECK(AnalyzeContent(LineSequence::ForTests(
+                      {L"   foo    bar   hey   alejo   "})) ==
                   ContentStats({.lines = 1,
                                 .words = 4,
                                 .alnums = 3 + 3 + 3 + 5,
                                 .characters = 30}));
           }},
      {.name = L"VariousEmptyLines", .callback = [] {
-        MutableLineSequence contents;
-        contents.append_back({MakeNonNullShared<const Line>(L"foo"),
-                              {},
-                              {},
-                              {},
-                              MakeNonNullShared<const Line>(L"bar")});
-        CHECK(AnalyzeContent(contents.snapshot()) ==
+        CHECK(AnalyzeContent(LineSequence::ForTests(
+                  {L"", L"foo", L"", L"", L"", L"bar"})) ==
               ContentStats({.lines = 6,
                             .words = 2,
                             .alnums = 3 + 3,

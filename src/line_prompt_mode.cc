@@ -1155,10 +1155,8 @@ InsertModeOptions PromptState::insert_mode_options() {
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Insert(
                             {.contents_to_insert =
-                                 MutableLineSequence::WithLine(
-                                     MakeNonNullShared<Line>(
-                                         LineBuilder(std::move(line)).Build()))
-                                     .snapshot()}));
+                                 LineSequence::WithLine(MakeNonNullShared<Line>(
+                                     LineBuilder(std::move(line)).Build()))}));
                     prompt_state->OnModify();
                     return;
                   }
