@@ -56,10 +56,12 @@ LineWithCursor::Generator::Vector GetLines(
     std::optional<gc::Root<OpenBuffer>> current_buffer, const Screen& screen) {
   LineColumnDelta screen_size = screen.size();
   LineWithCursor::Generator::Vector status_lines =
-      StatusOutput({.status = editor_status,
-                    .buffer = nullptr,
-                    .modifiers = modifiers,
-                    .size = screen_size});
+      editor_status.GetType() == Status::Type::kPrompt
+          ? StatusOutput({.status = editor_status,
+                          .buffer = nullptr,
+                          .modifiers = modifiers,
+                          .size = screen_size})
+          : LineWithCursor::Generator::Vector();
 
   LineWithCursor::Generator::Vector output =
       buffers_list.GetLines(Widget::OutputProducerOptions{
