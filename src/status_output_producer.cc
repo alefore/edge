@@ -12,10 +12,11 @@
 #include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/line_marks.h"
 #include "src/section_brackets_producer.h"
 #include "src/tests/tests.h"
-
 namespace afc::editor {
 namespace {
 using infrastructure::Tracker;
@@ -27,6 +28,8 @@ using language::Pointer;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::ForEachColumn;
+using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
@@ -58,38 +61,41 @@ std::wstring GetBufferContext(const OpenBuffer& buffer) {
 // This produces the main view of the status, ignoring the context. It handles
 // all valid types of statuses (i.e., all values returned by status->GetType()).
 LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
-  std::wstring output;
+  LineBuilder output;
   if (options.buffer != nullptr &&
       options.status.GetType() != Status::Type::kWarning) {
-    output.push_back('[');
+    output.AppendCharacter('[', {LineModifier::kDim});
     if (options.buffer->current_position_line() >
         options.buffer->contents().EndLine()) {
-      output += L"<EOF>";
+      output.AppendString(NewLazyString(L"<EOF>"));
     } else {
-      output += to_wstring(options.buffer->current_position_line() +
-                           LineNumberDelta(1));
+      output.AppendString(NewLazyString(to_wstring(
+          options.buffer->current_position_line() + LineNumberDelta(1))));
     }
-    output +=
-        L" of " +
-        to_wstring(options.buffer->contents().EndLine() + LineNumberDelta(1)) +
-        L", " +
-        to_wstring(options.buffer->current_position_col() +
-                   ColumnNumberDelta(1));
-    output += L"] ";
+    output.AppendString(NewLazyString(L" of "), {{LineModifier::kDim}});
+    output.AppendString(NewLazyString(
+        to_wstring(options.buffer->contents().EndLine() + LineNumberDelta(1))));
+    output.AppendString(NewLazyString(L", "), {{LineModifier::kDim}});
+    output.AppendString(NewLazyString(to_wstring(
+        options.buffer->current_position_col() + ColumnNumberDelta(1))));
+    output.AppendString(NewLazyString(L"] "), {{LineModifier::kDim}});
 
     auto marks_text = options.buffer->GetLineMarksText();
     if (!marks_text.empty()) {
-      output += marks_text + L" ";
+      output.AppendString(NewLazyString(marks_text));
+      output.AppendCharacter(' ', {});
     }
 
     auto active_cursors = options.buffer->active_cursors();
     if (active_cursors.size() != 1) {
-      output += L" " +
-                (options.buffer->Read(buffer_variables::multiple_cursors)
-                     ? std::wstring(L"CURSORS")
-                     : std::wstring(L"cursors")) +
-                L":" + std::to_wstring(active_cursors.current_index() + 1) +
-                L"/" + std::to_wstring(active_cursors.size()) + L" ";
+      // TODO(trivial, 2023-09-11): Improve use of modifiers.
+      output.AppendString(NewLazyString(
+          L" " +
+          (options.buffer->Read(buffer_variables::multiple_cursors)
+               ? std::wstring(L"CURSORS")
+               : std::wstring(L"cursors")) +
+          L":" + std::to_wstring(active_cursors.current_index() + 1) + L"/" +
+          std::to_wstring(active_cursors.size()) + L" "));
     }
 
     std::map<std::wstring, std::wstring> flags = options.buffer->Flags();
@@ -131,11 +137,13 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     if (!flags.empty()) {
-      output += L"  " + OpenBuffer::FlagsToString(std::move(flags));
+      output.AppendString(
+          NewLazyString(L"  " + OpenBuffer::FlagsToString(std::move(flags))));
     }
 
     if (options.status.text().empty()) {
-      output += L"  “" + GetBufferContext(*options.buffer) + L"” ";
+      output.AppendString(
+          NewLazyString(L"  “" + GetBufferContext(*options.buffer) + L"” "));
     }
 
     int running = 0;
@@ -152,28 +160,17 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       }
     }
     if (running > 0) {
-      output += L"  🏃" + std::to_wstring(running) + L"  ";
+      output.AppendString(
+          NewLazyString(L"  🏃" + std::to_wstring(running) + L"  "));
     }
     if (failed > 0) {
-      output += L"  💥" + std::to_wstring(failed) + L"  ";
+      output.AppendString(
+          NewLazyString(L"  💥" + std::to_wstring(failed) + L"  "));
     }
   }
 
-  LineBuilder line_options;
-
-  ColumnNumberDelta status_columns;
-  for (auto& c : output) {
-    status_columns += ColumnNumberDelta(wcwidth(c));
-  }
-  LineModifierSet modifiers =
-      options.status.GetType() == Status::Type::kWarning
-          ? LineModifierSet({LineModifier::kRed, LineModifier::kBold})
-          : LineModifierSet();
-
   std::optional<ColumnNumber> cursor;
-  line_options.AppendString(output, modifiers);
 
-  auto text = options.status.text();
   if (options.status.prompt_buffer().has_value()) {
     NonNull<std::shared_ptr<const Line>> contents =
         options.status.prompt_buffer()->ptr()->CurrentLine();
@@ -182,22 +179,25 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
                  options.status.prompt_buffer()->ptr()->current_position_col());
     VLOG(5) << "Setting status cursor: " << column;
 
-    line_options.AppendString(options.status.text(), LineModifierSet());
+    output.AppendString(options.status.text(), LineModifierSet());
     LineBuilder prefix(contents.value());
     prefix.DeleteSuffix(column);
-    line_options.Append(std::move(prefix));
-    cursor = ColumnNumber(0) + line_options.contents()->size();
+    output.Append(std::move(prefix));
+    cursor = ColumnNumber(0) + output.contents()->size();
     LineBuilder suffix(contents.value());
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
-    line_options.Append(std::move(suffix));
-    line_options.Append(
-        LineBuilder(options.status.prompt_extra_information_line()));
+    output.Append(std::move(suffix));
+    output.Append(LineBuilder(options.status.prompt_extra_information_line()));
   } else {
     VLOG(6) << "Not setting status cursor.";
-    line_options.AppendString(text, modifiers);
+    output.AppendString(
+        options.status.text(),
+        options.status.GetType() == Status::Type::kWarning
+            ? LineModifierSet({LineModifier::kRed, LineModifier::kBold})
+            : LineModifierSet());
   }
   return LineWithCursor{
-      .line = MakeNonNullShared<Line>(std::move(line_options).Build()),
+      .line = MakeNonNullShared<Line>(std::move(output).Build()),
       .cursor = cursor};
 }
 
