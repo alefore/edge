@@ -4,9 +4,9 @@
 #include <memory>
 #include <string>
 
+#include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
-#include "src/language/error/value_or_error.h"
 #include "vm/public/vm.h"
 
 namespace afc::editor {
