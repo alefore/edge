@@ -29,6 +29,7 @@ using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::ForEachColumn;
+using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
@@ -195,6 +196,14 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
         options.status.GetType() == Status::Type::kWarning
             ? LineModifierSet({LineModifier::kRed, LineModifier::kBold})
             : LineModifierSet());
+    if (options.buffer != nullptr) {
+      if (NonNull<std::shared_ptr<LazyString>> editor_status_text =
+              NewLazyString(options.buffer->editor().status().text());
+          !editor_status_text->size().IsZero()) {
+        output.AppendString(NewLazyString(L" 🌼 "));
+        output.AppendString(editor_status_text);
+      }
+    }
   }
   return LineWithCursor{
       .line = MakeNonNullShared<Line>(std::move(output).Build()),
