@@ -22,7 +22,11 @@ void ClangFormatOnSave() {
   // We deliberately wait, in case other hooks want to execute further commands
   // on the file: we'd like those commands to get the updated (reformatted)
   // contents.
-  clang_buffer.WaitForEndOfFile();
+  //
+  // TODO(P1, 2023-09-11): Turns out this was causing crashes somewhere in VM.
+  // Perhaps waiting until the reload makes some references in the VM evaluation
+  // expire?
+  // clang_buffer.WaitForEndOfFile();
 }
 
 void ClangFormatToggle() {
