@@ -203,6 +203,8 @@ LineNumberDelta LineSequence::size() const {
   return LineNumberDelta(Lines::Size(lines_));
 }
 
+bool LineSequence::empty() const { return size().IsZero(); }
+
 LineNumber LineSequence::EndLine() const {
   return LineNumber(0) + size() - LineNumberDelta(1);
 }
