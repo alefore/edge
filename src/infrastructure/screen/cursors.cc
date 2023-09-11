@@ -245,7 +245,12 @@ struct CursorsTracker::Transformation {
            column_lower_bound.IsZero();
   }
 
-  bool operator==(const CursorsTracker::Transformation& other);
+  bool operator==(const CursorsTracker::Transformation& b) {
+    return range == b.range && line_delta == b.line_delta &&
+           line_lower_bound == b.line_lower_bound &&
+           column_delta == b.column_delta &&
+           column_lower_bound == b.column_lower_bound;
+  }
 
   language::text::Range range = language::text::Range(
       language::text::LineColumn(), language::text::LineColumn::Max());
@@ -668,14 +673,6 @@ std::ostream& operator<<(std::ostream& os,
      << ", column_ge: " << t.column_lower_bound << ", output: " << t.OutputOf()
      << "]";
   return os;
-}
-
-bool CursorsTracker::Transformation::operator==(
-    const CursorsTracker::Transformation& b) {
-  return range == b.range && line_delta == b.line_delta &&
-         line_lower_bound == b.line_lower_bound &&
-         column_delta == b.column_delta &&
-         column_lower_bound == b.column_lower_bound;
 }
 
 }  // namespace afc::infrastructure::screen
