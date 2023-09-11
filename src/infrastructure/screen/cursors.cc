@@ -187,7 +187,10 @@ struct CursorsTracker::Transformation {
   }
 
   language::text::LineColumn Transform(
-      const language::text::LineColumn& position) const;
+      const language::text::LineColumn& position) const {
+    return TransformLineColumn(position, false);
+  }
+
   language::text::Range TransformRange(
       const language::text::Range& input) const {
     return Range(TransformLineColumn(input.begin, false),
@@ -236,11 +239,6 @@ struct CursorsTracker::Transformation {
   language::lazy_string::ColumnNumber column_lower_bound =
       language::lazy_string::ColumnNumber();
 };
-
-LineColumn CursorsTracker::Transformation::Transform(
-    const LineColumn& position) const {
-  return TransformLineColumn(position, false);
-}
 
 Range CursorsTracker::Transformation::OutputOf() const {
   return TransformRange(range);
