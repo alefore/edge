@@ -2226,15 +2226,18 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
   }
 
   if (child_pid_ != -1) {
-    output.insert({L"🤴", std::to_wstring(child_pid_)});
+    output.insert({L"🟡", std::to_wstring(child_pid_)});
   } else if (!child_exit_status_.has_value()) {
     // Nothing.
   } else if (WIFEXITED(child_exit_status_.value())) {
-    output.insert(
-        {L"exit", std::to_wstring(WEXITSTATUS(child_exit_status_.value()))});
+    auto exit_status = WEXITSTATUS(child_exit_status_.value());
+    if (exit_status == 0)
+      output.insert({L"🟢", L""});
+    else
+      output.insert({L"🔴", std::to_wstring(exit_status)});
   } else if (WIFSIGNALED(child_exit_status_.value())) {
     output.insert(
-        {L"signal", std::to_wstring(WTERMSIG(child_exit_status_.value()))});
+        {L"🟣", std::to_wstring(WTERMSIG(child_exit_status_.value()))});
   } else {
     output.insert(
         {L"exit-status", std::to_wstring(child_exit_status_.value())});
