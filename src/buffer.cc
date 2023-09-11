@@ -853,29 +853,29 @@ void OpenBuffer::AppendLines(
     auto tracker_call = tracker.Call();
     ResolvePathOptions<EmptyValue>::New(
         editor(), std::make_shared<FileSystemDriver>(editor().thread_pool()))
-        // TODO(trivial, 2023-09-11): Take contents as snapshot.
-        .Transform([buffer_name = name(), lines_added, &contents = contents_,
-                    start_new_section, &editor = editor()](
-                       ResolvePathOptions<EmptyValue> options) {
-          for (LineNumberDelta i; i < lines_added; ++i) {
-            auto source_line = LineNumber() + start_new_section + i;
-            options.path = contents.at(source_line)->ToString();
-            ResolvePath(options).Transform(
-                [&editor, buffer_name,
-                 source_line](ResolvePathOutput<EmptyValue> results) {
-                  LineMarks::Mark mark{
-                      .source_buffer = buffer_name,
-                      .source_line = source_line,
-                      .target_buffer = BufferName(results.path),
-                      .target_line_column =
-                          results.position.value_or(LineColumn())};
-                  LOG(INFO) << "Found a mark: " << mark;
-                  editor.line_marks().AddMark(std::move(mark));
-                  return Success();
-                });
-          }
-          return Success();
-        });
+        .Transform(
+            [buffer_name = name(), lines_added, contents = contents_.snapshot(),
+             start_new_section,
+             &editor = editor()](ResolvePathOptions<EmptyValue> options) {
+              for (LineNumberDelta i; i < lines_added; ++i) {
+                auto source_line = LineNumber() + start_new_section + i;
+                options.path = contents.at(source_line)->ToString();
+                ResolvePath(options).Transform(
+                    [&editor, buffer_name,
+                     source_line](ResolvePathOutput<EmptyValue> results) {
+                      LineMarks::Mark mark{
+                          .source_buffer = buffer_name,
+                          .source_line = source_line,
+                          .target_buffer = BufferName(results.path),
+                          .target_line_column =
+                              results.position.value_or(LineColumn())};
+                      LOG(INFO) << "Found a mark: " << mark;
+                      editor.line_marks().AddMark(std::move(mark));
+                      return Success();
+                    });
+              }
+              return Success();
+            });
   }
 }
 
