@@ -131,89 +131,7 @@ class CursorsTracker {
  private:
   friend CursorsTrackerMutableLineSequenceObserver;
 
-  struct Transformation {
-    std::wstring ToString();
-
-    Transformation& WithBegin(language::text::LineColumn position) {
-      CHECK_EQ(range.begin, language::text::LineColumn());
-      range.begin = position;
-      return *this;
-    }
-
-    Transformation& WithEnd(language::text::LineColumn position) {
-      CHECK_EQ(range.end, language::text::LineColumn::Max());
-      range.end = position;
-      return *this;
-    }
-
-    Transformation& WithLineEq(language::text::LineNumber line) {
-      range.begin = language::text::LineColumn(line);
-      range.end =
-          language::text::LineColumn(line + language::text::LineNumberDelta(1));
-      return *this;
-    }
-
-    CursorsTracker::Transformation LineDelta(
-        language::text::LineNumberDelta delta) {
-      line_delta = delta;
-      return *this;
-    }
-
-    CursorsTracker::Transformation LineLowerBound(
-        language::text::LineNumber line) {
-      line_lower_bound = line;
-      return *this;
-    }
-
-    CursorsTracker::Transformation ColumnDelta(
-        language::lazy_string::ColumnNumberDelta delta) {
-      column_delta = delta;
-      return *this;
-    }
-
-    CursorsTracker::Transformation ColumnLowerBound(
-        language::lazy_string::ColumnNumber column) {
-      column_lower_bound = column;
-      return *this;
-    }
-
-    language::text::LineColumn Transform(
-        const language::text::LineColumn& position) const;
-    language::text::Range TransformRange(
-        const language::text::Range& input) const;
-    language::text::LineColumn TransformLineColumn(
-        language::text::LineColumn position, bool is_end) const;
-    language::text::Range OutputOf() const;
-
-    void AdjustCursorsSet(CursorsSet* cursors_set) const;
-    bool IsNoop() const;
-
-    bool operator==(const CursorsTracker::Transformation& other);
-
-    language::text::Range range = language::text::Range(
-        language::text::LineColumn(), language::text::LineColumn::Max());
-
-    // Number of lines to add to a given cursor. For example, a cursor
-    // language::text::LineColumn(25, 2) will move to
-    // language::text::LineColumn(20, 2) if lines_delta is -5.
-    language::text::LineNumberDelta line_delta =
-        language::text::LineNumberDelta();
-
-    // If lines_delta would leave the output line at a value smaller than this
-    // one, goes with this one.
-    language::text::LineNumber line_lower_bound = language::text::LineNumber();
-
-    // Number of columns to add to a given cursor.
-    language::lazy_string::ColumnNumberDelta column_delta =
-        language::lazy_string::ColumnNumberDelta();
-
-    // If column_delta would leave the output cursor at a value smaller than
-    // this one, goes with this one.
-    //
-    // Same as line_lower_bound but for column computations.
-    language::lazy_string::ColumnNumber column_lower_bound =
-        language::lazy_string::ColumnNumber();
-  };
+  struct Transformation;
 
   friend std::ostream& operator<<(std::ostream& os,
                                   const CursorsTracker::Transformation& lc);
@@ -223,22 +141,7 @@ class CursorsTracker {
 
   // Contains a transformation along with additional information that can be
   // used to optimize transformations.
-  struct ExtendedTransformation {
-    ExtendedTransformation(CursorsTracker::Transformation transformation,
-                           ExtendedTransformation* previous);
-
-    std::wstring ToString();
-
-    CursorsTracker::Transformation transformation;
-
-    // A range that is known to not have any cursors after this transformation
-    // is applied.
-    language::text::Range empty;
-
-    // A range where we know that any cursors here were moved by this
-    // transformation.
-    language::text::Range owned;
-  };
+  struct ExtendedTransformation;
 
   std::shared_ptr<std::list<ExtendedTransformation>>
   scheduled_transformations();
