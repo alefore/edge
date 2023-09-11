@@ -210,7 +210,35 @@ struct CursorsTracker::Transformation {
 
   language::text::Range OutputOf() const { return TransformRange(range); }
 
-  void AdjustCursorsSet(CursorsSet* cursors_set) const;
+  void AdjustCursorsSet(CursorsSet* cursors_set) const {
+    VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
+
+    // Transfer affected cursors from cursors into cursors_affected.
+    CursorsSet cursors_affected;
+    bool transferred_active = false;
+    {
+      auto it = cursors_set->lower_bound(range.begin);
+      auto end = cursors_set->lower_bound(range.end);
+      while (it != end) {
+        auto result = cursors_affected.insert(*it);
+        if (it == cursors_set->active() && !transferred_active) {
+          transferred_active = true;
+          cursors_affected.set_active(result);
+        }
+        cursors_set->erase(it++);
+      }
+    }
+
+    // Apply the transformation and add the cursors back.
+    for (auto it = cursors_affected.begin(); it != cursors_affected.end();
+         ++it) {
+      auto result = cursors_set->insert(Transform(*it));
+      if (transferred_active && cursors_affected.active() == it) {
+        cursors_set->set_active(result);
+      }
+    }
+  }
+
   bool IsNoop() const;
 
   bool operator==(const CursorsTracker::Transformation& other);
@@ -358,35 +386,6 @@ class CursorsTrackerMutableLineSequenceObserver
 LineColumn CursorsTracker::position() const {
   CHECK_EQ(cursors_.count(active_set_), 1ul);
   return *cursors_.find(active_set_)->second.active();
-}
-
-void CursorsTracker::Transformation::AdjustCursorsSet(
-    CursorsSet* cursors_set) const {
-  VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
-
-  // Transfer affected cursors from cursors into cursors_affected.
-  CursorsSet cursors_affected;
-  bool transferred_active = false;
-  {
-    auto it = cursors_set->lower_bound(range.begin);
-    auto end = cursors_set->lower_bound(range.end);
-    while (it != end) {
-      auto result = cursors_affected.insert(*it);
-      if (it == cursors_set->active() && !transferred_active) {
-        transferred_active = true;
-        cursors_affected.set_active(result);
-      }
-      cursors_set->erase(it++);
-    }
-  }
-
-  // Apply the transformation and add the cursors back.
-  for (auto it = cursors_affected.begin(); it != cursors_affected.end(); ++it) {
-    auto result = cursors_set->insert(Transform(*it));
-    if (transferred_active && cursors_affected.active() == it) {
-      cursors_set->set_active(result);
-    }
-  }
 }
 
 bool CursorsTracker::Transformation::IsNoop() const {
