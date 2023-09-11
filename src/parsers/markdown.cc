@@ -156,7 +156,7 @@ class MarkdownParser : public TreeParser {
   }
 
   bool IsTypo(NonNull<std::shared_ptr<LazyString>> symbol) const {
-    if (dictionary_.empty()) return false;
+    if (dictionary_.range().IsEmpty()) return false;
     LineNumber line = dictionary_.upper_bound(
         MakeNonNullShared<const Line>(LineBuilder(LowerCase(symbol)).Build()),
         [](const NonNull<std::shared_ptr<const Line>>& a,
