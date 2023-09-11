@@ -384,87 +384,68 @@ class State {
       []() -> futures::Value<EmptyValue> { return Past(EmptyValue()); });
 };
 
-bool CheckStructureChar(wint_t c, std::optional<Structure>* structure,
+struct KeyCommand {
+  std::wstring description = L"";
+  std::function<void(wchar_t)> handler;
+};
+
+using KeyCommandsMap = std::unordered_map<wchar_t, KeyCommand>;
+
+bool Execute(const KeyCommandsMap& cmap, wchar_t c) {
+  if (auto it = cmap.find(c); it != cmap.end()) {
+    LOG(INFO) << "XXXX: Found handler.";
+    it->second.handler(c);
+    return true;
+  }
+  return false;
+}
+
+void CheckStructureChar(KeyCommandsMap& cmap,
+                        std::optional<Structure>* structure,
                         CommandArgumentRepetitions* repetitions) {
   CHECK(structure != nullptr);
   CHECK(repetitions != nullptr);
-  std::optional<Structure> selected_structure;
-  switch (c) {
-    case L'z':
-      selected_structure = Structure::kChar;
-      break;
-    case L'x':
-      selected_structure = Structure::kWord;
-      break;
-    case L'c':
-      selected_structure = Structure::kSymbol;
-      break;
-    case L'v':
-      selected_structure = Structure::kLine;
-      break;
-    case L'b':
-      selected_structure = Structure::kParagraph;
-      break;
-    case L'n':
-      selected_structure = Structure::kPage;
-      break;
-    case L'm':
-      selected_structure = Structure::kBuffer;
-      break;
-    case L'C':
-      selected_structure = Structure::kCursor;
-      break;
-    case L'V':
-      selected_structure = Structure::kTree;
-      break;
-    default:
-      return false;
-  }
-  CHECK(selected_structure.has_value());
-  if (*structure == std::nullopt) {
-    *structure = selected_structure;
-    if (repetitions->get() == 0) {
-      repetitions->sum(1);
-    }
-  } else if (selected_structure != *structure) {
-    return false;
-  } else {
-    repetitions->sum(1);
-    return true;
-  }
-  return true;
+
+  auto add_key = [&](wchar_t c, Structure selected_structure) {
+    LOG(INFO) << "Add key: " << selected_structure;
+    if (*structure == std::nullopt)
+      cmap[c] = {
+          .handler = [structure, repetitions, selected_structure](wchar_t) {
+            LOG(INFO) << "Running, storing: " << selected_structure;
+            *structure = selected_structure;
+            if (repetitions->get() == 0) {
+              repetitions->sum(1);
+            }
+          }};
+    else if (selected_structure == *structure)
+      cmap[c] = {.handler = [repetitions](wchar_t) { repetitions->sum(1); }};
+  };
+
+  add_key(L'z', Structure::kChar);
+  add_key(L'x', Structure::kWord);
+  add_key(L'c', Structure::kSymbol);
+  add_key(L'v', Structure::kLine);
+  add_key(L'b', Structure::kParagraph);
+  add_key(L'n', Structure::kPage);
+  add_key(L'm', Structure::kBuffer);
+  add_key(L'C', Structure::kCursor);
+  add_key(L'V', Structure::kTree);
 }
 
-bool CheckIncrementsChar(wint_t c, CommandArgumentRepetitions* output) {
-  switch (static_cast<int>(c)) {
-    case L'h':
-      output->sum(-1);
-      return true;
-    case L'l':
-      output->sum(1);
-      return true;
-  }
-  return false;
+void CheckIncrementsChar(KeyCommandsMap& cmap,
+                         CommandArgumentRepetitions* output) {
+  cmap.insert({L'h', {.handler = [output](wchar_t) { output->sum(-1); }}});
+  cmap.insert({L'l', {.handler = [output](wchar_t) { output->sum(1); }}});
 }
 
-bool CheckRepetitionsChar(wint_t c, CommandArgumentRepetitions* output) {
-  switch (static_cast<int>(c)) {
-    case Terminal::BACKSPACE:
-      return output->PopValue();
-    case L'0':
-    case L'1':
-    case L'2':
-    case L'3':
-    case L'4':
-    case L'5':
-    case L'6':
-    case L'7':
-    case L'8':
-    case L'9':
-      output->factor(c - L'0');
-      return true;
-  }
-  return false;
+void CheckRepetitionsChar(KeyCommandsMap& cmap,
+                          CommandArgumentRepetitions* output) {
+  if (!output.empty())
+    cmap.insert({Terminal::BACKSPACE,
+                 {.handler = [output](wchar_t) { output->PopValue(); }}});
+  for (int i = 0; i < 10; i++)
+    cmap.insert(
+        {L'0' + i, {.handler = [output, i](wchar_t) { output->factor(i); }}});
 }
 
 bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
@@ -511,17 +492,15 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
     }
   }
 
-  if (CheckStructureChar(c, &output->structure, &output->repetitions)) {
+  KeyCommandsMap cmap;
+  CheckStructureChar(cmap, &output->structure, &output->repetitions);
+  CheckIncrementsChar(cmap, &output->repetitions);
+  CheckRepetitionsChar(cmap, &output->repetitions);
+  if (Execute(cmap, c)) {
+    if (output->structure == std::nullopt) output->structure = Structure::kChar;
     return true;
   }
 
-  if (CheckIncrementsChar(c, &output->repetitions) ||
-      CheckRepetitionsChar(c, &output->repetitions)) {
-    if (output->structure == std::nullopt) {
-      output->structure = Structure::kChar;
-    }
-    return true;
-  }
   return false;
 }
 
@@ -553,12 +532,12 @@ bool ReceiveInput(CommandReachBegin* output, wint_t c, State* state) {
         return false;
     }
   }
-  if (CheckStructureChar(c, &output->structure, &output->repetitions) ||
-      CheckIncrementsChar(c, &output->repetitions) ||
-      CheckRepetitionsChar(c, &output->repetitions)) {
-    return true;
-  }
-  return false;
+
+  KeyCommandsMap cmap;
+  CheckStructureChar(cmap, &output->structure, &output->repetitions);
+  CheckIncrementsChar(cmap, &output->repetitions);
+  CheckRepetitionsChar(cmap, &output->repetitions);
+  return Execute(cmap, c);
 }
 
 bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
@@ -581,7 +560,10 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
       break;
   }
 
-  if (CheckRepetitionsChar(c, &output->repetitions)) return true;
+  KeyCommandsMap cmap;
+  CheckRepetitionsChar(cmap, &output->repetitions);
+  if (Execute(cmap, c)) return true;
+
   switch (static_cast<int>(c)) {
     case L'j':
       output->repetitions.sum(1);
@@ -594,7 +576,10 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
 }
 
 bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
-  if (CheckRepetitionsChar(c, &output->repetitions)) return true;
+  KeyCommandsMap cmap;
+  CheckRepetitionsChar(cmap, &output->repetitions);
+  if (Execute(cmap, c)) return true;
+
   switch (static_cast<int>(c)) {
     case Terminal::PAGE_DOWN:
       output->repetitions.sum(1);
