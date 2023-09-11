@@ -11,12 +11,12 @@ extern "C" {
 #include <sys/types.h>
 }
 
-#include "src/buffer_contents.h"
 #include "src/cpp_parse_tree.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
+#include "src/language/text/mutable_line_sequence.h"
 
 using namespace afc::editor;
 using afc::language::lazy_string::NewLazyString;
@@ -39,8 +39,8 @@ int main(int, char** argv) {
     contents.push_back(afc::language::MakeNonNullShared<Line>());
   }
 
-  std::cout << "Parsing input: " << contents.ToString();
-  ParseTree tree = parser->FindChildren(contents, contents.range());
+  std::cout << "Parsing input: " << contents.snapshot().ToString();
+  ParseTree tree = parser->FindChildren(contents.snapshot(), contents.range());
   std::cout << "Hash: " << tree.hash();
   return 0;
 }

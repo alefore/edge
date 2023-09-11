@@ -9,6 +9,7 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
+#include "src/language/text/mutable_line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/test/line_test.h"
 
@@ -21,8 +22,10 @@ using infrastructure::screen::CursorsTracker;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
+using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
@@ -167,22 +170,94 @@ void TestBufferInsertModifiers() {
   }
 }
 
+class TestObserver : public afc::language::text::MutableLineSequenceObserver {
+ public:
+  struct MessageLinesInserted {
+    LineNumber position;
+    LineNumberDelta size;
+  };
+  struct MessageLinesErased {
+    LineNumber position;
+    LineNumberDelta size;
+  };
+  struct MessageSplitLine {
+    LineColumn position;
+  };
+  struct MessageFoldedLine {
+    LineColumn position;
+  };
+  struct MessageSorted {};
+  struct MessageAppendedToLine {
+    LineColumn position;
+  };
+  struct MessageDeletedCharacters {
+    LineColumn position;
+    ColumnNumberDelta amount;
+  };
+  struct MessageSetCharacter {
+    LineColumn position;
+  };
+  struct MessageInsertedCharacter {
+    LineColumn position;
+  };
+  using Message =
+      std::variant<MessageLinesInserted, MessageLinesErased, MessageSplitLine,
+                   MessageFoldedLine, MessageSorted, MessageAppendedToLine,
+                   MessageDeletedCharacters, MessageSetCharacter,
+                   MessageInsertedCharacter>;
+
+  TestObserver(std::vector<Message>& messages) : messages_(messages) {}
+
+  void LinesInserted(LineNumber position, LineNumberDelta size) override {
+    messages_.push_back(
+        MessageLinesInserted{.position = position, .size = size});
+  }
+  void LinesErased(LineNumber position, LineNumberDelta size) override {
+    messages_.push_back(MessageLinesErased{.position = position, .size = size});
+  }
+  void SplitLine(LineColumn position) override {
+    messages_.push_back(MessageSplitLine{.position = position});
+  }
+  void FoldedLine(LineColumn position) override {
+    messages_.push_back(MessageFoldedLine{.position = position});
+  }
+  void Sorted() override { messages_.push_back(MessageSorted{}); }
+  void AppendedToLine(LineColumn position) override {
+    messages_.push_back(MessageAppendedToLine{.position = position});
+  }
+  void DeletedCharacters(LineColumn position,
+                         ColumnNumberDelta amount) override {
+    messages_.push_back(
+        MessageDeletedCharacters{.position = position, .amount = amount});
+  }
+  void SetCharacter(LineColumn position) override {
+    messages_.push_back(MessageSetCharacter{.position = position});
+  }
+  void InsertedCharacter(LineColumn position) override {
+    messages_.push_back(MessageInsertedCharacter{.position = position});
+  }
+
+ private:
+  std::vector<Message>& messages_;
+};
+
 void TestCursorsMove() {
-  std::vector<CursorsTracker::Transformation> transformations;
-  MutableLineSequence contents([&](const CursorsTracker::Transformation& t) {
-    transformations.push_back(t);
-  });
+  std::vector<TestObserver::Message> messages;
+  MutableLineSequence contents(MakeNonNullUnique<TestObserver>(messages));
   contents.set_line(LineNumber(0),
                     MakeNonNullShared<Line>(L"aleandro forero cuervo"));
-  CHECK_EQ(transformations.size(), 0ul);
+  CHECK_EQ(messages.size(), 0ul);
   contents.InsertCharacter(LineColumn(LineNumber(0), ColumnNumber(3)));
-  CHECK_EQ(transformations.size(), 1ul);
-  CHECK_EQ(transformations[0], CursorsTracker::Transformation());
-  transformations.clear();
+  CHECK_EQ(messages.size(), 1ul);
+  CHECK_EQ(
+      std::get<TestObserver::MessageInsertedCharacter>(messages[0]).position,
+      LineColumn(LineNumber(0), ColumnNumber(3)));
+  messages.clear();
 
-  contents.SetCharacter(LineColumn(LineNumber(0), ColumnNumber(3)), 'j', {});
-  CHECK_EQ(transformations.size(), 1ul);
-  transformations.clear();
+  contents.SetCharacter(LineColumn(LineNumber(0), ColumnNumber(2)), 'j', {});
+  CHECK_EQ(messages.size(), 1ul);
+  CHECK_EQ(std::get<TestObserver::MessageSetCharacter>(messages[0]).position,
+           LineColumn(LineNumber(0), ColumnNumber(2)));
 }
 }  // namespace
 
@@ -190,6 +265,7 @@ void MutableLineSequenceTests() {
   LOG(INFO) << "MutableLineSequence tests: start.";
   TestMutableLineSequenceSnapshot();
   TestBufferInsertModifiers();
+
   TestCursorsMove();
   LOG(INFO) << "MutableLineSequence tests: done.";
 }
