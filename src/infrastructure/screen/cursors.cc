@@ -9,17 +9,20 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/text/mutable_line_sequence_observer.h"
 #include "src/language/wstring.h"
 
 namespace afc::infrastructure::screen {
 using language::EmptyValue;
 using language::MakeNonNullShared;
+using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
+using language::text::MutableLineSequenceObserver;
 using language::text::Range;
 
 using ::operator<<;
@@ -127,11 +130,6 @@ size_t CursorsSet::current_index() const {
   return empty() ? 0 : std::distance(begin(), active());
 }
 
-bool RangeContains(const Range& range,
-                   const CursorsTracker::Transformation& transformation) {
-  return range.Contains(transformation.range);
-}
-
 size_t TransformValue(size_t input, int delta, size_t clamp, bool is_end) {
   if (delta < 0 && input <= clamp - delta) {
     return clamp;
@@ -142,30 +140,29 @@ size_t TransformValue(size_t input, int delta, size_t clamp, bool is_end) {
   return input + delta;
 }
 
-LineColumn TransformLineColumn(
-    const CursorsTracker::Transformation& transformation, LineColumn position,
-    bool is_end) {
-  position.line = LineNumber(
-      TransformValue(position.line.read(), transformation.line_delta.read(),
-                     transformation.line_lower_bound.read(), is_end));
-  position.column = ColumnNumber(
-      TransformValue(position.column.read(), transformation.column_delta.read(),
-                     transformation.column_lower_bound.read(), is_end));
+LineColumn CursorsTracker::Transformation::TransformLineColumn(
+    LineColumn position, bool is_end) const {
+  position.line =
+      LineNumber(TransformValue(position.line.read(), line_delta.read(),
+                                line_lower_bound.read(), is_end));
+  position.column =
+      ColumnNumber(TransformValue(position.column.read(), column_delta.read(),
+                                  column_lower_bound.read(), is_end));
   return position;
 }
 
 Range CursorsTracker::Transformation::TransformRange(const Range& input) const {
-  return Range(TransformLineColumn(*this, input.begin, false),
-               TransformLineColumn(*this, input.end, true));
+  return Range(TransformLineColumn(input.begin, false),
+               TransformLineColumn(input.end, true));
 }
 
 LineColumn CursorsTracker::Transformation::Transform(
     const LineColumn& position) const {
-  return TransformLineColumn(*this, position, false);
+  return TransformLineColumn(position, false);
 }
 
-Range OutputOf(const CursorsTracker::Transformation& transformation) {
-  return transformation.TransformRange(transformation.range);
+Range CursorsTracker::Transformation::OutputOf() const {
+  return TransformRange(range);
 }
 
 CursorsTracker::ExtendedTransformation::ExtendedTransformation(
@@ -181,7 +178,7 @@ CursorsTracker::ExtendedTransformation::ExtendedTransformation(
             transformation.range.begin.column + transformation.column_delta));
   }
   if (previous != nullptr) {
-    owned = previous->empty.Intersection(OutputOf(transformation));
+    owned = previous->empty.Intersection(transformation.OutputOf());
   }
 }
 
@@ -196,21 +193,97 @@ CursorsTracker::CursorsTracker() : active_set_(L"") {
   cursors_[active_set_].insert(LineColumn());
 }
 
+language::NonNull<
+    std::unique_ptr<afc::language::text::MutableLineSequenceObserver>>
+CursorsTracker::NewMutableLineSequenceObserver() {
+  return MakeNonNullUnique<CursorsTrackerMutableLineSequenceObserver>(*this);
+}
+
+class CursorsTrackerMutableLineSequenceObserver
+    : public MutableLineSequenceObserver {
+  using Transformation = CursorsTracker::Transformation;
+
+ public:
+  CursorsTrackerMutableLineSequenceObserver(CursorsTracker& cursors)
+      : cursors_(cursors) {}
+
+  void LinesInserted(LineNumber position, LineNumberDelta size) override {
+    cursors_.AdjustCursors(
+        CursorsTracker::Transformation()
+            .WithBegin(LineColumn(position))
+            // .WithEnd(LineColumn(root_this->ptr()->EndLine()) - size)
+            .LineDelta(size));
+  }
+
+  void LinesErased(LineNumber position, LineNumberDelta size) override {
+    CHECK_GE(size, LineNumberDelta(0));
+    cursors_.AdjustCursors(CursorsTracker::Transformation()
+                               .WithBegin(LineColumn(position))
+                               .LineDelta(-size)
+                               .LineLowerBound(position));
+  }
+
+  void SplitLine(LineColumn position) override {
+    // Move down all cursors after (including) position.line + 1. No cursor will
+    // be left in position.line + LineNumberDelta(1).
+    LinesInserted(position.line + LineNumberDelta(1), LineNumberDelta(1));
+    // Shift down the cursors in the reminder of the line.
+    cursors_.AdjustCursors(
+        CursorsTracker::Transformation()
+            .WithBegin(position)
+            .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
+            .LineDelta(LineNumberDelta(1))
+            .ColumnDelta(-position.column.ToDelta()));
+  }
+
+  void FoldedLine(LineColumn position) override {
+    // TODO: Can maybe combine for fewer updates?
+    // Move up cursors from the line that was folded, and increase their column.
+    cursors_.AdjustCursors(CursorsTracker::Transformation()
+                               .WithLineEq(position.line + LineNumberDelta(1))
+                               .LineDelta(LineNumberDelta(-1))
+                               .ColumnDelta(position.column.ToDelta()));
+    // Move up all cursors past the line that was folded and erased..
+    LinesErased(position.line + LineNumberDelta(1), LineNumberDelta(1));
+  }
+
+  void Sorted() override {}
+
+  void AppendedToLine(LineColumn) override {}
+
+  void DeletedCharacters(LineColumn position,
+                         ColumnNumberDelta amount) override {
+    cursors_.AdjustCursors(
+        CursorsTracker::Transformation()
+            .WithBegin(position)
+            .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
+            .ColumnDelta(-amount)
+            .ColumnLowerBound(position.column));
+  }
+
+  void SetCharacter(LineColumn) override {}
+
+  void InsertedCharacter(LineColumn) override {}
+
+ private:
+  CursorsTracker& cursors_;
+};
+
 LineColumn CursorsTracker::position() const {
   CHECK_EQ(cursors_.count(active_set_), 1ul);
   return *cursors_.find(active_set_)->second.active();
 }
 
-void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
-                      CursorsSet* cursors_set) {
+void CursorsTracker::Transformation::AdjustCursorsSet(
+    CursorsSet* cursors_set) const {
   VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
 
   // Transfer affected cursors from cursors into cursors_affected.
   CursorsSet cursors_affected;
   bool transferred_active = false;
   {
-    auto it = cursors_set->lower_bound(transformation.range.begin);
-    auto end = cursors_set->lower_bound(transformation.range.end);
+    auto it = cursors_set->lower_bound(range.begin);
+    auto end = cursors_set->lower_bound(range.end);
     while (it != end) {
       auto result = cursors_affected.insert(*it);
       if (it == cursors_set->active() && !transferred_active) {
@@ -223,19 +296,17 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
 
   // Apply the transformation and add the cursors back.
   for (auto it = cursors_affected.begin(); it != cursors_affected.end(); ++it) {
-    auto position = transformation.Transform(*it);
-
-    auto result = cursors_set->insert(position);
+    auto result = cursors_set->insert(Transform(*it));
     if (transferred_active && cursors_affected.active() == it) {
       cursors_set->set_active(result);
     }
   }
 }
 
-bool IsNoop(const CursorsTracker::Transformation& t) {
-  return t.line_delta == LineNumberDelta(0) &&
-         t.column_delta == ColumnNumberDelta(0) &&
-         t.line_lower_bound == LineNumber(0) && t.column_lower_bound.IsZero();
+bool CursorsTracker::Transformation::IsNoop() const {
+  return line_delta == LineNumberDelta(0) &&
+         column_delta == ColumnNumberDelta(0) && line_lower_bound.IsZero() &&
+         column_lower_bound.IsZero();
 }
 
 void CursorsTracker::AdjustCursors(Transformation transformation) {
@@ -251,7 +322,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     ++transformation.range.begin.line;
   }
 
-  if (IsNoop(transformation)) {
+  if (transformation.IsNoop()) {
     VLOG(4) << "Skip noop: " << transformation;
     return;
   }
@@ -300,7 +371,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   }
 
   if (last.owned == transformation.range &&
-      last.transformation.range.Contains(OutputOf(transformation)) &&
+      last.transformation.range.Contains(transformation.OutputOf()) &&
       last.transformation.line_delta + transformation.line_delta ==
           LineNumberDelta(0) &&
       last.transformation.line_delta > LineNumberDelta(0) &&
@@ -499,29 +570,29 @@ void CursorsTracker::ApplyTransformation(const Transformation& transformation) {
     return;
   }
   for (auto& cursors_set : cursors_) {
-    AdjustCursorsSet(transformation, &cursors_set.second);
+    transformation.AdjustCursorsSet(&cursors_set.second);
   }
   for (auto& cursors_set : cursors_stack_) {
-    AdjustCursorsSet(transformation, &cursors_set);
+    transformation.AdjustCursorsSet(&cursors_set);
   }
-  AdjustCursorsSet(transformation, &already_applied_cursors_);
+  transformation.AdjustCursorsSet(&already_applied_cursors_);
 }
 
 std::ostream& operator<<(std::ostream& os,
                          const CursorsTracker::Transformation& t) {
   os << "[range: " << t.range << ", line: " << t.line_delta
      << ", line_ge: " << t.line_lower_bound << ", column: " << t.column_delta
-     << ", column_ge: " << t.column_lower_bound << ", output: " << OutputOf(t)
+     << ", column_ge: " << t.column_lower_bound << ", output: " << t.OutputOf()
      << "]";
   return os;
 }
 
-bool operator==(const CursorsTracker::Transformation& a,
-                const CursorsTracker::Transformation& b) {
-  return a.range == b.range && a.line_delta == b.line_delta &&
-         a.line_lower_bound == b.line_lower_bound &&
-         a.column_delta == b.column_delta &&
-         a.column_lower_bound == b.column_lower_bound;
+bool CursorsTracker::Transformation::operator==(
+    const CursorsTracker::Transformation& b) {
+  return range == b.range && line_delta == b.line_delta &&
+         line_lower_bound == b.line_lower_bound &&
+         column_delta == b.column_delta &&
+         column_lower_bound == b.column_lower_bound;
 }
 
 }  // namespace afc::infrastructure::screen

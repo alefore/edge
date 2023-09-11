@@ -7,7 +7,8 @@ namespace afc::language::text {
 class DelegatingMutableLineSequenceObserver
     : public MutableLineSequenceObserver {
  public:
-  using Delegate = language::NonNull<MutableLineSequenceObserver*>;
+  using Delegate =
+      language::NonNull<std::shared_ptr<MutableLineSequenceObserver>>;
   DelegatingMutableLineSequenceObserver(std::vector<Delegate> delegates);
 
   void LinesInserted(language::text::LineNumber position,

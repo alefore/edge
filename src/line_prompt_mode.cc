@@ -716,7 +716,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
         it != options_.editor_state.buffers()->end()) {
       gc::Root<OpenBuffer> buffer_root = it->second;
       OpenBuffer& buffer = buffer_root.ptr().value();
-      buffer.ClearContents(MutableLineSequence::CursorsBehavior::kAdjust);
+      buffer.ClearContents(MutableLineSequence::ObserverBehavior::kShow);
       CHECK_EQ(buffer.EndLine(), LineNumber(0));
       CHECK(buffer.contents().back()->empty());
       buffer.Set(buffer_variables::contents_type,

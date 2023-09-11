@@ -361,7 +361,7 @@ void MutableLineSequence::ForEach(
 
 void MutableLineSequence::insert_line(LineNumber line_position,
                                       NonNull<std::shared_ptr<const Line>> line,
-                                      CursorsBehavior cursors_behavior) {
+                                      ObserverBehavior observer_behavior) {
   LOG(INFO) << "Inserting line at position: " << line_position;
   size_t original_size = Lines::Size(lines_);
   auto prefix = Lines::Prefix(lines_, line_position.read());
@@ -370,10 +370,10 @@ void MutableLineSequence::insert_line(LineNumber line_position,
   CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.read());
   lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
   CHECK_EQ(Lines::Size(lines_), original_size + 1);
-  switch (cursors_behavior) {
-    case CursorsBehavior::kUnmodified:
+  switch (observer_behavior) {
+    case ObserverBehavior::kHide:
       break;
-    case CursorsBehavior::kAdjust:
+    case ObserverBehavior::kShow:
       observer_->LinesInserted(line_position, LineNumberDelta(1));
   }
 }
@@ -393,7 +393,7 @@ void MutableLineSequence::set_line(LineNumber position,
 
 void MutableLineSequence::DeleteCharactersFromLine(
     LineColumn position, ColumnNumberDelta amount,
-    CursorsBehavior cursors_behavior) {
+    ObserverBehavior observer_behavior) {
   if (amount == ColumnNumberDelta(0)) {
     return;
   }
@@ -404,20 +404,20 @@ void MutableLineSequence::DeleteCharactersFromLine(
     options.DeleteCharacters(position.column, amount);
   });
 
-  switch (cursors_behavior) {
-    case CursorsBehavior::kUnmodified:
+  switch (observer_behavior) {
+    case ObserverBehavior::kHide:
       break;
-    case CursorsBehavior::kAdjust:
+    case ObserverBehavior::kShow:
       observer_->DeletedCharacters(position, amount);
   }
 }
 
 void MutableLineSequence::DeleteToLineEnd(LineColumn position,
-                                          CursorsBehavior cursors_behavior) {
+                                          ObserverBehavior observer_behavior) {
   if (position.column < at(position.line)->EndColumn()) {
     return DeleteCharactersFromLine(
         position, at(position.line)->EndColumn() - position.column,
-        cursors_behavior);
+        observer_behavior);
   }
 }
 
@@ -440,22 +440,22 @@ void MutableLineSequence::InsertCharacter(LineColumn position) {
 }
 
 void MutableLineSequence::AppendToLine(LineNumber line, Line line_to_append,
-                                       CursorsBehavior cursors_behavior) {
+                                       ObserverBehavior observer_behavior) {
   const LineColumn position = LineColumn(
       std::min(line, EndLine()), at(std::min(line, EndLine()))->EndColumn());
   TransformLine(position.line, [&](LineBuilder& options) {
     options.Append(LineBuilder(std::move(line_to_append)));
   });
-  switch (cursors_behavior) {
-    case CursorsBehavior::kUnmodified:
+  switch (observer_behavior) {
+    case ObserverBehavior::kHide:
       break;
-    case CursorsBehavior::kAdjust:
+    case ObserverBehavior::kShow:
       observer_->AppendedToLine(position);
   }
 }
 
 void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
-                                     CursorsBehavior cursors_behavior) {
+                                     ObserverBehavior observer_behavior) {
   if (first == last) {
     return;  // Optimization to avoid notifying listeners.
   }
@@ -469,7 +469,7 @@ void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
     lines_ = Lines::PushBack(nullptr, {});
   }
 
-  if (cursors_behavior == CursorsBehavior::kUnmodified) {
+  if (observer_behavior == ObserverBehavior::kHide) {
     return;
   }
   observer_->LinesErased(first, last - first);
@@ -480,9 +480,9 @@ void MutableLineSequence::SplitLine(LineColumn position) {
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   insert_line(position.line + LineNumberDelta(1),
               MakeNonNullShared<Line>(std::move(builder).Build()),
-              CursorsBehavior::kUnmodified);
+              ObserverBehavior::kHide);
   observer_->SplitLine(position);
-  DeleteToLineEnd(position, CursorsBehavior::kUnmodified);
+  DeleteToLineEnd(position, ObserverBehavior::kHide);
 }
 
 namespace {
@@ -512,9 +512,8 @@ void MutableLineSequence::FoldNextLine(LineNumber position) {
   }
 
   ColumnNumber initial_size = at(position)->EndColumn();
-  AppendToLine(position, at(next_line).value(), CursorsBehavior::kUnmodified);
-  EraseLines(next_line, position + LineNumberDelta(2),
-             CursorsBehavior::kUnmodified);
+  AppendToLine(position, at(next_line).value(), ObserverBehavior::kHide);
+  EraseLines(next_line, position + LineNumberDelta(2), ObserverBehavior::kHide);
   observer_->FoldedLine(LineColumn(position, initial_size));
 }
 
@@ -564,14 +563,22 @@ const bool push_back_wstring_tests_registration = tests::Register(
     });
 }
 
-void MutableLineSequence::push_back(NonNull<std::shared_ptr<const Line>> line) {
+void MutableLineSequence::push_back(NonNull<std::shared_ptr<const Line>> line,
+                                    ObserverBehavior observer_behavior) {
   LineNumber position = EndLine();
   lines_ = Lines::PushBack(std::move(lines_), line);
-  observer_->LinesInserted(position + LineNumberDelta(1), LineNumberDelta(1));
+  switch (observer_behavior) {
+    case ObserverBehavior::kHide:
+      break;
+    case ObserverBehavior::kShow:
+      observer_->LinesInserted(position + LineNumberDelta(1),
+                               LineNumberDelta(1));
+  }
 }
 
 void MutableLineSequence::append_back(
-    std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
+    std::vector<NonNull<std::shared_ptr<const Line>>> lines,
+    ObserverBehavior observer_behavior) {
   static Tracker tracker_subtree(L"MutableLineSequence::append_back::subtree");
   auto tracker_subtree_call = tracker_subtree.Call();
   Lines::Ptr subtree = Lines::FromRange(lines.begin(), lines.end());
@@ -582,7 +589,12 @@ void MutableLineSequence::append_back(
 
   LineNumber position = EndLine();
   lines_ = Lines::Append(lines_, subtree);
-  observer_->LinesInserted(position, LineNumberDelta(lines.size()));
+  switch (observer_behavior) {
+    case ObserverBehavior::kHide:
+      break;
+    case ObserverBehavior::kShow:
+      observer_->LinesInserted(position, LineNumberDelta(lines.size()));
+  }
 }
 
 LineColumn MutableLineSequence::AdjustLineColumn(LineColumn position) const {
@@ -637,7 +649,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
       [this](LineNumber a, LineNumber b) {
         a = LineNumber(a % size());
         b = LineNumber(b % size());
-        EraseLines(std::min(a, b), std::max(a, b), CursorsBehavior::kAdjust);
+        EraseLines(std::min(a, b), std::max(a, b), ObserverBehavior::kShow);
       })));
 
   output.push_back(

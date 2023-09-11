@@ -98,14 +98,12 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
       const std::function<void(const language::text::Line&)>& callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
 
-  // TODO(trivial, 2023-09-10): Rename this to a more fitting name. Perhaps:
-  // ObserverBehavior { kNotify, kHide }.
-  enum class CursorsBehavior { kAdjust, kUnmodified };
+  enum class ObserverBehavior { kShow, kHide };
 
   void insert_line(
       language::text::LineNumber line_position,
       language::NonNull<std::shared_ptr<const language::text::Line>> line,
-      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust);
+      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
 
   // Does not call observer_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
@@ -149,11 +147,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void DeleteCharactersFromLine(
       language::text::LineColumn position,
       language::lazy_string::ColumnNumberDelta amount,
-      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust);
+      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
   // Delete characters from position.line in range [position.column, ...).
   void DeleteToLineEnd(
       language::text::LineColumn position,
-      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust);
+      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
 
   // Sets the character and modifiers in a given position.
   //
@@ -168,11 +166,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void InsertCharacter(language::text::LineColumn position);
   void AppendToLine(
       language::text::LineNumber line, language::text::Line line_to_append,
-      CursorsBehavior cursors_behavior = CursorsBehavior::kAdjust);
+      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
 
   void EraseLines(language::text::LineNumber first,
                   language::text::LineNumber last,
-                  CursorsBehavior cursors_behavior);
+                  ObserverBehavior observer_behavior = ObserverBehavior::kShow);
 
   void SplitLine(language::text::LineColumn position);
 
@@ -184,11 +182,13 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   void push_back(std::wstring str);
   void push_back(
-      language::NonNull<std::shared_ptr<const language::text::Line>> line);
+      language::NonNull<std::shared_ptr<const language::text::Line>> line,
+      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
   void append_back(
       std::vector<
           language::NonNull<std::shared_ptr<const language::text::Line>>>
-          lines);
+          lines,
+      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
 
   // Returns position, but ensuring that it is in a valid position in the
   // contents — that the line is valid, and that the column fits the length of

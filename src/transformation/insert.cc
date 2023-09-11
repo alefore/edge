@@ -137,9 +137,8 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
             }
             output.push_back(
                 MakeNonNullShared<Line>(text.substr(line_start.read())));
-            output.EraseLines(
-                LineNumber(), LineNumber(1),
-                MutableLineSequence::CursorsBehavior::kUnmodified);
+            output.EraseLines(LineNumber(), LineNumber(1),
+                              MutableLineSequence::ObserverBehavior::kHide);
             options->contents_to_insert = output.snapshot();
             return options;
           })

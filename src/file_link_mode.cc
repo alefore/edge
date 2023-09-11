@@ -81,8 +81,7 @@ futures::Value<PossibleError> GenerateContents(
        path](std::optional<struct stat> stat_results) {
         if (stat_results.has_value() &&
             target.Read(buffer_variables::clear_on_reload)) {
-          target.ClearContents(
-              MutableLineSequence::CursorsBehavior::kUnmodified);
+          target.ClearContents(MutableLineSequence::ObserverBehavior::kHide);
           target.SetDiskState(OpenBuffer::DiskState::kCurrent);
         }
         if (!stat_results.has_value()) {

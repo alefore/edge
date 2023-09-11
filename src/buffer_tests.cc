@@ -302,7 +302,8 @@ const bool buffer_positions_tests_registration = tests::Register(
         buffer.ptr()->active_cursors().set_active(insertion_iterator);
         CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(5)));
 
-        buffer.ptr()->ClearContents(MutableLineSequence::CursorsBehavior::kUnmodified);
+        buffer.ptr()->ClearContents(
+            MutableLineSequence::ObserverBehavior::kHide);
 
         CHECK_EQ(buffer.ptr()->contents().size(), LineNumberDelta(1));
         CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(5)));

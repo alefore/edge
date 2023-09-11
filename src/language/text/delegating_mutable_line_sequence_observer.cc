@@ -10,6 +10,10 @@ using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 
+DelegatingMutableLineSequenceObserver::DelegatingMutableLineSequenceObserver(
+    std::vector<Delegate> delegates)
+    : delegates_(std::move(delegates)) {}
+
 void DelegatingMutableLineSequenceObserver::LinesInserted(
     LineNumber position, LineNumberDelta delta) {
   for (auto& delegate : delegates_) delegate->LinesInserted(position, delta);

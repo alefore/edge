@@ -12,8 +12,11 @@
 
 #include "src/futures/futures.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/mutable_line_sequence.h"
 
 namespace afc::infrastructure::screen {
+class CursorsTrackerMutableLineSequenceObserver;
+
 // A multiset of language::text::LineColumn entries, with a specific one
 // designated as the "active" one. The language::text::LineColumn entries aren't
 // bound to any specific buffer, so they may exceed past the length of any and
@@ -90,7 +93,47 @@ class CursorsSet {
 
 class CursorsTracker {
  public:
+  CursorsTracker();
+
+  language::NonNull<
+      std::unique_ptr<afc::language::text::MutableLineSequenceObserver>>
+  NewMutableLineSequenceObserver();
+
+  // Returns the position of the current cursor.
+  language::text::LineColumn position() const;
+
+  CursorsSet& FindOrCreateCursors(const std::wstring& name) {
+    return cursors_[name];
+  }
+
+  const CursorsSet* FindCursors(const std::wstring& name) const {
+    auto result = cursors_.find(name);
+    return result == cursors_.end() ? nullptr : &result->second;
+  }
+
+  // Iterate over all cursors, running callback for each of them. callback
+  // receives the cursor's position and must notify the receiver with the
+  // position to which the cursor moves.
+  futures::Value<language::EmptyValue> ApplyTransformationToCursors(
+      CursorsSet& cursors,
+      std::function<futures::Value<language::text::LineColumn>(
+          language::text::LineColumn)>
+          callback);
+
+  // Push current cursors into cursors_stack_ and returns size of stack.
+  size_t Push();
+  // If cursors_stack_ isn't empty, pops from it into active cursors. Returns
+  // the size the stack had at the time the call was made.
+  size_t Pop();
+
+  std::shared_ptr<bool> DelayTransformations();
+
+ private:
+  friend CursorsTrackerMutableLineSequenceObserver;
+
   struct Transformation {
+    std::wstring ToString();
+
     Transformation& WithBegin(language::text::LineColumn position) {
       CHECK_EQ(range.begin, language::text::LineColumn());
       range.begin = position;
@@ -138,6 +181,14 @@ class CursorsTracker {
         const language::text::LineColumn& position) const;
     language::text::Range TransformRange(
         const language::text::Range& input) const;
+    language::text::LineColumn TransformLineColumn(
+        language::text::LineColumn position, bool is_end) const;
+    language::text::Range OutputOf() const;
+
+    void AdjustCursorsSet(CursorsSet* cursors_set) const;
+    bool IsNoop() const;
+
+    bool operator==(const CursorsTracker::Transformation& other);
 
     language::text::Range range = language::text::Range(
         language::text::LineColumn(), language::text::LineColumn::Max());
@@ -164,41 +215,12 @@ class CursorsTracker {
         language::lazy_string::ColumnNumber();
   };
 
-  CursorsTracker();
-
-  // Returns the position of the current cursor.
-  language::text::LineColumn position() const;
-
-  CursorsSet& FindOrCreateCursors(const std::wstring& name) {
-    return cursors_[name];
-  }
-
-  const CursorsSet* FindCursors(const std::wstring& name) const {
-    auto result = cursors_.find(name);
-    return result == cursors_.end() ? nullptr : &result->second;
-  }
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const CursorsTracker::Transformation& lc);
 
   // Applies the transformation to every single cursor.
   void AdjustCursors(Transformation transformation);
 
-  // Iterate over all cursors, running callback for each of them. callback
-  // receives the cursor's position and must notify the receiver with the
-  // position to which the cursor moves.
-  futures::Value<language::EmptyValue> ApplyTransformationToCursors(
-      CursorsSet& cursors,
-      std::function<futures::Value<language::text::LineColumn>(
-          language::text::LineColumn)>
-          callback);
-
-  // Push current cursors into cursors_stack_ and returns size of stack.
-  size_t Push();
-  // If cursors_stack_ isn't empty, pops from it into active cursors. Returns
-  // the size the stack had at the time the call was made.
-  size_t Pop();
-
-  std::shared_ptr<bool> DelayTransformations();
-
- private:
   // Contains a transformation along with additional information that can be
   // used to optimize transformations.
   struct ExtendedTransformation {
@@ -245,8 +267,6 @@ class CursorsTracker {
 
 std::ostream& operator<<(std::ostream& os,
                          const CursorsTracker::Transformation& lc);
-bool operator==(const CursorsTracker::Transformation& a,
-                const CursorsTracker::Transformation& b);
 
 }  // namespace afc::infrastructure::screen
 #endif  // __AFC_INFRASTRUCTURE_SCREEN_CURSORS_H__

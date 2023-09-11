@@ -40,6 +40,7 @@ extern "C" {
 #include "src/language/observers_gc.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/delegating_mutable_line_sequence_observer.h"
 #include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
 #include "src/line_marks.h"
@@ -110,6 +111,7 @@ using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
 using language::lazy_string::LowerCase;
 using language::lazy_string::NewLazyString;
+using language::text::DelegatingMutableLineSequenceObserver;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
@@ -289,70 +291,25 @@ class OpenBufferMutableLineSequenceObserver
  public:
   void SetOpenBuffer(gc::WeakPtr<OpenBuffer> buffer) { buffer_ = buffer; }
 
-  void LinesInserted(LineNumber position, LineNumberDelta size) override {
-    std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
-    if (!root_this.has_value()) return;
-    CHECK_GE(root_this->ptr()->EndLine() + LineNumberDelta(1), position + size);
-    if (LineColumn(position) + size >= LineColumn(root_this->ptr()->EndLine()))
-      Notify({});
-    else
-      Notify(CursorsTracker::Transformation()
-                 .WithBegin(LineColumn(position))
-                 .WithEnd(LineColumn(root_this->ptr()->EndLine()) - size)
-                 .LineDelta(size));
-  }
+  void LinesInserted(LineNumber, LineNumberDelta) override { Notify(); }
 
-  void LinesErased(LineNumber position, LineNumberDelta size) override {
-    CHECK_GE(size, LineNumberDelta(0));
-    Notify(CursorsTracker::Transformation()
-               .WithBegin(LineColumn(position))
-               .LineDelta(-size)
-               .LineLowerBound(position));
-  }
+  void LinesErased(LineNumber, LineNumberDelta) override { Notify(); }
 
-  void SplitLine(LineColumn position) override {
-    // Move down all cursors after (including) position.line + 1. No cursor will
-    // be left in position.line + LineNumberDelta(1).
-    LinesInserted(position.line + LineNumberDelta(1), LineNumberDelta(1));
-    // Shift down the cursors in the reminder of the line.
-    Notify(CursorsTracker::Transformation()
-               .WithBegin(position)
-               .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
-               .LineDelta(LineNumberDelta(1))
-               .ColumnDelta(-position.column.ToDelta()));
-  }
+  void SplitLine(LineColumn) override { Notify(); }
 
-  void FoldedLine(LineColumn position) override {
-    // TODO: Can maybe combine for fewer updates?
-    // Move up cursors from the line that was folded, and increase their column.
-    Notify(CursorsTracker::Transformation()
-               .WithLineEq(position.line + LineNumberDelta(1))
-               .LineDelta(LineNumberDelta(-1))
-               .ColumnDelta(position.column.ToDelta()));
-    // Move up all cursors past the line that was folded and erased..
-    LinesErased(position.line + LineNumberDelta(1), LineNumberDelta(1));
-  }
+  void FoldedLine(LineColumn) override { Notify(); }
 
-  void Sorted() override { Notify({}); }
+  void Sorted() override { Notify(); }
 
-  void AppendedToLine(language::text::LineColumn) override { Notify({}); }
+  void AppendedToLine(LineColumn) override { Notify(); }
 
-  void DeletedCharacters(LineColumn position,
-                         ColumnNumberDelta amount) override {
-    Notify(CursorsTracker::Transformation()
-               .WithBegin(position)
-               .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
-               .ColumnDelta(-amount)
-               .ColumnLowerBound(position.column));
-  }
+  void DeletedCharacters(LineColumn, ColumnNumberDelta) override { Notify(); }
 
   void SetCharacter(LineColumn) override { Notify(); }
 
   void InsertedCharacter(LineColumn) override { Notify(); }
 
- private:
-  void Notify(std::optional<CursorsTracker::Transformation> transformation =
-                  std::nullopt) {
+  void Notify() {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
     root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
@@ -376,12 +333,6 @@ class OpenBufferMutableLineSequenceObserver
       }
     }
     root_this->ptr()->UpdateLastAction();
-    VisitPointer(
-        transformation,
-        [&](const CursorsTracker::Transformation& transformation) {
-          root_this->ptr()->cursors_tracker_.AdjustCursors(transformation);
-        },
-        [] {});
   }
 
  private:
@@ -393,9 +344,10 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
       work_queue_(WorkQueue::New()),
-      contents_observer_(
-          MakeNonNullShared<OpenBufferMutableLineSequenceObserver>()),
-      contents_(contents_observer_),
+      contents_(MakeNonNullShared<DelegatingMutableLineSequenceObserver>(
+          std::vector<NonNull<std::shared_ptr<MutableLineSequenceObserver>>>(
+              {contents_observer_,
+               cursors_tracker_.NewMutableLineSequenceObserver()}))),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
@@ -619,7 +571,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 }
 
 void OpenBuffer::ClearContents(
-    MutableLineSequence::CursorsBehavior cursors_behavior) {
+    MutableLineSequence::ObserverBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
   options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
   options_.editor.line_marks().ExpireMarksFromSource(contents().snapshot(),
@@ -662,6 +614,7 @@ void OpenBuffer::EndOfFile() {
   editor().line_marks().RemoveExpiredMarksFromSource(name());
 
   end_of_file_observers_.Notify();
+  contents_observer_->Notify();
 
   if (Read(buffer_variables::reload_after_exit)) {
     Set(buffer_variables::reload_after_exit,
@@ -840,7 +793,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
     Set(buffer_variables::show_in_buffers_list, false);
     Set(buffer_variables::delete_into_paste_buffer, false);
   }
-  ClearContents(MutableLineSequence::CursorsBehavior::kUnmodified);
+  ClearContents(MutableLineSequence::ObserverBehavior::kHide);
 
   std::visit(
       overload{
@@ -882,7 +835,8 @@ void OpenBuffer::StartNewLine(NonNull<std::shared_ptr<const Line>> line) {
 }
 
 void OpenBuffer::AppendLines(
-    std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
+    std::vector<NonNull<std::shared_ptr<const Line>>> lines,
+    language::text::MutableLineSequence::ObserverBehavior observer_behavior) {
   static Tracker top_tracker(L"OpenBuffer::AppendLines");
   auto top_tracker_call = top_tracker.Call();
 
@@ -893,12 +847,13 @@ void OpenBuffer::AppendLines(
   for (NonNull<std::shared_ptr<const Line>>& line : lines) {
     line = UpdateLineMetadata(*this, std::move(line));
   }
-  contents_.append_back(std::move(lines));
+  contents_.append_back(std::move(lines), observer_behavior);
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     ResolvePathOptions<EmptyValue>::New(
         editor(), std::make_shared<FileSystemDriver>(editor().thread_pool()))
+        // TODO(trivial, 2023-09-11): Take contents as snapshot.
         .Transform([buffer_name = name(), lines_added, &contents = contents_,
                     start_new_section, &editor = editor()](
                        ResolvePathOptions<EmptyValue> options) {
@@ -1144,8 +1099,7 @@ OpenBuffer::default_commands() {
 void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
   CHECK_LE(first, last);
   CHECK_LE(last, LineNumber(0) + contents_.size());
-  contents_.EraseLines(first, last,
-                       MutableLineSequence::CursorsBehavior::kAdjust);
+  contents_.EraseLines(first, last);
 }
 
 void OpenBuffer::InsertLine(LineNumber line_position,
@@ -1174,13 +1128,19 @@ void OpenBuffer::AppendLine(NonNull<std::shared_ptr<LazyString>> str) {
   AppendRawLine(str);
 }
 
-void OpenBuffer::AppendRawLine(NonNull<std::shared_ptr<LazyString>> str) {
-  AppendRawLine(MakeNonNullShared<Line>(LineBuilder(std::move(str)).Build()));
+void OpenBuffer::AppendRawLine(
+    NonNull<std::shared_ptr<LazyString>> str,
+    MutableLineSequence::ObserverBehavior observer_behavior) {
+  AppendRawLine(MakeNonNullShared<Line>(LineBuilder(std::move(str)).Build()),
+                observer_behavior);
 }
 
-void OpenBuffer::AppendRawLine(NonNull<std::shared_ptr<Line>> line) {
+void OpenBuffer::AppendRawLine(
+    NonNull<std::shared_ptr<Line>> line,
+    MutableLineSequence::ObserverBehavior observer_behavior) {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(UpdateLineMetadata(*this, std::move(line)));
+  contents_.push_back(UpdateLineMetadata(*this, std::move(line)),
+                      observer_behavior);
 }
 
 void OpenBuffer::AppendToLastLine(NonNull<std::shared_ptr<LazyString>> str) {
@@ -1193,10 +1153,11 @@ void OpenBuffer::AppendToLastLine(Line line) {
   auto follower = GetEndPositionFollower();
   LineBuilder options(contents_.back().value());
   options.Append(LineBuilder(std::move(line)));
-  AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()));
+  AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()),
+                MutableLineSequence::ObserverBehavior::kHide);
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
                        contents_.EndLine(),
-                       MutableLineSequence::CursorsBehavior::kUnmodified);
+                       MutableLineSequence::ObserverBehavior::kHide);
 }
 
 ValueOrError<
@@ -1872,14 +1833,15 @@ void OpenBuffer::InsertLines(
   lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
   tracker_erase_call = nullptr;
 
-  AppendLines(std::move(lines_to_insert));
+  AppendLines(std::move(lines_to_insert),
+              MutableLineSequence::ObserverBehavior::kHide);
 }
 
 void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
                                FileDescriptor input_error_fd,
                                bool fd_is_terminal, pid_t child_pid) {
   if (Read(buffer_variables::clear_on_reload)) {
-    ClearContents(MutableLineSequence::CursorsBehavior::kUnmodified);
+    ClearContents(MutableLineSequence::ObserverBehavior::kHide);
     SetDiskState(DiskState::kCurrent);
   }
 

@@ -174,7 +174,7 @@ class OpenBuffer {
   void SendEndOfFileToProcess();
 
   void ClearContents(
-      language::text::MutableLineSequence::CursorsBehavior cursors_behavior);
+      language::text::MutableLineSequence::ObserverBehavior observer_behavior);
   void AppendEmptyLine();
 
   // Sort all lines in range [first, last) according to a compare function.
@@ -219,12 +219,15 @@ class OpenBuffer {
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
           line);
   void AppendRawLine(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          str);
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      language::text::MutableLineSequence::ObserverBehavior observer_behavior =
+          language::text::MutableLineSequence::ObserverBehavior::kShow);
 
   // Insert a line at the end of the buffer.
   void AppendRawLine(
-      language::NonNull<std::shared_ptr<language::text::Line>> line);
+      language::NonNull<std::shared_ptr<language::text::Line>> line,
+      language::text::MutableLineSequence::ObserverBehavior observer_behavior =
+          language::text::MutableLineSequence::ObserverBehavior::kShow);
 
   void AppendToLastLine(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
@@ -240,7 +243,9 @@ class OpenBuffer {
   void AppendLines(
       std::vector<
           language::NonNull<std::shared_ptr<const language::text::Line>>>
-          lines);
+          lines,
+      language::text::MutableLineSequence::ObserverBehavior observer_behavior =
+          language::text::MutableLineSequence::ObserverBehavior::kShow);
 
   void DeleteRange(const language::text::Range& range);
 
@@ -600,6 +605,8 @@ class OpenBuffer {
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
 
+  infrastructure::screen::CursorsTracker cursors_tracker_;
+
   language::NonNull<std::shared_ptr<OpenBufferMutableLineSequenceObserver>>
       contents_observer_;
 
@@ -638,8 +645,6 @@ class OpenBuffer {
   // this value to last_transformation_).
   std::list<language::NonNull<std::unique_ptr<transformation::Stack>>>
       last_transformation_stack_;
-
-  infrastructure::screen::CursorsTracker cursors_tracker_;
 
   size_t tree_depth_ = 0;
 

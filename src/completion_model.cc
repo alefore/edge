@@ -73,7 +73,7 @@ LineSequence PrepareBuffer(LineSequence input) {
     LOG(INFO) << "Deleting empty lines: " << LineNumber() << " to "
               << empty_lines_start;
     contents.EraseLines(LineNumber(), empty_lines_start,
-                        MutableLineSequence::CursorsBehavior ::kUnmodified);
+                        MutableLineSequence::ObserverBehavior::kHide);
   }
   return contents.snapshot();
 }
