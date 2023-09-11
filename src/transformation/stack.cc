@@ -341,10 +341,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             LineSequence contents =
                 input.buffer.contents().snapshot().ViewRange(
                     *delete_transformation.range);
-            // TODO(trivial, 2023-09-10): Avoid call to ToString? Add method
-            // that returns a LazyString and use it.
             AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
-                             NewLazyString(contents.ToString()));
+                             contents.ToLazyString());
             std::wstring tmp_path = [contents] {
               char* tmp_path_bytes = strdup("/tmp/edge-commands-XXXXXX");
               // TODO(async, easy, 2023-08-30): Use file_system_driver.

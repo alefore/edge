@@ -193,6 +193,12 @@ std::wstring LineSequence::ToString() const {
   return output;
 }
 
+NonNull<std::shared_ptr<lazy_string::LazyString>> LineSequence::ToLazyString()
+    const {
+  // TODO(trivial, 2023-09-11): Provide a more efficient implementation.
+  return NewLazyString(ToString());
+}
+
 LineNumberDelta LineSequence::size() const {
   return LineNumberDelta(Lines::Size(lines_));
 }
