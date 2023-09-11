@@ -155,13 +155,17 @@ class FunctionCall : public Expression {
       return;
     }
     NonNull<std::unique_ptr<Expression>>& arg = args_types->at(values->size());
+    DVLOG(6) << "Bounce with types: " << arg->Types().size()
+             << ", first: " << arg->Types()[0];
     trampoline.Bounce(arg.value(), arg->Types()[0])
         .SetConsumer(VisitCallback(
             overload{[consumer](Error error) { consumer(std::move(error)); },
                      [&trampoline, consumer, args_types, values,
                       callback](EvaluationOutput value) {
+                       DVLOG(7) << "Got evaluation output.";
                        switch (value.type) {
                          case EvaluationOutput::OutputType::kReturn:
+                           DVLOG(5) << "Received return value.";
                            return consumer(std::move(value));
                          case EvaluationOutput::OutputType::kContinue:
                            DVLOG(5) << "Received results of parameter "
