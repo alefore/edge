@@ -29,6 +29,7 @@ class LineSequence {
   LineSequence& operator=(const LineSequence&) = default;
 
   static LineSequence ForTests(std::vector<std::wstring> inputs);
+  static LineSequence WithLine(NonNull<std::shared_ptr<Line>> line);
 
   // Returns a new LineSequence that contains a subset of the current one.
   LineSequence ViewRange(language::text::Range range);

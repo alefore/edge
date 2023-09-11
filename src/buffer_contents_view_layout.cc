@@ -28,7 +28,6 @@ using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::LineSequence;
-using language::text::MutableLineSequence;
 using language::text::Range;
 
 std::list<ColumnRange> ComputeBreaks(
@@ -188,9 +187,7 @@ const bool get_screen_line_tests_registration = tests::Register(
     L"GetScreenLine",
     {{.name = L"SimpleLine", .callback = [] {
         BufferContentsViewLayout::Line output = GetScreenLine(
-            MutableLineSequence::WithLine(MakeNonNullShared<Line>(Line(L"foo")))
-                .snapshot(),
-            std::nullopt, {}, LineNumber(0),
+            LineSequence::ForTests({L"foo"}), std::nullopt, {}, LineNumber(0),
             ColumnRange{ColumnNumber(0), ColumnNumber(3)});
         CHECK_EQ(output.range.end,
                  LineColumn(LineNumber(0),
@@ -389,44 +386,42 @@ const bool buffer_contents_view_layout_tests_registration =
         return output;
       };
       auto new_test = [](std::wstring name, auto callback) {
-        return tests::Test(
-            {.name = name, .callback = [callback]() {
-               MutableLineSequence contents;
-               contents.AppendToLine(LineNumber(), Line(L"0alejandro"));
-               for (const auto& s : std::list<std::wstring>{
-                        L"1forero",
-                        L"2cuervo",
-                        L"",
-                        L"4blah",
-                        L"",
-                        L"6something or other",
-                        L"7something or other",
-                        L"8something or other",
-                        L"9something or other",
-                        L"",
-                        L"11foo",
-                        L"12bar",
-                        L"13quux",
-                        L"",
-                        L"15dog",
-                        L"16lynx",
-                    })
-                 contents.push_back(s);
-               static CursorsSet active_cursors;
-               BufferContentsViewLayout::Input options{
-                   .contents = contents.snapshot(),
-                   .active_position = LineColumn(),
-                   .active_cursors = active_cursors,
-                   .line_wrap_style = LineWrapStyle::kBreakWords,
-                   .symbol_characters = L"abcdefghijklmnopqrstuvwxyz",
-                   .lines_shown = LineNumberDelta(10),
-                   .status_lines = LineNumberDelta(),
-                   .columns_shown = ColumnNumberDelta(80),
-                   .begin = {},
-                   .margin_lines = LineNumberDelta(2)};
+        return tests::Test({.name = name, .callback = [callback]() {
+                              LineSequence contents = LineSequence::ForTests({
+                                  L"0alejandro",
+                                  L"1forero",
+                                  L"2cuervo",
+                                  L"",
+                                  L"4blah",
+                                  L"",
+                                  L"6something or other",
+                                  L"7something or other",
+                                  L"8something or other",
+                                  L"9something or other",
+                                  L"",
+                                  L"11foo",
+                                  L"12bar",
+                                  L"13quux",
+                                  L"",
+                                  L"15dog",
+                                  L"16lynx",
+                              });
+                              static CursorsSet active_cursors;
+                              BufferContentsViewLayout::Input options{
+                                  .contents = contents,
+                                  .active_position = LineColumn(),
+                                  .active_cursors = active_cursors,
+                                  .line_wrap_style = LineWrapStyle::kBreakWords,
+                                  .symbol_characters =
+                                      L"abcdefghijklmnopqrstuvwxyz",
+                                  .lines_shown = LineNumberDelta(10),
+                                  .status_lines = LineNumberDelta(),
+                                  .columns_shown = ColumnNumberDelta(80),
+                                  .begin = {},
+                                  .margin_lines = LineNumberDelta(2)};
 
-               callback(options);
-             }});
+                              callback(options);
+                            }});
       };
       auto RangeToLineEnd = [](LineColumn p) {
         return Range(

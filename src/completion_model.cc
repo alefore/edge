@@ -268,16 +268,13 @@ const bool completion_model_manager_tests_registration =
         return MakeNonNullUnique<CompletionModelManager>([paths](Path path) {
           LOG(INFO) << "Creating buffer for: " << path;
           paths->push_back(path);
-          MutableLineSequence contents;
           if (path == ValueOrDie(Path::FromString(L"en"))) {
-            contents.push_back(L"bb baby");
-            contents.push_back(L"f fox");
-            contents.push_back(L"i i");
+            return futures::Past(
+                LineSequence::ForTests({L"", L"bb baby", L"f fox", L"i i"}));
           } else {
-            contents.push_back(L"f firulais");
-            contents.push_back(L"p perrito");
+            return futures::Past(
+                LineSequence::ForTests({L"", L"f firulais", L"p perrito"}));
           }
-          return futures::Past(contents.snapshot());
         });
       };
       auto TestQuery =

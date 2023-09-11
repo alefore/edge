@@ -8,9 +8,6 @@
 #include "src/language/text/line_column.h"
 #include "src/parse_tree.h"
 
-namespace afc::language::text {
-class MutableLineSequence;
-}
 namespace afc ::editor {
 class DeleteOptions;
 class Transformation;

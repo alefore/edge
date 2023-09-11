@@ -527,12 +527,11 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             std::unordered_multimap<std::wstring,
                                     NonNull<std::shared_ptr<LazyString>>>
                 features;
-            MutableLineSequence history_contents;
-            history_contents.push_back(L"prompt:\"foobar\"");
-            history_contents.push_back(L"prompt:\"foo\"");
-            FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(DeleteNotification::Never(), L"quux",
-                                      history_contents.snapshot(), features);
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                DeleteNotification::Never(), L"quux",
+                LineSequence::ForTests(
+                    {L"prompt:\"foobar\"", L"prompt:\"foo\""}),
+                features);
             CHECK(output.lines.empty());
           }},
      {.name = L"MatchAfterEscape",
@@ -541,11 +540,10 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             std::unordered_multimap<std::wstring,
                                     NonNull<std::shared_ptr<LazyString>>>
                 features;
-            MutableLineSequence history_contents;
-            history_contents.push_back(L"prompt:\"foo\\\\nbardo\"");
-            FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(DeleteNotification::Never(), L"nbar",
-                                      history_contents.snapshot(), features);
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                DeleteNotification::Never(), L"nbar",
+                LineSequence::ForTests({L"prompt:\"foo\\\\nbardo\""}),
+                features);
             CHECK_EQ(output.lines.size(), 1ul);
             Line& line = output.lines[0].value();
             CHECK(line.ToString() == L"foo\\nbardo");
@@ -574,11 +572,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             std::unordered_multimap<std::wstring,
                                     NonNull<std::shared_ptr<LazyString>>>
                 features;
-            MutableLineSequence history_contents;
-            history_contents.push_back(L"prompt:\"foo\\nbar\"");
-            FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(DeleteNotification::Never(), L"nbar",
-                                      history_contents.snapshot(), features);
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                DeleteNotification::Never(), L"nbar",
+                LineSequence::ForTests({L"prompt:\"foo\\nbar\""}), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"IgnoresInvalidEntries",
@@ -587,14 +583,12 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             std::unordered_multimap<std::wstring,
                                     NonNull<std::shared_ptr<LazyString>>>
                 features;
-            MutableLineSequence history_contents;
-            history_contents.push_back(L"prompt:\"foobar \\\"");
-            history_contents.push_back(L"prompt:\"foo\"");
-            history_contents.push_back(L"prompt:\"foo\n bar\"");
-            history_contents.push_back(L"prompt:\"foo \\o bar \\\"");
-            FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(DeleteNotification::Never(), L"f",
-                                      history_contents.snapshot(), features);
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                DeleteNotification::Never(), L"f",
+                LineSequence::ForTests(
+                    {L"prompt:\"foobar \\\"", L"prompt:\"foo\"",
+                     L"prompt:\"foo\n bar\"", L"prompt:\"foo \\o bar \\\""}),
+                features);
             CHECK_EQ(output.lines.size(), 1ul);
             CHECK(output.lines[0]->ToString() == L"foo");
           }},
@@ -604,22 +598,18 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             std::unordered_multimap<std::wstring,
                                     NonNull<std::shared_ptr<LazyString>>>
                 features;
-            MutableLineSequence history_contents;
-            history_contents.push_back(L"prompt:\"ls\n\"");
-            FilterSortHistorySyncOutput output =
-                FilterSortHistorySync(DeleteNotification::Never(), L"ls",
-                                      history_contents.snapshot(), features);
+            FilterSortHistorySyncOutput output = FilterSortHistorySync(
+                DeleteNotification::Never(), L"ls",
+                LineSequence::ForTests({L"prompt:\"ls\n\""}), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"HistoryWithEscapedNewLine", .callback = [] {
         std::unordered_multimap<std::wstring,
                                 NonNull<std::shared_ptr<LazyString>>>
             features;
-        MutableLineSequence history_contents;
-        history_contents.push_back(L"prompt:\"ls\\n\"");
-        FilterSortHistorySyncOutput output =
-            FilterSortHistorySync(DeleteNotification::Never(), L"ls",
-                                  history_contents.snapshot(), features);
+        FilterSortHistorySyncOutput output = FilterSortHistorySync(
+            DeleteNotification::Never(), L"ls",
+            LineSequence::ForTests({L"prompt:\"ls\\n\""}), features);
         CHECK_EQ(output.lines.size(), 0ul);
       }}});
 
@@ -754,10 +744,8 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   void InitializePromptBuffer(OpenBuffer& buffer) const {
     buffer.Set(buffer_variables::contents_type, options_.prompt_contents_type);
     buffer.ApplyToCursors(transformation::Insert(
-        {.contents_to_insert =
-             MutableLineSequence::WithLine(
-                 MakeNonNullShared<Line>(options_.initial_value))
-                 .snapshot()}));
+        {.contents_to_insert = LineSequence::WithLine(
+             MakeNonNullShared<Line>(options_.initial_value))}));
   }
 
   // status_buffer is the buffer with the contents of the prompt. tokens_future
@@ -952,42 +940,43 @@ class HistoryScrollBehavior : public ScrollBehavior {
       ReplaceContents(buffer, LineSequence());
       return;
     }
-    filtered_history_.AddListener(
-        [delta, buffer_root = buffer.NewRoot(), &buffer,
-         original_input = original_input_, prompt_state = prompt_state_,
-         previous_context =
-             previous_context_](gc::Root<OpenBuffer> history_root) {
-          std::shared_ptr<const Line> line_to_insert;
-          OpenBuffer& history = history_root.ptr().value();
-          if (history.contents().size() > LineNumberDelta(1) ||
-              !history.LineAt(LineNumber())->empty()) {
-            LineColumn position = history.position();
-            position.line = std::min(position.line.PlusHandlingOverflow(delta),
-                                     LineNumber() + history.contents().size());
-            history.set_position(position);
-            if (position.line < LineNumber(0) + history.contents().size()) {
-              prompt_state->status().set_context(history_root);
-              VisitPointer(
-                  history.CurrentLineOrNull(),
-                  [&line_to_insert](NonNull<std::shared_ptr<const Line>> line) {
-                    line_to_insert = line.get_shared();
-                  },
-                  [] {});
-            } else if (prompt_state->status().context() != previous_context) {
-              prompt_state->status().set_context(previous_context);
-              line_to_insert = original_input.get_shared();
-            }
-          }
-          MutableLineSequence contents_to_insert;
+    filtered_history_.AddListener([delta, buffer_root = buffer.NewRoot(),
+                                   &buffer, original_input = original_input_,
+                                   prompt_state = prompt_state_,
+                                   previous_context = previous_context_](
+                                      gc::Root<OpenBuffer> history_root) {
+      std::shared_ptr<const Line> line_to_insert;
+      OpenBuffer& history = history_root.ptr().value();
+      if (history.contents().size() > LineNumberDelta(1) ||
+          !history.LineAt(LineNumber())->empty()) {
+        LineColumn position = history.position();
+        position.line = std::min(position.line.PlusHandlingOverflow(delta),
+                                 LineNumber() + history.contents().size());
+        history.set_position(position);
+        if (position.line < LineNumber(0) + history.contents().size()) {
+          prompt_state->status().set_context(history_root);
           VisitPointer(
-              line_to_insert,
-              [&](NonNull<std::shared_ptr<const Line>> line) {
-                VLOG(5) << "Inserting line: " << line->ToString();
-                contents_to_insert.AppendToLine(LineNumber(), line.value());
+              history.CurrentLineOrNull(),
+              [&line_to_insert](NonNull<std::shared_ptr<const Line>> line) {
+                line_to_insert = line.get_shared();
               },
               [] {});
-          ReplaceContents(buffer, contents_to_insert.snapshot());
-        });
+        } else if (prompt_state->status().context() != previous_context) {
+          prompt_state->status().set_context(previous_context);
+          line_to_insert = original_input.get_shared();
+        }
+      }
+      LineBuilder line_builder;
+      VisitPointer(
+          line_to_insert,
+          [&](NonNull<std::shared_ptr<const Line>> line) {
+            VLOG(5) << "Inserting line: " << line->ToString();
+            line_builder.Append(LineBuilder(line.value()));
+          },
+          [] {});
+      ReplaceContents(buffer, LineSequence::WithLine(MakeNonNullShared<Line>(
+                                  std::move(line_builder).Build())));
+    });
   }
 
   static void ReplaceContents(OpenBuffer& buffer,

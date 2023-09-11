@@ -35,6 +35,11 @@ using ::operator<<;
   return LineSequence(std::move(output));
 }
 
+/* static */ LineSequence LineSequence::WithLine(
+    NonNull<std::shared_ptr<Line>> line) {
+  return LineSequence(Lines::PushBack(nullptr, std::move(line)));
+}
+
 LineSequence LineSequence::ViewRange(Range range) {
   CHECK_LE(range.begin, range.end);
   CHECK_LE(range.end.line, EndLine());
