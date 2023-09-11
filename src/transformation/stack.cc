@@ -211,9 +211,9 @@ struct ContentStats {
 };
 
 std::wstring ToString(const ContentStats& stats) {
-  return L"L:" + std::to_wstring(stats.lines) + L" W:" +
-         std::to_wstring(stats.words) + L" A:" + std::to_wstring(stats.alnums) +
-         L" C:" + std::to_wstring(stats.characters);
+  return L"🌳" + std::to_wstring(stats.lines) + L" 🍀" +
+         std::to_wstring(stats.words) + L" 🍄" + std::to_wstring(stats.alnums) +
+         L" 🌰" + std::to_wstring(stats.characters);
 }
 
 ContentStats AnalyzeContent(const LineSequence& contents) {
