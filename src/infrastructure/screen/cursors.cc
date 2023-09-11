@@ -130,6 +130,10 @@ size_t CursorsSet::current_index() const {
   return empty() ? 0 : std::distance(begin(), active());
 }
 
+bool CursorsSet::operator==(const CursorsSet& b) const {
+  return cursors_ == b.cursors_ && current_index() == b.current_index();
+}
+
 size_t TransformValue(size_t input, int delta, size_t clamp, bool is_end) {
   if (delta < 0 && input <= clamp - delta) {
     return clamp;

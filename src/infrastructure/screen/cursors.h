@@ -85,6 +85,8 @@ class CursorsSet {
 
   size_t current_index() const;
 
+  bool operator==(const CursorsSet& b) const;
+
  private:
   std::multiset<language::text::LineColumn> cursors_;
   // Must be equal to cursors_.end() iff cursors_ is empty.
