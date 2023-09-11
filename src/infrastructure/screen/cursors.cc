@@ -239,7 +239,11 @@ struct CursorsTracker::Transformation {
     }
   }
 
-  bool IsNoop() const;
+  bool IsNoop() const {
+    return line_delta == LineNumberDelta(0) &&
+           column_delta == ColumnNumberDelta(0) && line_lower_bound.IsZero() &&
+           column_lower_bound.IsZero();
+  }
 
   bool operator==(const CursorsTracker::Transformation& other);
 
@@ -386,12 +390,6 @@ class CursorsTrackerMutableLineSequenceObserver
 LineColumn CursorsTracker::position() const {
   CHECK_EQ(cursors_.count(active_set_), 1ul);
   return *cursors_.find(active_set_)->second.active();
-}
-
-bool CursorsTracker::Transformation::IsNoop() const {
-  return line_delta == LineNumberDelta(0) &&
-         column_delta == ColumnNumberDelta(0) && line_lower_bound.IsZero() &&
-         column_lower_bound.IsZero();
 }
 
 void CursorsTracker::AdjustCursors(Transformation transformation) {
