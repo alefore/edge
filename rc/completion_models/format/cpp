@@ -2,8 +2,6 @@ wl while
 sm std::move
 ct const
 lg language
-ssp std::shared_ptr
-sup std::unique_ptr
 mnns MakeNonNullShared<
 mnnu MakeNonNullUnique<
 nnu NonNull<std::unique_ptr<
@@ -16,7 +14,11 @@ vd void
 dl double
 fe false
 te true
+s std
 sg std::string
+ssp std::shared_ptr
+sup std::unique_ptr
+sv std::vector
 ws std::wstring
 nm namespace
 ot output
@@ -26,7 +28,6 @@ cn ColumnNumber
 cnd ColumnNumberDelta
 lz LazyString
 tn transformation
-s std
 b buffer
 br buffer_root
 ob OpenBuffer
