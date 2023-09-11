@@ -384,25 +384,34 @@ class State {
       []() -> futures::Value<EmptyValue> { return Past(EmptyValue()); });
 };
 
-struct KeyCommand {
-  std::wstring description = L"";
-  std::function<void(wchar_t)> handler;
-};
+class KeyCommandsMap {
+ public:
+  struct KeyCommand {
+    std::wstring description = L"";
+    std::function<void(wchar_t)> handler;
+  };
 
-using KeyCommandsMap = std::unordered_map<wchar_t, KeyCommand>;
-
-void InsertIf(KeyCommandsMap& cmap, wchar_t c, bool condition,
-              KeyCommand command) {
-  if (condition) cmap[c] = std::move(command);
-}
-
-bool Execute(const KeyCommandsMap& cmap, wchar_t c) {
-  if (auto it = cmap.find(c); it != cmap.end()) {
-    it->second.handler(c);
-    return true;
+  void Insert(wchar_t c, KeyCommand command) {
+    table_.insert({c, std::move(command)});
   }
-  return false;
-}
+
+  void InsertIf(wchar_t c, bool condition, KeyCommand command) {
+    if (condition) Insert(c, std::move(command));
+  }
+
+  void Erase(wchar_t c) { table_.erase(c); }
+
+  bool Execute(wchar_t c) const {
+    if (auto it = table_.find(c); it != table_.end()) {
+      it->second.handler(c);
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  std::unordered_map<wchar_t, KeyCommand> table_;
+};
 
 void CheckStructureChar(KeyCommandsMap& cmap,
                         std::optional<Structure>* structure,
@@ -413,16 +422,17 @@ void CheckStructureChar(KeyCommandsMap& cmap,
   auto add_key = [&](wchar_t c, Structure selected_structure) {
     LOG(INFO) << "Add key: " << selected_structure;
     if (*structure == std::nullopt)
-      cmap[c] = {
-          .handler = [structure, repetitions, selected_structure](wchar_t) {
+      cmap.Insert(
+          c, {.handler = [structure, repetitions, selected_structure](wchar_t) {
             LOG(INFO) << "Running, storing: " << selected_structure;
             *structure = selected_structure;
             if (repetitions->get() == 0) {
               repetitions->sum(1);
             }
-          }};
+          }});
     else if (selected_structure == *structure)
-      cmap[c] = {.handler = [repetitions](wchar_t) { repetitions->sum(1); }};
+      cmap.Insert(c,
+                  {.handler = [repetitions](wchar_t) { repetitions->sum(1); }});
   };
 
   add_key(L'z', Structure::kChar);
@@ -438,32 +448,32 @@ void CheckStructureChar(KeyCommandsMap& cmap,
 
 void CheckIncrementsChar(KeyCommandsMap& cmap,
                          CommandArgumentRepetitions* output) {
-  cmap.insert({L'h', {.handler = [output](wchar_t) { output->sum(-1); }}});
-  cmap.insert({L'l', {.handler = [output](wchar_t) { output->sum(1); }}});
+  cmap.Insert(L'h', {.handler = [output](wchar_t) { output->sum(-1); }});
+  cmap.Insert(L'l', {.handler = [output](wchar_t) { output->sum(1); }});
 }
 
 void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
-  InsertIf(cmap, !output->empty(), Terminal::BACKSPACE,
-           {.handler = [output](wchar_t) { output->PopValue(); }});
+  cmap.InsertIf(Terminal::BACKSPACE, !output->empty(),
+                {.handler = [output](wchar_t) { output->PopValue(); }});
   for (int i = 0; i < 10; i++)
-    cmap.insert(
-        {L'0' + i, {.handler = [output, i](wchar_t) { output->factor(i); }}});
+    cmap.Insert(L'0' + i,
+                {.handler = [output, i](wchar_t) { output->factor(i); }});
 }
 
 bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
   KeyCommandsMap cmap;
   if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
-    InsertIf(cmap, L'H',
-             !output->repetitions.empty() &&
-                 output->repetitions.get_list().back() < 0,
-             {.handler = [state](wchar_t) {
-               state->Push(
-                   CommandReachBisect{.structure = Structure::kChar,
-                                      .directions = {Direction::kBackwards}});
-             }});
-    InsertIf(
-        cmap, L'L',
+    cmap.InsertIf(L'H',
+                  !output->repetitions.empty() &&
+                      output->repetitions.get_list().back() < 0,
+                  {.handler = [state](wchar_t) {
+                    state->Push(CommandReachBisect{
+                        .structure = Structure::kChar,
+                        .directions = {Direction::kBackwards}});
+                  }});
+    cmap.InsertIf(
+        L'L',
         !output->repetitions.empty() &&
             output->repetitions.get_list().back() > 0,
         {.handler = [state](wchar_t) {
@@ -473,16 +483,16 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
   }
 
   if (output->structure == Structure::kLine) {
-    InsertIf(cmap, L'K',
-             !output->repetitions.empty() &&
-                 output->repetitions.get_list().back() < 0,
-             {.handler = [state](wchar_t) {
-               state->Push(
-                   CommandReachBisect{.structure = Structure::kLine,
-                                      .directions = {Direction::kBackwards}});
-             }});
-    InsertIf(
-        cmap, L'J',
+    cmap.InsertIf(L'K',
+                  !output->repetitions.empty() &&
+                      output->repetitions.get_list().back() < 0,
+                  {.handler = [state](wchar_t) {
+                    state->Push(CommandReachBisect{
+                        .structure = Structure::kLine,
+                        .directions = {Direction::kBackwards}});
+                  }});
+    cmap.InsertIf(
+        L'J',
         !output->repetitions.empty() &&
             output->repetitions.get_list().back() > 0,
         {.handler = [state](wchar_t) {
@@ -494,7 +504,7 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
   CheckRepetitionsChar(cmap, &output->repetitions);
-  if (Execute(cmap, c)) {
+  if (cmap.Execute(c)) {
     if (output->structure == std::nullopt) output->structure = Structure::kChar;
     return true;
   }
@@ -504,31 +514,32 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
 
 bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
   KeyCommandsMap cmap;
-  CheckStructureChar(cmap, &output->structure, &output->repetitions);
-
   if (output->structure == Structure::kLine) {
-    KeyCommand handler = {.handler = [output](wchar_t t) {
+    KeyCommandsMap::KeyCommand handler = {.handler = [output](wchar_t t) {
       int delta = t == L'j' ? 1 : -1;
       if (output->direction == Direction::kBackwards) {
         delta *= -1;
       }
       output->repetitions.sum(delta);
     }};
-    cmap.insert({L'j', handler});
-    cmap.insert({L'k', handler});
+    cmap.Insert(L'j', handler);
+    cmap.Insert(L'k', handler);
   }
+
+  CheckStructureChar(cmap, &output->structure, &output->repetitions);
+
+  CheckIncrementsChar(cmap, &output->repetitions);
+  CheckRepetitionsChar(cmap, &output->repetitions);
 
   if (output->structure.value_or(Structure::kChar) == Structure::kChar ||
       output->structure == Structure::kLine) {
     // Don't let CheckRepetitionsChar below handle these; we'd rather preserve
     // the usual meaning (of scrolling by a character).
-    cmap.erase(L'h');
-    cmap.erase(L'l');
+    cmap.Erase(L'h');
+    cmap.Erase(L'l');
   }
 
-  CheckIncrementsChar(cmap, &output->repetitions);
-  CheckRepetitionsChar(cmap, &output->repetitions);
-  return Execute(cmap, c);
+  return cmap.Execute(c);
 }
 
 bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
@@ -553,22 +564,21 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
 
   KeyCommandsMap cmap;
   CheckRepetitionsChar(cmap, &output->repetitions);
-  cmap.insert(
-      {L'j', {.handler = [output](wchar_t) { output->repetitions.sum(1); }}});
-  cmap.insert(
-      {L'k', {.handler = [output](wchar_t) { output->repetitions.sum(-1); }}});
-  return Execute(cmap, c);
+  cmap.Insert(L'j',
+              {.handler = [output](wchar_t) { output->repetitions.sum(1); }});
+  cmap.Insert(L'k',
+              {.handler = [output](wchar_t) { output->repetitions.sum(-1); }});
+  return cmap.Execute(c);
 }
 
 bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
   KeyCommandsMap cmap;
   CheckRepetitionsChar(cmap, &output->repetitions);
-  cmap.insert({Terminal::PAGE_DOWN,
-               {.handler = [output](wchar_t) { output->repetitions.sum(1); }}});
-  cmap.insert({Terminal::PAGE_UP, {.handler = [output](wchar_t) {
-                 output->repetitions.sum(-1);
-               }}});
-  return Execute(cmap, c);
+  cmap.Insert(Terminal::PAGE_DOWN,
+              {.handler = [output](wchar_t) { output->repetitions.sum(1); }});
+  cmap.Insert(Terminal::PAGE_UP,
+              {.handler = [output](wchar_t) { output->repetitions.sum(-1); }});
+  return cmap.Execute(c);
 }
 
 bool ReceiveInput(CommandReachQuery* output, wint_t c, State*) {
@@ -586,36 +596,30 @@ bool ReceiveInput(CommandReachQuery* output, wint_t c, State*) {
 }
 
 bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
-  switch (static_cast<int>(c)) {
-    case Terminal::BACKSPACE:
-      if (output->directions.empty()) return false;
-      output->directions.pop_back();
-      return true;
-  }
+  KeyCommandsMap cmap;
+
+  cmap.InsertIf(
+      Terminal::BACKSPACE, !output->directions.empty(),
+      {.handler = [output](wchar_t) { return output->directions.pop_back(); }});
 
   if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
-    switch (static_cast<int>(c)) {
-      case L'h':
-        output->directions.push_back(Direction::kBackwards);
-        return true;
-      case L'l':
-        output->directions.push_back(Direction::kForwards);
-        return true;
-    }
-    return false;
+    cmap.Insert(L'h', {.handler = [output](wchar_t) {
+                  output->directions.push_back(Direction::kBackwards);
+                }});
+    cmap.Insert(L'l', {.handler = [output](wchar_t) {
+                  output->directions.push_back(Direction::kForwards);
+                }});
   }
   if (output->structure == Structure::kLine) {
-    switch (static_cast<int>(c)) {
-      case L'k':
-        output->directions.push_back(Direction::kBackwards);
-        return true;
-      case L'j':
-        output->directions.push_back(Direction::kForwards);
-        return true;
-    }
-    return false;
+    cmap.Insert(L'k', {.handler = [output](wchar_t) {
+                  output->directions.push_back(Direction::kBackwards);
+                }});
+    cmap.Insert(L'j', {.handler = [output](wchar_t) {
+                  output->directions.push_back(Direction::kForwards);
+                }});
   }
-  return false;
+
+  return cmap.Execute(c);
 }
 
 bool ReceiveInput(CommandSetShell* output, wint_t c, State*) {
