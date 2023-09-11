@@ -208,7 +208,7 @@ struct CursorsTracker::Transformation {
     return position;
   }
 
-  language::text::Range OutputOf() const;
+  language::text::Range OutputOf() const { return TransformRange(range); }
 
   void AdjustCursorsSet(CursorsSet* cursors_set) const;
   bool IsNoop() const;
@@ -239,10 +239,6 @@ struct CursorsTracker::Transformation {
   language::lazy_string::ColumnNumber column_lower_bound =
       language::lazy_string::ColumnNumber();
 };
-
-Range CursorsTracker::Transformation::OutputOf() const {
-  return TransformRange(range);
-}
 
 struct CursorsTracker::ExtendedTransformation {
   ExtendedTransformation(CursorsTracker::Transformation input_transformation,
