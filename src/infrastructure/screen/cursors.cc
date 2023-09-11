@@ -250,8 +250,21 @@ Range CursorsTracker::Transformation::OutputOf() const {
 }
 
 struct CursorsTracker::ExtendedTransformation {
-  ExtendedTransformation(CursorsTracker::Transformation transformation,
-                         ExtendedTransformation* previous);
+  ExtendedTransformation(CursorsTracker::Transformation input_transformation,
+                         ExtendedTransformation* previous)
+      : transformation(std::move(input_transformation)) {
+    if (transformation.line_delta > LineNumberDelta(0)) {
+      empty.begin = transformation.range.begin;
+      empty.end = std::min(
+          transformation.range.end,
+          LineColumn(
+              transformation.range.begin.line + transformation.line_delta,
+              transformation.range.begin.column + transformation.column_delta));
+    }
+    if (previous != nullptr) {
+      owned = previous->empty.Intersection(transformation.OutputOf());
+    }
+  }
 
   std::wstring ToString();
 
@@ -265,23 +278,6 @@ struct CursorsTracker::ExtendedTransformation {
   // transformation.
   language::text::Range owned;
 };
-
-CursorsTracker::ExtendedTransformation::ExtendedTransformation(
-    CursorsTracker::Transformation input_transformation,
-    ExtendedTransformation* previous)
-    : transformation(std::move(input_transformation)) {
-  if (transformation.line_delta > LineNumberDelta(0)) {
-    empty.begin = transformation.range.begin;
-    empty.end = std::min(
-        transformation.range.end,
-        LineColumn(
-            transformation.range.begin.line + transformation.line_delta,
-            transformation.range.begin.column + transformation.column_delta));
-  }
-  if (previous != nullptr) {
-    owned = previous->empty.Intersection(transformation.OutputOf());
-  }
-}
 
 std::wstring CursorsTracker::ExtendedTransformation::ToString() {
   // TODO: Implement.
