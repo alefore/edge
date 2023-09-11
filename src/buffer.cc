@@ -309,29 +309,32 @@ class OpenBufferMutableLineSequenceObserver
 
   void InsertedCharacter(LineColumn) override { Notify(); }
 
-  void Notify() {
+  void Notify(bool update_disk_state = true) {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
     root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
         .callback = WeakPtrLockingObserver(buffer_, [](OpenBuffer& buffer) {
           buffer.MaybeStartUpdatingSyntaxTrees();
         })});
-    root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
-    if (root_this->ptr()->Read(buffer_variables::persist_state)) {
-      switch (root_this->ptr()->backup_state_) {
-        case OpenBuffer::DiskState::kCurrent: {
-          root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
-          auto flush_backup_time = Now();
-          flush_backup_time.tv_sec += 30;
-          root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
-              .time = flush_backup_time,
-              .callback = [root_this] { root_this->ptr()->UpdateBackup(); }});
-        } break;
+    if (update_disk_state) {
+      root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
+      if (root_this->ptr()->Read(buffer_variables::persist_state)) {
+        switch (root_this->ptr()->backup_state_) {
+          case OpenBuffer::DiskState::kCurrent: {
+            root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
+            auto flush_backup_time = Now();
+            flush_backup_time.tv_sec += 30;
+            root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
+                .time = flush_backup_time,
+                .callback = [root_this] { root_this->ptr()->UpdateBackup(); }});
+          } break;
 
-        case OpenBuffer::DiskState::kStale:
-          break;  // Nothing.
+          case OpenBuffer::DiskState::kStale:
+            break;  // Nothing.
+        }
       }
     }
+
     root_this->ptr()->UpdateLastAction();
   }
 
@@ -614,7 +617,7 @@ void OpenBuffer::EndOfFile() {
   editor().line_marks().RemoveExpiredMarksFromSource(name());
 
   end_of_file_observers_.Notify();
-  contents_observer_->Notify();
+  contents_observer_->Notify(false);
 
   if (Read(buffer_variables::reload_after_exit)) {
     Set(buffer_variables::reload_after_exit,
