@@ -2086,7 +2086,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                  GetURLsForCurrentPosition(*this)),
              [adjusted_position, data, remote_url_behavior](const URL& url) {
                auto& editor = data->source.ptr()->editor();
-               VLOG(5) << "Checking URL: " << url.ToString();
+               VLOG(5) << "Checking URL: " << url.ToString().value();
                if (url.schema().value_or(URL::Schema::kFile) !=
                    URL::Schema::kFile) {
                  switch (remote_url_behavior) {
@@ -2096,19 +2096,23 @@ OpenBuffer::OpenBufferForCurrentPosition(
                      editor.work_queue()->Schedule(WorkQueue::Callback{
                          .time = AddSeconds(Now(), 1.0),
                          .callback =
-                             [status_expiration = std::shared_ptr<
-                                  StatusExpirationControl>(
-                                  editor.status().SetExpiringInformationText(
-                                      Append(NewLazyString(L"Open: "),
-                                             NewLazyString(url.ToString()))))] {
-                             }});
-                     ForkCommand(editor,
-                                 ForkCommandOptions{
-                                     .command = L"xdg-open " +
-                                                ShellEscape(url.ToString()),
-                                     .insertion_type =
-                                         BuffersList::AddBufferType::kIgnore,
-                                 });
+                             [status_expiration =
+                                  std::shared_ptr<StatusExpirationControl>(
+                                      editor.status()
+                                          .SetExpiringInformationText(
+                                              Append(NewLazyString(L"Open: "),
+                                                     url.ToString())))] {}});
+                     // TODO(easy, 2023-09-11): Extend ShellEscape to work with
+                     // LazyString and avoid conversion to std::wstring from the
+                     // URL's LazyString.
+                     ForkCommand(
+                         editor,
+                         ForkCommandOptions{
+                             .command = L"xdg-open " +
+                                        ShellEscape(url.ToString()->ToString()),
+                             .insertion_type =
+                                 BuffersList::AddBufferType::kIgnore,
+                         });
                  }
                  return futures::Past(futures::IterationControlCommand::kStop);
                }

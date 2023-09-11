@@ -4,6 +4,8 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/lazy_string.h"
+#include "src/language/safe_types.h"
 
 namespace afc::editor {
 
@@ -23,7 +25,8 @@ class URL {
 
   language::ValueOrError<infrastructure::Path> GetLocalFilePath() const;
 
-  std::wstring ToString() const;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  ToString() const;
 
  private:
   ValueType value_;

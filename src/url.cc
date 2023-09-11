@@ -3,12 +3,16 @@
 #include <string>
 
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
 using infrastructure::Path;
 using language::Error;
+using language::NonNull;
 using language::ValueOrError;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 
 /* static */
 URL URL::FromPath(Path path) { return URL(L"file:" + path.read()); }
@@ -77,5 +81,7 @@ const bool get_local_file_path_tests_registration = tests::Register(
       }}});
 }
 
-std::wstring URL::ToString() const { return value_; }
+NonNull<std::shared_ptr<LazyString>> URL::ToString() const {
+  return NewLazyString(value_);
+}
 }  // namespace afc::editor
