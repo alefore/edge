@@ -125,6 +125,9 @@ class NewLineTransformation : public CompositeTransformation {
   }
 };
 
+// TODO(trivial, 2023-09-11): Add tests for NewLineTransformation validating
+// all our expectations. E.g., that cursors after the line move as expected.
+
 class InsertEmptyLineTransformation : public CompositeTransformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
