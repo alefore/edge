@@ -266,7 +266,12 @@ struct CursorsTracker::ExtendedTransformation {
     }
   }
 
-  std::wstring ToString();
+  std::wstring ToString() {
+    // TODO: Implement.
+    return L"[transformation]";
+    // return L"[Transformation: " + transformation + L", empty: " + empty
+    //        << ", owned: " + owned + "]";
+  }
 
   CursorsTracker::Transformation transformation;
 
@@ -278,13 +283,6 @@ struct CursorsTracker::ExtendedTransformation {
   // transformation.
   language::text::Range owned;
 };
-
-std::wstring CursorsTracker::ExtendedTransformation::ToString() {
-  // TODO: Implement.
-  return L"[transformation]";
-  // return L"[Transformation: " + transformation + L", empty: " + empty
-  //        << ", owned: " + owned + "]";
-}
 
 CursorsTracker::CursorsTracker() : active_set_(L"") {
   cursors_[active_set_].insert(LineColumn());
