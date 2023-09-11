@@ -391,9 +391,13 @@ struct KeyCommand {
 
 using KeyCommandsMap = std::unordered_map<wchar_t, KeyCommand>;
 
+void InsertIf(KeyCommandsMap& cmap, wchar_t c, bool condition,
+              KeyCommand command) {
+  if (condition) cmap[c] = std::move(command);
+}
+
 bool Execute(const KeyCommandsMap& cmap, wchar_t c) {
   if (auto it = cmap.find(c); it != cmap.end()) {
-    LOG(INFO) << "XXXX: Found handler.";
     it->second.handler(c);
     return true;
   }
@@ -440,59 +444,53 @@ void CheckIncrementsChar(KeyCommandsMap& cmap,
 
 void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
-  if (!output.empty())
-    cmap.insert({Terminal::BACKSPACE,
-                 {.handler = [output](wchar_t) { output->PopValue(); }}});
+  InsertIf(cmap, !output->empty(), Terminal::BACKSPACE,
+           {.handler = [output](wchar_t) { output->PopValue(); }});
   for (int i = 0; i < 10; i++)
     cmap.insert(
         {L'0' + i, {.handler = [output, i](wchar_t) { output->factor(i); }}});
 }
 
 bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
+  KeyCommandsMap cmap;
   if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
-    switch (c) {
-      case L'H':
-        if (!output->repetitions.empty() &&
-            output->repetitions.get_list().back() < 0) {
-          state->Push(
-              CommandReachBisect{.structure = Structure::kChar,
-                                 .directions = {Direction::kBackwards}});
-          return true;
-        }
-        break;
-      case L'L':
-        if (!output->repetitions.empty() &&
-            output->repetitions.get_list().back() > 0) {
+    InsertIf(cmap, L'H',
+             !output->repetitions.empty() &&
+                 output->repetitions.get_list().back() < 0,
+             {.handler = [state](wchar_t) {
+               state->Push(
+                   CommandReachBisect{.structure = Structure::kChar,
+                                      .directions = {Direction::kBackwards}});
+             }});
+    InsertIf(
+        cmap, L'L',
+        !output->repetitions.empty() &&
+            output->repetitions.get_list().back() > 0,
+        {.handler = [state](wchar_t) {
           state->Push(CommandReachBisect{.structure = Structure::kChar,
                                          .directions = {Direction::kForwards}});
-          return true;
-        }
-        break;
-    }
-  }
-  if (output->structure == Structure::kLine) {
-    switch (c) {
-      case L'K':
-        if (!output->repetitions.empty() &&
-            output->repetitions.get_list().back() < 0) {
-          state->Push(
-              CommandReachBisect{.structure = Structure::kLine,
-                                 .directions = {Direction::kBackwards}});
-          return true;
-        }
-        break;
-      case L'J':
-        if (!output->repetitions.empty() &&
-            output->repetitions.get_list().back() > 0) {
-          state->Push(CommandReachBisect{.structure = Structure::kLine,
-                                         .directions = {Direction::kForwards}});
-          return true;
-        }
-        break;
-    }
+        }});
   }
 
-  KeyCommandsMap cmap;
+  if (output->structure == Structure::kLine) {
+    InsertIf(cmap, L'K',
+             !output->repetitions.empty() &&
+                 output->repetitions.get_list().back() < 0,
+             {.handler = [state](wchar_t) {
+               state->Push(
+                   CommandReachBisect{.structure = Structure::kLine,
+                                      .directions = {Direction::kBackwards}});
+             }});
+    InsertIf(
+        cmap, L'J',
+        !output->repetitions.empty() &&
+            output->repetitions.get_list().back() > 0,
+        {.handler = [state](wchar_t) {
+          state->Push(CommandReachBisect{.structure = Structure::kLine,
+                                         .directions = {Direction::kForwards}});
+        }});
+  }
+
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
   CheckRepetitionsChar(cmap, &output->repetitions);
@@ -504,37 +502,30 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
   return false;
 }
 
-bool ReceiveInput(CommandReachBegin* output, wint_t c, State* state) {
-  if (output->structure == Structure::kLine) {
-    switch (c) {
-      case 'j':
-      case 'k': {
-        int delta = c == L'j' ? 1 : -1;
-        if (output->direction == Direction::kBackwards) {
-          delta *= -1;
-        }
-        output->repetitions.sum(delta);
-      }
-        return true;
-      case 'h':
-      case 'l':
-        // Don't let CheckRepetitionsChar below handle these; we'd rather
-        // preserve the usual meaning (of scrolling by a character).
-        return false;
-    }
-  }
-  if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
-    switch (c) {
-      case 'h':
-      case 'l':
-        // Don't let CheckRepetitionsChar below handle these; we'd rather
-        // preserve the usual meaning (of scrolling by a character).
-        return false;
-    }
-  }
-
+bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
   KeyCommandsMap cmap;
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
+
+  if (output->structure == Structure::kLine) {
+    KeyCommand handler = {.handler = [output](wchar_t t) {
+      int delta = t == L'j' ? 1 : -1;
+      if (output->direction == Direction::kBackwards) {
+        delta *= -1;
+      }
+      output->repetitions.sum(delta);
+    }};
+    cmap.insert({L'j', handler});
+    cmap.insert({L'k', handler});
+  }
+
+  if (output->structure.value_or(Structure::kChar) == Structure::kChar ||
+      output->structure == Structure::kLine) {
+    // Don't let CheckRepetitionsChar below handle these; we'd rather preserve
+    // the usual meaning (of scrolling by a character).
+    cmap.erase(L'h');
+    cmap.erase(L'l');
+  }
+
   CheckIncrementsChar(cmap, &output->repetitions);
   CheckRepetitionsChar(cmap, &output->repetitions);
   return Execute(cmap, c);
@@ -562,33 +553,22 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
 
   KeyCommandsMap cmap;
   CheckRepetitionsChar(cmap, &output->repetitions);
-  if (Execute(cmap, c)) return true;
-
-  switch (static_cast<int>(c)) {
-    case L'j':
-      output->repetitions.sum(1);
-      return true;
-    case L'k':
-      output->repetitions.sum(-1);
-      return true;
-  }
-  return false;
+  cmap.insert(
+      {L'j', {.handler = [output](wchar_t) { output->repetitions.sum(1); }}});
+  cmap.insert(
+      {L'k', {.handler = [output](wchar_t) { output->repetitions.sum(-1); }}});
+  return Execute(cmap, c);
 }
 
 bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
   KeyCommandsMap cmap;
   CheckRepetitionsChar(cmap, &output->repetitions);
-  if (Execute(cmap, c)) return true;
-
-  switch (static_cast<int>(c)) {
-    case Terminal::PAGE_DOWN:
-      output->repetitions.sum(1);
-      return true;
-    case Terminal::PAGE_UP:
-      output->repetitions.sum(-1);
-      return true;
-  }
-  return false;
+  cmap.insert({Terminal::PAGE_DOWN,
+               {.handler = [output](wchar_t) { output->repetitions.sum(1); }}});
+  cmap.insert({Terminal::PAGE_UP, {.handler = [output](wchar_t) {
+                 output->repetitions.sum(-1);
+               }}});
+  return Execute(cmap, c);
 }
 
 bool ReceiveInput(CommandReachQuery* output, wint_t c, State*) {
