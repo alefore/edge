@@ -114,12 +114,12 @@ Status::Type Status::GetType() const {
   return data_->type;
 }
 
-void Status::set_prompt(std::wstring text, gc::Root<OpenBuffer> buffer) {
+void Status::set_prompt(NonNull<std::shared_ptr<LazyString>> text,
+                        gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
-  // TODO(easy, 2023-09-11): Avoid call to NewLazyString.
   data_ = MakeNonNullShared<Data>(
       Data{.type = Status::Type::kPrompt,
-           .text = NewLazyString(std::move(text)),
+           .text = std::move(text),
            .prompt_buffer = std::move(buffer),
            .extra_information = std::make_unique<VersionPropertyReceiver>()});
   ValidatePreconditions();

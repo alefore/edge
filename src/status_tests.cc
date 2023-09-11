@@ -23,7 +23,7 @@ const bool prompt_tests_registration = tests::Register(
                 audio::NewNullPlayer();
             Status status(audio_player.value());
             gc::Root<OpenBuffer> prompt = NewBufferForTests();
-            status.set_prompt(L">", prompt);
+            status.set_prompt(NewLazyString(L">"), prompt);
             status.InsertError(Error(L"Foobar"));
             CHECK(status.text() == L">");
             CHECK(&status.prompt_buffer().value().ptr().value() ==
@@ -34,7 +34,7 @@ const bool prompt_tests_registration = tests::Register(
             audio::NewNullPlayer();
         Status status(audio_player.value());
         gc::Root<OpenBuffer> prompt = NewBufferForTests();
-        status.set_prompt(L">", prompt);
+        status.set_prompt(NewLazyString(L">"), prompt);
         status.SetExpiringInformationText(NewLazyString(L"Foobar"));
         CHECK(status.text() == L">");
         CHECK(&status.prompt_buffer().value().ptr().value() ==
