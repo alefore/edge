@@ -50,7 +50,8 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
           Substring(line, ColumnNumber(split + 1)))};
 }
 
-LineSequence PrepareBuffer(MutableLineSequence contents) {
+LineSequence PrepareBuffer(LineSequence input) {
+  MutableLineSequence contents(input);
   contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
                 [](const NonNull<std::shared_ptr<const Line>>& a,
                    const NonNull<std::shared_ptr<const Line>>& b) {
@@ -71,28 +72,19 @@ LineSequence PrepareBuffer(MutableLineSequence contents) {
 }
 
 LineSequence CompletionModelForTests() {
-  MutableLineSequence contents;
-  contents.push_back(L"bb baby");
-  contents.push_back(L"f fox");
-  contents.push_back(L"i i");
-  return PrepareBuffer(std::move(contents));
+  return PrepareBuffer(
+      LineSequence::ForTests({L"", L"bb baby", L"f fox", L"i i"}));
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
     L"CompletionModelManager::PrepareBuffer",
     {{.name = L"EmptyBuffer",
       .callback =
-          [] {
-            CHECK(PrepareBuffer(MutableLineSequence()).ToString() == L"");
-          }},
+          [] { CHECK(PrepareBuffer(LineSequence()).ToString() == L""); }},
      {.name = L"UnsortedBuffer", .callback = [] {
-        MutableLineSequence contents;
-        contents.push_back(MakeNonNullShared<Line>(L"f fox"));
-        contents.push_back(MakeNonNullShared<Line>(L""));
-        contents.push_back(MakeNonNullShared<Line>(L""));
-        contents.push_back(MakeNonNullShared<Line>(L"b baby"));
-        contents.push_back(MakeNonNullShared<Line>(L""));
-        CHECK(contents.snapshot().ToString() == L"\nf fox\n\n\nb baby\n");
+        LineSequence contents =
+            LineSequence::ForTests({L"", L"f fox", L"", L"", L"b baby", L""});
+        CHECK(contents.ToString() == L"\nf fox\n\n\nb baby\n");
         std::wstring result = PrepareBuffer(std::move(contents)).ToString();
         LOG(INFO) << "Result: [" << result << "]";
         CHECK(result == L"b baby\nf fox");
@@ -219,12 +211,9 @@ CompletionModelManager::FindCompletionWithIndex(
           return it->second;
         auto output =
             locked_data.models
-                .insert({path,
-                         futures::ListenableValue(buffer_loader(path).Transform(
-                             [](LineSequence buffer) {
-                               return PrepareBuffer(
-                                   MutableLineSequence(std::move(buffer)));
-                             }))})
+                .insert(
+                    {path, futures::ListenableValue(
+                               buffer_loader(path).Transform(PrepareBuffer))})
                 .first->second;
         // TODO(P2, 2023-09-08, RaceCondition): There's a race here where output
         // may get a value after this check but before the execution of
