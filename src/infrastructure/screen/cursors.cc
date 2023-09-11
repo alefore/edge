@@ -190,8 +190,17 @@ struct CursorsTracker::Transformation {
       const language::text::LineColumn& position) const;
   language::text::Range TransformRange(
       const language::text::Range& input) const;
-  language::text::LineColumn TransformLineColumn(
-      language::text::LineColumn position, bool is_end) const;
+  language::text::LineColumn TransformLineColumn(LineColumn position,
+                                                 bool is_end) const {
+    position.line =
+        LineNumber(TransformValue(position.line.read(), line_delta.read(),
+                                  line_lower_bound.read(), is_end));
+    position.column =
+        ColumnNumber(TransformValue(position.column.read(), column_delta.read(),
+                                    column_lower_bound.read(), is_end));
+    return position;
+  }
+
   language::text::Range OutputOf() const;
 
   void AdjustCursorsSet(CursorsSet* cursors_set) const;
@@ -223,17 +232,6 @@ struct CursorsTracker::Transformation {
   language::lazy_string::ColumnNumber column_lower_bound =
       language::lazy_string::ColumnNumber();
 };
-
-LineColumn CursorsTracker::Transformation::TransformLineColumn(
-    LineColumn position, bool is_end) const {
-  position.line =
-      LineNumber(TransformValue(position.line.read(), line_delta.read(),
-                                line_lower_bound.read(), is_end));
-  position.column =
-      ColumnNumber(TransformValue(position.column.read(), column_delta.read(),
-                                  column_lower_bound.read(), is_end));
-  return position;
-}
 
 Range CursorsTracker::Transformation::TransformRange(const Range& input) const {
   return Range(TransformLineColumn(input.begin, false),
