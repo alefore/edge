@@ -24,6 +24,7 @@ using language::MakeNonNullShared;
 using language::NonNull;
 using language::overload;
 using language::VisitPointer;
+using language::lazy_string::EmptyString;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
@@ -115,9 +116,10 @@ Status::Type Status::GetType() const {
 
 void Status::set_prompt(std::wstring text, gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
+  // TODO(easy, 2023-09-11): Avoid call to NewLazyString.
   data_ = MakeNonNullShared<Data>(
       Data{.type = Status::Type::kPrompt,
-           .text = std::move(text),
+           .text = NewLazyString(std::move(text)),
            .prompt_buffer = std::move(buffer),
            .extra_information = std::make_unique<VersionPropertyReceiver>()});
   ValidatePreconditions();
@@ -199,9 +201,8 @@ void Status::SetInformationText(NonNull<std::shared_ptr<LazyString>> text) {
   if (data_->prompt_buffer.has_value()) {
     return;
   }
-  // TODO(easy, 2023-09-08): Avoid call to ToString.
   data_ = MakeNonNullShared<Data>(
-      Data{.type = Type::kInformation, .text = text->ToString()});
+      Data{.type = Type::kInformation, .text = std::move(text)});
   ValidatePreconditions();
 }
 
@@ -226,7 +227,7 @@ Status::SetExpiringInformationText(NonNull<std::shared_ptr<LazyString>> text) {
         VisitPointer(
             status_expiration_control->data,
             [](NonNull<std::shared_ptr<Status::Data>> data) {
-              data->text = L"";
+              data->text = EmptyString();
             },
             [] {});
         delete status_expiration_control;
@@ -241,8 +242,8 @@ void Status::Set(Error error) {
   if (data_->prompt_buffer.has_value()) {
     return;
   }
-  data_ = MakeNonNullShared<Data>(
-      Data{.type = Type::kWarning, .text = std::move(error.read())});
+  data_ = MakeNonNullShared<Data>(Data{
+      .type = Type::kWarning, .text = NewLazyString(std::move(error.read()))});
   ValidatePreconditions();
 }
 
@@ -265,7 +266,8 @@ void Status::Reset() {
 
 void Status::Bell() {
   ValidatePreconditions();
-  auto text = data_->text;
+  // TODO(easy, 2023-09-11): Avoid call to ToString.
+  std::wstring text = data_->text->ToString();
   if (!all_of(text.begin(), text.end(), [](const wchar_t& c) {
         return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' || c == L'𝄞';
       })) {
@@ -276,9 +278,10 @@ void Status::Bell() {
   text += +L" " + std::wstring(text.back() == L'♪' ? L"♫" : L"♪");
 }
 
-const std::wstring& Status::text() const {
+std::wstring Status::text() const {
   ValidatePreconditions();
-  return data_->text;
+  // TODO(easy, 2023-09-11): Avoid call to ToString.
+  return data_->text->ToString();
 }
 
 void Status::ValidatePreconditions() const {

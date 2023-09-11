@@ -100,7 +100,7 @@ class Status {
 
   void Bell();
 
-  const std::wstring& text() const;
+  std::wstring text() const;
 
  private:
   friend StatusExpirationControl;
@@ -116,7 +116,9 @@ class Status {
     const struct timespec creation_time = infrastructure::Now();
 
     const Type type = Type::kInformation;
-    std::wstring text;
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> text =
+        language::lazy_string::EmptyString();
+
     const std::optional<language::gc::Root<OpenBuffer>> prompt_buffer =
         std::nullopt;
 
