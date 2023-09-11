@@ -1,6 +1,7 @@
 #include "src/completion_model.h"
 
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/text/mutable_line_sequence.h"
@@ -17,8 +18,10 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language ::overload;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
 using afc::language ::lazy_string::LowerCase;
 using afc::language::lazy_string::NewLazyString;
@@ -41,14 +44,17 @@ struct ParsedLine {
 };
 
 ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
-  // TODO(easy, 2023-09-07): Avoid call to ToString.
-  size_t split = line->ToString().find_first_of(L" ");
-  if (split == std::wstring::npos) return Error(L"No space found.");
-  return ParsedLine{
-      .compressed_text = CompletionModelManager::CompressedText(
-          Substring(line, ColumnNumber(), ColumnNumberDelta(split))),
-      .text = CompletionModelManager::Text(
-          Substring(line, ColumnNumber(split + 1)))};
+  return VisitOptional(
+      [&line](ColumnNumber first_space) -> ValueOrError<ParsedLine> {
+        return ParsedLine{
+            .compressed_text = CompletionModelManager::CompressedText(
+                Substring(line, ColumnNumber(), first_space.ToDelta())),
+            .text = CompletionModelManager::Text(
+                Substring(line, first_space + ColumnNumberDelta(1)))};
+      },
+      [] { return ValueOrError<ParsedLine>(Error(L"No space found.")); },
+      FindFirstColumnWithPredicate(
+          line.value(), [](ColumnNumber, wchar_t c) { return c == L' '; }));
 }
 
 LineSequence PrepareBuffer(LineSequence input) {
