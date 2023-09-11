@@ -309,7 +309,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                     [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([input, output, contents](EmptyValue) {
                   if (input.mode == Input::Mode::kPreview &&
-                      input.buffer.status().text().empty() &&
+                      input.buffer.status().text()->size().IsZero() &&
                       contents.EndLine() <
                           LineNumber(input.buffer.Read(
                               buffer_variables::analyze_content_lines_limit))) {

@@ -278,10 +278,9 @@ void Status::Bell() {
   text += +L" " + std::wstring(text.back() == L'♪' ? L"♫" : L"♪");
 }
 
-std::wstring Status::text() const {
+NonNull<std::shared_ptr<LazyString>> Status::text() const {
   ValidatePreconditions();
-  // TODO(easy, 2023-09-11): Avoid call to ToString.
-  return data_->text->ToString();
+  return data_->text;
 }
 
 void Status::ValidatePreconditions() const {

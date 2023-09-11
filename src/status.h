@@ -104,7 +104,8 @@ class Status {
 
   void Bell();
 
-  std::wstring text() const;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> text()
+      const;
 
  private:
   friend StatusExpirationControl;

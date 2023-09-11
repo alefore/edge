@@ -142,7 +142,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
           NewLazyString(L"  " + OpenBuffer::FlagsToString(std::move(flags))));
     }
 
-    if (options.status.text().empty()) {
+    if (options.status.text()->size().IsZero()) {
       output.AppendString(
           NewLazyString(L"  “" + GetBufferContext(*options.buffer) + L"” "));
     }
@@ -198,7 +198,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
             : LineModifierSet());
     if (options.buffer != nullptr) {
       if (NonNull<std::shared_ptr<LazyString>> editor_status_text =
-              NewLazyString(options.buffer->editor().status().text());
+              options.buffer->editor().status().text();
           !editor_status_text->size().IsZero()) {
         output.AppendString(NewLazyString(L" 🌼 "));
         output.AppendString(editor_status_text);
@@ -242,7 +242,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   auto call = tracker.Call();
 
   const auto info_lines = options.status.GetType() == Status::Type::kPrompt ||
-                                  !options.status.text().empty() ||
+                                  !options.status.text()->size().IsZero() ||
                                   options.buffer != nullptr
                               ? LineNumberDelta(1)
                               : LineNumberDelta();

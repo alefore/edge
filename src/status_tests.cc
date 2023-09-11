@@ -25,7 +25,7 @@ const bool prompt_tests_registration = tests::Register(
             gc::Root<OpenBuffer> prompt = NewBufferForTests();
             status.set_prompt(NewLazyString(L">"), prompt);
             status.InsertError(Error(L"Foobar"));
-            CHECK(status.text() == L">");
+            CHECK(status.text()->ToString() == L">");
             CHECK(&status.prompt_buffer().value().ptr().value() ==
                   &prompt.ptr().value());
           }},
@@ -36,7 +36,7 @@ const bool prompt_tests_registration = tests::Register(
         gc::Root<OpenBuffer> prompt = NewBufferForTests();
         status.set_prompt(NewLazyString(L">"), prompt);
         status.SetExpiringInformationText(NewLazyString(L"Foobar"));
-        CHECK(status.text() == L">");
+        CHECK(status.text()->ToString() == L">");
         CHECK(&status.prompt_buffer().value().ptr().value() ==
               &prompt.ptr().value());
       }}});
