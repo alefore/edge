@@ -32,6 +32,7 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
+#include "src/tests/tests.h"
 #include "src/tokenize.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
@@ -125,8 +126,122 @@ class NewLineTransformation : public CompositeTransformation {
   }
 };
 
-// TODO(trivial, 2023-09-11): Add tests for NewLineTransformation validating
-// all our expectations. E.g., that cursors after the line move as expected.
+const bool new_line_transformation_tests_registration =
+    tests::Register(L"NewLineTransformation", [] {
+      using infrastructure::screen::CursorsSet;
+      auto expectations = MakeNonNullShared<CursorsSet>();
+      auto GetBuffer = [] {
+        gc::Root<OpenBuffer> buffer_root = NewBufferForTests();
+        OpenBuffer& buffer = buffer_root.ptr().value();
+        buffer.AppendToLastLine(NewLazyString(L"foobarhey"));
+        buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  foxbarnowl")));
+        buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  aaaaa ")));
+        buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  alejo forero ")));
+        return buffer_root;
+      };
+      auto split = [=](gc::Root<OpenBuffer>& buffer_root, LineColumn position) {
+        OpenBuffer& buffer = buffer_root.ptr().value();
+        buffer.set_position(position);
+        buffer.ApplyToCursors(MakeNonNullShared<NewLineTransformation>());
+        LOG(INFO) << "Contents: " << buffer.contents().snapshot().ToString();
+      };
+      auto string_after_split = [=](LineColumn position) {
+        auto buffer = GetBuffer();
+        split(buffer, position);
+        return buffer.ptr()->contents().snapshot().ToString();
+      };
+      auto add_cursor = [=](gc::Root<OpenBuffer>& buffer_root,
+                            LineColumn position, LineColumn expectation) {
+        OpenBuffer& buffer = buffer_root.ptr().value();
+        buffer.set_position(position);
+        buffer.CreateCursor();
+        expectations->insert(expectation);
+      };
+
+      return std::vector<tests::Test>(
+          {{.name = L"Empty",
+            .callback =
+                [=] {
+                  auto buffer_root = NewBufferForTests();
+                  split(buffer_root, LineColumn());
+                  CHECK(buffer_root.ptr()->contents().snapshot().ToString() ==
+                        L"\n");
+                }},
+           {.name = L"AtBeginning",
+            .callback =
+                [=] {
+                  CHECK(
+                      string_after_split(LineColumn()) ==
+                      L"\nfoobarhey\n  foxbarnowl\n  aaaaa \n  alejo forero ");
+                }},
+           {.name = L"MiddleFirstLine",
+            .callback =
+                [=] {
+                  CHECK(
+                      string_after_split(
+                          LineColumn(LineNumber(), ColumnNumber(3))) ==
+                      L"foo\nbarhey\n  foxbarnowl\n  aaaaa \n  alejo forero ");
+                }},
+           {.name = L"EndFirstLine",
+            .callback =
+                [=] {
+                  CHECK(
+                      string_after_split(
+                          LineColumn(LineNumber(),
+                                     ColumnNumber(sizeof("foobarhey") - 1))) ==
+                      L"foobarhey\n\n  foxbarnowl\n  aaaaa \n  alejo forero ");
+                }},
+           {.name = L"WithIndent",
+            .callback =
+                [=] {
+                  CHECK(
+                      string_after_split(LineColumn(
+                          LineNumber(1), ColumnNumber(sizeof("  fox") - 1))) ==
+                      L"foobarhey\n  fox\n  barnowl\n  aaaaa \n  alejo "
+                      L"forero ");
+                }},
+           {.name = L"WithIndentAtEnd",
+            .callback =
+                [=] {
+                  CHECK(string_after_split(LineColumn(
+                            LineNumber(1),
+                            ColumnNumber(sizeof("  foxbarnowl") - 1))) ==
+                        L"foobarhey\n  foxbarnowl\n  \n  aaaaa \n  alejo "
+                        L"forero ");
+                }},
+           {.name = L"CursorsBefore",
+            .callback =
+                [=] {
+                  auto buffer = GetBuffer();
+                  add_cursor(buffer, LineColumn(LineNumber(1), ColumnNumber(2)),
+                             LineColumn(LineNumber(1), ColumnNumber(2)));
+                  add_cursor(buffer, LineColumn(LineNumber(3), ColumnNumber(2)),
+                             LineColumn(LineNumber(3), ColumnNumber(2)));
+                  split(buffer, LineColumn(LineNumber(3), ColumnNumber(4)));
+                  expectations->set_active(expectations->insert(
+                      LineColumn(LineNumber(4), ColumnNumber(2))));
+                  for (auto& cursor : buffer.ptr()->active_cursors())
+                    LOG(INFO) << "Cursor: " << cursor;
+                  CHECK(buffer.ptr()->active_cursors() == expectations.value());
+                }},
+           {.name = L"CursorsAfter", .callback = [=] {
+              auto buffer = GetBuffer();
+              add_cursor(buffer, LineColumn(LineNumber(1), ColumnNumber(6)),
+                         LineColumn(LineNumber(2), ColumnNumber(2 + 6 - 3)));
+              add_cursor(buffer, LineColumn(LineNumber(1), ColumnNumber(13)),
+                         LineColumn(LineNumber(2), ColumnNumber(2 + 13 - 3)));
+              add_cursor(buffer, LineColumn(LineNumber(2), ColumnNumber(0)),
+                         LineColumn(LineNumber(3), ColumnNumber(0)));
+              add_cursor(buffer, LineColumn(LineNumber(2), ColumnNumber(2)),
+                         LineColumn(LineNumber(3), ColumnNumber(2)));
+              split(buffer, LineColumn(LineNumber(1), ColumnNumber(3)));
+              expectations->set_active(expectations->insert(
+                  LineColumn(LineNumber(2), ColumnNumber(2))));
+              for (auto& cursor : buffer.ptr()->active_cursors())
+                LOG(INFO) << "Cursor: " << cursor;
+              CHECK(buffer.ptr()->active_cursors() == expectations.value());
+            }}});
+    }());
 
 class InsertEmptyLineTransformation : public CompositeTransformation {
  public:
