@@ -86,9 +86,4 @@ class LineSequence {
   Lines::Ptr lines_ = Lines::PushBack(nullptr, {});
 };
 }  // namespace afc::language::text
-
-// TODO(trivial): Once we've moved customers accordingly, get rid of this
-// include. Customers of MutableLineSequence should include it directly.
-#include "src/language/text/mutable_line_sequence.h"
-
 #endif  // __AFC_LANGUAGE_TEXT_LINE_SEQUENCE_H__

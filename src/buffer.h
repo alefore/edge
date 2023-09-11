@@ -25,6 +25,7 @@
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
+#include "src/language/text/mutable_line_sequence.h"
 #include "src/line_marks.h"
 #include "src/log.h"
 #include "src/parse_tree.h"

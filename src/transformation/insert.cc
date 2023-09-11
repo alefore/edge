@@ -2,6 +2,7 @@
 
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line_column_vm.h"
+#include "src/language/text/mutable_line_sequence.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
