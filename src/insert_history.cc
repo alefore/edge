@@ -11,7 +11,6 @@ using language::text::LineSequence;
 
 using ::operator<<;
 
-// TODO(trivial, 2023-09-10): Probably should receive LineSequence.
 void InsertHistory::Append(const LineSequence& insertion) {
   if (insertion.range().IsEmpty()) return;
   VLOG(5) << "Inserting to history: " << insertion.ToString();
