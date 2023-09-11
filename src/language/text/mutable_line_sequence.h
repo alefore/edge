@@ -7,27 +7,10 @@
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
+#include "src/language/text/mutable_line_sequence_observer.h"
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::language::text {
-class MutableLineSequenceObserver {
- public:
-  virtual ~MutableLineSequenceObserver() = default;
-  virtual void LinesInserted(language::text::LineNumber position,
-                             language::text::LineNumberDelta size) = 0;
-  virtual void LinesErased(language::text::LineNumber position,
-                           language::text::LineNumberDelta size) = 0;
-  virtual void SplitLine(language::text::LineColumn position) = 0;
-  virtual void FoldedLine(language::text::LineColumn position) = 0;
-  virtual void Sorted() = 0;
-  virtual void AppendedToLine(language::text::LineColumn position) = 0;
-  virtual void DeletedCharacters(
-      language::text::LineColumn position,
-      language::lazy_string::ColumnNumberDelta amount) = 0;
-  virtual void SetCharacter(language::text::LineColumn position) = 0;
-  virtual void InsertedCharacter(language::text::LineColumn position) = 0;
-};
-
 class NullMutableLineSequenceObserver : public MutableLineSequenceObserver {
  public:
   void LinesInserted(language::text::LineNumber position,

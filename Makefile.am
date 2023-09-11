@@ -153,6 +153,8 @@ src/language/observers.h \
 src/language/observers.cc \
 src/language/observers_gc.h \
 src/language/safe_types.h \
+src/language/text/delegating_mutable_line_sequence_observer.cc \
+src/language/text/delegating_mutable_line_sequence_observer.h \
 src/language/text/line.cc \
 src/language/text/line.h \
 src/language/text/line_column.cc \
@@ -163,6 +165,7 @@ src/language/text/line_sequence.cc \
 src/language/text/line_sequence.h \
 src/language/text/mutable_line_sequence.cc \
 src/language/text/mutable_line_sequence.h \
+src/language/text/mutable_line_sequence_observer.h \
 src/language/wstring.cc \
 src/language/wstring.h \
 src/line_output.cc \
