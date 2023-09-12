@@ -392,6 +392,10 @@ class KeyCommandsMap {
     std::function<void(wchar_t)> handler;
   };
 
+  KeyCommandsMap() = default;
+  KeyCommandsMap(const KeyCommandsMap&) = delete;
+  KeyCommandsMap(KeyCommandsMap&&) = default;
+
   KeyCommandsMap& Insert(wchar_t c, KeyCommand command) {
     if (command.active) table_.insert({c, std::move(command)});
     return *this;
@@ -445,6 +449,24 @@ class KeyCommandsMap {
   std::set<wchar_t> fallback_exclusion_;
   std::function<void(wchar_t)> fallback_ = nullptr;
   std::function<void()> on_handle_ = nullptr;
+};
+
+class KeyCommandsMapSequence {
+ public:
+  bool Execute(wchar_t c) const {
+    for (const auto& cmap : sequence_) {
+      if (cmap.Execute(c)) return true;
+    }
+    return false;
+  }
+
+  KeyCommandsMapSequence& PushBack(KeyCommandsMap cmap) {
+    sequence_.push_back(std::move(cmap));
+    return *this;
+  }
+
+ private:
+  std::vector<KeyCommandsMap> sequence_;
 };
 
 void CheckStructureChar(KeyCommandsMap& cmap,
@@ -672,25 +694,26 @@ class OperationMode : public EditorMode {
         return;
     }
 
-    PushDefault();
-    KeyCommandsMap cmap;
-    std::visit([&](auto& t) { GetKeyCommandsMap(cmap, &t, &state_); },
-               state_.GetLastCommand());
-    cmap.OnHandle([this] {
-      state_.Update();
-      ShowStatus();
-    });
-    if (cmap.Execute(c)) return;
+    KeyCommandsMapSequence cmap;
 
-    KeyCommandsMap cmap_top_command;
-    ReceiveInputTopCommand(cmap_top_command, state_.top_command());
-    cmap_top_command.OnHandle([this] { ShowStatus(); });
-    if (cmap_top_command.Execute(c)) {
-      return;
-    }
+    PushDefault();
+    std::visit(
+        [&](auto& t) {
+          KeyCommandsMap cmap_default;
+          GetKeyCommandsMap(cmap_default, &t, &state_);
+          cmap_default.OnHandle([this] {
+            state_.Update();
+            ShowStatus();
+          });
+          cmap.PushBack(std::move(cmap_default));
+        },
+        state_.GetLastCommand());
+
+    cmap.PushBack(ReceiveInputTopCommand(state_.top_command()));
 
     // Unhandled character.
-    KeyCommandsMap()
+    KeyCommandsMap cmap_final;
+    cmap_final
         .Insert(Terminal::ESCAPE,
                 {.handler =
                      [&state = state_](wchar_t) {
@@ -705,13 +728,14 @@ class OperationMode : public EditorMode {
                        }
                      }})
         .SetFallback(
-            {},
-            [&state = state_, &editor_state = editor_state_](wchar_t c) {
-              state.UndoLast();  // The one we just pushed a few lines above.
+            {}, [&state = state_, &editor_state = editor_state_](wchar_t c) {
+              state.UndoLast();  // The one we just pushed a
+                                 // few lines above.
               state.Commit();
               editor_state.ProcessInput(c);
-            })
-        .Execute(c);
+            });
+
+    cmap.PushBack(std::move(cmap_final)).Execute(c);
   }
 
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
@@ -728,13 +752,14 @@ class OperationMode : public EditorMode {
   void PushCommand(Command command) { state_.Push(std::move(command)); }
 
  private:
-  void ReceiveInputTopCommand(KeyCommandsMap& cmap, TopCommand top_command) {
+  KeyCommandsMap ReceiveInputTopCommand(TopCommand top_command) {
     using PTB = transformation::Stack::PostTransformationBehavior;
     auto push = [&state = state_](Command value) {
       return KeyCommandsMap::KeyCommand{
           .handler = [&state, value](wchar_t) { state.Push(value); }};
     };
-
+    KeyCommandsMap cmap;
+    cmap.OnHandle([this] { ShowStatus(); });
     cmap.Insert(L'd', {.handler =
                            [top_command, &state = state_](wchar_t) mutable {
                              switch (top_command.post_transformation_behavior) {
@@ -837,6 +862,7 @@ class OperationMode : public EditorMode {
         .Insert(L'J',
                 push(CommandReachBegin{.structure = Structure::kLine,
                                        .direction = Direction::kBackwards}));
+    return cmap;
   }
 
   static std::wstring ToStatus(TopCommand top_command) {
