@@ -672,19 +672,19 @@ class OperationMode : public EditorMode {
 
   void ProcessInput(wint_t c) override {
     editor_state_.status().Reset();
+    KeyCommandsMapSequence cmap;
+
     if (!state_.empty()) {
-      KeyCommandsMap cmap;
-      std::visit([&](auto& t) { GetKeyCommandsMap(cmap, &t, &state_); },
+      KeyCommandsMap cmap_command;
+      std::visit([&](auto& t) { GetKeyCommandsMap(cmap_command, &t, &state_); },
                  state_.GetLastCommand());
-      if (cmap.Execute(c)) {
+      cmap_command.OnHandle([this] {
         if (state_.empty()) PushDefault();
         state_.Update();
         ShowStatus();
-        return;
-      }
+      });
+      cmap.PushBack(std::move(cmap_command));
     }
-
-    KeyCommandsMapSequence cmap;
 
     KeyCommandsMap cmap_internal;
     cmap_internal
