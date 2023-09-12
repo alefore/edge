@@ -412,25 +412,31 @@ class KeyCommandsMap {
                              std::function<void(wchar_t)> callback) {
     CHECK(fallback_ == nullptr);
     CHECK(callback != nullptr);
-    fallback_ = [exclude, callback](wchar_t t) {
-      if (exclude.find(t) != exclude.end()) return false;
-      callback(t);
-      return true;
-    };
+    fallback_exclusion_ = std::move(exclude);
+    fallback_ = std::move(callback);
     return *this;
   }
 
+  std::function<void(wchar_t)> FindCallbackOrNull(wchar_t c) const {
+    if (auto it = table_.find(c); it != table_.end()) return it->second.handler;
+    if (fallback_ != nullptr &&
+        fallback_exclusion_.find(c) == fallback_exclusion_.end())
+      return fallback_;
+    return nullptr;
+  }
+
   bool Execute(wchar_t c) const {
-    if (auto it = table_.find(c); it != table_.end()) {
-      it->second.handler(c);
+    if (auto callback = FindCallbackOrNull(c); callback != nullptr) {
+      callback(c);
       return true;
     }
-    return fallback_ != nullptr ? fallback_(c) : false;
+    return false;
   }
 
  private:
   std::unordered_map<wchar_t, KeyCommand> table_;
-  std::function<bool(wchar_t)> fallback_ = nullptr;
+  std::set<wchar_t> fallback_exclusion_;
+  std::function<void(wchar_t)> fallback_ = nullptr;
 };
 
 void CheckStructureChar(KeyCommandsMap& cmap,
