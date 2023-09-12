@@ -407,6 +407,16 @@ class KeyCommandsMap {
     return *this;
   }
 
+  template <typename Value, typename Callable>
+  KeyCommandsMap& Insert(const std::unordered_map<wchar_t, Value>& values,
+                         Callable callback) {
+    for (const auto& entry : values)
+      Insert(entry.first, {.handler = [callback, entry](wchar_t) {
+               callback(entry.second);
+             }});
+    return *this;
+  }
+
   KeyCommandsMap& Erase(wchar_t c) {
     table_.erase(c);
     return *this;
@@ -699,21 +709,21 @@ class OperationMode : public EditorMode {
                   ShowStatus();
                 }});
 
-    KeyCommandsMap& cmap_new_entry = cmap.PushNew();
-    for (const auto& entry : structure_bindings())
-      cmap_new_entry.Insert(
-          entry.first, {.handler = [this, &entry](wchar_t) {
-            state_.Push(CommandReach{.structure = entry.second});
-          }});
-    cmap_new_entry.Insert(
-        {L'h', L'l'}, {.handler = [this](wchar_t c) {
-          state_.Push(CommandReach{.structure = Structure::kChar,
-                                   .repetitions = c == L'h' ? -1 : 1});
-        }});
-    cmap_new_entry.OnHandle([this] {
-      state_.Update();
-      ShowStatus();
-    });
+    cmap.PushNew()
+        .Insert(structure_bindings(),
+                [this](Structure structure) {
+                  state_.Push(CommandReach{.structure = structure});
+                })
+        .Insert({L'h', L'l'}, {.handler =
+                                   [this](wchar_t c) {
+                                     state_.Push(CommandReach{
+                                         .structure = Structure::kChar,
+                                         .repetitions = c == L'h' ? -1 : 1});
+                                   }})
+        .OnHandle([this] {
+          state_.Update();
+          ShowStatus();
+        });
 
     cmap.PushBack(ReceiveInputTopCommand(state_.top_command()));
 
