@@ -673,22 +673,30 @@ class OperationMode : public EditorMode {
       ShowStatus();
       return;
     }
+
     // Unhandled character.
-    if (static_cast<int>(c) == Terminal::ESCAPE) {
-      if (state_.top_command().post_transformation_behavior ==
-          transformation::Stack::kNone) {
-        state_.Abort();
-      } else {
-        TopCommand top_command = state_.top_command();
-        top_command.post_transformation_behavior = transformation::Stack::kNone;
-        state_.set_top_command(std::move(top_command));
-      }
-      return;
-    }
-    state_.UndoLast();  // The one we just pushed a few lines above.
-    EditorState& editor_state = editor_state_;
-    state_.Commit();
-    editor_state.ProcessInput(c);
+    KeyCommandsMap()
+        .Insert(Terminal::ESCAPE,
+                {.handler =
+                     [&state = state_](wchar_t) {
+                       if (state.top_command().post_transformation_behavior ==
+                           transformation::Stack::kNone) {
+                         state.Abort();
+                       } else {
+                         TopCommand top_command = state.top_command();
+                         top_command.post_transformation_behavior =
+                             transformation::Stack::kNone;
+                         state.set_top_command(std::move(top_command));
+                       }
+                     }})
+        .SetFallback(
+            {},
+            [&state = state_, &editor_state = editor_state_](wchar_t c) {
+              state.UndoLast();  // The one we just pushed a few lines above.
+              state.Commit();
+              editor_state.ProcessInput(c);
+            })
+        .Execute(c);
   }
 
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
