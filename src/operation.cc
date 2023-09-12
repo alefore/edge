@@ -684,17 +684,16 @@ class OperationMode : public EditorMode {
       }
     }
 
-    switch (static_cast<int>(c)) {
-      case L'\n':
-        state_.Commit();
-        return;
-      case Terminal::BACKSPACE:
-        state_.UndoLast();
-        ShowStatus();
-        return;
-    }
-
     KeyCommandsMapSequence cmap;
+
+    KeyCommandsMap cmap_internal;
+    cmap_internal
+        .Insert(L'\n', {.handler = [this](wchar_t) { state_.Commit(); }})
+        .Insert(Terminal::BACKSPACE, {.handler = [this](wchar_t) {
+                  state_.UndoLast();
+                  ShowStatus();
+                }});
+    cmap.PushBack(std::move(cmap_internal));
 
     PushDefault();
     std::visit(
