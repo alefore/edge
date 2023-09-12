@@ -465,6 +465,11 @@ class KeyCommandsMapSequence {
     return *this;
   }
 
+  KeyCommandsMap& PushNew() {
+    PushBack(KeyCommandsMap());
+    return sequence_.back();
+  }
+
  private:
   std::vector<KeyCommandsMap> sequence_;
 };
@@ -675,44 +680,42 @@ class OperationMode : public EditorMode {
     KeyCommandsMapSequence cmap;
 
     if (!state_.empty()) {
-      KeyCommandsMap cmap_command;
-      std::visit([&](auto& t) { GetKeyCommandsMap(cmap_command, &t, &state_); },
-                 state_.GetLastCommand());
-      cmap_command.OnHandle([this] {
-        if (state_.empty()) PushDefault();
-        state_.Update();
-        ShowStatus();
-      });
-      cmap.PushBack(std::move(cmap_command));
+      std::visit(
+          [&](auto& t) {
+            GetKeyCommandsMap(cmap.PushNew().OnHandle([this] {
+              if (state_.empty()) PushDefault();
+              state_.Update();
+              ShowStatus();
+            }),
+                              &t, &state_);
+          },
+          state_.GetLastCommand());
     }
 
-    KeyCommandsMap cmap_internal;
-    cmap_internal
+    cmap.PushNew()
         .Insert(L'\n', {.handler = [this](wchar_t) { state_.Commit(); }})
         .Insert(Terminal::BACKSPACE, {.handler = [this](wchar_t) {
                   state_.UndoLast();
                   ShowStatus();
                 }});
-    cmap.PushBack(std::move(cmap_internal));
 
+#if 0
     PushDefault();
     std::visit(
         [&](auto& t) {
-          KeyCommandsMap cmap_default;
-          GetKeyCommandsMap(cmap_default, &t, &state_);
-          cmap_default.OnHandle([this] {
+          GetKeyCommandsMap(cmap.PushNew().OnHandle([this] {
             state_.Update();
             ShowStatus();
-          });
-          cmap.PushBack(std::move(cmap_default));
+          }),
+                            &t, &state_);
         },
         state_.GetLastCommand());
+#endif
 
     cmap.PushBack(ReceiveInputTopCommand(state_.top_command()));
 
     // Unhandled character.
-    KeyCommandsMap cmap_final;
-    cmap_final
+    cmap.PushNew()
         .Insert(Terminal::ESCAPE,
                 {.handler =
                      [&state = state_](wchar_t) {
@@ -728,13 +731,14 @@ class OperationMode : public EditorMode {
                      }})
         .SetFallback(
             {}, [&state = state_, &editor_state = editor_state_](wchar_t c) {
-              state.UndoLast();  // The one we just pushed a
-                                 // few lines above.
+#if 0
+              state.UndoLast();  // The one we just pushed a few lines above.
+#endif
               state.Commit();
               editor_state.ProcessInput(c);
             });
 
-    cmap.PushBack(std::move(cmap_final)).Execute(c);
+    cmap.Execute(c);
   }
 
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
