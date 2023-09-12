@@ -403,17 +403,23 @@ class KeyCommandsMap {
     return *this;
   }
 
-  KeyCommandsMap Erase(wchar_t c) {
+  KeyCommandsMap& Erase(wchar_t c) {
     table_.erase(c);
     return *this;
   }
 
-  KeyCommandsMap SetFallback(std::set<wchar_t> exclude,
-                             std::function<void(wchar_t)> callback) {
+  KeyCommandsMap& SetFallback(std::set<wchar_t> exclude,
+                              std::function<void(wchar_t)> callback) {
     CHECK(fallback_ == nullptr);
     CHECK(callback != nullptr);
     fallback_exclusion_ = std::move(exclude);
     fallback_ = std::move(callback);
+    return *this;
+  }
+
+  KeyCommandsMap& OnHandle(std::function<void()> handler) {
+    CHECK(on_handle_ == nullptr);
+    on_handle_ = handler;
     return *this;
   }
 
@@ -428,6 +434,7 @@ class KeyCommandsMap {
   bool Execute(wchar_t c) const {
     if (auto callback = FindCallbackOrNull(c); callback != nullptr) {
       callback(c);
+      if (on_handle_ != nullptr) on_handle_();
       return true;
     }
     return false;
@@ -437,6 +444,7 @@ class KeyCommandsMap {
   std::unordered_map<wchar_t, KeyCommand> table_;
   std::set<wchar_t> fallback_exclusion_;
   std::function<void(wchar_t)> fallback_ = nullptr;
+  std::function<void()> on_handle_ = nullptr;
 };
 
 void CheckStructureChar(KeyCommandsMap& cmap,
@@ -668,15 +676,16 @@ class OperationMode : public EditorMode {
     KeyCommandsMap cmap;
     std::visit([&](auto& t) { GetKeyCommandsMap(cmap, &t, &state_); },
                state_.GetLastCommand());
-    if (cmap.Execute(c)) {
+    cmap.OnHandle([this] {
       state_.Update();
       ShowStatus();
-      return;
-    }
-    KeyCommandsMap cmap_top;
-    ReceiveInputTopCommand(cmap_top, state_.top_command());
-    if (cmap_top.Execute(c)) {
-      ShowStatus();
+    });
+    if (cmap.Execute(c)) return;
+
+    KeyCommandsMap cmap_top_command;
+    ReceiveInputTopCommand(cmap_top_command, state_.top_command());
+    cmap_top_command.OnHandle([this] { ShowStatus(); });
+    if (cmap_top_command.Execute(c)) {
       return;
     }
 
