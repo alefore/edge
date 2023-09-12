@@ -477,8 +477,8 @@ void CheckRepetitionsChar(KeyCommandsMap& cmap,
                 {.handler = [output, i](wchar_t) { output->factor(i); }});
 }
 
-bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
-  KeyCommandsMap cmap;
+void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
+                       State* state) {
   if (output->structure.value_or(Structure::kChar) == Structure::kChar &&
       !output->repetitions.empty()) {
     cmap.Insert(L'H', {.active = output->repetitions.get_list().back() < 0,
@@ -515,11 +515,10 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
   CheckRepetitionsChar(cmap, &output->repetitions);
-  return cmap.Execute(c);
 }
 
-bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
-  KeyCommandsMap cmap;
+void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
+                       State*) {
   if (output->structure == Structure::kLine) {
     KeyCommandsMap::KeyCommand handler = {.handler = [output](wchar_t t) {
       int delta = t == L'j' ? 1 : -1;
@@ -541,12 +540,10 @@ bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
     // the usual meaning (of scrolling by a character).
     cmap.Erase(L'h').Erase(L'l');
   }
-
-  return cmap.Execute(c);
 }
 
-bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
-  KeyCommandsMap cmap;
+void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
+                       State* state) {
   cmap.Insert(L'K', {.active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() < 0,
                      .handler =
@@ -568,35 +565,28 @@ bool ReceiveInput(CommandReachLine* output, wint_t c, State* state) {
               {.handler = [output](wchar_t) { output->repetitions.sum(1); }})
       .Insert(L'k',
               {.handler = [output](wchar_t) { output->repetitions.sum(-1); }});
-  return cmap.Execute(c);
 }
 
-bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
-  KeyCommandsMap cmap;
+void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
   CheckRepetitionsChar(cmap, &output->repetitions);
-  return cmap
-      .Insert(Terminal::PAGE_DOWN,
+  cmap.Insert(Terminal::PAGE_DOWN,
               {.handler = [output](wchar_t) { output->repetitions.sum(1); }})
       .Insert(Terminal::PAGE_UP,
-              {.handler = [output](wchar_t) { output->repetitions.sum(-1); }})
-      .Execute(c);
+              {.handler = [output](wchar_t) { output->repetitions.sum(-1); }});
 }
 
-bool ReceiveInput(CommandReachQuery* output, wint_t c, State*) {
-  KeyCommandsMap cmap;
+void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
+                       State*) {
   if (output->query.size() < 3)
     cmap.SetFallback({L'\n', Terminal::ESCAPE, Terminal::BACKSPACE},
                      [output](wchar_t c) { output->query.push_back(c); });
-  return cmap
-      .Insert(Terminal::BACKSPACE,
+  cmap.Insert(Terminal::BACKSPACE,
               {.active = !output->query.empty(),
-               .handler = [output](wchar_t) { output->query.pop_back(); }})
-      .Execute(c);
+               .handler = [output](wchar_t) { output->query.pop_back(); }});
 }
 
-bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
-  KeyCommandsMap cmap;
-
+void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
+                       State*) {
   cmap.Insert(Terminal::BACKSPACE, {.active = !output->directions.empty(),
                                     .handler = [output](wchar_t) {
                                       return output->directions.pop_back();
@@ -622,18 +612,14 @@ bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
                   output->directions.push_back(Direction::kForwards);
                 }});
   }
-
-  return cmap.Execute(c);
 }
 
-bool ReceiveInput(CommandSetShell* output, wint_t c, State*) {
-  return KeyCommandsMap()
-      .Insert(Terminal::BACKSPACE,
+void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
+  cmap.Insert(Terminal::BACKSPACE,
               {.active = !output->input.empty(),
                .handler = [output](wchar_t) { output->input.pop_back(); }})
       .SetFallback({'\n', Terminal::ESCAPE, Terminal::BACKSPACE},
-                   [output](wchar_t c) { output->input.push_back(c); })
-      .Execute(c);
+                   [output](wchar_t c) { output->input.push_back(c); });
 }
 
 class OperationMode : public EditorMode {
@@ -644,9 +630,13 @@ class OperationMode : public EditorMode {
 
   void ProcessInput(wint_t c) override {
     editor_state_.status().Reset();
-    if (!state_.empty() &&
-        std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
-                   state_.GetLastCommand())) {
+    if (!state_.empty() && std::visit(
+                               [&](auto& t) {
+                                 KeyCommandsMap cmap;
+                                 GetKeyCommandsMap(cmap, &t, &state_);
+                                 return cmap.Execute(c);
+                               },
+                               state_.GetLastCommand())) {
       if (state_.empty()) PushDefault();
       state_.Update();
       ShowStatus();
@@ -664,8 +654,13 @@ class OperationMode : public EditorMode {
     }
 
     PushDefault();
-    if (std::visit([&](auto& t) { return ReceiveInput(&t, c, &state_); },
-                   state_.GetLastCommand())) {
+    if (std::visit(
+            [&](auto& t) {
+              KeyCommandsMap cmap;
+              GetKeyCommandsMap(cmap, &t, &state_);
+              return cmap.Execute(c);
+            },
+            state_.GetLastCommand())) {
       state_.Update();
       ShowStatus();
       return;
