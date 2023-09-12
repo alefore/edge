@@ -515,12 +515,7 @@ bool ReceiveInput(CommandReach* output, wint_t c, State* state) {
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
   CheckIncrementsChar(cmap, &output->repetitions);
   CheckRepetitionsChar(cmap, &output->repetitions);
-  if (cmap.Execute(c)) {
-    if (output->structure == std::nullopt) output->structure = Structure::kChar;
-    return true;
-  }
-
-  return false;
+  return cmap.Execute(c);
 }
 
 bool ReceiveInput(CommandReachBegin* output, wint_t c, State*) {
