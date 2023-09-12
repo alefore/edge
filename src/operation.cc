@@ -474,38 +474,38 @@ class KeyCommandsMapSequence {
   std::vector<KeyCommandsMap> sequence_;
 };
 
+const std::unordered_map<wchar_t, Structure>& structure_bindings() {
+  static const std::unordered_map<wchar_t, Structure> output = {
+      {L'z', Structure::kChar},      {L'x', Structure::kWord},
+      {L'c', Structure::kSymbol},    {L'v', Structure::kLine},
+      {L'b', Structure::kParagraph}, {L'n', Structure::kPage},
+      {L'm', Structure::kBuffer},    {L'C', Structure::kCursor},
+      {L'V', Structure::kTree}};
+  return output;
+}
+
 void CheckStructureChar(KeyCommandsMap& cmap,
                         std::optional<Structure>* structure,
                         CommandArgumentRepetitions* repetitions) {
   CHECK(structure != nullptr);
   CHECK(repetitions != nullptr);
 
-  auto add_key = [&](wchar_t c, Structure selected_structure) {
-    LOG(INFO) << "Add key: " << selected_structure;
-    cmap.Insert(c, {.active = *structure == std::nullopt,
-                    .handler =
-                        [structure, repetitions, selected_structure](wchar_t) {
-                          LOG(INFO)
-                              << "Running, storing: " << selected_structure;
-                          *structure = selected_structure;
-                          if (repetitions->get() == 0) {
-                            repetitions->sum(1);
-                          }
-                        }})
-        .Insert(c,
-                {.active = selected_structure == *structure,
+  for (const auto& entry : structure_bindings()) {
+    VLOG(9) << "Add key: " << entry.second;
+    cmap.Insert(entry.first, {.active = *structure == std::nullopt,
+                              .handler =
+                                  [structure, repetitions, &entry](wchar_t) {
+                                    LOG(INFO)
+                                        << "Running, storing: " << entry.second;
+                                    *structure = entry.second;
+                                    if (repetitions->get() == 0) {
+                                      repetitions->sum(1);
+                                    }
+                                  }})
+        .Insert(entry.first,
+                {.active = entry.second == *structure,
                  .handler = [repetitions](wchar_t) { repetitions->sum(1); }});
   };
-
-  add_key(L'z', Structure::kChar);
-  add_key(L'x', Structure::kWord);
-  add_key(L'c', Structure::kSymbol);
-  add_key(L'v', Structure::kLine);
-  add_key(L'b', Structure::kParagraph);
-  add_key(L'n', Structure::kPage);
-  add_key(L'm', Structure::kBuffer);
-  add_key(L'C', Structure::kCursor);
-  add_key(L'V', Structure::kTree);
 }
 
 void CheckIncrementsChar(KeyCommandsMap& cmap,
@@ -699,18 +699,21 @@ class OperationMode : public EditorMode {
                   ShowStatus();
                 }});
 
-#if 0
-    PushDefault();
-    std::visit(
-        [&](auto& t) {
-          GetKeyCommandsMap(cmap.PushNew().OnHandle([this] {
-            state_.Update();
-            ShowStatus();
-          }),
-                            &t, &state_);
-        },
-        state_.GetLastCommand());
-#endif
+    KeyCommandsMap& cmap_new_entry = cmap.PushNew();
+    for (const auto& entry : structure_bindings())
+      cmap_new_entry.Insert(
+          entry.first, {.handler = [this, &entry](wchar_t) {
+            state_.Push(CommandReach{.structure = entry.second});
+          }});
+    cmap_new_entry.Insert(
+        {L'h', L'l'}, {.handler = [this](wchar_t c) {
+          state_.Push(CommandReach{.structure = Structure::kChar,
+                                   .repetitions = c == L'h' ? -1 : 1});
+        }});
+    cmap_new_entry.OnHandle([this] {
+      state_.Update();
+      ShowStatus();
+    });
 
     cmap.PushBack(ReceiveInputTopCommand(state_.top_command()));
 
@@ -731,9 +734,6 @@ class OperationMode : public EditorMode {
                      }})
         .SetFallback(
             {}, [&state = state_, &editor_state = editor_state_](wchar_t c) {
-#if 0
-              state.UndoLast();  // The one we just pushed a few lines above.
-#endif
               state.Commit();
               editor_state.ProcessInput(c);
             });
