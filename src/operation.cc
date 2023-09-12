@@ -402,16 +402,29 @@ class KeyCommandsMap {
     return *this;
   }
 
+  KeyCommandsMap SetFallback(std::set<wchar_t> exclude,
+                             std::function<void(wchar_t)> callback) {
+    CHECK(fallback_ == nullptr);
+    CHECK(callback != nullptr);
+    fallback_ = [exclude, callback](wchar_t t) {
+      if (exclude.find(t) != exclude.end()) return false;
+      callback(t);
+      return true;
+    };
+    return *this;
+  }
+
   bool Execute(wchar_t c) const {
     if (auto it = table_.find(c); it != table_.end()) {
       it->second.handler(c);
       return true;
     }
-    return false;
+    return fallback_ != nullptr ? fallback_(c) : false;
   }
 
  private:
   std::unordered_map<wchar_t, KeyCommand> table_;
+  std::function<bool(wchar_t)> fallback_ = nullptr;
 };
 
 void CheckStructureChar(KeyCommandsMap& cmap,
@@ -575,17 +588,15 @@ bool ReceiveInput(CommandReachPage* output, wint_t c, State*) {
 }
 
 bool ReceiveInput(CommandReachQuery* output, wint_t c, State*) {
-  if (c == '\n' || c == Terminal::ESCAPE) return false;
-  if (static_cast<int>(c) == Terminal::BACKSPACE) {
-    if (output->query.empty()) return false;
-    output->query.pop_back();
-    return true;
-  }
-  if (output->query.size() < 3) {
-    output->query.push_back(c);
-    return true;
-  }
-  return false;
+  KeyCommandsMap cmap;
+  if (output->query.size() < 3)
+    cmap.SetFallback({L'\n', Terminal::ESCAPE, Terminal::BACKSPACE},
+                     [output](wchar_t c) { output->query.push_back(c); });
+  return cmap
+      .Insert(Terminal::BACKSPACE,
+              {.active = !output->query.empty(),
+               .handler = [output](wchar_t) { output->query.pop_back(); }})
+      .Execute(c);
 }
 
 bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
@@ -621,14 +632,13 @@ bool ReceiveInput(CommandReachBisect* output, wint_t c, State*) {
 }
 
 bool ReceiveInput(CommandSetShell* output, wint_t c, State*) {
-  if (c == '\n' || static_cast<int>(c) == Terminal::ESCAPE) return false;
-  if (static_cast<int>(c) == Terminal::BACKSPACE) {
-    if (output->input.empty()) return false;
-    output->input.pop_back();
-    return true;
-  }
-  output->input.push_back(c);
-  return true;
+  return KeyCommandsMap()
+      .Insert(Terminal::BACKSPACE,
+              {.active = !output->input.empty(),
+               .handler = [output](wchar_t) { output->input.pop_back(); }})
+      .SetFallback({'\n', Terminal::ESCAPE, Terminal::BACKSPACE},
+                   [output](wchar_t c) { output->input.push_back(c); })
+      .Execute(c);
 }
 
 class OperationMode : public EditorMode {
