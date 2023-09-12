@@ -397,6 +397,12 @@ class KeyCommandsMap {
     return *this;
   }
 
+  KeyCommandsMap& Insert(std::set<wchar_t> chars, KeyCommand command) {
+    if (command.active)
+      for (wchar_t c : chars) table_.insert({c, command});
+    return *this;
+  }
+
   KeyCommandsMap Erase(wchar_t c) {
     table_.erase(c);
     return *this;
@@ -630,17 +636,16 @@ class OperationMode : public EditorMode {
 
   void ProcessInput(wint_t c) override {
     editor_state_.status().Reset();
-    if (!state_.empty() && std::visit(
-                               [&](auto& t) {
-                                 KeyCommandsMap cmap;
-                                 GetKeyCommandsMap(cmap, &t, &state_);
-                                 return cmap.Execute(c);
-                               },
-                               state_.GetLastCommand())) {
-      if (state_.empty()) PushDefault();
-      state_.Update();
-      ShowStatus();
-      return;
+    if (!state_.empty()) {
+      KeyCommandsMap cmap;
+      std::visit([&](auto& t) { GetKeyCommandsMap(cmap, &t, &state_); },
+                 state_.GetLastCommand());
+      if (cmap.Execute(c)) {
+        if (state_.empty()) PushDefault();
+        state_.Update();
+        ShowStatus();
+        return;
+      }
     }
 
     switch (static_cast<int>(c)) {
@@ -654,18 +659,17 @@ class OperationMode : public EditorMode {
     }
 
     PushDefault();
-    if (std::visit(
-            [&](auto& t) {
-              KeyCommandsMap cmap;
-              GetKeyCommandsMap(cmap, &t, &state_);
-              return cmap.Execute(c);
-            },
-            state_.GetLastCommand())) {
+    KeyCommandsMap cmap;
+    std::visit([&](auto& t) { GetKeyCommandsMap(cmap, &t, &state_); },
+               state_.GetLastCommand());
+    if (cmap.Execute(c)) {
       state_.Update();
       ShowStatus();
       return;
     }
-    if (ReceiveInputTopCommand(state_.top_command(), c)) {
+    KeyCommandsMap cmap_top;
+    ReceiveInputTopCommand(cmap_top, state_.top_command());
+    if (cmap_top.Execute(c)) {
       ShowStatus();
       return;
     }
@@ -701,105 +705,115 @@ class OperationMode : public EditorMode {
   void PushCommand(Command command) { state_.Push(std::move(command)); }
 
  private:
-  bool ReceiveInputTopCommand(TopCommand top_command, wint_t t) {
+  void ReceiveInputTopCommand(KeyCommandsMap& cmap, TopCommand top_command) {
     using PTB = transformation::Stack::PostTransformationBehavior;
-    switch (static_cast<int>(t)) {
-      case L'd':
-        switch (top_command.post_transformation_behavior) {
-          case PTB::kDeleteRegion:
-            top_command.post_transformation_behavior = PTB::kCopyRegion;
-            break;
-          case PTB::kCopyRegion:
-            top_command.post_transformation_behavior = PTB::kNone;
-            break;
-          default:
-            top_command.post_transformation_behavior = PTB::kDeleteRegion;
-            break;
-        }
-        state_.set_top_command(top_command);
-        return true;
-      case L'~':
-        switch (top_command.post_transformation_behavior) {
-          case PTB::kCapitalsSwitch:
-            top_command.post_transformation_behavior = PTB::kNone;
-            break;
-          default:
-            top_command.post_transformation_behavior = PTB::kCapitalsSwitch;
-            break;
-        }
-        state_.set_top_command(top_command);
-        return true;
-      case L'$':
-        switch (top_command.post_transformation_behavior) {
-          case PTB::kCommandSystem:
-            top_command.post_transformation_behavior = PTB::kCommandCpp;
-            break;
-          case PTB::kCommandCpp:
-            top_command.post_transformation_behavior = PTB::kNone;
-            break;
-          default:
-            top_command.post_transformation_behavior = PTB::kCommandSystem;
-            break;
-        }
-        state_.set_top_command(top_command);
-        return true;
-      case L'|':
-        state_.Push(CommandSetShell{});
-        return true;
-      case L'+':
-        switch (top_command.post_transformation_behavior) {
-          case PTB::kCursorOnEachLine:
-            top_command.post_transformation_behavior = PTB::kNone;
-            break;
-          default:
-            top_command.post_transformation_behavior = PTB::kCursorOnEachLine;
-        }
-        state_.set_top_command(top_command);
-        return true;
-      case L'f':
-        state_.Push(CommandReachQuery{});
-        return true;
-      case Terminal::PAGE_DOWN:
-      case Terminal::PAGE_UP:
-        if (CommandReach* reach =
-                state_.empty()
-                    ? nullptr
-                    : std::get_if<CommandReach>(&state_.GetLastCommand());
-            reach != nullptr && reach->structure == std::nullopt) {
-          state_.UndoLast();
-        }
-        state_.Push(CommandReachPage{
-            .repetitions = operation::CommandArgumentRepetitions(
-                static_cast<int>(t) == Terminal::PAGE_UP ? -1 : 1)});
-        return true;
-      case L'j':
-      case L'k':
-        if (CommandReach* reach =
-                state_.empty()
-                    ? nullptr
-                    : std::get_if<CommandReach>(&state_.GetLastCommand());
-            reach != nullptr && reach->structure == std::nullopt) {
-          state_.UndoLast();
-        }
-        state_.Push(CommandReachLine{
-            .repetitions =
-                operation::CommandArgumentRepetitions(t == L'k' ? -1 : 1)});
-        return true;
-      case L'H':
-        state_.Push(CommandReachBegin{});
-        return true;
-      case L'L':
-        state_.Push(CommandReachBegin{.direction = Direction::kBackwards});
-        return true;
-      case L'K':
-        state_.Push(CommandReachBegin{.structure = Structure::kLine});
-        return true;
-      case L'J':
-        state_.Push(CommandReachBegin{.structure = Structure::kLine,
-                                      .direction = Direction::kBackwards});
-        return true;
-    }
-    return false;
+    auto push = [&state = state_](Command value) {
+      return KeyCommandsMap::KeyCommand{
+          .handler = [&state, value](wchar_t) { state.Push(value); }};
+    };
+
+    cmap.Insert(L'd', {.handler =
+                           [top_command, &state = state_](wchar_t) mutable {
+                             switch (top_command.post_transformation_behavior) {
+                               case PTB::kDeleteRegion:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kCopyRegion;
+                                 break;
+                               case PTB::kCopyRegion:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kNone;
+                                 break;
+                               default:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kDeleteRegion;
+                                 break;
+                             }
+                             state.set_top_command(top_command);
+                           }})
+        .Insert(L'~', {.handler =
+                           [top_command, &state = state_](wchar_t) mutable {
+                             switch (top_command.post_transformation_behavior) {
+                               case PTB::kCapitalsSwitch:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kNone;
+                                 break;
+                               default:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kCapitalsSwitch;
+                                 break;
+                             }
+                             state.set_top_command(top_command);
+                           }})
+        .Insert(L'$', {.handler =
+                           [top_command, &state = state_](wchar_t) mutable {
+                             switch (top_command.post_transformation_behavior) {
+                               case PTB::kCommandSystem:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kCommandCpp;
+                                 break;
+                               case PTB::kCommandCpp:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kNone;
+                                 break;
+                               default:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kCommandSystem;
+                                 break;
+                             }
+                             state.set_top_command(top_command);
+                           }})
+        .Insert(L'|', push(CommandSetShell{}))
+        .Insert(L'+', {.handler =
+                           [&state = state_, top_command](wchar_t) mutable {
+                             switch (top_command.post_transformation_behavior) {
+                               case PTB::kCursorOnEachLine:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kNone;
+                                 break;
+                               default:
+                                 top_command.post_transformation_behavior =
+                                     PTB::kCursorOnEachLine;
+                             }
+                             state.set_top_command(top_command);
+                           }})
+        .Insert(L'f', push(CommandReachQuery{}))
+        .Insert(
+            {Terminal::PAGE_DOWN, Terminal::PAGE_UP},
+            {.handler =
+                 [&state = state_](wchar_t t) {
+                   if (CommandReach* reach = state.empty()
+                                                 ? nullptr
+                                                 : std::get_if<CommandReach>(
+                                                       &state.GetLastCommand());
+                       reach != nullptr && reach->structure == std::nullopt) {
+                     state.UndoLast();
+                   }
+                   state.Push(CommandReachPage{
+                       .repetitions = operation::CommandArgumentRepetitions(
+                           static_cast<int>(t) == Terminal::PAGE_UP ? -1 : 1)});
+                 }})
+        .Insert(
+            {L'j', L'k'},
+            {.handler =
+                 [&state = state_](wchar_t t) {
+                   if (CommandReach* reach = state.empty()
+                                                 ? nullptr
+                                                 : std::get_if<CommandReach>(
+                                                       &state.GetLastCommand());
+                       reach != nullptr && reach->structure == std::nullopt) {
+                     state.UndoLast();
+                   }
+                   state.Push(CommandReachLine{
+                       .repetitions = operation::CommandArgumentRepetitions(
+                           t == L'k' ? -1 : 1)});
+                 }})
+        .Insert(L'H', push(CommandReachBegin{}))
+        .Insert(L'L',
+                push(CommandReachBegin{.direction = Direction::kBackwards}))
+        .Insert(L'K', push(CommandReachBegin{.structure = Structure::kLine}))
+        .Insert(L'J',
+                push(CommandReachBegin{.structure = Structure::kLine,
+                                       .direction = Direction::kBackwards}));
   }
 
   static std::wstring ToStatus(TopCommand top_command) {
