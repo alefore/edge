@@ -223,52 +223,6 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           })
           .ptr());
 
-#if 0
-  buffer_object_type.ptr()->AddField(
-      L"GetRegion",
-      vm::Value::NewFunction(
-          {VMType::ObjectType(L"Range"), buffer_object_type.ptr()->type(),
-            types::String{}},
-          [](vector<gc::Root<vm::Value>> args, Trampoline& trampoline) {
-            CHECK_EQ(args.size(), 2u);
-            CHECK_EQ(args[0]->type, VMType::ObjectType(L"Buffer"));
-            CHECK_EQ(args[1]->type, VMType::VM_STRING);
-            // TODO: Don't ignore the buffer! Apply it to it!
-            // auto buffer =
-            // static_cast<OpenBuffer*>(args[0]->user_value.get());
-            auto resume = trampoline.Interrupt();
-            NewCommandWithModifiers(
-                args[1]->str, L"Selects a region",
-                [resume](EditorState*, OpenBuffer* buffer,
-                         CommandApplyMode mode, Modifiers modifiers) {
-                  // TODO: Apply this to all cursors. That's tricky, because we
-                  // don't know what effect each transformation will have, and
-                  // because we can't call `resume` more than once (it will
-                  // likely free things when we call it).
-                  if (mode == CommandApplyMode::FINAL) {
-                    LOG(INFO) << "GetRegion: Resuming.";
-                    resume(vm::Value::NewObject(
-                        L"Range", std::make_shared<Range>(
-                             buffer->FindPartialRange(
-                                 modifiers, buffer->position()))));
-                  } else {
-                    buffer->PushTransformationStack();
-                    DeleteOptions options;
-                    options.modifiers = modifiers;
-                    options.copy_to_paste_buffer = false;
-                    buffer->ApplyToCursors(
-                        NewDeleteTransformation(options),
-                        Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                        transformation::Input::Mode::kPreview,
-                        [buffer] () {
-                      buffer->PopTransformationStack();
-                    });
-                  }
-                })
-                ->ProcessInput(L'\n', editor_state);
-          }).ptr());
-#endif
-
   buffer_object_type.ptr()->AddField(
       L"PushTransformationStack",
       vm::NewCallback(pool, PurityType::kUnknown,

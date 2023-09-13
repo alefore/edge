@@ -823,17 +823,15 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                         .structure = Structure::kLine,
                         .repetitions = operation::CommandArgumentRepetitions(1),
                         .direction = Direction::kBackwards}}));
-  commands->Add(L"~",
-                NewCommandWithModifiers(
-                    [](const Modifiers&) { return L"🔠🔡"; },
-                    L"Switches the case of the current character.", Modifiers(),
-                    [transformation =
-                         NonNull<std::shared_ptr<SwitchCaseTransformation>>()](
-                        Modifiers modifiers) {
-                      return transformation::ModifiersAndComposite{
-                          std::move(modifiers), transformation};
-                    },
-                    editor_state));
+  commands->Add(
+      L"~", operation::NewTopLevelCommand(
+                L"switch-case", L"Switches the case of the current character.",
+                operation::TopCommand{
+                    .post_transformation_behavior = transformation::Stack::
+                        PostTransformationBehavior::kCapitalsSwitch},
+                editor_state,
+                {operation::CommandReach{
+                    .repetitions = operation::CommandArgumentRepetitions(1)}}));
 
   commands->Add(L"%", MakeNonNullUnique<TreeNavigateCommand>(editor_state));
   commands->Add(L"sr", NewRecordCommand(editor_state));

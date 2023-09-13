@@ -930,7 +930,7 @@ class OperationMode : public EditorMode {
       case transformation::Stack::PostTransformationBehavior::kCommandCpp:
         return L"🤖 Cpp";
       case transformation::Stack::PostTransformationBehavior::kCapitalsSwitch:
-        return L" Aa";
+        return L"🔠 Aa";
       case transformation::Stack::PostTransformationBehavior::kCursorOnEachLine:
         return L"Ꮖ Cursor";
     }
