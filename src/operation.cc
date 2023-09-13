@@ -771,8 +771,7 @@ class OperationMode : public EditorMode {
 
   void ShowStatus() {
     LineBuilder output;
-    // TODO(easy, 2023-09-08): Change ToStatus to return LazyString.
-    output.AppendString(ToStatus(state_.top_command()), std::nullopt);
+    AppendStatus(state_.top_command(), output);
     output.AppendString(L":", LineModifierSet{LineModifier::kDim});
     state_.AppendStatusString(output);
     AppendStatusForCommandsAvailable(output);
@@ -1004,25 +1003,43 @@ class OperationMode : public EditorMode {
     return cmap;
   }
 
-  static std::wstring ToStatus(TopCommand top_command) {
+  static void AppendStatus(TopCommand top_command, LineBuilder& output) {
     switch (top_command.post_transformation_behavior) {
       case transformation::Stack::PostTransformationBehavior::kNone:
-        return L"🦋 Move";
+        output.AppendString(L"🦋 Move", LineModifierSet{LineModifier::kBold,
+                                                        LineModifier::kCyan});
+        return;
       case transformation::Stack::PostTransformationBehavior::kDeleteRegion:
-        return L"✂️  Delete";
+        output.AppendString(
+            L"✂️  Delete",
+            LineModifierSet{LineModifier::kBold, LineModifier::kBgRed});
+        return;
       case transformation::Stack::PostTransformationBehavior::kCopyRegion:
-        return L"📋 Copy";
+        output.AppendString(L"📋 Copy", LineModifierSet{LineModifier::kBold,
+                                                        LineModifier::kYellow});
+        return;
       case transformation::Stack::PostTransformationBehavior::kCommandSystem:
-        return L"🐚 System";
+        output.AppendString(
+            L"🐚 System",
+            LineModifierSet{LineModifier::kBold, LineModifier::kGreen});
+        return;
       case transformation::Stack::PostTransformationBehavior::kCommandCpp:
-        return L"🤖 Cpp";
+        output.AppendString(
+            L"🤖 Cpp",
+            LineModifierSet{LineModifier::kBold, LineModifier::kGreen,
+                            LineModifier::kUnderline});
+        return;
       case transformation::Stack::PostTransformationBehavior::kCapitalsSwitch:
-        return L"🔠 Aa";
+        output.AppendString(L"🔠 Aa", LineModifierSet{LineModifier::kBold,
+                                                      LineModifier::kMagenta});
+        return;
       case transformation::Stack::PostTransformationBehavior::kCursorOnEachLine:
-        return L"Ꮖ Cursor";
+        output.AppendString(
+            L"Ꮖ Cursor",
+            LineModifierSet{LineModifier::kBold, LineModifier::kMagenta});
+        return;
     }
     LOG(FATAL) << "Invalid post transformation behavior.";
-    return L"Move";
   }
 
   EditorState& editor_state_;
