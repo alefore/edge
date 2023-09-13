@@ -10,6 +10,7 @@
 #include "src/goto_command.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/operation_scope.h"
 #include "src/set_mode_command.h"
@@ -29,6 +30,7 @@ using infrastructure::screen::VisualOverlayMap;
 using language::EmptyValue;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::overload;
 using language::lazy_string::Append;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
@@ -388,11 +390,11 @@ class State {
 class KeyCommandsMap {
  public:
   enum class Category {
-    kTop,
     kRepetitions,
     kDirection,
     kStructure,
-    kNewCommand
+    kNewCommand,
+    kTop,
   };
 
   struct KeyCommand {
@@ -510,6 +512,17 @@ class KeyCommandsMapSequence {
  private:
   std::vector<KeyCommandsMap> sequence_;
 };
+
+std::optional<CommandArgumentRepetitions*> GetRepetitions(Command& command) {
+  using Ret = std::optional<CommandArgumentRepetitions*>;
+  return std::visit(
+      overload{[](CommandReach& c) -> Ret { return &c.repetitions; },
+               [](CommandReachBegin& c) -> Ret { return &c.repetitions; },
+               [](CommandReachLine& c) -> Ret { return &c.repetitions; },
+               [](CommandReachPage& c) -> Ret { return &c.repetitions; },
+               [](auto) -> Ret { return std::nullopt; }},
+      command);
+}
 
 const std::unordered_map<wchar_t, Structure>& structure_bindings() {
   static const std::unordered_map<wchar_t, Structure> output = {
@@ -778,7 +791,20 @@ class OperationMode : public EditorMode {
     cmap.PushNew()
         .Insert(structure_bindings(), KeyCommandsMap::Category::kStructure,
                 [this](Structure structure) {
-                  state_.Push(CommandReach{.structure = structure});
+                  int last_repetitions = 0;
+                  if (!state_.empty()) {
+                    if (const std::optional<CommandArgumentRepetitions*>
+                            repetitions =
+                                GetRepetitions(state_.GetLastCommand());
+                        repetitions.has_value() && !(*repetitions)->empty()) {
+                      last_repetitions = (*repetitions)->get_list().back();
+                    }
+                  }
+                  state_.Push(CommandReach{
+                      .structure = structure,
+                      .repetitions = last_repetitions < 0
+                                         ? -1
+                                         : (last_repetitions > 0 ? 1 : 0)});
                 })
         .Insert(
             {L'h', L'l'},
