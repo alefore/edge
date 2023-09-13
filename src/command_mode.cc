@@ -817,7 +817,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
   commands->Add(L"J",
                 operation::NewTopLevelCommand(
-                    L"file-end", L"moves to the end of the current line",
+                    L"file-end", L"moves to the end of the current file",
                     operation::TopCommand(), editor_state,
                     {operation::CommandReachBegin{
                         .structure = Structure::kLine,
