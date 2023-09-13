@@ -390,6 +390,7 @@ class State {
 class KeyCommandsMap {
  public:
   enum class Category {
+    kStringControl,
     kRepetitions,
     kDirection,
     kStructure,
@@ -571,7 +572,8 @@ void CheckIncrementsChar(KeyCommandsMap& cmap,
 void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
   cmap.Insert(Terminal::BACKSPACE,
-              {.active = !output->empty(),
+              {.category = KeyCommandsMap::Category::kStringControl,
+               .active = !output->empty(),
                .handler = [output](wchar_t) { output->PopValue(); }});
   for (int i = 0; i < 10; i++)
     cmap.Insert(L'0' + i,
@@ -695,16 +697,18 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
     cmap.SetFallback({L'\n', Terminal::ESCAPE, Terminal::BACKSPACE},
                      [output](wchar_t c) { output->query.push_back(c); });
   cmap.Insert(Terminal::BACKSPACE,
-              {.active = !output->query.empty(),
+              {.category = KeyCommandsMap::Category::kStringControl,
+               .active = !output->query.empty(),
                .handler = [output](wchar_t) { output->query.pop_back(); }});
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
                        State*) {
-  cmap.Insert(Terminal::BACKSPACE, {.active = !output->directions.empty(),
-                                    .handler = [output](wchar_t) {
-                                      return output->directions.pop_back();
-                                    }});
+  cmap.Insert(
+      Terminal::BACKSPACE,
+      {.category = KeyCommandsMap::Category::kStringControl,
+       .active = !output->directions.empty(),
+       .handler = [output](wchar_t) { return output->directions.pop_back(); }});
 
   if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
     cmap.Insert(L'h',
@@ -734,7 +738,8 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
   cmap.Insert(Terminal::BACKSPACE,
-              {.active = !output->input.empty(),
+              {.category = KeyCommandsMap::Category::kStringControl,
+               .active = !output->input.empty(),
                .handler = [output](wchar_t) { output->input.pop_back(); }})
       .SetFallback({'\n', Terminal::ESCAPE, Terminal::BACKSPACE},
                    [output](wchar_t c) { output->input.push_back(c); });
@@ -782,11 +787,14 @@ class OperationMode : public EditorMode {
     }
 
     cmap.PushNew()
-        .Insert(L'\n', {.handler = [this](wchar_t) { state_.Commit(); }})
-        .Insert(Terminal::BACKSPACE, {.handler = [this](wchar_t) {
-                  state_.UndoLast();
-                  ShowStatus();
-                }});
+        .Insert(L'\n', {.category = KeyCommandsMap::Category::kTop,
+                        .handler = [this](wchar_t) { state_.Commit(); }})
+        .Insert(Terminal::BACKSPACE,
+                {.category = KeyCommandsMap::Category::kStringControl,
+                 .handler = [this](wchar_t) {
+                   state_.UndoLast();
+                   ShowStatus();
+                 }});
 
     cmap.PushNew()
         .Insert(structure_bindings(), KeyCommandsMap::Category::kStructure,
@@ -824,7 +832,8 @@ class OperationMode : public EditorMode {
     // Unhandled character.
     cmap.PushNew()
         .Insert(Terminal::ESCAPE,
-                {.handler =
+                {.category = KeyCommandsMap::Category::kStringControl,
+                 .handler =
                      [&state = state_](wchar_t) {
                        if (state.top_command().post_transformation_behavior ==
                            transformation::Stack::kNone) {
