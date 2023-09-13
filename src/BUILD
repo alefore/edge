@@ -192,12 +192,6 @@ cc_library(
 )
 
 cc_library(
-    name = "command_with_modifiers",
-    srcs = ["command_with_modifiers.cc"],
-    hdrs = ["command_with_modifiers.h"],
-)
-
-cc_library(
     name = "cpp_command",
     srcs = ["cpp_command.cc"],
     hdrs = ["cpp_command.h"],

@@ -15,7 +15,6 @@
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/command_argument_mode.h"
-#include "src/command_with_modifiers.h"
 #include "src/completion_model.h"
 #include "src/concurrent/work_queue.h"
 #include "src/cpp_command.h"

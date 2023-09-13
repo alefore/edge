@@ -22,7 +22,6 @@ extern "C" {
 #include "src/buffer_contents_util.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_vm.h"
-#include "src/command_with_modifiers.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
