@@ -26,6 +26,8 @@
 namespace afc::editor::operation {
 using futures::Past;
 using infrastructure::Tracker;
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using infrastructure::screen::VisualOverlayMap;
 using language::EmptyValue;
 using language::MakeNonNullShared;
@@ -43,17 +45,19 @@ namespace gc = language::gc;
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
-std::wstring SerializeCall(std::wstring name,
-                           std::vector<std::wstring> arguments) {
-  std::wstring output = name + L"(";
+void SerializeCall(std::wstring name, std::vector<std::wstring> arguments,
+                   LineBuilder& output) {
+  output.AppendString(name, LineModifierSet{LineModifier::kCyan});
+  output.AppendString(L"(", LineModifierSet{LineModifier::kDim});
   std::wstring separator = L"";
   for (auto& a : arguments) {
     if (!a.empty()) {
-      output += separator + a;
+      output.AppendString(separator, LineModifierSet{LineModifier::kDim});
+      output.AppendString(a, std::nullopt);
       separator = L", ";
     }
   }
-  return output + L")";
+  output.AppendString(L")", LineModifierSet{LineModifier::kDim});
 }
 
 std::wstring StructureToString(std::optional<Structure> structure) {
@@ -79,34 +83,38 @@ Modifiers GetModifiers(std::optional<Structure> structure,
   return GetModifiers(structure, repetitions.get(), direction);
 }
 
-std::wstring ToStatus(const CommandReach& reach) {
-  return SerializeCall(L"Reach", {StructureToString(reach.structure),
-                                  reach.repetitions.ToString()});
+void AppendStatus(const CommandReach& reach, LineBuilder& output) {
+  SerializeCall(
+      L"Reach",
+      {StructureToString(reach.structure), reach.repetitions.ToString()},
+      output);
 }
 
-std::wstring ToStatus(const CommandReachBegin& reach) {
-  return SerializeCall(
+void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
+  SerializeCall(
       reach.direction == Direction::kForwards ? L"Home" : L"End",
-      {StructureToString(reach.structure), reach.repetitions.ToString()});
+      {StructureToString(reach.structure), reach.repetitions.ToString()},
+      output);
 }
 
-std::wstring ToStatus(const CommandReachLine& reach_line) {
-  return SerializeCall(reach_line.repetitions.get() >= 0 ? L"Down" : L"Up",
-                       {reach_line.repetitions.ToString()});
+void AppendStatus(const CommandReachLine& reach_line, LineBuilder& output) {
+  SerializeCall(reach_line.repetitions.get() >= 0 ? L"Down" : L"Up",
+                {reach_line.repetitions.ToString()}, output);
 }
 
-std::wstring ToStatus(const CommandReachPage& reach_line) {
-  return SerializeCall(reach_line.repetitions.get() >= 0 ? L"PgDown" : L"PgUp",
-                       {reach_line.repetitions.ToString()});
+void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
+  SerializeCall(reach_line.repetitions.get() >= 0 ? L"PgDown" : L"PgUp",
+                {reach_line.repetitions.ToString()}, output);
 }
 
-std::wstring ToStatus(const CommandReachQuery& c) {
-  return SerializeCall(
+void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
+  SerializeCall(
       L"Query",
-      {c.query + std::wstring(3 - std::min(3ul, c.query.size()), L'_')});
+      {c.query + std::wstring(3 - std::min(3ul, c.query.size()), L'_')},
+      output);
 }
 
-std::wstring ToStatus(const CommandReachBisect& c) {
+void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
   std::wstring directions;
   wchar_t backwards = c.structure == Structure::kLine ? L'↑' : L'←';
   wchar_t forwards = c.structure == Structure::kLine ? L'↓' : L'→';
@@ -118,11 +126,12 @@ std::wstring ToStatus(const CommandReachBisect& c) {
         directions.push_back(backwards);
         break;
     }
-  return SerializeCall(L"Bisect", {StructureToString(c.structure), directions});
+  SerializeCall(L"Bisect", {StructureToString(c.structure), directions},
+                output);
 }
 
-std::wstring ToStatus(const CommandSetShell& c) {
-  return SerializeCall(L"|", {c.input});
+void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
+  SerializeCall(L"|", {c.input}, output);
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -269,12 +278,11 @@ class State {
     Update(ApplicationType::kPreview);
   }
 
-  std::wstring GetStatusString() const {
-    std::wstring output;
+  void AppendStatusString(LineBuilder& output) const {
     for (const auto& op : commands_) {
-      output += L" " + std::visit([](auto& t) { return ToStatus(t); }, op);
+      output.AppendString(L" ", std::nullopt);
+      std::visit([&output](auto& t) { AppendStatus(t, output); }, op);
     }
-    return output;
   }
 
   void Abort() {
@@ -762,13 +770,14 @@ class OperationMode : public EditorMode {
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
 
   void ShowStatus() {
+    LineBuilder output;
     // TODO(easy, 2023-09-08): Change ToStatus to return LazyString.
-    editor_state_.status().SetInformationText(MakeNonNullShared<Line>(
-        LineBuilder(Append(NewLazyString(ToStatus(state_.top_command())),
-                           NewLazyString(L":"),
-                           NewLazyString(state_.GetStatusString()),
-                           StatusForCommandsAvailable()))
-            .Build()));
+    output.AppendString(ToStatus(state_.top_command()), std::nullopt);
+    output.AppendString(L":", LineModifierSet{LineModifier::kDim});
+    state_.AppendStatusString(output);
+    AppendStatusForCommandsAvailable(output);
+    editor_state_.status().SetInformationText(
+        MakeNonNullShared<Line>(std::move(output).Build()));
   }
 
   void PushDefault() { PushCommand(CommandReach()); }
@@ -859,9 +868,9 @@ class OperationMode : public EditorMode {
     return cmap;
   }
 
-  NonNull<std::shared_ptr<LazyString>> StatusForCommandsAvailable() {
+  void AppendStatusForCommandsAvailable(LineBuilder& output) {
     KeyCommandsMapSequence cmap = GetGlobalKeyCommandsMap();
-    NonNull<std::shared_ptr<LazyString>> output = NewLazyString(L"    ");
+    output.AppendString(L"    ", std::nullopt);
 
     std::map<KeyCommandsMap::Category, std::wstring> entries_by_category;
     for (const std::pair<const wchar_t, KeyCommandsMap::Category>& entry :
@@ -870,10 +879,9 @@ class OperationMode : public EditorMode {
         entries_by_category[entry.second].push_back(entry.first);
     for (const std::pair<const KeyCommandsMap::Category, std::wstring>&
              category : entries_by_category) {
-      output =
-          Append(output, NewLazyString(L" "), NewLazyString(category.second));
+      output.AppendString(L" ", std::nullopt);
+      output.AppendString(category.second, LineModifierSet{LineModifier::kDim});
     }
-    return output;
   }
 
   KeyCommandsMap ReceiveInputTopCommand(TopCommand top_command) {
