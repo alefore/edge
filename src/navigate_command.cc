@@ -20,10 +20,12 @@
 
 namespace afc::editor {
 using infrastructure::screen::LineModifier;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
 
@@ -298,7 +300,7 @@ NavigateState InitialState(EditorState& editor_state) {
     };
   } else {
     editor_state.status().SetInformationText(
-        NewLazyString(L"Navigate not handled for current mode."));
+        MakeNonNullShared<Line>(L"Navigate not handled for current mode."));
   }
   return initial_state;
 }

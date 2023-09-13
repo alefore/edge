@@ -61,7 +61,7 @@ class Status {
   language::text::Line prompt_extra_information_line() const;
 
   void SetInformationText(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
+      language::NonNull<std::shared_ptr<language::text::Line>>);
 
   // Sets the status to a given text and returns an opaque token. The caller
   // uses the opaque token to control when the text given is retired (by letting

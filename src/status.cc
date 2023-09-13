@@ -194,16 +194,15 @@ Line Status::prompt_extra_information_line() const {
   return std::move(options).Build();
 }
 
-void Status::SetInformationText(NonNull<std::shared_ptr<LazyString>> text) {
+void Status::SetInformationText(NonNull<std::shared_ptr<Line>> text) {
   ValidatePreconditions();
   // TODO(easy, 2023-09-08): Avoid call to ToString.
   LOG(INFO) << "SetInformationText: " << text->ToString();
   if (data_->prompt_buffer.has_value()) {
     return;
   }
-  data_ = MakeNonNullShared<Data>(Data{
-      .type = Type::kInformation,
-      .text = MakeNonNullShared<Line>(LineBuilder(std::move(text)).Build())});
+  data_ = MakeNonNullShared<Data>(
+      Data{.type = Type::kInformation, .text = std::move(text)});
   ValidatePreconditions();
 }
 
@@ -215,7 +214,8 @@ std::unique_ptr<StatusExpirationControl,
                 std::function<void(StatusExpirationControl*)>>
 Status::SetExpiringInformationText(NonNull<std::shared_ptr<LazyString>> text) {
   ValidatePreconditions();
-  SetInformationText(text);
+  // TODO(easy, 2023-09-13): Just receive text as a Line.
+  SetInformationText(MakeNonNullShared<Line>(Line(LineBuilder(text).Build())));
   ValidatePreconditions();
   if (data_->prompt_buffer.has_value()) {
     return nullptr;

@@ -19,10 +19,12 @@ extern "C" {
 #include "src/language/lazy_string/char_buffer.h"
 
 namespace afc::editor {
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::VisitPointer;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
 
 namespace gc = language::gc;
 
@@ -43,11 +45,11 @@ class RecordCommand : public Command {
           if (buffer.HasTransformationStack()) {
             buffer.PopTransformationStack();
             buffer.status().SetInformationText(
-                NewLazyString(L"Recording: stop"));
+                MakeNonNullShared<Line>(L"Recording: stop"));
           } else {
             buffer.PushTransformationStack();
             buffer.status().SetInformationText(
-                NewLazyString(L"Recording: start"));
+                MakeNonNullShared<Line>(L"Recording: start"));
           }
           buffer.ResetMode();
         },

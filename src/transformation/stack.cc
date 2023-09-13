@@ -45,8 +45,10 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
   if (value.IsVoid()) return;
   std::ostringstream oss;
   oss << value;
-  buffer.status().SetInformationText(Append(
-      NewLazyString(L"Value: "), NewLazyString(FromByteString(oss.str()))));
+  buffer.status().SetInformationText(MakeNonNullShared<Line>(
+      LineBuilder(Append(NewLazyString(L"Value: "),
+                         NewLazyString(FromByteString(oss.str()))))
+          .Build()));
   if (delete_buffer != nullptr) {
     std::istringstream iss(oss.str());
     for (std::string line_str; std::getline(iss, line_str);) {
@@ -72,8 +74,10 @@ futures::Value<PossibleError> PreviewCppExpression(
             return Success();
           })
           .ConsumeErrors([&buffer](Error error) {
-            buffer.status().SetInformationText(
-                Append(NewLazyString(L"E: "), NewLazyString(error.read())));
+            buffer.status().SetInformationText(MakeNonNullShared<Line>(
+                LineBuilder(
+                    Append(NewLazyString(L"E: "), NewLazyString(error.read())))
+                    .Build()));
             return futures::Past(EmptyValue());
           })
           .Transform([](EmptyValue) { return futures::Past(Success()); });
@@ -97,7 +101,8 @@ futures::Value<Result> HandleCommandCpp(Input input,
             [&buffer = input.buffer, delete_transformation](Error error) {
               delete_transformation->preview_modifiers = {
                   LineModifier::kRed, LineModifier::kUnderline};
-              buffer.status().SetInformationText(NewLazyString(error.read()));
+              buffer.status().SetInformationText(
+                  MakeNonNullShared<Line>(error.read()));
               return futures::Past(EmptyValue());
             })
         .Transform([delete_transformation, input](EmptyValue) {
@@ -315,9 +320,12 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                               buffer_variables::analyze_content_lines_limit))) {
                     // TODO(easy, 2023-09-08): Change ToString to return a lazy
                     // string.
-                    input.buffer.status().SetInformationText(Append(
-                        NewLazyString(L"Selection: "),
-                        NewLazyString(ToString(AnalyzeContent(contents)))));
+                    input.buffer.status().SetInformationText(
+                        MakeNonNullShared<Line>(
+                            LineBuilder(Append(NewLazyString(L"Selection: "),
+                                               NewLazyString(ToString(
+                                                   AnalyzeContent(contents)))))
+                                .Build()));
                   }
                   return futures::Past(std::move(*output));
                 });

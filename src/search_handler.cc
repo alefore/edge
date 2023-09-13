@@ -32,6 +32,7 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineSequence;
@@ -293,7 +294,8 @@ void HandleSearchResults(
   }
 
   if (results->empty()) {
-    buffer.status().SetInformationText(NewLazyString(L"🔍 No results."));
+    buffer.status().SetInformationText(
+        MakeNonNullShared<Line>(L"🔍 No results."));
     audio::BeepFrequencies(buffer.editor().audio_player(), 0.1,
                            {audio::Frequency(659.25), audio::Frequency(440.0),
                             audio::Frequency(440.0)});
@@ -309,13 +311,16 @@ void HandleSearchResults(
 
   size_t size = results->size();
   if (size == 1) {
-    buffer.status().SetInformationText(NewLazyString(L"🔍 1 result."));
+    buffer.status().SetInformationText(
+        MakeNonNullShared<Line>(L"🔍 1 result."));
   } else {
     // TODO(easy, 2023-09-08): Convert `results_prefix` to use Padding?
     wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');
-    buffer.status().SetInformationText(
-        Append(NewLazyString(results_prefix), NewLazyString(L" Results: "),
-               NewLazyString(std::to_wstring(size))));
+    buffer.status().SetInformationText(MakeNonNullShared<Line>(
+        LineBuilder(Append(NewLazyString(results_prefix),
+                           NewLazyString(L" Results: "),
+                           NewLazyString(std::to_wstring(size))))
+            .Build()));
   }
   vector<audio::Frequency> frequencies = {
       audio::Frequency(440.0), audio::Frequency(440.0),

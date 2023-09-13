@@ -19,9 +19,11 @@
 #include "src/transformation/vm.h"
 #include "src/vm/public/callbacks.h"
 
+using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::Pointer;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
 
 namespace afc::vm {
 template <>
@@ -338,7 +340,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](EditorState& editor_arg, std::wstring s) {
                         editor_arg.status().SetInformationText(
-                            NewLazyString(s));
+                            MakeNonNullShared<Line>(s));
                       })
           .ptr());
 

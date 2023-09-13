@@ -55,6 +55,7 @@ using infrastructure::Path;
 using infrastructure::Tracker;
 using language::EmptyValue;
 using language::Error;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::overload;
@@ -154,7 +155,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer, std::wstring s) {
                         buffer.ptr()->status().SetInformationText(
-                            NewLazyString(s));
+                            MakeNonNullShared<Line>(s));
                       })
           .ptr());
 

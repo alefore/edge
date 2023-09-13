@@ -31,6 +31,7 @@ using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
 using language::text::LineColumn;
 using language::text::Range;
 
@@ -356,7 +357,7 @@ class SearchCommand : public Command {
           buffer.FindPartialRange(editor.modifiers(), buffer.position());
       if (range.begin == range.end) {
         buffer.status().SetInformationText(
-            NewLazyString(L"Unable to extract region."));
+            MakeNonNullShared<Line>(L"Unable to extract region."));
         return std::nullopt;
       }
       CHECK_LE(range.begin, range.end);

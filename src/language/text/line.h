@@ -40,6 +40,7 @@ class Line {
   Line() : Line(Line::Data{}) {}
 
   explicit Line(std::wstring text);
+
   Line(const Line& line);
 
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>

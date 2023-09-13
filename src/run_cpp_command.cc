@@ -28,6 +28,7 @@ using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
 using language::IgnoreErrors;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::overload;
@@ -38,6 +39,7 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::EmptyString;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
 
 using vm::VMTypeMapper;
 
@@ -77,7 +79,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
               std::ostringstream oss;
               oss << "Evaluation result: " << value.ptr().value();
               buffer.ptr()->status().SetInformationText(
-                  NewLazyString(FromByteString(oss.str())));
+                  MakeNonNullShared<Line>(FromByteString(oss.str())));
               return Success();
             })
             .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });

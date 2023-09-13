@@ -37,7 +37,7 @@ class CommandArgumentMode : public EditorMode {
 
     // Returns the string to show in the status.
     //
-    // TODO(easy, 2023-09-08): Change this to return a LazyString.
+    // TODO(easy, 2023-09-08): Change this to return a LazyString. Or a Line.
     std::function<std::wstring(const Argument&)> status_factory;
 
     std::function<futures::Value<language::EmptyValue>()> undo = nullptr;
@@ -107,7 +107,7 @@ class CommandArgumentMode : public EditorMode {
   futures::Value<language::EmptyValue> Transform(
       CommandArgumentModeApplyMode apply_mode, Argument argument) {
     options_.editor_state.status().SetInformationText(
-        language::lazy_string::NewLazyString(
+        language::MakeNonNullShared<language::text::Line>(
             options_.status_factory(argument)));
     return options_.apply(apply_mode, std::move(argument));
   }

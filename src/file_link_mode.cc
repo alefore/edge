@@ -62,6 +62,7 @@ using language::ToByteString;
 using language::ValueOrError;
 using language::lazy_string::ColumnNumber;
 using language::text::Line;
+using language::text::LineBuilder;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineSequence;
@@ -120,8 +121,8 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
     return;
   }
   if (S_ISDIR(stat_buffer.st_mode)) {
-    buffer.status().SetInformationText(
-        NewLazyString(L"🌷Directory changed in disk since last read."));
+    buffer.status().SetInformationText(MakeNonNullShared<Line>(
+        L"🌷Directory changed in disk since last read."));
   } else {
     buffer.status().InsertError(
         Error(L"🌷File changed in disk since last read."));
@@ -170,8 +171,10 @@ futures::Value<PossibleError> Save(
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
                   buffer.ptr()->status().SetInformationText(
-                      Append(NewLazyString(L"🖫 Saved: "),
-                             NewLazyString(path.read())));
+                      MakeNonNullShared<Line>(
+                          LineBuilder(Append(NewLazyString(L"🖫 Saved: "),
+                                             NewLazyString(path.read())))
+                              .Build()));
                   // TODO(easy): Move this to the caller, for symmetry with
                   // kBackup case.
                   // TODO: Since the save is async, what if the contents have
@@ -515,7 +518,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                  },
                  [&buffer](Error error) {
                    buffer.ptr()->status().SetInformationText(
-                       NewLazyString(error.read()));
+                       MakeNonNullShared<Line>(error.read()));
                  }},
         GetNextMatch(options.editor_state.work_queue(),
                      options.editor_state.modifiers().direction, search_options,

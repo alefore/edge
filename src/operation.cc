@@ -28,12 +28,15 @@ using futures::Past;
 using infrastructure::Tracker;
 using infrastructure::screen::VisualOverlayMap;
 using language::EmptyValue;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::overload;
 using language::lazy_string::Append;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
+using language::text::Line;
+using language::text::LineBuilder;
 
 namespace gc = language::gc;
 
@@ -760,9 +763,12 @@ class OperationMode : public EditorMode {
 
   void ShowStatus() {
     // TODO(easy, 2023-09-08): Change ToStatus to return LazyString.
-    editor_state_.status().SetInformationText(Append(
-        NewLazyString(ToStatus(state_.top_command())), NewLazyString(L":"),
-        NewLazyString(state_.GetStatusString()), StatusForCommandsAvailable()));
+    editor_state_.status().SetInformationText(MakeNonNullShared<Line>(
+        LineBuilder(Append(NewLazyString(ToStatus(state_.top_command())),
+                           NewLazyString(L":"),
+                           NewLazyString(state_.GetStatusString()),
+                           StatusForCommandsAvailable()))
+            .Build()));
   }
 
   void PushDefault() { PushCommand(CommandReach()); }

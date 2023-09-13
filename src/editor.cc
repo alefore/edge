@@ -465,9 +465,11 @@ BufferName EditorState::GetUnusedBufferName(const std::wstring& prefix) {
 void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
-  status().SetInformationText(Append(
-      NewLazyString(L"Exit: Preparing to close buffers ("),
-      NewLazyString(std::to_wstring(buffers_.size())), NewLazyString(L")")));
+  status().SetInformationText(MakeNonNullShared<Line>(
+      LineBuilder(Append(NewLazyString(L"Exit: Preparing to close buffers ("),
+                         NewLazyString(std::to_wstring(buffers_.size())),
+                         NewLazyString(L")")))
+          .Build()));
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<std::wstring> buffers_with_problems;
@@ -534,8 +536,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           }
         }
         LOG(INFO) << "Terminating.";
-        status().SetInformationText(
-            NewLazyString(L"Exit: All buffers closed, shutting down."));
+        status().SetInformationText(MakeNonNullShared<Line>(
+            L"Exit: All buffers closed, shutting down."));
         exit_value_ = exit_value;
       });
 
@@ -555,10 +557,12 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       }
       count++;
     }
-    status().SetInformationText(
-        Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
-               NewLazyString(std::to_wstring(pending_buffers->size())),
-               NewLazyString(extra)));
+    status().SetInformationText(MakeNonNullShared<Line>(
+        LineBuilder(
+            Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
+                   NewLazyString(std::to_wstring(pending_buffers->size())),
+                   NewLazyString(extra)))
+            .Build()));
   };
 
   for (const auto& it : buffers_) {

@@ -106,10 +106,12 @@ class PredictorTransformation : public CompositeTransformation {
                 text.substr(0, results->predictor_output.longest_prefix.read());
             if (!prefix.empty()) {
               VLOG(5) << "Setting buffer status.";
-              buffer.status().SetInformationText(Append(
-                  NewLazyString(
-                      L"No matches found. Longest prefix with matches: \""),
-                  NewLazyString(prefix), NewLazyString(L"\"")));
+              buffer.status().SetInformationText(MakeNonNullShared<Line>(
+                  LineBuilder(Append(NewLazyString(L"No matches found. Longest "
+                                                   L"prefix with matches: \""),
+                                     NewLazyString(prefix),
+                                     NewLazyString(L"\"")))
+                      .Build()));
             }
             return Output();
           }

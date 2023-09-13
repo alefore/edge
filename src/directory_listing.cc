@@ -80,11 +80,13 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
 
 void StartDeleteFile(EditorState& editor_state, std::wstring path) {
   int result = unlink(ToByteString(path).c_str());
-  editor_state.status().SetInformationText(Append(
-      NewLazyString(path), NewLazyString(L": unlink: "),
-      NewLazyString(result == 0
-                        ? L"done"
-                        : L"ERROR: " + FromByteString(strerror(errno)))));
+  editor_state.status().SetInformationText(MakeNonNullShared<Line>(
+      LineBuilder(Append(NewLazyString(path), NewLazyString(L": unlink: "),
+                         NewLazyString(result == 0 ? L"done"
+                                                   : L"ERROR: " +
+                                                         FromByteString(
+                                                             strerror(errno)))))
+          .Build()));
 }
 
 language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,

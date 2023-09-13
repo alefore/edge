@@ -142,7 +142,7 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
               // TODO: insert it again?  Actually, only let it
               // be erased in the other case?
               buffer.ptr()->status().SetInformationText(
-                  NewLazyString(L"Ignored."));
+                  MakeNonNullShared<Line>(L"Ignored."));
             }
             return futures::Past(EmptyValue());
           },

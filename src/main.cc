@@ -51,6 +51,7 @@ using afc::infrastructure::screen::Screen;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ToByteString;
@@ -58,6 +59,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
 using afc::language::text::LineColumnDelta;
 
 namespace gc = afc::language::gc;
@@ -232,26 +234,30 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
   return server_address;
 }
 
-NonNull<std::shared_ptr<LazyString>> GetGreetingMessage() {
-  static const std::vector<NonNull<std::shared_ptr<LazyString>>> errors({
-      NewLazyString(L"Welcome to Edge!"),
-      NewLazyString(L"Edge, your favorite text editor."),
-      NewLazyString(
+NonNull<std::shared_ptr<Line>> GetGreetingMessage() {
+  static const std::vector<NonNull<std::shared_ptr<Line>>> errors({
+      MakeNonNullShared<Line>(L"Welcome to Edge!"),
+      MakeNonNullShared<Line>(L"Edge, your favorite text editor."),
+      MakeNonNullShared<Line>(
           L"It looks like you're writing a letter. Would you like help?"),
-      NewLazyString(L"Edge, a text editor."),
-      NewLazyString(L"All modules are now active."),
-      NewLazyString(L"Booting up Edge. . . . . . . . . . . . . DONE"),
-      NewLazyString(L"What are you up to today?"),
-      NewLazyString(L"Stop trying to calm the storm. Calm yourself, the storm "
-                    L"will pass."),
-      NewLazyString(L"Learn to be indifferent to what makes no difference."),
-      NewLazyString(L"Whatever can happen at any time can happen today."),
-      NewLazyString(L"The trouble is, you think you have time."),
-      NewLazyString(L"Happiness is here, and now."),
-      NewLazyString(
+      MakeNonNullShared<Line>(L"Edge, a text editor."),
+      MakeNonNullShared<Line>(L"All modules are now active."),
+      MakeNonNullShared<Line>(L"Booting up Edge. . . . . . . . . . . . . DONE"),
+      MakeNonNullShared<Line>(L"What are you up to today?"),
+      MakeNonNullShared<Line>(
+          L"Stop trying to calm the storm. Calm yourself, the storm "
+          L"will pass."),
+      MakeNonNullShared<Line>(
+          L"Learn to be indifferent to what makes no difference."),
+      MakeNonNullShared<Line>(
+          L"Whatever can happen at any time can happen today."),
+      MakeNonNullShared<Line>(L"The trouble is, you think you have time."),
+      MakeNonNullShared<Line>(L"Happiness is here, and now."),
+      MakeNonNullShared<Line>(
           L"The journey of a thousand miles begins with a single step."),
-      NewLazyString(L"Every moment is a fresh beginning."),
-      NewLazyString(L"Action is the foundational key to all success."),
+      MakeNonNullShared<Line>(L"Every moment is a fresh beginning."),
+      MakeNonNullShared<Line>(
+          L"Action is the foundational key to all success."),
   });
   return errors.at(rand() % errors.size());
 }

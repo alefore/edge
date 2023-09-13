@@ -366,7 +366,8 @@ class InsertMode : public EditorMode {
             [options = options_, old_literal](OpenBuffer& buffer) {
               if (buffer.fd() != nullptr) {
                 if (old_literal) {
-                  buffer.status().SetInformationText(NewLazyString(L"ESC"));
+                  buffer.status().SetInformationText(
+                      MakeNonNullShared<Line>(L"ESC"));
                 } else {
                   buffer.status().Reset();
                 }
@@ -948,7 +949,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
     }
   }
   for (gc::Root<OpenBuffer>& buffer_root : options.buffers.value()) {
-    buffer_root.ptr()->status().SetInformationText(NewLazyString(
+    buffer_root.ptr()->status().SetInformationText(MakeNonNullShared<Line>(
         buffer_root.ptr()->fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
   }
 
