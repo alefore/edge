@@ -411,11 +411,12 @@ class KeyCommandsMap {
 
   template <typename Value, typename Callable>
   KeyCommandsMap& Insert(const std::unordered_map<wchar_t, Value>& values,
-                         Callable callback) {
+                         std::wstring category, Callable callback) {
     for (const auto& entry : values)
-      Insert(entry.first, {.handler = [callback, entry](wchar_t) {
-               callback(entry.second);
-             }});
+      Insert(entry.first,
+             {.category = category, .handler = [callback, entry](wchar_t) {
+                callback(entry.second);
+              }});
     return *this;
   }
 
@@ -520,7 +521,7 @@ void CheckStructureChar(KeyCommandsMap& cmap,
 
   for (const auto& entry : structure_bindings()) {
     VLOG(9) << "Add key: " << entry.second;
-    cmap.Insert(entry.first, {.category = L"Structure",
+    cmap.Insert(entry.first, {.category = L"structure",
                               .active = *structure == std::nullopt,
                               .handler =
                                   [structure, repetitions, &entry](wchar_t) {
@@ -532,15 +533,18 @@ void CheckStructureChar(KeyCommandsMap& cmap,
                                     }
                                   }})
         .Insert(entry.first,
-                {.active = entry.second == *structure,
+                {.category = L"structure",
+                 .active = entry.second == *structure,
                  .handler = [repetitions](wchar_t) { repetitions->sum(1); }});
   };
 }
 
 void CheckIncrementsChar(KeyCommandsMap& cmap,
                          CommandArgumentRepetitions* output) {
-  cmap.Insert(L'h', {.handler = [output](wchar_t) { output->sum(-1); }})
-      .Insert(L'l', {.handler = [output](wchar_t) { output->sum(1); }});
+  cmap.Insert(L'h', {.category = L"repetitions",
+                     .handler = [output](wchar_t) { output->sum(-1); }})
+      .Insert(L'l', {.category = L"repetitions",
+                     .handler = [output](wchar_t) { output->sum(1); }});
 }
 
 void CheckRepetitionsChar(KeyCommandsMap& cmap,
@@ -558,14 +562,16 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        State* state) {
   if (output->structure.value_or(Structure::kChar) == Structure::kChar &&
       !output->repetitions.empty()) {
-    cmap.Insert(L'H', {.active = output->repetitions.get_list().back() < 0,
+    cmap.Insert(L'H', {.category = L"new-command",
+                       .active = output->repetitions.get_list().back() < 0,
                        .handler =
                            [state](wchar_t) {
                              state->Push(CommandReachBisect{
                                  .structure = Structure::kChar,
                                  .directions = {Direction::kBackwards}});
                            }})
-        .Insert(L'L', {.active = output->repetitions.get_list().back() > 0,
+        .Insert(L'L', {.category = L"new-command",
+                       .active = output->repetitions.get_list().back() > 0,
                        .handler = [state](wchar_t) {
                          state->Push(CommandReachBisect{
                              .structure = Structure::kChar,
@@ -574,14 +580,16 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
   }
 
   if (output->structure == Structure::kLine && !output->repetitions.empty()) {
-    cmap.Insert(L'K', {.active = output->repetitions.get_list().back() < 0,
+    cmap.Insert(L'K', {.category = L"new-command",
+                       .active = output->repetitions.get_list().back() < 0,
                        .handler =
                            [state](wchar_t) {
                              state->Push(CommandReachBisect{
                                  .structure = Structure::kLine,
                                  .directions = {Direction::kBackwards}});
                            }})
-        .Insert(L'J', {.active = output->repetitions.get_list().back() > 0,
+        .Insert(L'J', {.category = L"new-command",
+                       .active = output->repetitions.get_list().back() > 0,
                        .handler = [state](wchar_t) {
                          state->Push(CommandReachBisect{
                              .structure = Structure::kLine,
@@ -597,13 +605,14 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
                        State*) {
   if (output->structure == Structure::kLine) {
-    KeyCommandsMap::KeyCommand handler = {.handler = [output](wchar_t t) {
-      int delta = t == L'j' ? 1 : -1;
-      if (output->direction == Direction::kBackwards) {
-        delta *= -1;
-      }
-      output->repetitions.sum(delta);
-    }};
+    KeyCommandsMap::KeyCommand handler = {
+        .category = L"repetitions", .handler = [output](wchar_t t) {
+          int delta = t == L'j' ? 1 : -1;
+          if (output->direction == Direction::kBackwards) {
+            delta *= -1;
+          }
+          output->repetitions.sum(delta);
+        }};
     cmap.Insert(L'j', handler).Insert(L'k', handler);
   }
 
@@ -621,7 +630,8 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                        State* state) {
-  cmap.Insert(L'K', {.active = !output->repetitions.empty() &&
+  cmap.Insert(L'K', {.category = L"new-command",
+                     .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() < 0,
                      .handler =
                          [state](wchar_t) {
@@ -629,7 +639,8 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                                .structure = Structure::kLine,
                                .directions = {Direction::kBackwards}});
                          }})
-      .Insert(L'J', {.active = !output->repetitions.empty() &&
+      .Insert(L'J', {.category = L"new-command",
+                     .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() > 0,
                      .handler = [state](wchar_t) {
                        state->Push(CommandReachBisect{
@@ -639,17 +650,21 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
 
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(L'j',
-              {.handler = [output](wchar_t) { output->repetitions.sum(1); }})
-      .Insert(L'k',
-              {.handler = [output](wchar_t) { output->repetitions.sum(-1); }});
+              {.category = L"repetitions",
+               .handler = [output](wchar_t) { output->repetitions.sum(1); }})
+      .Insert(L'k', {.category = L"repetitions", .handler = [output](wchar_t) {
+                       output->repetitions.sum(-1);
+                     }});
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(Terminal::PAGE_DOWN,
-              {.handler = [output](wchar_t) { output->repetitions.sum(1); }})
+              {.category = L"new-command",
+               .handler = [output](wchar_t) { output->repetitions.sum(1); }})
       .Insert(Terminal::PAGE_UP,
-              {.handler = [output](wchar_t) { output->repetitions.sum(-1); }});
+              {.category = L"new-command",
+               .handler = [output](wchar_t) { output->repetitions.sum(-1); }});
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
@@ -671,23 +686,25 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
 
   if (output->structure.value_or(Structure::kChar) == Structure::kChar) {
     cmap.Insert(L'h',
-                {.handler =
+                {.category = L"direction",
+                 .handler =
                      [output](wchar_t) {
                        output->directions.push_back(Direction::kBackwards);
                      }})
-        .Insert(L'l', {.handler = [output](wchar_t) {
-                  output->directions.push_back(Direction::kForwards);
-                }});
+        .Insert(L'l', {.category = L"direction", .handler = [output](wchar_t) {
+                         output->directions.push_back(Direction::kForwards);
+                       }});
   }
   if (output->structure == Structure::kLine) {
     cmap.Insert(L'k',
-                {.handler =
+                {.category = L"direction",
+                 .handler =
                      [output](wchar_t) {
                        output->directions.push_back(Direction::kBackwards);
                      }})
-        .Insert(L'j', {.handler = [output](wchar_t) {
-                  output->directions.push_back(Direction::kForwards);
-                }});
+        .Insert(L'j', {.category = L"direction", .handler = [output](wchar_t) {
+                         output->directions.push_back(Direction::kForwards);
+                       }});
   }
 }
 
@@ -748,11 +765,12 @@ class OperationMode : public EditorMode {
                 }});
 
     cmap.PushNew()
-        .Insert(structure_bindings(),
+        .Insert(structure_bindings(), L"structure",
                 [this](Structure structure) {
                   state_.Push(CommandReach{.structure = structure});
                 })
-        .Insert({L'h', L'l'}, {.handler =
+        .Insert({L'h', L'l'}, {.category = L"new-command",
+                               .handler =
                                    [this](wchar_t c) {
                                      state_.Push(CommandReach{
                                          .structure = Structure::kChar,
@@ -794,7 +812,7 @@ class OperationMode : public EditorMode {
 
     std::map<std::wstring, std::wstring> entries_by_category;
     for (const std::pair<const wchar_t, std::wstring>& entry : cmap.GetKeys())
-      if (isalnum(entry.first))
+      if (isprint(entry.first))
         entries_by_category[entry.second].push_back(entry.first);
     for (const std::pair<const std::wstring, std::wstring>& category :
          entries_by_category) {
@@ -808,11 +826,13 @@ class OperationMode : public EditorMode {
     using PTB = transformation::Stack::PostTransformationBehavior;
     auto push = [&state = state_](Command value) {
       return KeyCommandsMap::KeyCommand{
+          .category = L"new-command",
           .handler = [&state, value](wchar_t) { state.Push(value); }};
     };
     KeyCommandsMap cmap;
     cmap.OnHandle([this] { ShowStatus(); });
-    cmap.Insert(L'd', {.handler =
+    cmap.Insert(L'd', {.category = L"top",
+                       .handler =
                            [top_command, &state = state_](wchar_t) mutable {
                              switch (top_command.post_transformation_behavior) {
                                case PTB::kDeleteRegion:
@@ -830,7 +850,8 @@ class OperationMode : public EditorMode {
                              }
                              state.set_top_command(top_command);
                            }})
-        .Insert(L'~', {.handler =
+        .Insert(L'~', {.category = L"top",
+                       .handler =
                            [top_command, &state = state_](wchar_t) mutable {
                              switch (top_command.post_transformation_behavior) {
                                case PTB::kCapitalsSwitch:
@@ -844,7 +865,8 @@ class OperationMode : public EditorMode {
                              }
                              state.set_top_command(top_command);
                            }})
-        .Insert(L'$', {.handler =
+        .Insert(L'$', {.category = L"top",
+                       .handler =
                            [top_command, &state = state_](wchar_t) mutable {
                              switch (top_command.post_transformation_behavior) {
                                case PTB::kCommandSystem:
@@ -863,7 +885,8 @@ class OperationMode : public EditorMode {
                              state.set_top_command(top_command);
                            }})
         .Insert(L'|', push(CommandSetShell{}))
-        .Insert(L'+', {.handler =
+        .Insert(L'+', {.category = L"top",
+                       .handler =
                            [&state = state_, top_command](wchar_t) mutable {
                              switch (top_command.post_transformation_behavior) {
                                case PTB::kCursorOnEachLine:
@@ -879,7 +902,8 @@ class OperationMode : public EditorMode {
         .Insert(L'f', push(CommandReachQuery{}))
         .Insert(
             {Terminal::PAGE_DOWN, Terminal::PAGE_UP},
-            {.handler =
+            {.category = L"new-command",
+             .handler =
                  [&state = state_](wchar_t t) {
                    if (CommandReach* reach = state.empty()
                                                  ? nullptr
@@ -894,7 +918,8 @@ class OperationMode : public EditorMode {
                  }})
         .Insert(
             {L'j', L'k'},
-            {.handler =
+            {.category = L"new-command",
+             .handler =
                  [&state = state_](wchar_t t) {
                    if (CommandReach* reach = state.empty()
                                                  ? nullptr
