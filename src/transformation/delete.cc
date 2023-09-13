@@ -238,7 +238,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
             options.modifiers.text_delete_behavior ==
                     Modifiers::TextDeleteBehavior::kKeep
                 ? LineModifierSet{LineModifier::kUnderline,
-                                  LineModifier::kGreen}
+                                  LineModifier::kYellow}
                 : options.preview_modifiers;
         input.position = range.begin;
         return Apply(std::move(insert_options), input)
