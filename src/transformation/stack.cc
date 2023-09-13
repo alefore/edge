@@ -222,7 +222,7 @@ std::wstring ToString(const ContentStats& stats) {
 }
 
 ContentStats AnalyzeContent(const LineSequence& contents) {
-  ContentStats output{.lines = contents.EndLine().read() + 1};
+  ContentStats output{.lines = contents.EndLine().read()};
   contents.ForEach([&output](const NonNull<std::shared_ptr<const Line>>& line) {
     ColumnNumber i;
     output.characters += line->EndColumn().read();
@@ -246,21 +246,21 @@ const bool analyze_content_tests_registration = tests::Register(
           [] {
             CHECK(AnalyzeContent(LineSequence()) ==
                   ContentStats(
-                      {.lines = 1, .words = 0, .alnums = 0, .characters = 0}));
+                      {.lines = 0, .words = 0, .alnums = 0, .characters = 0}));
           }},
      {.name = L"SingleWord",
       .callback =
           [] {
             CHECK(AnalyzeContent(LineSequence::ForTests({L"foo"})) ==
                   ContentStats(
-                      {.lines = 1, .words = 1, .alnums = 3, .characters = 3}));
+                      {.lines = 0, .words = 1, .alnums = 3, .characters = 3}));
           }},
      {.name = L"SingleLine",
       .callback =
           [] {
             CHECK(AnalyzeContent(
                       LineSequence::ForTests({L"foo bar hey alejo"})) ==
-                  ContentStats({.lines = 1,
+                  ContentStats({.lines = 0,
                                 .words = 4,
                                 .alnums = 3 + 3 + 3 + 5,
                                 .characters = 17}));
@@ -270,7 +270,7 @@ const bool analyze_content_tests_registration = tests::Register(
           [] {
             CHECK(AnalyzeContent(LineSequence::ForTests(
                       {L"   foo    bar   hey   alejo   "})) ==
-                  ContentStats({.lines = 1,
+                  ContentStats({.lines = 0,
                                 .words = 4,
                                 .alnums = 3 + 3 + 3 + 5,
                                 .characters = 30}));
@@ -278,7 +278,7 @@ const bool analyze_content_tests_registration = tests::Register(
      {.name = L"VariousEmptyLines", .callback = [] {
         CHECK(AnalyzeContent(LineSequence::ForTests(
                   {L"", L"foo", L"", L"", L"", L"bar"})) ==
-              ContentStats({.lines = 6,
+              ContentStats({.lines = 5,
                             .words = 2,
                             .alnums = 3 + 3,
                             .characters = 3 + 3}));

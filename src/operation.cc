@@ -85,39 +85,37 @@ Modifiers GetModifiers(std::optional<Structure> structure,
 
 void AppendStatus(const CommandReach& reach, LineBuilder& output) {
   SerializeCall(
-      L"Reach",
-      {StructureToString(reach.structure), reach.repetitions.ToString()},
+      L"🦀", {StructureToString(reach.structure), reach.repetitions.ToString()},
       output);
 }
 
 void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
   SerializeCall(
-      reach.direction == Direction::kForwards ? L"Home" : L"End",
+      reach.direction == Direction::kBackwards ? L"🏠👇" : L"🏠👆",
       {StructureToString(reach.structure), reach.repetitions.ToString()},
       output);
 }
 
 void AppendStatus(const CommandReachLine& reach_line, LineBuilder& output) {
-  SerializeCall(reach_line.repetitions.get() >= 0 ? L"Down" : L"Up",
+  SerializeCall(reach_line.repetitions.get() >= 0 ? L"🧗👇" : L"🧗👆",
                 {reach_line.repetitions.ToString()}, output);
 }
 
 void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
-  SerializeCall(reach_line.repetitions.get() >= 0 ? L"PgDown" : L"PgUp",
+  SerializeCall(reach_line.repetitions.get() >= 0 ? L"📜👇" : L"📜👆",
                 {reach_line.repetitions.ToString()}, output);
 }
 
 void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
   SerializeCall(
-      L"Query",
-      {c.query + std::wstring(3 - std::min(3ul, c.query.size()), L'_')},
+      L"🔮", {c.query + std::wstring(3 - std::min(3ul, c.query.size()), L'_')},
       output);
 }
 
 void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
   std::wstring directions;
-  wchar_t backwards = c.structure == Structure::kLine ? L'↑' : L'←';
-  wchar_t forwards = c.structure == Structure::kLine ? L'↓' : L'→';
+  wchar_t backwards = c.structure == Structure::kLine ? L'👆' : L'👈';
+  wchar_t forwards = c.structure == Structure::kLine ? L'👇' : L'👉';
   for (Direction direction : c.directions) switch (direction) {
       case Direction::kForwards:
         directions.push_back(forwards);
@@ -126,12 +124,11 @@ void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
         directions.push_back(backwards);
         break;
     }
-  SerializeCall(L"Bisect", {StructureToString(c.structure), directions},
-                output);
+  SerializeCall(L"🪓", {StructureToString(c.structure), directions}, output);
 }
 
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
-  SerializeCall(L"|", {c.input}, output);
+  SerializeCall(L"🌀", {c.input}, output);
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
