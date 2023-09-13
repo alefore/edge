@@ -104,8 +104,7 @@ class Status {
 
   void Bell();
 
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> text()
-      const;
+  language::NonNull<std::shared_ptr<language::text::Line>> text() const;
 
  private:
   friend StatusExpirationControl;
@@ -121,8 +120,8 @@ class Status {
     const struct timespec creation_time = infrastructure::Now();
 
     const Type type = Type::kInformation;
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> text =
-        language::lazy_string::EmptyString();
+    language::NonNull<std::shared_ptr<language::text::Line>> text =
+        language::MakeNonNullShared<language::text::Line>();
 
     const std::optional<language::gc::Root<OpenBuffer>> prompt_buffer =
         std::nullopt;

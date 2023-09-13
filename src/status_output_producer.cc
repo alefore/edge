@@ -142,7 +142,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
           NewLazyString(L"  " + OpenBuffer::FlagsToString(std::move(flags))));
     }
 
-    if (options.status.text()->size().IsZero()) {
+    if (options.status.text()->empty()) {
       output.AppendString(
           NewLazyString(L"  “" + GetBufferContext(*options.buffer) + L"” "));
     }
@@ -180,7 +180,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
                  options.status.prompt_buffer()->ptr()->current_position_col());
     VLOG(5) << "Setting status cursor: " << column;
 
-    output.AppendString(options.status.text(), LineModifierSet());
+    output.Append(LineBuilder(options.status.text().value()));
     LineBuilder prefix(contents.value());
     prefix.DeleteSuffix(column);
     output.Append(std::move(prefix));
@@ -191,17 +191,13 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     output.Append(LineBuilder(options.status.prompt_extra_information_line()));
   } else {
     VLOG(6) << "Not setting status cursor.";
-    output.AppendString(
-        options.status.text(),
-        options.status.GetType() == Status::Type::kWarning
-            ? LineModifierSet({LineModifier::kRed, LineModifier::kBold})
-            : LineModifierSet());
+    output.Append(LineBuilder(options.status.text().value()));
     if (options.buffer != nullptr) {
-      if (NonNull<std::shared_ptr<LazyString>> editor_status_text =
+      if (NonNull<std::shared_ptr<Line>> editor_status_text =
               options.buffer->editor().status().text();
-          !editor_status_text->size().IsZero()) {
+          !editor_status_text->empty()) {
         output.AppendString(NewLazyString(L" 🌼 "));
-        output.AppendString(editor_status_text);
+        output.Append(LineBuilder(editor_status_text.value()));
       }
     }
   }
@@ -242,7 +238,7 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   auto call = tracker.Call();
 
   const auto info_lines = options.status.GetType() == Status::Type::kPrompt ||
-                                  !options.status.text()->size().IsZero() ||
+                                  !options.status.text()->empty() ||
                                   options.buffer != nullptr
                               ? LineNumberDelta(1)
                               : LineNumberDelta();

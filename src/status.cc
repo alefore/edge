@@ -117,11 +117,11 @@ Status::Type Status::GetType() const {
 void Status::set_prompt(NonNull<std::shared_ptr<LazyString>> text,
                         gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
-  data_ = MakeNonNullShared<Data>(
-      Data{.type = Status::Type::kPrompt,
-           .text = std::move(text),
-           .prompt_buffer = std::move(buffer),
-           .extra_information = std::make_unique<VersionPropertyReceiver>()});
+  data_ = MakeNonNullShared<Data>(Data{
+      .type = Status::Type::kPrompt,
+      .text = MakeNonNullShared<Line>(LineBuilder(std::move(text)).Build()),
+      .prompt_buffer = std::move(buffer),
+      .extra_information = std::make_unique<VersionPropertyReceiver>()});
   ValidatePreconditions();
 }
 
@@ -201,8 +201,9 @@ void Status::SetInformationText(NonNull<std::shared_ptr<LazyString>> text) {
   if (data_->prompt_buffer.has_value()) {
     return;
   }
-  data_ = MakeNonNullShared<Data>(
-      Data{.type = Type::kInformation, .text = std::move(text)});
+  data_ = MakeNonNullShared<Data>(Data{
+      .type = Type::kInformation,
+      .text = MakeNonNullShared<Line>(LineBuilder(std::move(text)).Build())});
   ValidatePreconditions();
 }
 
@@ -227,7 +228,7 @@ Status::SetExpiringInformationText(NonNull<std::shared_ptr<LazyString>> text) {
         VisitPointer(
             status_expiration_control->data,
             [](NonNull<std::shared_ptr<Status::Data>> data) {
-              data->text = EmptyString();
+              data->text = MakeNonNullShared<Line>();
             },
             [] {});
         delete status_expiration_control;
@@ -242,8 +243,13 @@ void Status::Set(Error error) {
   if (data_->prompt_buffer.has_value()) {
     return;
   }
-  data_ = MakeNonNullShared<Data>(Data{
-      .type = Type::kWarning, .text = NewLazyString(std::move(error.read()))});
+  LineBuilder text;
+  text.AppendString(NewLazyString(std::move(error.read())),
+                    LineModifierSet({LineModifier::kRed, LineModifier::kBold}));
+  data_ = MakeNonNullShared<Data>(
+      Data{.type = Type::kWarning,
+           .text = MakeNonNullShared<Line>(std::move(text).Build())});
+
   ValidatePreconditions();
 }
 
@@ -278,7 +284,7 @@ void Status::Bell() {
   text += +L" " + std::wstring(text.back() == L'♪' ? L"♫" : L"♪");
 }
 
-NonNull<std::shared_ptr<LazyString>> Status::text() const {
+NonNull<std::shared_ptr<Line>> Status::text() const {
   ValidatePreconditions();
   return data_->text;
 }
