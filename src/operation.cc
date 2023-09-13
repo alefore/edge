@@ -30,6 +30,7 @@ using language::EmptyValue;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::Append;
+using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
@@ -387,6 +388,7 @@ class State {
 class KeyCommandsMap {
  public:
   struct KeyCommand {
+    std::wstring category = L"";
     std::wstring description = L"";
     bool active = true;
     std::function<void(wchar_t)> handler;
@@ -439,11 +441,13 @@ class KeyCommandsMap {
 
   std::function<void(wchar_t)> FindCallbackOrNull(wchar_t c) const {
     if (auto it = table_.find(c); it != table_.end()) return it->second.handler;
-    if (fallback_ != nullptr &&
+    if (HasFallback() &&
         fallback_exclusion_.find(c) == fallback_exclusion_.end())
       return fallback_;
     return nullptr;
   }
+
+  bool HasFallback() const { return fallback_ != nullptr; }
 
   bool Execute(wchar_t c) const {
     if (auto callback = FindCallbackOrNull(c); callback != nullptr) {
@@ -452,6 +456,11 @@ class KeyCommandsMap {
       return true;
     }
     return false;
+  }
+
+  void ExtractKeys(std::map<wchar_t, std::wstring>& output) const {
+    for (auto& entry : table_)
+      output.insert({entry.first, entry.second.category});
   }
 
  private:
@@ -480,6 +489,15 @@ class KeyCommandsMapSequence {
     return sequence_.back();
   }
 
+  std::map<wchar_t, std::wstring> GetKeys() {
+    std::map<wchar_t, std::wstring> output;
+    for (const KeyCommandsMap& entry : sequence_) {
+      entry.ExtractKeys(output);
+      if (entry.HasFallback()) break;
+    }
+    return output;
+  }
+
  private:
   std::vector<KeyCommandsMap> sequence_;
 };
@@ -502,7 +520,8 @@ void CheckStructureChar(KeyCommandsMap& cmap,
 
   for (const auto& entry : structure_bindings()) {
     VLOG(9) << "Add key: " << entry.second;
-    cmap.Insert(entry.first, {.active = *structure == std::nullopt,
+    cmap.Insert(entry.first, {.category = L"Structure",
+                              .active = *structure == std::nullopt,
                               .handler =
                                   [structure, repetitions, &entry](wchar_t) {
                                     LOG(INFO)
@@ -531,7 +550,8 @@ void CheckRepetitionsChar(KeyCommandsMap& cmap,
                .handler = [output](wchar_t) { output->PopValue(); }});
   for (int i = 0; i < 10; i++)
     cmap.Insert(L'0' + i,
-                {.handler = [output, i](wchar_t) { output->factor(i); }});
+                {.category = L"repetitions",
+                 .handler = [output, i](wchar_t) { output->factor(i); }});
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
@@ -687,6 +707,24 @@ class OperationMode : public EditorMode {
 
   void ProcessInput(wint_t c) override {
     editor_state_.status().Reset();
+    GetGlobalKeyCommandsMap().Execute(c);
+  }
+
+  CursorMode cursor_mode() const override { return CursorMode::kDefault; }
+
+  void ShowStatus() {
+    // TODO(easy, 2023-09-08): Change ToStatus to return LazyString.
+    editor_state_.status().SetInformationText(Append(
+        NewLazyString(ToStatus(state_.top_command())), NewLazyString(L":"),
+        NewLazyString(state_.GetStatusString()), StatusForCommandsAvailable()));
+  }
+
+  void PushDefault() { PushCommand(CommandReach()); }
+
+  void PushCommand(Command command) { state_.Push(std::move(command)); }
+
+ private:
+  KeyCommandsMapSequence GetGlobalKeyCommandsMap() {
     KeyCommandsMapSequence cmap;
 
     if (!state_.empty()) {
@@ -747,24 +785,25 @@ class OperationMode : public EditorMode {
               state.Commit();
               editor_state.ProcessInput(c);
             });
-
-    cmap.Execute(c);
+    return cmap;
   }
 
-  CursorMode cursor_mode() const override { return CursorMode::kDefault; }
+  NonNull<std::shared_ptr<LazyString>> StatusForCommandsAvailable() {
+    KeyCommandsMapSequence cmap = GetGlobalKeyCommandsMap();
+    NonNull<std::shared_ptr<LazyString>> output = NewLazyString(L"    ");
 
-  void ShowStatus() {
-    // TODO(easy, 2023-09-08): Change ToStatus to return LazyString.
-    editor_state_.status().SetInformationText(
-        Append(NewLazyString(ToStatus(state_.top_command())),
-               NewLazyString(L":"), NewLazyString(state_.GetStatusString())));
+    std::map<std::wstring, std::wstring> entries_by_category;
+    for (const std::pair<const wchar_t, std::wstring>& entry : cmap.GetKeys())
+      if (isalnum(entry.first))
+        entries_by_category[entry.second].push_back(entry.first);
+    for (const std::pair<const std::wstring, std::wstring>& category :
+         entries_by_category) {
+      output =
+          Append(output, NewLazyString(L" "), NewLazyString(category.second));
+    }
+    return output;
   }
 
-  void PushDefault() { PushCommand(CommandReach()); }
-
-  void PushCommand(Command command) { state_.Push(std::move(command)); }
-
- private:
   KeyCommandsMap ReceiveInputTopCommand(TopCommand top_command) {
     using PTB = transformation::Stack::PostTransformationBehavior;
     auto push = [&state = state_](Command value) {
