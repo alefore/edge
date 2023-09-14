@@ -26,17 +26,14 @@ using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 
 namespace afc::vm {
-template <>
-struct VMTypeMapper<editor::EditorState> {
-  static editor::EditorState& get(Value& value) {
-    return value.get_user_value<editor::EditorState>(object_type_name).value();
-  }
+/* static */ editor::EditorState& VMTypeMapper<editor::EditorState>::get(
+    Value& value) {
+  return value.get_user_value<editor::EditorState>(object_type_name).value();
+}
 
-  static const types::ObjectName object_type_name;
-};
-
-const types::ObjectName VMTypeMapper<editor::EditorState>::object_type_name =
-    types::ObjectName(L"Editor");
+/* static */ const types::ObjectName
+    VMTypeMapper<editor::EditorState>::object_type_name =
+        types::ObjectName(L"Editor");
 }  // namespace afc::vm
 
 namespace afc::editor {
