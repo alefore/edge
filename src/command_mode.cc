@@ -518,7 +518,7 @@ class ResetStateCommand : public Command {
           .callback = [status_expiration =
                            std::shared_ptr<StatusExpirationControl>(
                                buffer.status().SetExpiringInformationText(
-                                   NewLazyString(L"ESC")))] {}});
+                                   NewLazyString(L"❌ ESC")))] {}});
       return futures::Past(EmptyValue());
     });
     editor_state_.set_modifiers(Modifiers());
