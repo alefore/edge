@@ -740,7 +740,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   buffer_syntax_parser_.ObserveTrees().Add(
       WeakPtrLockingObserver(weak_this, [](OpenBuffer& buffer) {
         // Trigger a wake up alarm.
-        buffer.work_queue()->Schedule(WorkQueue::Callback{.callback = [] {}});
+        buffer.work_queue()->Wait(Now());
       }));
 
   UpdateTreeParser();

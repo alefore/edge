@@ -742,8 +742,7 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
     // This is enough to cause the main loop to wake up; it'll attempt to do a
     // redraw then. Multiple attempts may be scheduled, but that's fine (just
     // a bit wasteful of memory).
-    work_queue_->Schedule(
-        WorkQueue::Callback{.time = next_screen_update_, .callback = [] {}});
+    work_queue_->Wait(next_screen_update_);
     return {};
   }
   next_screen_update_ = AddSeconds(now, 1.0 / frames_per_second_);
