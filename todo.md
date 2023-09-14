@@ -8,9 +8,13 @@ Make the widgets work closer to nethack or similar command-line games.
   * Make `j` and `k` scroll within the line.
 
 Display the state of bool variables set different than their default values?
+Perhaps pick an emoji for each variable and just display them.
 
-Highlight the token under the cursor:
-* If we're in a syntax tree, highlight other occurrences of the same token.
+Completion models:
+* Use colors for statuses.
+* Withdraw suggestions as they become irrelevant.
+  For example, "`c` is an alias for ..." should no longer be shown
+  once the user enters a 2nd character after the initial `c`.
 
 ### Markdown
 
