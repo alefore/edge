@@ -66,10 +66,9 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
   LineBuilder output;
   if (options.buffer != nullptr &&
       options.status.GetType() != Status::Type::kWarning) {
-    output.AppendCharacter('[', {LineModifier::kDim});
     if (options.buffer->current_position_line() >
         options.buffer->contents().EndLine()) {
-      output.AppendString(NewLazyString(L"<EOF>"));
+      output.AppendString(NewLazyString(L"🚀"));
     } else {
       output.AppendString(NewLazyString(to_wstring(
           options.buffer->current_position_line() + LineNumberDelta(1))));
@@ -80,7 +79,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     output.AppendString(NewLazyString(L", "), {{LineModifier::kDim}});
     output.AppendString(NewLazyString(to_wstring(
         options.buffer->current_position_col() + ColumnNumberDelta(1))));
-    output.AppendString(NewLazyString(L"] "), {{LineModifier::kDim}});
+    output.AppendString(NewLazyString(L" 🧭 "), {{LineModifier::kDim}});
 
     auto marks_text = options.buffer->GetLineMarksText();
     if (!marks_text.empty()) {
@@ -90,14 +89,18 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 
     auto active_cursors = options.buffer->active_cursors();
     if (active_cursors.size() != 1) {
-      // TODO(trivial, 2023-09-11): Improve use of modifiers.
-      output.AppendString(NewLazyString(
-          L" " +
-          (options.buffer->Read(buffer_variables::multiple_cursors)
-               ? std::wstring(L"CURSORS")
-               : std::wstring(L"cursors")) +
-          L":" + std::to_wstring(active_cursors.current_index() + 1) + L"/" +
-          std::to_wstring(active_cursors.size()) + L" "));
+      output.AppendString(L" ", std::nullopt);
+      output.AppendString(
+          options.buffer->Read(buffer_variables::multiple_cursors)
+              ? std::wstring(L"✨")
+              : std::wstring(L"👥"),
+          std::nullopt);
+      output.AppendString(L":", LineModifierSet{LineModifier::kDim});
+      output.AppendString(std::to_wstring(active_cursors.current_index() + 1),
+                          std::nullopt);
+      output.AppendString(L"/", LineModifierSet{LineModifier::kDim});
+      output.AppendString(std::to_wstring(active_cursors.size()), std::nullopt);
+      output.AppendString(L" ", std::nullopt);
     }
 
     std::map<std::wstring, std::wstring> flags = options.buffer->Flags();
