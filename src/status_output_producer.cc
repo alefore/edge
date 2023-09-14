@@ -22,6 +22,7 @@ namespace {
 using infrastructure::Tracker;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
+using language::FromByteString;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::Pointer;
@@ -127,7 +128,9 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       structure =
           L"tree<" + std::to_wstring(options.buffer->tree_depth()) + L">";
     } else if (options.modifiers.structure != Structure::kChar) {
-      structure = ToString(options.modifiers.structure);
+      std::ostringstream oss;
+      oss << options.modifiers.structure;
+      structure = FromByteString(oss.str());
     }
     if (!structure.empty()) {
       if (options.modifiers.sticky_structure) {

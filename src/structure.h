@@ -30,8 +30,6 @@ enum class Structure {
 };
 
 std::ostream& operator<<(std::ostream& os, const Structure& structure);
-// TODO(trivial, 2023-08-18): Get rid of this; callers should use operator<<.
-std::wstring ToString(Structure);
 
 Structure StructureLower(Structure);
 

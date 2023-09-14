@@ -106,12 +106,6 @@ std::ostream& operator<<(std::ostream& os, const Structure& structure) {
   return os;
 }
 
-std::wstring ToString(Structure structure) {
-  std::ostringstream os;
-  os << structure;
-  return language::FromByteString(os.str());
-}
-
 Structure StructureLower(Structure structure) {
   switch (structure) {
     case Structure::kChar:
