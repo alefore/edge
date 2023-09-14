@@ -5,6 +5,7 @@
 #define __AFC_EDITOR_CONCURRENT_BAG_H__
 
 #include <list>
+#include <utility>
 
 #include "src/concurrent/operation.h"
 #include "src/concurrent/protected.h"
@@ -179,27 +180,42 @@ class BagIterators {
     return output;
   }
 
-  void erase(Operation& operation) && {
+  // Work that needs to happen before the Bag successfully reflects the erase
+  // will be scheduled in `operation`. Work that can be done later (doesn't need
+  // to happen immediately) will be scheduled in `async_operation`; this
+  // typically include deletions that can be defered.
+  void erase(Operation& operation, Operation& async_operation) && {
     CHECK_EQ(iterator_shards_.size(), bag_.shards_.size());
     for (size_t i = 0; i < iterator_shards_.size(); i++)
-      operation.Add([&bag = bag_, i,
+      operation.Add([&bag = bag_, &operation, &async_operation, i,
                      iterator_shard =
                          std::move(iterator_shards_[i])]() mutable {
-        iterator_shard.lock(
+        std::list<T> deletions = iterator_shard.lock(
             [&](std::vector<typename std::list<T>::iterator>& iterators) {
-              if (iterators.empty()) return;  // Optimization: avoid lock.
-              bag.shards_[i].lock(
+              if (iterators.empty())  // Optimization: avoid lock.
+                return std::list<T>();
+              return bag.shards_[i].lock(
                   [&iterators](
                       language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
                     TRACK_OPERATION(BagIterators_erase);
                     if (iterators.size() == shard->size()) {
                       TRACK_OPERATION(BagIterators_erase_optimized_path);
-                      shard->clear();
-                      return;
+                      // We don't need the actual deletion to happen before we
+                      // return; if we have an async_operation Operation,
+                      // schedule the deletion there. That may allow us (and our
+                      // customers) to unlock things sooner.
+                      return std::exchange(shard.value(), std::list<T>());
                     }
-                    for (auto& it : iterators) shard->erase(it);
+                    std::list<T> deletions;
+                    for (auto& it : iterators) {
+                      deletions.emplace_back(std::move(*it));
+                      shard->erase(it);
+                    }
+                    return deletions;
                   });
             });
+        if (!deletions.empty() && &async_operation != &operation)
+          async_operation.Add([deletions = std::move(deletions)] {});
       });
   }
 

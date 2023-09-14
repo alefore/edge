@@ -29,9 +29,10 @@
 //
 // * `WeakPtr<>: Similar to `Ptr`, but won't keep objects alive (i.e., if all
 //   references to an object are of this type, allows the object to be deleted).
-//   A `WeakPtr` corresponding to a given Ptr through `Ptr::ToWeakPtr`. To read
-//   the value, the customer must call `WeakPtr::Lock` to attempt to obtain a
-//   `Root` for the object. This is similar to `std::weak_ptr`.
+//   A `WeakPtr` corresponding to a given Ptr can be obtained through
+//   `Ptr::ToWeakPtr`. To read the value, the customer must call `WeakPtr::Lock`
+//   to attempt to obtain a `Root` for the object. This is similar to
+//   `std::weak_ptr`.
 //
 // The expected usage is that values in the stack and in a few special entry
 // points should be stored as `Root` pointers. Reference inside managed types
@@ -194,6 +195,7 @@ class Pool {
     std::optional<afc::infrastructure::Duration> collect_duration_threshold;
 
     std::shared_ptr<concurrent::ThreadPool> thread_pool;
+    std::shared_ptr<concurrent::ThreadPool> thread_pool_async_work;
   };
 
   Pool(Options options);
@@ -334,6 +336,7 @@ class Pool {
   const Options options_;
   concurrent::Protected<Eden> eden_;
   concurrent::Protected<Survivors> survivors_;
+  concurrent::Operation async_operation_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Pool::FullCollectStats& stats);

@@ -39,8 +39,12 @@ Pool::Pool(Options options)
     : options_([&] {
         if (options.thread_pool == nullptr)
           options.thread_pool = std::make_shared<ThreadPool>(8, nullptr);
+        if (options.thread_pool_async_work == nullptr)
+          options.thread_pool_async_work =
+              std::make_shared<ThreadPool>(4, nullptr);
         return std::move(options);
-      }()) {}
+      }()),
+      async_operation_(*options_.thread_pool_async_work) {}
 
 Pool::~Pool() {
   FullCollect();
@@ -194,7 +198,7 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
     concurrent::Operation operation(*options_.thread_pool);
     for (std::pair<ObjectMetadataBag* const, ObjectMetadataBag::Iterators>&
              entry : eden.roots_deleted)
-      std::move(entry.second).erase(operation);
+      std::move(entry.second).erase(operation, async_operation_);
   }
 
   VLOG(3) << "Removing empty lists of roots.";

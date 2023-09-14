@@ -144,7 +144,7 @@ const bool tests_registration = tests::Register(
                ThreadPool thread_pool(5, nullptr);
                Bag<size_t> bag = NumbersBag(0, 100);
                Operation operation(thread_pool);
-               BagIterators(bag).erase(operation);
+               BagIterators(bag).erase(operation, operation);
              }},
         {.name = L"IteratorsBagSimple",
          .callback =
@@ -175,7 +175,7 @@ const bool tests_registration = tests::Register(
 
                {
                  Operation operation(thread_pool);
-                 std::move(iterators_bag).erase(operation);
+                 std::move(iterators_bag).erase(operation, operation);
                }
 
                CHECK_EQ(bag.size(), 97ul);
@@ -199,14 +199,16 @@ const bool tests_registration = tests::Register(
                {
                  ThreadPool thread_pool(5, nullptr);
                  Operation operation(thread_pool);
-                 std::move(iterators_bag).erase(operation);
+                 std::move(iterators_bag).erase(operation, operation);
                }
 
                CHECK_EQ(bag.size(), 0ul);
                CHECK(bag.empty());
                CHECK(BagToSet(bag) == expected);
              }},
-
     });
+
+// TODO(trivial, 2023-09-14): Add tests for erase with async operation.
+
 }  // namespace
 }  // namespace afc::concurrent
