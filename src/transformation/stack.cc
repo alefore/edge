@@ -29,6 +29,7 @@ using language::Success;
 using language::ToByteString;
 using language::lazy_string::Append;
 using language::lazy_string::ColumnNumber;
+using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
@@ -215,10 +216,11 @@ struct ContentStats {
   }
 };
 
-std::wstring ToString(const ContentStats& stats) {
-  return L"🌳" + std::to_wstring(stats.lines) + L" 🍀" +
-         std::to_wstring(stats.words) + L" 🍄" + std::to_wstring(stats.alnums) +
-         L" 🌰" + std::to_wstring(stats.characters);
+NonNull<std::shared_ptr<LazyString>> ToString(const ContentStats& stats) {
+  return NewLazyString(L"🌳" + std::to_wstring(stats.lines) + L" 🍀" +
+                       std::to_wstring(stats.words) + L" 🍄" +
+                       std::to_wstring(stats.alnums) + L" 🌰" +
+                       std::to_wstring(stats.characters));
 }
 
 ContentStats AnalyzeContent(const LineSequence& contents) {
@@ -235,7 +237,7 @@ ContentStats AnalyzeContent(const LineSequence& contents) {
       }
     }
   });
-  VLOG(7) << "AnalyzeContent: Output: " << ToString(output);
+  VLOG(7) << "AnalyzeContent: Output: " << ToString(output).value();
   return output;
 }
 
@@ -318,12 +320,12 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                       contents.EndLine() <
                           LineNumber(input.buffer.Read(
                               buffer_variables::analyze_content_lines_limit))) {
-                    // TODO(easy, 2023-09-08): Change ToString to return a lazy
-                    // string.
+                    // TODO(trivial): Always produce the count of lines; just
+                    // use analyze_content_lines_limit to decide of the finer
+                    // grained values should be computed.
                     input.buffer.status().SetInformationText(
                         MakeNonNullShared<Line>(
-                            LineBuilder(NewLazyString(
-                                            ToString(AnalyzeContent(contents))))
+                            LineBuilder(ToString(AnalyzeContent(contents)))
                                 .Build()));
                   }
                   return futures::Past(std::move(*output));
