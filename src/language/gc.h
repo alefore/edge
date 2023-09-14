@@ -1,4 +1,4 @@
-// Module implementing incremental garbage collection.
+// Module implementing concurrent incremental garbage collection.
 //
 // The main motivation is to support cyclic directed graphs of managed objects.
 // By (1) explicitly tracking "roots" (entry points that should not be
