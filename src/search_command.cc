@@ -371,6 +371,7 @@ class SearchCommand : public Command {
       LOG(INFO) << "Searching region: " << search_options.starting_position
                 << " to " << search_options.limit_position.value();
     }
+    search_options.required_positions = 100;
     search_options.abort_value = abort_value;
     search_options.case_sensitive =
         buffer.Read(buffer_variables::search_case_sensitive);

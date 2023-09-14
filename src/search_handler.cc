@@ -137,8 +137,6 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
 std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
     SearchOptions search_options, const LineSequence& contents,
     ProgressChannel& progress_channel) {
-  // TODO(easy, 2022-04-14): Why is this here?
-  search_options.required_positions = 100;
   // Must take special care to only capture instances of thread-safe classes:
   return std::bind_front(
       [search_options, &progress_channel](
