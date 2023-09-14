@@ -543,6 +543,12 @@ Line::Line(Line::Data data)
 #endif
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const afc::language::text::Line& line) {
+  os << line.contents().value();
+  return os;
+}
+
 }  // namespace afc::language::text
 namespace std {
 std::size_t hash<afc::language::text::LineMetadataEntry>::operator()(

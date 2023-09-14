@@ -30,6 +30,8 @@ using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 
+using ::operator<<;
+
 wchar_t Braille(size_t counter) {
   wchar_t c = L'⠀';
   c += (counter & 0x80 ? 0x01 : 0) + (counter & 0x40 ? 0x08 : 0) +
@@ -196,8 +198,7 @@ Line Status::prompt_extra_information_line() const {
 
 void Status::SetInformationText(NonNull<std::shared_ptr<Line>> text) {
   ValidatePreconditions();
-  // TODO(easy, 2023-09-08): Avoid call to ToString.
-  LOG(INFO) << "SetInformationText: " << text->ToString();
+  LOG(INFO) << "SetInformationText: " << text.value();
   if (data_->prompt_buffer.has_value()) {
     return;
   }

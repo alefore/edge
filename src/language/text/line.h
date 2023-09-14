@@ -221,6 +221,8 @@ class LineBuilder {
   Line::Data data_;
   void ValidateInvariants();
 };
+
+std::ostream& operator<<(std::ostream& os, const afc::language::text::Line&);
 }  // namespace afc::language::text
 namespace std {
 template <>
