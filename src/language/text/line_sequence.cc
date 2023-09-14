@@ -195,7 +195,7 @@ std::wstring LineSequence::ToString() const {
 
 NonNull<std::shared_ptr<lazy_string::LazyString>> LineSequence::ToLazyString()
     const {
-  // TODO(trivial, 2023-09-11): Provide a more efficient implementation.
+  // TODO(easy, 2023-09-11): Provide a more efficient implementation.
   return NewLazyString(ToString());
 }
 
