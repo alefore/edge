@@ -157,38 +157,27 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
                   return MakeNonNullShared<const Line>(
                       std::move(line_builder).Build());
                 }
-                futures::Future<NonNull<std::shared_ptr<LazyString>>>
-                    metadata_future;
                 NonNull<std::shared_ptr<vm::Expression>> expr =
                     std::move(compilation_result.first);
-                buffer.work_queue()->Schedule(WorkQueue::Callback{
-                    .callback = [buffer = buffer.NewRoot(),
-                                 expr = std::move(expr),
-                                 sub_environment =
-                                     std::move(compilation_result.second),
-                                 consumer = metadata_future.consumer] {
-                      buffer.ptr()
+                metadata_value = buffer.work_queue()->Wait(Now()).Transform(
+                    [buffer = buffer.NewRoot(), expr = std::move(expr),
+                     sub_environment =
+                         std::move(compilation_result.second)](EmptyValue) {
+                      return buffer.ptr()
                           ->EvaluateExpression(expr.value(), sub_environment)
                           .Transform([](gc::Root<vm::Value> value) {
                             std::ostringstream oss;
                             oss << value.ptr().value();
-                            // TODO(2022-04-26): Improve futures to be able to
-                            // remove Success.
-                            return Success(
-                                NewLazyString(FromByteString(oss.str())));
+                            return Success(NonNull<std::shared_ptr<LazyString>>(
+                                NewLazyString(FromByteString(oss.str()))));
                           })
                           .ConsumeErrors([](Error error) {
-                            return futures::Past(NewLazyString(
-                                L"E: " + std::move(error.read())));
-                          })
-                          .Transform(
-                              [consumer](
-                                  NonNull<std::shared_ptr<LazyString>> output) {
-                                consumer(output);
-                                return Success();
-                              });
-                    }});
-                metadata_value = std::move(metadata_future.value);
+                            return futures::Past(
+                                NonNull<std::shared_ptr<LazyString>>(
+                                    NewLazyString(L"E: " +
+                                                  std::move(error.read()))));
+                          });
+                    });
               } break;
               case vm::PurityType::kUnknown:
                 break;

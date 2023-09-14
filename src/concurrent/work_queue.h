@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/concurrent/protected.h"
+#include "src/futures/futures.h"
 #include "src/infrastructure/time.h"
 #include "src/language/observers.h"
 #include "src/language/safe_types.h"
@@ -50,6 +51,8 @@ class WorkQueue {
   };
 
   void Schedule(Callback callback);
+
+  futures::Value<language::EmptyValue> Wait(struct timespec time);
 
   // Takes all the scheduled callbacks at a time in the past and executes them.
   // Any new callbacks that they transitively schedule may not (and typically

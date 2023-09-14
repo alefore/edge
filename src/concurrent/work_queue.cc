@@ -10,6 +10,7 @@
 namespace afc::concurrent {
 using infrastructure::Now;
 using infrastructure::SecondsBetween;
+using language::EmptyValue;
 using language::MakeNonNullShared;
 using language::NonNull;
 
@@ -23,6 +24,14 @@ void WorkQueue::Schedule(WorkQueue::Callback callback) {
   CHECK(callback.callback != nullptr);
   data_.lock()->callbacks.push(std::move(callback));
   schedule_observers_.Notify();
+}
+
+futures::Value<EmptyValue> WorkQueue::Wait(struct timespec time) {
+  futures::Future<EmptyValue> value;
+  Schedule({.time = time, .callback = [consumer = std::move(value.consumer)] {
+              consumer(EmptyValue());
+            }});
+  return std::move(value.value);
 }
 
 void WorkQueue::Execute() {
