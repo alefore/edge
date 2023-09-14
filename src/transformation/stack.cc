@@ -322,9 +322,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                     // string.
                     input.buffer.status().SetInformationText(
                         MakeNonNullShared<Line>(
-                            LineBuilder(Append(NewLazyString(L"Selection: "),
-                                               NewLazyString(ToString(
-                                                   AnalyzeContent(contents)))))
+                            LineBuilder(NewLazyString(
+                                            ToString(AnalyzeContent(contents))))
                                 .Build()));
                   }
                   return futures::Past(std::move(*output));
