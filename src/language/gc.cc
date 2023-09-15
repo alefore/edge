@@ -38,12 +38,8 @@ Pool::Pool(Options options)
     : options_([&] {
         if (options.thread_pool == nullptr)
           options.thread_pool = std::make_shared<ThreadPool>(8, nullptr);
-        if (options.thread_pool_async_work == nullptr)
-          options.thread_pool_async_work =
-              std::make_shared<ThreadPool>(4, nullptr);
         return std::move(options);
-      }()),
-      async_operation_(*options_.thread_pool_async_work) {}
+      }()) {}
 
 Pool::~Pool() {
   FullCollect();
@@ -172,9 +168,10 @@ Pool::CollectOutput Pool::Collect(bool full) {
     return UnfinishedCollectStats();
   }
 
-  async_operation_.Add([callbacks = std::move(expired_objects_callbacks)] {
-    VLOG(3) << "Allowing lost object to be deleted: " << callbacks.size();
-  });
+  options_.thread_pool->RunIgnoringResult(
+      [callbacks = std::move(expired_objects_callbacks)] {
+        VLOG(3) << "Allowing lost object to be deleted: " << callbacks.size();
+      });
 
   LOG(INFO) << "Garbage collection results: " << stats;
   return stats;

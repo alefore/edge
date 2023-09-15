@@ -195,7 +195,6 @@ class Pool {
     std::optional<afc::infrastructure::Duration> collect_duration_threshold;
 
     std::shared_ptr<concurrent::ThreadPool> thread_pool;
-    std::shared_ptr<concurrent::ThreadPool> thread_pool_async_work;
   };
 
   Pool(Options options);
@@ -335,7 +334,6 @@ class Pool {
   const Options options_;
   concurrent::Protected<Eden> eden_;
   concurrent::Protected<Survivors> survivors_;
-  concurrent::Operation async_operation_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Pool::FullCollectStats& stats);
