@@ -447,24 +447,30 @@ gc::Root<OpenBuffer> CreateBuffer(
   buffer_options->handle_visit = [stat_buffer](OpenBuffer& buffer) {
     HandleVisit(*stat_buffer, buffer);
   };
-  buffer_options->handle_save =
-      [&editor_state = options.editor_state,
-       stat_buffer](OpenBuffer::Options::HandleSaveOptions save_options) {
-        gc::WeakPtr<OpenBuffer> buffer_weak =
-            save_options.buffer.NewRoot().ptr().ToWeakPtr();
-        return futures::OnError(
-            Save(&editor_state, stat_buffer.get(), std::move(save_options)),
-            [buffer_weak](Error error) {
-              VisitPointer(
-                  buffer_weak.Lock(),
-                  [&error](gc::Root<OpenBuffer> buffer) {
-                    buffer.ptr()->status().Set(
-                        AugmentError(L"🖫 Save failed", error));
-                  },
-                  [] {});
-              return futures::Past(error);
-            });
-      };
+  if (options.path.has_value())
+    buffer_options->handle_save =
+        [&editor_state = options.editor_state,
+         stat_buffer](OpenBuffer::Options::HandleSaveOptions save_options)
+        -> futures::Value<PossibleError> {
+      gc::WeakPtr<OpenBuffer> buffer_weak =
+          save_options.buffer.NewRoot().ptr().ToWeakPtr();
+      return futures::OnError(
+          Save(&editor_state, stat_buffer.get(), std::move(save_options)),
+          [buffer_weak](Error error) {
+            VisitPointer(
+                buffer_weak.Lock(),
+                [&error](gc::Root<OpenBuffer> buffer) {
+                  buffer.ptr()->status().Set(
+                      AugmentError(L"🖫 Save failed", error));
+                },
+                [] {});
+            return futures::Past(error);
+          });
+    };
+  else
+    buffer_options->handle_save = [](OpenBuffer::Options::HandleSaveOptions) {
+      return futures::Past(Success());
+    };
   if (resolve_path_output.has_value()) {
     buffer_options->path = resolve_path_output->path;
   } else if (options.path.has_value()) {
