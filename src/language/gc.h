@@ -325,7 +325,8 @@ class Pool {
     // If we reach a deadline while traversing this list, we stop. The next
     // execution will avoid (most of) the work we've done (because it will
     // quickly skip already scheduled or expanded objects).
-    ObjectExpandList expand_list;
+    concurrent::Bag<ObjectExpandList> expand_list =
+        concurrent::Bag<ObjectExpandList>({.shards = 64});
   };
 
   // Moves objects from `eden` into `survivors`.
@@ -338,18 +339,15 @@ class Pool {
 
   // Inserts all not-yet-reached objects from survivors.roots into
   // survivors.expand_list.
-  static void ScheduleExpandRoots(Survivors& survivors);
+  static void ScheduleExpandRoots(concurrent::ThreadPool& thread_pool,
+                                  Survivors& survivors);
 
-  // If the object's state is kLost, appends it to `expand_list`. The caller
-  // must ensure that `expand_list` will eventually be expanded (before allowing
-  // unexpanded objects to be deleted).
-  static void MaybeScheduleExpand(
-      ObjectExpandList& expand_list,
-      language::NonNull<std::shared_ptr<ObjectMetadata>> object);
+  static bool IsExpandAlreadyScheduled(
+      const language::NonNull<std::shared_ptr<ObjectMetadata>>& object);
 
   // Recursively expand all objects in `survivors.expand_list`. May stop early
   // if the timeout is reached.
-  static void Expand(Survivors& survivors,
+  static void Expand(concurrent::ThreadPool& thread_pool, Survivors& survivors,
                      const std::optional<afc::infrastructure::CountDownTimer>&
                          count_down_timer);
   void UpdateSurvivorsList(

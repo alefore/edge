@@ -176,8 +176,8 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
           stats.roots = SumContainedSizes(survivors.roots_list);
 
-          ScheduleExpandRoots(survivors);
-          Expand(survivors, timer);
+          ScheduleExpandRoots(*options_.thread_pool, survivors);
+          Expand(*options_.thread_pool, survivors, timer);
           if (!survivors.expand_list.empty()) {
             VLOG(3) << "Expansion didn't finish. Interrupting.";
             return false;
@@ -225,9 +225,7 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
 
   if (eden.expand_list.has_value()) {
     TRACK_OPERATION(gc_Pool_ConsumeEden_expand_list);
-    survivors.expand_list.insert(survivors.expand_list.end(),
-                                 eden.expand_list->begin(),
-                                 eden.expand_list->end());
+    survivors.expand_list.Add(std::move(eden.expand_list.value()));
   }
 }
 
@@ -236,85 +234,105 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
          (eden.expand_list == std::nullopt || eden.expand_list->empty());
 }
 
-/* static */ void Pool::ScheduleExpandRoots(Survivors& survivors) {
-  VLOG(3) << "Registering roots.";
+/* static */ void Pool::ScheduleExpandRoots(ThreadPool& thread_pool,
+                                            Survivors& survivors) {
+  VLOG(3) << "Registering roots: " << survivors.roots_list.size();
   TRACK_OPERATION(gc_Pool_ScheduleExpandRoots);
 
+  // TODO(easy, 2023-09-15): Synchronize at the top level, rather than in each
+  // call to ForEachShard.
   for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l :
        survivors.roots_list)
-    l->ForEachSerial([&survivors](
-                         const std::weak_ptr<ObjectMetadata>& root_weak) {
-      VisitPointer(
-          root_weak,
-          std::bind_front(MaybeScheduleExpand, std::ref(survivors.expand_list)),
-          [] { LOG(FATAL) << "Root was dead. Should never happen."; });
-    });
+    l->ForEachShard(
+        thread_pool,
+        [&survivors](const std::list<std::weak_ptr<ObjectMetadata>>& shard) {
+          ObjectExpandList local_expand_list;
+          for (const std::weak_ptr<ObjectMetadata>& root_weak : shard)
+            VisitPointer(
+                root_weak,
+                [&local_expand_list](
+                    NonNull<std::shared_ptr<ObjectMetadata>> obj) {
+                  if (!IsExpandAlreadyScheduled(obj))
+                    local_expand_list.push_back(std::move(obj));
+                },
+                [] { LOG(FATAL) << "Root was dead. Should never happen."; });
+          if (!local_expand_list.empty())
+            survivors.expand_list.Add(std::move(local_expand_list));
+        });
 
   VLOG(5) << "Roots registered: " << survivors.expand_list.size();
 }
 
-/* static */ void Pool::MaybeScheduleExpand(
-    ObjectExpandList& output, NonNull<std::shared_ptr<ObjectMetadata>> object) {
-  if (object->data_.lock([](ObjectMetadata::Data& data) {
-        switch (data.expand_state) {
-          case ObjectMetadata::ExpandState::kDone:
-          case ObjectMetadata::ExpandState::kScheduled:
-            return false;
-          case ObjectMetadata::ExpandState::kUnreached:
-            data.expand_state = ObjectMetadata::ExpandState::kScheduled;
-            return true;
-        }
-        LOG(FATAL) << "Invalid state";
+/* static */ bool Pool::IsExpandAlreadyScheduled(
+    const NonNull<std::shared_ptr<ObjectMetadata>>& object) {
+  return object->data_.lock([](ObjectMetadata::Data& data) {
+    switch (data.expand_state) {
+      case ObjectMetadata::ExpandState::kDone:
+      case ObjectMetadata::ExpandState::kScheduled:
+        return true;
+      case ObjectMetadata::ExpandState::kUnreached:
+        data.expand_state = ObjectMetadata::ExpandState::kScheduled;
         return false;
-      }))
-    output.push_back(std::move(object));
+    }
+    LOG(FATAL) << "Invalid state";
+    return false;
+  });
 }
 
 /* static */
-void Pool::Expand(Survivors& survivors,
+void Pool::Expand(ThreadPool& thread_pool, Survivors& survivors,
                   const std::optional<CountDownTimer>& count_down_timer) {
   VLOG(3) << "Starting recursive expand (expand_list: "
           << survivors.expand_list.size() << ")";
 
-  // TODO(easy, 2023-09-15): This can be parallelized: we could turn expand_list
-  // into a Bag. That would allow us to expand shards independently,
-  // concurrently. That would also enable parallelizing other parts of the
-  // preparation work.
-
   TRACK_OPERATION(gc_Pool_Expand);
 
-  while (!survivors.expand_list.empty() &&
-         !(count_down_timer.has_value() && count_down_timer->IsDone())) {
-    TRACK_OPERATION(gc_Pool_Expand_Step);
+  survivors.expand_list.ForEachShard(
+      thread_pool, [&count_down_timer](std::list<ObjectExpandList>& shard) {
+        TRACK_OPERATION(gc_Pool_Expand_shard);
+        while (!shard.empty() &&
+               !(count_down_timer.has_value() && count_down_timer->IsDone())) {
+          TRACK_OPERATION(gc_Pool_Expand_Step);
 
-    NonNull<std::shared_ptr<ObjectMetadata>>& front =
-        survivors.expand_list.front();
-    VLOG(5) << "Considering obj: " << front.get_shared();
-    auto expansion = front->data_.lock(
-        [&](ObjectMetadata::Data& object_data)
-            -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
-          CHECK(object_data.expand_callback != nullptr);
-          switch (object_data.expand_state) {
-            case ObjectMetadata::ExpandState::kDone:
-              return {};
-            case ObjectMetadata::ExpandState::kScheduled: {
-              object_data.expand_state = ObjectMetadata::ExpandState::kDone;
-              TRACK_OPERATION(gc_Pool_Expand_Step_call);
-              return object_data.expand_callback();
-            }
-            case ObjectMetadata::ExpandState::kUnreached:
-              LOG(FATAL) << "Invalid state.";
+          if (shard.front().empty()) {
+            shard.pop_front();
+            continue;
           }
-          LOG(FATAL) << "Invalid state.";
-          return {};
-        });
-    VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
-            << expansion.size();
-    survivors.expand_list.pop_front();
-    for (NonNull<std::shared_ptr<ObjectMetadata>>& child : expansion) {
-      MaybeScheduleExpand(survivors.expand_list, std::move(child));
-    }
-  }
+
+          NonNull<std::shared_ptr<ObjectMetadata>>& front =
+              shard.front().front();
+          VLOG(5) << "Considering obj: " << front.get_shared();
+          auto expansion = front->data_.lock(
+              [&](ObjectMetadata::Data& object_data)
+                  -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
+                CHECK(object_data.expand_callback != nullptr);
+                switch (object_data.expand_state) {
+                  case ObjectMetadata::ExpandState::kDone:
+                    return {};
+                  case ObjectMetadata::ExpandState::kScheduled: {
+                    object_data.expand_state =
+                        ObjectMetadata::ExpandState::kDone;
+                    TRACK_OPERATION(gc_Pool_Expand_Step_call);
+                    return object_data.expand_callback();
+                  }
+                  case ObjectMetadata::ExpandState::kUnreached:
+                    LOG(FATAL) << "Invalid state.";
+                }
+                LOG(FATAL) << "Invalid state.";
+                return {};
+              });
+          VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
+                  << expansion.size();
+          shard.front().pop_front();
+          // TODO(easy, 2023-09-15): Align the use of std::list and std::vector
+          // between ObjectExpandList and related class, and the return value of
+          // expand_callback; that should allow us to avoid having to convert
+          // here.
+          ObjectExpandList expansion_list(expansion.begin(), expansion.end());
+          expansion_list.remove_if(IsExpandAlreadyScheduled);
+          if (!expansion.empty()) shard.push_back(std::move(expansion_list));
+        }
+      });
 }
 
 void Pool::UpdateSurvivorsList(Survivors& survivors,
@@ -405,8 +423,9 @@ Pool::RootRegistration Pool::AddRoot(
 void Pool::AddToEdenExpandList(
     language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata) {
   eden_.lock([&](Eden& eden) {
-    if (eden.expand_list.has_value())
-      MaybeScheduleExpand(eden.expand_list.value(), std::move(object_metadata));
+    if (eden.expand_list.has_value() &&
+        !IsExpandAlreadyScheduled(object_metadata))
+      eden.expand_list->push_back(std::move(object_metadata));
   });
 }
 
