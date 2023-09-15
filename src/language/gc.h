@@ -337,7 +337,7 @@ class Pool {
 
   // Inserts all not-yet-scheduled objects from `roots_list` into `expand_list`.
   static void ScheduleExpandRoots(
-      concurrent::ThreadPool& thread_pool,
+      const concurrent::Operation& operation,
       const std::list<ObjectMetadataBag>& roots_list,
       concurrent::Bag<ObjectExpandList>& expand_list);
 

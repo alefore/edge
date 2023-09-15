@@ -171,8 +171,12 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
           stats.roots = SumContainedSizes(data.roots_list);
 
-          ScheduleExpandRoots(*options_.thread_pool, data.roots_list,
-                              data.expand_list);
+          ScheduleExpandRoots(concurrent::Operation(
+                                  *options_.thread_pool, std::nullopt,
+                                  INLINE_TRACKER(gc_Pool_ScheduleExpandRoots)),
+                              data.roots_list, data.expand_list);
+          VLOG(5) << "Roots registered: " << data.expand_list.size();
+
           Expand(*options_.thread_pool, data, timer);
           if (!data.expand_list.empty()) {
             VLOG(3) << "Expansion didn't finish. Interrupting.";
@@ -232,14 +236,12 @@ void Pool::ConsumeEden(Eden eden, Data& data) {
 }
 
 /* static */ void Pool::ScheduleExpandRoots(
-    ThreadPool& thread_pool, const std::list<ObjectMetadataBag>& roots_list,
+    const concurrent::Operation& parallel_operation,
+    const std::list<ObjectMetadataBag>& roots_list,
     concurrent::Bag<ObjectExpandList>& expand_list) {
   VLOG(3) << "Registering roots: " << roots_list.size();
-  TRACK_OPERATION(gc_Pool_ScheduleExpandRoots);
-
-  concurrent::Operation parallel_operation(thread_pool);
-  for (const ObjectMetadataBag& l : roots_list)
-    l->ForEachShard(
+  for (const ObjectMetadataBag& roots : roots_list)
+    roots->ForEachShard(
         parallel_operation,
         [&expand_list](const std::list<std::weak_ptr<ObjectMetadata>>& shard) {
           ObjectExpandList local_expand_list;
@@ -255,8 +257,6 @@ void Pool::ConsumeEden(Eden eden, Data& data) {
           if (!local_expand_list.empty())
             expand_list.Add(std::move(local_expand_list));
         });
-
-  VLOG(5) << "Roots registered: " << expand_list.size();
 }
 
 /* static */ bool Pool::IsExpandAlreadyScheduled(
