@@ -289,45 +289,39 @@ void Pool::Expand(const concurrent::Operation& parallel_operation,
         TRACK_OPERATION(gc_Pool_Expand_shard);
         while (!shard.empty() &&
                !(count_down_timer.has_value() && count_down_timer->IsDone())) {
-          TRACK_OPERATION(gc_Pool_Expand_Step);
-
-          if (shard.front().empty()) {
-            shard.pop_front();
-            continue;
-          }
-
-          NonNull<std::shared_ptr<ObjectMetadata>>& front =
-              shard.front().front();
-          VLOG(5) << "Considering obj: " << front.get_shared();
-          auto expansion = front->data_.lock(
-              [&](ObjectMetadata::Data& object_data)
-                  -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
-                CHECK(object_data.expand_callback != nullptr);
-                switch (object_data.expand_state) {
-                  case ObjectMetadata::ExpandState::kDone:
-                    return {};
-                  case ObjectMetadata::ExpandState::kScheduled: {
-                    object_data.expand_state =
-                        ObjectMetadata::ExpandState::kDone;
-                    TRACK_OPERATION(gc_Pool_Expand_Step_call);
-                    return object_data.expand_callback();
+          for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : shard.front()) {
+            TRACK_OPERATION(gc_Pool_Expand_Step);
+            VLOG(5) << "Considering obj: " << obj.get_shared();
+            auto expansion = obj->data_.lock(
+                [&](ObjectMetadata::Data& object_data)
+                    -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
+                  CHECK(object_data.expand_callback != nullptr);
+                  switch (object_data.expand_state) {
+                    case ObjectMetadata::ExpandState::kDone:
+                      return {};
+                    case ObjectMetadata::ExpandState::kScheduled: {
+                      object_data.expand_state =
+                          ObjectMetadata::ExpandState::kDone;
+                      TRACK_OPERATION(gc_Pool_Expand_Step_call);
+                      return object_data.expand_callback();
+                    }
+                    case ObjectMetadata::ExpandState::kUnreached:
+                      LOG(FATAL) << "Invalid state.";
                   }
-                  case ObjectMetadata::ExpandState::kUnreached:
-                    LOG(FATAL) << "Invalid state.";
-                }
-                LOG(FATAL) << "Invalid state.";
-                return {};
-              });
-          VLOG(6) << "Installing expansion of " << front.get_shared() << ": "
-                  << expansion.size();
-          shard.front().pop_front();
-          // TODO(easy, 2023-09-15): Align the use of std::list and std::vector
-          // between ObjectExpandList and related class, and the return value of
-          // expand_callback; that should allow us to avoid having to convert
-          // here.
-          ObjectExpandList expansion_list(expansion.begin(), expansion.end());
-          expansion_list.remove_if(IsExpandAlreadyScheduled);
-          if (!expansion.empty()) shard.push_back(std::move(expansion_list));
+                  LOG(FATAL) << "Invalid state.";
+                  return {};
+                });
+            VLOG(6) << "Installing expansion of " << obj.get_shared() << ": "
+                    << expansion.size();
+            // TODO(easy, 2023-09-15): Align the use of std::list and
+            // std::vector between ObjectExpandList and related class, and the
+            // return value of expand_callback; that should allow us to avoid
+            // having to convert here.
+            ObjectExpandList expansion_list(expansion.begin(), expansion.end());
+            expansion_list.remove_if(IsExpandAlreadyScheduled);
+            if (!expansion.empty()) shard.push_back(std::move(expansion_list));
+          }
+          shard.pop_front();
         }
       });
 }
