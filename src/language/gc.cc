@@ -368,8 +368,7 @@ void Pool::RemoveUnreachable(std::list<ObjectMetadataBag>& object_metadata_list,
               });
             },
             []() -> bool {
-              // The object should handle its own removal. Maybe we lost a
-              // race.
+              // The object should handle its own removal. Maybe we lost a race.
               return false;
             });
       });
