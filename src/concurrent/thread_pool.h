@@ -21,6 +21,8 @@ class ThreadPool {
   ThreadPool(size_t size, std::shared_ptr<WorkQueue> completion_work_queue);
   ~ThreadPool();
 
+  size_t size() const;
+
   // Evaluates a producer in a background thread and returns a future that will
   // receive the value. The future will be notified through
   // completion_work_queue, which can be used to ensure that only certain
@@ -51,13 +53,13 @@ class ThreadPool {
   void BackgroundThread();
 
   const std::shared_ptr<WorkQueue> completion_work_queue_;
+  const size_t size_;
   struct Data {
-    const size_t size;
     bool shutting_down = false;
     std::vector<std::thread> threads = {};
     std::list<std::function<void()>> work = {};
   };
-  ProtectedWithCondition<Data> data_;
+  ProtectedWithCondition<Data> data_ = ProtectedWithCondition<Data>(Data{});
 };
 }  // namespace afc::concurrent
 #endif  //__AFC_EDITOR_THREAD_POOL_H__

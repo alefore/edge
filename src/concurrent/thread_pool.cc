@@ -5,13 +5,15 @@
 namespace afc::concurrent {
 ThreadPool::ThreadPool(size_t size,
                        std::shared_ptr<WorkQueue> completion_work_queue)
-    : completion_work_queue_(completion_work_queue), data_(Data{.size = size}) {
+    : completion_work_queue_(completion_work_queue), size_(size) {
   data_.lock([this](Data& data, std::condition_variable&) {
-    for (size_t i = 0; i < data.size; i++) {
+    for (size_t i = 0; i < size_; i++) {
       data.threads.push_back(std::thread([this]() { BackgroundThread(); }));
     }
   });
 }
+
+size_t ThreadPool::size() const { return size_; }
 
 ThreadPool::~ThreadPool() {
   LOG(INFO) << "Starting destruction of ThreadPool.";
