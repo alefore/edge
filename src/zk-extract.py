@@ -10,6 +10,30 @@ import tempfile
 from typing import Dict, List, Optional, Set, TextIO, Tuple
 
 
+class DebianPackage:
+
+  def __init__(self, name):
+    self.name = name
+
+  def Desc(self) -> str:
+    return f'Debian package: {self.name}'
+
+  def Install(self) -> None:
+    if self._IsInstalled():
+      print(self.Desc() + " (already installed)")
+    else:
+      subprocess.call(['su', '-c', f"apt-get install -y {self.name}"])
+
+  def Diff(self) -> None:
+    if not self._IsInstalled():
+      print(f"Debian package missing: {self.name}")
+
+  def _IsInstalled(self) -> bool:
+    result: subprocess.CompletedProcess = subprocess.run(
+        ['dpkg', '-s', self.name], capture_output=True, text=True)
+    return 'Status: install ok installed' in result.stdout
+
+
 class FilesWriter:
 
   def __init__(self, output_directory: str, dry_run: bool, diff: bool):
@@ -24,7 +48,7 @@ class FilesWriter:
     self.file_mode: Dict[str, int] = {}
 
     self.collecting_dependencies: bool = False
-    self.debian_packages: Set[str] = set()
+    self.debian_packages: Dict[str, DebianPackage] = {}
     self.path: str = ''
     self.content: List[str] = []
     self.prefix_empty_lines: int = 0
@@ -54,8 +78,13 @@ class FilesWriter:
           mode_string = ' ' + oct(self.file_mode[input_path])[2:]
         print(f"{input_path}{mode_string}")
 
-    for package_name in self.debian_packages:
-      self._HandleDebianPackage(package_name)
+    for package in self.debian_packages.values():
+      if self.dry_run:
+        print(package.Desc())
+      elif self.diff:
+        package.Diff()
+      else:
+        package.Install()
 
     if not self.dry_run:
       for path in self.files_to_delete:
@@ -123,21 +152,7 @@ class FilesWriter:
   def AddDebianPackage(self, package_name: str) -> None:
     assert not self.IsCollectingFile()
     assert self.IsCollectingDependencies()
-    self.debian_packages.add(package_name)
-
-  def _HandleDebianPackage(self, package_name):
-    if self.dry_run:
-      print(f'Debian package: {package_name}')
-      return
-
-    if not self.diff:
-      subprocess.call(['su', '-c', f"apt-get install -y {package_name}"])
-      return
-
-    result: subprocess.CompletedProcess = subprocess.run(
-        ['dpkg', '-s', package_name], capture_output=True, text=True)
-    if 'Status: install ok installed' not in result.stdout:
-      print(f"Debian package missing: {package_name}")
+    self.debian_packages[package_name] = DebianPackage(package_name)
 
   def StartCollectingDependencies(self) -> None:
     self.FlushFile()
