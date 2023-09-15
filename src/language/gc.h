@@ -346,7 +346,8 @@ class Pool {
 
   // Recursively expand all objects in `data.expand_list`. May stop early
   // if the timeout is reached.
-  static void Expand(concurrent::ThreadPool& thread_pool, Data& data,
+  static void Expand(const concurrent::Operation& operation,
+                     concurrent::Bag<ObjectExpandList>& expand_list,
                      const std::optional<afc::infrastructure::CountDownTimer>&
                          count_down_timer);
   void RemoveUnreachable(

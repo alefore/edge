@@ -177,7 +177,9 @@ Pool::CollectOutput Pool::Collect(bool full) {
                               data.roots_list, data.expand_list);
           VLOG(5) << "Roots registered: " << data.expand_list.size();
 
-          Expand(*options_.thread_pool, data, timer);
+          Expand(concurrent::Operation(*options_.thread_pool, std::nullopt,
+                                       INLINE_TRACKER(gc_Pool_Expand)),
+                 data.expand_list, timer);
           if (!data.expand_list.empty()) {
             VLOG(3) << "Expansion didn't finish. Interrupting.";
             return false;
@@ -276,15 +278,14 @@ void Pool::ConsumeEden(Eden eden, Data& data) {
 }
 
 /* static */
-void Pool::Expand(ThreadPool& thread_pool, Data& data,
+void Pool::Expand(const concurrent::Operation& parallel_operation,
+                  concurrent::Bag<ObjectExpandList>& expand_list,
                   const std::optional<CountDownTimer>& count_down_timer) {
-  VLOG(3) << "Starting recursive expand (expand_list: "
-          << data.expand_list.size() << ")";
+  VLOG(3) << "Starting recursive expand (expand_list: " << expand_list.size()
+          << ")";
 
-  TRACK_OPERATION(gc_Pool_Expand);
-
-  data.expand_list.ForEachShard(
-      concurrent::Operation(thread_pool),
+  expand_list.ForEachShard(
+      parallel_operation,
       [&count_down_timer](std::list<ObjectExpandList>& shard) {
         TRACK_OPERATION(gc_Pool_Expand_shard);
         while (!shard.empty() &&
