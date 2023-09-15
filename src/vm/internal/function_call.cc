@@ -97,7 +97,7 @@ class FunctionCall : public Expression {
   }
 
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
-      Trampoline& trampoline, const Type& type) {
+      Trampoline& trampoline, const Type& type) override {
     DVLOG(3) << "Function call evaluation starts.";
     std::vector<Type> type_inputs;
     for (auto& arg : args_.value()) {
