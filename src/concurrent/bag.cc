@@ -55,20 +55,6 @@ const bool tests_registration = tests::Register(
                std::set<size_t> values_serial;
                bag.ForEachSerial([&](size_t v) { values_serial.insert(v); });
              }},
-        {.name = L"Consume",
-         .callback =
-             [] {
-               ThreadPool thread_pool(5, nullptr);
-               Bag<size_t> bag = NumbersBag(0, 100, 10);
-               bag.Consume(thread_pool, NumbersBag(100, 200, 27));
-               bag.Consume(thread_pool, NumbersBag(200, 300, 93));
-               bag.Consume(thread_pool, NumbersBag(300, 400, 1));
-               bag.Consume(thread_pool, NumbersBag(300, 500, 100));
-
-               std::set<size_t> expected = BagToSet(NumbersBag(0, 500));
-               CHECK_EQ(expected.size(), 500ul);
-               CHECK(BagToSet(bag) == expected);
-             }},
         {.name = L"RemoveIf",
          .callback =
              [] {

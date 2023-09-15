@@ -67,25 +67,6 @@ class Bag {
         });
   }
 
-  void Consume(ThreadPool& pool, Bag<T> other) {
-    Protected<size_t> read_position(0);
-    ForEachShard(pool, [&read_position, &other](std::list<T>& shard) {
-      while (true) {
-        size_t position = read_position.lock([&](size_t& p) {
-          if (p < other.shards_.size()) return p++;
-          return p;
-        });
-        if (position >= other.shards_.size()) return;
-        language::NonNull<std::unique_ptr<std::list<T>>> values =
-            other.shards_[position].lock(
-                [](language::NonNull<std::unique_ptr<std::list<T>>>& s) {
-                  return std::move(s);
-                });
-        shard.insert(shard.end(), values->begin(), values->end());
-      }
-    });
-  }
-
   template <typename Callable>
   void ForEachShard(ThreadPool& pool, Callable callable) {
     CHECK_EQ(options_.shards, shards_.size());

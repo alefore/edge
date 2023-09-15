@@ -149,11 +149,25 @@ class ObjectMetadata {
   ObjectMetadata(ConstructorAccessKey, Pool& pool,
                  ExpandCallback expand_callback);
 
+  ~ObjectMetadata();
+
   Pool& pool() const;
 
   bool IsAlive() const;
 
  private:
+  // Sets `container_bag_`. If `bag` is non-null, adds `shared_this` to it and
+  // updates `container_bag_iterator_`.
+  //
+  // Customers (Pool) must synchronize access to this (which typically happens
+  // by virtue of having synchronized the class that holds `bag`).
+  //
+  // If an object already has a container bag, it's an error to call this again
+  // with a non-null bag.
+  static void SetContainerBag(
+      NonNull<std::shared_ptr<ObjectMetadata>> shared_this,
+      concurrent::Bag<std::weak_ptr<ObjectMetadata>>* bag);
+
   Pool& pool_;
 
   // The state of this object during a garbage collection operation.
@@ -175,6 +189,15 @@ class ObjectMetadata {
     ExpandCallback expand_callback;
     ExpandState expand_state = ExpandState::kUnreached;
   };
+
+  // `container_bag_` and `container_bag_iterator_` are used to eagerly remove
+  // this object from the corresponding bag during its deletion. That means that
+  // `container_bag_` must only be deleted after all objects stored in it have
+  // been deleted.
+  concurrent::Bag<std::weak_ptr<ObjectMetadata>>* container_bag_ = nullptr;
+  concurrent::Bag<std::weak_ptr<ObjectMetadata>>::iterator
+      container_bag_iterator_;
+
   concurrent::Protected<Data> data_;
 };
 
@@ -260,8 +283,11 @@ class Pool {
   struct Eden {
     static Eden NewWithExpandList(size_t consecutive_unfinished_collect_calls);
 
-    ObjectMetadataBag object_metadata =
-        ObjectMetadataBag(concurrent::BagOptions{.shards = 64});
+    // `object_metadata` and `roots` are unique_ptr to allow us to move them
+    // into Survivors preserving all iterators.
+    language::NonNull<std::unique_ptr<ObjectMetadataBag>> object_metadata =
+        language::MakeNonNullUnique<ObjectMetadataBag>(
+            concurrent::BagOptions{.shards = 64});
 
     // This is a unique_ptr to allow us to move it into Survivors preserving all
     // iterators.
@@ -286,10 +312,10 @@ class Pool {
   // a long interval, as collection progresses). Should never be locked while
   // holding eden locked.
   struct Survivors {
-    ObjectMetadataBag object_metadata =
-        ObjectMetadataBag(concurrent::BagOptions{.shards = 64});
+    std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>
+        object_metadata_list;
 
-    std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>> roots;
+    std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>> roots_list;
 
     // After inserting from the eden and updating roots, we copy objects from
     // `roots` into `expand_list` (in `ScheduleExpandRoots`). We then
@@ -334,6 +360,9 @@ class Pool {
   const Options options_;
   concurrent::Protected<Eden> eden_;
   concurrent::Protected<Survivors> survivors_;
+  // When then pool is deleted, we need to ensure that any pending background
+  // work is done before we allow internal classes to be deleted.
+  concurrent::Operation async_work_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Pool::FullCollectStats& stats);

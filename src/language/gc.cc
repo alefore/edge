@@ -23,9 +23,47 @@ using infrastructure::CountDownTimer;
 using infrastructure::Tracker;
 using language::NonNull;
 
+namespace {
+using ObjectMetadataBag = concurrent::Bag<std::weak_ptr<ObjectMetadata>>;
+
+size_t SumContainedSizes(
+    const std::list<NonNull<std::unique_ptr<ObjectMetadataBag>>>& container) {
+  size_t output = 0;
+  for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& item : container)
+    output += item->size();
+  return output;
+}
+
+void PushAndClean(
+    std::list<NonNull<std::unique_ptr<ObjectMetadataBag>>>& container,
+    NonNull<std::unique_ptr<ObjectMetadataBag>> item) {
+  container.push_back(std::move(item));
+  container.remove_if([](const NonNull<std::unique_ptr<ObjectMetadataBag>>& l) {
+    return l->empty();
+  });
+}
+}  // namespace
+
 ObjectMetadata::ObjectMetadata(ConstructorAccessKey, Pool& pool,
                                ExpandCallback expand_callback)
     : pool_(pool), data_(Data{.expand_callback = std::move(expand_callback)}) {}
+
+ObjectMetadata::~ObjectMetadata() {
+  if (container_bag_ != nullptr) container_bag_->erase(container_bag_iterator_);
+}
+
+/* static */
+void ObjectMetadata::SetContainerBag(
+    NonNull<std::shared_ptr<ObjectMetadata>> shared_this,
+    concurrent::Bag<std::weak_ptr<ObjectMetadata>>* bag) {
+  if (bag == nullptr) {
+    CHECK(shared_this->container_bag_ != nullptr);
+  } else {
+    CHECK(shared_this->container_bag_ == nullptr);
+    shared_this->container_bag_iterator_ = bag->Add(shared_this.get_shared());
+  }
+  shared_this->container_bag_ = bag;
+}
 
 Pool& ObjectMetadata::pool() const { return pool_; }
 
@@ -39,25 +77,27 @@ Pool::Pool(Options options)
         if (options.thread_pool == nullptr)
           options.thread_pool = std::make_shared<ThreadPool>(8, nullptr);
         return std::move(options);
-      }()) {}
+      }()),
+      async_work_(*options_.thread_pool) {}
 
 Pool::~Pool() {
   FullCollect();
-  survivors_.lock([](const Survivors&) {
-  // TODO(gc, 2022-12-08): Enable this validation.
+  survivors_.lock([](const Survivors& survivors) {
+    CHECK(survivors.expand_list.empty());
+    // TODO(gc, 2022-12-08): Enable this validation.
 #if 0
-    CHECK(survivors.roots.empty())
-        << "Found roots (start: " << survivors.roots.front()->front().lock()
-        << ")";
+    CHECK(survivors.roots_list.empty())
+        << "Found roots (start: "
+        << survivors.roots_list.front()->front().lock() << ")";
 #endif
   });
 }
 
 size_t Pool::count_objects() const {
   return eden_.lock([](const Eden& eden) {
-    return eden.object_metadata.size();
+    return eden.object_metadata->size();
   }) + survivors_.lock([](const Survivors& survivors) {
-    return survivors.object_metadata.size();
+    return SumContainedSizes(survivors.object_metadata_list);
   });
 }
 
@@ -73,7 +113,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
   std::optional<CountDownTimer> timer;
 
   size_t survivors_size = survivors_.lock([&](const Survivors& survivors) {
-    return survivors.object_metadata.size();
+    return SumContainedSizes(survivors.object_metadata_list);
   });
 
   LightCollectStats light_stats;
@@ -87,20 +127,21 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
           if (eden_data.expand_list == std::nullopt) {
             size_t max_metadata_size = std::max(1024ul, survivors_size);
-            light_stats.begin_eden_size = eden_data.object_metadata.size();
-            if (eden_data.object_metadata.size() > max_metadata_size) {
+            light_stats.begin_eden_size = eden_data.object_metadata->size();
+            if (eden_data.object_metadata->size() > max_metadata_size) {
               TRACK_OPERATION(gc_Pool_Collect_CleanEden);
               VLOG(3) << "CleanEden starts: "
-                      << eden_data.object_metadata.size();
-              eden_data.object_metadata.remove_if(
+                      << eden_data.object_metadata->size();
+              eden_data.object_metadata->remove_if(
                   *options_.thread_pool,
                   [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
                     return object_metadata.expired();
                   });
-              VLOG(4) << "CleanEden ends: " << eden_data.object_metadata.size();
+              VLOG(4) << "CleanEden ends: "
+                      << eden_data.object_metadata->size();
             }
-            light_stats.end_eden_size = eden_data.object_metadata.size();
-            if (eden_data.object_metadata.size() <= max_metadata_size) {
+            light_stats.end_eden_size = eden_data.object_metadata->size();
+            if (eden_data.object_metadata->size() <= max_metadata_size) {
               eden_data.consecutive_unfinished_collect_calls = 0;
               return std::nullopt;
             }
@@ -125,16 +166,15 @@ Pool::CollectOutput Pool::Collect(bool full) {
   FullCollectStats stats;
   if (!survivors_.lock([&](Survivors& survivors) {
         while (eden.has_value()) {
-          VLOG(3) << "Starting with generations: " << survivors.roots.size();
-          stats.eden_size = eden->object_metadata.size();
+          VLOG(3) << "Starting with generations: "
+                  << survivors.roots_list.size();
+          stats.eden_size = eden->object_metadata->size();
           ConsumeEden(std::move(*eden), survivors);
 
-          stats.generations = survivors.roots.size();
-          stats.begin_total = survivors.object_metadata.size();
+          stats.generations = survivors.roots_list.size();
+          stats.begin_total = SumContainedSizes(survivors.object_metadata_list);
 
-          for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l :
-               survivors.roots)
-            stats.roots += l->size();
+          stats.roots = SumContainedSizes(survivors.roots_list);
 
           ScheduleExpandRoots(survivors);
           Expand(survivors, timer);
@@ -158,7 +198,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
                                eden_data.consecutive_unfinished_collect_calls));
           });
         }
-        stats.end_total = survivors.object_metadata.size();
+        stats.end_total = SumContainedSizes(survivors.object_metadata_list);
         VLOG(3) << "Survivors: " << stats.end_total;
         return true;
       })) {
@@ -168,10 +208,9 @@ Pool::CollectOutput Pool::Collect(bool full) {
     return UnfinishedCollectStats();
   }
 
-  options_.thread_pool->RunIgnoringResult(
-      [callbacks = std::move(expired_objects_callbacks)] {
-        VLOG(3) << "Allowing lost object to be deleted: " << callbacks.size();
-      });
+  async_work_.Add([callbacks = std::move(expired_objects_callbacks)] {
+    VLOG(3) << "Allowing lost object to be deleted: " << callbacks.size();
+  });
 
   LOG(INFO) << "Garbage collection results: " << stats;
   return stats;
@@ -181,17 +220,8 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
   TRACK_OPERATION(gc_Pool_ConsumeEden);
 
   VLOG(3) << "Removing empty lists of roots.";
-  survivors.roots.push_back(std::move(eden.roots));
-  survivors.roots.remove_if(
-      [](const NonNull<std::unique_ptr<ObjectMetadataBag>>& l) {
-        return l->empty();
-      });
-
-  {
-    TRACK_OPERATION(gc_Pool_ConsumeEden_object_metadata);
-    survivors.object_metadata.Consume(*options_.thread_pool,
-                                      std::move(eden.object_metadata));
-  }
+  PushAndClean(survivors.roots_list, std::move(eden.roots));
+  PushAndClean(survivors.object_metadata_list, std::move(eden.object_metadata));
 
   if (eden.expand_list.has_value()) {
     TRACK_OPERATION(gc_Pool_ConsumeEden_expand_list);
@@ -202,7 +232,7 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
 }
 
 /*  static */ bool Pool::IsEmpty(const Eden& eden) {
-  return eden.roots->empty() && eden.object_metadata.empty() &&
+  return eden.roots->empty() && eden.object_metadata->empty() &&
          (eden.expand_list == std::nullopt || eden.expand_list->empty());
 }
 
@@ -210,7 +240,8 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
   VLOG(3) << "Registering roots.";
   TRACK_OPERATION(gc_Pool_ScheduleExpandRoots);
 
-  for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l : survivors.roots)
+  for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l :
+       survivors.roots_list)
     l->ForEachSerial([&survivors](
                          const std::weak_ptr<ObjectMetadata>& root_weak) {
       VisitPointer(
@@ -251,7 +282,8 @@ void Pool::Expand(Survivors& survivors,
          !(count_down_timer.has_value() && count_down_timer->IsDone())) {
     TRACK_OPERATION(gc_Pool_Expand_Step);
 
-    auto& front = survivors.expand_list.front();
+    NonNull<std::shared_ptr<ObjectMetadata>>& front =
+        survivors.expand_list.front();
     VLOG(5) << "Considering obj: " << front.get_shared();
     auto expansion = front->data_.lock(
         [&](ObjectMetadata::Data& object_data)
@@ -290,41 +322,52 @@ void Pool::UpdateSurvivorsList(Survivors& survivors,
 
   TRACK_OPERATION(gc_Pool_UpdateSurvivorsList);
 
-  survivors.object_metadata.ForEachShard(
-      *options_.thread_pool, [&](std::list<std::weak_ptr<ObjectMetadata>>& l) {
-        std::list<std::weak_ptr<ObjectMetadata>> surviving_objects;
-        std::vector<ObjectMetadata::ExpandCallback>
-            local_expired_objects_callbacks;
-        for (std::weak_ptr<ObjectMetadata>& obj_weak : l)
-          VisitPointer(
-              obj_weak,
-              [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) {
-                obj->data_.lock([&](ObjectMetadata::Data& object_data) {
-                  switch (object_data.expand_state) {
-                    case ObjectMetadata::ExpandState::kUnreached:
-                      local_expired_objects_callbacks.push_back(
-                          std::move(object_data.expand_callback));
-                      break;
-                    case ObjectMetadata::ExpandState::kDone:
-                      object_data.expand_state =
-                          ObjectMetadata::ExpandState::kUnreached;
-                      surviving_objects.push_back(obj.get_shared());
-                      break;
-                    case ObjectMetadata::ExpandState::kScheduled:
-                      LOG(FATAL)
-                          << "Invalid State: Adding survivors while some "
-                             "objects are scheduled for expansion.";
-                  }
+  // TODO(gc, 2023-09-15, trivial, P1): Pass an operation to `ForEachShard` so
+  // that we only synchronize at the top-level, rather than for each sublist.
+  for (NonNull<std::unique_ptr<ObjectMetadataBag>>& sublist :
+       survivors.object_metadata_list)
+    sublist->ForEachShard(
+        *options_.thread_pool,
+        [&](std::list<std::weak_ptr<ObjectMetadata>>& l) {
+          std::vector<ObjectMetadata::ExpandCallback>
+              local_expired_objects_callbacks;
+          l.remove_if([&](const std::weak_ptr<ObjectMetadata>& obj_weak) {
+            return VisitPointer(
+                obj_weak,
+                [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) -> bool {
+                  return obj->data_.lock(
+                      [&](ObjectMetadata::Data& object_data) {
+                        switch (object_data.expand_state) {
+                          case ObjectMetadata::ExpandState::kUnreached:
+                            ObjectMetadata::SetContainerBag(obj, nullptr);
+                            local_expired_objects_callbacks.push_back(
+                                std::move(object_data.expand_callback));
+                            return true;
+                          case ObjectMetadata::ExpandState::kDone:
+                            object_data.expand_state =
+                                ObjectMetadata::ExpandState::kUnreached;
+                            return false;
+                          case ObjectMetadata::ExpandState::kScheduled:
+                            LOG(FATAL)
+                                << "Invalid State: Adding survivors while some "
+                                   "objects are scheduled for expansion.";
+                        }
+                        LOG(FATAL) << "Unhandled case.";
+                        return false;
+                      });
+                },
+                []() -> bool {
+                  // The object should handle its own removal. Maybe we lost a
+                  // race.
+                  return false;
                 });
-              },
-              [] {});
-        if (!local_expired_objects_callbacks.empty())
-          expired_objects_callbacks.Add(
-              std::move(local_expired_objects_callbacks));
-        l = std::move(surviving_objects);
-      });
+          });
+          if (!local_expired_objects_callbacks.empty())
+            expired_objects_callbacks.Add(
+                std::move(local_expired_objects_callbacks));
+        });
   VLOG(4) << "Done building survivor list: "
-          << survivors.object_metadata.size();
+          << SumContainedSizes(survivors.object_metadata_list);
 }
 
 Pool::RootRegistration Pool::AddRoot(
@@ -368,16 +411,18 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
       MakeNonNullShared<ObjectMetadata>(ObjectMetadata::ConstructorAccessKey(),
                                         *this, std::move(expand_callback));
   eden_.lock([&](Eden& eden) {
-    eden.object_metadata.Add(object_metadata.get_shared());
-    VLOG(5) << "Added object: " << object_metadata.get_shared()
-            << " (eden total: " << eden.object_metadata.size() << ")";
+    ObjectMetadata::SetContainerBag(object_metadata,
+                                    &eden.object_metadata.value());
+    VLOG(5) << "Adding object: " << object_metadata.get_shared()
+            << " (eden total: " << eden.object_metadata->size() << ")";
   });
   return object_metadata;
 }
 
 /* static */ Pool::Eden Pool::Eden::NewWithExpandList(
     size_t consecutive_unfinished_collect_calls) {
-  return Eden{.object_metadata = ObjectMetadataBag(BagOptions{.shards = 64}),
+  return Eden{.object_metadata = MakeNonNullUnique<ObjectMetadataBag>(
+                  BagOptions{.shards = 64}),
               .roots = language::MakeNonNullUnique<ObjectMetadataBag>(
                   BagOptions{.shards = 64}),
               .expand_list = ObjectExpandList{},
@@ -472,10 +517,18 @@ bool tests_registration = tests::Register(
               auto delete_notification_0 =
                   root.ptr()->delete_notification.listenable_value();
               pool.Collect();
+              CHECK_EQ(pool.count_objects(), 1ul);
+
               CHECK(!delete_notification_0.has_value());
 
-              VLOG(5) << "Overriding root.";
-              root = pool.NewRoot(MakeNonNullUnique<Node>());
+              LOG(INFO) << "Overriding root.";
+              {
+                auto other_root = pool.NewRoot(MakeNonNullUnique<Node>());
+                CHECK_EQ(pool.count_objects(), 2ul);
+                root = std::move(other_root);
+                CHECK_EQ(pool.count_objects(), 2ul);
+              }
+              CHECK_EQ(pool.count_objects(), 1ul);
 
               auto delete_notification_1 =
                   root.ptr()->delete_notification.listenable_value();
@@ -483,9 +536,9 @@ bool tests_registration = tests::Register(
               CHECK(delete_notification_0.has_value());
               CHECK(!delete_notification_1.has_value());
 
-              VLOG(5) << "Start collect.";
+              LOG(INFO) << "Start collect.";
               auto stats = pool.FullCollect();
-              CHECK_EQ(stats.begin_total, 2ul);
+              CHECK_EQ(stats.begin_total, 1ul);
               CHECK_EQ(stats.roots, 1ul);
               CHECK_EQ(stats.end_total, 1ul);
 
@@ -496,10 +549,12 @@ bool tests_registration = tests::Register(
             }();
             CHECK(delete_notification.has_value());
 
+            LOG(INFO) << "Start 2nd collect.";
             Pool::FullCollectStats stats = pool.FullCollect();
-            CHECK_EQ(stats.begin_total, 1ul);
+            CHECK_EQ(stats.begin_total, 0ul);
             CHECK_EQ(stats.roots, 0ul);
             CHECK_EQ(stats.end_total, 0ul);
+            LOG(INFO) << "Done.";
           }},
      {.name = L"BreakLoop",
       .callback =
@@ -592,14 +647,17 @@ bool tests_registration = tests::Register(
               auto notification =
                   split->children[0]->delete_notification.listenable_value();
               CHECK(!notification.has_value());
+              CHECK_EQ(pool.count_objects(), 7ul);
               split->children.clear();
+              CHECK_EQ(pool.count_objects(), 5ul);
               CHECK(notification.has_value());
             }
+            CHECK_EQ(pool.count_objects(), 5ul);
             CHECK(!root.ptr()
                        ->delete_notification.listenable_value()
                        .has_value());
             Pool::FullCollectStats stats = pool.FullCollect();
-            CHECK_EQ(stats.begin_total, 7ul);
+            CHECK_EQ(stats.begin_total, 5ul);
             CHECK_EQ(stats.roots, 1ul);
             CHECK_EQ(stats.end_total, 5ul);
           }},
