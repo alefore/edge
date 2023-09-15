@@ -114,10 +114,6 @@ class Bag {
         });
   }
 
-  void Clear(ThreadPool& pool) {
-    ForEachShard(pool, [](std::list<T>& shard) { shard.clear(); });
-  }
-
  private:
   template <typename Callable>
   void ForEachShardSerial(Callable callable) {

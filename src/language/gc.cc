@@ -99,7 +99,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
             VLOG(3) << "CleanEden starts: " << eden_data.object_metadata.size();
             eden_data.object_metadata.remove_if(
                 *options_.thread_pool,
-                [](std::weak_ptr<ObjectMetadata>& object_metadata) {
+                [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
                   return object_metadata.expired();
                 });
             VLOG(4) << "CleanEden ends: " << eden_data.object_metadata.size();
@@ -172,12 +172,9 @@ Pool::CollectOutput Pool::Collect(bool full) {
     return UnfinishedCollectStats();
   }
 
-  VLOG(3) << "Allowing lost object to be deleted: "
-          << expired_objects_callbacks.size();
-  {
-    TRACK_OPERATION(gc_Pool_Collect_DeleteLost);
-    expired_objects_callbacks.Clear(*options_.thread_pool);
-  }
+  async_operation_.Add([callbacks = std::move(expired_objects_callbacks)] {
+    VLOG(3) << "Allowing lost object to be deleted: " << callbacks.size();
+  });
 
   LOG(INFO) << "Garbage collection results: " << stats;
   return stats;

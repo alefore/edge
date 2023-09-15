@@ -34,35 +34,6 @@ const bool tests_registration = tests::Register(
                CHECK_EQ(bag.size(), 0ul);
                CHECK(BagToSet(bag) == std::set<size_t>());
              }},
-        {.name = L"AddSomeAndClear",
-         .callback =
-             [] {
-               ThreadPool thread_pool(5, nullptr);
-               Bag<size_t> bag = NumbersBag(0, 1000);
-
-               CHECK(!bag.empty());
-               CHECK_EQ(bag.size(), 1000ul);
-
-               std::set<size_t> values_expected;
-               for (size_t i = 0; i < 1000; i++) values_expected.insert(i);
-
-               Protected<std::set<size_t>> values_concurrent;
-               bag.ForEachShard(thread_pool, [&](std::list<size_t>& list) {
-                 for (size_t value : list)
-                   values_concurrent.lock()->insert(value);
-               });
-
-               CHECK(BagToSet(bag) == values_expected);
-               CHECK(*values_concurrent.lock() == BagToSet(bag));
-
-               bag.Clear(thread_pool);
-               CHECK(bag.empty());
-               CHECK_EQ(bag.size(), 0ul);
-               bag.ForEachSerial(
-                   [&](size_t) { LOG(FATAL) << "Values found."; });
-               bag.ForEachShard(thread_pool,
-                                [&](std::list<size_t> l) { CHECK(l.empty()); });
-             }},
         {.name = L"Erase",
          .callback =
              [] {
