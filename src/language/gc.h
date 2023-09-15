@@ -284,13 +284,11 @@ class Pool {
     static Eden NewWithExpandList(size_t consecutive_unfinished_collect_calls);
 
     // `object_metadata` and `roots` are unique_ptr to allow us to move them
-    // into Survivors preserving all iterators.
+    // into `data_` preserving all iterators.
     language::NonNull<std::unique_ptr<ObjectMetadataBag>> object_metadata =
         language::MakeNonNullUnique<ObjectMetadataBag>(
             concurrent::BagOptions{.shards = 64});
 
-    // This is a unique_ptr to allow us to move it into Survivors preserving all
-    // iterators.
     language::NonNull<std::unique_ptr<ObjectMetadataBag>> roots =
         language::MakeNonNullUnique<ObjectMetadataBag>(
             concurrent::BagOptions{.shards = 64});
@@ -307,11 +305,11 @@ class Pool {
     size_t consecutive_unfinished_collect_calls = 0;
   };
 
-  // Survivors holds all the information of objects that have survived a
-  // collection. This should only be locked by `Collect` (and may be held for
-  // a long interval, as collection progresses). Should never be locked while
-  // holding eden locked.
-  struct Survivors {
+  // Data holds all the information of objects that have survived a collection.
+  // This should only be locked by `Collect` (and may be held for a long
+  // interval, as collection progresses). Should never be locked while holding
+  // eden locked.
+  struct Data {
     std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>
         object_metadata_list;
 
@@ -329,35 +327,38 @@ class Pool {
         concurrent::Bag<ObjectExpandList>({.shards = 64});
   };
 
-  // Moves objects from `eden` into `survivors`.
+  // Moves objects from `eden` into `data`.
   //
   // Specifically, objects from fields `Eden::roots`, `Eden::object_metadata`
   // and `Eden::expand_list` are moved into the corresponding fields in
-  // `Survivors`.
-  void ConsumeEden(Eden eden, Survivors& survivors);
+  // `data`.
+  void ConsumeEden(Eden eden, Data& data);
   static bool IsEmpty(const Eden& eden);
 
-  // Inserts all not-yet-reached objects from survivors.roots into
-  // survivors.expand_list.
-  static void ScheduleExpandRoots(concurrent::ThreadPool& thread_pool,
-                                  Survivors& survivors);
+  // Inserts all not-yet-scheduled objects from `roots_list` into `expand_list`.
+  static void ScheduleExpandRoots(
+      concurrent::ThreadPool& thread_pool,
+      const std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>&
+          roots_list,
+      concurrent::Bag<ObjectExpandList>& expand_list);
 
   static bool IsExpandAlreadyScheduled(
       const language::NonNull<std::shared_ptr<ObjectMetadata>>& object);
 
-  // Recursively expand all objects in `survivors.expand_list`. May stop early
+  // Recursively expand all objects in `data.expand_list`. May stop early
   // if the timeout is reached.
-  static void Expand(concurrent::ThreadPool& thread_pool, Survivors& survivors,
+  static void Expand(concurrent::ThreadPool& thread_pool, Data& data,
                      const std::optional<afc::infrastructure::CountDownTimer>&
                          count_down_timer);
-  void UpdateSurvivorsList(
-      Survivors& survivors,
+  void RemoveUnreachable(
+      std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>&
+          object_metadata_list,
       concurrent::Bag<std::vector<ObjectMetadata::ExpandCallback>>&
           expired_objects_callbacks);
 
   const Options options_;
   concurrent::Protected<Eden> eden_;
-  concurrent::Protected<Survivors> survivors_;
+  concurrent::Protected<Data> data_;
   // When then pool is deleted, we need to ensure that any pending background
   // work is done before we allow internal classes to be deleted.
   concurrent::Operation async_work_;

@@ -82,13 +82,13 @@ Pool::Pool(Options options)
 
 Pool::~Pool() {
   FullCollect();
-  survivors_.lock([](const Survivors& survivors) {
-    CHECK(survivors.expand_list.empty());
+  data_.lock([](const Data& data) {
+    CHECK(data.expand_list.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
 #if 0
-    CHECK(survivors.roots_list.empty())
+    CHECK(data.roots_list.empty())
         << "Found roots (start: "
-        << survivors.roots_list.front()->front().lock() << ")";
+        << data.roots_list.front()->front().lock() << ")";
 #endif
   });
 }
@@ -96,8 +96,8 @@ Pool::~Pool() {
 size_t Pool::count_objects() const {
   return eden_.lock([](const Eden& eden) {
     return eden.object_metadata->size();
-  }) + survivors_.lock([](const Survivors& survivors) {
-    return SumContainedSizes(survivors.object_metadata_list);
+  }) + data_.lock([](const Data& data) {
+    return SumContainedSizes(data.object_metadata_list);
   });
 }
 
@@ -112,8 +112,8 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
   std::optional<CountDownTimer> timer;
 
-  size_t survivors_size = survivors_.lock([&](const Survivors& survivors) {
-    return SumContainedSizes(survivors.object_metadata_list);
+  size_t data_size = data_.lock([&](const Data& data) {
+    return SumContainedSizes(data.object_metadata_list);
   });
 
   LightCollectStats light_stats;
@@ -126,7 +126,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
                 options_.collect_duration_threshold.value());
 
           if (eden_data.expand_list == std::nullopt) {
-            size_t max_metadata_size = std::max(1024ul, survivors_size);
+            size_t max_metadata_size = std::max(1024ul, data_size);
             light_stats.begin_eden_size = eden_data.object_metadata->size();
             if (eden_data.object_metadata->size() > max_metadata_size) {
               TRACK_OPERATION(gc_Pool_Collect_CleanEden);
@@ -164,21 +164,21 @@ Pool::CollectOutput Pool::Collect(bool full) {
       BagOptions{.shards = 4});
 
   FullCollectStats stats;
-  if (!survivors_.lock([&](Survivors& survivors) {
+  if (!data_.lock([&](Data& data) {
         while (eden.has_value()) {
-          VLOG(3) << "Starting with generations: "
-                  << survivors.roots_list.size();
+          VLOG(3) << "Starting with generations: " << data.roots_list.size();
           stats.eden_size = eden->object_metadata->size();
-          ConsumeEden(std::move(*eden), survivors);
+          ConsumeEden(std::move(*eden), data);
 
-          stats.generations = survivors.roots_list.size();
-          stats.begin_total = SumContainedSizes(survivors.object_metadata_list);
+          stats.generations = data.roots_list.size();
+          stats.begin_total = SumContainedSizes(data.object_metadata_list);
 
-          stats.roots = SumContainedSizes(survivors.roots_list);
+          stats.roots = SumContainedSizes(data.roots_list);
 
-          ScheduleExpandRoots(*options_.thread_pool, survivors);
-          Expand(*options_.thread_pool, survivors, timer);
-          if (!survivors.expand_list.empty()) {
+          ScheduleExpandRoots(*options_.thread_pool, data.roots_list,
+                              data.expand_list);
+          Expand(*options_.thread_pool, data, timer);
+          if (!data.expand_list.empty()) {
             VLOG(3) << "Expansion didn't finish. Interrupting.";
             return false;
           }
@@ -186,7 +186,8 @@ Pool::CollectOutput Pool::Collect(bool full) {
           eden = eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
             if (IsEmpty(eden_data)) {
               VLOG(4) << "New eden is empty.";
-              UpdateSurvivorsList(survivors, expired_objects_callbacks);
+              RemoveUnreachable(data.object_metadata_list,
+                                expired_objects_callbacks);
               eden_data.expand_list = std::nullopt;
               eden_data.consecutive_unfinished_collect_calls = 0;
               return std::nullopt;
@@ -198,8 +199,8 @@ Pool::CollectOutput Pool::Collect(bool full) {
                                eden_data.consecutive_unfinished_collect_calls));
           });
         }
-        stats.end_total = SumContainedSizes(survivors.object_metadata_list);
-        VLOG(3) << "Survivors: " << stats.end_total;
+        stats.end_total = SumContainedSizes(data.object_metadata_list);
+        VLOG(3) << "Data: " << stats.end_total;
         return true;
       })) {
     TRACK_OPERATION(gc_Pool_Collect_Interrupted);
@@ -216,16 +217,16 @@ Pool::CollectOutput Pool::Collect(bool full) {
   return stats;
 }
 
-void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
+void Pool::ConsumeEden(Eden eden, Data& data) {
   TRACK_OPERATION(gc_Pool_ConsumeEden);
 
   VLOG(3) << "Removing empty lists of roots.";
-  PushAndClean(survivors.roots_list, std::move(eden.roots));
-  PushAndClean(survivors.object_metadata_list, std::move(eden.object_metadata));
+  PushAndClean(data.roots_list, std::move(eden.roots));
+  PushAndClean(data.object_metadata_list, std::move(eden.object_metadata));
 
   if (eden.expand_list.has_value()) {
     TRACK_OPERATION(gc_Pool_ConsumeEden_expand_list);
-    survivors.expand_list.Add(std::move(eden.expand_list.value()));
+    data.expand_list.Add(std::move(eden.expand_list.value()));
   }
 }
 
@@ -234,17 +235,19 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
          (eden.expand_list == std::nullopt || eden.expand_list->empty());
 }
 
-/* static */ void Pool::ScheduleExpandRoots(ThreadPool& thread_pool,
-                                            Survivors& survivors) {
-  VLOG(3) << "Registering roots: " << survivors.roots_list.size();
+/* static */ void Pool::ScheduleExpandRoots(
+    ThreadPool& thread_pool,
+    const std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>&
+        roots_list,
+    concurrent::Bag<ObjectExpandList>& expand_list) {
+  VLOG(3) << "Registering roots: " << roots_list.size();
   TRACK_OPERATION(gc_Pool_ScheduleExpandRoots);
 
   concurrent::Operation parallel_operation(thread_pool);
-  for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l :
-       survivors.roots_list)
+  for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l : roots_list)
     l->ForEachShard(
         parallel_operation,
-        [&survivors](const std::list<std::weak_ptr<ObjectMetadata>>& shard) {
+        [&expand_list](const std::list<std::weak_ptr<ObjectMetadata>>& shard) {
           ObjectExpandList local_expand_list;
           for (const std::weak_ptr<ObjectMetadata>& root_weak : shard)
             VisitPointer(
@@ -256,10 +259,10 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
                 },
                 [] { LOG(FATAL) << "Root was dead. Should never happen."; });
           if (!local_expand_list.empty())
-            survivors.expand_list.Add(std::move(local_expand_list));
+            expand_list.Add(std::move(local_expand_list));
         });
 
-  VLOG(5) << "Roots registered: " << survivors.expand_list.size();
+  VLOG(5) << "Roots registered: " << expand_list.size();
 }
 
 /* static */ bool Pool::IsExpandAlreadyScheduled(
@@ -279,14 +282,14 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
 }
 
 /* static */
-void Pool::Expand(ThreadPool& thread_pool, Survivors& survivors,
+void Pool::Expand(ThreadPool& thread_pool, Data& data,
                   const std::optional<CountDownTimer>& count_down_timer) {
   VLOG(3) << "Starting recursive expand (expand_list: "
-          << survivors.expand_list.size() << ")";
+          << data.expand_list.size() << ")";
 
   TRACK_OPERATION(gc_Pool_Expand);
 
-  survivors.expand_list.ForEachShard(
+  data.expand_list.ForEachShard(
       concurrent::Operation(thread_pool),
       [&count_down_timer](std::list<ObjectExpandList>& shard) {
         TRACK_OPERATION(gc_Pool_Expand_shard);
@@ -335,59 +338,60 @@ void Pool::Expand(ThreadPool& thread_pool, Survivors& survivors,
       });
 }
 
-void Pool::UpdateSurvivorsList(Survivors& survivors,
-                               Bag<std::vector<ObjectMetadata::ExpandCallback>>&
-                                   expired_objects_callbacks) {
+void Pool::RemoveUnreachable(
+    std::list<NonNull<std::unique_ptr<ObjectMetadataBag>>>&
+        object_metadata_list,
+    Bag<std::vector<ObjectMetadata::ExpandCallback>>&
+        expired_objects_callbacks) {
   VLOG(3) << "Building survivor list.";
 
   // TODO(gc, 2022-12-03): Add a timer and find a way to allow this function
   // to be interrupted.
 
-  TRACK_OPERATION(gc_Pool_UpdateSurvivorsList);
+  TRACK_OPERATION(gc_Pool_RemoveUnreachable);
   concurrent::Operation parallel_operation(*options_.thread_pool);
   for (NonNull<std::unique_ptr<ObjectMetadataBag>>& sublist :
-       survivors.object_metadata_list)
-    sublist->ForEachShard(
-        parallel_operation, [&](std::list<std::weak_ptr<ObjectMetadata>>& l) {
-          std::vector<ObjectMetadata::ExpandCallback>
-              local_expired_objects_callbacks;
-          l.remove_if([&](const std::weak_ptr<ObjectMetadata>& obj_weak) {
-            return VisitPointer(
-                obj_weak,
-                [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) -> bool {
-                  return obj->data_.lock(
-                      [&](ObjectMetadata::Data& object_data) {
-                        switch (object_data.expand_state) {
-                          case ObjectMetadata::ExpandState::kUnreached:
-                            ObjectMetadata::SetContainerBag(obj, nullptr);
-                            local_expired_objects_callbacks.push_back(
-                                std::move(object_data.expand_callback));
-                            return true;
-                          case ObjectMetadata::ExpandState::kDone:
-                            object_data.expand_state =
-                                ObjectMetadata::ExpandState::kUnreached;
-                            return false;
-                          case ObjectMetadata::ExpandState::kScheduled:
-                            LOG(FATAL)
-                                << "Invalid State: Adding survivors while some "
-                                   "objects are scheduled for expansion.";
-                        }
-                        LOG(FATAL) << "Unhandled case.";
-                        return false;
-                      });
-                },
-                []() -> bool {
-                  // The object should handle its own removal. Maybe we lost a
-                  // race.
-                  return false;
-                });
-          });
-          if (!local_expired_objects_callbacks.empty())
-            expired_objects_callbacks.Add(
-                std::move(local_expired_objects_callbacks));
-        });
+       object_metadata_list)
+    sublist->ForEachShard(parallel_operation, [&](std::list<std::weak_ptr<
+                                                      ObjectMetadata>>& l) {
+      std::vector<ObjectMetadata::ExpandCallback>
+          local_expired_objects_callbacks;
+      l.remove_if([&](const std::weak_ptr<ObjectMetadata>& obj_weak) {
+        return VisitPointer(
+            obj_weak,
+            [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) -> bool {
+              return obj->data_.lock([&](ObjectMetadata::Data& object_data) {
+                switch (object_data.expand_state) {
+                  case ObjectMetadata::ExpandState::kUnreached:
+                    ObjectMetadata::SetContainerBag(obj, nullptr);
+                    local_expired_objects_callbacks.push_back(
+                        std::move(object_data.expand_callback));
+                    return true;
+                  case ObjectMetadata::ExpandState::kDone:
+                    object_data.expand_state =
+                        ObjectMetadata::ExpandState::kUnreached;
+                    return false;
+                  case ObjectMetadata::ExpandState::kScheduled:
+                    LOG(FATAL)
+                        << "Invalid State: Removing unreachable objects while "
+                           "some objects are scheduled for expansion.";
+                }
+                LOG(FATAL) << "Unhandled case.";
+                return false;
+              });
+            },
+            []() -> bool {
+              // The object should handle its own removal. Maybe we lost a
+              // race.
+              return false;
+            });
+      });
+      if (!local_expired_objects_callbacks.empty())
+        expired_objects_callbacks.Add(
+            std::move(local_expired_objects_callbacks));
+    });
   VLOG(4) << "Done building survivor list: "
-          << SumContainedSizes(survivors.object_metadata_list);
+          << SumContainedSizes(object_metadata_list);
 }
 
 Pool::RootRegistration Pool::AddRoot(
