@@ -121,9 +121,10 @@ Pool::CollectOutput Pool::Collect(bool full) {
   }
 
   // We collect expired objects here and explicitly delete them once we have
-  // unlocked data_.
-  Bag<ObjectMetadata::ExpandCallback> expired_objects_callbacks(
-      BagOptions{.shards = 64});
+  // unlocked data_. We don't need high parallelism here (the only concurrent
+  // operation is adding vectors of objects), so 4 shards are good enough.
+  Bag<std::vector<ObjectMetadata::ExpandCallback>> expired_objects_callbacks(
+      BagOptions{.shards = 4});
 
   FullCollectStats stats;
   if (!survivors_.lock([&](Survivors& survivors) {
@@ -282,9 +283,9 @@ void Pool::Expand(Survivors& survivors,
   }
 }
 
-void Pool::UpdateSurvivorsList(
-    Survivors& survivors,
-    Bag<ObjectMetadata::ExpandCallback>& expired_objects_callbacks) {
+void Pool::UpdateSurvivorsList(Survivors& survivors,
+                               Bag<std::vector<ObjectMetadata::ExpandCallback>>&
+                                   expired_objects_callbacks) {
   VLOG(3) << "Building survivor list.";
 
   // TODO(gc, 2022-12-03): Add a timer and find a way to allow this function
@@ -295,8 +296,8 @@ void Pool::UpdateSurvivorsList(
   survivors.object_metadata.ForEachShard(
       *options_.thread_pool, [&](std::list<std::weak_ptr<ObjectMetadata>>& l) {
         std::list<std::weak_ptr<ObjectMetadata>> surviving_objects;
-        // TODO(easy, 2022-12-15): Lots of spurious locking adding objects to
-        // expired_objects_callbacks could be dropped.
+        std::vector<ObjectMetadata::ExpandCallback>
+            local_expired_objects_callbacks;
         for (std::weak_ptr<ObjectMetadata>& obj_weak : l)
           VisitPointer(
               obj_weak,
@@ -304,7 +305,7 @@ void Pool::UpdateSurvivorsList(
                 obj->data_.lock([&](ObjectMetadata::Data& object_data) {
                   switch (object_data.expand_state) {
                     case ObjectMetadata::ExpandState::kUnreached:
-                      expired_objects_callbacks.Add(
+                      local_expired_objects_callbacks.push_back(
                           std::move(object_data.expand_callback));
                       break;
                     case ObjectMetadata::ExpandState::kDone:
@@ -320,6 +321,9 @@ void Pool::UpdateSurvivorsList(
                 });
               },
               [] {});
+        if (!local_expired_objects_callbacks.empty())
+          expired_objects_callbacks.Add(
+              std::move(local_expired_objects_callbacks));
         l = std::move(surviving_objects);
       });
   VLOG(4) << "Done building survivor list: "

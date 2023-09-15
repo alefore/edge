@@ -327,9 +327,10 @@ class Pool {
   static void Expand(Survivors& survivors,
                      const std::optional<afc::infrastructure::CountDownTimer>&
                          count_down_timer);
-  void UpdateSurvivorsList(Survivors& survivors,
-                           concurrent::Bag<ObjectMetadata::ExpandCallback>&
-                               expired_objects_callbacks);
+  void UpdateSurvivorsList(
+      Survivors& survivors,
+      concurrent::Bag<std::vector<ObjectMetadata::ExpandCallback>>&
+          expired_objects_callbacks);
 
   const Options options_;
   concurrent::Protected<Eden> eden_;
