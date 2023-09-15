@@ -167,7 +167,6 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
           stats.generations = data.roots_list.size();
           stats.begin_total = SumContainedSizes(data.object_metadata_list);
-
           stats.roots = SumContainedSizes(data.roots_list);
 
           ScheduleExpandRoots(concurrent::Operation(
@@ -186,12 +185,8 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
           eden = eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
             if (eden_data.IsEmpty()) {
-              VLOG(4) << "New eden is empty.";
-              RemoveUnreachable(concurrent::Operation(
-                                    *options_.thread_pool, std::nullopt,
-                                    INLINE_TRACKER(gc_Pool_RemoveUnreachable)),
-                                data.object_metadata_list,
-                                expired_objects_callbacks);
+              VLOG(4) << "New eden is empty. We've reached all objects at this "
+                         "point. We no longer need to keep an expand_list.";
               eden_data.expand_list = std::nullopt;
               eden_data.consecutive_unfinished_collect_calls = 0;
               return std::nullopt;
@@ -203,6 +198,12 @@ Pool::CollectOutput Pool::Collect(bool full) {
                                eden_data.consecutive_unfinished_collect_calls));
           });
         }
+
+        RemoveUnreachable(
+            concurrent::Operation(*options_.thread_pool, std::nullopt,
+                                  INLINE_TRACKER(gc_Pool_RemoveUnreachable)),
+            data.object_metadata_list, expired_objects_callbacks);
+
         stats.end_total = SumContainedSizes(data.object_metadata_list);
         VLOG(3) << "Data: " << stats.end_total;
         return true;
