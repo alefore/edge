@@ -23,6 +23,7 @@ struct BagOptions {
 template <typename T>
 class BagIterators;
 
+// This class is thread-safe.
 template <typename T>
 class Bag {
  public:
