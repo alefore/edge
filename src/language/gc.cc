@@ -339,11 +339,11 @@ void Pool::RemoveUnreachable(std::list<ObjectMetadataBag>& object_metadata_list,
   for (ObjectMetadataBag& sublist : object_metadata_list)
     sublist->ForEachShard(parallel_operation, [&expired_objects_callbacks](
                                                   std::list<std::weak_ptr<
-                                                      ObjectMetadata>>& l) {
+                                                      ObjectMetadata>>& shard) {
       std::vector<ObjectMetadata::ExpandCallback>
           local_expired_objects_callbacks;
-      l.remove_if([&local_expired_objects_callbacks](
-                      const std::weak_ptr<ObjectMetadata>& obj_weak) {
+      shard.remove_if([&local_expired_objects_callbacks](
+                          const std::weak_ptr<ObjectMetadata>& obj_weak) {
         return VisitPointer(
             obj_weak,
             [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) -> bool {
