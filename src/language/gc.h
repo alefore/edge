@@ -282,6 +282,8 @@ class Pool {
   // The eden area holds information about recent activity. This is optimized to
   // be locked only very briefly, to avoid blocking progress.
   struct Eden {
+    bool IsEmpty() const;
+
     static Eden NewWithExpandList(size_t consecutive_unfinished_collect_calls);
 
     // `object_metadata` and `roots` are unique_ptr to allow us to move them
@@ -333,7 +335,6 @@ class Pool {
   // and `Eden::expand_list` are moved into the corresponding fields in
   // `data`.
   void ConsumeEden(Eden eden, Data& data);
-  static bool IsEmpty(const Eden& eden);
 
   // Inserts all not-yet-scheduled objects from `roots_list` into `expand_list`.
   static void ScheduleExpandRoots(

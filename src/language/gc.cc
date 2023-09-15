@@ -184,7 +184,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
           }
 
           eden = eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
-            if (IsEmpty(eden_data)) {
+            if (eden_data.IsEmpty()) {
               VLOG(4) << "New eden is empty.";
               RemoveUnreachable(data.object_metadata_list,
                                 expired_objects_callbacks);
@@ -230,9 +230,9 @@ void Pool::ConsumeEden(Eden eden, Data& data) {
   }
 }
 
-/*  static */ bool Pool::IsEmpty(const Eden& eden) {
-  return eden.roots->empty() && eden.object_metadata->empty() &&
-         (eden.expand_list == std::nullopt || eden.expand_list->empty());
+bool Pool::Eden::IsEmpty() const {
+  return roots->empty() && object_metadata->empty() &&
+         (expand_list == std::nullopt || expand_list->empty());
 }
 
 /* static */ void Pool::ScheduleExpandRoots(
@@ -342,11 +342,13 @@ void Pool::RemoveUnreachable(std::list<ObjectMetadataBag>& object_metadata_list,
   TRACK_OPERATION(gc_Pool_RemoveUnreachable);
   concurrent::Operation parallel_operation(*options_.thread_pool);
   for (ObjectMetadataBag& sublist : object_metadata_list)
-    sublist->ForEachShard(parallel_operation, [&](std::list<std::weak_ptr<
+    sublist->ForEachShard(parallel_operation, [&expired_objects_callbacks](
+                                                  std::list<std::weak_ptr<
                                                       ObjectMetadata>>& l) {
       std::vector<ObjectMetadata::ExpandCallback>
           local_expired_objects_callbacks;
-      l.remove_if([&](const std::weak_ptr<ObjectMetadata>& obj_weak) {
+      l.remove_if([&local_expired_objects_callbacks](
+                      const std::weak_ptr<ObjectMetadata>& obj_weak) {
         return VisitPointer(
             obj_weak,
             [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) -> bool {
