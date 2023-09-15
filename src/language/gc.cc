@@ -133,7 +133,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
               VLOG(3) << "CleanEden starts: "
                       << eden_data.object_metadata->size();
               eden_data.object_metadata->remove_if(
-                  *options_.thread_pool,
+                  concurrent::Operation(*options_.thread_pool),
                   [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
                     return object_metadata.expired();
                   });
@@ -239,12 +239,11 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
   VLOG(3) << "Registering roots: " << survivors.roots_list.size();
   TRACK_OPERATION(gc_Pool_ScheduleExpandRoots);
 
-  // TODO(easy, 2023-09-15): Synchronize at the top level, rather than in each
-  // call to ForEachShard.
+  concurrent::Operation parallel_operation(thread_pool);
   for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l :
        survivors.roots_list)
     l->ForEachShard(
-        thread_pool,
+        parallel_operation,
         [&survivors](const std::list<std::weak_ptr<ObjectMetadata>>& shard) {
           ObjectExpandList local_expand_list;
           for (const std::weak_ptr<ObjectMetadata>& root_weak : shard)
@@ -288,7 +287,8 @@ void Pool::Expand(ThreadPool& thread_pool, Survivors& survivors,
   TRACK_OPERATION(gc_Pool_Expand);
 
   survivors.expand_list.ForEachShard(
-      thread_pool, [&count_down_timer](std::list<ObjectExpandList>& shard) {
+      concurrent::Operation(thread_pool),
+      [&count_down_timer](std::list<ObjectExpandList>& shard) {
         TRACK_OPERATION(gc_Pool_Expand_shard);
         while (!shard.empty() &&
                !(count_down_timer.has_value() && count_down_timer->IsDone())) {
@@ -344,14 +344,11 @@ void Pool::UpdateSurvivorsList(Survivors& survivors,
   // to be interrupted.
 
   TRACK_OPERATION(gc_Pool_UpdateSurvivorsList);
-
-  // TODO(gc, 2023-09-15, trivial, P1): Pass an operation to `ForEachShard` so
-  // that we only synchronize at the top-level, rather than for each sublist.
+  concurrent::Operation parallel_operation(*options_.thread_pool);
   for (NonNull<std::unique_ptr<ObjectMetadataBag>>& sublist :
        survivors.object_metadata_list)
     sublist->ForEachShard(
-        *options_.thread_pool,
-        [&](std::list<std::weak_ptr<ObjectMetadata>>& l) {
+        parallel_operation, [&](std::list<std::weak_ptr<ObjectMetadata>>& l) {
           std::vector<ObjectMetadata::ExpandCallback>
               local_expired_objects_callbacks;
           l.remove_if([&](const std::weak_ptr<ObjectMetadata>& obj_weak) {

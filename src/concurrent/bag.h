@@ -54,7 +54,7 @@ class Bag {
   }
 
   template <class Predicate>
-  void remove_if(ThreadPool& pool, Predicate predicate) {
+  void remove_if(const Operation& pool, Predicate predicate) {
     ForEachShard(pool,
                  [&predicate](std::list<T>& s) { s.remove_if(predicate); });
   }
@@ -68,9 +68,8 @@ class Bag {
   }
 
   template <typename Callable>
-  void ForEachShard(ThreadPool& pool, Callable callable) {
+  void ForEachShard(const Operation& operation, Callable callable) {
     CHECK_EQ(options_.shards, shards_.size());
-    Operation operation(pool);
     for (size_t i = 0; i < options_.shards; i++)
       operation.Add([&shard = shards_[i], callable] {
         shard.lock(

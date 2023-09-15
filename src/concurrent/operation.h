@@ -26,7 +26,7 @@ class Operation {
   }
 
   template <typename Callable>
-  void Add(Callable callable) {
+  void Add(Callable callable) const {
     LockSlot();
     thread_pool_.RunIgnoringResult(
         [this, callable = std::make_shared<Callable>(std::move(callable))] {
@@ -46,7 +46,7 @@ class Operation {
   }
 
  private:
-  void LockSlot() {
+  void LockSlot() const {
     language::VisitOptional(
         [this](size_t limit) {
           pending_operations_.wait([limit](unsigned int& i) {
@@ -69,7 +69,7 @@ class Operation {
 
   ThreadPool& thread_pool_;
   const std::optional<size_t> concurrency_limit_;
-  ProtectedWithCondition<unsigned int> pending_operations_ =
+  mutable ProtectedWithCondition<unsigned int> pending_operations_ =
       ProtectedWithCondition<unsigned int>(0);
 };
 }  // namespace afc::concurrent
