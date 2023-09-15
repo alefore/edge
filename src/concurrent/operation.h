@@ -12,9 +12,13 @@ namespace afc::concurrent {
 // successfully executed.
 class Operation {
  public:
-  Operation(ThreadPool& thread_pool,
-            std::optional<size_t> concurrency_limit = std::nullopt)
-      : thread_pool_(thread_pool), concurrency_limit_(concurrency_limit) {}
+  Operation(
+      ThreadPool& thread_pool,
+      std::optional<size_t> concurrency_limit = std::nullopt,
+      std::unique_ptr<bool, std::function<void(bool*)>> tracker_call = nullptr)
+      : thread_pool_(thread_pool),
+        tracker_call_(std::move(tracker_call)),
+        concurrency_limit_(concurrency_limit) {}
 
   ~Operation() {
     VLOG(5) << "Operation destruction.";
@@ -68,10 +72,12 @@ class Operation {
   }
 
   ThreadPool& thread_pool_;
+  const std::unique_ptr<bool, std::function<void(bool*)>> tracker_call_;
   const std::optional<size_t> concurrency_limit_;
   mutable ProtectedWithCondition<unsigned int> pending_operations_ =
       ProtectedWithCondition<unsigned int>(0);
 };
+
 }  // namespace afc::concurrent
 
 #endif
