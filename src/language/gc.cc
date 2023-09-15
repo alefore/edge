@@ -83,34 +83,33 @@ Pool::CollectOutput Pool::Collect(bool full) {
   LightCollectStats light_stats;
   std::optional<Eden> eden =
       eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
-        if (!full && options_.collect_duration_threshold.has_value())
-          timer = CountDownTimer(
-              std::exp2(eden_data.consecutive_unfinished_collect_calls) *
-              options_.collect_duration_threshold.value());
+        if (!full) {
+          if (options_.collect_duration_threshold.has_value())
+            timer = CountDownTimer(
+                std::exp2(eden_data.consecutive_unfinished_collect_calls) *
+                options_.collect_duration_threshold.value());
 
-        if (!full && eden_data.expand_list == std::nullopt) {
-          auto done = [&] {
-            return eden_data.object_metadata.size() <=
-                   std::max(1024ul, survivors_size);
-          };
-          light_stats.begin_eden_size = eden_data.object_metadata.size();
-          if (!done()) {
-            TRACK_OPERATION(gc_Pool_Collect_CleanEden);
-            VLOG(3) << "CleanEden starts: " << eden_data.object_metadata.size();
-            eden_data.object_metadata.remove_if(
-                *options_.thread_pool,
-                [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
-                  return object_metadata.expired();
-                });
-            VLOG(4) << "CleanEden ends: " << eden_data.object_metadata.size();
-          }
-          light_stats.end_eden_size = eden_data.object_metadata.size();
-          if (done()) {
-            eden_data.consecutive_unfinished_collect_calls = 0;
-            return std::nullopt;
+          if (eden_data.expand_list == std::nullopt) {
+            size_t max_metadata_size = std::max(1024ul, survivors_size);
+            light_stats.begin_eden_size = eden_data.object_metadata.size();
+            if (eden_data.object_metadata.size() > max_metadata_size) {
+              TRACK_OPERATION(gc_Pool_Collect_CleanEden);
+              VLOG(3) << "CleanEden starts: "
+                      << eden_data.object_metadata.size();
+              eden_data.object_metadata.remove_if(
+                  *options_.thread_pool,
+                  [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
+                    return object_metadata.expired();
+                  });
+              VLOG(4) << "CleanEden ends: " << eden_data.object_metadata.size();
+            }
+            light_stats.end_eden_size = eden_data.object_metadata.size();
+            if (eden_data.object_metadata.size() <= max_metadata_size) {
+              eden_data.consecutive_unfinished_collect_calls = 0;
+              return std::nullopt;
+            }
           }
         }
-
         return std::exchange(
             eden_data, Eden::NewWithExpandList(
                            eden_data.consecutive_unfinished_collect_calls + 1));
