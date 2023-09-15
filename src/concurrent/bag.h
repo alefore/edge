@@ -17,18 +17,10 @@ struct BagOptions {
   size_t shards = 64;
 };
 
-// BagIterators is similar to Bag: an unsorted container of iterators into a
-// Bag. This is provided to allow efficient concurrent removal of large sets of
-// iterators at once.
-template <typename T>
-class BagIterators;
-
 // This class is thread-safe.
 template <typename T>
 class Bag {
  public:
-  using Iterators = BagIterators<T>;
-
   Bag(BagOptions options)
       : options_(std::move(options)), shards_(options_.shards) {
     CHECK_EQ(options_.shards, shards_.size());
@@ -127,8 +119,6 @@ class Bag {
   }
 
  private:
-  friend class BagIterators<T>;
-
   template <typename Callable>
   void ForEachShardSerial(Callable callable) {
     CHECK_EQ(options_.shards, shards_.size());
@@ -153,79 +143,5 @@ class Bag {
   std::vector<Protected<language::NonNull<std::unique_ptr<std::list<T>>>>>
       shards_;
 };
-
-template <typename T>
-class BagIterators {
- public:
-  BagIterators(Bag<T>& bag)
-      : bag_(bag), iterator_shards_(bag_.shards_.size()) {}
-  BagIterators(BagIterators&&) = default;
-
-  void Add(typename Bag<T>::iterator it) {
-    CHECK_EQ(iterator_shards_.size(), bag_.shards_.size());
-    CHECK_LT(it.shard, iterator_shards_.size());
-
-    iterator_shards_[it.shard].lock(
-        [&](std::vector<typename std::list<T>::iterator>& shard) {
-          shard.push_back(it.it);
-        });
-  }
-
-  size_t size() const {
-    size_t output = 0;
-    for (const auto& s : iterator_shards_)
-      output += s.lock(
-          [](const std::vector<typename std::list<T>::iterator>& iterators) {
-            return iterators.size();
-          });
-    return output;
-  }
-
-  // Work that needs to happen before the Bag successfully reflects the erase
-  // will be scheduled in `operation`. Work that can be done later (doesn't need
-  // to happen immediately) will be scheduled in `async_operation`; this
-  // typically include deletions that can be defered.
-  void erase(Operation& operation, Operation& async_operation) && {
-    CHECK_EQ(iterator_shards_.size(), bag_.shards_.size());
-    for (size_t i = 0; i < iterator_shards_.size(); i++)
-      operation.Add([&bag = bag_, &operation, &async_operation, i,
-                     iterator_shard =
-                         std::move(iterator_shards_[i])]() mutable {
-        std::list<T> deletions = iterator_shard.lock(
-            [&](std::vector<typename std::list<T>::iterator>& iterators) {
-              if (iterators.empty())  // Optimization: avoid lock.
-                return std::list<T>();
-              return bag.shards_[i].lock(
-                  [&iterators](
-                      language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
-                    TRACK_OPERATION(BagIterators_erase);
-                    if (iterators.size() == shard->size()) {
-                      TRACK_OPERATION(BagIterators_erase_optimized_path);
-                      // We don't need the actual deletion to happen before we
-                      // return; if we have an async_operation Operation,
-                      // schedule the deletion there. That may allow us (and our
-                      // customers) to unlock things sooner.
-                      return std::exchange(shard.value(), std::list<T>());
-                    }
-                    std::list<T> deletions;
-                    for (auto& it : iterators) {
-                      deletions.emplace_back(std::move(*it));
-                      shard->erase(it);
-                    }
-                    return deletions;
-                  });
-            });
-        if (!deletions.empty() && &async_operation != &operation)
-          async_operation.Add([deletions = std::move(deletions)] {});
-      });
-  }
-
- private:
-  Bag<T>& bag_;
-
-  std::vector<Protected<std::vector<typename std::list<T>::iterator>>>
-      iterator_shards_;
-};
-
 }  // namespace afc::concurrent
 #endif

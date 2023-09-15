@@ -17,7 +17,6 @@ extern "C" {
 namespace afc::language {
 namespace gc {
 using concurrent::Bag;
-using concurrent::BagIterators;
 using concurrent::BagOptions;
 using concurrent::ThreadPool;
 using infrastructure::CountDownTimer;
@@ -91,12 +90,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
         if (!full && eden_data.expand_list == std::nullopt) {
           auto done = [&] {
-            size_t roots_size = 0;
-            for (const std::pair<ObjectMetadataBag* const,
-                                 ObjectMetadataBag::Iterators>& entry :
-                 eden_data.roots_deleted)
-              roots_size += entry.second.size();
-            return eden_data.object_metadata.size() + roots_size <=
+            return eden_data.object_metadata.size() <=
                    std::max(1024ul, survivors_size);
           };
           light_stats.begin_eden_size = eden_data.object_metadata.size();
@@ -192,15 +186,6 @@ Pool::CollectOutput Pool::Collect(bool full) {
 void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
   TRACK_OPERATION(gc_Pool_ConsumeEden);
 
-  {
-    TRACK_OPERATION(gc_Pool_ConsumeEden_roots_deleted);
-    VLOG(3) << "Removing deleted roots: " << eden.roots_deleted.size();
-    concurrent::Operation operation(*options_.thread_pool);
-    for (std::pair<ObjectMetadataBag* const, ObjectMetadataBag::Iterators>&
-             entry : eden.roots_deleted)
-      std::move(entry.second).erase(operation, async_operation_);
-  }
-
   VLOG(3) << "Removing empty lists of roots.";
   survivors.roots.push_back(std::move(eden.roots));
   survivors.roots.remove_if(
@@ -223,8 +208,7 @@ void Pool::ConsumeEden(Eden eden, Survivors& survivors) {
 }
 
 /*  static */ bool Pool::IsEmpty(const Eden& eden) {
-  return eden.roots->empty() && eden.roots_deleted.empty() &&
-         eden.object_metadata.empty() &&
+  return eden.roots->empty() && eden.object_metadata.empty() &&
          (eden.expand_list == std::nullopt || eden.expand_list->empty());
 }
 
@@ -364,20 +348,11 @@ Pool::RootRegistration Pool::AddRoot(
   }
   return eden_.lock([&](Eden& eden) {
     return RootRegistration(
-        ptr, [this, &roots_list = eden.roots.value(),
+        ptr, [&roots_list = eden.roots.value(),
               it = eden.roots->Add(object_metadata)](bool* value) {
           delete value;
           VLOG(5) << "Erasing root: " << value;
-          eden_.lock([&](Eden& input_eden) {
-            auto position = input_eden.roots_deleted.find(&roots_list);
-            if (position == input_eden.roots_deleted.end()) {
-              auto insert_results = input_eden.roots_deleted.insert(
-                  {&roots_list, BagIterators(roots_list)});
-              CHECK(insert_results.second);
-              position = insert_results.first;
-            }
-            position->second.Add(it);
-          });
+          roots_list.erase(it);
         });
   });
 }
@@ -771,18 +746,18 @@ bool full_vs_light_collect_tests_registration = tests::Register(
                CHECK_EQ(pool.count_objects(), 10000ul);
                pool.Collect();
 
-               MakeLoop(pool, 9000);
-               CHECK_EQ(pool.count_objects(), 19000ul);
+               MakeLoop(pool, 11000);
+               CHECK_EQ(pool.count_objects(), 21000ul);
                pool.Collect();
                CHECK_EQ(pool.count_objects(), 10000ul);
 
-               MakeLoop(pool, 2000);
-               CHECK_EQ(pool.count_objects(), 12000ul);
+               MakeLoop(pool, 9000);
+               CHECK_EQ(pool.count_objects(), 19000ul);
                pool.Collect();
-               CHECK_EQ(pool.count_objects(), 12000ul);
+               CHECK_EQ(pool.count_objects(), 19000ul);
 
-               MakeLoop(pool, 11000);
-               CHECK_EQ(pool.count_objects(), 23000ul);
+               MakeLoop(pool, 2000);
+               CHECK_EQ(pool.count_objects(), 21000ul);
                root_big = std::nullopt;
                pool.Collect();
                CHECK_EQ(pool.count_objects(), 2000ul);
@@ -800,6 +775,8 @@ bool full_vs_light_collect_tests_registration = tests::Register(
                CHECK_EQ(pool.count_objects(), 3000ul);
                MakeLoop(pool, 1000);
                CHECK_EQ(pool.count_objects(), 4000ul);
+               MakeLoop(pool, 10);
+               CHECK_EQ(pool.count_objects(), 4010ul);
                pool.Collect();
                CHECK_EQ(pool.count_objects(), 2000ul);
              }},

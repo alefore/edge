@@ -270,11 +270,6 @@ class Pool {
         language::MakeNonNullUnique<ObjectMetadataBag>(
             concurrent::BagOptions{.shards = 64});
 
-    // A set of roots that have been deleted recently. This will allow us to
-    // update Survivors::roots (in UpdateRoots).
-    std::unordered_map<ObjectMetadataBag*, ObjectMetadataBag::Iterators>
-        roots_deleted = {};
-
     // Normally is absent. If a `Collect` operation is interrupted, set to a
     // list to which `AddToEdenExpandList` will add objects (so that when the
     // collection is resumed, those expansions happen). See
@@ -294,6 +289,7 @@ class Pool {
   struct Survivors {
     ObjectMetadataBag object_metadata =
         ObjectMetadataBag(concurrent::BagOptions{.shards = 64});
+
     std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>> roots;
 
     // After inserting from the eden and updating roots, we copy objects from
@@ -307,9 +303,11 @@ class Pool {
     ObjectExpandList expand_list;
   };
 
-  // Insert new roots from Eden::roots; removes expired roots from
-  // Eden::roots_deleted; and inserts from Eden::object_metadata into
-  // Survivors::object_metadata.
+  // Moves objects from `eden` into `survivors`.
+  //
+  // Specifically, objects from fields `Eden::roots`, `Eden::object_metadata`
+  // and `Eden::expand_list` are moved into the corresponding fields in
+  // `Survivors`.
   void ConsumeEden(Eden eden, Survivors& survivors);
   static bool IsEmpty(const Eden& eden);
 

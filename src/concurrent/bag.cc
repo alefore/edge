@@ -138,77 +138,7 @@ const bool tests_registration = tests::Register(
                CHECK_EQ(bag.size(), 4ul);
                CHECK(BagToSet(bag) == BagToSet(NumbersBag(0, 4)));
              }},
-        {.name = L"IteratorsBagEmpty",
-         .callback =
-             [] {
-               ThreadPool thread_pool(5, nullptr);
-               Bag<size_t> bag = NumbersBag(0, 100);
-               Operation operation(thread_pool);
-               BagIterators(bag).erase(operation, operation);
-             }},
-        {.name = L"IteratorsBagSimple",
-         .callback =
-             [] {
-               Bag<size_t> bag = NumbersBag(0, 100);
-
-               std::set<size_t> expected = BagToSet(bag);
-               expected.erase(27);
-               expected.erase(51);
-               expected.erase(71);
-               CHECK_EQ(expected.size(), 97ul);
-
-               ThreadPool thread_pool(5, nullptr);
-               bag.remove_if(thread_pool, [&](size_t i) {
-                 return expected.find(i) == expected.end();
-               });
-
-               CHECK(BagToSet(bag) == expected);
-
-               Bag<size_t>::Iterators iterators_bag = BagIterators(bag);
-               iterators_bag.Add(bag.Add(27));
-               iterators_bag.Add(bag.Add(51));
-               iterators_bag.Add(bag.Add(71));
-
-               CHECK_EQ(iterators_bag.size(), 3ul);
-               CHECK_EQ(bag.size(), 100ul);
-               CHECK(BagToSet(bag) == BagToSet(NumbersBag(0, 100)));
-
-               {
-                 Operation operation(thread_pool);
-                 std::move(iterators_bag).erase(operation, operation);
-               }
-
-               CHECK_EQ(bag.size(), 97ul);
-               CHECK(BagToSet(bag) == expected);
-             }},
-        {.name = L"IteratorsBagComplex",
-         .callback =
-             [] {
-               Bag<size_t> bag = NumbersBag(0, 0);
-
-               std::set<size_t> expected;
-               CHECK(BagToSet(bag) == expected);
-
-               Bag<size_t>::Iterators iterators_bag = BagIterators(bag);
-               for (size_t i = 0; i < 100; i++) iterators_bag.Add(bag.Add(i));
-
-               CHECK_EQ(iterators_bag.size(), 100ul);
-               CHECK_EQ(bag.size(), 100ul);
-               CHECK(BagToSet(bag) == BagToSet(NumbersBag(0, 100)));
-
-               {
-                 ThreadPool thread_pool(5, nullptr);
-                 Operation operation(thread_pool);
-                 std::move(iterators_bag).erase(operation, operation);
-               }
-
-               CHECK_EQ(bag.size(), 0ul);
-               CHECK(bag.empty());
-               CHECK(BagToSet(bag) == expected);
-             }},
     });
-
-// TODO(trivial, 2023-09-14): Add tests for erase with async operation.
 
 }  // namespace
 }  // namespace afc::concurrent
