@@ -62,9 +62,11 @@ void ParseData::Push(size_t nested_state, ColumnNumberDelta rewind_column,
 }
 
 void ParseData::PushAndPop(ColumnNumberDelta rewind_column,
-                           LineModifierSet modifiers) {
+                           LineModifierSet modifiers,
+                           std::unordered_set<ParseTreeProperty> properties) {
   size_t ignored_state = 0;
-  Push(ignored_state, rewind_column, std::move(modifiers), {});
+  Push(ignored_state, rewind_column, std::move(modifiers),
+       std::move(properties));
   PopBack();
 }
 

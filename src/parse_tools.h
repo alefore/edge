@@ -102,7 +102,8 @@ class ParseData {
             std::unordered_set<ParseTreeProperty> properties);
 
   void PushAndPop(language::lazy_string::ColumnNumberDelta rewind_column,
-                  infrastructure::screen::LineModifierSet modifiers);
+                  infrastructure::screen::LineModifierSet modifiers,
+                  std::unordered_set<ParseTreeProperty> properties = {});
 
  private:
   const language::text::LineSequence& buffer_;
