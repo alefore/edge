@@ -118,6 +118,8 @@ bool operator<(const NonNull<A*>& a, const NonNull<A*>& b) {
 template <typename T>
 class NonNull<std::unique_ptr<T>> {
  public:
+  using element_type = T;
+
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
