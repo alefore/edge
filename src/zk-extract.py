@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+# python3 ~/edge-clang/edge/src/zk-extract.py ~/zettelkasten/???.md --diff
+
 import argparse
 import collections
 import os
@@ -63,9 +65,9 @@ class FilesWriter:
         result: subprocess.CompletedProcess = subprocess.run(
             [
                 'diff', '--label',
-                os.path.join('/old/', os.path.relpath(input_path,
-                                                      start='/')), '--label',
-                os.path.join('/new/', os.path.relpath(input_path, start='/')),
+                os.path.join('old/', os.path.relpath(input_path,
+                                                     start='/')), '--label',
+                os.path.join('new/', os.path.relpath(input_path, start='/')),
                 '-Naur', input_path, actual_path
             ],
             stdout=subprocess.PIPE,
