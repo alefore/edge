@@ -49,16 +49,17 @@ ObjectMetadata::~ObjectMetadata() {
 }
 
 /* static */
-void ObjectMetadata::SetContainerBag(
+void ObjectMetadata::AddToBag(
     NonNull<std::shared_ptr<ObjectMetadata>> shared_this,
-    concurrent::Bag<std::weak_ptr<ObjectMetadata>>* bag) {
-  if (bag == nullptr) {
-    CHECK(shared_this->container_bag_ != nullptr);
-  } else {
-    CHECK(shared_this->container_bag_ == nullptr);
-    shared_this->container_bag_iterator_ = bag->Add(shared_this.get_shared());
-  }
-  shared_this->container_bag_ = bag;
+    concurrent::Bag<std::weak_ptr<ObjectMetadata>>& bag) {
+  CHECK(shared_this->container_bag_ == nullptr);
+  shared_this->container_bag_iterator_ = bag.Add(shared_this.get_shared());
+  shared_this->container_bag_ = &bag;
+}
+
+void ObjectMetadata::Orphan() {
+  CHECK(container_bag_ != nullptr);
+  container_bag_ = nullptr;
 }
 
 Pool& ObjectMetadata::pool() const { return pool_; }
@@ -355,7 +356,7 @@ void Pool::RemoveUnreachable(std::list<ObjectMetadataBag>& object_metadata_list,
               return obj->data_.lock([&](ObjectMetadata::Data& object_data) {
                 switch (object_data.expand_state) {
                   case ObjectMetadata::ExpandState::kUnreached:
-                    ObjectMetadata::SetContainerBag(obj, nullptr);
+                    obj->Orphan();
                     local_expired_objects_callbacks.push_back(
                         std::move(object_data.expand_callback));
                     return true;
@@ -428,8 +429,7 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
       MakeNonNullShared<ObjectMetadata>(ObjectMetadata::ConstructorAccessKey(),
                                         *this, std::move(expand_callback));
   eden_.lock([&](Eden& eden) {
-    ObjectMetadata::SetContainerBag(object_metadata,
-                                    &eden.object_metadata.value());
+    ObjectMetadata::AddToBag(object_metadata, eden.object_metadata.value());
     VLOG(5) << "Adding object: " << object_metadata.get_shared()
             << " (eden total: " << eden.object_metadata->size() << ")";
   });

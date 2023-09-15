@@ -156,17 +156,18 @@ class ObjectMetadata {
   bool IsAlive() const;
 
  private:
-  // Sets `container_bag_`. If `bag` is non-null, adds `shared_this` to it and
-  // updates `container_bag_iterator_`.
+  // Adds `shared_this` to `bag` and updates `container_bag_` and
+  // `container_bag_iterator_`.
   //
   // Customers (Pool) must synchronize access to this (which typically happens
   // by virtue of having synchronized the class that holds `bag`).
   //
-  // If an object already has a container bag, it's an error to call this again
-  // with a non-null bag.
-  static void SetContainerBag(
-      NonNull<std::shared_ptr<ObjectMetadata>> shared_this,
-      concurrent::Bag<std::weak_ptr<ObjectMetadata>>* bag);
+  // An object can be added at most to one bag (but see `Orhpan`).
+  static void AddToBag(NonNull<std::shared_ptr<ObjectMetadata>> shared_this,
+                       concurrent::Bag<std::weak_ptr<ObjectMetadata>>& bag);
+
+  // Removes the object from the bag it was added to with `AddToBag`.
+  void Orphan();
 
   Pool& pool_;
 
