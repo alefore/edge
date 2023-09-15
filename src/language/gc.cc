@@ -276,6 +276,11 @@ void Pool::Expand(Survivors& survivors,
   VLOG(3) << "Starting recursive expand (expand_list: "
           << survivors.expand_list.size() << ")";
 
+  // TODO(easy, 2023-09-15): This can be parallelized: we could turn expand_list
+  // into a Bag. That would allow us to expand shards independently,
+  // concurrently. That would also enable parallelizing other parts of the
+  // preparation work.
+
   TRACK_OPERATION(gc_Pool_Expand);
 
   while (!survivors.expand_list.empty() &&
