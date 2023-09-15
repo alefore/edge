@@ -1,3 +1,43 @@
+// A thread-safe class that needs to depend on fields that aren't thread-safe
+// can achieve this by storing those fields inside a `Data` structure and
+// holding a `Protected<Data>` field. The contents of a `Protected<Data>` field
+// should only be accessed by calling the `Protected<Data>::lock` method. As
+// long as the class abides by a few simple expectations, the type system will
+// ensures that access to these fields is serialized.
+//
+// This is an alternative to using a mutex explicitly.
+//
+// One small advantage of this approach is that if the mutex isn't needed
+// (perhaps because the critical section was modified to no longer need access
+// to the `Data` fields), the type system will detect this (through "variable
+// is not referenced" warnings).
+//
+// Example:
+//
+// class ThreadSafeAverageComputer {
+//  public:
+//   void Add(int value) {
+//     data_.lock([value](Data& data) {
+//                  data.count ++;
+//                  data.sum += value;
+//                });
+//   }
+//
+//   int Average() {
+//     return data_.lock([] (const Data& data) {
+//                         return data.sum / data.count;
+//                       });
+//   }
+//
+//  private:
+//   struct Data {
+//     int count = 0;
+//     int sum = 0;
+//   };
+//   Protected<Data> data_ = Protected<Data>(Data{});;
+// };
+//
+
 #ifndef __AFC_EDITOR_PROTECTED_H__
 #define __AFC_EDITOR_PROTECTED_H__
 
