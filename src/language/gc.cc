@@ -187,7 +187,10 @@ Pool::CollectOutput Pool::Collect(bool full) {
           eden = eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
             if (eden_data.IsEmpty()) {
               VLOG(4) << "New eden is empty.";
-              RemoveUnreachable(data.object_metadata_list,
+              RemoveUnreachable(concurrent::Operation(
+                                    *options_.thread_pool, std::nullopt,
+                                    INLINE_TRACKER(gc_Pool_RemoveUnreachable)),
+                                data.object_metadata_list,
                                 expired_objects_callbacks);
               eden_data.expand_list = std::nullopt;
               eden_data.consecutive_unfinished_collect_calls = 0;
@@ -326,16 +329,14 @@ void Pool::Expand(const concurrent::Operation& parallel_operation,
       });
 }
 
-void Pool::RemoveUnreachable(std::list<ObjectMetadataBag>& object_metadata_list,
+void Pool::RemoveUnreachable(const concurrent::Operation& parallel_operation,
+                             std::list<ObjectMetadataBag>& object_metadata_list,
                              Bag<std::vector<ObjectMetadata::ExpandCallback>>&
                                  expired_objects_callbacks) {
   VLOG(3) << "Building survivor list.";
 
   // TODO(gc, 2022-12-03): Add a timer and find a way to allow this function
   // to be interrupted.
-
-  TRACK_OPERATION(gc_Pool_RemoveUnreachable);
-  concurrent::Operation parallel_operation(*options_.thread_pool);
   for (ObjectMetadataBag& sublist : object_metadata_list)
     sublist->ForEachShard(parallel_operation, [&expired_objects_callbacks](
                                                   std::list<std::weak_ptr<

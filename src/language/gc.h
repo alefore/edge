@@ -353,6 +353,7 @@ class Pool {
                      const std::optional<afc::infrastructure::CountDownTimer>&
                          count_down_timer);
   void RemoveUnreachable(
+      const concurrent::Operation& operation,
       std::list<ObjectMetadataBag>& object_metadata_list,
       concurrent::Bag<std::vector<ObjectMetadata::ExpandCallback>>&
           expired_objects_callbacks);
