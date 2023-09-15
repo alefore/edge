@@ -24,23 +24,19 @@ using infrastructure::Tracker;
 using language::NonNull;
 
 namespace {
-using ObjectMetadataBag = concurrent::Bag<std::weak_ptr<ObjectMetadata>>;
+using ObjectMetadataBag =
+    NonNull<std::unique_ptr<concurrent::Bag<std::weak_ptr<ObjectMetadata>>>>;
 
-size_t SumContainedSizes(
-    const std::list<NonNull<std::unique_ptr<ObjectMetadataBag>>>& container) {
+size_t SumContainedSizes(const std::list<ObjectMetadataBag>& container) {
   size_t output = 0;
-  for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& item : container)
-    output += item->size();
+  for (const ObjectMetadataBag& item : container) output += item->size();
   return output;
 }
 
-void PushAndClean(
-    std::list<NonNull<std::unique_ptr<ObjectMetadataBag>>>& container,
-    NonNull<std::unique_ptr<ObjectMetadataBag>> item) {
+void PushAndClean(std::list<ObjectMetadataBag>& container,
+                  ObjectMetadataBag item) {
   container.push_back(std::move(item));
-  container.remove_if([](const NonNull<std::unique_ptr<ObjectMetadataBag>>& l) {
-    return l->empty();
-  });
+  container.remove_if([](const ObjectMetadataBag& l) { return l->empty(); });
 }
 }  // namespace
 
@@ -236,15 +232,13 @@ void Pool::ConsumeEden(Eden eden, Data& data) {
 }
 
 /* static */ void Pool::ScheduleExpandRoots(
-    ThreadPool& thread_pool,
-    const std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>&
-        roots_list,
+    ThreadPool& thread_pool, const std::list<ObjectMetadataBag>& roots_list,
     concurrent::Bag<ObjectExpandList>& expand_list) {
   VLOG(3) << "Registering roots: " << roots_list.size();
   TRACK_OPERATION(gc_Pool_ScheduleExpandRoots);
 
   concurrent::Operation parallel_operation(thread_pool);
-  for (const NonNull<std::unique_ptr<ObjectMetadataBag>>& l : roots_list)
+  for (const ObjectMetadataBag& l : roots_list)
     l->ForEachShard(
         parallel_operation,
         [&expand_list](const std::list<std::weak_ptr<ObjectMetadata>>& shard) {
@@ -338,11 +332,9 @@ void Pool::Expand(ThreadPool& thread_pool, Data& data,
       });
 }
 
-void Pool::RemoveUnreachable(
-    std::list<NonNull<std::unique_ptr<ObjectMetadataBag>>>&
-        object_metadata_list,
-    Bag<std::vector<ObjectMetadata::ExpandCallback>>&
-        expired_objects_callbacks) {
+void Pool::RemoveUnreachable(std::list<ObjectMetadataBag>& object_metadata_list,
+                             Bag<std::vector<ObjectMetadata::ExpandCallback>>&
+                                 expired_objects_callbacks) {
   VLOG(3) << "Building survivor list.";
 
   // TODO(gc, 2022-12-03): Add a timer and find a way to allow this function
@@ -350,8 +342,7 @@ void Pool::RemoveUnreachable(
 
   TRACK_OPERATION(gc_Pool_RemoveUnreachable);
   concurrent::Operation parallel_operation(*options_.thread_pool);
-  for (NonNull<std::unique_ptr<ObjectMetadataBag>>& sublist :
-       object_metadata_list)
+  for (ObjectMetadataBag& sublist : object_metadata_list)
     sublist->ForEachShard(parallel_operation, [&](std::list<std::weak_ptr<
                                                       ObjectMetadata>>& l) {
       std::vector<ObjectMetadata::ExpandCallback>
@@ -446,12 +437,7 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
 
 /* static */ Pool::Eden Pool::Eden::NewWithExpandList(
     size_t consecutive_unfinished_collect_calls) {
-  return Eden{.object_metadata = MakeNonNullUnique<ObjectMetadataBag>(
-                  BagOptions{.shards = 64}),
-              .roots = language::MakeNonNullUnique<ObjectMetadataBag>(
-                  BagOptions{.shards = 64}),
-              .expand_list = ObjectExpandList{},
-              .consecutive_unfinished_collect_calls =
+  return Eden{.consecutive_unfinished_collect_calls =
                   consecutive_unfinished_collect_calls};
 }
 

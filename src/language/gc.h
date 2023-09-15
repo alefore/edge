@@ -274,7 +274,8 @@ class Pool {
 
   RootRegistration AddRoot(std::weak_ptr<ObjectMetadata> object_metadata);
 
-  using ObjectMetadataBag = concurrent::Bag<std::weak_ptr<ObjectMetadata>>;
+  using ObjectMetadataBag = language::NonNull<
+      std::unique_ptr<concurrent::Bag<std::weak_ptr<ObjectMetadata>>>>;
   using ObjectExpandList =
       std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
 
@@ -285,12 +286,12 @@ class Pool {
 
     // `object_metadata` and `roots` are unique_ptr to allow us to move them
     // into `data_` preserving all iterators.
-    language::NonNull<std::unique_ptr<ObjectMetadataBag>> object_metadata =
-        language::MakeNonNullUnique<ObjectMetadataBag>(
+    ObjectMetadataBag object_metadata =
+        language::MakeNonNullUnique<ObjectMetadataBag::element_type>(
             concurrent::BagOptions{.shards = 64});
 
-    language::NonNull<std::unique_ptr<ObjectMetadataBag>> roots =
-        language::MakeNonNullUnique<ObjectMetadataBag>(
+    ObjectMetadataBag roots =
+        language::MakeNonNullUnique<ObjectMetadataBag::element_type>(
             concurrent::BagOptions{.shards = 64});
 
     // Normally is absent. If a `Collect` operation is interrupted, set to a
@@ -310,10 +311,9 @@ class Pool {
   // interval, as collection progresses). Should never be locked while holding
   // eden locked.
   struct Data {
-    std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>
-        object_metadata_list;
+    std::list<ObjectMetadataBag> object_metadata_list;
 
-    std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>> roots_list;
+    std::list<ObjectMetadataBag> roots_list;
 
     // After inserting from the eden and updating roots, we copy objects from
     // `roots` into `expand_list` (in `ScheduleExpandRoots`). We then
@@ -338,8 +338,7 @@ class Pool {
   // Inserts all not-yet-scheduled objects from `roots_list` into `expand_list`.
   static void ScheduleExpandRoots(
       concurrent::ThreadPool& thread_pool,
-      const std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>&
-          roots_list,
+      const std::list<ObjectMetadataBag>& roots_list,
       concurrent::Bag<ObjectExpandList>& expand_list);
 
   static bool IsExpandAlreadyScheduled(
@@ -351,8 +350,7 @@ class Pool {
                      const std::optional<afc::infrastructure::CountDownTimer>&
                          count_down_timer);
   void RemoveUnreachable(
-      std::list<language::NonNull<std::unique_ptr<ObjectMetadataBag>>>&
-          object_metadata_list,
+      std::list<ObjectMetadataBag>& object_metadata_list,
       concurrent::Bag<std::vector<ObjectMetadata::ExpandCallback>>&
           expired_objects_callbacks);
 
