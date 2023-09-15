@@ -25,6 +25,8 @@ Handle links better:
   hide the file and syntax tokens. It would also have effects in other syntax
   elements (e.g., bold, titles...).
 
+* Detect links in headers
+
 ### Syntax
 
 Correctly handle: '\000'
