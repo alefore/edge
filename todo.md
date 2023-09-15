@@ -46,8 +46,6 @@ Add structures for English editing:
 
 For operation: Add '?' (show modifiers available).
 
-Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
-
 Make the delete buffer history (used by `p` paste) a stack; make it possible to pop.
 
 * Improve reflow:
@@ -86,7 +84,7 @@ Improve "g", the current behavior is kind of annoying:
 
 Honor the `margin_columns` variable.
 
-In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
+In diff mode, find a way to link every line in the diff to the corresponding line in the file.
 
 Define a variable `header_regex`.
 * When going to the top of the file (e.g., `K`), skip the header (i.e., position the cursor at the first line not matching the header regex).
