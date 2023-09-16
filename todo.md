@@ -194,6 +194,8 @@ Make aC honor cursors (select based on cursors, similar to search). [p:10]
 
 If a file is open in a nonexistant directory, ... when the file is saved, consider creating the directory (perhaps based on a variable). Also, warn the user that the directory doesn't exist.
 
+Anonymous buffers should never display "Buffer can't be saved cause `path` is empty" errors.
+
 Add a command-line flag that, when running as a client, causes paths to be resolved by the server, rather than as an absolute path in the client. This allows the server to apply EDGE_PATH and such.
 
 Don't do any blocking operations.
