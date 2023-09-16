@@ -188,6 +188,45 @@ void Export(language::gc::Pool& pool, Environment& environment) {
           })
           .ptr());
 
+  object_type.ptr()->AddField(
+      L"ForEach",
+      Value::NewFunction(
+          pool, PurityType::kUnknown, types::Void{},
+          {vmtype,
+           types::Function{
+               .output = Type{types::Void{}},
+               .inputs =
+                   {GetVMType<typename Container::value_type>::vmtype()}}},
+          [](std::vector<language::gc::Root<Value>> args,
+             Trampoline& trampoline)
+              -> futures::ValueOrError<EvaluationOutput> {
+            CHECK_EQ(args.size(), 2ul);
+            auto input = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
+            auto callback = args[1].ptr()->LockCallback();
+            futures::ValueOrError<EmptyValue> output =
+                futures::Past(EmptyValue());
+            for (const auto& current_value : input.value())
+              output =
+                  std::move(output)
+                      .Transform([&trampoline, callback,
+                                  current_value](EmptyValue) {
+                        std::vector<gc::Root<vm::Value>> call_args;
+                        call_args.push_back(
+                            VMTypeMapper<typename Container::value_type>::New(
+                                trampoline.pool(), current_value));
+                        return callback(std::move(call_args), trampoline);
+                      })
+                      .Transform([](EvaluationOutput) {
+                        return futures::Past(Success());
+                      });
+            return std::move(output).Transform(
+                [&pool = trampoline.pool()](EmptyValue) {
+                  return futures::Past(
+                      Success(EvaluationOutput::Return(Value::NewVoid(pool))));
+                });
+          })
+          .ptr());
+
   if constexpr (T::has_contains)
     object_type.ptr()->AddField(
         L"contains",
