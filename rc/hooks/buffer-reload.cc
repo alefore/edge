@@ -74,6 +74,12 @@ void HandleFileTypes(string basename, string extension) {
     return;
   }
 
+  if (extension == "csv") {
+    buffer.set_tree_parser("csv");
+    buffer.SetStatus("🔡 CSV file (" + extension + ")");
+    return;
+  }
+
   if (extension == "txt" || extension == "md") {
     buffer.set_wrap_from_content(true);
     AddContextExtension("md");
