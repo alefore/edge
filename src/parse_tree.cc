@@ -358,7 +358,27 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
                 NonNull<std::shared_ptr<const ParseTree>>>::object_type_name);
 
   parse_tree_object_type.ptr()->AddField(
-      L"Range",
+      L"children",
+      vm::NewCallback(
+          pool, PurityType::kReader,
+          [](NonNull<std::shared_ptr<const ParseTree>> tree) {
+            NonNull<std::shared_ptr<
+                std::vector<NonNull<std::shared_ptr<const ParseTree>>>>>
+                output;
+            for (const ParseTree& child : tree->children())
+              // TODO(2023-09-16): Find a way to avoid Unsafe here: that means
+              // figuring out how to use the std::shared_ptr aliasing
+              // constructor with NonNull.
+              output->push_back(
+                  NonNull<std::shared_ptr<const ParseTree>>::Unsafe(
+                      std::shared_ptr<const ParseTree>(tree.get_shared(),
+                                                       &child)));
+            return output;
+          })
+          .ptr());
+
+  parse_tree_object_type.ptr()->AddField(
+      L"range",
       vm::NewCallback(pool, PurityType::kReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return tree->range();
