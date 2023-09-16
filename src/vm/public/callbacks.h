@@ -73,7 +73,7 @@ struct VMTypeMapper<language::NonNull<std::shared_ptr<T>>> {
   }
   static language::gc::Root<Value> New(
       language::gc::Pool& pool, language::NonNull<std::shared_ptr<T>> value) {
-    return Value::NewObject(pool, object_type_name, value);
+    return Value::NewObject(pool, object_type_name, std::move(value));
   }
   static const types::ObjectName object_type_name;
 };
