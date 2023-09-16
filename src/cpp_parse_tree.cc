@@ -49,7 +49,7 @@ static const std::wstring digit_chars = L"1234567890";
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::kBgRed, LineModifier::kBold});
 
-class CppTreeParser : public TreeParser {
+class CppTreeParser : public parsers::LineOrientedTreeParser {
  public:
   CppTreeParser(std::unordered_set<std::wstring> keywords,
                 std::unordered_set<std::wstring> typos,
@@ -59,58 +59,10 @@ class CppTreeParser : public TreeParser {
             NewNullTreeParser())),
         keywords_(std::move(keywords)),
         typos_(std::move(typos)),
-        identifier_behavior_(identifier_behavior),
-        cache_(1) {}
+        identifier_behavior_(identifier_behavior) {}
 
-  ParseTree FindChildren(const LineSequence& contents, Range range) override {
-    static Tracker top_tracker(L"CppTreeParser::FindChildren");
-    auto top_call = top_tracker.Call();
-    cache_.SetMaxSize(contents.size().read());
-
-    std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
-    std::vector<ParseTree> trees = {ParseTree(range)};
-    range.ForEachLine([&](LineNumber i) {
-      size_t hash =
-          GetLineHash(contents.at(i)->contents().value(), states_stack);
-      auto parse_results = cache_.Get(hash, [&] {
-        static Tracker tracker(L"CppTreeParser::FindChildren::Parse");
-        auto call = tracker.Call();
-        ParseData data(contents, std::move(states_stack),
-                       std::min(LineColumn(i + LineNumberDelta(1)), range.end));
-        data.set_position(std::max(LineColumn(i), range.begin));
-        ParseLine(&data);
-        return *data.parse_results();
-      });
-
-      static Tracker execute_tracker(
-          L"CppTreeParser::FindChildren::ExecuteActions");
-      auto execute_call = execute_tracker.Call();
-      for (auto& action : parse_results->actions) {
-        action.Execute(&trees, i);
-      }
-      states_stack = parse_results->states_stack;
-    });
-
-    auto final_position =
-        LineColumn(contents.EndLine(), contents.back()->EndColumn());
-    if (final_position >= range.end) {
-      DVLOG(5) << "Draining final states: " << states_stack.size();
-      ParseData data(contents, std::move(states_stack),
-                     std::min(LineColumn(LineNumber(0) + contents.size() +
-                                         LineNumberDelta(1)),
-                              range.end));
-      while (data.parse_results()->states_stack.size() > 1) {
-        data.PopBack();
-      }
-      for (auto& action : data.parse_results()->actions) {
-        action.Execute(&trees, final_position.line);
-      }
-    }
-    CHECK(!trees.empty());
-    return trees[0];
-  }
-
-  void ParseLine(ParseData* result) {
+ protected:
+  void ParseLine(ParseData* result) override {
     bool done = false;
     while (!done) {
       LineColumn original_position = result->position();  // For validation.
@@ -168,15 +120,6 @@ class CppTreeParser : public TreeParser {
   }
 
  private:
-  size_t GetLineHash(const LazyString& line,
-                     const std::vector<size_t>& states) {
-    using language::compute_hash;
-    using language::MakeHashableIteratorRange;
-    static Tracker tracker(L"CppTreeParser::GetLineHash");
-    auto call = tracker.Call();
-    return compute_hash(line, MakeHashableIteratorRange(states));
-  }
-
   void AfterSlash(State state_default, State state_default_at_start_of_line,
                   ParseData* result) {
     auto seek = result->seek();
@@ -369,15 +312,6 @@ class CppTreeParser : public TreeParser {
   const std::unordered_set<std::wstring> keywords_;
   const std::unordered_set<std::wstring> typos_;
   const IdentifierBehavior identifier_behavior_;
-
-  // Allows us to avoid reparsing previously parsed lines. The key is the hash
-  // of:
-  //
-  // - The contents of a line.
-  // - The stack of states available when parsing of the line starts.
-  //
-  // The values are the results of parsing the line.
-  LRUCache<size_t, ParseResults> cache_;
 };
 
 }  // namespace

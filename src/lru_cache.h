@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_LRU_CACHE_H__
 #define __AFC_EDITOR_LRU_CACHE_H__
 
+#include <glog/logging.h>
+
 #include <cwchar>
 #include <list>
 #include <memory>
