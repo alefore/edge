@@ -65,7 +65,7 @@ using afc::language::text::LineColumnDelta;
 namespace gc = afc::language::gc;
 
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
-static EditorState* global_editor_state = nullptr;
+static std::unique_ptr<EditorState> global_editor_state;
 
 EditorState& editor_state() { return *global_editor_state; }
 
@@ -342,7 +342,7 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Creating editor.";
   global_editor_state =
-      std::make_unique<EditorState>(args, audio_player.value()).release();
+      std::make_unique<EditorState>(args, audio_player.value());
 
   if (!args.benchmark.empty()) {
     afc::tests::RunBenchmark(args.benchmark);
@@ -564,6 +564,8 @@ int main(int argc, const char** argv) {
   }
 
   int output = editor_state().exit_value().value();
-  delete &editor_state();
+  LOG(INFO) << "Deleting editor.";
+  global_editor_state = nullptr;
+  LOG(INFO) << "Returning.";
   return output;
 }
