@@ -45,9 +45,11 @@ PossibleError CheckFunctionArguments(
 
   for (size_t argument = 0; argument < args.size(); argument++) {
     if (!args[argument]->SupportsType(function_type->inputs[argument])) {
-      return Error(L"Type mismatch in argument " + std::to_wstring(argument) +
-                   L": Expected `" + ToString(function_type->inputs[argument]) +
-                   L"` but found " + TypesToString(args[argument]->Types()));
+      return Error(
+          L"Type mismatch in argument " + std::to_wstring(argument) +
+          L": Expected " +
+          TypesToString(std::vector({function_type->inputs[argument]})) +
+          L" but found " + TypesToString(args[argument]->Types()));
     }
   }
 
