@@ -38,4 +38,17 @@ int FindRowIndex(Buffer buffer, string row_name) {
   }
   return -1;
 }
+
+VectorInt ColumnToVectorInt(Buffer buffer, int column, bool skip_first) {
+  VectorInt output = VectorInt();
+  bool at_first = true;
+  buffer.tree().children().ForEach([](ParseTree row) -> void {
+    // TODO(errors): Warn that some values were ignored?
+    if (!at_first && row.children().size() > ColumnIdToTreeChildren(column))
+      output.push_back(
+          ReadContent(buffer, TreeForCell(row, column).range()).toint());
+    at_first = false;
+  });
+  return output;
+}
 }  // namespace csv
