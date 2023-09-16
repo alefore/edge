@@ -20,6 +20,8 @@ class ParseTreeProperty {
   static const ParseTreeProperty& Link();
   static const ParseTreeProperty& LinkTarget();
 
+  static const ParseTreeProperty& TableCell(size_t id);
+
   GHOST_TYPE_EQ(ParseTreeProperty, value);
 
  private:

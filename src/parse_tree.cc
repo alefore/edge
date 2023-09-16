@@ -36,6 +36,19 @@ using language::text::Range;
   return *output;
 }
 
+/*static*/ const ParseTreeProperty& ParseTreeProperty::TableCell(size_t id) {
+  static const std::vector<ParseTreeProperty>* values = [] {
+    auto output = new std::vector<ParseTreeProperty>();
+    for (int i = 0; i < 32; i++)
+      output->push_back(ParseTreeProperty(L"table_cell_" + std::to_wstring(i)));
+    return output;
+  }();
+  if (id < values->size()) return values->at(id);
+  // TODO(easy, 2023-09-16): Would be good to be able to support this better.
+  static const ParseTreeProperty output(L"table_cell_infty");
+  return output;
+}
+
 std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
   os << "[ParseTree: " << t.range() << ", children: ";
   for (auto& c : t.children()) {

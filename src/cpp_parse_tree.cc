@@ -237,7 +237,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void LiteralString(ParseData* result) {
-    ParseDoubleQuotedString(result, {LineModifier::kYellow});
+    ParseDoubleQuotedString(result, {LineModifier::kYellow}, {});
   }
 
   void PreprocessorDirective(ParseData* result) {
@@ -276,19 +276,6 @@ class CppTreeParser : public TreeParser {
                                   HashToModifiersBold::kNever);
     }
     result->PushAndPop(length, std::move(modifiers));
-  }
-
-  void LiteralNumber(ParseData* result) {
-    CHECK_GE(result->position().column, ColumnNumber(1));
-    LineColumn original_position = result->position();
-    original_position.column--;
-
-    result->seek().UntilCurrentCharNotIn(digit_chars);
-    CHECK_EQ(result->position().line, original_position.line);
-    CHECK_GT(result->position(), original_position);
-
-    result->PushAndPop(result->position().column - original_position.column,
-                       {LineModifier::kYellow});
   }
 
   void DefaultState(State state_default, State state_default_at_start_of_line,
@@ -357,7 +344,7 @@ class CppTreeParser : public TreeParser {
     }
 
     if (isdigit(c)) {
-      LiteralNumber(result);
+      parsers::ParseNumber(result, {LineModifier::kYellow}, {});
       return;
     }
   }

@@ -63,9 +63,9 @@ class CsvParser : public TreeParser {
   void ParseLine(ParseData* result) {
     SkipSpaces(result);
     result->Push(CSV_ROW, ColumnNumberDelta(), {}, {});
-    while (result->seek().read() != L'\n') {
+    for (size_t row = 0; result->seek().read() != L'\n'; row++) {
       VLOG(10) << "Parsing row, start: " << result->position();
-      ParseRow(result);
+      ParseRow(result, row);
     }
     result->PopBack();
   }
@@ -76,23 +76,37 @@ class CsvParser : public TreeParser {
     while (std::iswspace(seek.read()) && seek.Once() == Seek::DONE) continue;
   }
 
-  void ParseRow(ParseData* result) {
+  void ParseRow(ParseData* result, size_t csv_column) {
+    static const std::vector<LineModifier> csv_column_colors = {
+        LineModifier::kCyan, LineModifier::kYellow, LineModifier::kGreen,
+        LineModifier::kBlue, LineModifier::kMagenta};
+    LineModifierSet modifiers = {
+        csv_column_colors[csv_column % csv_column_colors.size()]};
     auto seek = result->seek();
     SkipSpaces(result);
-    LineColumn start = result->position();
     switch (seek.read()) {
       case L'\"':
         seek.Once();
-        ParseDoubleQuotedString(result, {LineModifier::kYellow});
+        ParseDoubleQuotedString(result, modifiers,
+                                {ParseTreeProperty::TableCell(csv_column)});
         break;
       default:
-        while (seek.read() != L',' && seek.Once() == Seek::DONE) continue;
+        if (isdigit(seek.read())) {
+          seek.Once();
+          ParseNumber(result, modifiers,
+                      {ParseTreeProperty::TableCell(csv_column)});
+        } else {
+          ColumnNumber start = result->position().column;
+          while (seek.read() != L',' && seek.Once() == Seek::DONE) continue;
+          result->PushAndPop(result->position().column - start, modifiers,
+                             {ParseTreeProperty::TableCell(csv_column)});
+        }
     }
     SkipSpaces(result);
     if (seek.read() == L',') {
       seek.Once();
       result->PushAndPop(ColumnNumberDelta(1),
-                         LineModifierSet{LineModifier::kCyan});
+                         LineModifierSet{LineModifier::kDim});
     }
   }
 };
