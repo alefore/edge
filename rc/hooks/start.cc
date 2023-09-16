@@ -4,6 +4,7 @@
 #include "../editor_commands/header"
 #include "../editor_commands/include.cc"
 #include "../editor_commands/indent.cc"
+#include "../editor_commands/lib/csv.cc"
 #include "../editor_commands/lib/dates.cc"
 #include "../editor_commands/lib/markdown.cc"
 #include "../editor_commands/lib/numbers.cc"
