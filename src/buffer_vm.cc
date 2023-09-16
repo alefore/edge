@@ -8,6 +8,7 @@
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
@@ -129,6 +130,99 @@ gc::Root<OpenBuffer> MaybeFollowOutgoingLink(gc::Root<OpenBuffer> buffer) {
   }
   return buffer;
 }
+
+template <typename KeyType>
+void DefineSortLinesByKey(gc::Pool& pool,
+                          gc::Root<ObjectType>& buffer_object_type,
+                          vm::Type vm_type_key,
+                          std::function<KeyType(const vm::Value&)> get_key) {
+  buffer_object_type.ptr()->AddField(
+      L"SortLinesByKey",
+      vm::Value::NewFunction(
+          pool, PurityType::kUnknown, vm::types::Void{},
+          {buffer_object_type.ptr()->type(),
+           vm::types::Function{.output = vm::Type{vm_type_key},
+                               .inputs = {vm::types::Int{}}}},
+          [get_key](std::vector<gc::Root<vm::Value>> args,
+                    Trampoline& trampoline) {
+            CHECK_EQ(args.size(), size_t(2));
+            struct Data {
+              Trampoline& trampoline;
+              gc::Root<OpenBuffer> buffer;
+              PossibleError possible_error = Success();
+              vm::Value::Callback callback;
+              std::unordered_map<std::wstring, KeyType> keys = {};
+            };
+
+            auto data = MakeNonNullShared<Data>(
+                Data{.trampoline = trampoline,
+                     .buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
+                         args[0].ptr().value()),
+                     .callback = args[1].ptr()->LockCallback()});
+
+            // We build `inputs` simply to be able to use futures::ForEach.
+            NonNull<std::shared_ptr<std::vector<LineNumber>>> inputs;
+            data->buffer.ptr()->contents().EveryLine(
+                [inputs](LineNumber number, const Line&) {
+                  inputs->push_back(number);
+                  return true;
+                });
+
+            return futures::ForEach(
+                       inputs.get_shared(),
+                       [data, get_key](LineNumber line_number) {
+                         return data
+                             ->callback(
+                                 {vm::Value::NewInt(data->trampoline.pool(),
+                                                    line_number.read())},
+                                 data->trampoline)
+                             .Transform([data, get_key,
+                                         line_number](EvaluationOutput output) {
+                               data->keys.insert(
+                                   {data->buffer.ptr()
+                                        ->contents()
+                                        .at(line_number)
+                                        ->ToString(),
+                                    get_key(output.value.ptr().value())});
+                               return futures::Past(
+                                   Success(futures::IterationControlCommand::
+                                               kContinue));
+                             })
+                             .ConsumeErrors([data](Error error_input) {
+                               data->possible_error = error_input;
+                               return futures::Past(
+                                   futures::IterationControlCommand::kStop);
+                             });
+                       })
+                .Transform([data](futures::IterationControlCommand)
+                               -> ValueOrError<EvaluationOutput> {
+                  return std::visit(
+                      overload{
+                          [](Error error) {
+                            return ValueOrError<EvaluationOutput>(error);
+                          },
+                          [data](EmptyValue) {
+                            data->buffer.ptr()->SortAllContents(
+                                [data](const language::NonNull<std::shared_ptr<
+                                           const language::text::Line>>& a,
+                                       const language::NonNull<std::shared_ptr<
+                                           const language::text::Line>>& b) {
+                                  return data->keys
+                                             .find(a->contents()->ToString())
+                                             ->second <
+                                         data->keys
+                                             .find(b->contents()->ToString())
+                                             ->second;
+                                });
+                            return Success(
+                                EvaluationOutput{.value = vm::Value::NewVoid(
+                                                     data->trampoline.pool())});
+                          }},
+                      data->possible_error);
+                });
+          })
+          .ptr());
+}
 }  // namespace
 
 gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
@@ -213,6 +307,16 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                         return buffer.ptr()->contents().at(line)->ToString();
                       })
           .ptr());
+
+  DefineSortLinesByKey<int>(
+      pool, buffer_object_type, vm::types::Int{},
+      [](const vm::Value& value) { return value.get_int(); });
+
+  // TODO(2023-09-16): Very interestingly, this isn't showing up. There must be
+  // something lacking in the polymorphism support, which is very sad.
+  DefineSortLinesByKey<std::wstring>(
+      pool, buffer_object_type, vm::types::String{},
+      [](const vm::Value& value) { return value.get_string(); });
 
   buffer_object_type.ptr()->AddField(
       L"tree", vm::NewCallback(pool, PurityType::kReader,
