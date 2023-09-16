@@ -73,6 +73,7 @@ class CsvParser : public LineOrientedTreeParser {
       seek.Once();
       result->PushAndPop(ColumnNumberDelta(1),
                          LineModifierSet{LineModifier::kDim});
+      SkipSpaces(result);
     }
   }
 };
