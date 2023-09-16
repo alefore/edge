@@ -47,11 +47,32 @@ void ParseDoubleQuotedString(ParseData* result,
     seek.Once();
   }
   if (seek.read() == L'"') {
-    seek.Once();
+    LineColumn final_quote_position = result->position();
     CHECK_EQ(result->position().line, original_position.line);
-    result->PushAndPop(result->position().column - original_position.column +
-                           ColumnNumberDelta(1),
+
+    size_t ignored_state = 0;
+
+    // Parent tree: a parent tree containing everything.
+    seek.Once();
+    result->Push(ignored_state,
+                 final_quote_position.column + ColumnNumberDelta(2) -
+                     original_position.column,
+                 {}, {});
+
+    // Open quote.
+    result->set_position(original_position);
+    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
+
+    // Content tree.
+    result->set_position(final_quote_position);
+    result->PushAndPop(final_quote_position.column - original_position.column,
                        string_modifiers, properties);
+
+    // Close quote.
+    seek.Once();
+    result->PushAndPop(ColumnNumberDelta(1), {LineModifier::kDim}, {});
+
+    result->PopBack();  // Parent tree.
     // TODO: words_parser_->FindChildren(result->contents(), tree);
   } else {
     result->set_position(original_position);
