@@ -198,10 +198,14 @@ src/parse_tools.cc \
 src/parse_tools.h \
 src/parse_tree.cc \
 src/parse_tree.h \
+src/parsers/csv.cc \
+src/parsers/csv.h \
 src/parsers/diff.cc \
 src/parsers/diff.h \
 src/parsers/markdown.cc \
 src/parsers/markdown.h \
+src/parsers/util.cc \
+src/parsers/util.h \
 src/paste.cc \
 src/paste.h \
 src/path_flags.cc \

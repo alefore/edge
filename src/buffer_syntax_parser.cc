@@ -3,6 +3,7 @@
 #include "src/cpp_parse_tree.h"
 #include "src/language/safe_types.h"
 #include "src/parse_tree.h"
+#include "src/parsers/csv.h"
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
 
@@ -32,6 +33,8 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
     } else if (options.parser_name == L"md") {
       data.tree_parser = parsers::NewMarkdownTreeParser(
           options.symbol_characters, options.dictionary);
+    } else if (options.parser_name == L"csv") {
+      data.tree_parser = parsers::NewCsvTreeParser();
     } else {
       data.tree_parser = NewNullTreeParser();
     }

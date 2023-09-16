@@ -497,6 +497,8 @@ EdgeVariable<std::wstring>* const dictionary =
         .Predictor(FilePredictor)
         .Build();
 
+// TODO(easy, 2023-09-16): Maintain a registry of available parsers, so that the
+// following "Valid values ..." string doesn't become outdated.
 EdgeVariable<std::wstring>* const tree_parser =
     StringStruct()
         ->Add()

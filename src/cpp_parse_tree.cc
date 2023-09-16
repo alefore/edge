@@ -8,6 +8,7 @@
 #include "src/language/safe_types.h"
 #include "src/lru_cache.h"
 #include "src/parse_tools.h"
+#include "src/parsers/util.h"
 #include "src/seek.h"
 
 namespace afc::editor {
@@ -24,6 +25,7 @@ using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::LineSequence;
 using language::text::Range;
+using parsers::ParseDoubleQuotedString;
 
 namespace {
 enum State {
@@ -235,27 +237,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void LiteralString(ParseData* result) {
-    auto original_position = result->position();
-    CHECK_GT(original_position.column, ColumnNumber(0));
-
-    Seek seek = result->seek();
-    while (seek.read() != L'"' && seek.read() != L'\n' && !seek.AtRangeEnd()) {
-      if (seek.read() == '\\') {
-        seek.Once();
-      }
-      seek.Once();
-    }
-    if (seek.read() == L'"') {
-      seek.Once();
-      CHECK_EQ(result->position().line, original_position.line);
-      result->PushAndPop(result->position().column - original_position.column +
-                             ColumnNumberDelta(1),
-                         {LineModifier::kYellow});
-      // TODO: words_parser_->FindChildren(result->buffer(), tree);
-    } else {
-      result->set_position(original_position);
-      result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
-    }
+    ParseDoubleQuotedString(result, {LineModifier::kYellow});
   }
 
   void PreprocessorDirective(ParseData* result) {
