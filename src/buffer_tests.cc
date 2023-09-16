@@ -26,7 +26,8 @@ using language::text::MutableLineSequence;
 namespace gc = language::gc;
 namespace {
 std::wstring GetMetadata(std::wstring line) {
-  gc::Root<OpenBuffer> buffer = NewBufferForTests();
+  NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+  gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
   buffer.ptr()->Set(buffer_variables::name, L"tests");
 
   // We add this so that tests can refer to it.
@@ -101,7 +102,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"HonorsExistingMetadata",
          .callback =
              [] {
-               auto buffer = NewBufferForTests();
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               auto buffer = NewBufferForTests(editor.value());
                LineBuilder options(NewLazyString(L"foo"));
                options.SetMetadata(language::text::LineMetadataEntry{
                    .initial_value = NewLazyString(L"bar"),
@@ -118,7 +120,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"PassingParametersPreservesThem",
          .callback =
              [] {
-               auto buffer = NewBufferForTests();
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               auto buffer = NewBufferForTests(editor.value());
 
                gc::Root<vm::Value> result = ValueOrDie(
                    buffer.ptr()
@@ -133,7 +136,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"NestedStatements",
          .callback =
              [] {
-               auto buffer = NewBufferForTests();
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               auto buffer = NewBufferForTests(editor.value());
                ValueOrError<gc::Root<vm::Value>> result =
                    buffer.ptr()
                        ->EvaluateString(L"{ int v = 5; } v")
@@ -162,7 +166,8 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
     return tests::Test{
         .name = code.empty() ? L"<empty>" : (L"Code: " + code),
         .callback = [code] {
-          auto Reclaim = [] {
+          NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+          auto Reclaim = [&editor] {
             // We call Reclaim more than once because the first call enables
             // additional symbols to be removed by the 2nd call (because the
             // first call only removes some roots after it has traversed
@@ -170,7 +175,7 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
             std::optional<size_t> end_total;
             while (true) {
               gc::Pool::FullCollectStats stats =
-                  EditorForTests().gc_pool().FullCollect();
+                  editor->gc_pool().FullCollect();
               if (end_total == stats.end_total) return stats;
               end_total = stats.end_total;
             }
@@ -182,29 +187,31 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
           // as they are no longer needed, in order to make the tests
           // stronger.
           {
-            futures::ValueOrError<gc::Root<vm::Value>> future_value = [&code] {
-              std::pair<NonNull<std::unique_ptr<vm::Expression>>,
-                        gc::Root<vm::Environment>>
-                  compilation_result = [&code] {
-                    auto buffer = NewBufferForTests();
-                    auto output = ValueOrDie(buffer.ptr()->CompileString(code));
-                    auto erase_result =
-                        EditorForTests().buffers()->erase(buffer.ptr()->name());
-                    CHECK_EQ(erase_result, 1ul);
-                    return output;
-                  }();
+            futures::ValueOrError<gc::Root<vm::Value>> future_value =
+                [&code, &editor] {
+                  std::pair<NonNull<std::unique_ptr<vm::Expression>>,
+                            gc::Root<vm::Environment>>
+                      compilation_result = [&code, &editor] {
+                        auto buffer = NewBufferForTests(editor.value());
+                        auto output =
+                            ValueOrDie(buffer.ptr()->CompileString(code));
+                        auto erase_result =
+                            editor->buffers()->erase(buffer.ptr()->name());
+                        CHECK_EQ(erase_result, 1ul);
+                        return output;
+                      }();
 
-              LOG(INFO) << "Start evaluation.";
-              return Evaluate(
-                  compilation_result.first.value(), EditorForTests().gc_pool(),
-                  compilation_result.second,
-                  [](std::function<void()> resume_callback) {
-                    EditorForTests().work_queue()->Schedule(
-                        WorkQueue::Callback{.callback = resume_callback});
-                  });
-            }();
+                  LOG(INFO) << "Start evaluation.";
+                  return Evaluate(
+                      compilation_result.first.value(), editor->gc_pool(),
+                      compilation_result.second,
+                      [&editor](std::function<void()> resume_callback) {
+                        editor->work_queue()->Schedule(
+                            WorkQueue::Callback{.callback = resume_callback});
+                      });
+                }();
             while (!future_value.Get().has_value())
-              EditorForTests().work_queue()->Execute();
+              editor->work_queue()->Execute();
 
             ValueOrDie(future_value.Get().value(), L"tests").ptr();
           }
@@ -250,12 +257,14 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
 const bool buffer_work_queue_tests_registration = tests::Register(
     L"BufferWorkQueue",
     {{.name = L"WorkQueueStaysAlive", .callback = [] {
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+
         // Validates that the work queue in a buffer is correctly connected to
         // the work queue in the editor, including not being destroyed early.
         bool keep_going = true;
         int iterations = 0;
         NonNull<std::shared_ptr<WorkQueue>> work_queue =
-            NewBufferForTests().ptr()->work_queue();
+            NewBufferForTests(editor.value()).ptr()->work_queue();
         std::function<void()> callback =
             [work_queue_weak =
                  std::weak_ptr<WorkQueue>(work_queue.get_shared()),
@@ -271,19 +280,20 @@ const bool buffer_work_queue_tests_registration = tests::Register(
         work_queue = WorkQueue::New();
         for (int i = 0; i < 10; i++) {
           CHECK_EQ(iterations, i + 1);
-          EditorForTests().work_queue()->Execute();
+          editor->work_queue()->Execute();
         }
         keep_going = false;
-        EditorForTests().work_queue()->Execute();
+        editor->work_queue()->Execute();
         CHECK_EQ(iterations, 12);
-        EditorForTests().work_queue()->Execute();
+        editor->work_queue()->Execute();
         CHECK_EQ(iterations, 12);
       }}});
 
 const bool buffer_positions_tests_registration = tests::Register(
     L"BufferPositions",
     {{.name = L"DeleteCursorLeavingOtherPastRange", .callback = [] {
-        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         buffer.ptr()->Set(buffer_variables::name, L"tests");
         for (int i = 0; i < 10; i++) buffer.ptr()->AppendEmptyLine();
         CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(0)));

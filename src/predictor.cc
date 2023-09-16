@@ -505,7 +505,8 @@ const bool buffer_tests_registration =
         ProgressChannel channel(
             WorkQueue::New(), [](ProgressInformation) {},
             WorkQueueChannelConsumeMode::kAll);
-        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         test_predictor(PredictorInput{.editor = buffer.ptr()->editor(),
                                       .input = input,
                                       .predictions = buffer.ptr().value(),
@@ -523,7 +524,8 @@ const bool buffer_tests_registration =
       };
       auto test_predict = [&](std::wstring input,
                               std::function<void(PredictResults)> callback) {
-        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         bool executed = false;
         Predict(PredictOptions{.editor_state = buffer.ptr()->editor(),
                                .predictor = test_predictor,

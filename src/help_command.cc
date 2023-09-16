@@ -315,7 +315,8 @@ const bool buffer_registration = tests::Register(
         {.name = L"GenerateContents",
          .callback =
              [] {
-               auto buffer = NewBufferForTests();
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               auto buffer = NewBufferForTests(editor.value());
                MapModeCommands commands(buffer.ptr()->editor());
                HelpCommand::GenerateContents(commands, buffer.ptr().value());
              }},

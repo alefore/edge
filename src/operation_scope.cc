@@ -6,11 +6,14 @@
 #include "src/buffer_display_data.h"
 #include "src/buffer_variables.h"
 #include "src/concurrent/protected.h"
+#include "src/editor.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor {
 namespace gc = language::gc;
+using language::NonNull;
 using language::lazy_string::ColumnNumberDelta;
 using language::text::LineColumnDelta;
 using language::text::LineNumberDelta;
@@ -44,9 +47,10 @@ const bool tests_registration =
       auto T = [](std::wstring name, auto callback) {
         return tests::Test{
             .name = name, .callback = [callback] {
+              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
               std::vector<gc::Root<OpenBuffer>> buffers;
               for (int i = 0; i < 5; i++)
-                buffers.push_back(NewBufferForTests());
+                buffers.push_back(NewBufferForTests(editor.value()));
               for (int i = 0; i < 5; i++)
                 buffers[i].ptr().value().display_data().view_size().Set(
                     LineColumnDelta(LineNumberDelta(3 + 10 * i),

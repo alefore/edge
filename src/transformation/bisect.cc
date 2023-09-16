@@ -3,12 +3,14 @@
 #include "src/buffer.h"
 #include "src/buffer_display_data.h"
 #include "src/buffer_variables.h"
+#include "src/editor.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
 namespace afc::editor::transformation {
+using afc::language::NonNull;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
@@ -158,7 +160,8 @@ Range GetRange(const LineSequence& contents, Direction initial_direction,
 const bool get_range_tests_registration = [] {
   using afc::language::gc::Root;
   auto non_empty_buffer = [] {
-    Root<OpenBuffer> output = NewBufferForTests();
+    NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+    Root<OpenBuffer> output = NewBufferForTests(editor.value());
     output.ptr().value().AppendLazyString(
         NewLazyString(L"Alejandro\nForero\nCuervo"));
     return output;
@@ -168,38 +171,50 @@ const bool get_range_tests_registration = [] {
       {{.name = L"EmptyBufferCharForwards",
         .callback =
             [] {
-              CHECK_EQ(
-                  GetRange(NewBufferForTests().ptr()->contents().snapshot(),
-                           Direction::kForwards, Structure::kChar,
-                           LineColumn()),
-                  Range());
+              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+              CHECK_EQ(GetRange(NewBufferForTests(editor.value())
+                                    .ptr()
+                                    ->contents()
+                                    .snapshot(),
+                                Direction::kForwards, Structure::kChar,
+                                LineColumn()),
+                       Range());
             }},
        {.name = L"EmptyBufferCharBackwards",
         .callback =
             [] {
-              CHECK_EQ(
-                  GetRange(NewBufferForTests().ptr()->contents().snapshot(),
-                           Direction::kBackwards, Structure::kChar,
-                           LineColumn()),
-                  Range());
+              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+              CHECK_EQ(GetRange(NewBufferForTests(editor.value())
+                                    .ptr()
+                                    ->contents()
+                                    .snapshot(),
+                                Direction::kBackwards, Structure::kChar,
+                                LineColumn()),
+                       Range());
             }},
        {.name = L"EmptyBufferLineForwards",
         .callback =
             [] {
-              CHECK_EQ(
-                  GetRange(NewBufferForTests().ptr()->contents().snapshot(),
-                           Direction::kForwards, Structure::kLine,
-                           LineColumn()),
-                  Range());
+              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+              CHECK_EQ(GetRange(NewBufferForTests(editor.value())
+                                    .ptr()
+                                    ->contents()
+                                    .snapshot(),
+                                Direction::kForwards, Structure::kLine,
+                                LineColumn()),
+                       Range());
             }},
        {.name = L"EmptyBufferLineBackwards",
         .callback =
             [] {
-              CHECK_EQ(
-                  GetRange(NewBufferForTests().ptr()->contents().snapshot(),
-                           Direction::kBackwards, Structure::kLine,
-                           LineColumn()),
-                  Range());
+              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+              CHECK_EQ(GetRange(NewBufferForTests(editor.value())
+                                    .ptr()
+                                    ->contents()
+                                    .snapshot(),
+                                Direction::kBackwards, Structure::kLine,
+                                LineColumn()),
+                       Range());
             }},
        {.name = L"NonEmptyBufferCharForwards",
         .callback =

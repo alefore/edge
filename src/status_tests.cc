@@ -1,4 +1,5 @@
 #include "src/buffer.h"
+#include "src/editor.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
@@ -19,10 +20,9 @@ const bool prompt_tests_registration = tests::Register(
     {{.name = L"InsertError",
       .callback =
           [] {
-            NonNull<std::unique_ptr<audio::Player>> audio_player =
-                audio::NewNullPlayer();
-            Status status(audio_player.value());
-            gc::Root<OpenBuffer> prompt = NewBufferForTests();
+            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            Status status(editor->audio_player());
+            gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
             status.set_prompt(NewLazyString(L">"), prompt);
             status.InsertError(Error(L"Foobar"));
             CHECK(status.text()->ToString() == L">");
@@ -30,10 +30,9 @@ const bool prompt_tests_registration = tests::Register(
                   &prompt.ptr().value());
           }},
      {.name = L"SetExpiringInformationText", .callback = [] {
-        NonNull<std::unique_ptr<audio::Player>> audio_player =
-            audio::NewNullPlayer();
-        Status status(audio_player.value());
-        gc::Root<OpenBuffer> prompt = NewBufferForTests();
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        Status status(editor->audio_player());
+        gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
         status.set_prompt(NewLazyString(L">"), prompt);
         status.SetExpiringInformationText(NewLazyString(L"Foobar"));
         CHECK(status.text()->ToString() == L">");

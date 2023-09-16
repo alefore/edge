@@ -13,6 +13,7 @@ using infrastructure::FileDescriptor;
 using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullUnique;
+using language::NonNull;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::NewLazyString;
@@ -120,18 +121,18 @@ bool tests_registration = tests::Register(
     {{.name = L"NormalPaste",
       .callback =
           [] {
-            gc::Root<OpenBuffer> paste_buffer_root =
-                OpenBuffer::New({.editor = EditorForTests(),
-                                 .name = BufferName::PasteBuffer()});
-            EditorForTests().buffers()->insert_or_assign(
-                paste_buffer_root.ptr()->name(), paste_buffer_root);
+            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
+                {.editor = editor.value(), .name = BufferName::PasteBuffer()});
+            editor->buffers()->insert_or_assign(paste_buffer_root.ptr()->name(),
+                                                paste_buffer_root);
 
             paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Foo"));
             paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Bar"));
 
-            gc::Root<OpenBuffer> buffer_root = NewBufferForTests();
-            EditorForTests().AddBuffer(buffer_root,
-                                       BuffersList::AddBufferType ::kVisit);
+            gc::Root<OpenBuffer> buffer_root =
+                NewBufferForTests(editor.value());
+            editor->AddBuffer(buffer_root, BuffersList::AddBufferType ::kVisit);
 
             OpenBuffer& buffer = buffer_root.ptr().value();
             buffer.AppendLine(NewLazyString(L"Quux"));
@@ -145,10 +146,11 @@ bool tests_registration = tests::Register(
                   L"\nQu\nFoo\nBarux");
           }},
      {.name = L"PasteWithFileDescriptor", .callback = [] {
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
-            {.editor = EditorForTests(), .name = BufferName::PasteBuffer()});
-        EditorForTests().buffers()->insert_or_assign(
-            paste_buffer_root.ptr()->name(), paste_buffer_root);
+            {.editor = editor.value(), .name = BufferName::PasteBuffer()});
+        editor->buffers()->insert_or_assign(paste_buffer_root.ptr()->name(),
+                                            paste_buffer_root);
 
         paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Foo"));
         paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Bar"));
@@ -156,9 +158,8 @@ bool tests_registration = tests::Register(
         int pipefd_out[2];
         CHECK(pipe2(pipefd_out, O_NONBLOCK) != -1);
 
-        gc::Root<OpenBuffer> buffer_root = NewBufferForTests();
-        EditorForTests().AddBuffer(buffer_root,
-                                   BuffersList::AddBufferType ::kVisit);
+        gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor.value());
+        editor->AddBuffer(buffer_root, BuffersList::AddBufferType ::kVisit);
 
         OpenBuffer& buffer = buffer_root.ptr().value();
         buffer.SetInputFiles(FileDescriptor(pipefd_out[1]), FileDescriptor(-1),

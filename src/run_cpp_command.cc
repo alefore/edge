@@ -207,7 +207,8 @@ bool tests_parse_registration = tests::Register(
     {{.name = L"EmptyCommand",
       .callback =
           [] {
-            gc::Root<OpenBuffer> buffer = NewBufferForTests();
+            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
             gc::Pool pool({});
             vm::Environment environment;
             ValueOrError<ParsedCommand> output =
@@ -219,7 +220,8 @@ bool tests_parse_registration = tests::Register(
      {.name = L"NonEmptyCommandNoMatch",
       .callback =
           [] {
-            gc::Root<OpenBuffer> buffer = NewBufferForTests();
+            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
             gc::Pool pool({});
             vm::Environment environment;
             ValueOrError<ParsedCommand> output =
@@ -233,7 +235,8 @@ bool tests_parse_registration = tests::Register(
                   L"Unknown ");
           }},
      {.name = L"CommandMatch", .callback = [] {
-        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         gc::Pool pool({});
         vm::Environment environment;
         environment.Define(L"foo", vm::Value::NewString(pool, L"bar"));

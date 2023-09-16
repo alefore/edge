@@ -677,8 +677,8 @@ class OpenBuffer {
   std::optional<language::gc::Ptr<OpenBuffer>> ptr_this_;
 };
 
-EditorState& EditorForTests();
-language::gc::Root<OpenBuffer> NewBufferForTests();
+language::NonNull<std::unique_ptr<EditorState>> EditorForTests();
+language::gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor);
 }  // namespace editor
 }  // namespace afc
 

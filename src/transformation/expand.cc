@@ -169,13 +169,17 @@ bool predictor_transformation_tests_register = tests::Register(
     {{.name = L"DeleteBufferDuringPrediction", .callback = [] {
         futures::Future<PredictorOutput> inner_future;
         OpenBuffer* predictions_buffer = nullptr;
-        auto final_value = NewBufferForTests().ptr()->ApplyToCursors(
-            MakeNonNullShared<PredictorTransformation>(
-                [&](PredictorInput input) -> futures::Value<PredictorOutput> {
-                  predictions_buffer = &input.predictions;
-                  return std::move(inner_future.value);
-                },
-                L"foo"));
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        auto final_value =
+            NewBufferForTests(editor.value())
+                .ptr()
+                ->ApplyToCursors(MakeNonNullShared<PredictorTransformation>(
+                    [&](PredictorInput input)
+                        -> futures::Value<PredictorOutput> {
+                      predictions_buffer = &input.predictions;
+                      return std::move(inner_future.value);
+                    },
+                    L"foo"));
         // We've dropped our reference to the buffer, even though it still has
         // work scheduled. This is the gist of this tests: validate that the
         // transformation executes successfully regardless.
@@ -260,7 +264,8 @@ const bool read_and_insert_tests_registration = tests::Register(
         {.name = L"BadPathCorrectlyHandled",
          .callback =
              [] {
-               gc::Root<OpenBuffer> buffer = NewBufferForTests();
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                std::optional<Path> path_opened;
                bool transformation_done = false;
                ReadAndInsert(

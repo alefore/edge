@@ -130,8 +130,9 @@ const bool new_line_transformation_tests_registration =
     tests::Register(L"NewLineTransformation", [] {
       using infrastructure::screen::CursorsSet;
       auto expectations = MakeNonNullShared<CursorsSet>();
-      auto GetBuffer = [] {
-        gc::Root<OpenBuffer> buffer_root = NewBufferForTests();
+      NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+      auto GetBuffer = [&editor] {
+        gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor.value());
         OpenBuffer& buffer = buffer_root.ptr().value();
         buffer.AppendToLastLine(NewLazyString(L"foobarhey"));
         buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  foxbarnowl")));
@@ -161,8 +162,9 @@ const bool new_line_transformation_tests_registration =
       return std::vector<tests::Test>(
           {{.name = L"Empty",
             .callback =
-                [=] {
-                  auto buffer_root = NewBufferForTests();
+                [&editor, split] {
+                  gc::Root<OpenBuffer> buffer_root =
+                      NewBufferForTests(editor.value());
                   split(buffer_root, LineColumn());
                   CHECK(buffer_root.ptr()->contents().snapshot().ToString() ==
                         L"\n");

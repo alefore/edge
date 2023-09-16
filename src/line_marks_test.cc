@@ -28,8 +28,10 @@ class LineMarksTest {
                            .target_line_column = target_line_column};
   }
 
+  const LineMarks& line_marks() { return editor_->line_marks(); }
+
   void ValidateEmpty() {
-    auto marks = EditorForTests().line_marks();
+    auto marks = editor_->line_marks();
     CHECK(marks.GetMarksForTargetBuffer(source_.ptr()->name()).empty());
     CHECK(marks.GetExpiredMarksForTargetBuffer(source_.ptr()->name()).empty());
     CHECK(marks.GetMarksForTargetBuffer(target_.ptr()->name()).empty());
@@ -40,16 +42,17 @@ class LineMarksTest {
   BufferName target_name() const { return target_.ptr()->name(); }
 
  private:
-  gc::Root<OpenBuffer> source_ = NewBufferForTests();
-  gc::Root<OpenBuffer> target_ = NewBufferForTests();
+  NonNull<std::unique_ptr<EditorState>> editor_ = EditorForTests();
+  gc::Root<OpenBuffer> source_ = NewBufferForTests(editor_.value());
+  gc::Root<OpenBuffer> target_ = NewBufferForTests(editor_.value());
 };
 
 bool line_marks_test_registration = tests::Register(
     L"LineMarks",
     std::vector<tests::Test>(
         {{.name = L"AddMarkAndRemoveSource", .callback = [] {
-            auto marks = EditorForTests().line_marks();
             LineMarksTest test;
+            auto marks = test.line_marks();
             test.ValidateEmpty();
 
             marks.AddMark(test.TestMark(

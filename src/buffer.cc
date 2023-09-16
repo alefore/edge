@@ -2609,23 +2609,21 @@ void OpenBuffer::OnCursorMove() {
   }
 }
 
-EditorState& EditorForTests() {
+NonNull<std::unique_ptr<EditorState>> EditorForTests() {
   static audio::Player* player = audio::NewNullPlayer().get_unique().release();
-  static EditorState* const editor_for_tests = new EditorState(
+  return MakeNonNullUnique<EditorState>(
       [] {
         CommandLineValues output;
         output.config_paths = {L"/home/edge-test-user/.edge/"};
         return output;
       }(),
       *player);
-  return *editor_for_tests;
 }
 
-gc::Root<OpenBuffer> NewBufferForTests() {
+gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor) {
   gc::Root<OpenBuffer> output = OpenBuffer::New(
-      {.editor = EditorForTests(),
-       .name = EditorForTests().GetUnusedBufferName(L"test buffer")});
-  EditorForTests().buffers()->insert_or_assign(output.ptr()->name(), output);
+      {.editor = editor, .name = editor.GetUnusedBufferName(L"test buffer")});
+  editor.buffers()->insert_or_assign(output.ptr()->name(), output);
   return output;
 }
 

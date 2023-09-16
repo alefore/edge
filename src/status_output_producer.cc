@@ -227,7 +227,8 @@ LineNumberDelta context_lines(const StatusOutputOptions& options) {
 auto status_basic_info_tests_registration = tests::Register(
     L"StatusBasicInfo",
     {{.name = L"BufferNameHasEnter", .callback = [] {
-        gc::Root<OpenBuffer> buffer = NewBufferForTests();
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         buffer.ptr()->Set(buffer_variables::name, L"foo\nbar\nhey");
         buffer.ptr()->Set(buffer_variables::path, L"");
         StatusBasicInfo(StatusOutputOptions{
