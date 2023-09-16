@@ -1,5 +1,6 @@
 #include "src/run_cpp_command.h"
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <sstream>
@@ -95,7 +96,7 @@ struct ParsedCommand {
 
 ValueOrError<ParsedCommand> Parse(
     gc::Pool& pool, NonNull<std::shared_ptr<LazyString>> command,
-    vm::Environment& environment,
+    const vm::Environment& environment,
     NonNull<std::shared_ptr<LazyString>> function_name_prefix,
     std::unordered_set<vm::Type> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
@@ -266,10 +267,12 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
-    EditorState& editor, NonNull<std::shared_ptr<LazyString>> line,
-    const SearchNamespaces& search_namespaces) {
+    EditorState& editor, const SearchNamespaces& search_namespaces,
+    Predictor predictor, NonNull<std::shared_ptr<LazyString>> line,
+    NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
+    DeleteNotification::Value abort_value) {
   VLOG(7) << "ColorizeOptionsProvider: " << line->ToString();
-  ColorizePromptOptions output;
+  auto output = std::make_shared<ColorizePromptOptions>();
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
   vm::Environment& environment =
       (buffer.has_value() ? buffer->ptr()->environment()
@@ -278,7 +281,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 
   std::visit(overload{IgnoreErrors{},
                       [&](ParsedCommand) {
-                        output.tokens.push_back(
+                        output->tokens.push_back(
                             {.token = {.value = L"",
                                        .begin = ColumnNumber(0),
                                        .end = ColumnNumber() + line->size()},
@@ -287,47 +290,75 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
              Parse(editor.gc_pool(), line, environment, search_namespaces));
 
   using BufferMapper = vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>;
-  futures::Future<ColorizePromptOptions> output_future;
-  std::visit(
-      overload{
-          [&](Error error) {
-            VLOG(4) << "Parse preview error: " << error;
-            output_future.consumer(std::move(output));
-          },
-          [&](ParsedCommand command) {
-            VLOG(4) << "Successfully parsed Preview command: "
-                    << command.tokens[0].value
-                    << ", buffer: " << buffer->ptr()->name();
-            Execute(buffer->ptr().value(), std::move(command))
-                .SetConsumer([consumer = output_future.consumer, buffer,
-                              output](ValueOrError<gc::Root<vm::Value>>
-                                          value_or_error) mutable {
-                  std::visit(
-                      overload{
-                          IgnoreErrors{},
-                          [&](gc::Root<vm::Value> value) {
-                            VLOG(3) << "Successfully executed Preview command: "
-                                    << value.ptr().value();
-                            if (value.ptr()->type ==
-                                vm::GetVMType<
-                                    gc::Root<editor::OpenBuffer>>::vmtype()) {
-                              output.context =
-                                  BufferMapper::get(value.ptr().value());
-                            }
-                          }},
-                      std::move(value_or_error));
-                  consumer(output);
-                });
-          }},
-      buffer.has_value()
-          ? Parse(editor.gc_pool(), line, environment,
-                  NewLazyString(L"Preview"),
-                  {vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()},
-                  search_namespaces)
-          : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
-  return std::move(output_future.value);
+  return Predict(PredictOptions{.editor_state = editor,
+                                .predictor = predictor,
+                                .text = line->ToString(),
+                                .source_buffers = editor.active_buffers(),
+                                .progress_channel =
+                                    std::move(progress_channel.get_unique()),
+                                .abort_value = std::move(abort_value)})
+      .Transform([output](std::optional<PredictResults> results) {
+        if (results.has_value()) output->context = results->predictions_buffer;
+        return futures::Past(EmptyValue());
+      })
+      .Transform([&editor, search_namespaces, line, output, buffer,
+                  environment](EmptyValue) -> futures::Value<EmptyValue> {
+        return std::visit(
+            overload{[&](Error error) {
+                       VLOG(4) << "Parse preview error: " << error;
+                       return futures::Past(EmptyValue());
+                     },
+                     [&](ParsedCommand command) -> futures::Value<EmptyValue> {
+                       VLOG(4) << "Successfully parsed Preview command: "
+                               << command.tokens[0].value
+                               << ", buffer: " << buffer->ptr()->name();
+                       return Execute(buffer->ptr().value(), std::move(command))
+                           .Transform([buffer, output](
+                                          gc::Root<vm::Value> value) mutable {
+                             VLOG(3)
+                                 << "Successfully executed Preview command: "
+                                 << value.ptr().value();
+                             if (value.ptr()->type ==
+                                 vm::GetVMType<
+                                     gc::Root<editor::OpenBuffer>>::vmtype()) {
+                               output->context =
+                                   BufferMapper::get(value.ptr().value());
+                             }
+                             return futures::Past(Success());
+                           })
+                           .ConsumeErrors([](Error) {
+                             return futures::Past(EmptyValue());
+                           });
+                     }},
+            buffer.has_value()
+                ? Parse(editor.gc_pool(), line, environment,
+                        NewLazyString(L"Preview"),
+                        {vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()},
+                        search_namespaces)
+                : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
+      })
+      .Transform(
+          [output](EmptyValue) { return futures::Past(std::move(*output)); });
 }
 
+std::vector<std::wstring> GetCppTokens(
+    std::optional<gc::Root<OpenBuffer>> buffer) {
+  std::vector<std::wstring> output;
+  std::set<std::wstring> output_set;  // Avoid duplicates.
+  if (buffer.has_value())
+    buffer->ptr()->environment()->ForEach([&output, &output_set](
+                                              std::wstring name,
+                                              const gc::Ptr<vm::Value>& value) {
+      // TODO(easy, 2023-09-16): Would be good to filter more stringently.
+      VLOG(10) << "Checking symbol: " << name;
+      if (value->IsFunction()) {
+        std::transform(name.begin(), name.end(), name.begin(), std::towlower);
+        if (output_set.insert(name).second) output.push_back(name);
+      }
+    });
+  VLOG(4) << "Found tokens: " << output.size();
+  return output;
+}
 }  // namespace
 
 futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
@@ -380,6 +411,7 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
             NonNull<std::shared_ptr<LazyString>> input)>
             handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
+        Predictor predictor = EmptyPredictor;
         switch (mode) {
           case CppCommandMode::kLiteral:
             handler = std::bind_front(RunCppCommandLiteralHandler,
@@ -392,15 +424,14 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
             prompt = L":";
             auto buffer = editor_state.current_buffer();
             CHECK(buffer.has_value());
-            colorize_options_provider =
-                [&editor_state,
-                 search_namespaces = SearchNamespaces(buffer->ptr().value())](
-                    const NonNull<std::shared_ptr<LazyString>>& line,
-                    NonNull<std::unique_ptr<ProgressChannel>>,
-                    DeleteNotification::Value) {
-                  return ColorizeOptionsProvider(editor_state, line,
-                                                 search_namespaces);
-                };
+            // TODO(easy, 2023-09-16): Make it possible to disable the use of a
+            // separator, so that we don't have to stupidly pass some character
+            // that doesn't occur.
+            predictor = PrecomputedPredictor(
+                GetCppTokens(editor_state.current_buffer()), L' ');
+            colorize_options_provider = std::bind_front(
+                ColorizeOptionsProvider, std::ref(editor_state),
+                SearchNamespaces(buffer->ptr().value()), predictor);
             break;
         }
         return PromptOptions{
@@ -411,6 +442,7 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
             .colorize_options_provider = std::move(colorize_options_provider),
             .handler = std::move(handler),
             .cancel_handler = []() { /* Nothing. */ },
+            .predictor = predictor,
             .status = PromptOptions::Status::kBuffer};
       });
 }
