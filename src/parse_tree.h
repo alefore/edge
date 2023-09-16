@@ -133,6 +133,8 @@ language::NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
 language::NonNull<std::unique_ptr<TreeParser>> NewLineTreeParser(
     language::NonNull<std::unique_ptr<TreeParser>> delegate);
 
+void RegisterParseTreeFunctions(language::gc::Pool& pool,
+                                vm::Environment& environment);
 }  // namespace afc::editor
 namespace afc::vm {
 template <>

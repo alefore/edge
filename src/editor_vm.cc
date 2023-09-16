@@ -10,6 +10,7 @@
 #include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
 #include "src/open_file_command.h"
+#include "src/parse_tree.h"
 #include "src/run_command_handler.h"
 #include "src/server.h"
 #include "src/set_buffer_mode.h"
@@ -457,6 +458,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   RegisterTransformations(pool, value);
   Modifiers::Register(pool, value);
   ForkCommandOptions::Register(pool, value);
+  RegisterParseTreeFunctions(pool, value);
   language::text::LineColumnRegister(pool, value);
   language::text::LineColumnDeltaRegister(pool, value);
   language::text::RangeRegister(pool, value);

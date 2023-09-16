@@ -10,22 +10,32 @@ extern "C" {
 
 #include "src/language/hash.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/text/line_column_vm.h"
+#include "src/vm/public/container.h"
+#include "src/vm/public/environment.h"
+
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::compute_hash;
+using afc::language::hash_combine;
+using afc::language::MakeHashableIteratorRange;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
+
+namespace afc::vm {
+template <>
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<std::vector<
+    NonNull<std::shared_ptr<const editor::ParseTree>>>>>>::object_type_name =
+    types::ObjectName(L"VectorParseTree");
+}
 
 namespace afc::editor {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::compute_hash;
-using language::hash_combine;
-using language::MakeHashableIteratorRange;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::text::Line;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::Range;
-
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
   static const auto* output = new ParseTreeProperty(L"link");
   return *output;
@@ -334,6 +344,31 @@ NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
 NonNull<std::unique_ptr<TreeParser>> NewLineTreeParser(
     NonNull<std::unique_ptr<TreeParser>> delegate) {
   return MakeNonNullUnique<LineTreeParser>(std::move(delegate));
+}
+
+void RegisterParseTreeFunctions(language::gc::Pool& pool,
+                                vm::Environment& environment) {
+  namespace gc = language::gc;
+
+  using vm::ObjectType;
+  using vm::PurityType;
+
+  gc::Root<ObjectType> parse_tree_object_type = ObjectType::New(
+      pool, vm::VMTypeMapper<
+                NonNull<std::shared_ptr<const ParseTree>>>::object_type_name);
+
+  parse_tree_object_type.ptr()->AddField(
+      L"Range",
+      vm::NewCallback(pool, PurityType::kReader,
+                      [](NonNull<std::shared_ptr<const ParseTree>> tree) {
+                        return tree->range();
+                      })
+          .ptr());
+
+  environment.DefineType(parse_tree_object_type.ptr());
+  vm::container::Export<
+      typename std::vector<NonNull<std::shared_ptr<const ParseTree>>>>(
+      pool, environment);
 }
 
 }  // namespace afc::editor
