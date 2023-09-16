@@ -12,6 +12,7 @@
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column_vm.h"
+#include "src/parse_tree.h"
 #include "src/transformation/vm.h"
 
 namespace afc::vm {
@@ -36,7 +37,7 @@ vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(Value& value) {
 VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
     gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
   return vm::Value::NewObject(
-      pool, vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::object_type_name,
+      pool, object_type_name,
       MakeNonNullShared<BufferWrapper>(BufferWrapper{.buffer = value.ptr()}),
       [object_metadata = value.ptr().object_metadata()] {
         return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
@@ -212,6 +213,13 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                         return buffer.ptr()->contents().at(line)->ToString();
                       })
           .ptr());
+
+  buffer_object_type.ptr()->AddField(
+      L"tree", vm::NewCallback(pool, PurityType::kReader,
+                               [](gc::Root<OpenBuffer> buffer) {
+                                 return buffer.ptr()->parse_tree();
+                               })
+                   .ptr());
 
   buffer_object_type.ptr()->AddField(
       L"ApplyTransformation",
