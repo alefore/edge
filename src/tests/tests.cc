@@ -48,26 +48,45 @@ bool Register(std::wstring name, std::vector<Test> tests) {
   return true;
 }
 
-void Run() {
+void Run(std::vector<std::wstring> tests_filter) {
   std::unordered_map<std::wstring, std::vector<std::wstring>> failures;
   std::cerr << "# Test Groups" << std::endl << std::endl;
+  size_t executions = 0;
+  const std::unordered_set<std::wstring> tests_filter_set(tests_filter.begin(),
+                                                          tests_filter.end());
+  CHECK_EQ(tests_filter_set.size(), tests_filter.size());
   for (const auto& [name, tests] : *tests_map()) {
-    std::cerr << "## Group: " << name << std::endl << std::endl;
+    bool printed_group_name = false;
     for (const auto& test : tests) {
-      std::cerr << "* " << test.name << std::endl;
-      for (size_t i = 0; i < test.runs; ++i) {
-        int wstatus = ForkAndWait(test.callback);
-        if (!WIFEXITED(wstatus)) {
-          failures[name].push_back(test.name);
-          std::cerr << "Didn't exit" << std::endl;
-        } else if (WEXITSTATUS(wstatus) != 0) {
-          failures[name].push_back(test.name);
-          std::cerr << "Exit status: " << WEXITSTATUS(wstatus) << std::endl;
+      if (tests_filter_set.empty() ||
+          tests_filter_set.find(name + L"." + test.name) !=
+              tests_filter_set.end()) {
+        executions++;
+        if (!printed_group_name)
+          std::cerr << "## Group: " << name << std::endl << std::endl;
+        printed_group_name = true;
+        std::cerr << "* " << test.name << std::endl;
+        for (size_t i = 0; i < test.runs; ++i) {
+          if (tests_filter_set.size() == 1) {
+            // We prefer not to fork if we're just running a single test. That
+            // makes it easier to do things like attach a debugger.
+            test.callback();
+          } else {
+            int wstatus = ForkAndWait(test.callback);
+            if (!WIFEXITED(wstatus)) {
+              failures[name].push_back(test.name);
+              std::cerr << "Didn't exit" << std::endl;
+            } else if (WEXITSTATUS(wstatus) != 0) {
+              failures[name].push_back(test.name);
+              std::cerr << "Exit status: " << WEXITSTATUS(wstatus) << std::endl;
+            }
+          }
         }
       }
     }
-    std::cerr << std::endl;
+    if (printed_group_name) std::cerr << std::endl;
   }
+  if (!tests_filter_set.empty()) CHECK_EQ(executions, tests_filter_set.size());
   if (!failures.empty()) {
     std::cerr << "# Failures" << std::endl << std::endl;
     for (auto& [group, tests] : failures) {

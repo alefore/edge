@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "src/language/wstring.h"
@@ -40,7 +41,8 @@ struct Test {
 };
 
 bool Register(std::wstring name, std::vector<Test> tests);
-void Run();
+// If non-empty, must match the name of a test ("<group>.<test>").
+void Run(std::vector<std::wstring> tests_filter);
 void List();
 void ForkAndWaitForFailure(std::function<void()> callable);
 

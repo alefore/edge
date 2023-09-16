@@ -55,6 +55,7 @@ struct StandardArguments {
   std::vector<std::wstring> config_paths;
 
   TestsBehavior tests_behavior = TestsBehavior::kIgnore;
+  std::vector<std::wstring> tests_filter;
 
   // Output parameter with the name of the binary.
   std::wstring binary_name;
@@ -95,7 +96,13 @@ class Handler {
                    return language::Error(
                        L"Invalid value (valid values are `run` and `list`): " +
                        input);
-                 })};
+                 }),
+        Handler<ParsedValues>({L"tests_filter"}, L"Run specific tests")
+            .Require(
+                L"name",
+                L"Specifies the name of a test to run (\"<group>.<name>\"). "
+                L"Only meaningful if --tests is `run`.")
+            .PushBackTo(&ParsedValues::tests_filter)};
   }
 
   Handler(std::vector<std::wstring> aliases, std::wstring short_help)

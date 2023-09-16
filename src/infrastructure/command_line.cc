@@ -6,7 +6,7 @@ namespace afc::command_line_arguments {
 void HonorStandardArguments(const StandardArguments& arguments) {
   switch (arguments.tests_behavior) {
     case TestsBehavior::kRunAndExit:
-      tests::Run();
+      tests::Run(arguments.tests_filter);
       exit(0);
     case TestsBehavior::kListAndExit:
       tests::List();
