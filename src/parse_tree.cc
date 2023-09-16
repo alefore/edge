@@ -337,3 +337,32 @@ NonNull<std::unique_ptr<TreeParser>> NewLineTreeParser(
 }
 
 }  // namespace afc::editor
+namespace afc::vm {
+namespace gc = language::gc;
+using editor::ParseTree;
+using language::MakeNonNullShared;
+using language::NonNull;
+namespace {
+struct ParseTreeWrapper {
+  const NonNull<std::shared_ptr<const ParseTree>> tree;
+};
+}  // namespace
+
+/* static */ NonNull<std::shared_ptr<const editor::ParseTree>> vm::VMTypeMapper<
+    NonNull<std::shared_ptr<const editor::ParseTree>>>::get(Value& value) {
+  return value.get_user_value<ParseTreeWrapper>(object_type_name).value().tree;
+}
+
+/* static */ gc::Root<vm::Value>
+VMTypeMapper<NonNull<std::shared_ptr<const editor::ParseTree>>>::New(
+    gc::Pool& pool, NonNull<std::shared_ptr<const editor::ParseTree>> value) {
+  return vm::Value::NewObject(
+      pool, object_type_name,
+      MakeNonNullShared<ParseTreeWrapper>(ParseTreeWrapper{.tree = value}));
+}
+
+const vm::types::ObjectName vm::VMTypeMapper<
+    NonNull<std::shared_ptr<const ParseTree>>>::object_type_name =
+    vm::types::ObjectName(L"ParseTree");
+
+}  // namespace afc::vm

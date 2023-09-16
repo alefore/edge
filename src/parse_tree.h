@@ -11,6 +11,7 @@
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
+#include "src/vm/public/callbacks.h"
 
 namespace afc::editor {
 enum class IdentifierBehavior { kNone, kColorByHash };
@@ -133,5 +134,17 @@ language::NonNull<std::unique_ptr<TreeParser>> NewLineTreeParser(
     language::NonNull<std::unique_ptr<TreeParser>> delegate);
 
 }  // namespace afc::editor
+namespace afc::vm {
+template <>
+struct VMTypeMapper<
+    language::NonNull<std::shared_ptr<const editor::ParseTree>>> {
+  static language::NonNull<std::shared_ptr<const editor::ParseTree>> get(
+      Value& value);
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool,
+      language::NonNull<std::shared_ptr<const editor::ParseTree>> value);
+  static const types::ObjectName object_type_name;
+};
+}  // namespace afc::vm
 
 #endif  // __AFC_EDITOR_PARSE_TREE_H__
