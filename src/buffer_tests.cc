@@ -218,23 +218,24 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
         }};
   };
   return std::vector<tests::Test>({
-    callback(L""), callback(L"5"), callback(L"5.2e8"), callback(L"\"foo\";"),
-        callback(L"true;"), callback(L"false;"),
-        callback(L"(1 + 2 * 3 - 4) < 12 ? \"f\" : \"t\" * 2"),
-        callback(L"int x = 5;"),
-        callback(L"namespace Foo { int x = 12; } Foo::x + 4;"),
-        callback(L"int Foo(int x) { return x * 5 + 1; }; Foo(Foo(10));"),
-        callback(L"for (int i = 0; i < 5; i++) i;"),
-    // TODO(medium, 2022-05-29): Figure out why the following test fails.
-    // callback(L"sleep(0.001);"),
-    // TODO(medium, 2022-05-29): Figure out why the following test fails.
-    // callback(L"int foo = 5; double foo = 6; foo + 0.0;"),
-    // TODO(medium, 2022-05-29): Figure out why the following test fails. Find
-    // a way to make it pass even when `screen` is correctly defined (just not
-    // to a VmScreen type).
-    // callback(L"screen.set_size(LineColumnDelta(1, 2));"),
-    // TODO(medium, 2022-05-29): Figure out why the following test fails.
-#if 0
+      callback(L""),
+      callback(L"5"),
+      callback(L"5.2e8"),
+      callback(L"\"foo\";"),
+      callback(L"true;"),
+      callback(L"false;"),
+      callback(L"(1 + 2 * 3 - 4) < 12 ? \"f\" : \"t\" * 2"),
+      callback(L"int x = 5;"),
+      callback(L"namespace Foo { int x = 12; } Foo::x + 4;"),
+      callback(L"int Foo(int x) { return x * 5 + 1; }; Foo(Foo(10));"),
+      callback(L"for (int i = 0; i < 5; i++) i;"),
+      callback(L"sleep(0.001);"),
+      // TODO(medium, 2022-05-29): Figure out why the following test fails.
+      // callback(L"int foo = 5; double foo = 6; foo + 0.0;"),
+      // TODO(medium, 2022-05-29): Figure out why the following test fails. Find
+      // a way to make it pass even when `screen` is correctly defined (just not
+      // to a VmScreen type).
+      // callback(L"screen.set_size(LineColumnDelta(1, 2));"),
       callback(L"{"
                L"auto foo = [](int x) -> int { return x * 5; };"
                L"foo(3) * 2;"
@@ -243,7 +244,6 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                L"int y = 0;"
                L"for (int i = 0; i < 5; i++) { y += foo(i); }"
                L"}"),
-#endif
   });
 }());
 
