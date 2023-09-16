@@ -6,6 +6,7 @@
 
 #include "src/language/text/line_sequence.h"
 #include "src/parse_tools.h"
+#include "src/parsers/util.h"
 #include "src/seek.h"
 
 namespace afc::editor::parsers {
@@ -23,43 +24,9 @@ using language::text::Range;
 
 enum State { DEFAULT, HEADERS, SECTION, CONTENTS, FILE_LINE };
 
-class DiffParser : public TreeParser {
- public:
-  ParseTree FindChildren(const LineSequence& buffer, Range range) override {
-    std::vector<size_t> states_stack = {DEFAULT};
-    std::vector<ParseTree> trees = {ParseTree(range)};
-
-    range.ForEachLine([&](LineNumber i) {
-      ParseData data(buffer, std::move(states_stack),
-                     std::min(LineColumn(i + LineNumberDelta(1)), range.end));
-      data.set_position(std::max(LineColumn(i), range.begin));
-      ParseLine(&data);
-      for (auto& action : data.parse_results()->actions) {
-        action.Execute(&trees, i);
-      }
-      states_stack = data.parse_results()->states_stack;
-    });
-
-    auto final_position =
-        LineColumn(buffer.EndLine(), buffer.back()->EndColumn());
-    if (final_position >= range.end) {
-      DVLOG(5) << "Draining final states: " << states_stack.size();
-      ParseData data(buffer, std::move(states_stack),
-                     std::min(LineColumn(LineNumber(0) + buffer.size() +
-                                         LineNumberDelta(1)),
-                              range.end));
-      while (data.parse_results()->states_stack.size() > 1) {
-        data.PopBack();
-      }
-      for (auto& action : data.parse_results()->actions) {
-        action.Execute(&trees, final_position.line);
-      }
-    }
-    CHECK(!trees.empty());
-    return trees[0];
-  }
-
-  void ParseLine(ParseData* result) {
+class DiffParser : public LineOrientedTreeParser {
+ protected:
+  void ParseLine(ParseData* result) override {
     switch (result->seek().read()) {
       case L'\n':
       case L' ':
