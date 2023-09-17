@@ -70,7 +70,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
 
   std::vector<gc::Root<OpenBuffer>> active_buffers =
       editor_state.active_buffers();
-  CHECK_GE(active_buffers.size(), 1ul);
+  if (active_buffers.size() != 1) return futures::Past(EmptyValue());
   Status& default_error_status = active_buffers.size() == 1
                                      ? active_buffers[0].ptr()->status()
                                      : editor_state.status();
