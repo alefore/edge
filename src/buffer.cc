@@ -2023,6 +2023,25 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   return urls;
 }
 
+language::PossibleError CheckLocalFile(struct stat st) {
+  switch (st.st_mode & S_IFMT) {
+    case S_IFBLK:
+      return Error(L"Path for URL has unexpected type: block device\n");
+    case S_IFCHR:
+      return Error(L"Path for URL has unexpected type: character device\n");
+    case S_IFIFO:
+      return Error(L"Path for URL has unexpected type: FIFO/pipe\n");
+    case S_IFSOCK:
+      return Error(L"Path for URL has unexpected type: socket\n");
+    case S_IFLNK:
+    case S_IFREG:
+    case S_IFDIR:
+      return Success();
+    default:
+      return Error(L"Path for URL has unexpected type: unknown\n");
+  }
+}
+
 }  // namespace
 
 futures::ValueOrError<std::optional<gc::Root<OpenBuffer>>>
@@ -2034,109 +2053,90 @@ OpenBuffer::OpenBufferForCurrentPosition(
   // the meantime.
   auto adjusted_position = AdjustLineColumn(position());
   struct Data {
-    const gc::Root<OpenBuffer> source;
+    const gc::WeakPtr<OpenBuffer> source;
     ValueOrError<std::optional<gc::Root<OpenBuffer>>> output =
         std::optional<gc::Root<OpenBuffer>>();
   };
   NonNull<std::shared_ptr<Data>> data =
-      MakeNonNullShared<Data>(Data{.source = ptr_this_->ToRoot()});
+      MakeNonNullShared<Data>(Data{.source = ptr_this_->ToWeakPtr()});
 
+  using ICC = futures::IterationControlCommand;
   return futures::ForEach(
              std::make_shared<std::vector<URL>>(
                  GetURLsForCurrentPosition(*this)),
              [adjusted_position, data, remote_url_behavior](const URL& url) {
-               auto& editor = data->source.ptr()->editor();
-               VLOG(5) << "Checking URL: " << url.ToString().value();
-               if (url.schema().value_or(URL::Schema::kFile) !=
-                   URL::Schema::kFile) {
-                 switch (remote_url_behavior) {
-                   case RemoteURLBehavior::kIgnore:
-                     break;
-                   case RemoteURLBehavior::kLaunchBrowser:
-                     editor.work_queue()->Schedule(WorkQueue::Callback{
-                         .time = AddSeconds(Now(), 1.0),
-                         .callback =
-                             [status_expiration =
-                                  std::shared_ptr<StatusExpirationControl>(
-                                      editor.status()
-                                          .SetExpiringInformationText(
-                                              Append(NewLazyString(L"Open: "),
-                                                     url.ToString())))] {}});
-                     // TODO(easy, 2023-09-11): Extend ShellEscape to work with
-                     // LazyString and avoid conversion to std::wstring from the
-                     // URL's LazyString.
-                     ForkCommand(
-                         editor,
-                         ForkCommandOptions{
-                             .command = L"xdg-open " +
-                                        ShellEscape(url.ToString()->ToString()),
-                             .insertion_type =
-                                 BuffersList::AddBufferType::kIgnore,
-                         });
-                 }
-                 return futures::Past(futures::IterationControlCommand::kStop);
-               }
-               ValueOrError<Path> path = url.GetLocalFilePath();
-               if (std::holds_alternative<Error>(path))
-                 return futures::Past(
-                     futures::IterationControlCommand::kContinue);
-               VLOG(4) << "Calling open file: " << std::get<Path>(path);
-               return OpenFileIfFound(
-                          OpenFileOptions{
-                              .editor_state = editor,
-                              .path = std::get<Path>(path),
-                              .insertion_type =
-                                  BuffersList::AddBufferType::kIgnore,
-                              .use_search_paths = false,
-                              .stat_validator = [](struct stat st)
-                                  -> language::PossibleError {
-                                switch (st.st_mode & S_IFMT) {
-                                  case S_IFBLK:
-                                    return Error(
-                                        L"Path for URL has unexpected type: "
-                                        L"block device\n");
-                                  case S_IFCHR:
-                                    return Error(
-                                        L"Path for URL has unexpected type: "
-                                        L"character device\n");
-                                  case S_IFIFO:
-                                    return Error(
-                                        L"Path for URL has unexpected type: "
-                                        L"FIFO/pipe\n");
-                                  case S_IFSOCK:
-                                    return Error(
-                                        L"Path for URL has unexpected type: "
-                                        L"socket\n");
-                                  case S_IFLNK:
-                                  case S_IFREG:
-                                  case S_IFDIR:
-                                    return Success();
-                                  default:
-                                    return Error(
-                                        L"Path for URL has unexpected type: "
-                                        L"unknown\n");
-                                }
-                              }})
-                   .Transform([data](gc::Root<OpenBuffer> buffer_context) {
-                     data->output = buffer_context;
-                     return futures::Past(
-                         Success(futures::IterationControlCommand::kStop));
-                   })
-                   .ConsumeErrors([adjusted_position, data](Error) {
-                     if (adjusted_position !=
-                         data->source.ptr()->AdjustLineColumn(
-                             data->source.ptr()->position())) {
-                       data->output = Error(L"Computation was cancelled.");
-                       return futures::Past(
-                           futures::IterationControlCommand::kStop);
+               return VisitPointer(
+                   data->source.Lock(),
+                   [&](gc::Root<OpenBuffer> buffer) {
+                     auto& editor = buffer.ptr()->editor();
+                     VLOG(5) << "Checking URL: " << url.ToString().value();
+                     if (url.schema().value_or(URL::Schema::kFile) !=
+                         URL::Schema::kFile) {
+                       switch (remote_url_behavior) {
+                         case RemoteURLBehavior::kIgnore:
+                           break;
+                         case RemoteURLBehavior::kLaunchBrowser:
+                           editor.work_queue()->Schedule(WorkQueue::Callback{
+                               .time = AddSeconds(Now(), 1.0),
+                               .callback =
+                                   [status_expiration = std::shared_ptr<
+                                        StatusExpirationControl>(
+                                        editor.status()
+                                            .SetExpiringInformationText(
+                                                Append(NewLazyString(L"Open: "),
+                                                       url.ToString())))] {}});
+                           // TODO(easy, 2023-09-11): Extend ShellEscape to work
+                           // with LazyString and avoid conversion to
+                           // std::wstring from the URL's LazyString.
+                           ForkCommand(
+                               editor,
+                               ForkCommandOptions{
+                                   .command =
+                                       L"xdg-open " +
+                                       ShellEscape(url.ToString()->ToString()),
+                                   .insertion_type =
+                                       BuffersList::AddBufferType::kIgnore,
+                               });
+                       }
+                       return futures::Past(ICC::kStop);
                      }
-                     return futures::Past(
-                         futures::IterationControlCommand::kContinue);
-                   });
+                     ValueOrError<Path> path = url.GetLocalFilePath();
+                     if (std::holds_alternative<Error>(path))
+                       return futures::Past(ICC::kContinue);
+                     VLOG(4) << "Calling open file: " << std::get<Path>(path);
+                     return OpenFileIfFound(
+                                OpenFileOptions{
+                                    .editor_state = editor,
+                                    .path = std::get<Path>(path),
+                                    .insertion_type =
+                                        BuffersList::AddBufferType::kIgnore,
+                                    .use_search_paths = false,
+                                    .stat_validator = CheckLocalFile})
+                         .Transform(
+                             [data](gc::Root<OpenBuffer> buffer_context) {
+                               data->output = buffer_context;
+                               return futures::Past(Success(ICC::kStop));
+                             })
+                         .ConsumeErrors([adjusted_position, data](Error) {
+                           return VisitPointer(
+                               data->source.Lock(),
+                               [&](gc::Root<OpenBuffer> buffer) {
+                                 if (adjusted_position !=
+                                     buffer.ptr()->AdjustLineColumn(
+                                         buffer.ptr()->position())) {
+                                   data->output =
+                                       Error(L"Computation was cancelled.");
+                                   return futures::Past(ICC::kStop);
+                                 }
+                                 return futures::Past(ICC::kContinue);
+                               },
+                               [] { return futures::Past(ICC::kStop); });
+                         });
+                   },
+                   [] { return futures::Past(ICC::kStop); });
              })
-      .Transform([data](IterationControlCommand iteration_control_command) {
-        return iteration_control_command ==
-                       futures::IterationControlCommand::kContinue
+      .Transform([data](ICC iteration_control_command) {
+        return iteration_control_command == ICC::kContinue
                    ? Success(std::optional<gc::Root<OpenBuffer>>())
                    : std::move(data->output);
       });
@@ -2320,8 +2320,14 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
 void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
   buffer.ptr()
       ->OpenBufferForCurrentPosition(OpenBuffer::RemoteURLBehavior::kIgnore)
-      .Transform([buffer](std::optional<gc::Root<OpenBuffer>> result) {
-        buffer.ptr()->status().set_context(result);
+      .Transform([weak_buffer = buffer.ptr().ToWeakPtr()](
+                     std::optional<gc::Root<OpenBuffer>> result) {
+        VisitPointer(
+            weak_buffer.Lock(),
+            [&result](gc::Root<OpenBuffer> buffer) {
+              buffer.ptr()->status().set_context(result);
+            },
+            [] {});
         return Success();
       });
 }
