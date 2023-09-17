@@ -22,31 +22,38 @@ class Operation {
 
   ~Operation() {
     VLOG(5) << "Operation destruction.";
-    pending_operations_.wait([](unsigned int& i) {
-      VLOG(6) << "Checking operation with: " << i;
-      return i == 0;
-    });
-    VLOG(4) << "Operation done.";
+    BlockUntilDone();
   }
 
   template <typename Callable>
   void Add(Callable callable) const {
     LockSlot();
-    thread_pool_.RunIgnoringResult(
-        [this, callable = std::make_shared<Callable>(std::move(callable))] {
-          VLOG(8) << "Running callable.";
-          (*callable)();
-          VLOG(9) << "Callable returned.";
-          pending_operations_.lock(
-              [this](unsigned int& i, std::condition_variable& c) {
-                CHECK_GT(i, 0ul);
-                if (concurrency_limit_.has_value())
-                  CHECK_LE(i, concurrency_limit_.value());
-                i--;
-                VLOG(7) << "Decremented operations: " << i;
-                if (i == 0) c.notify_one();
-              });
-        });
+    thread_pool_.RunIgnoringResult([this, callable = std::make_shared<Callable>(
+                                              std::move(callable))]() mutable {
+      VLOG(8) << "Running callable.";
+      (*callable)();
+      // Allow it to release its dependencies before we decrement our counter,
+      // in case deletion needs synchronization.
+      callable = nullptr;
+      VLOG(9) << "Callable returned.";
+      pending_operations_.lock(
+          [this](unsigned int& i, std::condition_variable& c) {
+            CHECK_GT(i, 0ul);
+            if (concurrency_limit_.has_value())
+              CHECK_LE(i, concurrency_limit_.value());
+            i--;
+            VLOG(7) << "Decremented operations: " << i;
+            if (i == 0) c.notify_one();
+          });
+    });
+  }
+
+  void BlockUntilDone() const {
+    pending_operations_.wait([](unsigned int& i) {
+      VLOG(6) << "Checking operation with: " << i;
+      return i == 0;
+    });
+    VLOG(4) << "Operation done.";
   }
 
  private:

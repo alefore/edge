@@ -239,6 +239,7 @@ EditorState::~EditorState() {
 
   LOG(INFO) << "Reclaim GC pool.";
   gc_pool_.FullCollect();
+  gc_pool_.BlockUntilDone();
 }
 
 const bool& EditorState::Read(const EdgeVariable<bool>* variable) const {

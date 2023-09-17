@@ -237,6 +237,11 @@ class Pool {
 
   ~Pool();
 
+  // This is mostly useful for testing. Collection schedules asynchronous work
+  // in order to return control as early as possible. This blocks the calling
+  // thread until that work is done.
+  void BlockUntilDone() const;
+
   size_t count_objects() const;
 
   struct FullCollectStats {

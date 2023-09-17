@@ -40,6 +40,7 @@ void ThreadPool::Schedule(std::function<void()> work) {
 void ThreadPool::BackgroundThread() {
   while (true) {
     std::function<void()> callback;
+    VLOG(8) << "BackgroundThread waits for work.";
     data_.wait([&callback](Data& data) {
       CHECK(callback == nullptr);
       if (data.shutting_down) return true;
@@ -48,7 +49,11 @@ void ThreadPool::BackgroundThread() {
       data.work.pop_front();
       return true;
     });
-    if (callback == nullptr) return;
+    if (callback == nullptr) {
+      VLOG(4) << "BackgroundThread exits.";
+      return;
+    }
+    VLOG(9) << "BackgroundThread executing work.";
     callback();
   }
 }

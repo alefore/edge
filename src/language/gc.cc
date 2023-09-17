@@ -79,6 +79,7 @@ Pool::Pool(Options options)
 
 Pool::~Pool() {
   FullCollect();
+  async_work_.BlockUntilDone();
   data_.lock([](const Data& data) {
     CHECK(data.expand_list.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
@@ -89,6 +90,8 @@ Pool::~Pool() {
 #endif
   });
 }
+
+void Pool::BlockUntilDone() const { async_work_.BlockUntilDone(); }
 
 size_t Pool::count_objects() const {
   return eden_.lock([](const Eden& eden) {
@@ -510,6 +513,7 @@ bool tests_registration = tests::Register(
               auto output =
                   root.ptr().value().delete_notification.listenable_value();
               pool.Collect();
+              pool.BlockUntilDone();
               CHECK(!output.has_value());
               return output;
             }();
@@ -524,6 +528,7 @@ bool tests_registration = tests::Register(
               auto delete_notification_0 =
                   root.ptr()->delete_notification.listenable_value();
               pool.Collect();
+              pool.BlockUntilDone();
               CHECK_EQ(pool.count_objects(), 1ul);
 
               CHECK(!delete_notification_0.has_value());
@@ -549,6 +554,7 @@ bool tests_registration = tests::Register(
               CHECK_EQ(stats.roots, 1ul);
               CHECK_EQ(stats.end_total, 1ul);
 
+              pool.BlockUntilDone();
               CHECK(delete_notification_0.has_value());
               CHECK(!delete_notification_1.has_value());
 
@@ -564,6 +570,7 @@ bool tests_registration = tests::Register(
             LOG(INFO) << "Done.";
           }},
      {.name = L"BreakLoop",
+      .runs = 50,
       .callback =
           [] {
             gc::Pool pool({});
@@ -572,6 +579,7 @@ bool tests_registration = tests::Register(
               auto delete_notification_0 =
                   root.ptr()->delete_notification.listenable_value();
               pool.Collect();
+              pool.BlockUntilDone();
               CHECK(!delete_notification_0.has_value());
 
               auto child_notification = [&] {
@@ -595,6 +603,7 @@ bool tests_registration = tests::Register(
 
               VLOG(5) << "Trigger collect.";
               pool.Collect();
+              pool.BlockUntilDone();
 
               CHECK(!delete_notification_0.has_value());
               CHECK(!child_notification.has_value());
@@ -610,6 +619,7 @@ bool tests_registration = tests::Register(
               CHECK(!delete_notification_1.has_value());
 
               pool.FullCollect();
+              pool.BlockUntilDone();
 
               CHECK(child_notification.has_value());
               CHECK(delete_notification_0.has_value());
@@ -631,6 +641,7 @@ bool tests_registration = tests::Register(
               auto stats = pool.FullCollect();
               CHECK_EQ(stats.begin_total, 10ul);
               CHECK_EQ(stats.end_total, 10ul);
+              pool.BlockUntilDone();
               CHECK(!old_notification.has_value());
             }
 
@@ -664,6 +675,7 @@ bool tests_registration = tests::Register(
                        ->delete_notification.listenable_value()
                        .has_value());
             Pool::FullCollectStats stats = pool.FullCollect();
+            pool.BlockUntilDone();
             CHECK_EQ(stats.begin_total, 5ul);
             CHECK_EQ(stats.roots, 1ul);
             CHECK_EQ(stats.end_total, 5ul);
@@ -676,10 +688,12 @@ bool tests_registration = tests::Register(
             gc::WeakPtr<Node> weak_ptr = root->ptr().ToWeakPtr();
 
             pool.FullCollect();
+            pool.BlockUntilDone();
             CHECK(weak_ptr.Lock().has_value());
 
             root = std::nullopt;
             pool.FullCollect();
+            pool.BlockUntilDone();
             CHECK(!weak_ptr.Lock().has_value());
           }},
      {.name = L"WeakPtrWithPtrRef", .callback = [] {
@@ -689,10 +703,12 @@ bool tests_registration = tests::Register(
         gc::WeakPtr<Node> weak_ptr = ptr.ToWeakPtr();
 
         pool.FullCollect();
+        pool.BlockUntilDone();
         CHECK(weak_ptr.Lock().has_value());
 
         root = std::nullopt;
         pool.FullCollect();
+        pool.BlockUntilDone();
         CHECK(!weak_ptr.Lock().has_value());
       }}});
 

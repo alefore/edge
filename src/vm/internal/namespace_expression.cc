@@ -26,7 +26,7 @@ class NamespaceExpression : public Expression {
     return body_->ReturnTypes();
   }
 
-  PurityType purity() { return body_->purity(); }
+  PurityType purity() override { return body_->purity(); }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {

@@ -126,86 +126,104 @@ class NewLineTransformation : public CompositeTransformation {
   }
 };
 
+class TestsHelper {
+ public:
+  void split(OpenBuffer& buffer, LineColumn position) {
+    buffer.set_position(position);
+    buffer.ApplyToCursors(MakeNonNullShared<NewLineTransformation>());
+    LOG(INFO) << "Contents: " << buffer.contents().snapshot().ToString();
+  };
+
+  std::wstring StringAfterSplit(LineColumn position) {
+    split(buffer(), position);
+    return buffer().contents().snapshot().ToString();
+  };
+
+  void AddCursor(LineColumn position, LineColumn expectation) {
+    OpenBuffer& buffer = buffer_.ptr().value();
+    buffer.set_position(position);
+    buffer.CreateCursor();
+    expectations_.insert(expectation);
+  };
+
+  EditorState& editor() const { return editor_.value(); }
+
+  OpenBuffer& buffer() const { return buffer_.ptr().value(); }
+
+  infrastructure::screen::CursorsSet& expectations() { return expectations_; }
+  void ValidateCursorExpectations() const {
+    for (auto& cursor : buffer().active_cursors())
+      LOG(INFO) << "Cursor: " << cursor;
+    CHECK(buffer().active_cursors() == expectations_);
+  }
+
+ private:
+  NonNull<std::shared_ptr<EditorState>> editor_ = EditorForTests();
+
+  gc::Root<OpenBuffer> buffer_ = [this] {
+    gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor_.value());
+    OpenBuffer& buffer = buffer_root.ptr().value();
+    buffer.AppendToLastLine(NewLazyString(L"foobarhey"));
+    buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  foxbarnowl")));
+    buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  aaaaa ")));
+    buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  alejo forero ")));
+    return buffer_root;
+  }();
+
+  infrastructure::screen::CursorsSet expectations_;
+};
+
 const bool new_line_transformation_tests_registration =
     tests::Register(L"NewLineTransformation", [] {
       using infrastructure::screen::CursorsSet;
-      auto expectations = MakeNonNullShared<CursorsSet>();
-      NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-      auto GetBuffer = [&editor] {
-        gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor.value());
-        OpenBuffer& buffer = buffer_root.ptr().value();
-        buffer.AppendToLastLine(NewLazyString(L"foobarhey"));
-        buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  foxbarnowl")));
-        buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  aaaaa ")));
-        buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  alejo forero ")));
-        return buffer_root;
-      };
-      auto split = [=](gc::Root<OpenBuffer>& buffer_root, LineColumn position) {
-        OpenBuffer& buffer = buffer_root.ptr().value();
-        buffer.set_position(position);
-        buffer.ApplyToCursors(MakeNonNullShared<NewLineTransformation>());
-        LOG(INFO) << "Contents: " << buffer.contents().snapshot().ToString();
-      };
-      auto string_after_split = [=](LineColumn position) {
-        auto buffer = GetBuffer();
-        split(buffer, position);
-        return buffer.ptr()->contents().snapshot().ToString();
-      };
-      auto add_cursor = [=](gc::Root<OpenBuffer>& buffer_root,
-                            LineColumn position, LineColumn expectation) {
-        OpenBuffer& buffer = buffer_root.ptr().value();
-        buffer.set_position(position);
-        buffer.CreateCursor();
-        expectations->insert(expectation);
-      };
-
       return std::vector<tests::Test>(
           {{.name = L"Empty",
             .callback =
-                [&editor, split] {
-                  gc::Root<OpenBuffer> buffer_root =
-                      NewBufferForTests(editor.value());
-                  split(buffer_root, LineColumn());
-                  CHECK(buffer_root.ptr()->contents().snapshot().ToString() ==
+                [] {
+                  TestsHelper helper;
+                  gc::Root<OpenBuffer> buffer =
+                      NewBufferForTests(helper.editor());
+                  helper.split(buffer.ptr().value(), LineColumn());
+                  CHECK(buffer.ptr()->contents().snapshot().ToString() ==
                         L"\n");
                 }},
            {.name = L"AtBeginning",
             .callback =
-                [=] {
+                [] {
                   CHECK(
-                      string_after_split(LineColumn()) ==
+                      TestsHelper().StringAfterSplit(LineColumn()) ==
                       L"\nfoobarhey\n  foxbarnowl\n  aaaaa \n  alejo forero ");
                 }},
            {.name = L"MiddleFirstLine",
             .callback =
-                [=] {
+                [] {
                   CHECK(
-                      string_after_split(
+                      TestsHelper().StringAfterSplit(
                           LineColumn(LineNumber(), ColumnNumber(3))) ==
                       L"foo\nbarhey\n  foxbarnowl\n  aaaaa \n  alejo forero ");
                 }},
            {.name = L"EndFirstLine",
             .callback =
-                [=] {
+                [] {
                   CHECK(
-                      string_after_split(
+                      TestsHelper().StringAfterSplit(
                           LineColumn(LineNumber(),
                                      ColumnNumber(sizeof("foobarhey") - 1))) ==
                       L"foobarhey\n\n  foxbarnowl\n  aaaaa \n  alejo forero ");
                 }},
            {.name = L"WithIndent",
             .callback =
-                [=] {
+                [] {
                   CHECK(
-                      string_after_split(LineColumn(
+                      TestsHelper().StringAfterSplit(LineColumn(
                           LineNumber(1), ColumnNumber(sizeof("  fox") - 1))) ==
                       L"foobarhey\n  fox\n  barnowl\n  aaaaa \n  alejo "
                       L"forero ");
                 }},
            {.name = L"WithIndentAtEnd",
             .callback =
-                [=] {
-                  CHECK(string_after_split(LineColumn(
+                [] {
+                  CHECK(TestsHelper().StringAfterSplit(LineColumn(
                             LineNumber(1),
                             ColumnNumber(sizeof("  foxbarnowl") - 1))) ==
                         L"foobarhey\n  foxbarnowl\n  \n  aaaaa \n  alejo "
@@ -213,35 +231,35 @@ const bool new_line_transformation_tests_registration =
                 }},
            {.name = L"CursorsBefore",
             .callback =
-                [=] {
-                  auto buffer = GetBuffer();
-                  add_cursor(buffer, LineColumn(LineNumber(1), ColumnNumber(2)),
-                             LineColumn(LineNumber(1), ColumnNumber(2)));
-                  add_cursor(buffer, LineColumn(LineNumber(3), ColumnNumber(2)),
-                             LineColumn(LineNumber(3), ColumnNumber(2)));
-                  split(buffer, LineColumn(LineNumber(3), ColumnNumber(4)));
-                  expectations->set_active(expectations->insert(
+                [] {
+                  TestsHelper helper;
+                  helper.AddCursor(LineColumn(LineNumber(1), ColumnNumber(2)),
+                                   LineColumn(LineNumber(1), ColumnNumber(2)));
+                  helper.AddCursor(LineColumn(LineNumber(3), ColumnNumber(2)),
+                                   LineColumn(LineNumber(3), ColumnNumber(2)));
+                  helper.split(helper.buffer(),
+                               LineColumn(LineNumber(3), ColumnNumber(4)));
+                  helper.expectations().set_active(helper.expectations().insert(
                       LineColumn(LineNumber(4), ColumnNumber(2))));
-                  for (auto& cursor : buffer.ptr()->active_cursors())
-                    LOG(INFO) << "Cursor: " << cursor;
-                  CHECK(buffer.ptr()->active_cursors() == expectations.value());
+                  helper.ValidateCursorExpectations();
                 }},
-           {.name = L"CursorsAfter", .callback = [=] {
-              auto buffer = GetBuffer();
-              add_cursor(buffer, LineColumn(LineNumber(1), ColumnNumber(6)),
-                         LineColumn(LineNumber(2), ColumnNumber(2 + 6 - 3)));
-              add_cursor(buffer, LineColumn(LineNumber(1), ColumnNumber(13)),
-                         LineColumn(LineNumber(2), ColumnNumber(2 + 13 - 3)));
-              add_cursor(buffer, LineColumn(LineNumber(2), ColumnNumber(0)),
-                         LineColumn(LineNumber(3), ColumnNumber(0)));
-              add_cursor(buffer, LineColumn(LineNumber(2), ColumnNumber(2)),
-                         LineColumn(LineNumber(3), ColumnNumber(2)));
-              split(buffer, LineColumn(LineNumber(1), ColumnNumber(3)));
-              expectations->set_active(expectations->insert(
+           {.name = L"CursorsAfter", .callback = [] {
+              TestsHelper helper;
+              helper.AddCursor(
+                  LineColumn(LineNumber(1), ColumnNumber(6)),
+                  LineColumn(LineNumber(2), ColumnNumber(2 + 6 - 3)));
+              helper.AddCursor(
+                  LineColumn(LineNumber(1), ColumnNumber(13)),
+                  LineColumn(LineNumber(2), ColumnNumber(2 + 13 - 3)));
+              helper.AddCursor(LineColumn(LineNumber(2), ColumnNumber(0)),
+                               LineColumn(LineNumber(3), ColumnNumber(0)));
+              helper.AddCursor(LineColumn(LineNumber(2), ColumnNumber(2)),
+                               LineColumn(LineNumber(3), ColumnNumber(2)));
+              helper.split(helper.buffer(),
+                           LineColumn(LineNumber(1), ColumnNumber(3)));
+              helper.expectations().set_active(helper.expectations().insert(
                   LineColumn(LineNumber(2), ColumnNumber(2))));
-              for (auto& cursor : buffer.ptr()->active_cursors())
-                LOG(INFO) << "Cursor: " << cursor;
-              CHECK(buffer.ptr()->active_cursors() == expectations.value());
+              helper.ValidateCursorExpectations();
             }}});
     }());
 
