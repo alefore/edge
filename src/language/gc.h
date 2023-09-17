@@ -460,8 +460,8 @@ class Ptr {
   Ptr(std::weak_ptr<U> value,
       language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata)
       : value_(value), object_metadata_(object_metadata) {
-    VLOG(5) << "Ptr(pool, value): " << object_metadata_.get_shared()
-            << " (value: " << value_.lock() << ")";
+    VLOG(10) << "Ptr(pool, value): " << object_metadata_.get_shared()
+             << " (value: " << value_.lock() << ")";
   }
 
   // We keep only a weak reference to the value here, locking it each time. The

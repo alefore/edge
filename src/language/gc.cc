@@ -75,7 +75,7 @@ Pool::Pool(Options options)
           options.thread_pool = std::make_shared<ThreadPool>(8, nullptr);
         return std::move(options);
       }()),
-      root_backtrace_(VLOG_IS_ON(10)
+      root_backtrace_(VLOG_IS_ON(9)
                           ? std::make_optional(concurrent::Bag<Backtrace>(
                                 BagOptions{.shards = 64}))
                           : std::optional<concurrent::Bag<Backtrace>>()),
@@ -92,9 +92,9 @@ Pool::~Pool() {
   if (root_backtrace_.has_value()) {
     size_t shown = 0;
     root_backtrace_->ForEachSerial([&shown](const Backtrace& trace) {
-      VLOG(10) << "backtrace():";
+      VLOG(9) << "backtrace():";
       for (size_t i = 0; trace.get()[i] != nullptr; i++)
-        VLOG(10) << "  " << trace.get()[i];
+        VLOG(9) << "  " << trace.get()[i];
       shown++;
       CHECK_LT(shown, 10ul);
     });
@@ -219,7 +219,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
             data.object_metadata_list, expired_objects_callbacks);
 
         stats.end_total = SumContainedSizes(data.object_metadata_list);
-        VLOG(3) << "Data: " << stats.end_total;
+        VLOG(3) << "Survivors: " << stats.end_total;
         return true;
       })) {
     TRACK_OPERATION(gc_Pool_Collect_Interrupted);
@@ -309,7 +309,7 @@ void Pool::Expand(const concurrent::Operation& parallel_operation,
                !(count_down_timer.has_value() && count_down_timer->IsDone())) {
           for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : shard.front()) {
             TRACK_OPERATION(gc_Pool_Expand_Step);
-            VLOG(5) << "Considering obj: " << obj.get_shared();
+            VLOG(10) << "Considering obj: " << obj.get_shared();
             auto expansion = obj->data_.lock(
                 [&](ObjectMetadata::Data& object_data)
                     -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
@@ -329,8 +329,8 @@ void Pool::Expand(const concurrent::Operation& parallel_operation,
                   LOG(FATAL) << "Invalid state.";
                   return {};
                 });
-            VLOG(6) << "Installing expansion of " << obj.get_shared() << ": "
-                    << expansion.size();
+            VLOG(10) << "Installing expansion of " << obj.get_shared() << ": "
+                     << expansion.size();
             // TODO(easy, 2023-09-15): Align the use of std::list and
             // std::vector between ObjectExpandList and related class, and the
             // return value of expand_callback; that should allow us to avoid
@@ -399,12 +399,12 @@ void Pool::RemoveUnreachable(const concurrent::Operation& parallel_operation,
 Pool::RootRegistration Pool::AddRoot(
     std::weak_ptr<ObjectMetadata> object_metadata) {
   bool* ptr = new bool(false);
-  VLOG(5) << "Adding root: " << object_metadata.lock() << " at " << ptr;
+  VLOG(10) << "Adding root: " << object_metadata.lock() << " at " << ptr;
   std::function<void(bool*)> deletor = eden_.lock([&](Eden& eden) {
     return [&roots_list = eden.roots.value(),
             it = eden.roots->Add(object_metadata)](bool* value) {
       delete value;
-      VLOG(5) << "Erasing root: " << value;
+      VLOG(10) << "Erasing root: " << value;
       roots_list.erase(it);
     };
   });
@@ -445,8 +445,8 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
                                         *this, std::move(expand_callback));
   eden_.lock([&](Eden& eden) {
     ObjectMetadata::AddToBag(object_metadata, eden.object_metadata.value());
-    VLOG(5) << "Adding object: " << object_metadata.get_shared()
-            << " (eden total: " << eden.object_metadata->size() << ")";
+    VLOG(10) << "Adding object: " << object_metadata.get_shared()
+             << " (eden total: " << eden.object_metadata->size() << ")";
   });
   return object_metadata;
 }
