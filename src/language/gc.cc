@@ -75,6 +75,10 @@ Pool::Pool(Options options)
           options.thread_pool = std::make_shared<ThreadPool>(8, nullptr);
         return std::move(options);
       }()),
+      root_backtrace_(VLOG_IS_ON(10)
+                          ? std::make_optional(concurrent::Bag<Backtrace>(
+                                BagOptions{.shards = 64}))
+                          : std::optional<concurrent::Bag<Backtrace>>()),
       async_work_(*options_.thread_pool) {}
 
 Pool::~Pool() {
@@ -83,17 +87,19 @@ Pool::~Pool() {
   data_.lock([](const Data& data) {
     CHECK(data.expand_list.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
-    if (!data.roots_list.empty()) {
-      size_t count = SumContainedSizes(data.roots_list);
-#if 0
-      data.roots_list.front()->ForEachSerial(
-          [count](std::weak_ptr<ObjectMetadata>& t) {
-            CHECK_EQ(count, 0ul)
-                << "Found leaked roots (start: " << t.lock() << ")";
-          });
-#endif
-    }
+    // CHECK(roots_list.empty());
   });
+  if (root_backtrace_.has_value()) {
+    size_t shown = 0;
+    root_backtrace_->ForEachSerial([&shown](const Backtrace& trace) {
+      VLOG(10) << "backtrace():";
+      for (size_t i = 0; trace.get()[i] != nullptr; i++)
+        VLOG(10) << "  " << trace.get()[i];
+      shown++;
+      CHECK_LT(shown, 10ul);
+    });
+    CHECK_EQ(shown, 0ul);
+  }
 }
 
 void Pool::BlockUntilDone() const { async_work_.BlockUntilDone(); }
@@ -394,27 +400,33 @@ Pool::RootRegistration Pool::AddRoot(
     std::weak_ptr<ObjectMetadata> object_metadata) {
   bool* ptr = new bool(false);
   VLOG(5) << "Adding root: " << object_metadata.lock() << " at " << ptr;
-  if (VLOG_IS_ON(10)) {
+  std::function<void(bool*)> deletor = eden_.lock([&](Eden& eden) {
+    return [&roots_list = eden.roots.value(),
+            it = eden.roots->Add(object_metadata)](bool* value) {
+      delete value;
+      VLOG(5) << "Erasing root: " << value;
+      roots_list.erase(it);
+    };
+  });
+  if (root_backtrace_.has_value()) {
     static const size_t kBufferSize = 128;
     void* buffer[kBufferSize];
     int nptrs = backtrace(buffer, kBufferSize);
-    VLOG(10) << "backtrace():";
     CHECK_GE(nptrs, 0);
     char** strings = backtrace_symbols(buffer, nptrs);
     CHECK(strings != nullptr);
-    for (size_t i = 0; i < static_cast<size_t>(nptrs); i++)
-      VLOG(10) << "  " << strings[i];
-    free(strings);
+    // We need to somehow store the size. Might as well just lose the last
+    // item, it's probably not that relevant.
+    strings[static_cast<size_t>(nptrs) - 1] = nullptr;
+    auto backtrace_iterator =
+        root_backtrace_->Add(Backtrace(strings, std::free));
+    deletor = [deletor = std::move(deletor), backtrace_iterator,
+               &container = root_backtrace_.value()](bool* value) {
+      container.erase(backtrace_iterator);
+      deletor(value);
+    };
   }
-  return eden_.lock([&](Eden& eden) {
-    return RootRegistration(
-        ptr, [&roots_list = eden.roots.value(),
-              it = eden.roots->Add(object_metadata)](bool* value) {
-          delete value;
-          VLOG(5) << "Erasing root: " << value;
-          roots_list.erase(it);
-        });
-  });
+  return RootRegistration(ptr, std::move(deletor));
 }
 
 void Pool::AddToEdenExpandList(

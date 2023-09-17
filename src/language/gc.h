@@ -366,6 +366,13 @@ class Pool {
   const Options options_;
   concurrent::Protected<Eden> eden_;
   concurrent::Protected<Data> data_;
+
+  // If VLOG(10) is on, we'll store back traces of creation of roots here. When
+  // the pool is deleted, if roots are leaked, we'll show where they were
+  // created.
+  using Backtrace = std::unique_ptr<char*, decltype(std::free)*>;
+  std::optional<concurrent::Bag<Backtrace>> root_backtrace_;
+
   // When then pool is deleted, we need to ensure that any pending background
   // work is done before we allow internal classes to be deleted.
   concurrent::Operation async_work_;
