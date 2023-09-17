@@ -301,10 +301,12 @@ class OpenBufferMutableLineSequenceObserver
   void Notify(bool update_disk_state = true) {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
-    root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
-        .callback = WeakPtrLockingObserver(
-            [](OpenBuffer& buffer) { buffer.MaybeStartUpdatingSyntaxTrees(); },
-            buffer_)});
+    root_this->ptr()->work_queue_->Schedule(
+        WorkQueue::Callback{.callback = gc::BindFrontWithWeakPtr(
+                                [](gc::Root<OpenBuffer> buffer) {
+                                  buffer.ptr()->MaybeStartUpdatingSyntaxTrees();
+                                },
+                                buffer_)});
     if (update_disk_state) {
       root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
       if (root_this->ptr()->Read(buffer_variables::persist_state)) {
@@ -757,23 +759,16 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   environment_->Define(
       L"sleep",
-      vm::NewCallback(
-          editor().gc_pool(), PurityType::kUnknown,
-          [weak_this](double delay_seconds) {
-            return VisitPointer(
-                weak_this.Lock(),
-                [weak_this, delay_seconds](gc::Root<OpenBuffer> root_this) {
-                  futures::Future<EmptyValue> future;
-                  root_this.ptr()->work_queue()->Schedule(WorkQueue::Callback{
-                      .time = AddSeconds(Now(), delay_seconds),
-                      .callback = BindFrontWithWeakPtr(
-                          [consumer = std::move(future.consumer)](
-                              gc::Root<OpenBuffer>) { consumer(EmptyValue()); },
-                          weak_this)});
-                  return std::move(future.value);
-                },
-                [&] { return futures::Past(EmptyValue()); });
-          }));
+      vm::NewCallback(editor().gc_pool(), PurityType::kUnknown,
+                      [weak_this](double delay_seconds) {
+                        return VisitPointer(
+                            weak_this.Lock(),
+                            [delay_seconds](gc::Root<OpenBuffer> root_this) {
+                              return root_this.ptr()->work_queue()->Wait(
+                                  AddSeconds(Now(), delay_seconds));
+                            },
+                            [&] { return futures::Past(EmptyValue()); });
+                      }));
 
   Set(buffer_variables::name, options_.name.read());
   if (options_.path.has_value()) {
