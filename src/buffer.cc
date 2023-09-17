@@ -29,6 +29,7 @@ extern "C" {
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/gc_util.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
@@ -2580,19 +2581,15 @@ void OpenBuffer::UpdateLastAction() {
       idle_seconds >= 0.0) {
     work_queue_->Schedule(WorkQueue::Callback{
         .time = AddSeconds(Now(), idle_seconds),
-        .callback = [weak_this = ptr_this_->ToWeakPtr(),
-                     last_action = last_action_] {
-          VisitPointer(
-              weak_this.Lock(),
-              [last_action](gc::Root<OpenBuffer> buffer_root) {
-                OpenBuffer& buffer = buffer_root.ptr().value();
-                if (buffer.last_action_ != last_action) return;
-                buffer.last_action_ = Now();
-                LOG(INFO) << "close_after_idle_seconds: Closing.";
-                buffer.editor().CloseBuffer(buffer);
-              },
-              [] {});
-        }});
+        .callback = gc::BindFrontWithWeakPtr(
+            [last_action = last_action_](gc::Root<OpenBuffer> buffer_root) {
+              OpenBuffer& buffer = buffer_root.ptr().value();
+              if (buffer.last_action_ != last_action) return;
+              buffer.last_action_ = Now();
+              LOG(INFO) << "close_after_idle_seconds: Closing.";
+              buffer.editor().CloseBuffer(buffer);
+            },
+            ptr_this_->ToWeakPtr())});
   }
 }
 void OpenBuffer::OnCursorMove() {
