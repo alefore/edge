@@ -314,7 +314,14 @@ class OpenBufferMutableLineSequenceObserver
             flush_backup_time.tv_sec += 30;
             root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
                 .time = flush_backup_time,
-                .callback = [root_this] { root_this->ptr()->UpdateBackup(); }});
+                .callback = [weak_this = root_this->ptr().ToWeakPtr()] {
+                  VisitPointer(
+                      weak_this.Lock(),
+                      [](gc::Root<OpenBuffer> root_this) {
+                        root_this.ptr()->UpdateBackup();
+                      },
+                      [] {});
+                }});
           } break;
 
           case OpenBuffer::DiskState::kStale:
