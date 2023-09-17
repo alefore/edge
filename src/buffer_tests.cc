@@ -193,11 +193,15 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                             gc::Root<vm::Environment>>
                       compilation_result = [&code, &editor] {
                         auto buffer = NewBufferForTests(editor.value());
+                        CHECK(editor->current_buffer() == buffer);
+                        CHECK_EQ(editor->active_buffers().size(), 1ul);
+                        CHECK(editor->active_buffers()[0] == buffer);
                         auto output =
                             ValueOrDie(buffer.ptr()->CompileString(code));
                         auto erase_result =
                             editor->buffers()->erase(buffer.ptr()->name());
                         CHECK_EQ(erase_result, 1ul);
+                        editor->CloseBuffer(buffer.ptr().value());
                         return output;
                       }();
 
@@ -235,13 +239,19 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"int x = 5;"),
       callback(L"namespace Foo { int x = 12; } Foo::x + 4;"),
       callback(L"int Foo(int x) { return x * 5 + 1; }; Foo(Foo(10));"),
+      callback(L"// Some comment.\n"
+               L"editor.SetVariablePrompt(\"blah\");"),
+      callback(L"void Foo(int x) { if (x > 10) Foo(x - 1); }; Foo(10);"),
+      callback(L"void Foo(int x) { while (x > 10) x--; }; Foo(10);"),
+      callback(L"string x = \"foo\"; x = x + \"bar\" * 2;"),
+      callback(L"int x = 10; while (x > 10) x--;"),
       callback(L"for (int i = 0; i < 5; i++) i;"),
       callback(L"sleep(0.001);"),
       // TODO(medium, 2022-05-29): Figure out why the following test fails.
       // callback(L"int foo = 5; double foo = 6; foo + 0.0;"),
-      // TODO(medium, 2022-05-29): Figure out why the following test fails. Find
-      // a way to make it pass even when `screen` is correctly defined (just not
-      // to a VmScreen type).
+      // TODO(medium, 2022-05-29): Figure out why the following test fails.
+      // Find a way to make it pass even when `screen` is correctly defined
+      // (just not to a VmScreen type).
       // callback(L"screen.set_size(LineColumnDelta(1, 2));"),
       callback(L"{"
                L"auto foo = [](int x) -> int { return x * 5; };"
