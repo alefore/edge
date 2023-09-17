@@ -8,7 +8,6 @@
 #include <set>
 #include <string>
 #include <unordered_set>
-#include <vector>
 
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
