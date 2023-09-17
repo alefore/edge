@@ -96,7 +96,6 @@ Pool::~Pool() {
       for (size_t i = 0; trace.get()[i] != nullptr; i++)
         VLOG(9) << "  " << trace.get()[i];
       shown++;
-      CHECK_LT(shown, 10ul);
     });
     CHECK_EQ(shown, 0ul);
   }
