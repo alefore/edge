@@ -121,7 +121,7 @@ class LambdaExpression : public Expression {
 std::unique_ptr<UserFunction> UserFunction::New(
     Compilation& compilation, std::wstring return_type,
     std::optional<std::wstring> name,
-    std::vector<std::pair<Type, wstring>>* args) {
+    std::unique_ptr<std::vector<std::pair<Type, wstring>>> args) {
   if (args == nullptr) {
     return nullptr;
   }
