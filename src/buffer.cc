@@ -762,19 +762,14 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
           [weak_this](double delay_seconds) {
             return VisitPointer(
                 weak_this.Lock(),
-                [&](gc::Root<OpenBuffer> root_this) {
+                [weak_this, delay_seconds](gc::Root<OpenBuffer> root_this) {
                   futures::Future<EmptyValue> future;
                   root_this.ptr()->work_queue()->Schedule(WorkQueue::Callback{
                       .time = AddSeconds(Now(), delay_seconds),
-                      .callback = [weak_this,
-                                   consumer = std::move(future.consumer)] {
-                        VisitPointer(
-                            weak_this.Lock(),
-                            [&](gc::Root<OpenBuffer>) {
-                              consumer(EmptyValue());
-                            },
-                            [] {});
-                      }});
+                      .callback = BindFrontWithWeakPtr(
+                          [consumer = std::move(future.consumer)](
+                              gc::Root<OpenBuffer>) { consumer(EmptyValue()); },
+                          weak_this)});
                   return std::move(future.value);
                 },
                 [&] { return futures::Past(EmptyValue()); });
