@@ -8,6 +8,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/help_command.h"
+#include "src/language/gc_util.h"
 #include "src/language/safe_types.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
@@ -19,6 +20,7 @@ namespace afc::editor {
 using concurrent::WorkQueue;
 using language::MakeNonNullUnique;
 using language::NonNull;
+using language::VisitPointer;
 using vm::Expression;
 using vm::Type;
 using vm::Value;
@@ -98,8 +100,9 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
 
   Add(name,
       MakeCommandFromFunction(
-          std::bind_front(
-              [&editor_state = editor_state_, environment](
+          BindFrontWithWeakPtr(
+              [&editor_state = editor_state_](
+                  const gc::Root<vm::Environment> environment,
                   const NonNull<std::shared_ptr<vm::Expression>>& expression) {
                 LOG(INFO) << "Evaluating expression from Value...";
                 Evaluate(
@@ -109,6 +112,7 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
                           WorkQueue::Callback{.callback = std::move(callback)});
                     });
               },
+              environment.ptr().ToWeakPtr(),
               NonNull<std::shared_ptr<vm::Expression>>(NewFunctionCall(
                   NewConstantExpression(std::move(value)), {}))),
           description));

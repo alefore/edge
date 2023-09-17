@@ -129,6 +129,7 @@ src/language/ghost_type.h \
 src/language/ghost_type_test.cc \
 src/language/gc.cc \
 src/language/gc.h \
+src/language/gc_util.h \
 src/language/hash.cc \
 src/language/hash.h \
 src/language/lazy_string/append.cc \
