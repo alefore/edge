@@ -232,6 +232,7 @@ EditorState::~EditorState() {
   LOG(INFO) << "Closing buffers.";
   for (auto& buffer : buffers_) {
     buffer.second.ptr()->Close();
+    buffer_tree_.RemoveBuffer(buffer.second.ptr().value());
   }
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
