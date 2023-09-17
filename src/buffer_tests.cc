@@ -247,10 +247,16 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"int y = 0;\n"
                L"void Foo(int x) { while (x > y) x--; }\n"
                L"Foo(10);"),
+      callback(L"-5;"),
+      callback(L"string Foo(int x, double y, string z) { "
+               L"while (x > y) x--; return z; }\n"
+               L"Foo(10, 0.5, \"blah\");"),
+      callback(L"string Foo() { string x = \"foo\"; return x; }"),
       callback(L"string x = \"foo\"; x = x + \"bar\" * 2;"),
       callback(L"int x = 10; while (x > 10) x--;"),
       callback(L"for (int i = 0; i < 5; i++) i;"),
       callback(L"sleep(0.001);"),
+      callback(L"[](int x) -> int { return 0; }"),
       // TODO(medium, 2022-05-29): Figure out why the following test fails.
       // callback(L"int foo = 5; double foo = 6; foo + 0.0;"),
       // TODO(medium, 2022-05-29): Figure out why the following test fails.
