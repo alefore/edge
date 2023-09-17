@@ -51,4 +51,10 @@ VectorInt ColumnToVectorInt(Buffer buffer, int column, bool skip_first) {
   });
   return output;
 }
+
+void SortByIntColumn(Buffer buffer, int column) {
+  buffer.SortLinesByKey([](int line) -> int {
+    return buffer.line(line) == "" ? 0 : GetCell(buffer, line, 1).toint();
+  });
+}
 }  // namespace csv
