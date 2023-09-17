@@ -302,9 +302,9 @@ class OpenBufferMutableLineSequenceObserver
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
     root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
-        .callback = WeakPtrLockingObserver(buffer_, [](OpenBuffer& buffer) {
-          buffer.MaybeStartUpdatingSyntaxTrees();
-        })});
+        .callback = WeakPtrLockingObserver(
+            [](OpenBuffer& buffer) { buffer.MaybeStartUpdatingSyntaxTrees(); },
+            buffer_)});
     if (update_disk_state) {
       root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
       if (root_this->ptr()->Read(buffer_variables::persist_state)) {
@@ -313,16 +313,13 @@ class OpenBufferMutableLineSequenceObserver
             root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
             auto flush_backup_time = Now();
             flush_backup_time.tv_sec += 30;
-            root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
-                .time = flush_backup_time,
-                .callback = [weak_this = root_this->ptr().ToWeakPtr()] {
-                  VisitPointer(
-                      weak_this.Lock(),
-                      [](gc::Root<OpenBuffer> root_this) {
-                        root_this.ptr()->UpdateBackup();
-                      },
-                      [] {});
-                }});
+            root_this->ptr()->work_queue_->Schedule(
+                WorkQueue::Callback{.time = flush_backup_time,
+                                    .callback = gc::BindFrontWithWeakPtr(
+                                        [](gc::Root<OpenBuffer> root_this) {
+                                          root_this.ptr()->UpdateBackup();
+                                        },
+                                        root_this->ptr().ToWeakPtr())});
           } break;
 
           case OpenBuffer::DiskState::kStale:
@@ -745,11 +742,12 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   ptr_this_ = std::move(ptr_this);
 
   gc::WeakPtr<OpenBuffer> weak_this = ptr_this_->ToWeakPtr();
-  buffer_syntax_parser_.ObserveTrees().Add(
-      WeakPtrLockingObserver(weak_this, [](OpenBuffer& buffer) {
+  buffer_syntax_parser_.ObserveTrees().Add(WeakPtrLockingObserver(
+      [](OpenBuffer& buffer) {
         // Trigger a wake up alarm.
         buffer.work_queue()->Wait(Now());
-      }));
+      },
+      weak_this));
 
   UpdateTreeParser();
 

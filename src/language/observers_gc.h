@@ -7,8 +7,8 @@
 
 namespace afc::language {
 template <typename P, typename Callable>
-static Observers::Observer WeakPtrLockingObserver(language::gc::WeakPtr<P> data,
-                                                  Callable callable) {
+static Observers::Observer WeakPtrLockingObserver(
+    Callable callable, language::gc::WeakPtr<P> data) {
   return [data, callable] {
     return VisitPointer(
         data.Lock(),
