@@ -164,7 +164,7 @@ NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
                      sub_environment =
                          std::move(compilation_result.second)](EmptyValue) {
                       return buffer.ptr()
-                          ->EvaluateExpression(expr.value(), sub_environment)
+                          ->EvaluateExpression(expr, sub_environment)
                           .Transform([](gc::Root<vm::Value> value) {
                             std::ostringstream oss;
                             oss << value.ptr().value();
@@ -1172,7 +1172,8 @@ OpenBuffer::CompileString(const std::wstring& code) const {
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
-    Expression& expr, gc::Root<Environment> environment) {
+    const NonNull<std::shared_ptr<Expression>>& expr,
+    gc::Root<Environment> environment) {
   return Evaluate(expr, editor().gc_pool(), environment,
                   [work_queue = work_queue(), root_this = ptr_this_->ToRoot()](
                       std::function<void()> callback) {
@@ -1196,7 +1197,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
                        compilation_result) {
                  auto [expression, environment] = std::move(compilation_result);
                  LOG(INFO) << "Code compiled, evaluating.";
-                 return EvaluateExpression(expression.value(), environment);
+                 return EvaluateExpression(std::move(expression), environment);
                }},
       CompileString(code));
 }
@@ -1204,25 +1205,26 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
   return std::visit(
-      overload{
-          [&](Error error) {
-            error = AugmentError(path.read() + L": error: ", std::move(error));
-            status_.Set(error);
-            return futures::Past(ValueOrError<gc::Root<Value>>(error));
-          },
-          [&](NonNull<std::unique_ptr<Expression>> expression) {
-            LOG(INFO) << Read(buffer_variables::path) << " ("
-                      << Read(buffer_variables::name)
-                      << "): Evaluating file: " << path;
-            return Evaluate(
-                expression.value(), editor().gc_pool(), environment_.ToRoot(),
-                [path,
-                 work_queue = work_queue()](std::function<void()> resume) {
-                  LOG(INFO) << "Evaluation of file yields: " << path;
-                  work_queue->Schedule(
-                      WorkQueue::Callback{.callback = std::move(resume)});
-                });
-          }},
+      overload{[&](Error error) {
+                 error =
+                     AugmentError(path.read() + L": error: ", std::move(error));
+                 status_.Set(error);
+                 return futures::Past(ValueOrError<gc::Root<Value>>(error));
+               },
+               [&](NonNull<std::unique_ptr<Expression>> expression) {
+                 LOG(INFO) << Read(buffer_variables::path) << " ("
+                           << Read(buffer_variables::name)
+                           << "): Evaluating file: " << path;
+                 return Evaluate(
+                     std::move(expression), editor().gc_pool(),
+                     environment_.ToRoot(),
+                     [path,
+                      work_queue = work_queue()](std::function<void()> resume) {
+                       LOG(INFO) << "Evaluation of file yields: " << path;
+                       work_queue->Schedule(
+                           WorkQueue::Callback{.callback = std::move(resume)});
+                     });
+               }},
       CompileFile(path, editor().gc_pool(), environment_.ToRoot()));
 }
 

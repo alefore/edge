@@ -31,7 +31,7 @@ namespace gc = language::gc;
 
 PossibleError CheckFunctionArguments(
     const Type& type,
-    const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
+    const std::vector<NonNull<std::shared_ptr<Expression>>>& args) {
   const types::Function* function_type = std::get_if<types::Function>(&type);
   if (function_type == nullptr) {
     return Error(L"Expected function but found: `" + ToString(type) + L"`.");
@@ -58,7 +58,7 @@ PossibleError CheckFunctionArguments(
 
 std::vector<Type> DeduceTypes(
     Expression& func,
-    const std::vector<NonNull<std::unique_ptr<Expression>>>& args) {
+    const std::vector<NonNull<std::shared_ptr<Expression>>>& args) {
   std::unordered_set<Type> output;
   for (auto& type : func.Types()) {
     if (std::holds_alternative<EmptyValue>(
@@ -74,7 +74,7 @@ class FunctionCall : public Expression {
   FunctionCall(
       NonNull<std::shared_ptr<Expression>> func,
       NonNull<
-          std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
+          std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
           args)
       : func_(std::move(func)),
         args_(std::move(args)),
@@ -86,7 +86,7 @@ class FunctionCall : public Expression {
 
   PurityType purity() override {
     PurityType output = func_->purity();
-    for (const NonNull<std::unique_ptr<Expression>>& a : args_.value()) {
+    for (const NonNull<std::shared_ptr<Expression>>& a : args_.value()) {
       output = CombinePurityType(a->purity(), output);
       if (output == PurityType::kUnknown) return output;  // Optimization.
     }
@@ -107,9 +107,9 @@ class FunctionCall : public Expression {
     }
 
     return trampoline
-        .Bounce(func_.value(), types::Function{.output = type,
-                                               .inputs = std::move(type_inputs),
-                                               .function_purity = purity()})
+        .Bounce(func_, types::Function{.output = type,
+                                       .inputs = std::move(type_inputs),
+                                       .function_purity = purity()})
         .Transform(
             [&trampoline, args_types = args_](EvaluationOutput callback) {
               if (callback.type == EvaluationOutput::OutputType::kReturn)
@@ -125,16 +125,12 @@ class FunctionCall : public Expression {
             });
   }
 
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<FunctionCall>(func_, args_);
-  }
-
  private:
   static void CaptureArgs(
       Trampoline& trampoline,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer,
       NonNull<
-          std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
+          std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
           args_types,
       NonNull<std::shared_ptr<std::vector<gc::Root<Value>>>> values,
       Value::Callback callback) {
@@ -156,10 +152,10 @@ class FunctionCall : public Expression {
               }}));
       return;
     }
-    NonNull<std::unique_ptr<Expression>>& arg = args_types->at(values->size());
+    NonNull<std::shared_ptr<Expression>>& arg = args_types->at(values->size());
     DVLOG(6) << "Bounce with types: " << arg->Types().size()
              << ", first: " << arg->Types()[0];
-    trampoline.Bounce(arg.value(), arg->Types()[0])
+    trampoline.Bounce(arg, arg->Types()[0])
         .SetConsumer(VisitCallback(
             overload{[consumer](Error error) { consumer(std::move(error)); },
                      [&trampoline, consumer, args_types, values,
@@ -185,7 +181,7 @@ class FunctionCall : public Expression {
   // Expression that evaluates to get the function to call.
   const NonNull<std::shared_ptr<Expression>> func_;
   const NonNull<
-      std::shared_ptr<std::vector<NonNull<std::unique_ptr<Expression>>>>>
+      std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
       args_;
   const std::vector<Type> types_;
 };
@@ -194,16 +190,16 @@ class FunctionCall : public Expression {
 
 NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     NonNull<std::unique_ptr<Expression>> func,
-    std::vector<NonNull<std::unique_ptr<Expression>>> args) {
+    std::vector<NonNull<std::shared_ptr<Expression>>> args) {
   return MakeNonNullUnique<FunctionCall>(
       std::move(func),
-      MakeNonNullShared<std::vector<NonNull<std::unique_ptr<Expression>>>>(
+      MakeNonNullShared<std::vector<NonNull<std::shared_ptr<Expression>>>>(
           std::move(args)));
 }
 
 std::unique_ptr<Expression> NewFunctionCall(
     Compilation* compilation, NonNull<std::unique_ptr<Expression>> func,
-    std::vector<NonNull<std::unique_ptr<Expression>>> args) {
+    std::vector<NonNull<std::shared_ptr<Expression>>> args) {
   std::vector<Error> errors;
   for (auto& type : func->Types()) {
     PossibleError check_results = CheckFunctionArguments(type, args);
@@ -279,11 +275,6 @@ std::unique_ptr<Expression> NewMethodLookup(
             std::vector<Type> Types() override { return {*type_}; }
             std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
-            NonNull<std::unique_ptr<Expression>> Clone() override {
-              return MakeNonNullUnique<BindObjectExpression>(obj_expr_,
-                                                             delegate_);
-            }
-
             PurityType purity() override {
               return CombinePurityType(
                   obj_expr_->purity(),
@@ -292,7 +283,7 @@ std::unique_ptr<Expression> NewMethodLookup(
 
             futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
                 Trampoline& trampoline, const Type& type) override {
-              return trampoline.Bounce(obj_expr_.value(), obj_expr_->Types()[0])
+              return trampoline.Bounce(obj_expr_, obj_expr_->Types()[0])
                   .Transform([type, shared_type = type_,
                               callback = delegate_->LockCallback(),
                               purity_type =
@@ -348,16 +339,13 @@ futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK(std::holds_alternative<types::Function>(func.type));
-  std::vector<NonNull<std::unique_ptr<Expression>>> args_expr;
-  for (auto& a : args) {
-    args_expr.push_back(NewConstantExpression(std::move(a)));
-  }
-  NonNull<std::unique_ptr<Expression>> expr = NewFunctionCall(
-      NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
-      std::move(args_expr));
-  return Evaluate(expr.value(), pool,
-                  pool.NewRoot(MakeNonNullUnique<Environment>()),
-                  yield_callback);
+  std::vector<NonNull<std::shared_ptr<Expression>>> args_expr;
+  for (auto& a : args) args_expr.push_back(NewConstantExpression(std::move(a)));
+  return Evaluate(
+      NewFunctionCall(
+          NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
+          std::move(args_expr)),
+      pool, pool.NewRoot(MakeNonNullUnique<Environment>()), yield_callback);
 }
 
 }  // namespace afc::vm

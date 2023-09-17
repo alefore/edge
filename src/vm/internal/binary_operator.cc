@@ -1,4 +1,4 @@
-#include "binary_operator.h"
+#include "src/vm/internal/binary_operator.h"
 
 #include <glog/logging.h>
 
@@ -42,10 +42,10 @@ PurityType BinaryOperator::purity() {
 futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
     Trampoline& trampoline, const Type& type) {
   CHECK(type_ == type);
-  return trampoline.Bounce(a_.value(), a_->Types()[0])
+  return trampoline.Bounce(a_, a_->Types()[0])
       .Transform([b = b_, type = type_, op = operator_,
                   &trampoline](EvaluationOutput a_value) {
-        return trampoline.Bounce(b.value(), b->Types()[0])
+        return trampoline.Bounce(b, b->Types()[0])
             .Transform([&trampoline, a_value = std::move(a_value.value), type,
                         op](EvaluationOutput b_value)
                            -> ValueOrError<EvaluationOutput> {
@@ -56,10 +56,6 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
               return Success(EvaluationOutput::New(std::move(result)));
             });
       });
-}
-
-NonNull<std::unique_ptr<Expression>> BinaryOperator::Clone() {
-  return MakeNonNullUnique<BinaryOperator>(a_, b_, type_, operator_);
 }
 
 std::unique_ptr<Expression> NewBinaryExpression(

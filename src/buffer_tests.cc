@@ -203,7 +203,7 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
 
                   LOG(INFO) << "Start evaluation.";
                   return Evaluate(
-                      compilation_result.first.value(), editor->gc_pool(),
+                      std::move(compilation_result.first), editor->gc_pool(),
                       compilation_result.second,
                       [&editor](std::function<void()> resume_callback) {
                         editor->work_queue()->Schedule(

@@ -69,7 +69,7 @@ futures::Value<PossibleError> PreviewCppExpression(
   switch (expression->purity()) {
     case vm::PurityType::kReader:
     case vm::PurityType::kPure:
-      return buffer.EvaluateExpression(expression.value(), environment)
+      return buffer.EvaluateExpression(std::move(expression), environment)
           .Transform([&buffer](gc::Root<vm::Value> value) {
             ShowValue(buffer, nullptr, value.ptr().value());
             return Success();

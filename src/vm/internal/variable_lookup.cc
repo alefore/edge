@@ -48,11 +48,6 @@ class VariableLookup : public Expression {
         }));
   }
 
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<VariableLookup>(symbol_namespace_, symbol_,
-                                             types_);
-  }
-
  private:
   const Namespace symbol_namespace_;
   const std::wstring symbol_;

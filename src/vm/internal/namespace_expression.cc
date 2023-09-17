@@ -37,7 +37,7 @@ class NamespaceExpression : public Expression {
     CHECK(namespace_environment.has_value());
     trampoline.SetEnvironment(*namespace_environment);
 
-    return OnError(trampoline.Bounce(body_.value(), type)
+    return OnError(trampoline.Bounce(body_, type)
                        .Transform([&trampoline, original_environment](
                                       EvaluationOutput output) {
                          trampoline.SetEnvironment(original_environment);
@@ -47,10 +47,6 @@ class NamespaceExpression : public Expression {
                      trampoline.SetEnvironment(original_environment);
                      return futures::Past(error);
                    });
-  }
-
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<NamespaceExpression>(namespace_, body_);
   }
 
  private:

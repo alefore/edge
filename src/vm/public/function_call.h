@@ -19,12 +19,12 @@ struct Compilation;
 
 language::NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     language::NonNull<std::unique_ptr<Expression>> func,
-    std::vector<language::NonNull<std::unique_ptr<Expression>>> args);
+    std::vector<language::NonNull<std::shared_ptr<Expression>>> args);
 
 std::unique_ptr<Expression> NewFunctionCall(
     Compilation* compilation,
     language::NonNull<std::unique_ptr<Expression>> func,
-    std::vector<language::NonNull<std::unique_ptr<Expression>>> args);
+    std::vector<language::NonNull<std::shared_ptr<Expression>>> args);
 
 futures::ValueOrError<language::gc::Root<Value>> Call(
     language::gc::Pool& pool, const Value& func,

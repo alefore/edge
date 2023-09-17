@@ -100,16 +100,17 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
       MakeCommandFromFunction(
           std::bind_front(
               [&editor_state = editor_state_, environment](
-                  NonNull<std::unique_ptr<vm::Expression>>& expression) {
+                  const NonNull<std::shared_ptr<vm::Expression>>& expression) {
                 LOG(INFO) << "Evaluating expression from Value...";
                 Evaluate(
-                    expression.value(), environment.pool(), environment,
+                    std::move(expression), environment.pool(), environment,
                     [&editor_state](std::function<void()> callback) {
                       editor_state.work_queue()->Schedule(
                           WorkQueue::Callback{.callback = std::move(callback)});
                     });
               },
-              NewFunctionCall(NewConstantExpression(std::move(value)), {})),
+              NonNull<std::shared_ptr<vm::Expression>>(NewFunctionCall(
+                  NewConstantExpression(std::move(value)), {}))),
           description));
 }
 

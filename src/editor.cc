@@ -187,10 +187,10 @@ EditorState::EditorState(CommandLineValues args,
         Path::Join(dir, ValueOrDie(Path::FromString(L"hooks/start.cc")));
     return std::visit(
         overload{
-            [&](const NonNull<std::unique_ptr<vm::Expression>>& expression)
+            [&](NonNull<std::unique_ptr<vm::Expression>> expression)
                 -> futures::Value<futures::IterationControlCommand> {
               LOG(INFO) << "Evaluating file: " << path;
-              return Evaluate(expression.value(), gc_pool_, environment_,
+              return Evaluate(std::move(expression), gc_pool_, environment_,
                               [path, work_queue = work_queue()](
                                   std::function<void()> resume) {
                                 LOG(INFO)

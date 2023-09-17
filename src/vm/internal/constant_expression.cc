@@ -32,10 +32,6 @@ class ConstantExpression : public Expression {
     return futures::Past(EvaluationOutput::New(value_));
   }
 
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<ConstantExpression>(value_);
-  }
-
  private:
   const gc::Root<Value> value_;
 };

@@ -615,22 +615,21 @@ Trampoline::Trampoline(Options options)
       yield_callback_(std::move(options.yield_callback)) {}
 
 futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
-    Expression& expression, Type type) {
-  if (!expression.SupportsType(type)) {
-    LOG(FATAL) << "Expression has types: " << TypesToString(expression.Types())
+    const NonNull<std::shared_ptr<Expression>>& expression, Type type) {
+  if (!expression->SupportsType(type)) {
+    LOG(FATAL) << "Expression has types: " << TypesToString(expression->Types())
                << ", expected: " << type;
   }
   static const size_t kMaximumJumps = 100;
   if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
-    return expression.Evaluate(*this, type);
+    return expression->Evaluate(*this, type);
   }
 
   futures::Future<language::ValueOrError<EvaluationOutput>> output;
-  NonNull<std::shared_ptr<Expression>> expression_shared = expression.Clone();
-  yield_callback_([this, type, expression_shared,
+  yield_callback_([this, type, expression = std::move(expression),
                    consumer = std::move(output.consumer)]() {
     jumps_ = 0;
-    Bounce(expression_shared.value(), type).SetConsumer(std::move(consumer));
+    Bounce(expression, type).SetConsumer(std::move(consumer));
   });
   return std::move(output.value);
 }
@@ -658,14 +657,15 @@ bool Expression::SupportsType(const Type& type) {
 }
 
 futures::ValueOrError<gc::Root<Value>> Evaluate(
-    Expression& expr, gc::Pool& pool, gc::Root<Environment> environment,
+    const NonNull<std::shared_ptr<Expression>>& expr, gc::Pool& pool,
+    gc::Root<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback) {
   NonNull<std::shared_ptr<Trampoline>> trampoline =
       MakeNonNullShared<Trampoline>(
           Trampoline::Options{.pool = pool,
                               .environment = std::move(environment),
                               .yield_callback = std::move(yield_callback)});
-  return OnError(trampoline->Bounce(expr, expr.Types()[0])
+  return OnError(trampoline->Bounce(expr, expr->Types()[0])
                      .Transform([trampoline](EvaluationOutput value)
                                     -> language::ValueOrError<gc::Root<Value>> {
                        DVLOG(5)

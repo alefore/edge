@@ -45,16 +45,12 @@ class WhileExpression : public Expression {
     return std::move(output.value);
   }
 
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<WhileExpression>(condition_, body_);
-  }
-
  private:
   static void Iterate(
       Trampoline& trampoline, NonNull<std::shared_ptr<Expression>> condition,
       NonNull<std::shared_ptr<Expression>> body,
       futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
-    trampoline.Bounce(condition.value(), types::Bool{})
+    trampoline.Bounce(condition, types::Bool{})
         .SetConsumer(VisitCallback(overload{
             [consumer](Error error) { return consumer(std::move(error)); },
             [condition, body, consumer,
@@ -73,7 +69,7 @@ class WhileExpression : public Expression {
                   }
 
                   DVLOG(5) << "Iterating...";
-                  trampoline.Bounce(body.value(), body->Types()[0])
+                  trampoline.Bounce(body, body->Types()[0])
                       .SetConsumer(VisitCallback(overload{
                           [consumer](Error error) {
                             consumer(std::move(error));

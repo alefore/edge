@@ -1,4 +1,4 @@
-#include "if_expression.h"
+#include "src/vm/internal/if_expression.h"
 
 #include <glog/logging.h>
 
@@ -42,7 +42,7 @@ class IfExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline.Bounce(cond_.value(), types::Bool{})
+    return trampoline.Bounce(cond_, types::Bool{})
         .Transform([type, true_case = true_case_, false_case = false_case_,
                     &trampoline](EvaluationOutput cond_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -50,20 +50,14 @@ class IfExpression : public Expression {
             case EvaluationOutput::OutputType::kReturn:
               return futures::Past(Success(std::move(cond_output)));
             case EvaluationOutput::OutputType::kContinue:
-              return trampoline.Bounce(cond_output.value.ptr()->get_bool()
-                                           ? true_case.value()
-                                           : false_case.value(),
-                                       type);
+              return trampoline.Bounce(
+                  cond_output.value.ptr()->get_bool() ? true_case : false_case,
+                  type);
           }
           language::Error error(L"Unhandled OutputType case.");
           LOG(FATAL) << error;
           return futures::Past(error);
         });
-  }
-
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<IfExpression>(cond_, true_case_, false_case_,
-                                           return_types_);
   }
 
  private:

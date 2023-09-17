@@ -9,26 +9,24 @@
 
 namespace afc::vm {
 
-using std::unique_ptr;
-using std::wstring;
-
 struct Compilation;
 class Expression;
 
 // Declares a new variable of a given type.
 std::optional<Type> NewDefineTypeExpression(Compilation* compilation,
-                                            wstring type, wstring symbol,
+                                            std::wstring type,
+                                            std::wstring symbol,
                                             std::optional<Type> default_type);
 
 // Declares a new variable of a given type and gives it an initial value.
-unique_ptr<Expression> NewDefineExpression(Compilation* compilation,
-                                           wstring type, wstring symbol,
-                                           unique_ptr<Expression> value);
+std::unique_ptr<Expression> NewDefineExpression(
+    Compilation* compilation, std::wstring type, std::wstring symbol,
+    std::unique_ptr<Expression> value);
 
 // Returns an expression that assigns a given value to an existing variable.
-unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
-                                           wstring symbol,
-                                           unique_ptr<Expression> value);
+std::unique_ptr<Expression> NewAssignExpression(
+    Compilation* compilation, std::wstring symbol,
+    std::unique_ptr<Expression> value);
 
 }  // namespace afc::vm
 

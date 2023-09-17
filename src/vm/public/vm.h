@@ -53,8 +53,9 @@ class Trampoline {
   //
   // The Trampoline itself must not be deleted before the future is given a
   // value.
-  futures::ValueOrError<EvaluationOutput> Bounce(Expression& expression,
-                                                 Type expression_type);
+  futures::ValueOrError<EvaluationOutput> Bounce(
+      const language::NonNull<std::shared_ptr<Expression>>& expression,
+      Type expression_type);
 
   language::gc::Pool& pool() const;
 
@@ -98,9 +99,6 @@ class Expression {
   bool IsString() { return SupportsType(types::String{}); };
 
   virtual PurityType purity() = 0;
-
-  // Returns a new copy of this expression.
-  virtual language::NonNull<std::unique_ptr<Expression>> Clone() = 0;
 
   // The expression may be deleted as soon as `Evaluate` returns, even before
   // the returned Value has been given a value.
@@ -146,8 +144,8 @@ CompileString(const std::wstring& str, language::gc::Pool& pool,
 // `expr` can be deleted as soon as this returns (even before a value is given
 // to the returned future).
 futures::ValueOrError<language::gc::Root<Value>> Evaluate(
-    Expression& expr, language::gc::Pool& pool,
-    language::gc::Root<Environment> environment,
+    const language::NonNull<std::shared_ptr<Expression>>& expr,
+    language::gc::Pool& pool, language::gc::Root<Environment> environment,
     std::function<void(std::function<void()>)> yield_callback);
 
 }  // namespace vm

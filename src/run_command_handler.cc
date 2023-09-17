@@ -498,12 +498,10 @@ class ForkEditorCommand : public Command {
     EditorState& editor = prompt_state.original_buffer.ptr()->editor();
     language::gc::Pool& pool = editor.gc_pool();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
-    std::vector<NonNull<std::unique_ptr<vm::Expression>>> arguments;
-    arguments.push_back(vm::NewConstantExpression(
-        vm::Value::NewString(pool, line->ToString())));
     NonNull<std::unique_ptr<vm::Expression>> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(*prompt_state.context_command_callback),
-        std::move(arguments));
+        {vm::NewConstantExpression(
+            vm::Value::NewString(pool, line->ToString()))});
     if (expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(
@@ -512,7 +510,7 @@ class ForkEditorCommand : public Command {
     }
     return prompt_state.original_buffer.ptr()
         ->EvaluateExpression(
-            expression.value(),
+            std::move(expression),
             prompt_state.original_buffer.ptr()->environment().ToRoot())
         .Transform([&prompt_state, &editor](gc::Root<vm::Value> value)
                        -> ValueOrError<ColorizePromptOptions> {

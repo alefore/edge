@@ -36,7 +36,7 @@ class LogicalExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline.Bounce(expr_a_.value(), types::Bool{})
+    return trampoline.Bounce(expr_a_, types::Bool{})
         .Transform([type, &trampoline, identity = identity_,
                     expr_b = expr_b_](EvaluationOutput a_output)
                        -> futures::ValueOrError<EvaluationOutput> {
@@ -45,17 +45,13 @@ class LogicalExpression : public Expression {
               return futures::Past(Success(std::move(a_output)));
             case EvaluationOutput::OutputType::kContinue:
               return a_output.value.ptr()->get_bool() == identity
-                         ? trampoline.Bounce(expr_b.value(), type)
+                         ? trampoline.Bounce(expr_b, type)
                          : futures::Past(Success(std::move(a_output)));
           }
           language::Error error(L"Unhandled OutputType case.");
           LOG(FATAL) << error;
           return futures::Past(error);
         });
-  }
-
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<LogicalExpression>(identity_, expr_a_, expr_b_);
   }
 
  private:

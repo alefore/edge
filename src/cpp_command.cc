@@ -63,8 +63,7 @@ class CppCommand : public Command {
 
   void ProcessInput(wint_t) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
-    Evaluate(expression_.value(), editor_state_.gc_pool(),
-             editor_state_.environment(),
+    Evaluate(expression_, editor_state_.gc_pool(), editor_state_.environment(),
              [work_queue =
                   editor_state_.work_queue()](std::function<void()> callback) {
                work_queue->Schedule(
@@ -74,7 +73,7 @@ class CppCommand : public Command {
 
  private:
   EditorState& editor_state_;
-  const NonNull<std::unique_ptr<vm::Expression>> expression_;
+  const NonNull<std::shared_ptr<vm::Expression>> expression_;
   const wstring code_;
   const wstring description_;
   const wstring category_;

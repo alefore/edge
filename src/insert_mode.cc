@@ -495,21 +495,19 @@ class InsertMode : public EditorMode {
         }
         ForEachActiveBuffer(
             buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
-              std::vector<NonNull<std::unique_ptr<vm::Expression>>> args;
-              args.push_back(vm::NewConstantExpression(
-                  {VMTypeMapper<gc::Root<OpenBuffer>>::New(
-                      buffer.editor().gc_pool(), buffer.NewRoot())}));
               NonNull<std::unique_ptr<vm::Expression>> expression =
                   vm::NewFunctionCall(
                       vm::NewConstantExpression(callback.value()),
-                      std::move(args));
+                      {vm::NewConstantExpression(
+                          {VMTypeMapper<gc::Root<OpenBuffer>>::New(
+                              buffer.editor().gc_pool(), buffer.NewRoot())})});
               if (expression->Types().empty()) {
                 buffer.status().InsertError(
                     Error(L"Unable to compile (type mismatch)."));
                 return futures::Past(EmptyValue());
               }
               return buffer
-                  .EvaluateExpression(expression.value(),
+                  .EvaluateExpression(std::move(expression),
                                       buffer.environment().ToRoot())
                   .ConsumeErrors([&pool = buffer.editor().gc_pool()](Error) {
                     return futures::Past(vm::Value::NewVoid(pool));

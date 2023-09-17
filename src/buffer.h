@@ -383,7 +383,8 @@ class OpenBuffer {
 
   // `expr` can be deleted as soon as we return.
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateExpression(
-      vm::Expression& expr, language::gc::Root<vm::Environment> environment);
+      const language::NonNull<std::shared_ptr<vm::Expression>>& expr,
+      language::gc::Root<vm::Environment> environment);
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
       const std::wstring& str);

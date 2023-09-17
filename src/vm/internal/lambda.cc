@@ -95,7 +95,7 @@ class LambdaExpression : public Expression {
           }
           auto original_trampoline = trampoline;
           trampoline.SetEnvironment(environment);
-          return trampoline.Bounce(body.value(), body->Types()[0])
+          return trampoline.Bounce(body, body->Types()[0])
               .Transform([original_trampoline, &trampoline, body,
                           promotion_function](EvaluationOutput body_output) {
                 trampoline = original_trampoline;
@@ -107,11 +107,6 @@ class LambdaExpression : public Expression {
           return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
               {parent_environment.object_metadata()});
         });
-  }
-
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<LambdaExpression>(type_, argument_names_, body_,
-                                               promotion_function_);
   }
 
  private:

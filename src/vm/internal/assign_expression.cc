@@ -39,7 +39,7 @@ class AssignExpression : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
-    return trampoline.Bounce(value_.value(), type)
+    return trampoline.Bounce(value_, type)
         .Transform(
             [&trampoline, symbol = symbol_,
              assignment_type = assignment_type_](EvaluationOutput value_output)
@@ -64,11 +64,6 @@ class AssignExpression : public Expression {
               LOG(FATAL) << error;
               return error;
             });
-  }
-
-  NonNull<std::unique_ptr<Expression>> Clone() override {
-    return MakeNonNullUnique<AssignExpression>(assignment_type_, symbol_,
-                                               value_);
   }
 
  private:

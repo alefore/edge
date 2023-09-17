@@ -91,7 +91,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
 struct ParsedCommand {
   std::vector<Token> tokens;
   gc::Root<vm::Value> function;
-  std::vector<NonNull<std::unique_ptr<vm::Expression>>> function_inputs;
+  std::vector<NonNull<std::shared_ptr<vm::Expression>>> function_inputs;
 };
 
 ValueOrError<ParsedCommand> Parse(
@@ -153,7 +153,7 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   std::optional<gc::Root<vm::Value>> output_function;
-  std::vector<NonNull<std::unique_ptr<vm::Expression>>> output_function_inputs;
+  std::vector<NonNull<std::shared_ptr<vm::Expression>>> output_function_inputs;
 
   if (function_vector.has_value()) {
     output_function = function_vector.value();
@@ -257,7 +257,7 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
     // TODO: Show the error.
     return futures::Past(Error(L"Unable to compile (type mismatch)."));
   }
-  return buffer.EvaluateExpression(expression.value(),
+  return buffer.EvaluateExpression(std::move(expression),
                                    buffer.environment().ToRoot());
 }
 

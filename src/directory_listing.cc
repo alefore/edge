@@ -103,7 +103,7 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
         .value = futures::Future<NonNull<std::shared_ptr<LazyString>>>().value};
   }
 
-  std::vector<NonNull<std::unique_ptr<Expression>>> args;
+  std::vector<NonNull<std::shared_ptr<Expression>>> args;
   args.push_back(vm::NewConstantExpression(
       {vm::Value::NewString(target.editor().gc_pool(), path)}));
   NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
@@ -112,7 +112,7 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
       .initial_value = NewLazyString(L"…"),
       .value =
           target
-              .EvaluateExpression(expression.value(),
+              .EvaluateExpression(std::move(expression),
                                   target.environment().ToRoot())
               .Transform([](gc::Root<vm::Value> value)
                              -> futures::ValueOrError<
