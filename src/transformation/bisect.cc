@@ -3,7 +3,6 @@
 #include "src/buffer.h"
 #include "src/buffer_display_data.h"
 #include "src/buffer_variables.h"
-#include "src/editor.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
@@ -159,95 +158,67 @@ Range GetRange(const LineSequence& contents, Direction initial_direction,
 
 const bool get_range_tests_registration = [] {
   using afc::language::gc::Root;
-  auto non_empty_buffer = [] {
-    // TODO(trivial, 2023-09-17): This can be simplified, no need to use a
-    // buffer.
-    NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-    Root<OpenBuffer> output = NewBufferForTests(editor.value());
-    output.ptr().value().AppendLazyString(
-        NewLazyString(L"Alejandro\nForero\nCuervo"));
-    return output.ptr()->contents().snapshot();
-  };
+  LineSequence snapshot =
+      LineSequence::ForTests({L"", L"Alejandro", L"Forero", L"Cuervo"});
   return tests::Register(
       L"Bisect::GetRange",
       {{.name = L"EmptyBufferCharForwards",
         .callback =
             [] {
-              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-              CHECK_EQ(GetRange(NewBufferForTests(editor.value())
-                                    .ptr()
-                                    ->contents()
-                                    .snapshot(),
-                                Direction::kForwards, Structure::kChar,
-                                LineColumn()),
+              CHECK_EQ(GetRange(LineSequence(), Direction::kForwards,
+                                Structure::kChar, LineColumn()),
                        Range());
             }},
        {.name = L"EmptyBufferCharBackwards",
         .callback =
             [] {
-              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-              CHECK_EQ(GetRange(NewBufferForTests(editor.value())
-                                    .ptr()
-                                    ->contents()
-                                    .snapshot(),
-                                Direction::kBackwards, Structure::kChar,
-                                LineColumn()),
+              CHECK_EQ(GetRange(LineSequence(), Direction::kBackwards,
+                                Structure::kChar, LineColumn()),
                        Range());
             }},
        {.name = L"EmptyBufferLineForwards",
         .callback =
             [] {
-              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-              CHECK_EQ(GetRange(NewBufferForTests(editor.value())
-                                    .ptr()
-                                    ->contents()
-                                    .snapshot(),
-                                Direction::kForwards, Structure::kLine,
-                                LineColumn()),
+              CHECK_EQ(GetRange(LineSequence(), Direction::kForwards,
+                                Structure::kLine, LineColumn()),
                        Range());
             }},
        {.name = L"EmptyBufferLineBackwards",
         .callback =
             [] {
-              NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-              CHECK_EQ(GetRange(NewBufferForTests(editor.value())
-                                    .ptr()
-                                    ->contents()
-                                    .snapshot(),
-                                Direction::kBackwards, Structure::kLine,
-                                LineColumn()),
+              CHECK_EQ(GetRange(LineSequence(), Direction::kBackwards,
+                                Structure::kLine, LineColumn()),
                        Range());
             }},
        {.name = L"NonEmptyBufferCharForwards",
         .callback =
-            [&] {
-              CHECK_EQ(GetRange(non_empty_buffer(), Direction::kForwards,
-                                Structure::kChar,
-                                LineColumn(LineNumber(1), ColumnNumber(4))),
-                       Range(LineColumn(LineNumber(1), ColumnNumber(4)),
-                             LineColumn(LineNumber(1), ColumnNumber(9))));
+            [=] {
+              CHECK_EQ(
+                  GetRange(snapshot, Direction::kForwards, Structure::kChar,
+                           LineColumn(LineNumber(1), ColumnNumber(4))),
+                  Range(LineColumn(LineNumber(1), ColumnNumber(4)),
+                        LineColumn(LineNumber(1), ColumnNumber(9))));
             }},
        {.name = L"NonEmptyBufferCharBackwards",
         .callback =
-            [&] {
-              CHECK_EQ(GetRange(non_empty_buffer(), Direction::kBackwards,
-                                Structure::kChar,
-                                LineColumn(LineNumber(1), ColumnNumber(4))),
-                       Range(LineColumn(LineNumber(1), ColumnNumber(0)),
-                             LineColumn(LineNumber(1), ColumnNumber(4))));
+            [=] {
+              CHECK_EQ(
+                  GetRange(snapshot, Direction::kBackwards, Structure::kChar,
+                           LineColumn(LineNumber(1), ColumnNumber(4))),
+                  Range(LineColumn(LineNumber(1), ColumnNumber(0)),
+                        LineColumn(LineNumber(1), ColumnNumber(4))));
             }},
        {.name = L"NonEmptyBufferLineForwards",
         .callback =
-            [&] {
-              CHECK_EQ(GetRange(non_empty_buffer(), Direction::kForwards,
-                                Structure::kLine,
-                                LineColumn(LineNumber(1), ColumnNumber(4))),
-                       Range(LineColumn(LineNumber(1), ColumnNumber(4)),
-                             LineColumn(LineNumber(3), ColumnNumber(6))));
+            [=] {
+              CHECK_EQ(
+                  GetRange(snapshot, Direction::kForwards, Structure::kLine,
+                           LineColumn(LineNumber(1), ColumnNumber(4))),
+                  Range(LineColumn(LineNumber(1), ColumnNumber(4)),
+                        LineColumn(LineNumber(3), ColumnNumber(6))));
             }},
-       {.name = L"NonEmptyBufferLineBackwards", .callback = [&] {
-          CHECK_EQ(GetRange(non_empty_buffer(), Direction::kBackwards,
-                            Structure::kLine,
+       {.name = L"NonEmptyBufferLineBackwards", .callback = [=] {
+          CHECK_EQ(GetRange(snapshot, Direction::kBackwards, Structure::kLine,
                             LineColumn(LineNumber(1), ColumnNumber(4))),
                    Range(LineColumn(LineNumber(0), ColumnNumber(0)),
                          LineColumn(LineNumber(1), ColumnNumber(4))));
