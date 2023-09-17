@@ -83,11 +83,16 @@ Pool::~Pool() {
   data_.lock([](const Data& data) {
     CHECK(data.expand_list.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
+    if (!data.roots_list.empty()) {
+      size_t count = SumContainedSizes(data.roots_list);
 #if 0
-    CHECK(data.roots_list.empty())
-        << "Found roots (start: "
-        << data.roots_list.front()->front().lock() << ")";
+      data.roots_list.front()->ForEachSerial(
+          [count](std::weak_ptr<ObjectMetadata>& t) {
+            CHECK_EQ(count, 0ul)
+                << "Found leaked roots (start: " << t.lock() << ")";
+          });
 #endif
+    }
   });
 }
 
