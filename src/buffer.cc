@@ -2639,6 +2639,7 @@ gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor) {
   gc::Root<OpenBuffer> output = OpenBuffer::New(
       {.editor = editor, .name = editor.GetUnusedBufferName(L"test buffer")});
   editor.buffers()->insert_or_assign(output.ptr()->name(), output);
+  editor.AddBuffer(output, BuffersList::AddBufferType::kVisit);
   return output;
 }
 
