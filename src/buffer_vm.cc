@@ -74,6 +74,7 @@ using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
 using language::text::OutgoingLink;
+using language::text::Range;
 using vm::EvaluationOutput;
 using vm::ObjectType;
 using vm::PurityType;
@@ -132,6 +133,29 @@ gc::Root<OpenBuffer> MaybeFollowOutgoingLink(gc::Root<OpenBuffer> buffer) {
   return buffer;
 }
 
+ValueOrError<Range> GetBoundariesForTransformation(const OpenBuffer& buffer) {
+  ValueOrError<std::pair<LineColumn, LineColumn>> output;
+  LineColumn position = buffer.position();
+  const CursorsSet& cursors = buffer.active_cursors();
+
+  std::vector<LineColumn> before(cursors.begin(), cursors.end());
+  before.erase(
+      std::remove_if(before.begin(), before.end(),
+                     [position](LineColumn p) { return p >= position; }),
+      before.end());
+
+  if (!before.empty()) return Range(before[before.size() - 1], position);
+
+  std::vector<LineColumn> after(cursors.begin(), cursors.end());
+  after.erase(
+      std::remove_if(after.begin(), after.end(),
+                     [position](LineColumn p) { return p <= position; }),
+      after.end());
+  if (!after.empty()) return Range(position, after[0]);
+
+  return Error(L"No range defined.");
+}
+
 template <typename KeyType>
 void DefineSortLinesByKey(gc::Pool& pool,
                           gc::Root<ObjectType>& buffer_object_type,
@@ -147,6 +171,7 @@ void DefineSortLinesByKey(gc::Pool& pool,
           [get_key](std::vector<gc::Root<vm::Value>> args,
                     Trampoline& trampoline) {
             CHECK_EQ(args.size(), size_t(2));
+
             struct Data {
               Trampoline& trampoline;
               gc::Root<OpenBuffer> buffer;
@@ -161,10 +186,32 @@ void DefineSortLinesByKey(gc::Pool& pool,
                          args[0].ptr().value()),
                      .callback = args[1].ptr()->LockCallback()});
 
+            Range sort_range =
+                OptionalFrom(
+                    GetBoundariesForTransformation(data->buffer.ptr().value()))
+                    .value_or(
+                        data->buffer.ptr()->contents().snapshot().range());
+
+            if (sort_range.end ==
+                LineColumn(
+                    data->buffer.ptr()->contents().snapshot().EndLine())) {
+              --sort_range.end.line;
+            }
+            sort_range.end =
+                LineColumn(sort_range.end.line + LineNumberDelta(1));
+            if (sort_range.begin.line == sort_range.end.line) {
+              Error error(L"Empty sort range.");
+              LOG(INFO) << error;
+              return futures::Past(ValueOrError<EvaluationOutput>(error));
+            }
+
+            LOG(INFO) << "Sorting with range: " << sort_range;
             // We build `inputs` simply to be able to use futures::ForEach.
             NonNull<std::shared_ptr<std::vector<LineNumber>>> inputs;
-            data->buffer.ptr()->contents().EveryLine(
-                [inputs](LineNumber number, const Line&) {
+            data->buffer.ptr()->contents().snapshot().ForEachLineInRange(
+                sort_range,
+                [&inputs](LineNumber number,
+                          const NonNull<std::shared_ptr<const Line>>&) {
                   inputs->push_back(number);
                   return true;
                 });
@@ -179,11 +226,13 @@ void DefineSortLinesByKey(gc::Pool& pool,
                                  data->trampoline)
                              .Transform([data, get_key,
                                          line_number](EvaluationOutput output) {
+                               auto line = data->buffer.ptr()->contents().at(
+                                   line_number);
+                               VLOG(9)
+                                   << "Value for line: " << line.value() << ": "
+                                   << get_key(output.value.ptr().value());
                                data->keys.insert(
-                                   {data->buffer.ptr()
-                                        ->contents()
-                                        .at(line_number)
-                                        ->ToString(),
+                                   {line->ToString(),
                                     get_key(output.value.ptr().value())});
                                return futures::Past(
                                    Success(futures::IterationControlCommand::
@@ -195,25 +244,33 @@ void DefineSortLinesByKey(gc::Pool& pool,
                                    futures::IterationControlCommand::kStop);
                              });
                        })
-                .Transform([data](futures::IterationControlCommand)
+                .Transform([data, sort_range](futures::IterationControlCommand)
                                -> ValueOrError<EvaluationOutput> {
                   return std::visit(
                       overload{
                           [](Error error) {
                             return ValueOrError<EvaluationOutput>(error);
                           },
-                          [data](EmptyValue) {
-                            data->buffer.ptr()->SortAllContents(
+                          [data, sort_range](EmptyValue) {
+                            data->buffer.ptr()->SortContents(
+                                sort_range.begin.line, sort_range.end.line,
                                 [data](const language::NonNull<std::shared_ptr<
                                            const language::text::Line>>& a,
                                        const language::NonNull<std::shared_ptr<
                                            const language::text::Line>>& b) {
-                                  return data->keys
-                                             .find(a->contents()->ToString())
-                                             ->second <
-                                         data->keys
-                                             .find(b->contents()->ToString())
-                                             ->second;
+                                  auto it_a = data->keys.find(
+                                      a->contents()->ToString());
+                                  auto it_b = data->keys.find(
+                                      b->contents()->ToString());
+                                  CHECK(it_a != data->keys.end());
+                                  CHECK(it_b != data->keys.end());
+                                  VLOG(10) << "Sort key: "
+                                           << a->contents()->ToString() << ": "
+                                           << it_a->second;
+                                  VLOG(10) << "Sort key: "
+                                           << b->contents()->ToString() << ": "
+                                           << it_b->second;
+                                  return it_a->second < it_b->second;
                                 });
                             return Success(
                                 EvaluationOutput{.value = vm::Value::NewVoid(
