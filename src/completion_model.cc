@@ -257,13 +257,14 @@ CompletionModelManager::FindCompletionWithIndex(
 /* static */ void CompletionModelManager::UpdateReverseTable(
     Data& data, const Path& path, const LineSequence& contents) {
   contents.ForEach([&](const NonNull<std::shared_ptr<const Line>>& line) {
-    std::visit(overload{[&path, &data](const ParsedLine& line) {
-                          if (line.text.value() != line.compressed_text.value())
-                            data.reverse_table[line.text->ToString()].insert(
-                                {path, line.compressed_text});
-                        },
-                        IgnoreErrors{}},
-               Parse(line->contents()));
+    std::visit(
+        overload{[&path, &data](const ParsedLine& entry) {
+                   if (entry.text.value() != entry.compressed_text.value())
+                     data.reverse_table[entry.text->ToString()].insert(
+                         {path, entry.compressed_text});
+                 },
+                 IgnoreErrors{}},
+        Parse(line->contents()));
   });
 }
 
