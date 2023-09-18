@@ -117,6 +117,7 @@ namespace afc::language::text {
 // A range that contains every position i such that begin <= i < end.
 struct Range {
   Range() = default;
+  // TODO(easy?, 2023-09-18): Assert that input_begin <= input_end?
   Range(LineColumn input_begin, LineColumn input_end)
       : begin(input_begin), end(input_end) {}
 
