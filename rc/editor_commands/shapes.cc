@@ -6,9 +6,10 @@
 // The following functions are available (among others):
 //
 // Source - Sets the source point at the current position.
-// Line   - Draws a line from the source to the current position.
-// Square - Draws a square from the source to the current position.
+// Line   - Draws a line from the previous cursor to the current position.
+// Square - Draws a square from the previous cursor to the current position.
 
+#include "lib/line_column.cc"
 #include "lib/numbers.cc"
 #include "lib/strings.cc"
 
@@ -21,7 +22,6 @@ bool simple_characters = false;
 bool delete_mode = false;
 bool bold_mode = false;
 
-LineColumn source = LineColumn(0, 0);
 VectorLineColumn bezier_points = VectorLineColumn();
 
 void ShapesSetStatus(string description) {
@@ -473,12 +473,44 @@ void ShapesAddSquareInPositions(Buffer buffer, LineColumn a, LineColumn b) {
   DrawLineColumns(buffer, output_right, output_down, "");
 }
 
+// Returns positions desired for a square.
+//
+// Will either contain two elements or zero (if the positions couldn't be
+// determined).
+SetLineColumn PositionsForSquare(Buffer buffer) {
+  LineColumn position = buffer.position();
+
+  VectorLineColumn cursors = buffer.active_cursors();
+  VectorLineColumn cursors_before =
+      cursors.filter([](LineColumn candidate) -> bool {
+        return LessThan(candidate, position);
+      });
+  VectorLineColumn cursors_after =
+      cursors.filter([](LineColumn candidate) -> bool {
+        return LessThan(position, candidate);
+      });
+
+  SetLineColumn output = SetLineColumn();
+
+  if (!cursors_before.empty())
+    output.insert(cursors_before.get(cursors_before.size() - 1));
+  else if (!cursors_after.empty())
+    output.insert(cursors_after.get(0));
+  else
+    return output;
+
+  output.insert(position);
+  return output;
+}
+
 void Square() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    LineColumn position = buffer.position();
-    ShapesAddSquareInPositions(buffer, position, source);
-    buffer.ApplyTransformation(SetPositionTransformation(position));
-    source = position;
+    SetLineColumn positions = PositionsForSquare(buffer);
+    if (positions.size() == 2) {
+      LineColumn position = buffer.position();
+      ShapesAddSquareInPositions(buffer, positions.get(0), positions.get(1));
+      buffer.ApplyTransformation(SetPositionTransformation(position));
+    }
   });
 }
 
@@ -538,8 +570,10 @@ string BuildPadding(int size, string c) {
 
 void SquareCenter() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    LineColumn a = buffer.position();
-    LineColumn b = source;
+    SetLineColumn positions = PositionsForSquare(buffer);
+    if (positions.size() != 2) return;
+    LineColumn a = positions.get(0);
+    LineColumn b = positions.get(1);
     int border_delta = 1;
     LineColumn start = LineColumn(min(a.line(), b.line()) + border_delta,
                                   min(a.column(), b.column()) + border_delta);
@@ -580,9 +614,16 @@ void ShapesAddLineToPosition(Buffer buffer, LineColumn a, LineColumn b) {
 void Line() {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     LineColumn position = buffer.position();
-    ShapesAddLineToPosition(buffer, position, source);
+    VectorLineColumn cursors = buffer.active_cursors();
+
+    SetLineColumn output_right = SetLineColumn();
+    SetLineColumn output_down = SetLineColumn();
+
+    for (int i = 0; i < cursors.size(); i++)
+      FindBoundariesLine(position, cursors.get(i), output_right, output_down);
+    DrawLineColumns(buffer, output_right, output_down, "");
+
     buffer.ApplyTransformation(SetPositionTransformation(position));
-    source = position;
   });
 }
 
@@ -599,7 +640,6 @@ void ShapesAddBezier(Buffer buffer) {
   FindBoundariesBezier(points, output_right, output_down);
   DrawLineColumns(buffer, output_right, output_down, "");
   buffer.ApplyTransformation(SetPositionTransformation(position));
-  source = position;
   bezier_points = VectorLineColumn();
 }
 
@@ -611,13 +651,6 @@ void Delete() {
 void Bold() {
   bold_mode = !bold_mode;
   ShapesSetStatus(bold_mode ? "Bold" : "Normal");
-}
-
-void Source() {
-  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
-    source = buffer.position();
-    ShapesSetStatus("Source position: " + source.tostring());
-  });
 }
 
 void ShapesPushBezierPoint(Buffer buffer) {
@@ -834,13 +867,11 @@ auto Sq = internal::Square;
 auto SqC = internal::SquareCenter;
 auto Delete = internal::Delete;
 auto Bold = internal::Bold;
-auto Source = internal::Source;
 
 editor.AddBinding("Sl", "shapes: line: draw", L);
 editor.AddBinding("Sq", "shapes: square: draw", Sq);
 editor.AddBinding("Sc", "shapes: square: center contents", SqC);
 editor.AddBinding("Sd", "shapes: delete_mode = !delete_mode", Delete);
-editor.AddBinding("S=", "shapes: set source", Source);
 editor.AddBinding("Sb", "shapes: bold_mode = !bold_mode", Bold);
 editor.AddBinding("SB", "shapes: bezier: draw", []() -> void {
   editor.ForEachActiveBuffer(internal::ShapesAddBezier);
