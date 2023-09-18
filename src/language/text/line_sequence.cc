@@ -240,17 +240,18 @@ NonNull<std::shared_ptr<const Line>> LineSequence::front() const {
   return at(LineNumber(0));
 }
 
-bool LineSequence::ForEachLineInRange(
-    Range range,
+bool LineSequence::ForEachLine(
+    LineNumber start, LineNumberDelta length,
     const std::function<bool(
         LineNumber, const language::NonNull<std::shared_ptr<const Line>>&)>&
         callback) const {
-  LineNumber line_number = range.begin.line;
+  CHECK_GE(length, LineNumberDelta());
+  CHECK_LE((start + length).ToDelta(), size());
   return Lines::Every(
-      Lines::Suffix(Lines::Prefix(lines_, range.end.line.read() + 1),
-                    range.begin.line.read()),
+      Lines::Suffix(Lines::Prefix(lines_, (start + length).read()),
+                    start.read()),
       [&](const NonNull<std::shared_ptr<const Line>>& line) {
-        return callback(line_number++, line);
+        return callback(start++, line);
       });
 }
 
@@ -258,7 +259,7 @@ bool LineSequence::EveryLine(
     const std::function<bool(LineNumber,
                              const NonNull<std::shared_ptr<const Line>>&)>&
         callback) const {
-  return ForEachLineInRange(range(), callback);
+  return ForEachLine(LineNumber(), size(), callback);
 }
 
 void LineSequence::ForEach(

@@ -113,10 +113,12 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
       language::NonNull<std::shared_ptr<const language::text::Line>> line);
 
   template <class C>
-  void sort(language::text::LineNumber first, language::text::LineNumber last,
-            C compare) {
-    // TODO: Only append to `lines` the actual range [first, last), and then
-    // just Append to prefix/suffix.
+  void sort(language::text::LineNumber start,
+            language::text::LineNumberDelta length, C compare) {
+    CHECK_LE((start + length).ToDelta(), size());
+
+    // TODO: Only append to `lines` the actual range [start, start + length),
+    // and then just Append to prefix/suffix.
     std::vector<language::NonNull<std::shared_ptr<const language::text::Line>>>
         lines;
     Lines::Every(
@@ -126,8 +128,8 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
           lines.push_back(line);
           return true;
         });
-    std::sort(lines.begin() + first.read(), lines.begin() + last.read(),
-              compare);
+    std::sort(lines.begin() + start.read(),
+              lines.begin() + (start + length).read(), compare);
     lines_ = nullptr;
     for (auto& line : lines) {
       lines_ = Lines::PushBack(std::move(lines_), std::move(line));

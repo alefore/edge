@@ -66,8 +66,8 @@ class LineSequence {
   // range, passing as the first argument the line count (starts counting at 0).
   // Stops the iteration if the callback returns false. Returns true iff the
   // callback always returned true.
-  bool ForEachLineInRange(
-      Range range,
+  bool ForEachLine(
+      LineNumber start, LineNumberDelta length,
       const std::function<bool(
           LineNumber, const language::NonNull<std::shared_ptr<const Line>>&)>&
           callback) const;

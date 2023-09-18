@@ -1044,21 +1044,21 @@ void OpenBuffer::AppendLazyString(NonNull<std::shared_ptr<LazyString>> input) {
 }
 
 void OpenBuffer::SortContents(
-    LineNumber first, LineNumber last,
+    LineNumber start, LineNumberDelta length,
     std::function<bool(const NonNull<std::shared_ptr<const Line>>&,
                        const NonNull<std::shared_ptr<const Line>>&)>
         compare) {
-  CHECK(first <= last);
-  contents_.sort(first, last, compare);
+  CHECK_GE(length, LineNumberDelta());
+  CHECK_LE((start + length).ToDelta(), lines_size());
+  contents_.sort(start, length, compare);
 }
 
 void OpenBuffer::SortAllContents(
     std::function<bool(const NonNull<std::shared_ptr<const Line>>&,
                        const NonNull<std::shared_ptr<const Line>>&)>
         compare) {
-  if (EndLine().IsZero()) return;
-  SortContents(LineNumber(), EndLine() + LineNumberDelta(1),
-               std::move(compare));
+  CHECK_GT(lines_size(), LineNumberDelta());
+  SortContents(LineNumber(), lines_size(), std::move(compare));
 }
 
 void OpenBuffer::SortAllContentsIgnoringCase() {

@@ -177,9 +177,11 @@ class OpenBuffer {
       language::text::MutableLineSequence::ObserverBehavior observer_behavior);
   void AppendEmptyLine();
 
-  // Sort all lines in range [first, last) according to a compare function.
+  // Sort `length` lines starting at `start` according to a compare function.
+  // `start` + `length` must be at most lines_size(). The line at position
+  // `start` + `length` (if it exists) is not affected.
   void SortContents(
-      language::text::LineNumber first, language::text::LineNumber last,
+      language::text::LineNumber start, language::text::LineNumberDelta length,
       std::function<bool(
           const language::NonNull<std::shared_ptr<const language::text::Line>>&,
           const language::NonNull<

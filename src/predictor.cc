@@ -512,8 +512,7 @@ const bool buffer_tests_registration =
                                       .predictions = buffer.ptr().value(),
                                       .source_buffers = {},
                                       .progress_channel = channel});
-        buffer.ptr()->SortContents(
-            LineNumber(), buffer.ptr()->EndLine(),
+        buffer.ptr()->SortAllContents(
             [](const NonNull<std::shared_ptr<const Line>>& a,
                const NonNull<std::shared_ptr<const Line>>& b) {
               return a->ToString() < b->ToString();

@@ -59,7 +59,7 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
 
 LineSequence PrepareBuffer(LineSequence input) {
   MutableLineSequence contents(input);
-  contents.sort(LineNumber(), contents.EndLine() + LineNumberDelta(1),
+  contents.sort(LineNumber(), contents.size(),
                 [](const NonNull<std::shared_ptr<const Line>>& a,
                    const NonNull<std::shared_ptr<const Line>>& b) {
                   return LowerCase(a->contents()).value() <

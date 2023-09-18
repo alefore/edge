@@ -16,13 +16,39 @@
 #include "src/parse_tree.h"
 #include "src/transformation/vm.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::FileSystemDriver;
+using afc::infrastructure::Path;
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::CursorsSet;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::OutgoingLink;
+using afc::language::text::Range;
+using afc::vm::EvaluationOutput;
+using afc::vm::ObjectType;
+using afc::vm::PurityType;
+using afc::vm::Trampoline;
+
 namespace afc::vm {
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::lazy_string::NewLazyString;
-
-namespace gc = language::gc;
-
 struct BufferWrapper {
   const gc::Ptr<editor::OpenBuffer> buffer;
 };
@@ -52,33 +78,6 @@ const vm::types::ObjectName
 }  // namespace afc::vm
 
 namespace afc::editor {
-using infrastructure::FileSystemDriver;
-using infrastructure::Path;
-using infrastructure::Tracker;
-using infrastructure::screen::CursorsSet;
-using language::EmptyValue;
-using language::Error;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::PossibleError;
-using language::Success;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::OutgoingLink;
-using language::text::Range;
-using vm::EvaluationOutput;
-using vm::ObjectType;
-using vm::PurityType;
-using vm::Trampoline;
 
 namespace gc = language::gc;
 namespace {
@@ -133,27 +132,45 @@ gc::Root<OpenBuffer> MaybeFollowOutgoingLink(gc::Root<OpenBuffer> buffer) {
   return buffer;
 }
 
-ValueOrError<Range> GetBoundariesForTransformation(const OpenBuffer& buffer) {
-  ValueOrError<std::pair<LineColumn, LineColumn>> output;
-  LineColumn position = buffer.position();
-  const CursorsSet& cursors = buffer.active_cursors();
+std::pair<LineNumber, LineNumberDelta> GetBoundariesForTransformation(
+    const CursorsSet& cursors, const LineSequence& buffer) {
+  CHECK(!cursors.empty());
+  LineNumber position = cursors.active()->line;
 
-  std::vector<LineColumn> before(cursors.begin(), cursors.end());
-  before.erase(
-      std::remove_if(before.begin(), before.end(),
-                     [position](LineColumn p) { return p >= position; }),
-      before.end());
+  std::set<LineNumber> lines;
+  std::transform(cursors.begin(), cursors.end(),
+                 std::inserter(lines, lines.end()),
+                 [](const LineColumn& p) { return p.line; });
 
-  if (!before.empty()) return Range(before[before.size() - 1], position);
+  std::pair<LineNumber, LineNumberDelta> output;
 
-  std::vector<LineColumn> after(cursors.begin(), cursors.end());
-  after.erase(
-      std::remove_if(after.begin(), after.end(),
-                     [position](LineColumn p) { return p <= position; }),
-      after.end());
-  if (!after.empty()) return Range(position, after[0]);
+  if (auto last_before =
+          std::find_if(lines.rbegin(), lines.rend(),
+                       [&](LineNumber p) { return p < position; });
+      last_before != lines.rend())
+    output = std::make_pair(*last_before,
+                            position - *last_before + LineNumberDelta(1));
+  else if (auto first_after =
+               std::find_if(lines.begin(), lines.end(),
+                            [&](LineNumber p) { return p > position; });
+           first_after != lines.end())
+    output =
+        std::make_pair(position, *first_after - position + LineNumberDelta(1));
+  else {
+    output = std::make_pair(LineNumber(), buffer.size());
+    // Skip the tail of empty lines.
+    while (!output.second.IsZero() &&
+           buffer.at(output.first + output.second - LineNumberDelta(1))
+               ->contents()
+               ->size()
+               .IsZero())
+      --output.second;
+  }
 
-  return Error(L"No range defined.");
+  CHECK_GE(output.second, LineNumberDelta());
+  CHECK_LT(output.first.ToDelta(), buffer.size());
+  CHECK_LE((output.first + output.second).ToDelta(), buffer.size());
+  return output;
 }
 
 template <typename KeyType>
@@ -180,36 +197,23 @@ void DefineSortLinesByKey(gc::Pool& pool,
               std::unordered_map<std::wstring, KeyType> keys = {};
             };
 
-            auto data = MakeNonNullShared<Data>(
+            const auto data = MakeNonNullShared<Data>(
                 Data{.trampoline = trampoline,
                      .buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
                          args[0].ptr().value()),
                      .callback = args[1].ptr()->LockCallback()});
 
-            Range sort_range =
-                OptionalFrom(
-                    GetBoundariesForTransformation(data->buffer.ptr().value()))
-                    .value_or(
-                        data->buffer.ptr()->contents().snapshot().range());
+            const std::pair<LineNumber, LineNumberDelta> boundaries =
+                GetBoundariesForTransformation(
+                    data->buffer.ptr()->active_cursors(),
+                    data->buffer.ptr()->contents().snapshot());
 
-            if (sort_range.end ==
-                LineColumn(
-                    data->buffer.ptr()->contents().snapshot().EndLine())) {
-              --sort_range.end.line;
-            }
-            sort_range.end =
-                LineColumn(sort_range.end.line + LineNumberDelta(1));
-            if (sort_range.begin.line == sort_range.end.line) {
-              Error error(L"Empty sort range.");
-              LOG(INFO) << error;
-              return futures::Past(ValueOrError<EvaluationOutput>(error));
-            }
-
-            LOG(INFO) << "Sorting with range: " << sort_range;
+            LOG(INFO) << "Sorting with boundaries: " << boundaries.first << " "
+                      << boundaries.second;
             // We build `inputs` simply to be able to use futures::ForEach.
             NonNull<std::shared_ptr<std::vector<LineNumber>>> inputs;
-            data->buffer.ptr()->contents().snapshot().ForEachLineInRange(
-                sort_range,
+            data->buffer.ptr()->contents().snapshot().ForEachLine(
+                boundaries.first, boundaries.second,
                 [&inputs](LineNumber number,
                           const NonNull<std::shared_ptr<const Line>>&) {
                   inputs->push_back(number);
@@ -244,16 +248,16 @@ void DefineSortLinesByKey(gc::Pool& pool,
                                    futures::IterationControlCommand::kStop);
                              });
                        })
-                .Transform([data, sort_range](futures::IterationControlCommand)
+                .Transform([data, boundaries](futures::IterationControlCommand)
                                -> ValueOrError<EvaluationOutput> {
                   return std::visit(
                       overload{
                           [](Error error) {
                             return ValueOrError<EvaluationOutput>(error);
                           },
-                          [data, sort_range](EmptyValue) {
+                          [data, boundaries](EmptyValue) {
                             data->buffer.ptr()->SortContents(
-                                sort_range.begin.line, sort_range.end.line,
+                                boundaries.first, boundaries.second,
                                 [data](const language::NonNull<std::shared_ptr<
                                            const language::text::Line>>& a,
                                        const language::NonNull<std::shared_ptr<
