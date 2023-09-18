@@ -512,13 +512,8 @@ const bool buffer_tests_registration =
                                       .predictions = buffer.ptr().value(),
                                       .source_buffers = {},
                                       .progress_channel = channel});
-        buffer.ptr()->SortAllContents(
-            [](const NonNull<std::shared_ptr<const Line>>& a,
-               const NonNull<std::shared_ptr<const Line>>& b) {
-              return a->ToString() < b->ToString();
-            });
-        VLOG(5) << "Contents: "
-                << buffer.ptr()->contents().snapshot().ToString();
+        LOG(INFO) << "Contents: "
+                  << buffer.ptr()->contents().snapshot().ToString();
         return buffer.ptr()->contents().snapshot().ToString();
       };
       auto test_predict = [&](std::wstring input,
@@ -547,7 +542,7 @@ const bool buffer_tests_registration =
             .callback = [&] { CHECK(predict(L"ale") == L"alejo\n"); }},
            {.name = L"CallTokenPrediction",
             .callback =
-                [&] { CHECK(predict(L"bar") == L"bar\nbard\nfoo_bar\n"); }},
+                [&] { CHECK(predict(L"bar") == L"bar\nfoo_bar\nbard\n"); }},
            {.name = L"NoMatchesCheckOutput",
             .callback =
                 [&] {
