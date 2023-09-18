@@ -75,8 +75,7 @@ void HandleFileTypes(string basename, string extension) {
   }
 
   if (extension == "csv") {
-    buffer.set_tree_parser("csv");
-    buffer.SetStatus("🔡 CSV file (" + extension + ")");
+    csv::Enable(buffer);
     return;
   }
 

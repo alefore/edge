@@ -1,6 +1,12 @@
 #include "strings.cc"
 
 namespace csv {
+void Enable(Buffer buffer) {
+  buffer.set_tree_parser("csv");
+  buffer.set_cpp_prompt_namespaces("csv");
+  buffer.SetStatus("🔡 CSV file");
+}
+
 // Range must be a single-line range.
 string ReadContent(Buffer buffer, Range range) {
   return buffer.line(range.begin().line())
