@@ -62,16 +62,22 @@ class LineSequence {
     return language::text::LineNumber(Lines::UpperBound(lines_, key, compare));
   }
 
-  // Iterates: runs the callback on every line in the buffer, passing as the
-  // first argument the line count (starts counting at 0). Stops the iteration
-  // if the callback returns false. Returns true iff the callback always
-  // returned true.
-  bool EveryLine(
+  // Iterates: runs the callback on every line in the buffer intersecting the
+  // range, passing as the first argument the line count (starts counting at 0).
+  // Stops the iteration if the callback returns false. Returns true iff the
+  // callback always returned true.
+  bool ForEachLineInRange(
+      Range range,
       const std::function<bool(
           LineNumber, const language::NonNull<std::shared_ptr<const Line>>&)>&
           callback) const;
 
   // Convenience wrappers of the above.
+  bool EveryLine(
+      const std::function<bool(
+          LineNumber, const language::NonNull<std::shared_ptr<const Line>>&)>&
+          callback) const;
+
   void ForEach(const std::function<
                void(const language::NonNull<std::shared_ptr<const Line>>&)>&
                    callback) const;

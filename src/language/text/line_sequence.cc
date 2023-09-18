@@ -240,15 +240,25 @@ NonNull<std::shared_ptr<const Line>> LineSequence::front() const {
   return at(LineNumber(0));
 }
 
+bool LineSequence::ForEachLineInRange(
+    Range range,
+    const std::function<bool(
+        LineNumber, const language::NonNull<std::shared_ptr<const Line>>&)>&
+        callback) const {
+  LineNumber line_number = range.begin.line;
+  return Lines::Every(
+      Lines::Suffix(Lines::Prefix(lines_, range.end.line.read() + 1),
+                    range.begin.line.read()),
+      [&](const NonNull<std::shared_ptr<const Line>>& line) {
+        return callback(line_number++, line);
+      });
+}
+
 bool LineSequence::EveryLine(
     const std::function<bool(LineNumber,
                              const NonNull<std::shared_ptr<const Line>>&)>&
         callback) const {
-  LineNumber line_number;
-  return Lines::Every(lines_,
-                      [&](const NonNull<std::shared_ptr<const Line>>& line) {
-                        return callback(line_number++, line);
-                      });
+  return ForEachLineInRange(range(), callback);
 }
 
 void LineSequence::ForEach(
