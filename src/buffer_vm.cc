@@ -55,6 +55,7 @@ namespace afc::editor {
 using infrastructure::FileSystemDriver;
 using infrastructure::Path;
 using infrastructure::Tracker;
+using infrastructure::screen::CursorsSet;
 using language::EmptyValue;
 using language::Error;
 using language::MakeNonNullShared;
@@ -294,6 +295,27 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                       [](gc::Root<OpenBuffer> buffer) {
                         return LineColumn(buffer.ptr()->position());
                       })
+          .ptr());
+
+  buffer_object_type.ptr()->AddField(
+      L"active_cursors",
+      vm::NewCallback(pool, PurityType::kReader,
+                      [](gc::Root<OpenBuffer> buffer) {
+                        const CursorsSet& cursors =
+                            buffer.ptr()->active_cursors();
+                        return MakeNonNullShared<std::vector<LineColumn>>(
+                            cursors.begin(), cursors.end());
+                      })
+          .ptr());
+
+  buffer_object_type.ptr()->AddField(
+      L"set_active_cursors",
+      vm::NewCallback(
+          pool, PurityType::kReader,
+          [](gc::Root<OpenBuffer> buffer,
+             NonNull<std::shared_ptr<std::vector<LineColumn>>> cursors) {
+            buffer.ptr()->set_active_cursors(cursors.value());
+          })
           .ptr());
 
   buffer_object_type.ptr()->AddField(

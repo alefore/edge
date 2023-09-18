@@ -255,6 +255,9 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"string x = \"foo\"; x = x + \"bar\" * 2;"),
       callback(L"int x = 10; while (x > 10) x--;"),
       callback(L"for (int i = 0; i < 5; i++) i;"),
+      callback(L"VectorLineColumn x = buffer.active_cursors();\n"
+               L"x.push_back(LineColumn(0, 10));"
+               L"buffer.set_active_cursors(x);"),
       callback(L"sleep(0.001);"),
       callback(L"[](int x) -> int { return 0; }"),
       // TODO(medium, 2022-05-29): Figure out why the following test fails.

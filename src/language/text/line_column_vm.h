@@ -2,17 +2,28 @@
 #define __AFC_EDITOR_LINE_COLUMN_VM_H__
 
 #include <limits>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/vm/public/callbacks.h"
+#include "src/vm/public/container.h"
 
 namespace afc::language::gc {
 class Pool;
 }
 namespace afc::vm {
 class Environment;
+template <>
+const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
+    std::vector<language::text::LineColumn>>>>::object_type_name;
+
+template <>
+const types::ObjectName VMTypeMapper<language::NonNull<
+    std::shared_ptr<std::set<language::text::LineColumn>>>>::object_type_name;
+
 template <>
 struct VMTypeMapper<language::text::LineColumn> {
   static language::text::LineColumn get(Value& value);
