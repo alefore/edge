@@ -1,3 +1,5 @@
+#include "strings.cc"
+
 namespace csv {
 // Range must be a single-line range.
 string ReadContent(Buffer buffer, Range range) {
@@ -54,7 +56,16 @@ VectorInt ColumnToVectorInt(Buffer buffer, int column, bool skip_first) {
 
 void SortByIntColumn(Buffer buffer, int column) {
   buffer.SortLinesByKey([](int line) -> int {
-    return buffer.line(line) == "" ? 0 : GetCell(buffer, line, 1).toint();
+    return buffer.line(line) == ""
+               ? -1
+               : SkipInitialSpaces(GetCell(buffer, line, column)).toint();
   });
 }
+
+// Convenience entry point for prompt.
+void SortByIntColumn(string column) {
+  editor.ForEachActiveBuffer(
+      [](Buffer buffer) -> void { SortByIntColumn(buffer, column.toint()); });
+}
+
 }  // namespace csv
