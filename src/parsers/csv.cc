@@ -74,6 +74,7 @@ class CsvParser : public LineOrientedTreeParser {
     SkipSpaces(result);
     if (seek.read() == L',') {
       seek.Once();
+      SkipSpaces(result);
       result->PushAndPop(ColumnNumberDelta(1),
                          LineModifierSet{LineModifier::kDim});
     }
