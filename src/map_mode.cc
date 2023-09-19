@@ -96,7 +96,7 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
                           gc::Root<vm::Environment> environment) {
   const auto& value_type = std::get<vm::types::Function>(value.ptr()->type);
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
-  CHECK(value_type.inputs.empty());
+  CHECK(value_type.inputs.empty()) << "Definition has inputs: " << name;
 
   Add(name,
       MakeCommandFromFunction(
