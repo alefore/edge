@@ -18,7 +18,10 @@ using afc::infrastructure::Path;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
 using afc::language::ValueOrDie;
+using afc::language::ValueOrError;
+using afc::vm::Expression;
 
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -30,10 +33,11 @@ int main(int, char** argv) {
           MakeNonNullShared<ThreadPool>(6, nullptr))});
   gc::Root<afc::vm::Environment> environment =
       pool.NewRoot(MakeNonNullUnique<afc::vm::Environment>());
-  auto expr = afc::vm::CompileFile(
-      ValueOrDie(Path::FromString(FromByteString("/dev/"
-                                                 "stdin"))),
-      pool, environment);
+  ValueOrError<NonNull<std::shared_ptr<Expression>>> expr =
+      ValueOrDie(afc::vm::CompileFile(
+          ValueOrDie(Path::FromString(FromByteString("/dev/"
+                                                     "stdin"))),
+          pool, environment));
   if (IsError(expr)) {
     return 0;
   }
