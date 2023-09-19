@@ -59,6 +59,21 @@ namespace afc::editor {
   return output;
 }
 
+/*static*/ const ParseTreeProperty& ParseTreeProperty::CellContent() {
+  static const auto* output = new ParseTreeProperty(L"cell_content");
+  return *output;
+}
+
+/*static*/ const ParseTreeProperty& ParseTreeProperty::StringValue() {
+  static const auto* output = new ParseTreeProperty(L"string_value");
+  return *output;
+}
+
+/*static*/ const ParseTreeProperty& ParseTreeProperty::NumberValue() {
+  static const auto* output = new ParseTreeProperty(L"number_value");
+  return *output;
+}
+
 std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
   os << "[ParseTree: " << t.range() << ", children: ";
   for (auto& c : t.children()) {
@@ -382,6 +397,18 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
       vm::NewCallback(pool, PurityType::kReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return tree->range();
+                      })
+          .ptr());
+
+  parse_tree_object_type.ptr()->AddField(
+      L"properties",
+      vm::NewCallback(pool, PurityType::kReader,
+                      [](NonNull<std::shared_ptr<const ParseTree>> tree) {
+                        NonNull<std::shared_ptr<std::set<std::wstring>>> output;
+                        for (const ParseTreeProperty& property :
+                             tree->properties())
+                          output->insert(property.read());
+                        return output;
                       })
           .ptr());
 

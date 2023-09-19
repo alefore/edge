@@ -3,55 +3,55 @@
 
 namespace csv {
 namespace internal {
+ParseTree TreeForCell(ParseTree row, int column) {
+  return row.children().get(column);
+}
+
+int RangeWidth(Range range) {
+  return range.end().column() - range.begin().column();
+}
+
 string ReadContent(Buffer buffer, Range range) {
   return buffer.line(range.begin().line())
       .substr(range.begin().column(),
               range.end().column() - range.begin().column());
 }
 
+void FindCellContentInTree(ParseTree tree, VectorParseTree output) {
+  if (tree.properties().contains("cell_content"))
+    output.push_back(tree);
+  else
+    tree.children().ForEach(
+        [](ParseTree child) -> void { FindCellContentInTree(child, output); });
+}
+
+ParseTree FindCellContentInTree(ParseTree cell) {
+  VectorParseTree content_cells = VectorParseTree();
+  FindCellContentInTree(cell, content_cells);
+  return content_cells.empty() ? cell : content_cells.get(0);
+}
+
 string ReadCellContent(Buffer buffer, ParseTree cell) {
-  if (cell.children().size() == 3) {
-    // If we have 3 children, this must mean we're in a string. We don't want
-    // the double quotes to be part of the value we emit. So we recurse down
-    // into the child in the middle.
-    cell = cell.children().get(1);
-  }
-  return ReadContent(buffer, cell.range());
+  return ReadContent(buffer, FindCellContentInTree(cell).range());
 }
-
-int ColumnIdToTreeChildren(int column) {
-  // We multiply it by 2 to skip the commas.
-  return column * 2;
-}
-
-int TreeChildrenToColumnId(int children_id) { return children_id / 2; }
 
 int CountColumns(Buffer csv_file) {
   int output = 0;
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
-    output = max(output, TreeChildrenToColumnId(row.children().size() - 1));
+    output = max(output, row.children().size());
   });
   return output;
-}
-
-ParseTree TreeForCell(ParseTree row, int column) {
-  return row.children().get(ColumnIdToTreeChildren(column));
-}
-
-ParseTree TreeForCellContent(ParseTree row, int column) {
-  ParseTree cell = TreeForCell(row, column);
-  return cell;
 }
 
 VectorInt GetColumnSizes(Buffer csv_file) {
   VectorInt column_sizes = VectorInt();
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
     if (row.children().size() == 0) return;
-    int columns = TreeChildrenToColumnId(row.children().size() - 1);
+    int columns = row.children().size();
     for (int column = 0; column < columns; column++) {
       if (column_sizes.size() == column) column_sizes.push_back(0);
-      string cell = ReadContent(csv_file, TreeForCell(row, column).range());
-      column_sizes.set(column, max(column_sizes.get(column), cell.size()));
+      int width = RangeWidth(TreeForCell(row, column).range());
+      column_sizes.set(column, max(column_sizes.get(column), width));
     }
   });
   return column_sizes;
@@ -61,14 +61,15 @@ string GetCell(Buffer buffer, int row, int column) {
   ParseTree tree = buffer.tree();
   if (tree.children().size() < row) return "";
   ParseTree row_tree = tree.children().get(row);
-  if (row_tree.children().size() < ColumnIdToTreeChildren(column)) return "";
+  if (row_tree.children().size() < column) return "";
   return ReadCellContent(buffer, TreeForCell(row_tree, column));
 }
 
 int FindRowIndex(Buffer buffer, string row_name) {
   ParseTree header = buffer.tree().children().get(0);
-  for (int i = 0; ColumnIdToTreeChildren(i) < header.children().size(); i++) {
-    if (ReadCellContent(buffer, TreeForCell(header, i)) == row_name) return i;
+  for (int column = 0; column < header.children().size(); column++) {
+    if (ReadCellContent(buffer, TreeForCell(header, column)) == row_name)
+      return column;
   }
   return -1;
 }
@@ -78,7 +79,7 @@ VectorInt ColumnToVectorInt(Buffer buffer, int column, bool skip_first) {
   bool at_first = true;
   buffer.tree().children().ForEach([](ParseTree row) -> void {
     // TODO(errors): Warn that some values were ignored?
-    if (!at_first && row.children().size() > ColumnIdToTreeChildren(column))
+    if (!at_first && row.children().size() > column)
       output.push_back(
           ReadCellContent(buffer, TreeForCell(row, column)).toint());
     at_first = false;
@@ -103,14 +104,13 @@ TransformationOutput AlignColumnsTransformation(Buffer csv_file) {
   TransformationOutput output = TransformationOutput();
 
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
-    int columns = TreeChildrenToColumnId(row.children().size() - 1);
+    int columns = row.children().size();
     for (int index = 0; index < columns; index++) {
       // We work backwards (starting at the last column):
       int column = columns - index - 1;
 
       Range range = TreeForCell(row, column).range();
-      int width = range.end().column() - range.begin().column();
-      int padding = column_sizes.get(column) - width;
+      int padding = column_sizes.get(column) - RangeWidth(range);
       if (padding > 0)
         output.push(InsertTransformationBuilder()
                         .set_position(LineColumn(range.end().line(),

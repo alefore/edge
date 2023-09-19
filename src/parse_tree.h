@@ -22,13 +22,20 @@ class ParseTreeProperty {
   static const ParseTreeProperty& LinkTarget();
 
   static const ParseTreeProperty& TableCell(size_t id);
+  static const ParseTreeProperty& CellContent();
+
+  static const ParseTreeProperty& StringValue();
+  static const ParseTreeProperty& NumberValue();
 
   GHOST_TYPE_EQ(ParseTreeProperty, value);
+
+  // Avoid calling this. We need to make it public simply so that we can expose
+  // it to the VM code. Everything else should avoid using this.
+  const std::wstring& read() const { return value; }
 
  private:
   GHOST_TYPE_CONSTRUCTOR(ParseTreeProperty, std::wstring, value);
   GHOST_TYPE_HASH_FRIEND(afc::editor::ParseTreeProperty, value);
-  const std::wstring& read() const { return value; }
 
   std::wstring value;
 };

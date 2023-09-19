@@ -22,7 +22,7 @@ using language::text::LineNumberDelta;
 using language::text::LineSequence;
 using language::text::Range;
 
-enum State { DEFAULT, CSV_ROW };
+enum State { DEFAULT, CSV_ROW, CSV_CELL };
 
 class CsvParser : public LineOrientedTreeParser {
  protected:
@@ -46,6 +46,7 @@ class CsvParser : public LineOrientedTreeParser {
     static const std::vector<LineModifier> csv_column_colors = {
         LineModifier::kCyan, LineModifier::kYellow, LineModifier::kGreen,
         LineModifier::kBlue, LineModifier::kMagenta};
+    result->Push(CSV_CELL, ColumnNumberDelta(), {}, {});
     LineModifierSet modifiers = {
         csv_column_colors[csv_column % csv_column_colors.size()]};
     auto seek = result->seek();
@@ -54,7 +55,8 @@ class CsvParser : public LineOrientedTreeParser {
       case L'\"':
         seek.Once();
         ParseDoubleQuotedString(result, modifiers,
-                                {ParseTreeProperty::TableCell(csv_column)});
+                                {ParseTreeProperty::TableCell(csv_column),
+                                 ParseTreeProperty::StringValue()});
         break;
       default:
         if (isdigit(seek.read())) {
@@ -65,7 +67,8 @@ class CsvParser : public LineOrientedTreeParser {
           ColumnNumber start = result->position().column;
           while (seek.read() != L',' && seek.Once() == Seek::DONE) continue;
           result->PushAndPop(result->position().column - start, modifiers,
-                             {ParseTreeProperty::TableCell(csv_column)});
+                             {ParseTreeProperty::TableCell(csv_column),
+                              ParseTreeProperty::NumberValue()});
         }
     }
     SkipSpaces(result);
@@ -73,8 +76,8 @@ class CsvParser : public LineOrientedTreeParser {
       seek.Once();
       result->PushAndPop(ColumnNumberDelta(1),
                          LineModifierSet{LineModifier::kDim});
-      SkipSpaces(result);
     }
+    result->PopBack();  // CSV_CELL.
   }
 };
 }  // namespace
