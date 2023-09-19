@@ -673,7 +673,7 @@ futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
 }
 
 void Trampoline::SetEnvironment(gc::Root<Environment> environment) {
-  environment_ = environment;
+  environment_ = std::move(environment);
 }
 
 const gc::Root<Environment>& Trampoline::environment() const {

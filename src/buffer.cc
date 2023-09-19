@@ -2428,8 +2428,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
           } else if (auto paste_buffer =
                          editor().buffers()->find(kFuturePasteBuffer);
                      paste_buffer != editor().buffers()->end()) {
-            editor().buffers()->insert_or_assign(BufferName::PasteBuffer(),
-                                                 paste_buffer->second);
+            editor().buffers()->insert_or_assign(
+                BufferName::PasteBuffer(), paste_buffer->second.ptr().ToRoot());
           }
         }
 
@@ -2623,7 +2623,8 @@ NonNull<std::unique_ptr<EditorState>> EditorForTests() {
 gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor) {
   gc::Root<OpenBuffer> output = OpenBuffer::New(
       {.editor = editor, .name = editor.GetUnusedBufferName(L"test buffer")});
-  editor.buffers()->insert_or_assign(output.ptr()->name(), output);
+  editor.buffers()->insert_or_assign(output.ptr()->name(),
+                                     output.ptr().ToRoot());
   editor.AddBuffer(output, BuffersList::AddBufferType::kVisit);
   return output;
 }

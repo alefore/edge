@@ -331,7 +331,7 @@ gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
     return it->second;
   }
   gc::Root<OpenBuffer> value = callback();
-  buffers_.insert_or_assign(name, value);
+  buffers_.insert_or_assign(name, value.ptr().ToRoot());
   return value;
 }
 
@@ -396,7 +396,7 @@ std::vector<gc::Root<OpenBuffer>> EditorState::active_buffers() const {
   } else if (std::optional<gc::Root<OpenBuffer>> buffer = current_buffer();
              buffer.has_value()) {
     if (buffer->ptr()->status().GetType() == Status::Type::kPrompt) {
-      buffer = buffer->ptr()->status().prompt_buffer();
+      buffer = buffer->ptr()->status().prompt_buffer()->ptr().ToRoot();
     }
     output.push_back(buffer.value());
   }

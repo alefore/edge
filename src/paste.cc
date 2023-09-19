@@ -124,8 +124,9 @@ bool tests_registration = tests::Register(
             NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
             gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
                 {.editor = editor.value(), .name = BufferName::PasteBuffer()});
-            editor->buffers()->insert_or_assign(paste_buffer_root.ptr()->name(),
-                                                paste_buffer_root);
+            editor->buffers()->insert_or_assign(
+                paste_buffer_root.ptr()->name(),
+                paste_buffer_root.ptr().ToRoot());
 
             paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Foo"));
             paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Bar"));
@@ -150,7 +151,7 @@ bool tests_registration = tests::Register(
         gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
             {.editor = editor.value(), .name = BufferName::PasteBuffer()});
         editor->buffers()->insert_or_assign(paste_buffer_root.ptr()->name(),
-                                            paste_buffer_root);
+                                            paste_buffer_root.ptr().ToRoot());
 
         paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Foo"));
         paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Bar"));

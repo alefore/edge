@@ -987,7 +987,9 @@ void BuffersList::Update() {
   if (!buffers_to_show_.has_value()) {
     // Pass.
   } else if (buffers_to_show_.value() <= index_active) {
-    buffers = {std::move(buffers[index_active])};
+    gc::Root<OpenBuffer> buffer = std::move(buffers[index_active]);
+    buffers.clear();
+    buffers.push_back(std::move(buffer));
     index_active = 0;
   } else if (*buffers_to_show_ < buffers.size()) {
     buffers.erase(buffers.begin() + *buffers_to_show_, buffers.end());

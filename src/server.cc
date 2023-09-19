@@ -209,7 +209,8 @@ gc::Root<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
   buffer.Set(buffer_variables::vm_exec, true);
   buffer.Set(buffer_variables::vm_lines_evaluation, false);
 
-  editor_state.buffers()->insert_or_assign(buffer.name(), buffer_root);
+  editor_state.buffers()->insert_or_assign(buffer.name(),
+                                           buffer_root.ptr().ToRoot());
   buffer.Reload();
   return buffer_root;
 }

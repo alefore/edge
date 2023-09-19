@@ -1059,7 +1059,7 @@ void EnterInsertMode(InsertModeOptions options) {
                 if (auto it = buffer_root.ptr()->editor().buffers()->find(
                         BufferName(link.path));
                     it != buffer_root.ptr()->editor().buffers()->end())
-                  buffer_root = it->second;
+                  buffer_root = it->second.ptr().ToRoot();
               },
               [] {});
         }

@@ -96,12 +96,13 @@ class LambdaExpression : public Expression {
           auto original_trampoline = trampoline;
           trampoline.SetEnvironment(environment);
           return trampoline.Bounce(body, body->Types()[0])
-              .Transform([original_trampoline, &trampoline, body,
-                          promotion_function](EvaluationOutput body_output) {
-                trampoline = original_trampoline;
-                return Success(EvaluationOutput::New(promotion_function(
-                    trampoline.pool(), std::move(body_output.value))));
-              });
+              .Transform(
+                  [original_trampoline, &trampoline, body,
+                   promotion_function](EvaluationOutput body_output) mutable {
+                    trampoline = std::move(original_trampoline);
+                    return Success(EvaluationOutput::New(promotion_function(
+                        trampoline.pool(), std::move(body_output.value))));
+                  });
         },
         [parent_environment] {
           return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(

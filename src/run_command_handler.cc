@@ -656,7 +656,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   buffer.ptr()->Set(buffer_variables::command, options.command);
   buffer.ptr()->Reload();
 
-  editor_state.buffers()->insert_or_assign(name, buffer);
+  editor_state.buffers()->insert_or_assign(name, std::move(buffer));
   editor_state.AddBuffer(buffer, options.insertion_type);
   return buffer;
 }

@@ -524,8 +524,7 @@ class Root {
     return *this;
   }
 
-  Root<T>& operator=(const Root<T>& other) = default;
-
+  Root<T>& operator=(const Root<T>& other) = delete;
   Pool& pool() const { return ptr_.pool(); }
 
   Ptr<T>& ptr() { return ptr_; }

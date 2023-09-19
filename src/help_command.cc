@@ -123,8 +123,8 @@ class HelpCommand : public Command {
     buffer.set_current_position_line(LineNumber(0));
     buffer.ResetMode();
 
-    editor_state_.buffers()->insert_or_assign(name, buffer_root);
     editor_state_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
+    editor_state_.buffers()->insert_or_assign(name, std::move(buffer_root));
     editor_state_.ResetRepetitions();
   }
 

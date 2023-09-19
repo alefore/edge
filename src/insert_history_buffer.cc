@@ -42,7 +42,7 @@ void ShowInsertHistoryBuffer(EditorState& editor) {
 
   buffer.Reload();
 
-  editor.buffers()->insert_or_assign(name, buffer_root);
+  editor.buffers()->insert_or_assign(name, buffer_root.ptr().ToRoot());
   editor.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
   editor.ResetRepetitions();
 }
