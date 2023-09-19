@@ -213,9 +213,15 @@ void ObjectType::AddField(const wstring& name, gc::Ptr<Value> field) {
   fields_.insert({name, std::move(field)});
 }
 
-Value* ObjectType::LookupField(const wstring& name) const {
-  auto it = fields_.find(name);
-  return it == fields_.end() ? nullptr : &it->second.value();
+std::vector<NonNull<Value*>> ObjectType::LookupField(
+    const wstring& name) const {
+  std::vector<NonNull<Value*>> output;
+  auto range = fields_.equal_range(name);
+
+  for (auto it = range.first; it != range.second; ++it) {
+    output.push_back(NonNull<Value*>::AddressOf(it->second.value()));
+  }
+  return output;
 }
 
 void ObjectType::ForEachField(

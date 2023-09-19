@@ -123,7 +123,7 @@ class ObjectType {
 
   void AddField(const wstring& name, language::gc::Ptr<Value> field);
 
-  Value* LookupField(const wstring& name) const;
+  std::vector<language::NonNull<Value*>> LookupField(const wstring& name) const;
 
   void ForEachField(std::function<void(const wstring&, Value&)> callback);
   void ForEachField(
@@ -135,7 +135,7 @@ class ObjectType {
 
  private:
   Type type_;
-  std::map<std::wstring, language::gc::Ptr<Value>> fields_;
+  std::multimap<std::wstring, language::gc::Ptr<Value>> fields_;
 };
 
 }  // namespace afc::vm

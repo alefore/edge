@@ -9,8 +9,10 @@
 #include "src/language/wstring.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/internal/filter_similar_names.h"
+#include "src/vm/internal/types_promotion.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
+#include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
@@ -28,6 +30,8 @@ using language::ValueOrError;
 using language::VisitPointer;
 
 namespace gc = language::gc;
+
+using ::operator<<;
 
 PossibleError CheckFunctionArguments(
     const Type& type,
@@ -153,8 +157,7 @@ class FunctionCall : public Expression {
       return;
     }
     NonNull<std::shared_ptr<Expression>>& arg = args_types->at(values->size());
-    DVLOG(6) << "Bounce with types: " << arg->Types().size()
-             << ", first: " << arg->Types()[0];
+    DVLOG(6) << "Bounce with types: " << TypesToString(arg->Types());
     trampoline.Bounce(arg, arg->Types()[0])
         .SetConsumer(VisitCallback(
             overload{[consumer](Error error) { consumer(std::move(error)); },
@@ -222,8 +225,9 @@ std::unique_ptr<Expression> NewMethodLookup(
       std::move(object_ptr),
       [&compilation, &method_name](NonNull<std::unique_ptr<Expression>> object)
           -> std::unique_ptr<Expression> {
-        // TODO: Support polymorphism.
         std::vector<Error> errors;
+        // TODO: Better support polymorphism: don't return early assuming one of
+        // the types of `object`.
         for (const auto& type : object->Types()) {
           types::ObjectName object_type_name = NameForType(type);
 
@@ -237,8 +241,13 @@ std::unique_ptr<Expression> NewMethodLookup(
             continue;
           }
 
-          auto field = object_type->LookupField(method_name);
-          if (field == nullptr) {
+          std::vector<NonNull<Value*>> fields =
+              object_type->LookupField(method_name);
+          for (auto& field : fields) {
+            CHECK_GE(std::get<types::Function>(field->type).inputs.size(), 1ul);
+            CHECK(std::get<types::Function>(field->type).inputs[0] == type);
+          }
+          if (fields.empty()) {
             std::vector<std::wstring> alternatives;
             object_type->ForEachField(
                 [&](const std::wstring& name, const Value&) {
@@ -257,75 +266,100 @@ std::unique_ptr<Expression> NewMethodLookup(
           }
 
           // When evaluated, evaluates first `obj_expr` and then returns a
-          // callback that wraps `delegate`, inserting the value that `obj_expr`
-          // evaluated to.
+          // callback that wraps `delegates`, inserting the value that
+          // `obj_expr` evaluated to and calling the right delegate (depending
+          // on the desired type).
           class BindObjectExpression : public Expression {
            public:
             BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
-                                 Value* delegate)
-                : delegate_(delegate),
-                  type_([&]() {
-                    auto output = std::make_shared<types::Function>(
-                        *delegate_function_type());
-                    output->inputs.erase(output->inputs.begin());
+                                 std::vector<NonNull<Value*>> delegates)
+                : delegates_(std::move(delegates)),
+                  external_types_([&]() {
+                    NonNull<std::shared_ptr<std::vector<Type>>> output;
+                    for (const NonNull<Value*>& delegate : delegates_)
+                      output->push_back(
+                          RemoveObjectFirstArgument(delegate->type));
                     return output;
                   }()),
                   obj_expr_(std::move(obj_expr)) {}
 
-            std::vector<Type> Types() override { return {*type_}; }
+            std::vector<Type> Types() override {
+              return external_types_.value();
+            }
+
             std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
             PurityType purity() override {
-              return CombinePurityType(
-                  obj_expr_->purity(),
-                  delegate_function_type()->function_purity);
+              PurityType output = obj_expr_->purity();
+              for (const Type& delegate_type : external_types_.value())
+                output = CombinePurityType(
+                    output,
+                    std::get<types::Function>(delegate_type).function_purity);
+              return output;
             }
 
             futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
                 Trampoline& trampoline, const Type& type) override {
               return trampoline.Bounce(obj_expr_, obj_expr_->Types()[0])
-                  .Transform([type, shared_type = type_,
-                              callback = delegate_->LockCallback(),
-                              purity_type =
-                                  delegate_function_type()->function_purity,
-                              &pool =
-                                  trampoline.pool()](EvaluationOutput output)
-                                 -> ValueOrError<EvaluationOutput> {
-                    switch (output.type) {
-                      case EvaluationOutput::OutputType::kReturn:
-                        return Success(std::move(output));
-                      case EvaluationOutput::OutputType::kContinue:
-                        return Success(EvaluationOutput::New(Value::NewFunction(
-                            pool, purity_type, shared_type->output.get(),
-                            shared_type->inputs,
-                            [obj = std::move(output.value), callback](
-                                std::vector<gc::Root<Value>> args,
-                                Trampoline& trampoline_inner) {
-                              args.emplace(args.begin(), obj);
-                              return callback(std::move(args),
-                                              trampoline_inner);
-                            })));
-                    }
-                    language::Error error(L"Unhandled OutputType case.");
-                    LOG(FATAL) << error;
-                    return error;
-                  });
+                  .Transform(
+                      [type, external_types = external_types_,
+                       delegates = delegates_,
+                       &pool = trampoline.pool()](EvaluationOutput output)
+                          -> ValueOrError<EvaluationOutput> {
+                        switch (output.type) {
+                          case EvaluationOutput::OutputType::kReturn:
+                            return Success(std::move(output));
+                          case EvaluationOutput::OutputType::kContinue:
+                            for (auto& delegate : delegates)
+                              if (GetImplicitPromotion(RemoveObjectFirstArgument(delegate->type), type) !=
+                                  nullptr) {
+                                const types::Function& function_type =
+                                    std::get<types::Function>(type);
+                                return Success(
+                                    EvaluationOutput::New(Value::NewFunction(
+                                        pool, function_type.function_purity,
+                                        function_type.output.get(),
+                                        function_type.inputs,
+                                        [obj = std::move(output.value),
+                                         callback = delegate->LockCallback()](
+                                            std::vector<gc::Root<Value>> args,
+                                            Trampoline& trampoline_inner) {
+                                          args.emplace(args.begin(), obj);
+                                          return callback(std::move(args),
+                                                          trampoline_inner);
+                                        })));
+                              }
+                            LOG(FATAL)
+                                << "Unable to find proper delegate with type: "
+                                << type << ", candidates: "
+                                << TypesToString(external_types.value());
+                        }
+                        language::Error error(L"Unhandled OutputType case.");
+                        LOG(FATAL) << error;
+                        return error;
+                      });
             }
 
            private:
-            types::Function* delegate_function_type() {
-              return &std::get<types::Function>(delegate_->type);
+            static Type RemoveObjectFirstArgument(Type input) {
+              types::Function input_function = std::get<types::Function>(input);
+              CHECK(!input_function.inputs.empty());
+              input_function.inputs.erase(input_function.inputs.begin());
+              return input_function;
             }
-            Value* const delegate_;
-            const std::shared_ptr<types::Function> type_;
+
+            const std::vector<NonNull<Value*>> delegates_;
+
+            // The actual types that the expression can deliver. Basically, a
+            // function receiving the arguments that will be dispatched to a
+            // delegate (after inserting the result from evaluating
+            // `obj_expr_`).
+            const NonNull<std::shared_ptr<std::vector<Type>>> external_types_;
             const NonNull<std::shared_ptr<Expression>> obj_expr_;
           };
 
-          CHECK_GE(std::get<types::Function>(field->type).inputs.size(), 1ul);
-          CHECK(std::get<types::Function>(field->type).inputs[0] == type);
-
           return std::make_unique<BindObjectExpression>(std::move(object),
-                                                        field);
+                                                        fields);
         }
 
         CHECK(!errors.empty());
