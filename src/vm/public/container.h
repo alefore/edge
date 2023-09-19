@@ -62,6 +62,11 @@ struct Traits<std::vector<ValueType>> : public TraitsBase {
 
   static constexpr bool has_push_back = true;
   static void PushBack(ContainerPtr v, ValueType e) { v->emplace_back(e); }
+
+  static constexpr bool has_set_at_index = true;
+  static void SetAtIndex(ContainerPtr& v, size_t index, ValueType e) {
+    v.value()[index] = e;
+  }
 };
 
 template <typename ValueType>
@@ -84,6 +89,8 @@ struct Traits<std::set<ValueType>> : public TraitsBase {
 
   static constexpr bool has_insert = true;
   static void Insert(ContainerPtr v, ValueType e) { v->insert(e); }
+
+  static constexpr bool has_set_at_index = false;
 };
 
 template <typename Container>
@@ -137,6 +144,34 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                     trampoline.pool(), T::Get(v.value(), index)))));
           })
           .ptr());
+
+  if constexpr (T::has_set_at_index)
+    object_type.ptr()->AddField(
+        L"set",
+        Value::NewFunction(
+            pool, PurityType::kPure, types::Void{},
+            {vmtype, types::Int{},
+             GetVMType<typename Container::value_type>::vmtype()},
+            [object_type_name](std::vector<language::gc::Root<Value>> args,
+                               Trampoline& trampoline)
+                -> futures::ValueOrError<EvaluationOutput> {
+              CHECK_EQ(args.size(), 3ul);
+              ContainerPtr v =
+                  VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
+              int index = args[1].ptr()->get_int();
+              if (index < 0 || static_cast<size_t>(index) >= v->size()) {
+                return futures::Past(language::Error(
+                    object_type_name.read() + L": Index out of range " +
+                    std::to_wstring(index) + L" (size: " +
+                    std::to_wstring(v->size()) + L")"));
+              }
+              T::SetAtIndex(v, index,
+                            VMTypeMapper<typename Container::value_type>::get(
+                                args[2].ptr().value()));
+              return futures::Past(language::Success(
+                  EvaluationOutput::New(Value::NewVoid(trampoline.pool()))));
+            })
+            .ptr());
 
   object_type.ptr()->AddField(
       L"filter",
