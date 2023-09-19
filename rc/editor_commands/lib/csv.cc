@@ -95,6 +95,14 @@ void SortByIntColumn(Buffer buffer, int column) {
   });
 }
 
+void SortByColumn(Buffer buffer, int column) {
+  buffer.SortLinesByKey([](int line) -> string {
+    return buffer.line(line) == ""
+               ? ""
+               : SkipInitialSpaces(GetCell(buffer, line, column));
+  });
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Aligning columns
 ////////////////////////////////////////////////////////////////////////////////
@@ -143,6 +151,12 @@ void Enable(Buffer buffer) {
 void SortByIntColumn(string column) {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     internal::SortByIntColumn(buffer, column.toint());
+  });
+}
+
+void SortByColumn(string column) {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    internal::SortByColumn(buffer, column.toint());
   });
 }
 
