@@ -258,9 +258,9 @@ class HelpCommand : public Command {
       output.push_back(variable.second->description());
       output.push_back(L"");
       output.push_back(MakeNonNullShared<Line>(
-          LineBuilder(
-              Append(NewLazyString(L"* Value: "),
-                     NewLazyString(print(source.Read(variable.second.get())))))
+          LineBuilder(Append(NewLazyString(L"* Value: "),
+                             NewLazyString(
+                                 print(source.Read(&variable.second.value())))))
               .Build()));
       output.push_back(MakeNonNullShared<Line>(
           LineBuilder(

@@ -523,7 +523,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
              buffer_variables::StringStruct()->variables()) {
           contents->push_back(L"buffer.set_" + variable.first + L"(" +
                               EscapedString::FromString(
-                                  NewLazyString(Read(variable.second.get())))
+                                  NewLazyString(Read(&variable.second.value())))
                                   .CppRepresentation() +
                               L");");
         }
@@ -533,7 +533,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         for (const auto& variable :
              buffer_variables::IntStruct()->variables()) {
           contents->push_back(L"buffer.set_" + variable.first + L"(" +
-                              std::to_wstring(Read(variable.second.get())) +
+                              std::to_wstring(Read(&variable.second.value())) +
                               L");");
         }
         contents->push_back(L"");
@@ -543,7 +543,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
              buffer_variables::BoolStruct()->variables()) {
           contents->push_back(
               L"buffer.set_" + variable.first + L"(" +
-              (Read(variable.second.get()) ? L"true" : L"false") + L");");
+              (Read(&variable.second.value()) ? L"true" : L"false") + L");");
         }
         contents->push_back(L"");
 
@@ -551,7 +551,7 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         for (const auto& variable :
              buffer_variables::LineColumnStruct()->variables()) {
           contents->push_back(L"buffer.set_" + variable.first + L"(" +
-                              Read(variable.second.get()).ToCppString() +
+                              Read(&variable.second.value()).ToCppString() +
                               L");");
         }
         contents->push_back(L"");
