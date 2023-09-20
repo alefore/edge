@@ -28,7 +28,6 @@ const bool tests_registration = tests::Register(
         {.name = L"Empty",
          .callback =
              [] {
-               ThreadPool thread_pool(5, nullptr);
                Bag<size_t> bag(BagOptions{.shards = 10});
                CHECK(bag.empty());
                CHECK_EQ(bag.size(), 0ul);
@@ -37,7 +36,6 @@ const bool tests_registration = tests::Register(
         {.name = L"Erase",
          .callback =
              [] {
-               ThreadPool thread_pool(5, nullptr);
                Bag<size_t> bag(BagOptions{.shards = 10});
                std::optional<Bag<size_t>::iterator> iterator;
                for (size_t i = 0; i < 1000; i++)
@@ -76,7 +74,6 @@ const bool tests_registration = tests::Register(
         {.name = L"IteratorMove",
          .callback =
              [] {
-               ThreadPool thread_pool(5, nullptr);
                Bag<size_t> bag = NumbersBag(0, 5);
                CHECK_EQ(bag.size(), 5ul);
 
