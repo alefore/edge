@@ -11,6 +11,8 @@
 #include "src/futures/futures.h"
 
 namespace afc::concurrent {
+// Prefer using concurrent::OperationFactory over scheduling directly to the
+// thread pool.
 class ThreadPool {
  public:
   // completion_work_queue can be null (in which case `Run` should not be
