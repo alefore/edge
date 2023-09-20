@@ -341,8 +341,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       MakeNonNullShared<concurrent::Protected<PredictorOutput>>();
   return GetSearchPaths(predictor_input.editor)
       .Transform([predictor_input,
-                  &predictor_output = predictor_output.value()](
-                     std::vector<Path> search_paths) {
+                  predictor_output](std::vector<Path> search_paths) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
         std::wstring path_input = std::visit(
@@ -362,7 +361,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 : std::wregex(predictor_input.source_buffers[0].ptr()->Read(
                       buffer_variables::directory_noise));
         predictor_input.editor.thread_pool().RunIgnoringResult(std::bind_front(
-            [&predictor_output, path_input, get_buffer, search_paths,
+            [predictor_output, path_input, get_buffer, search_paths,
              noise_regex](ProgressChannel& progress_channel,
                           DeleteNotification::Value abort_value) mutable {
               if (!path_input.empty() && *path_input.begin() == L'/') {
@@ -398,7 +397,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;
                 }
-                predictor_output.lock(
+                predictor_output->lock(
                     [&descend_results](PredictorOutput& output) {
                       output.longest_directory_match = std::max(
                           output.longest_directory_match,
@@ -413,7 +412,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                       path_input.size()),
                     path_input.substr(0, descend_results.valid_prefix_length),
                     &matches, progress_channel, abort_value, get_buffer,
-                    predictor_output);
+                    predictor_output.value());
                 if (abort_value.has_value()) return;
               }
               get_buffer([](OpenBuffer& buffer) {
