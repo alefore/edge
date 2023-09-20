@@ -275,7 +275,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value abort_value) {
   VLOG(7) << "ColorizeOptionsProvider: " << line->ToString();
-  auto output = std::make_shared<ColorizePromptOptions>();
+  NonNull<std::shared_ptr<ColorizePromptOptions>> output;
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
   vm::Environment& environment =
       (buffer.has_value() ? buffer->ptr()->environment()
@@ -340,8 +340,9 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                         search_namespaces)
                 : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
       })
-      .Transform(
-          [output](EmptyValue) { return futures::Past(std::move(*output)); });
+      .Transform([output](EmptyValue) {
+        return futures::Past(std::move(output.value()));
+      });
 }
 
 std::vector<std::wstring> GetCppTokens(
