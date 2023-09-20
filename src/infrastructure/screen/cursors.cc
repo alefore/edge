@@ -320,12 +320,6 @@ CursorsTracker::CursorsTracker() : active_set_(L"") {
   cursors_[active_set_].insert(LineColumn());
 }
 
-language::NonNull<
-    std::unique_ptr<afc::language::text::MutableLineSequenceObserver>>
-CursorsTracker::NewMutableLineSequenceObserver() {
-  return MakeNonNullUnique<CursorsTrackerMutableLineSequenceObserver>(*this);
-}
-
 class CursorsTrackerMutableLineSequenceObserver
     : public MutableLineSequenceObserver {
   using Transformation = CursorsTracker::Transformation;
@@ -395,6 +389,12 @@ class CursorsTrackerMutableLineSequenceObserver
  private:
   CursorsTracker& cursors_;
 };
+
+language::NonNull<
+    std::unique_ptr<afc::language::text::MutableLineSequenceObserver>>
+CursorsTracker::NewMutableLineSequenceObserver() {
+  return MakeNonNullUnique<CursorsTrackerMutableLineSequenceObserver>(*this);
+}
 
 LineColumn CursorsTracker::position() const {
   CHECK_EQ(cursors_.count(active_set_), 1ul);
