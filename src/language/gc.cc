@@ -18,6 +18,8 @@ namespace afc::language {
 namespace gc {
 using concurrent::Bag;
 using concurrent::BagOptions;
+using concurrent::Operation;
+using concurrent::OperationFactory;
 using concurrent::ThreadPool;
 using infrastructure::CountDownTimer;
 using infrastructure::Tracker;
@@ -25,7 +27,7 @@ using language::NonNull;
 
 namespace {
 using ObjectMetadataBag =
-    NonNull<std::unique_ptr<concurrent::Bag<std::weak_ptr<ObjectMetadata>>>>;
+    NonNull<std::unique_ptr<Bag<std::weak_ptr<ObjectMetadata>>>>;
 
 size_t SumContainedSizes(const std::list<ObjectMetadataBag>& container) {
   size_t output = 0;
@@ -51,7 +53,7 @@ ObjectMetadata::~ObjectMetadata() {
 /* static */
 void ObjectMetadata::AddToBag(
     NonNull<std::shared_ptr<ObjectMetadata>> shared_this,
-    concurrent::Bag<std::weak_ptr<ObjectMetadata>>& bag) {
+    Bag<std::weak_ptr<ObjectMetadata>>& bag) {
   CHECK(shared_this->container_bag_ == nullptr);
   shared_this->container_bag_iterator_ = bag.Add(shared_this.get_shared());
   shared_this->container_bag_ = &bag;
@@ -71,19 +73,19 @@ bool ObjectMetadata::IsAlive() const {
 
 Pool::Pool(Options options)
     : options_([&] {
-        if (options.thread_pool == nullptr)
-          options.thread_pool = std::make_shared<ThreadPool>(8, nullptr);
+        if (options.operation_factory == nullptr)
+          options.operation_factory = std::make_shared<OperationFactory>(
+              MakeNonNullShared<ThreadPool>(8, nullptr));
         return std::move(options);
       }()),
-      root_backtrace_(VLOG_IS_ON(9)
-                          ? std::make_optional(concurrent::Bag<Backtrace>(
-                                BagOptions{.shards = 64}))
-                          : std::optional<concurrent::Bag<Backtrace>>()),
-      async_work_(*options_.thread_pool) {}
+      root_backtrace_(VLOG_IS_ON(9) ? std::make_optional(Bag<Backtrace>(
+                                          BagOptions{.shards = 64}))
+                                    : std::optional<Bag<Backtrace>>()),
+      async_work_(options_.operation_factory->New(nullptr)) {}
 
 Pool::~Pool() {
   FullCollect();
-  async_work_.BlockUntilDone();
+  async_work_->BlockUntilDone();
   data_.lock([](const Data& data) {
     CHECK(data.expand_list.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
@@ -101,7 +103,7 @@ Pool::~Pool() {
   }
 }
 
-void Pool::BlockUntilDone() const { async_work_.BlockUntilDone(); }
+void Pool::BlockUntilDone() const { async_work_->BlockUntilDone(); }
 
 size_t Pool::count_objects() const {
   return eden_.lock([](const Eden& eden) {
@@ -127,38 +129,41 @@ Pool::CollectOutput Pool::Collect(bool full) {
   });
 
   LightCollectStats light_stats;
-  std::optional<Eden> eden = eden_.lock([&](Eden& eden_data)
-                                            -> std::optional<Eden> {
-    if (!full) {
-      if (options_.collect_duration_threshold.has_value())
-        timer = CountDownTimer(
-            std::exp2(eden_data.consecutive_unfinished_collect_calls) *
-            options_.collect_duration_threshold.value());
+  std::optional<Eden> eden =
+      eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
+        if (!full) {
+          if (options_.collect_duration_threshold.has_value())
+            timer = CountDownTimer(
+                std::exp2(eden_data.consecutive_unfinished_collect_calls) *
+                options_.collect_duration_threshold.value());
 
-      if (eden_data.expand_list == std::nullopt) {
-        size_t max_metadata_size = std::max(1024ul, data_size);
-        light_stats.begin_eden_size = eden_data.object_metadata->size();
-        if (eden_data.object_metadata->size() > max_metadata_size) {
-          VLOG(3) << "CleanEden starts: " << eden_data.object_metadata->size();
-          eden_data.object_metadata->remove_if(
-              concurrent::Operation(*options_.thread_pool, std::nullopt,
-                                    INLINE_TRACKER(gc_Pool_Collect_CleanEden)),
-              [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
-                return object_metadata.expired();
-              });
-          VLOG(4) << "CleanEden ends: " << eden_data.object_metadata->size();
+          if (eden_data.expand_list == std::nullopt) {
+            size_t max_metadata_size = std::max(1024ul, data_size);
+            light_stats.begin_eden_size = eden_data.object_metadata->size();
+            if (eden_data.object_metadata->size() > max_metadata_size) {
+              VLOG(3) << "CleanEden starts: "
+                      << eden_data.object_metadata->size();
+              eden_data.object_metadata->remove_if(
+                  options_.operation_factory
+                      ->New(INLINE_TRACKER(gc_Pool_Collect_CleanEden))
+                      .value(),
+                  [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
+                    return object_metadata.expired();
+                  });
+              VLOG(4) << "CleanEden ends: "
+                      << eden_data.object_metadata->size();
+            }
+            light_stats.end_eden_size = eden_data.object_metadata->size();
+            if (eden_data.object_metadata->size() <= max_metadata_size) {
+              eden_data.consecutive_unfinished_collect_calls = 0;
+              return std::nullopt;
+            }
+          }
         }
-        light_stats.end_eden_size = eden_data.object_metadata->size();
-        if (eden_data.object_metadata->size() <= max_metadata_size) {
-          eden_data.consecutive_unfinished_collect_calls = 0;
-          return std::nullopt;
-        }
-      }
-    }
-    return std::exchange(
-        eden_data, Eden::NewWithExpandList(
-                       eden_data.consecutive_unfinished_collect_calls + 1));
-  });
+        return std::exchange(
+            eden_data, Eden::NewWithExpandList(
+                           eden_data.consecutive_unfinished_collect_calls + 1));
+      });
 
   if (eden == std::nullopt) {
     CHECK(!full);
@@ -182,14 +187,15 @@ Pool::CollectOutput Pool::Collect(bool full) {
           stats.begin_total = SumContainedSizes(data.object_metadata_list);
           stats.roots = SumContainedSizes(data.roots_list);
 
-          ScheduleExpandRoots(concurrent::Operation(
-                                  *options_.thread_pool, std::nullopt,
-                                  INLINE_TRACKER(gc_Pool_ScheduleExpandRoots)),
-                              data.roots_list, data.expand_list);
+          ScheduleExpandRoots(
+              options_.operation_factory
+                  ->New(INLINE_TRACKER(gc_Pool_ScheduleExpandRoots))
+                  .value(),
+              data.roots_list, data.expand_list);
           VLOG(5) << "Roots registered: " << data.expand_list.size();
 
-          Expand(concurrent::Operation(*options_.thread_pool, std::nullopt,
-                                       INLINE_TRACKER(gc_Pool_Expand)),
+          Expand(options_.operation_factory->New(INLINE_TRACKER(gc_Pool_Expand))
+                     .value(),
                  data.expand_list, timer);
           if (!data.expand_list.empty()) {
             VLOG(3) << "Expansion didn't finish. Interrupting.";
@@ -212,10 +218,10 @@ Pool::CollectOutput Pool::Collect(bool full) {
           });
         }
 
-        RemoveUnreachable(
-            concurrent::Operation(*options_.thread_pool, std::nullopt,
-                                  INLINE_TRACKER(gc_Pool_RemoveUnreachable)),
-            data.object_metadata_list, expired_objects_callbacks);
+        RemoveUnreachable(options_.operation_factory
+                              ->New(INLINE_TRACKER(gc_Pool_RemoveUnreachable))
+                              .value(),
+                          data.object_metadata_list, expired_objects_callbacks);
 
         stats.end_total = SumContainedSizes(data.object_metadata_list);
         VLOG(3) << "Survivors: " << stats.end_total;
@@ -227,7 +233,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
     return UnfinishedCollectStats();
   }
 
-  async_work_.Add([callbacks = std::move(expired_objects_callbacks)] {
+  async_work_->Add([callbacks = std::move(expired_objects_callbacks)] {
     VLOG(3) << "Allowing lost object to be deleted: " << callbacks.size();
   });
 
@@ -254,9 +260,9 @@ bool Pool::Eden::IsEmpty() const {
 }
 
 /* static */ void Pool::ScheduleExpandRoots(
-    const concurrent::Operation& parallel_operation,
+    const Operation& parallel_operation,
     const std::list<ObjectMetadataBag>& roots_list,
-    concurrent::Bag<ObjectExpandList>& expand_list) {
+    Bag<ObjectExpandList>& expand_list) {
   VLOG(3) << "Registering roots: " << roots_list.size();
   for (const ObjectMetadataBag& roots : roots_list)
     roots->ForEachShard(
@@ -294,8 +300,8 @@ bool Pool::Eden::IsEmpty() const {
 }
 
 /* static */
-void Pool::Expand(const concurrent::Operation& parallel_operation,
-                  concurrent::Bag<ObjectExpandList>& expand_list,
+void Pool::Expand(const Operation& parallel_operation,
+                  Bag<ObjectExpandList>& expand_list,
                   const std::optional<CountDownTimer>& count_down_timer) {
   VLOG(3) << "Starting recursive expand (expand_list: " << expand_list.size()
           << ")";
@@ -343,7 +349,7 @@ void Pool::Expand(const concurrent::Operation& parallel_operation,
       });
 }
 
-void Pool::RemoveUnreachable(const concurrent::Operation& parallel_operation,
+void Pool::RemoveUnreachable(const Operation& parallel_operation,
                              std::list<ObjectMetadataBag>& object_metadata_list,
                              Bag<std::vector<ObjectMetadata::ExpandCallback>>&
                                  expired_objects_callbacks) {

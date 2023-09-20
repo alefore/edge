@@ -103,8 +103,8 @@
 #include <vector>
 
 #include "src/concurrent/bag.h"
+#include "src/concurrent/operation.h"
 #include "src/concurrent/protected.h"
-#include "src/concurrent/thread_pool.h"
 #include "src/infrastructure/time.h"
 #include "src/language/safe_types.h"
 
@@ -218,7 +218,7 @@ class Pool {
     // keep getting interrupted (in order to ensure that we make progress).
     std::optional<afc::infrastructure::Duration> collect_duration_threshold;
 
-    std::shared_ptr<concurrent::ThreadPool> thread_pool;
+    std::shared_ptr<concurrent::OperationFactory> operation_factory;
   };
 
   Pool(Options options);
@@ -375,7 +375,7 @@ class Pool {
 
   // When then pool is deleted, we need to ensure that any pending background
   // work is done before we allow internal classes to be deleted.
-  concurrent::Operation async_work_;
+  const language::NonNull<std::unique_ptr<concurrent::Operation>> async_work_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Pool::FullCollectStats& stats);

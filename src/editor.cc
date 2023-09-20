@@ -148,8 +148,11 @@ EditorState::EditorState(CommandLineValues args,
                          infrastructure::audio::Player& audio_player)
     : work_queue_(WorkQueue::New()),
       thread_pool_(MakeNonNullShared<ThreadPool>(32, work_queue_.get_shared())),
-      gc_pool_({.collect_duration_threshold = 0.05,
-                .thread_pool = thread_pool_.get_shared()}),
+      gc_pool_(gc::Pool::Options{
+          .collect_duration_threshold = 0.05,
+          .operation_factory = std::move(
+              MakeNonNullUnique<concurrent::OperationFactory>(thread_pool_)
+                  .get_unique())}),
       string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
