@@ -23,24 +23,23 @@ class EdgeStruct;
 template <typename T>
 struct EdgeVariable {
  public:
-  const std::wstring& name() const { return name_; }
-  const std::wstring& description() const { return description_; }
-  const std::wstring& key() const { return key_; }
+  std::wstring name() const { return name_; }
+  std::wstring description() const { return description_; }
+  std::wstring key() const { return key_; }
   const T& default_value() const { return default_value_; }
   const size_t& position() const { return position_; }
   const Predictor& predictor() const { return predictor_; }
 
  private:
   // Instantiate it through EdgeStruct::Add.
-  EdgeVariable(const std::wstring& name, const std::wstring& description,
-               const std::wstring key, const T& default_value, size_t position,
-               const Predictor& predictor)
-      : name_(name),
-        description_(description),
-        key_(key),
-        default_value_(default_value),
+  EdgeVariable(std::wstring name, std::wstring description, std::wstring key,
+               T default_value, size_t position, Predictor predictor)
+      : name_(std::move(name)),
+        description_(std::move(description)),
+        key_(std::move(key)),
+        default_value_(std::move(default_value)),
         position_(position),
-        predictor_(predictor) {}
+        predictor_(std::move(predictor)) {}
 
   std::wstring name_;
   std::wstring description_;
@@ -56,8 +55,8 @@ struct EdgeVariable {
 template <typename T>
 struct EdgeVariable<std::unique_ptr<T>> {
  public:
-  const std::wstring& name() const { return name_; }
-  const std::wstring& description() const { return description_; }
+  std::wstring name() const { return name_; }
+  std::wstring description() const { return description_; }
   const afc::vm::Type& type() const { return type_; }
   const T& default_value() const { return nullptr; }
   const size_t& position() const { return position_; }
@@ -65,14 +64,13 @@ struct EdgeVariable<std::unique_ptr<T>> {
 
  private:
   // Instantiate it through EdgeStruct::AddVariable.
-  EdgeVariable(const std::wstring& name, const std::wstring& description,
-               const afc::vm::Type& type, size_t position,
-               const Predictor& predictor)
-      : name_(name),
-        description_(description),
-        type_(type),
+  EdgeVariable(std::wstring name, std::wstring description, afc::vm::Type type,
+               size_t position, Predictor predictor)
+      : name_(std::move(name)),
+        description_(std::move(description)),
+        type_(std::move(type)),
         position_(position),
-        predictor_(predictor) {}
+        predictor_(std::move(predictor)) {}
 
   std::wstring name_;
   std::wstring description_;
@@ -204,10 +202,9 @@ class EdgeStruct {
  private:
   friend class VariableBuilder<T>;
 
-  EdgeVariable<T>* AddVariable(const std::wstring& name,
-                               const std::wstring& description,
-                               const std::wstring& key, const T& default_value,
-                               const Predictor& predictor);
+  EdgeVariable<T>* AddVariable(std::wstring name, std::wstring description,
+                               std::wstring key, T default_value,
+                               Predictor predictor);
 
   std::map<std::wstring, std::unique_ptr<EdgeVariable<T>>> variables_;
 };
@@ -215,14 +212,14 @@ class EdgeStruct {
 template <typename T>
 class EdgeStruct<std::unique_ptr<T>> {
  public:
-  EdgeVariable<std::unique_ptr<T>>* AddVariable(const std::wstring& name,
-                                                const std::wstring& description,
-                                                const afc::vm::Type& type);
+  EdgeVariable<std::unique_ptr<T>>* AddVariable(std::wstring name,
+                                                std::wstring description,
+                                                afc::vm::Type type);
 
-  EdgeVariable<std::unique_ptr<T>>* AddVariable(const std::wstring& name,
-                                                const std::wstring& description,
-                                                const afc::vm::Type& type,
-                                                const Predictor& predictor);
+  EdgeVariable<std::unique_ptr<T>>* AddVariable(std::wstring name,
+                                                std::wstring description,
+                                                afc::vm::Type type,
+                                                Predictor predictor);
 
   EdgeStructInstance<std::unique_ptr<T>> NewInstance() {
     EdgeStructInstance<std::unique_ptr<T>> instance;
@@ -234,8 +231,7 @@ class EdgeStruct<std::unique_ptr<T>> {
     return instance;
   }
 
-  const EdgeVariable<std::unique_ptr<T>>* find_variable(
-      const std::wstring& name) {
+  const EdgeVariable<std::unique_ptr<T>>* find_variable(std::wstring name) {
     auto it = variables_.find(name);
     return it == variables_.end() ? nullptr : it->second.get();
   }
@@ -303,11 +299,10 @@ language::Observable& EdgeStructInstance<std::unique_ptr<T>>::ObserveValue(
 }
 
 template <typename T>
-EdgeVariable<T>* EdgeStruct<T>::AddVariable(const std::wstring& name,
-                                            const std::wstring& description,
-                                            const std::wstring& key,
-                                            const T& default_value,
-                                            const Predictor& predictor) {
+EdgeVariable<T>* EdgeStruct<T>::AddVariable(std::wstring name,
+                                            std::wstring description,
+                                            std::wstring key, T default_value,
+                                            Predictor predictor) {
   auto it = variables_.emplace(
       make_pair(name, std::unique_ptr<EdgeVariable<T>>(new EdgeVariable<T>(
                           name, description, key, default_value,
@@ -318,8 +313,8 @@ EdgeVariable<T>* EdgeStruct<T>::AddVariable(const std::wstring& name,
 
 template <typename T>
 EdgeVariable<std::unique_ptr<T>>* EdgeStruct<std::unique_ptr<T>>::AddVariable(
-    const std::wstring& name, const std::wstring& description,
-    const afc::vm::Type& type, const Predictor& predictor) {
+    std::wstring name, std::wstring description, afc::vm::Type type,
+    Predictor predictor) {
   return variables_
       .emplace(make_pair(
           name,
