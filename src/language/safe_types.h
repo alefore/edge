@@ -120,8 +120,8 @@ class NonNull<std::unique_ptr<T>> {
  public:
   using element_type = T;
 
-  // Use the `Other` type for types where `std::shared_ptr<Other>` can be
-  // converted to `std::shared_ptr<T>`.
+  // Use the `Other` type for types where `std::unique_ptr<Other>` can be
+  // converted to `std::unique_ptr<T>`.
   template <typename Other>
   static NonNull<std::unique_ptr<T>> Unsafe(std::unique_ptr<Other> value) {
     CHECK(value != nullptr);
@@ -152,6 +152,46 @@ class NonNull<std::unique_ptr<T>> {
   explicit NonNull(std::unique_ptr<Other> value) : value_(std::move(value)) {}
 
   std::unique_ptr<T> value_;
+};
+
+template <typename T, typename D>
+class NonNull<std::unique_ptr<T, D>> {
+ public:
+  using element_type = T;
+
+  // Use the `Other` type for types where `std::unique_ptr<Other>` can be
+  // converted to `std::unique_ptr<T>`.
+  template <typename Other>
+  static NonNull<std::unique_ptr<T, D>> Unsafe(
+      std::unique_ptr<Other, D> value) {
+    CHECK(value != nullptr);
+    return NonNull(std::move(value));
+  }
+
+  NonNull() : value_(std::make_unique<T, D>()) {}
+
+  // Use the `Other` type for types where `std::unique_ptr<Other>` can be
+  // converted to `std::unique_ptr<T, D>`.
+  template <typename Other>
+  NonNull(NonNull<std::unique_ptr<Other>> value)
+      : value_(std::move(value.get_unique())) {
+    CHECK(value_ != nullptr);
+  }
+
+  template <typename... Arg>
+  explicit NonNull(Arg&&... arg) : value_(std::make_unique<T, D>(arg...)) {}
+
+  T& value() const { return *value_; }
+  T* operator->() const { return value_.get(); }
+  NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
+  NonNull<T*> release() { return NonNull<T*>(value_.release()); }
+  std::unique_ptr<T, D>& get_unique() { return value_; }
+
+ private:
+  template <typename Other>
+  explicit NonNull(std::unique_ptr<Other> value) : value_(std::move(value)) {}
+
+  std::unique_ptr<T, D> value_;
 };
 
 template <typename T>
