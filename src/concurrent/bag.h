@@ -9,7 +9,6 @@
 
 #include "src/concurrent/operation.h"
 #include "src/concurrent/protected.h"
-#include "src/concurrent/thread_pool.h"
 #include "src/infrastructure/tracker.h"
 
 namespace afc::concurrent {
@@ -54,8 +53,8 @@ class Bag {
   }
 
   template <class Predicate>
-  void remove_if(const Operation& pool, Predicate predicate) {
-    ForEachShard(pool,
+  void remove_if(const Operation& operation, Predicate predicate) {
+    ForEachShard(operation,
                  [&predicate](std::list<T>& s) { s.remove_if(predicate); });
   }
 
