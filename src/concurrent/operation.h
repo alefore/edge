@@ -85,6 +85,18 @@ class Operation {
       ProtectedWithCondition<unsigned int>(0);
 };
 
+class OperationFactory {
+ public:
+  OperationFactory(language::NonNull<std::shared_ptr<ThreadPool>> thread_pool);
+
+  // `tracker_call` can be null.
+  language::NonNull<std::unique_ptr<Operation>> New(
+      std::unique_ptr<bool, std::function<void(bool*)>> tracker_call);
+
+ private:
+  const language::NonNull<std::shared_ptr<ThreadPool>> thread_pool_;
+};
+
 }  // namespace afc::concurrent
 
 #endif

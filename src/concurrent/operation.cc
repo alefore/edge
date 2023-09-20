@@ -1,7 +1,11 @@
 #include "src/concurrent/operation.h"
 
 #include "src/concurrent/thread_pool.h"
+#include "src/language/safe_types.h"
 #include "src/tests/tests.h"
+
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
 
 namespace afc::concurrent {
 namespace {
@@ -26,4 +30,15 @@ const bool tests_registration = tests::Register(
         CHECK_EQ(*executions.lock(), 8);
       }}});
 }
+
+OperationFactory ::OperationFactory(
+    NonNull<std::shared_ptr<ThreadPool>> thread_pool)
+    : thread_pool_(std::move(thread_pool)) {}
+
+language::NonNull<std::unique_ptr<Operation>> OperationFactory::New(
+    std::unique_ptr<bool, std::function<void(bool*)>> tracker_call) {
+  return MakeNonNullUnique<Operation>(
+      thread_pool_.value(), thread_pool_->size() * 2, std::move(tracker_call));
+}
+
 }  // namespace afc::concurrent
