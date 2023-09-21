@@ -148,6 +148,8 @@ src/language/lazy_string/substring.cc \
 src/language/lazy_string/substring.h \
 src/language/lazy_string/trim.cc \
 src/language/lazy_string/trim.h \
+src/language/numbers.cc \
+src/language/numbers.h \
 src/language/observers.h \
 src/language/observers.cc \
 src/language/observers_gc.h \
