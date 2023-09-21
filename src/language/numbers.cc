@@ -22,7 +22,7 @@ Decimal AsDecimalBase(int value, size_t decimal_digits) {
   return output;
 }
 
-Digits RemoveLeadingZeros(Digits value) {
+Digits RemoveSignificantZeros(Digits value) {
   while (value.value.size() > 1 && value.value.back() == 0)
     value.value.pop_back();
   return value;
@@ -92,6 +92,7 @@ bool operator==(const Digits& a, const Digits& b) {
 }
 
 bool operator>=(const Digits& a, const Digits& b) { return a > b || a == b; }
+bool operator<=(const Digits& a, const Digits& b) { return b >= a; }
 bool operator<(const Digits& a, const Digits& b) { return !(a >= b); }
 
 Digits operator+(const Digits& a, const Digits& b) {
@@ -131,13 +132,12 @@ Digits operator-(const Digits& a, const Digits& b) {
     output.value.pop_back();
   }
 
-  return RemoveLeadingZeros(std::move(output));
+  return RemoveSignificantZeros(std::move(output));
 }
 
 Digits operator*(const Digits& a, const Digits& b) {
   Digits result{.value =
                     std::vector<size_t>(a.value.size() + b.value.size(), 0)};
-
   for (size_t i = 0; i < a.value.size(); ++i) {
     for (size_t j = 0; j < b.value.size(); ++j) {
       int product = a.value[i] * b.value[j];
@@ -150,7 +150,7 @@ Digits operator*(const Digits& a, const Digits& b) {
     }
   }
 
-  return RemoveLeadingZeros(std::move(result));
+  return RemoveSignificantZeros(std::move(result));
 }
 
 ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
@@ -175,7 +175,7 @@ ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
               << (divisor * Digits{.value = {1}} < current_dividend);
     // Largest number x such that divisor * x <= current_dividend
     size_t x = 0;
-    while (divisor * Digits{.value = {x + 1}} < current_dividend) ++x;
+    while (divisor * Digits{.value = {x + 1}} <= current_dividend) ++x;
     LOG(INFO) << "X is: " << x;
     CHECK_LE(x, 9ul);
     if (x > 0)
@@ -188,6 +188,7 @@ ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
 }
 
 ValueOrError<Decimal> AsDecimalBase(Addition value, size_t decimal_digits) {
+  LOG(INFO) << "Sum decimal_digits: " << decimal_digits;
   ASSIGN_OR_RETURN(Decimal a, AsDecimal(value.a.value(), decimal_digits + 1));
   ASSIGN_OR_RETURN(Decimal b, AsDecimal(value.b.value(), decimal_digits + 1));
   LOG(INFO) << "Addition: " << ToString(a, 0) << ", " << ToString(b, 0) << " = "
@@ -212,9 +213,7 @@ ValueOrError<Decimal> AsDecimalBase(Multiplication value,
   ASSIGN_OR_RETURN(Decimal a, AsDecimal(value.a.value(), decimal_digits));
   ASSIGN_OR_RETURN(Decimal b, AsDecimal(value.b.value(), decimal_digits));
   return Decimal{.positive = a.positive == b.positive,
-                 .digits = RemoveDecimals(
-                     a.digits * b.digits,
-                     decimal_digits * decimal_digits - decimal_digits)};
+                 .digits = RemoveDecimals(a.digits * b.digits, decimal_digits)};
 }
 
 ValueOrError<Decimal> AsDecimalBase(Division value, size_t decimal_digits) {
@@ -269,7 +268,9 @@ const bool as_decimal_tests_registration =
              }});
       };
       return std::vector(
-          {test(45, L"45.00"), test(0, L"0.00"), test(-328, L"-328.00"),
+          {test(45, L"45.00"),
+           test(0, L"0.00"),
+           test(-328, L"-328.00"),
            test(Addition{MakeNonNullShared<Number>(1),
                          MakeNonNullShared<Number>(0)},
                 L"1.00"),
@@ -300,11 +301,34 @@ const bool as_decimal_tests_registration =
            test(Multiplication{MakeNonNullShared<Number>(-1),
                                MakeNonNullShared<Number>(-35)},
                 L"35.00"),
+           test(Multiplication{MakeNonNullShared<Number>(11),
+                               MakeNonNullShared<Number>(12)},
+                L"132.00"),
            test(Multiplication{MakeNonNullShared<Number>(-1),
                                MakeNonNullShared<Number>(
                                    Addition{MakeNonNullShared<Number>(2),
                                             MakeNonNullShared<Number>(3)})},
                 L"-5.00"),
+           test(Multiplication{MakeNonNullShared<Number>(2147483647),
+                               MakeNonNullShared<Number>(2147483647)},
+                L"4611686014132420609.00"),
+           test(Addition{MakeNonNullShared<Number>(Multiplication{
+                             MakeNonNullShared<Number>(2147483647),
+                             MakeNonNullShared<Number>(2147483647)}),
+                         MakeNonNullShared<Number>(
+                             Division{MakeNonNullShared<Number>(3),
+                                      MakeNonNullShared<Number>(100)})},
+                L"4611686014132420609.03"),
+           test(Division{MakeNonNullShared<Number>(3),
+                         MakeNonNullShared<Number>(10)},
+                L"0.30"),
+           test(Addition{MakeNonNullShared<Number>(
+                             Multiplication{MakeNonNullShared<Number>(20),
+                                            MakeNonNullShared<Number>(20)}),
+                         MakeNonNullShared<Number>(
+                             Division{MakeNonNullShared<Number>(3),
+                                      MakeNonNullShared<Number>(100)})},
+                L"400.03"),
            test(Division{MakeNonNullShared<Number>(1),
                          MakeNonNullShared<Number>(3)},
                 L"0.33"),
