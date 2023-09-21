@@ -633,7 +633,6 @@ void ShapesAddBezier(Buffer buffer) {
   SetLineColumn output_right = SetLineColumn();
   SetLineColumn output_down = SetLineColumn();
   VectorLineColumn points = VectorLineColumn();
-  // points.push_back(source);
   for (number i = 0; i < bezier_points.size(); i++) {
     points.push_back(bezier_points.get(i));
   }
