@@ -225,6 +225,7 @@
     GHOST_TYPE_PUSH_BACK                                    \
     GHOST_TYPE_POP_BACK                                     \
     GHOST_TYPE_INSERT                                       \
+    GHOST_TYPE_ERASE                                        \
     GHOST_TYPE_LOWER_BOUND                                  \
     const VariableType& read() const { return value; }      \
                                                             \
@@ -539,6 +540,23 @@
                 &V::insert>                                                    \
   auto insert(It it, ValueType::value_type v) {                                \
     return (value.*F)(std::move(it), std::forward<ValueType::value_type>(v));  \
+  }
+
+// We use the template type V to use SFINAE to disable this expression on ghost
+// types of containers that don't include an insert method.
+#define GHOST_TYPE_ERASE                                                     \
+  template <typename It, typename V = ValueType, It (V::*F)(It) = &V::erase> \
+  auto erase(It pos) {                                                       \
+    return (value.*F)(std::move(pos));                                       \
+  }                                                                          \
+                                                                             \
+  template <typename V = ValueType,                                          \
+            ValueType::iterator (V::*F)(ValueType::const_iterator,           \
+                                        ValueType::const_iterator) =         \
+                &V::erase>                                                   \
+  auto erase(ValueType::const_iterator first,                                \
+             ValueType::const_iterator last) {                               \
+    return (value.*F)(std::move(first), std::move(last));                    \
   }
 
 #define GHOST_TYPE_LOWER_BOUND                                               \
