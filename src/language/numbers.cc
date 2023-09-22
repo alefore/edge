@@ -99,10 +99,8 @@ const bool remove_decimals_tests__registration =
 bool operator>(const Digits& a, const Digits& b) {
   if (a.size() != b.size()) return a.size() > b.size();
   for (auto it_a = a.rbegin(), it_b = b.rbegin(); it_a != a.rend();
-       ++it_a, ++it_b) {
-    if (*it_a > *it_b) return true;
-    if (*it_a < *it_b) return false;
-  }
+       ++it_a, ++it_b)
+    if (*it_a != *it_b) return *it_a > *it_b;
   return false;
 }
 
@@ -129,22 +127,14 @@ Digits operator-(const Digits& a, const Digits& b) {
   for (size_t digit = 0; a.size() > digit || b.size() > digit; digit++) {
     int output_digit = ((a.size() > digit) ? a[digit] : 0) -
                        ((b.size() > digit) ? b[digit] : 0) - borrow;
-
     if (output_digit < 0) {
       output_digit += 10;
       borrow = 1;
     } else {
       borrow = 0;
     }
-
     output.push_back(output_digit);
   }
-
-  // Remove leading zeros from the result.
-  while (output.size() > 1 && output.back() == 0) {
-    output.pop_back();
-  }
-
   return RemoveSignificantZeros(std::move(output));
 }
 
@@ -154,58 +144,47 @@ Digits operator*(const Digits& a, const Digits& b) {
     for (size_t j = 0; j < b.size(); ++j) {
       int product = a[i] * b[j];
       result[i + j] += product;
-      // Handle any carry.
-      for (size_t k = i + j; result[k] >= 10; ++k) {
+      for (size_t k = i + j; result[k] >= 10; ++k) {  // Handle any carry.
         result[k + 1] += result[k] / 10;
         result[k] %= 10;
       }
     }
   }
-
   return RemoveSignificantZeros(std::move(result));
 }
 
 ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
                                   size_t extra_precision) {
   if (divisor.empty()) return Error(L"Division by zero!");
-
   Digits quotient;
   Digits current_dividend;
-
   for (size_t i = 0; i < dividend.size() + extra_precision; ++i) {
     current_dividend.insert(
         current_dividend.begin(),
         i < dividend.size() ? dividend[dividend.size() - 1 - i] : 0);
-    // Largest number x such that divisor * x <= current_dividend
-    size_t x = 0;
+    size_t x = 0;  // Largest number such that divisor * x <= current_dividend.
     while (divisor * Digits({x + 1}) <= current_dividend) ++x;
     CHECK_LE(x, 9ul);
     if (x > 0) current_dividend = current_dividend - divisor * Digits({x});
-    if (x != 0 || !quotient.empty())
-      quotient.insert(quotient.begin(), std::move(x));
+    quotient.insert(quotient.begin(), std::move(x));
   }
-  return quotient;
+  return RemoveSignificantZeros(quotient);
 }
 
 ValueOrError<Decimal> AsDecimal(const Number& number, size_t decimal_digits);
 
 ValueOrError<Decimal> AsDecimalBase(Addition value, size_t decimal_digits) {
-  LOG(INFO) << "Sum decimal_digits: " << decimal_digits;
   ASSIGN_OR_RETURN(Decimal a, AsDecimal(value.a.value(), decimal_digits + 1));
   ASSIGN_OR_RETURN(Decimal b, AsDecimal(value.b.value(), decimal_digits + 1));
-  LOG(INFO) << "Addition: " << ToString(a, 0) << ", " << ToString(b, 0) << " = "
-            << ToString({.digits = a.digits + b.digits}, 0) << " "
-            << ToString({.digits = RemoveDecimals(a.digits + b.digits, 1)}, 0);
-  if (a.positive == b.positive) {
+  if (a.positive == b.positive)
     return Decimal{.positive = a.positive,
                    .digits = RemoveDecimals(a.digits + b.digits, 1)};
-  } else if (a.digits > b.digits) {
+  else if (a.digits > b.digits)
     return Decimal{.positive = a.positive,
                    .digits = RemoveDecimals(a.digits - b.digits, 1)};
-  } else {
+  else
     return Decimal{.positive = b.positive,
                    .digits = RemoveDecimals(b.digits - a.digits, 1)};
-  }
 }
 
 ValueOrError<Decimal> AsDecimalBase(Multiplication value,
