@@ -14,6 +14,9 @@
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 
+using afc::language::Error;
+using afc::language::PossibleError;
+
 namespace afc::vm {
 using language::MakeNonNullUnique;
 using language::NonNull;
@@ -69,6 +72,12 @@ language::gc::Root<Environment> Environment::NewDefault(
                             }))
                     .ptr());
   environment_value.DefineType(double_type.ptr());
+
+  environment_value.Define(
+      L"Error",
+      NewCallback(pool, PurityType::kPure, [](std::wstring description) {
+        return futures::Past(PossibleError(Error(description)));
+      }));
 
   container::Export<std::vector<int>>(pool, environment_value);
   container::Export<std::set<int>>(pool, environment_value);
