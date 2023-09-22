@@ -11,7 +11,8 @@
 namespace afc::language::numbers {
 namespace {
 
-// Least significative digit first.
+// Least significative digit first. Zero should always be represented as the
+// empty vector (never as {0}).
 GHOST_TYPE_CONTAINER(Digits, std::vector<size_t>);
 
 struct Decimal {
@@ -37,6 +38,11 @@ std::wstring ToString(const Decimal& decimal, size_t decimal_digits) {
   return output;
 }
 
+Digits RemoveSignificantZeros(Digits value) {
+  while (!value.empty() && value.back() == 0) value.pop_back();
+  return value;
+}
+
 Decimal AsDecimalBase(int value, size_t decimal_digits) {
   LOG(INFO) << "Representing int: " << value;
   Decimal output{.positive = value >= 0,
@@ -46,12 +52,8 @@ Decimal AsDecimalBase(int value, size_t decimal_digits) {
     output.digits.push_back(value % 10);
     value /= 10;
   }
+  output.digits = RemoveSignificantZeros(output.digits);
   return output;
-}
-
-Digits RemoveSignificantZeros(Digits value) {
-  while (value.size() > 1 && value.back() == 0) value.pop_back();
-  return value;
 }
 
 Digits RemoveDecimals(Digits value, size_t digits_to_remove) {
@@ -155,7 +157,8 @@ Digits operator*(const Digits& a, const Digits& b) {
 
 ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
                                   size_t extra_precision) {
-  if (divisor.empty()) return Error(L"Division by zero!");
+  LOG(INFO) << "Dividing: " << divisor.size();
+  if (divisor.empty()) return Error(L"Division by zero.");
   Digits quotient;
   Digits current_dividend;
   for (size_t i = 0; i < dividend.size() + extra_precision; ++i) {
@@ -298,7 +301,10 @@ const bool as_decimal_tests_registration =
                          MakeNonNullShared<Number>(
                              Division{MakeNonNullShared<Number>(1),
                                       MakeNonNullShared<Number>(300)})},
-                L"0.01")});
+                L"0.01"),
+           test(Division{MakeNonNullShared<Number>(10),
+                         MakeNonNullShared<Number>(0)},
+                L"Division by zero.")});
     }());
 }  // namespace
 
