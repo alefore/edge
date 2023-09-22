@@ -9,41 +9,66 @@
 #include "src/tests/tests.h"
 
 namespace afc::language::numbers {
+namespace {
+
+// Least significative digit first.
+GHOST_TYPE_CONTAINER(Digits, std::vector<size_t>);
+
+struct Decimal {
+  bool positive = true;
+  Digits digits;
+};
+
+std::wstring ToString(const Decimal& decimal, size_t decimal_digits) {
+  std::wstring output;
+  if (!decimal.positive) output.push_back(L'-');
+  if (decimal_digits >= decimal.digits.size()) {
+    output.push_back(L'0');
+    if (decimal_digits > decimal.digits.size()) {
+      output.push_back(L'.');
+      for (size_t i = 0; i < decimal_digits - decimal.digits.size(); ++i)
+        output.push_back(L'0');
+    }
+  }
+  for (size_t i = 0; i < decimal.digits.size(); i++) {
+    if (i == decimal.digits.size() - decimal_digits) output.push_back(L'.');
+    output.push_back(L'0' + decimal.digits[decimal.digits.size() - 1 - i]);
+  }
+  return output;
+}
 
 Decimal AsDecimalBase(int value, size_t decimal_digits) {
   LOG(INFO) << "Representing int: " << value;
   Decimal output{.positive = value >= 0,
-                 .digits = {std::vector<size_t>(decimal_digits, 0)}};
+                 .digits = {Digits(std::vector<size_t>(decimal_digits, 0))}};
   if (value < 0) value = -value;
   while (value != 0) {
-    output.digits.value.push_back(value % 10);
+    output.digits.push_back(value % 10);
     value /= 10;
   }
   return output;
 }
 
 Digits RemoveSignificantZeros(Digits value) {
-  while (value.value.size() > 1 && value.value.back() == 0)
-    value.value.pop_back();
+  while (value.size() > 1 && value.back() == 0) value.pop_back();
   return value;
 }
 
 Digits RemoveDecimals(Digits value, size_t digits_to_remove) {
   if (digits_to_remove == 0) return value;
-  if (digits_to_remove > value.value.size()) return Digits();
-  int carry = value.value[digits_to_remove - 1] >= 5 ? 1 : 0;
-  std::vector<size_t> output(
-      std::next(value.value.begin() + digits_to_remove - 1), value.value.end());
+  if (digits_to_remove > value.size()) return Digits();
+  int carry = value[digits_to_remove - 1] >= 5 ? 1 : 0;
+  Digits output(std::vector<size_t>(
+      std::next(value.begin() + digits_to_remove - 1), value.end()));
   for (size_t i = 0; i < output.size() && carry > 0; ++i) {
     output[i] += carry;
     carry = output[i] / 10;
     output[i] = output[i] % 10;
   }
   if (carry) output.push_back(carry);
-  return Digits{.value = output};
+  return output;
 }
 
-namespace {
 const bool remove_decimals_tests__registration =
     tests::Register(L"numbers::RemoveDecimals", [] {
       auto test = [](std::wstring input, size_t digits,
@@ -52,7 +77,7 @@ const bool remove_decimals_tests__registration =
             {.name = input, .callback = [=] {
                Digits input_digits;
                for (wchar_t c : input | std::views::reverse)
-                 input_digits.value.push_back(c - L'0');
+                 input_digits.push_back(c - L'0');
                std::wstring str = ToString(
                    {.digits = RemoveDecimals(input_digits, digits)}, 0);
                LOG(INFO) << "From [" << ToString({.digits = input_digits}, 0)
@@ -71,38 +96,28 @@ const bool remove_decimals_tests__registration =
           test(L"6", 1, L"1"),
       });
     }());
-}
 
 bool operator>(const Digits& a, const Digits& b) {
-  if (a.value.size() != b.value.size()) return a.value.size() > b.value.size();
-  for (auto it_a = a.value.rbegin(), it_b = b.value.rbegin();
-       it_a != a.value.rend(); ++it_a, ++it_b) {
+  if (a.size() != b.size()) return a.size() > b.size();
+  for (auto it_a = a.rbegin(), it_b = b.rbegin(); it_a != a.rend();
+       ++it_a, ++it_b) {
     if (*it_a > *it_b) return true;
     if (*it_a < *it_b) return false;
   }
   return false;
 }
 
-bool operator==(const Digits& a, const Digits& b) {
-  if (a.value.size() != b.value.size()) return false;
-  for (auto it_a = a.value.rbegin(), it_b = b.value.rbegin();
-       it_a != a.value.rend(); ++it_a, ++it_b)
-    if (*it_a != *it_b) return false;
-  return true;
-}
-
 bool operator>=(const Digits& a, const Digits& b) { return a > b || a == b; }
 bool operator<=(const Digits& a, const Digits& b) { return b >= a; }
-bool operator<(const Digits& a, const Digits& b) { return !(a >= b); }
 
 Digits operator+(const Digits& a, const Digits& b) {
   int carry = 0;
   Digits output;
-  for (size_t digit = 0;
-       a.value.size() > digit || b.value.size() > digit || carry > 0; digit++) {
-    if (a.value.size() > digit) carry += a.value[digit];
-    if (b.value.size() > digit) carry += b.value[digit];
-    output.value.push_back(carry % 10);
+  for (size_t digit = 0; a.size() > digit || b.size() > digit || carry > 0;
+       digit++) {
+    if (a.size() > digit) carry += a[digit];
+    if (b.size() > digit) carry += b[digit];
+    output.push_back(carry % 10);
     carry /= 10;
   }
   return output;
@@ -112,10 +127,9 @@ Digits operator-(const Digits& a, const Digits& b) {
   CHECK(a >= b);
   int borrow = 0;
   Digits output;
-  for (size_t digit = 0; a.value.size() > digit || b.value.size() > digit;
-       digit++) {
-    int output_digit = ((a.value.size() > digit) ? a.value[digit] : 0) -
-                       ((b.value.size() > digit) ? b.value[digit] : 0) - borrow;
+  for (size_t digit = 0; a.size() > digit || b.size() > digit; digit++) {
+    int output_digit = ((a.size() > digit) ? a[digit] : 0) -
+                       ((b.size() > digit) ? b[digit] : 0) - borrow;
 
     if (output_digit < 0) {
       output_digit += 10;
@@ -124,28 +138,27 @@ Digits operator-(const Digits& a, const Digits& b) {
       borrow = 0;
     }
 
-    output.value.push_back(output_digit);
+    output.push_back(output_digit);
   }
 
   // Remove leading zeros from the result.
-  while (output.value.size() > 1 && output.value.back() == 0) {
-    output.value.pop_back();
+  while (output.size() > 1 && output.back() == 0) {
+    output.pop_back();
   }
 
   return RemoveSignificantZeros(std::move(output));
 }
 
 Digits operator*(const Digits& a, const Digits& b) {
-  Digits result{.value =
-                    std::vector<size_t>(a.value.size() + b.value.size(), 0)};
-  for (size_t i = 0; i < a.value.size(); ++i) {
-    for (size_t j = 0; j < b.value.size(); ++j) {
-      int product = a.value[i] * b.value[j];
-      result.value[i + j] += product;
+  Digits result(std::vector<size_t>(a.size() + b.size(), 0));
+  for (size_t i = 0; i < a.size(); ++i) {
+    for (size_t j = 0; j < b.size(); ++j) {
+      int product = a[i] * b[j];
+      result[i + j] += product;
       // Handle any carry.
-      for (size_t k = i + j; result.value[k] >= 10; ++k) {
-        result.value[k + 1] += result.value[k] / 10;
-        result.value[k] %= 10;
+      for (size_t k = i + j; result[k] >= 10; ++k) {
+        result[k + 1] += result[k] / 10;
+        result[k] %= 10;
       }
     }
   }
@@ -155,37 +168,27 @@ Digits operator*(const Digits& a, const Digits& b) {
 
 ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
                                   size_t extra_precision) {
-  if (divisor.value.empty()) return Error(L"Division by zero!");
+  if (divisor.empty()) return Error(L"Division by zero!");
 
   Digits quotient;
   Digits current_dividend;
 
-  for (size_t i = 0; i < dividend.value.size() + extra_precision; ++i) {
-    LOG(INFO) << "Iteration: " << i;
-    current_dividend.value.insert(
-        current_dividend.value.begin(),
-        i < dividend.value.size()
-            ? dividend.value[dividend.value.size() - 1 - i]
-            : 0);
-    LOG(INFO) << "Inserted, current: "
-              << ToString({.digits = current_dividend}, 0) << ", divisor "
-              << ToString({.digits = divisor}, 0) << " first: "
-              << ToString({.digits = (divisor * Digits{.value = {1}})}, 0)
-              << ", enter: "
-              << (divisor * Digits{.value = {1}} < current_dividend);
+  for (size_t i = 0; i < dividend.size() + extra_precision; ++i) {
+    current_dividend.insert(
+        current_dividend.begin(),
+        i < dividend.size() ? dividend[dividend.size() - 1 - i] : 0);
     // Largest number x such that divisor * x <= current_dividend
     size_t x = 0;
-    while (divisor * Digits{.value = {x + 1}} <= current_dividend) ++x;
-    LOG(INFO) << "X is: " << x;
+    while (divisor * Digits({x + 1}) <= current_dividend) ++x;
     CHECK_LE(x, 9ul);
-    if (x > 0)
-      current_dividend = current_dividend - divisor * Digits{.value = {x}};
-    if (x != 0 || !quotient.value.empty())
-      quotient.value.insert(quotient.value.begin(), x);
+    if (x > 0) current_dividend = current_dividend - divisor * Digits({x});
+    if (x != 0 || !quotient.empty())
+      quotient.insert(quotient.begin(), std::move(x));
   }
-  LOG(INFO) << "Returning: " << ToString({.digits = quotient}, 0);
   return quotient;
 }
+
+ValueOrError<Decimal> AsDecimal(const Number& number, size_t decimal_digits);
 
 ValueOrError<Decimal> AsDecimalBase(Addition value, size_t decimal_digits) {
   LOG(INFO) << "Sum decimal_digits: " << decimal_digits;
@@ -233,27 +236,6 @@ ValueOrError<Decimal> AsDecimal(const Number& number, size_t decimal_digits) {
       number);
 }
 
-std::wstring ToString(const Decimal& decimal, size_t decimal_digits) {
-  std::wstring output;
-  if (!decimal.positive) output.push_back(L'-');
-  if (decimal_digits >= decimal.digits.value.size()) {
-    output.push_back(L'0');
-    if (decimal_digits > decimal.digits.value.size()) {
-      output.push_back(L'.');
-      for (size_t i = 0; i < decimal_digits - decimal.digits.value.size(); ++i)
-        output.push_back(L'0');
-    }
-  }
-  for (size_t i = 0; i < decimal.digits.value.size(); i++) {
-    if (i == decimal.digits.value.size() - decimal_digits)
-      output.push_back(L'.');
-    output.push_back(L'0' +
-                     decimal.digits.value[decimal.digits.value.size() - 1 - i]);
-  }
-  return output;
-}
-
-namespace {
 const bool as_decimal_tests_registration =
     tests::Register(L"numbers::AsDecimal", [] {
       auto test = [](Number number, std::wstring expectation) {
@@ -340,6 +322,11 @@ const bool as_decimal_tests_registration =
                                       MakeNonNullShared<Number>(300)})},
                 L"0.01")});
     }());
-
 }  // namespace
+
+ValueOrError<std::wstring> ToString(const Number& number,
+                                    size_t decimal_digits) {
+  ASSIGN_OR_RETURN(Decimal decimal, AsDecimal(number, decimal_digits));
+  return ToString(decimal, decimal_digits);
+}
 };  // namespace afc::language::numbers

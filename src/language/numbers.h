@@ -30,20 +30,8 @@ struct Division {
   NumberPtr b;
 };
 
-// Least significative digit first.
-struct Digits {
-  std::vector<size_t> value;
-};
-
-struct Decimal {
-  bool positive = true;
-  Digits digits;
-};
-
-language::ValueOrError<Decimal> AsDecimal(const Number& number,
-                                          size_t decimal_digits);
-std::wstring ToString(const Decimal& digits, size_t decimal_digits);
-
+ValueOrError<std::wstring> ToString(const Number& number,
+                                    size_t decimal_digits);
 }  // namespace afc::language::numbers
 
 #endif  // __AFC_LANGUAGE_NUMBERS_H__
