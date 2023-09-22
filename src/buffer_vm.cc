@@ -334,6 +334,13 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
+      L"tostring", vm::NewCallback(pool, PurityType::kReader,
+                                   [](gc::Root<OpenBuffer> buffer) {
+                                     return buffer.ptr()->name().read();
+                                   })
+                       .ptr());
+
+  buffer_object_type.ptr()->AddField(
       L"line_count",
       vm::NewCallback(pool, PurityType::kReader,
                       [](gc::Root<OpenBuffer> buffer) {
