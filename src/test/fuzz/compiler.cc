@@ -25,8 +25,11 @@ extern "C" {
 
 using namespace afc::editor;
 
+using afc::concurrent::OperationFactory;
+using afc::concurrent::ThreadPool;
 using afc::infrastructure::Path;
 using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
 using afc::language::ValueOrDie;
 
 int main(int, char** argv) {
@@ -34,8 +37,8 @@ int main(int, char** argv) {
   std::wifstream input(argv[1]);
   afc::language::gc::Pool pool(afc::language::gc::Pool::Options{
       .collect_duration_threshold = std::nullopt,
-      .thread_pool =
-          std::make_shared<afc::concurrent::ThreadPool>(6, nullptr)});
+      .operation_factory = std::make_shared<OperationFactory>(
+          MakeNonNullShared<afc::concurrent::ThreadPool>(6, nullptr))});
 
   afc::vm::CompileFile(ValueOrDie(Path::FromString(FromByteString(argv[1]))),
                        pool, afc::vm::Environment::NewDefault(pool));
