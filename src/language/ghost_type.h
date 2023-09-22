@@ -424,9 +424,32 @@
 //   for (const Feature& feature : features_set) ...
 //
 // This macro assumes that the ghost variable is called `value`.
-#define GHOST_TYPE_BEGIN_END                   \
-  auto begin() const { return value.begin(); } \
-  auto end() const { return value.end(); }
+#define GHOST_TYPE_BEGIN_END                                                  \
+  auto begin() const { return value.begin(); }                                \
+  auto end() const { return value.end(); }                                    \
+                                                                              \
+  template <typename V = ValueType,                                           \
+            V::const_reverse_iterator (V::*F)() const = &V::rbegin>           \
+  auto rbegin() const {                                                       \
+    return (value.*F)();                                                      \
+  }                                                                           \
+                                                                              \
+  template <typename V = ValueType,                                           \
+            V::reverse_iterator (V::*F)() = &V::rbegin>                       \
+  auto rbegin() {                                                             \
+    return (value.*F)();                                                      \
+  }                                                                           \
+                                                                              \
+  template <typename V = ValueType,                                           \
+            V::const_reverse_iterator (V::*F)() const = &V::rend>             \
+  auto rend() const {                                                         \
+    return (value.*F)();                                                      \
+  }                                                                           \
+                                                                              \
+  template <typename V = ValueType, V::reverse_iterator (V::*F)() = &V::rend> \
+  auto rend() {                                                               \
+    return (value.*F)();                                                      \
+  }
 
 #define GHOST_TYPE_HASH_FRIEND(ClassName, variable) \
   friend class std::hash<ClassName>;
@@ -455,10 +478,14 @@
     };                                                 \
   };
 
-#define GHOST_TYPE_INDEX                            \
-  template <typename KeyType>                       \
-  auto& operator[](const KeyType& ghost_type_key) { \
-    return value[ghost_type_key];                   \
+#define GHOST_TYPE_INDEX                                  \
+  template <typename KeyType>                             \
+  auto& operator[](const KeyType& ghost_type_key) {       \
+    return value[ghost_type_key];                         \
+  }                                                       \
+  template <typename KeyType>                             \
+  auto& operator[](const KeyType& ghost_type_key) const { \
+    return value[ghost_type_key];                         \
   }
 
 // We use the template type V to use SFINAE to disable this expression on ghost
@@ -505,6 +532,13 @@
             ValueType::iterator (V::*F)(ValueType::value_type&&) = &V::insert> \
   auto insert(ValueType::value_type&& v) {                                     \
     return (value.*F)(std::forward<ValueType::value_type>(v));                 \
+  }                                                                            \
+                                                                               \
+  template <typename It, typename V = ValueType,                               \
+            ValueType::iterator (V::*F)(It, ValueType::value_type&&) =         \
+                &V::insert>                                                    \
+  auto insert(It it, ValueType::value_type v) {                                \
+    return (value.*F)(std::move(it), std::forward<ValueType::value_type>(v));  \
   }
 
 #define GHOST_TYPE_LOWER_BOUND                                               \
