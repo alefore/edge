@@ -58,15 +58,14 @@ Digits RemoveDecimals(Digits value, size_t digits_to_remove) {
   if (digits_to_remove == 0) return value;
   if (digits_to_remove > value.size()) return Digits();
   int carry = value[digits_to_remove - 1] >= 5 ? 1 : 0;
-  Digits output(std::vector<size_t>(
-      std::next(value.begin() + digits_to_remove - 1), value.end()));
-  for (size_t i = 0; i < output.size() && carry > 0; ++i) {
-    output[i] += carry;
-    carry = output[i] / 10;
-    output[i] = output[i] % 10;
+  value.erase(value.begin(), value.begin() + digits_to_remove);
+  for (size_t i = 0; i < value.size() && carry > 0; ++i) {
+    value[i] += carry;
+    carry = value[i] / 10;
+    value[i] = value[i] % 10;
   }
-  if (carry) output.push_back(carry);
-  return output;
+  if (carry) value.push_back(carry);
+  return value;
 }
 
 const bool remove_decimals_tests__registration =
