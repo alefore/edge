@@ -109,40 +109,60 @@ void AddArgs(std::vector<Type>* output) {
   }
 };
 
+template <typename T>
+struct ArgTupleMaker {
+  using type = T;
+};
+
+template <typename T>
+struct ArgTupleMaker<T&> {
+  using type = std::reference_wrapper<T>;
+};
+
+// Given a callable and an index for its inputs, sets `type` to the appropriate
+// `VMTypeMapper<>` implementation to use to convert a `vm::Value` to a value
+// that the callable can receive (through the `VMTypeMapper`'s `get` method)
+template <typename Callable, std::size_t Index>
+struct VMTypeMapperResolver {
+  using ft = language::function_traits<Callable>;
+  using type = VMTypeMapper<typename std::remove_const<
+      typename std::remove_reference<typename std::tuple_element<
+          Index, typename ft::ArgTuple>::type>::type>::type>;
+};
+
+template <typename Callable, std::size_t Index, typename ArgsVector>
+auto ProcessArg(const ArgsVector& args)
+    -> ArgTupleMaker<decltype(VMTypeMapperResolver<Callable, Index>::type::get(
+        args.at(Index).ptr().value()))>::type {
+  return VMTypeMapperResolver<Callable, Index>::type::get(
+      args.at(Index).ptr().value());
+}
+
 template <typename Callable, size_t... I>
 futures::ValueOrError<EvaluationOutput> RunCallback(
     language::gc::Pool& pool, Callable& callback,
     std::vector<language::gc::Root<Value>> args, std::index_sequence<I...>) {
   using ft = language::function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
+
+  auto processed_args_tuple = std::make_tuple(ProcessArg<Callable, I>(args)...);
+
   // TODO(easy, 2022-05-13): Take a const ref to args.at(I).value().value() and
   // pass that to the VMTypeMapper<>::get functions, to ensure that they won't
   // modify the objects.
   if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
-    callback(
-        VMTypeMapper<typename std::remove_const<typename std::remove_reference<
-            typename std::tuple_element<I, typename ft::ArgTuple>::
-                type>::type>::type>::get(args.at(I).ptr().value())...);
+    std::apply(callback, processed_args_tuple);
     return futures::Past(
         language::Success(EvaluationOutput::New(Value::NewVoid(pool))));
   } else if constexpr (!futures::is_future<typename ft::ReturnType>::value) {
     return futures::Past(language::Success(
         EvaluationOutput::New(VMTypeMapper<typename ft::ReturnType>::New(
-            pool,
-            callback(
-                VMTypeMapper<typename std::remove_const<
-                    typename std::remove_reference<typename std::tuple_element<
-                        I, typename ft::ArgTuple>::type>::type>::type>::
-                    get(args.at(I).ptr().value())...)))));
+            pool, std::apply(callback, processed_args_tuple)))));
   } else if constexpr (language::IsValueOrError<
                            typename ft::ReturnType::type>::value) {
     using NestedType = typename std::remove_reference<decltype(std::get<0>(
         std::declval<typename ft::ReturnType::type>()))>::type;
-    return callback(
-               VMTypeMapper<typename std::remove_const<
-                   typename std::remove_reference<typename std::tuple_element<
-                       I, typename ft::ArgTuple>::type>::type>::type>::
-                   get(args.at(I).ptr().value())...)
+    return std::apply(callback, processed_args_tuple)
         .Transform([&pool](NestedType value) {
           if constexpr (std::is_same<NestedType, language::EmptyValue>::value) {
             return language::Success(
@@ -154,11 +174,7 @@ futures::ValueOrError<EvaluationOutput> RunCallback(
         });
   } else {
     using NestedType = typename ft::ReturnType::type;
-    return callback(
-               VMTypeMapper<typename std::remove_const<
-                   typename std::remove_reference<typename std::tuple_element<
-                       I, typename ft::ArgTuple>::type>::type>::type>::
-                   get(args.at(I).ptr().value())...)
+    return std::apply(callback, processed_args_tuple)
         .Transform([&pool](NestedType value) {
           if constexpr (std::is_same<NestedType, language::EmptyValue>::value) {
             return language::Success(
