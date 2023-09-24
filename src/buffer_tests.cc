@@ -55,6 +55,8 @@ const bool buffer_tests_registration = tests::Register(
     {
         {.name = L"MetadataSimpleInt",
          .callback = [] { CHECK(GetMetadata(L"5") == L"5"); }},
+        {.name = L"MetadataStringNotEquals",
+         .callback = [] { CHECK(GetMetadata(L"\"x\" != \"x\"") == L"false"); }},
         {.name = L"MetadataSimpleDouble",
          .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.30000"); }},
         {.name = L"MetadataSimpleString",

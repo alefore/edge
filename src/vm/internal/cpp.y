@@ -693,7 +693,7 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{}, [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.get_string() == b.get_string());
+          return Value::NewBool(pool, a.get_string() != b.get_string());
         });
   } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
