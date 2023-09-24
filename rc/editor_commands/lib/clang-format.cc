@@ -9,6 +9,7 @@ void ClangFormatOnSave() {
   if (!clang_format) {
     return;
   }
+  return;
   buffer.SetStatus(reformat_command + " ...");
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(reformat_command_in_place + " " + path.shell_escape() +
