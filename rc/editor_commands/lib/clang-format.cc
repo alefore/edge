@@ -9,7 +9,8 @@ void ClangFormatOnSave() {
   if (!clang_format) {
     return;
   }
-  buffer.SetStatus(reformat_command + " ...");
+  buffer.SetStatus(reformat_command_in_place + " " + path.shell_escape() +
+                   " ...");
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(reformat_command_in_place + " " + path.shell_escape() +
                       "; edge --run 'Buffer original_buffer = " +
