@@ -193,23 +193,31 @@ auto ProcessArg(const ArgsVector& args)
       args.at(Index).ptr().value());
 }
 
-inline std::optional<afc::language::Error> ExtractFirstErrorImpl() {
-  return std::nullopt;
-}
-
-template <typename First, typename... Rest>
-std::optional<afc::language::Error> ExtractFirstErrorImpl(const First& first,
-                                                          const Rest&... rest) {
-  if constexpr (afc::language::IsValueOrError<First>::value) {
-    if (afc::language::IsError(first))
-      return std::get<afc::language::Error>(first);
+template <typename Tuple, size_t Index = 0>
+struct ErrorChecker {
+  static std::optional<afc::language::Error> Check(const Tuple& tup) {
+    using ElementType = std::tuple_element_t<Index, Tuple>;
+    const auto& element = std::get<Index>(tup);
+    if constexpr (afc::language::IsValueOrError<ElementType>::value) {
+      if (afc::language::IsError(element))
+        return std::optional<afc::language::Error>(
+            std::get<afc::language::Error>(element));
+    }
+    return ErrorChecker<Tuple, Index + 1>::Check(tup);
   }
-  return ExtractFirstErrorImpl(rest...);
-}
+};
+
+template <typename Tuple>
+struct ErrorChecker<Tuple, std::tuple_size_v<Tuple>> {
+  static std::optional<afc::language::Error> Check(const Tuple&) {
+    return std::nullopt;
+  }
+};
 
 template <typename... Args>
-std::optional<afc::language::Error> ExtractFirstError(Args&&... args) {
-  return ExtractFirstErrorImpl(args...);
+std::optional<afc::language::Error> ExtractFirstError(
+    const std::tuple<Args...>& tuple) {
+  return ErrorChecker<std::tuple<Args...>>::Check(tuple);
 }
 
 template <typename T>
