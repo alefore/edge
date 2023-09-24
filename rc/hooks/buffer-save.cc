@@ -1,7 +1,7 @@
 #include "../editor_commands/lib/paths.cc"
 
 string path = buffer.path();
-int dot = path.find_last_of(".", path.size());
+number dot = path.find_last_of(".", path.size());
 string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
 
 ClangFormatOnSave();

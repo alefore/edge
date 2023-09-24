@@ -55,7 +55,7 @@ if (extension == "cc" || extension == "h" || extension == "cpp" ||
   reformat_command_in_place = "buildifier";
 }
 
-if (reformat_command != "") {
+if (reformat_command != "" && false) {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(
       "test ! -f " + path.shell_escape() + "||" + reformat_command + " " +
