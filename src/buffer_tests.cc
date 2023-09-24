@@ -58,7 +58,7 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"MetadataStringNotEquals",
          .callback = [] { CHECK(GetMetadata(L"\"x\" != \"x\"") == L"false"); }},
         {.name = L"MetadataSimpleDouble",
-         .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.30000"); }},
+         .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.3"); }},
         {.name = L"MetadataInexactDivision",
          .callback = [] { CHECK(GetMetadata(L"1 / 3") == L"0.33333"); }},
         {.name = L"MetadataExactDivision",
@@ -84,14 +84,13 @@ const bool buffer_tests_registration = tests::Register(
                      L"C++: \"number\"");
              }},
         {.name = L"MetadataPurePow",
-         .callback =
-             [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250.00000"); }},
+         .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }},
         {.name = L"MetadataScientificNotation",
          .callback = [] { CHECK(GetMetadata(L"1e3") == L"1000"); }},
         {.name = L"MetadataScientificNotationPlus",
          .callback = [] { CHECK(GetMetadata(L"1e+3") == L"1000"); }},
         {.name = L"MetadataScientificNotationMinus",
-         .callback = [] { CHECK(GetMetadata(L"1e-3") == L"0.00100"); }},
+         .callback = [] { CHECK(GetMetadata(L"1e-3") == L"0.001"); }},
         {.name = L"MetadataIntToStringNormal",
          .callback = [] { CHECK(GetMetadata(L"(1).tostring()") == L"\"1\""); }},
         {.name = L"MetadataIntToStringRuntimeError",
@@ -158,7 +157,7 @@ const bool buffer_tests_registration = tests::Register(
          .callback =
              [] {
                CHECK(GetMetadata(L"buffer.LineMetadataString(0)") ==
-                     L"\"2.50000\"");
+                     L"\"2.5\"");
              }},
         {.name = L"LineMetadataStringRuntimeError",
          .callback =

@@ -323,7 +323,7 @@ const bool as_decimal_tests_registration =
                 L"4611686014132420609.03"),
            test(Division{MakeNonNullShared<Number>(3),
                          MakeNonNullShared<Number>(10)},
-                L"0.30"),
+                L"0.3"),
            test(Addition{MakeNonNullShared<Number>(
                              Multiplication{MakeNonNullShared<Number>(20),
                                             MakeNonNullShared<Number>(20)}),
@@ -378,6 +378,8 @@ ValueOrError<double> ToDouble(const Number& number) {
 
 Number FromDouble(double value) {
   static constexpr int kFinalDivision = 10e5;
+  // TODO(P1, 2023-09-24): We should find a way to make sure they always get
+  // marked as inexact.
   return Division{
       MakeNonNullShared<Number>(static_cast<int>(value * kFinalDivision)),
       MakeNonNullShared<Number>(kFinalDivision)};
@@ -388,7 +390,11 @@ const bool double_tests_registration = tests::Register(
     L"numbers::Double",
     {{.name = L"FromDouble",
       .callback =
-          [] { CHECK(ValueOrDie(ToString(FromDouble(5.0), 2)) == L"5.00"); }},
+          [] {
+            auto str = ToString(FromDouble(5), 2);
+            LOG(INFO) << "Representation: " << str;
+            CHECK(ValueOrDie(str) == L"5");
+          }},
      {.name = L"ToDouble",
       .callback =
           [] { CHECK_NEAR(ValueOrDie(ToDouble(Number(5))), 5.0, 0.00001); }},
