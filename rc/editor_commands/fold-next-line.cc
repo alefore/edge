@@ -1,9 +1,9 @@
 string ExtractToken(Buffer buffer, string text) {
-  int pos_start = text.find_first_not_of(buffer.line_prefix_characters(), 0);
+  number pos_start = text.find_first_not_of(buffer.line_prefix_characters(), 0);
   if (pos_start == -1) {
     return text;
   }
-  int pos_end = text.find(" ", pos_start);
+  number pos_end = text.find(" ", pos_start);
   if (pos_end == -1) {
     return text;
   }
@@ -12,7 +12,7 @@ string ExtractToken(Buffer buffer, string text) {
 
 string LeadingPrefix(Buffer buffer, string text) {
   string prefix = ExtractToken(buffer, text);
-  int pos_end = prefix.find_first_not_of(buffer.line_prefix_characters(), 0);
+  number pos_end = prefix.find_first_not_of(buffer.line_prefix_characters(), 0);
   if (pos_end == -1) {
     return prefix;
   } else {
@@ -22,10 +22,10 @@ string LeadingPrefix(Buffer buffer, string text) {
 
 TransformationOutput FoldNextLine(Buffer buffer, TransformationInput input) {
   TransformationOutput output = TransformationOutput();
-  int column = buffer.line(input.position().line()).size();
-  for (int i = 0; i < editor.repetitions(); i++) {
+  number column = buffer.line(input.position().line()).size();
+  for (number i = 0; i < editor.repetitions(); i++) {
     output.push(SetColumnTransformation(column));
-    int next_line = input.position().line() + i + 1;
+    number next_line = input.position().line() + i + 1;
     if (next_line < buffer.line_count()) {
       auto prefix_size = LeadingPrefix(buffer, buffer.line(next_line)).size();
       output.push(

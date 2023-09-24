@@ -444,8 +444,10 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value),
                 [](wstring a, wstring b) { return Success(a + b); },
-                [](int a, int b) { return Success(a + b); },
-                [](double a, double b) { return Success(a + b); }, nullptr))
+                [](numbers::NumberPtr a, numbers::NumberPtr b) {
+                  return Success(numbers::Number(numbers::Addition{a, b}));
+                },
+                nullptr))
             .release();
 }
 
@@ -460,8 +462,12 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
                 NewVariableLookup(compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](int a, int b) { return Success(a - b); },
-                [](double a, double b) { return Success(a - b); }, nullptr))
+                [](numbers::NumberPtr a, numbers::NumberPtr b) {
+                  return Success(numbers::Number(
+                      numbers::Addition{a, MakeNonNullShared<numbers::Number>(
+                                               numbers::Negation{b})}));
+                },
+                nullptr))
             .release();
 }
 
@@ -476,8 +482,10 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
                 NewVariableLookup(compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](int a, int b) { return Success(a * b); },
-                [](double a, double b) { return Success(a * b); },
+                [](numbers::NumberPtr a, numbers::NumberPtr b) {
+                  return Success(numbers::Number(
+                      numbers::Multiplication{a, b}));
+                },
                 [](wstring a, int b) -> language::ValueOrError<wstring> {
                   wstring output;
                   for (int i = 0; i < b; i++) {
@@ -507,11 +515,8 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
                 NewVariableLookup(compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](int a, int b) {
-                  return b == 0 ? Error(L"Division by zero") : Success(a / b);
-                },
-                [](double a, double b) {
-                  return b == 0 ? Error(L"Division by zero") : Success(a / b);
+                [](numbers::NumberPtr a, numbers::NumberPtr b) {
+                  return Success(numbers::Number(numbers::Division{a, b}));
                 },
                 nullptr))
             .release();
@@ -524,21 +529,22 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
       NewVariableLookup(compilation, {name->value().ptr()->get_symbol()});
   if (var == nullptr) {
     OUT = nullptr;
-  } else if (var->IsInt() || var->IsDouble()) {
-    auto type = var->IsInt() ? Type{types::Int{}} : Type{types::Double{}};
+  } else if (var->IsNumber()) {
     OUT = NewAssignExpression(
               compilation, name->value().ptr()->get_symbol(),
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
-                  type,
-                  std::holds_alternative<types::Int>(type)
-                      ? [](gc::Pool& pool, const Value&, const Value& a) {
-                          return Value::NewInt(pool, a.get_int() + 1);
-                        }
-                      : [](gc::Pool& pool, const Value&, const Value& a) {
-                          return Value::NewDouble(pool, a.get_double() + 1.0);
-                        })).release();
+                  types::Number{},
+                  [](gc::Pool& pool, const Value&, const Value& a) {
+                    return Value::NewNumber(
+                        pool,
+                        numbers::Number(numbers::Addition{
+                            MakeNonNullShared<numbers::Number>(a.get_number()),
+                            MakeNonNullShared<numbers::Number>(
+                                numbers::Number(1))}));
+                  }))
+              .release();
   } else {
     compilation->AddError(
         Error(L"++: Type not supported: " + TypesToString(var->Types())));
@@ -553,24 +559,25 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
       NewVariableLookup(compilation, {name->value().ptr()->get_symbol()});
   if (var == nullptr) {
     OUT = nullptr;
-  } else if (var->IsInt() || var->IsDouble()) {
-    auto type = var->IsInt() ? Type{types::Int{}} : Type{types::Double{}};
+  } else if (var->IsNumber()) {
     OUT = NewAssignExpression(
               compilation, name->value().ptr()->get_symbol(),
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(compilation->pool),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
-                  type,
-                  std::holds_alternative<types::Int>(type)
-                      ? [](gc::Pool& pool, const Value&, const Value& a) {
-                          return Value::NewInt(pool, a.get_int() - 1);
-                        }
-                      : [](gc::Pool& pool, const Value&, const Value& a) {
-                          return Value::NewDouble(pool, a.get_double() - 1.0);
-                        })).release();
+                  types::Number{},
+                  [](gc::Pool& pool, const Value&, const Value& a) {
+                    return Value::NewNumber(
+                        pool,
+                        numbers::Number(numbers::Addition{
+                            MakeNonNullShared<numbers::Number>(a.get_number()),
+                            MakeNonNullShared<numbers::Number>(
+                                numbers::Number(-1))}));
+                  }))
+              .release();
   } else {
     compilation->AddError(
-        Error(L"--: Type not supported: " + TypesToString(var->Types())));
+        Error(L"++: Type not supported: " + TypesToString(var->Types())));
     OUT = nullptr;
   }
 }
@@ -652,30 +659,25 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
+        types::Bool{}, [](gc::Pool& pool, const Value& a, const Value& b) {
           return Value::NewBool(pool, a.get_string() == b.get_string());
         });
-  } else if (a->IsInt() && b->IsInt()) {
+  } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.get_int() == b.get_int());
-        });
-  } else if (a->IsDouble() && b->IsDouble()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.get_double() == b.get_double());
+        [](gc::Pool& pool, const Value& a,
+           const Value& b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(bool output,
+                           numbers::IsEqual(a.get_number(), b.get_number(),
+                                            kDefaultNumbersPrecision));
+          return Value::NewBool(pool, output);
         });
   } else {
-    compilation->AddError(Error(
-        L"Unable to compare types: " + TypesToString(a->Types())
-        + L" == " + TypesToString(b->Types()) + L"."));
+    compilation->AddError(Error(L"Unable to compare types: " +
+                                TypesToString(a->Types()) + L" == " +
+                                TypesToString(b->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -690,30 +692,25 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.get_string() != b.get_string());
+        types::Bool{}, [](gc::Pool& pool, const Value& a, const Value& b) {
+          return Value::NewBool(pool, a.get_string() == b.get_string());
         });
-  } else if (a->IsInt() && b->IsInt()) {
+  } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.get_int() != b.get_int());
-        });
-  } else if (a->IsDouble() && b->IsDouble()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.get_double() != b.get_double());
+        [](gc::Pool& pool, const Value& a,
+           const Value& b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(bool output,
+                           numbers::IsEqual(a.get_number(), b.get_number(),
+                                            kDefaultNumbersPrecision));
+          return Value::NewBool(pool, !output);
         });
   } else {
-    compilation->AddError(Error(
-        L"Unable to compare types: " + TypesToString(a->Types())
-        + L" != " + TypesToString(b->Types()) + L"."));
+    compilation->AddError(Error(L"Unable to compare types: " +
+                                TypesToString(a->Types()) + L" == " +
+                                TypesToString(b->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -724,23 +721,22 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
 
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
-  } else if ((a->IsInt() || a->IsDouble())
-             && (b->IsInt() || b->IsDouble())) {
+  } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(
-              pool,
-              a.IsInt() && b.IsInt()
-                  ? a.get_int() < b.get_int()
-                  : ValueOrDie(a.ToDouble()) < ValueOrDie(b.ToDouble()));
+        [](gc::Pool& pool, const Value& a,
+           const Value& b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(bool output,
+                           numbers::IsLessThan(a.get_number(), b.get_number(),
+                                               kDefaultNumbersPrecision));
+          return Value::NewBool(pool, output);
         });
   } else {
-    compilation->AddError(Error(
-        L"Unable to compare types: " + TypesToString(a->Types())
-        + L" < " + TypesToString(b->Types()) + L"."));
+    compilation->AddError(Error(L"Unable to compare types: " +
+                                TypesToString(a->Types()) + L" <= " +
+                                TypesToString(b->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -751,22 +747,22 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
 
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
-  } else if ((a->IsInt() || a->IsDouble()) && (b->IsInt() || b->IsDouble())) {
+  } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(
-              pool,
-              a.IsInt() && b.IsInt()
-                  ? a.get_int() <= b.get_int()
-                  : ValueOrDie(a.ToDouble()) <= ValueOrDie(b.ToDouble()));
+        [](gc::Pool& pool, const Value& a,
+           const Value& b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(bool output, numbers::IsLessThanOrEqual(
+                                            a.get_number(), b.get_number(),
+                                            kDefaultNumbersPrecision));
+          return Value::NewBool(pool, output);
         });
   } else {
-    compilation->AddError(Error(
-        L"Unable to compare types: " + TypesToString(a->Types())
-        + L" <= " + TypesToString(b->Types()) + L"."));
+    compilation->AddError(Error(L"Unable to compare types: " +
+                                TypesToString(a->Types()) + L" <= " +
+                                TypesToString(b->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -777,22 +773,22 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
 
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
-  } else if ((a->IsInt() || a->IsDouble()) && (b->IsInt() || b->IsDouble())) {
+  } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(
-              pool,
-              a.IsInt() && b.IsInt()
-                  ? a.get_int() > b.get_int()
-                  : ValueOrDie(a.ToDouble()) > ValueOrDie(b.ToDouble()));
+        [](gc::Pool& pool, const Value& a,
+           const Value& b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(bool output,
+                           numbers::IsLessThan(b.get_number(), a.get_number(),
+                                               kDefaultNumbersPrecision));
+          return Value::NewBool(pool, output);
         });
   } else {
-    compilation->AddError(Error(
-        L"Unable to compare types: " + TypesToString(a->Types())
-        + L" > " + TypesToString(b->Types()) + L"."));
+    compilation->AddError(Error(L"Unable to compare types: " +
+                                TypesToString(a->Types()) + L" <= " +
+                                TypesToString(b->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -803,22 +799,22 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
 
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
-  } else if ((a->IsInt() || a->IsDouble()) && (b->IsInt() || b->IsDouble())) {
+  } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(
-              pool,
-              a.IsInt() && b.IsInt()
-                  ? a.get_int() >= b.get_int()
-                  : ValueOrDie(a.ToDouble()) >= ValueOrDie(b.ToDouble()));
+        [](gc::Pool& pool, const Value& a,
+           const Value& b) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(bool output, numbers::IsLessThanOrEqual(
+                                            b.get_number(), a.get_number(),
+                                            kDefaultNumbersPrecision));
+          return Value::NewBool(pool, output);
         });
   } else {
-    compilation->AddError(Error(
-        L"Unable to compare types: " + TypesToString(a->Types())
-        + L" >= " + TypesToString(b->Types()) + L"."));
+    compilation->AddError(Error(L"Unable to compare types: " +
+                                TypesToString(a->Types()) + L" <= " +
+                                TypesToString(b->Types()) + L"."));
     OUT = nullptr;
   }
 }
@@ -846,8 +842,9 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b),
             [](wstring a, wstring b) { return Success(a + b); },
-            [](int a, int b) { return Success(a + b); },
-            [](double a, double b) { return Success(a + b); },
+            [](numbers::NumberPtr a, numbers::NumberPtr b) {
+              return Success(numbers::Number(numbers::Addition{a, b}));
+            },
             nullptr).release();
 }
 
@@ -856,8 +853,11 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
   std::unique_ptr<Expression> b(B);
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b), nullptr,
-            [](int a, int b) { return Success(a - b); },
-            [](double a, double b) { return Success(a - b); },
+            [](numbers::NumberPtr a, numbers::NumberPtr b) {
+              return Success(numbers::Number(
+                numbers::Addition{a, MakeNonNullShared<numbers::Number>(
+                                          numbers::Negation{b})}));
+            },
             nullptr).release();
 }
 
@@ -865,10 +865,8 @@ expr(OUT) ::= MINUS expr(A). {
   std::unique_ptr<Expression> a(A);
   if (a == nullptr) {
     OUT = nullptr;
-  } else if (a->IsInt()) {
-    OUT = NewNegateExpressionInt(*compilation, std::move(a)).release();
-  } else if (a->IsDouble()) {
-    OUT = NewNegateExpressionDouble(*compilation, std::move(a)).release();
+  } else if (a->IsNumber()) {
+    OUT = NewNegateExpressionNumber(*compilation, std::move(a)).release();
   } else {
     compilation->AddError(Error(
         L"Invalid expression: -: " + TypesToString(a->Types())));
@@ -879,25 +877,28 @@ expr(OUT) ::= MINUS expr(A). {
 expr(OUT) ::= expr(A) TIMES expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
-  OUT = NewBinaryExpression(
-            compilation, std::move(a), std::move(b), nullptr,
-            [](int a, int b) { return Success(a * b); },
-            [](double a, double b) { return Success(a * b); },
-            [](wstring a, int b) -> language::ValueOrError<wstring> {
-              wstring output;
-              for(int i = 0; i < b; i++) {
-                try {
-                  output += a;
-                } catch (const std::bad_alloc& e) {
-                  output = L"";
-                  return Error(L"Bad Alloc");
-                } catch (const std::length_error& e) {
-                  output = L"";
-                  return Error(L"Length Error");
-                }
+  OUT =
+      NewBinaryExpression(
+          compilation, std::move(a), std::move(b), nullptr,
+          [](numbers::NumberPtr a, numbers::NumberPtr b) {
+            return Success(numbers::Number(numbers::Multiplication{a, b}));
+          },
+          [](wstring a, int b) -> language::ValueOrError<wstring> {
+            wstring output;
+            for (int i = 0; i < b; i++) {
+              try {
+                output += a;
+              } catch (const std::bad_alloc& e) {
+                output = L"";
+                return Error(L"Bad Alloc");
+              } catch (const std::length_error& e) {
+                output = L"";
+                return Error(L"Length Error");
               }
-              return Success(output);
-            }).release();
+            }
+            return Success(output);
+          })
+          .release();
 }
 
 expr(OUT) ::= expr(A) DIVIDE expr(B). {
@@ -905,11 +906,8 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
   std::unique_ptr<Expression> b(B);
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b), nullptr,
-            [](int a, int b) {
-              return b == 0 ? Error(L"Division by zero") : Success(a / b);
-            },
-            [](double a, double b) {
-              return b == 0 ? Error(L"Division by zero") : Success(a / b);
+            [](numbers::NumberPtr a, numbers::NumberPtr b) {
+              return Success(numbers::Number(numbers::Division{a, b}));
             },
             nullptr).release();
 }
@@ -925,14 +923,8 @@ expr(OUT) ::= BOOL(B). {
   delete B;
 }
 
-expr(OUT) ::= INTEGER(I). {
-  CHECK(I->value().ptr()->IsInt());
-  OUT = NewConstantExpression(std::move(I->value())).get_unique().release();
-  delete I;
-}
-
-expr(OUT) ::= DOUBLE(I). {
-  CHECK(I->value().ptr()->IsDouble());
+expr(OUT) ::= NUMBER(I). {
+  CHECK(I->value().ptr()->IsNumber());
   OUT = NewConstantExpression(std::move(I->value())).get_unique().release();
   delete I;
 }

@@ -12,7 +12,7 @@ string TransformCase(string input) {
   if (input == input.tolower() || input == input.toupper()) {
     string output = "";
     bool at_start = true;
-    for (int i = 0; i < input.size(); i++) {
+    for (number i = 0; i < input.size(); i++) {
       string c = input.substr(i, 1);
       if (c == "_") {
         at_start = true;
@@ -26,7 +26,7 @@ string TransformCase(string input) {
     return output;
   } else {
     string output = "";
-    for (int i = 0; i < input.size(); i++) {
+    for (number i = 0; i < input.size(); i++) {
       string c = input.substr(i, 1);
       if (c == c.toupper() && i > 0) {
         output += "_";

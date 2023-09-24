@@ -36,7 +36,7 @@ string GetNoteTitle(string path) {
 
 string ToMarkdownPath(string path) {
   string path_without_extension = path;
-  int last_dot = path.find_last_of(".", path.size());
+  number last_dot = path.find_last_of(".", path.size());
   if (last_dot != -1) {
     return path_without_extension = path.substr(0, last_dot);
   }
@@ -99,7 +99,7 @@ TransformationOutput Link(Buffer buffer, TransformationInput input) {
   auto path_characters = buffer.path_characters();
 
   // Scroll back until we're at a path.
-  int start = line.find_last_of(path_characters, input.position().column());
+  number start = line.find_last_of(path_characters, input.position().column());
   if (start == -1) {
     // Nothing before us in the current line. Nothing.
     //
@@ -114,7 +114,7 @@ TransformationOutput Link(Buffer buffer, TransformationInput input) {
   } else {
     start++;
   }
-  int end = line.find_first_not_of(path_characters, start);
+  number end = line.find_first_not_of(path_characters, start);
   if (end == -1) {
     end = line.size();
   }
@@ -136,7 +136,8 @@ TransformationOutput Link(Buffer buffer, TransformationInput input) {
     output.push(SetColumnTransformation(99999999))
         .push(InsertTransformationBuilder().set_text("\n").build());
   }
-  int end_column = start + 1 + title.size() + 1 + 1 + adjusted_path.size() + 1;
+  number end_column =
+      start + 1 + title.size() + 1 + 1 + adjusted_path.size() + 1;
   output.push(SetColumnTransformation(end_column));
   return output;
 }
@@ -146,15 +147,15 @@ TransformationOutput Refresh(Buffer buffer, TransformationInput input) {
   auto line = buffer.line(input.position().line());
 
   // Find the indices of the text to update:
-  int text_start = line.find_last_of("[", input.position().column());
+  number text_start = line.find_last_of("[", input.position().column());
   if (text_start == -1) return output;
-  int text_end = line.find_first_of("]", text_start);
+  number text_end = line.find_first_of("]", text_start);
   if (text_end == -1) return output;
 
   // Find the indices of the link target:
-  int link_start = line.find_first_of("(", text_end);
+  number link_start = line.find_first_of("(", text_end);
   if (link_start == -1) return output;
-  int link_end = line.find_first_of(")", link_start);
+  number link_end = line.find_first_of(")", link_start);
   if (link_end == -1) return output;
 
   string path = line.substr(link_start + 1, link_end - link_start - 1);
@@ -192,24 +193,24 @@ Buffer InitializeNewNote(string path, string title, string parent_title,
   return new_note;
 }
 
-int FindStartOfRelatedSection(Buffer buffer) {
-  for (int line = 0; line < buffer.line_count(); line++) {
+number FindStartOfRelatedSection(Buffer buffer) {
+  for (number line = 0; line < buffer.line_count(); line++) {
     if (IsStartOfRelatedSection(buffer.line(line))) return line;
   }
   return buffer.line_count();
 }
 
 string ExtractLink(string contents) {
-  int link_start = contents.find_first_of("(", 0);
+  number link_start = contents.find_first_of("(", 0);
   if (link_start == -1) return "";
   link_start++;
-  int link_end = contents.find_first_of(")", link_start);
+  number link_end = contents.find_first_of(")", link_start);
   if (link_end == -1) return "";
   return contents.substr(link_start, link_end - link_start);
 }
 
 string FindLink(Buffer buffer, string link_type) {
-  int line = FindStartOfRelatedSection(buffer);
+  number line = FindStartOfRelatedSection(buffer);
   while (line < buffer.line_count()) {
     line++;
     string contents = buffer.line(line);
@@ -236,14 +237,14 @@ TransformationOutput NewLink(Buffer buffer, TransformationInput input,
                              string back_link_type) {
   auto line = buffer.line(input.position().line());
   auto path_characters = buffer.path_characters();
-  int start = line.find_last_of("[", input.position().column());
+  number start = line.find_last_of("[", input.position().column());
   if (start == -1) {
     start = 0;  // Didn't find, must be at beginning.
   } else {
     start++;
   }
-  int end = line.find_first_of("]", start);
-  int title_length = 0;
+  number end = line.find_first_of("]", start);
+  number title_length = 0;
   if (end == -1) {
     end = line.size();
     title_length = end - start;
@@ -286,10 +287,11 @@ void NewLinkAllBuffers(string back_link_type) {
           if (back_link_type == "") {
             auto line = buffer.line(input.position().line());
             auto path_characters = buffer.path_characters();
-            int end_prefix = line.find_last_of("[", input.position().column());
+            number end_prefix =
+                line.find_last_of("[", input.position().column());
             if (end_prefix != -1) {
               end_prefix = line.find_last_not_of(" :", end_prefix - 1);
-              int start_prefix = line.find_first_not_of("* ", 0);
+              number start_prefix = line.find_first_not_of("* ", 0);
               if (end_prefix != -1 && start_prefix != -1 &&
                   start_prefix < end_prefix) {
                 string prefix =
@@ -305,7 +307,7 @@ void NewLinkAllBuffers(string back_link_type) {
 }
 
 void RegisterLinks(string line, VectorString output) {
-  int column = 0;
+  number column = 0;
   string extension = ".md";
   while (column < line.size()) {
     column = line.find_first_of("(", column);
@@ -325,7 +327,7 @@ void RegisterLinks(string line, VectorString output) {
 }
 
 void RegisterLinks(Buffer buffer, VectorString output) {
-  int line = 0;
+  number line = 0;
   while (line < buffer.line_count()) {
     RegisterLinks(buffer.line(line), output);
     line++;
@@ -335,7 +337,7 @@ void RegisterLinks(Buffer buffer, VectorString output) {
 LineColumn FindNextOpenLink(Buffer buffer, LineColumn start) {
   while (start.line() < buffer.line_count()) {
     auto line_contents = buffer.line(start.line());
-    int column = line_contents.find_first_of("[", start.column());
+    number column = line_contents.find_first_of("[", start.column());
     if (column == -1) {
       start = LineColumn(start.line() + 1, 0);
     } else {
@@ -348,7 +350,7 @@ LineColumn FindNextOpenLink(Buffer buffer, LineColumn start) {
 LineColumn FindLinkTextEnd(Buffer buffer, LineColumn start) {
   while (start.line() < buffer.line_count()) {
     auto line_contents = buffer.line(start.line());
-    int column = line_contents.find_first_of("](", start.column());
+    number column = line_contents.find_first_of("](", start.column());
     if (column == -1) {
       start = LineColumn(start.line() + 1, 0);
     } else {
@@ -395,16 +397,16 @@ void RemoveLocalLinks(Buffer buffer) {
   }
 }
 
-void Expand(Buffer buffer, string path, SetString titles, int depth,
+void Expand(Buffer buffer, string path, SetString titles, number depth,
             SetString visited, bool include_titles) {
   if (visited.contains(path) || visited.size() > 1000) return;
   visited.insert(path);
   Buffer sub_buffer = editor.OpenFile(path, false);
   sub_buffer.WaitForEndOfFile();
-  int line = 0;
+  number line = 0;
   string text = "";
   if (include_titles) {
-    for (int i = 0; i < min(6, depth); i++) {
+    for (number i = 0; i < min(6, depth); i++) {
       text += "#";
     }
   }
@@ -422,8 +424,8 @@ void Expand(Buffer buffer, string path, SetString titles, int depth,
       first_line = false;
       title = line_contents;
       if (include_titles) {
-        int candidate_index = -1;
-        for (int i = 0; i < titles.size(); i++) {
+        number candidate_index = -1;
+        for (number i = 0; i < titles.size(); i++) {
           string candidate = titles.get(i);
           if (line_contents.size() > candidate.size() &&
               line_contents.substr(0, candidate.size()) == candidate) {
@@ -456,7 +458,7 @@ void Expand(Buffer buffer, string path, SetString titles, int depth,
 
   VectorString pending = VectorString();
   RegisterLinks(sub_buffer, pending);
-  int links = 0;
+  number links = 0;
   if (!title.empty()) {
     titles.insert(title);
   }
@@ -472,12 +474,12 @@ void Expand(Buffer buffer, string path, SetString titles, int depth,
 
 SetString ParseBlacklist(string blacklist) {
   SetString output = SetString();
-  int start = 0;
+  number start = 0;
   while (true) {
     if (start == blacklist.size()) {
       return output;
     }
-    int end = blacklist.find_first_of(" ", start);
+    number end = blacklist.find_first_of(" ", start);
     if (end == -1) {
       end = blacklist.size();
     }
@@ -522,7 +524,7 @@ string ExtractContentsFromTemplate(string path) {
   template.WaitForEndOfFile();
   string output = "";
   bool found_start_marker = false;
-  for (int line = 0; line < template.line_count(); line++) {
+  for (number line = 0; line < template.line_count(); line++) {
     string contents = template.line(line);
     if (!found_start_marker) {
       if (contents.starts_with("## ")) {
@@ -537,7 +539,7 @@ string ExtractContentsFromTemplate(string path) {
   return output;
 }
 
-void Journal(int days_to_generate, Time start, string template_path) {
+void Journal(number days_to_generate, Time start, string template_path) {
   editor.ForEachActiveBuffer([](Buffer buffer) -> void {
     auto parent_title = GetNoteTitle(buffer.path());
     auto parent_path = Basename(buffer.path());
@@ -548,7 +550,7 @@ void Journal(int days_to_generate, Time start, string template_path) {
           string previous_child_path = "";
           string previous_child_title = "";
           auto next_child_path = NextEmpty();
-          for (int i = 0; i < days_to_generate; i++) {
+          for (number i = 0; i < days_to_generate; i++) {
             auto child_title = start.format("%Y-%m-%d (%a)");
             auto child_buffer = InitializeNewNote(
                 next_child_path, child_title, parent_title, parent_path, "Up");

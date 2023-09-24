@@ -20,8 +20,8 @@ struct hash<afc::vm::types::Bool> {
 };
 
 template <>
-struct hash<afc::vm::types::Int> {
-  size_t operator()(const afc::vm::types::Int&) const { return 0; }
+struct hash<afc::vm::types::Number> {
+  size_t operator()(const afc::vm::types::Number&) const { return 0; }
 };
 
 template <>
@@ -32,11 +32,6 @@ struct hash<afc::vm::types::String> {
 template <>
 struct hash<afc::vm::types::Symbol> {
   size_t operator()(const afc::vm::types::Symbol&) const { return 0; }
-};
-
-template <>
-struct hash<afc::vm::types::Double> {
-  size_t operator()(const afc::vm::types::Double&) const { return 0; }
 };
 
 template <>
@@ -119,10 +114,9 @@ types::ObjectName NameForType(Type variant_type) {
       overload{
           [](const types::Void&) { return types::ObjectName(L"void"); },
           [](const types::Bool&) { return types::ObjectName(L"bool"); },
-          [](const types::Int&) { return types::ObjectName(L"int"); },
+          [](const types::Number&) { return types::ObjectName(L"number"); },
           [](const types::String&) { return types::ObjectName(L"string"); },
           [](const types::Symbol&) { return types::ObjectName(L"symbol"); },
-          [](const types::Double&) { return types::ObjectName(L"double"); },
           [](const types::ObjectName& object) { return object; },
           [](const types::Function&) {
             return types::ObjectName(L"function");
@@ -133,10 +127,9 @@ types::ObjectName NameForType(Type variant_type) {
 namespace types {
 bool operator==(const Void&, const Void&) { return true; }
 bool operator==(const Bool&, const Bool&) { return true; }
-bool operator==(const Int&, const Int&) { return true; }
+bool operator==(const Number&, const Number&) { return true; }
 bool operator==(const String&, const String&) { return true; }
 bool operator==(const Symbol&, const Symbol&) { return true; }
-bool operator==(const Double&, const Double&) { return true; }
 bool operator==(const Function& a, const Function& b) {
   return a.output == b.output && a.inputs == b.inputs &&
          a.function_purity == b.function_purity;
@@ -167,10 +160,9 @@ std::wstring ToString(const Type& type) {
   return std::visit(
       overload{[](const types::Void&) -> std::wstring { return L"void"; },
                [](const types::Bool&) -> std::wstring { return L"bool"; },
-               [](const types::Int&) -> std::wstring { return L"int"; },
+               [](const types::Number&) -> std::wstring { return L"number"; },
                [](const types::String&) -> std::wstring { return L"string"; },
                [](const types::Symbol&) -> std::wstring { return L"symbol"; },
-               [](const types::Double&) -> std::wstring { return L"double"; },
                [](const types::ObjectName& object) -> std::wstring {
                  return object.read();
                },

@@ -1,3 +1,18 @@
+// `VMTypeMapper<T>` specializations enable callbacks that receive and/or return
+// instances of the to be called from VM code.
+//
+// To receive instances of T, the Mapper implementation should define:
+//
+// * A `get` method that receives a `Value` instance and returns a `T` or a
+//   `ValueOrError<T>`.
+// * A `vmtype` method that specifies the type of the `Value` instance that the
+//   `get` method expects.
+//
+// To allow callbacks to return a value `T`, the `VMTypeMapper<T>`
+// implementation must define:
+//
+// * A `New` method that receives the value `T` and returns a `Value` instance
+//   containing it.
 #ifndef __AFC_VM_PUBLIC_CALLBACKS_H__
 #define __AFC_VM_PUBLIC_CALLBACKS_H__
 
@@ -6,7 +21,9 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/language/error/value_or_error.h"
 #include "src/language/function_traits.h"
+#include "src/language/numbers.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
@@ -26,6 +43,7 @@ struct VMTypeMapper<void> {
   static language::gc::Root<Value> New(language::gc::Pool& pool) {
     return Value::NewVoid(pool);
   }
+  // TODO(trivial, 2023-09-23): This can probably be removed?
   static const Type vmtype;
 };
 
@@ -39,19 +57,46 @@ struct VMTypeMapper<bool> {
 };
 
 template <>
+struct VMTypeMapper<size_t> {
+  static afc::language::ValueOrError<size_t> get(Value& value) {
+    return afc::language::numbers::ToSizeT(value.get_number());
+  }
+  static language::gc::Root<Value> New(language::gc::Pool& pool, size_t value) {
+    return Value::NewNumber(pool, afc::language::numbers::FromSizeT(value));
+  }
+  static const Type vmtype;
+};
+
+template <>
 struct VMTypeMapper<int> {
-  static int get(Value& value) { return value.get_int(); }
+  static afc::language::ValueOrError<int> get(Value& value) {
+    return afc::language::numbers::ToInt(value.get_number());
+  }
   static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
-    return Value::NewInt(pool, value);
+    return Value::NewNumber(pool, afc::language::numbers::Number(value));
   }
   static const Type vmtype;
 };
 
 template <>
 struct VMTypeMapper<double> {
-  static double get(Value& value) { return value.get_double(); }
+  static afc::language::ValueOrError<double> get(Value& value) {
+    return afc::language::numbers::ToDouble(value.get_number());
+  }
   static language::gc::Root<Value> New(language::gc::Pool& pool, double value) {
-    return Value::NewDouble(pool, value);
+    return Value::NewNumber(pool, afc::language::numbers::FromDouble(value));
+  }
+  static const Type vmtype;
+};
+
+template <>
+struct VMTypeMapper<language::numbers::Number> {
+  static language::numbers::Number get(Value& value) {
+    return value.get_number();
+  }
+  static language::gc::Root<Value> New(language::gc::Pool& pool,
+                                       language::numbers::Number value) {
+    return Value::NewNumber(pool, value);
   }
   static const Type vmtype;
 };
@@ -119,6 +164,16 @@ struct ArgTupleMaker<T&> {
   using type = std::reference_wrapper<T>;
 };
 
+template <typename T>
+decltype(auto) UnwrapValueOrError(T& value) {
+  return value;
+}
+
+template <typename T>
+decltype(auto) UnwrapValueOrError(afc::language::ValueOrError<T>& value) {
+  return std::get<T>(value);
+}
+
 // Given a callable and an index for its inputs, sets `type` to the appropriate
 // `VMTypeMapper<>` implementation to use to convert a `vm::Value` to a value
 // that the callable can receive (through the `VMTypeMapper`'s `get` method)
@@ -138,6 +193,47 @@ auto ProcessArg(const ArgsVector& args)
       args.at(Index).ptr().value());
 }
 
+inline std::optional<afc::language::Error> ExtractFirstErrorImpl() {
+  return std::nullopt;
+}
+
+template <typename First, typename... Rest>
+std::optional<afc::language::Error> ExtractFirstErrorImpl(const First& first,
+                                                          const Rest&... rest) {
+  if constexpr (afc::language::IsValueOrError<First>::value) {
+    if (afc::language::IsError(first))
+      return std::get<afc::language::Error>(first);
+  }
+  return ExtractFirstErrorImpl(rest...);
+}
+
+template <typename... Args>
+std::optional<afc::language::Error> ExtractFirstError(Args&&... args) {
+  return ExtractFirstErrorImpl(args...);
+}
+
+template <typename T>
+struct UnwrapValueOrErrorType {
+  using type = T;
+};
+
+template <typename T, typename ErrorType>
+struct UnwrapValueOrErrorType<std::variant<T, ErrorType>> {
+  using type = std::conditional_t<std::is_reference_v<T>, T, T&>;
+};
+
+template <typename... Args, std::size_t... Indices>
+auto RemoveValueOrError(std::tuple<Args...>& args_tuple,
+                        std::index_sequence<Indices...>) {
+  return std::tuple<typename UnwrapValueOrErrorType<Args>::type...>(
+      UnwrapValueOrError(std::get<Indices>(args_tuple))...);
+}
+
+template <typename... Args>
+auto RemoveValueOrError(std::tuple<Args...>& args_tuple) {
+  return RemoveValueOrError(args_tuple, std::index_sequence_for<Args...>{});
+}
+
 template <typename Callable, size_t... I>
 futures::ValueOrError<EvaluationOutput> RunCallback(
     language::gc::Pool& pool, Callable& callback,
@@ -145,7 +241,15 @@ futures::ValueOrError<EvaluationOutput> RunCallback(
   using ft = language::function_traits<Callable>;
   CHECK_EQ(args.size(), std::tuple_size<typename ft::ArgTuple>::value);
 
-  auto processed_args_tuple = std::make_tuple(ProcessArg<Callable, I>(args)...);
+  auto processed_args_or_error_tuple =
+      std::make_tuple(ProcessArg<Callable, I>(args)...);
+  if (std::optional<afc::language::Error> error =
+          ExtractFirstError(processed_args_or_error_tuple);
+      error.has_value())
+    return futures::Past(
+        afc::language::ValueOrError<EvaluationOutput>(error.value()));
+
+  auto processed_args_tuple = RemoveValueOrError(processed_args_or_error_tuple);
 
   // TODO(easy, 2022-05-13): Take a const ref to args.at(I).value().value() and
   // pass that to the VMTypeMapper<>::get functions, to ensure that they won't

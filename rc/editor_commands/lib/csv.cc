@@ -3,11 +3,11 @@
 
 namespace csv {
 namespace internal {
-ParseTree TreeForCell(ParseTree row, int column) {
+ParseTree TreeForCell(ParseTree row, number column) {
   return row.children().get(column);
 }
 
-int RangeWidth(Range range) {
+number RangeWidth(Range range) {
   return range.end().column() - range.begin().column();
 }
 
@@ -35,8 +35,8 @@ string ReadCellContent(Buffer buffer, ParseTree cell) {
   return ReadContent(buffer, FindCellContentInTree(cell).range());
 }
 
-int CountColumns(Buffer csv_file) {
-  int output = 0;
+number CountColumns(Buffer csv_file) {
+  number output = 0;
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
     output = max(output, row.children().size());
   });
@@ -47,17 +47,17 @@ VectorInt GetColumnSizes(Buffer csv_file) {
   VectorInt column_sizes = VectorInt();
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
     if (row.children().size() == 0) return;
-    int columns = row.children().size();
-    for (int column = 0; column < columns; column++) {
+    number columns = row.children().size();
+    for (number column = 0; column < columns; column++) {
       if (column_sizes.size() == column) column_sizes.push_back(0);
-      int width = RangeWidth(TreeForCell(row, column).range());
+      number width = RangeWidth(TreeForCell(row, column).range());
       column_sizes.set(column, max(column_sizes.get(column), width));
     }
   });
   return column_sizes;
 }
 
-string GetCell(Buffer buffer, int row, int column) {
+string GetCell(Buffer buffer, number row, number column) {
   ParseTree tree = buffer.tree();
   if (tree.children().size() < row) return "";
   ParseTree row_tree = tree.children().get(row);
@@ -65,16 +65,16 @@ string GetCell(Buffer buffer, int row, int column) {
   return ReadCellContent(buffer, TreeForCell(row_tree, column));
 }
 
-int FindRowIndex(Buffer buffer, string row_name) {
+number FindRowIndex(Buffer buffer, string row_name) {
   ParseTree header = buffer.tree().children().get(0);
-  for (int column = 0; column < header.children().size(); column++) {
+  for (number column = 0; column < header.children().size(); column++) {
     if (ReadCellContent(buffer, TreeForCell(header, column)) == row_name)
       return column;
   }
   return -1;
 }
 
-VectorInt ColumnToVectorInt(Buffer buffer, int column, bool skip_first) {
+VectorInt ColumnToVectorInt(Buffer buffer, number column, bool skip_first) {
   VectorInt output = VectorInt();
   bool at_first = true;
   buffer.tree().children().ForEach([](ParseTree row) -> void {
@@ -87,16 +87,16 @@ VectorInt ColumnToVectorInt(Buffer buffer, int column, bool skip_first) {
   return output;
 }
 
-void SortByIntColumn(Buffer buffer, int column) {
-  buffer.SortLinesByKey([](int line) -> int {
+void SortByIntColumn(Buffer buffer, number column) {
+  buffer.SortLinesByKey([](number line) -> number {
     return buffer.line(line) == ""
                ? -1
                : SkipInitialSpaces(GetCell(buffer, line, column)).toint();
   });
 }
 
-void SortByColumn(Buffer buffer, int column) {
-  buffer.SortLinesByKey([](int line) -> string {
+void SortByColumn(Buffer buffer, number column) {
+  buffer.SortLinesByKey([](number line) -> string {
     return buffer.line(line) == ""
                ? ""
                : SkipInitialSpaces(GetCell(buffer, line, column));
@@ -112,13 +112,13 @@ TransformationOutput AlignColumnsTransformation(Buffer csv_file) {
   TransformationOutput output = TransformationOutput();
 
   csv_file.tree().children().ForEach([](ParseTree row) -> void {
-    int columns = row.children().size();
-    for (int index = 0; index < columns; index++) {
+    number columns = row.children().size();
+    for (number index = 0; index < columns; index++) {
       // We work backwards (starting at the last column):
-      int column = columns - index - 1;
+      number column = columns - index - 1;
 
       Range range = TreeForCell(row, column).range();
-      int padding = column_sizes.get(column) - RangeWidth(range);
+      number padding = column_sizes.get(column) - RangeWidth(range);
       if (padding > 0)
         output.push(InsertTransformationBuilder()
                         .set_position(LineColumn(range.end().line(),

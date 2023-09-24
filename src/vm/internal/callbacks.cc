@@ -2,12 +2,13 @@
 
 #include "../public/types.h"
 
-namespace afc {
-namespace vm {
+using afc::language::numbers::Number;
+namespace afc::vm {
 const Type VMTypeMapper<void>::vmtype = types::Void{};
 const Type VMTypeMapper<bool>::vmtype = types ::Bool{};
-const Type VMTypeMapper<int>::vmtype = types::Int{};
-const Type VMTypeMapper<double>::vmtype = types::Double{};
+const Type VMTypeMapper<Number>::vmtype = types::Number{};
+const Type VMTypeMapper<int>::vmtype = types::Number{};
+const Type VMTypeMapper<size_t>::vmtype = types::Number{};
+const Type VMTypeMapper<double>::vmtype = types::Number{};
 const Type VMTypeMapper<wstring>::vmtype = types::String{};
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm

@@ -94,8 +94,7 @@ class Expression {
   bool SupportsType(const Type& type);
 
   bool IsBool() { return SupportsType(types::Bool{}); }
-  bool IsInt() { return SupportsType(types::Int{}); };
-  bool IsDouble() { return SupportsType(types::Double{}); };
+  bool IsNumber() { return SupportsType(types::Number{}); };
   bool IsString() { return SupportsType(types::String{}); };
 
   virtual PurityType purity() = 0;

@@ -17,8 +17,9 @@ void RegisterSetPosition(language::gc::Pool& pool,
   using vm::PurityType;
   environment.Define(
       L"SetColumnTransformation",
-      vm::NewCallback(pool, PurityType::kPure, [](int column) {
-        return MakeNonNullShared<Variant>(SetPosition(ColumnNumber(column)));
+      vm::NewCallback(pool, PurityType::kPure, [](size_t column_number) {
+        return MakeNonNullShared<Variant>(
+            SetPosition(ColumnNumber(column_number)));
       }));
 
   environment.Define(

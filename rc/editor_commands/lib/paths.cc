@@ -1,5 +1,5 @@
 string Basename(string path) {
-  int last_slash = path.find_last_of("/", path.size());
+  number last_slash = path.find_last_of("/", path.size());
   if (last_slash == -1) {
     return path;
   }
@@ -7,7 +7,7 @@ string Basename(string path) {
 }
 
 string Dirname(string path) {
-  int last_slash = path.find_last_of("/", path.size());
+  number last_slash = path.find_last_of("/", path.size());
   if (last_slash == -1) {
     return path;
   }
@@ -15,7 +15,7 @@ string Dirname(string path) {
 }
 
 string Extension(string path) {
-  int last_dot = path.find_last_of(".", path.size());
+  number last_dot = path.find_last_of(".", path.size());
   if (last_dot == -1) {
     return "";
   }

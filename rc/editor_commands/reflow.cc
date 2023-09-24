@@ -14,7 +14,7 @@ bool break_words = false;
 // entire paragraph (probably being far larger than `buffer.line_width()`).
 void FoldNextLineWhilePrefixIs(Buffer buffer, string prefix) {
   editor.SetStatus("Folding paragraph into a single line.");
-  int line = buffer.position().line();
+  number line = buffer.position().line();
   bool first_line = true;
   while (line + 1 < buffer.line_count() &&
          LineHasPrefix(buffer, prefix, line + 1) &&
@@ -29,7 +29,7 @@ void FoldNextLineWhilePrefixIs(Buffer buffer, string prefix) {
       buffer.ApplyTransformation(
           InsertTransformationBuilder().set_text(" ").build());
     }
-    int prefix_to_delete =
+    number prefix_to_delete =
         buffer.line(line + 1).find_first_not_of(" ", prefix.size());
     buffer.ApplyTransformation(
         DeleteTransformationBuilder()
@@ -42,7 +42,7 @@ void FoldNextLineWhilePrefixIs(Buffer buffer, string prefix) {
 }
 
 // Deletes length characters starting at start and breaks the line.
-void BreakAt(Buffer buffer, string prefix, int start, int length) {
+void BreakAt(Buffer buffer, string prefix, number start, number length) {
   buffer.ApplyTransformation(
       SetPositionTransformation(LineColumn(buffer.position().line(), start)));
   buffer.ApplyTransformation(
@@ -55,18 +55,18 @@ void BreakAt(Buffer buffer, string prefix, int start, int length) {
       InsertTransformationBuilder().set_text("\n" + prefix).build());
 }
 
-void BreakLine(Buffer buffer, string prefix, int line_width) {
+void BreakLine(Buffer buffer, string prefix, number line_width) {
   editor.SetStatus("Breaking line by line width: " + line_width.tostring());
   while (buffer.line(buffer.position().line()).size() > line_width) {
     string s = buffer.line(buffer.position().line());
 
     // The last space before line_width.
-    int last_space = s.find_last_of(" ", line_width);
+    number last_space = s.find_last_of(" ", line_width);
     if (last_space != -1 && last_space > prefix.size()) {
       // We were able to find a space after the prefix.
       //
       // Find the last non-space character preceeding it.
-      int last_char = s.find_last_not_of(" ", last_space);
+      number last_char = s.find_last_not_of(" ", last_space);
       if (last_char == -1) {
         editor.SetStatus("Giving up: couldn't find start of break.");
         return;
@@ -74,13 +74,13 @@ void BreakLine(Buffer buffer, string prefix, int line_width) {
       BreakAt(buffer, prefix, last_char + 1, last_space - last_char);
     } else {  // No space found after the prefix and before line_width.
       // Find the first non-space character after line_width.
-      int break_at =
+      number break_at =
           break_words ? line_width : s.find_first_of(" ", line_width);
       if (break_at == -1) {
         editor.SetStatus("We're done: No space remains.");
         return;
       }
-      int next_char = s.find_first_of(buffer.symbol_characters(), break_at);
+      number next_char = s.find_first_of(buffer.symbol_characters(), break_at);
       if (next_char == -1) {
         editor.SetStatus("We're done: Only spaces now.");
         return;

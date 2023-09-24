@@ -42,10 +42,11 @@ std::wstring GetMetadata(std::wstring line) {
   buffer.ptr()->editor().work_queue()->Execute();
 
   auto line_in_buffer = buffer.ptr()->LineAt(buffer.ptr()->EndLine());
-  auto metadata = line_in_buffer->metadata();
+  std::shared_ptr<language::lazy_string::LazyString> metadata =
+      line_in_buffer->metadata();
   auto output = metadata == nullptr ? L"" : metadata->ToString();
-  VLOG(5) << "GetMetadata output: " << line_in_buffer->ToString() << ": "
-          << output;
+  LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
+            << output << L"]";
   return output;
 }
 
@@ -55,7 +56,7 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"MetadataSimpleInt",
          .callback = [] { CHECK(GetMetadata(L"5") == L"5"); }},
         {.name = L"MetadataSimpleDouble",
-         .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.3"); }},
+         .callback = [] { CHECK(GetMetadata(L"2.3") == L"2.30000"); }},
         {.name = L"MetadataSimpleString",
          .callback = [] { CHECK(GetMetadata(L"\"xyz\"") == L"\"xyz\""); }},
         {.name = L"MetadataSimpleExpression",
@@ -63,7 +64,8 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"MetadataFunctionPure",
          .callback =
              [] {
-               CHECK(GetMetadata(L"[](int x) -> int { return x * 2; }(4)") ==
+               CHECK(GetMetadata(
+                         L"[](number x) -> number { return x * 2; }(4)") ==
                      L"8");
              }},
         {.name = L"MetadataReader",
@@ -73,16 +75,17 @@ const bool buffer_tests_registration = tests::Register(
          .callback =
              [] {
                CHECK(GetMetadata(L"buffer.SetStatus(\"xyz\"); 4") ==
-                     L"C++: \"int\"");
+                     L"C++: \"number\"");
              }},
         {.name = L"MetadataPurePow",
-         .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }},
+         .callback =
+             [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250.00000"); }},
         {.name = L"MetadataScientificNotation",
          .callback = [] { CHECK(GetMetadata(L"1e3") == L"1000"); }},
         {.name = L"MetadataScientificNotationPlus",
          .callback = [] { CHECK(GetMetadata(L"1e+3") == L"1000"); }},
         {.name = L"MetadataScientificNotationMinus",
-         .callback = [] { CHECK(GetMetadata(L"1e-3") == L"0.001"); }},
+         .callback = [] { CHECK(GetMetadata(L"1e-3") == L"0.00100"); }},
         {.name = L"MetadataIntToStringNormal",
          .callback = [] { CHECK(GetMetadata(L"(1).tostring()") == L"\"1\""); }},
         {.name = L"MetadataIntToStringRuntimeError",
@@ -125,9 +128,9 @@ const bool buffer_tests_registration = tests::Register(
 
                gc::Root<vm::Value> result = ValueOrDie(
                    buffer.ptr()
-                       ->EvaluateString(
-                           L"int F() { return \"foo\".find_last_of(\"o\", 3); }"
-                           L" F() == F();")
+                       ->EvaluateString(L"number F() { return "
+                                        L"\"foo\".find_last_of(\"o\", 3); }"
+                                        L" F() == F();")
                        .Get()
                        .value(),
                    L"tests");
@@ -140,7 +143,7 @@ const bool buffer_tests_registration = tests::Register(
                auto buffer = NewBufferForTests(editor.value());
                ValueOrError<gc::Root<vm::Value>> result =
                    buffer.ptr()
-                       ->EvaluateString(L"{ int v = 5; } v")
+                       ->EvaluateString(L"{ number v = 5; } v")
                        .Get()
                        .value();
                CHECK(IsError(result));
@@ -149,7 +152,7 @@ const bool buffer_tests_registration = tests::Register(
          .callback =
              [] {
                CHECK(GetMetadata(L"buffer.LineMetadataString(0)") ==
-                     L"\"2.5\"");
+                     L"\"2.50000\"");
              }},
         {.name = L"LineMetadataStringRuntimeError",
          .callback =
@@ -236,43 +239,43 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"true;"),
       callback(L"false;"),
       callback(L"(1 + 2 * 3 - 4) < 12 ? \"f\" : \"t\" * 2"),
-      callback(L"int x = 5;"),
-      callback(L"namespace Foo { int x = 12; } Foo::x + 4;"),
-      callback(L"int Foo(int x) { return x * 5 + 1; }; Foo(Foo(10));"),
+      callback(L"number x = 5;"),
+      callback(L"namespace Foo { number x = 12; } Foo::x + 4;"),
+      callback(L"number Foo(number x) { return x * 5 + 1; }; Foo(Foo(10));"),
       callback(L"// Some comment.\n"
                L"editor.SetVariablePrompt(\"blah\");"),
-      callback(L"int y = 0;\n"
-               L"void Foo(int x) { if (x > y) Foo(x - 1); }\n"
+      callback(L"number y = 0;\n"
+               L"void Foo(number x) { if (x > y) Foo(x - 1); }\n"
                L"Foo(10);"),
-      callback(L"int y = 0;\n"
-               L"void Foo(int x) { while (x > y) x--; }\n"
+      callback(L"number y = 0;\n"
+               L"void Foo(number x) { while (x > y) x--; }\n"
                L"Foo(10);"),
       callback(L"-5;"),
-      callback(L"string Foo(int x, double y, string z) { "
+      callback(L"string Foo(number x, number y, string z) { "
                L"while (x > y) x--; return z; }\n"
                L"Foo(10, 0.5, \"blah\");"),
       callback(L"string Foo() { string x = \"foo\"; return x; }"),
       callback(L"string x = \"foo\"; x = x + \"bar\" * 2;"),
-      callback(L"int x = 10; while (x > 10) x--;"),
-      callback(L"for (int i = 0; i < 5; i++) i;"),
+      callback(L"number x = 10; while (x > 10) x--;"),
+      callback(L"for (number i = 0; i < 5; i++) i;"),
       callback(L"VectorLineColumn x = buffer.active_cursors();\n"
                L"x.push_back(LineColumn(0, 10));"
                L"buffer.set_active_cursors(x);"),
       callback(L"sleep(0.001);"),
-      callback(L"[](int x) -> int { return 0; }"),
+      callback(L"[](number x) -> number { return 0; }"),
       // TODO(medium, 2022-05-29): Figure out why the following test fails.
-      // callback(L"int foo = 5; double foo = 6; foo + 0.0;"),
+      // callback(L"number foo = 5; number foo = 6; foo + 0.0;"),
       // TODO(medium, 2022-05-29): Figure out why the following test fails.
       // Find a way to make it pass even when `screen` is correctly defined
       // (just not to a VmScreen type).
       // callback(L"screen.set_size(LineColumnDelta(1, 2));"),
       callback(L"{"
-               L"auto foo = [](int x) -> int { return x * 5; };"
+               L"auto foo = [](number x) -> number { return x * 5; };"
                L"foo(3) * 2;"
                L"\"text\" * 2;"
                L"foo((\"xyz\").size() + 1) - 5;"
-               L"int y = 0;"
-               L"for (int i = 0; i < 5; i++) { y += foo(i); }"
+               L"number y = 0;"
+               L"for (number i = 0; i < 5; i++) { y += foo(i); }"
                L"}"),
   });
 }());

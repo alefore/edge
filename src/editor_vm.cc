@@ -24,6 +24,8 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::Pointer;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::numbers::Number;
+using afc::language::numbers::ToInt;
 using afc::language::text::Line;
 
 namespace afc::vm {
@@ -75,7 +77,22 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
             }).ptr());
 }
 
-template <typename EdgeStruct, typename FieldValue>
+template <typename T>
+ValueOrError<T> FromVmValue(T t) {
+  return t;
+}
+
+ValueOrError<int> FromVmValue(Number number) { return ToInt(number); }
+
+template <typename T>
+T ToVmValue(T t) {
+  return t;
+}
+
+Number ToVmValue(int n) { return Number(n); }
+
+template <typename EdgeStruct, typename FieldValue,
+          typename FieldVmValue = FieldValue>
 void RegisterVariableFields(
     gc::Pool& pool, EdgeStruct* edge_struct, afc::vm::ObjectType& editor_type,
     const FieldValue& (EditorState::*reader)(const EdgeVariable<FieldValue>*)
@@ -91,18 +108,23 @@ void RegisterVariableFields(
         variable->name(),
         vm::NewCallback(pool, PurityType::kReader,
                         [reader, variable](EditorState& editor) {
-                          return (editor.*reader)(variable);
+                          return ToVmValue((editor.*reader)(variable));
                         })
             .ptr());
 
     // Setter.
-    editor_type.AddField(L"set_" + variable->name(),
-                         vm::NewCallback(pool, PurityType::kUnknown,
-                                         [variable, setter](EditorState& editor,
-                                                            FieldValue value) {
-                                           (editor.*setter)(variable, value);
-                                         })
-                             .ptr());
+    editor_type.AddField(
+        L"set_" + variable->name(),
+        vm::NewCallback(
+            pool, PurityType::kUnknown,
+            [variable, setter](EditorState& editor, FieldVmValue value)
+                -> futures::Value<PossibleError> {
+              FUTURES_ASSIGN_OR_RETURN(auto processed_value,
+                                       FromVmValue(value));
+              (editor.*setter)(variable, processed_value);
+              return futures::Past(Success());
+            })
+            .ptr());
   }
 }
 }  // namespace
@@ -138,7 +160,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       pool, editor_variables::StringStruct(), editor_type.ptr().value(),
       &EditorState::Read, &EditorState::Set);
 
-  RegisterVariableFields<EdgeStruct<int>, int>(
+  RegisterVariableFields<EdgeStruct<int>, int, Number>(
       pool, editor_variables::IntStruct(), editor_type.ptr().value(),
       &EditorState::Read, &EditorState::Set);
 
@@ -184,7 +206,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
       vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
         auto value_arg = static_cast<int>(editor_arg.repetitions().value_or(1));
         editor_arg.ResetRepetitions();
-        return value_arg;
+        return Number(value_arg);
       }).ptr());
 
   // Define one version for pure functions and one for non-pure, and adjust the
@@ -278,6 +300,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
           pool, PurityType::kUnknown,
           [](EditorState& editor_arg,
              std::wstring path_str) -> futures::ValueOrError<EmptyValue> {
+            // TODO(trivial, 2023-09-23): Add a VMTypeMapper for Path?
             FUTURES_ASSIGN_OR_RETURN(
                 Path target_path,
                 editor_arg.status().LogErrors(AugmentErrors(

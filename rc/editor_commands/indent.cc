@@ -6,17 +6,17 @@
 // actually begins.
 
 // Return the position (column) at which the prefix of the current line ends.
-int GetBeginningOfCurrentLine(Buffer buffer) {
+number GetBeginningOfCurrentLine(Buffer buffer) {
   string line = buffer.line(buffer.position().line());
-  int column = line.find_first_not_of(buffer.line_prefix_characters(), 0);
+  number column = line.find_first_not_of(buffer.line_prefix_characters(), 0);
   return column == -1 ? line.size() : column;
 }
 
 void InsertSpacesAtBeginningOfLine(Buffer buffer) {
-  int line = buffer.position().line();
+  number line = buffer.position().line();
 
-  int desired_column = buffer.position().column();
-  int start_column = GetBeginningOfCurrentLine(buffer);
+  number desired_column = buffer.position().column();
+  number start_column = GetBeginningOfCurrentLine(buffer);
 
   buffer.ApplyTransformation(SetColumnTransformation(0));
 

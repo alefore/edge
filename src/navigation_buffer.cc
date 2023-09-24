@@ -15,28 +15,31 @@
 #include "src/line_prompt_mode.h"
 #include "src/parse_tree.h"
 
-namespace afc::editor {
-using language::MakeNonNullUnique;
-using language::NonNull;
-namespace {
-using infrastructure::Path;
-using language::Error;
-using language::MakeNonNullShared;
-using language::PossibleError;
-using language::Success;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::EmptyString;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
-using language::text::OutgoingLink;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::infrastructure::Path;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::numbers::Number;
+using afc::language::numbers::ToSizeT;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::MutableLineSequence;
+using afc::language::text::OutgoingLink;
+
+namespace afc::editor {
+namespace {
 
 const std::wstring kDepthSymbol = L"navigation_buffer_depth";
 
@@ -129,11 +132,13 @@ futures::Value<PossibleError> GenerateContents(
   target.AppendToLastLine(
       NewLazyString(source->ptr()->Read(buffer_variables::name)));
   static const vm::Namespace kEmptyNamespace;
-  std::optional<gc::Root<vm::Value>> depth_value = target.environment()->Lookup(
-      editor_state.gc_pool(), kEmptyNamespace, kDepthSymbol, vm::types::Int{});
-  int depth = depth_value.has_value()
-                  ? size_t(std::max(0, depth_value.value().ptr()->get_int()))
-                  : 3;
+  size_t depth = 3ul;
+  if (std::optional<gc::Root<vm::Value>> depth_value =
+          target.environment()->Lookup(editor_state.gc_pool(), kEmptyNamespace,
+                                       kDepthSymbol, vm::types::Number{});
+      depth_value.has_value()) {
+    FUTURES_ASSIGN_OR_RETURN(depth, ToSizeT(depth_value->ptr()->get_number()));
+  }
   DisplayTree(source->ptr().value(), depth, tree.value(), EmptyString(),
               target);
   return futures::Past(Success());
@@ -174,7 +179,8 @@ class NavigationBufferCommand : public Command {
           buffer.Set(buffer_variables::push_positions_to_history, false);
           buffer.Set(buffer_variables::allow_dirty_delete, true);
           buffer.environment()->Define(
-              kDepthSymbol, vm::Value::NewInt(editor_state_.gc_pool(), 3));
+              kDepthSymbol,
+              vm::Value::NewNumber(editor_state_.gc_pool(), Number{3}));
           buffer.Set(buffer_variables::reload_on_enter, true);
           editor_state_.StartHandlingInterrupts();
           editor_state_.AddBuffer(buffer_root,

@@ -1,23 +1,16 @@
 // Various functions for handling numbers.
 
-int max(int a, int b) { return a >= b ? a : b; }
-double max(double a, double b) { return a >= b ? a : b; }
-double max(int a, double b) { return a >= b ? a + 0.0 : b; }
-double max(double a, int b) { return a >= b ? a : b + 0.0; }
+number max(number a, number b) { return a >= b ? a : b; }
 
-int min(int a, int b) { return a <= b ? a : b; }
-double min(double a, double b) { return a <= b ? a : b; }
-double min(int a, double b) { return a <= b ? a + 0.0 : b; }
-double min(double a, int b) { return a <= b ? a : b + 0.0; }
+number min(number a, number b) { return a <= b ? a : b; }
 
-int abs(int a) { return a < 0 ? -a : a; }
-double abs(double a) { return a < 0 ? -a : a; }
+number abs(number a) { return a < 0 ? -a : a; }
 
 string IntegerAsString(Buffer buffer, LineColumn position) {
   string line = buffer.line(position.line());
   line = line.substr(position.column(), line.size() - position.column());
   string numbers = "-0123456789";
-  int i = 0;
+  number i = 0;
   while (i < line.size() && numbers.find(line.substr(i, 1), 0) != -1) {
     numbers = "0123456789";  // Disallow "-".
     i++;
@@ -30,7 +23,7 @@ string number_characters = "-0123456789";
 LineColumn FindNextNumber(Buffer buffer, LineColumn position) {
   while (true) {
     string line = buffer.line(position.line());
-    int column = line.find_first_of(number_characters, position.column());
+    number column = line.find_first_of(number_characters, position.column());
     if (column != -1) {
       return LineColumn(position.line(), column);
     }
@@ -53,7 +46,7 @@ LineColumn ScrollBackToFirstPositionInNumber(Buffer buffer,
 }
 
 TransformationOutput AddToIntegerTransformationCallback(
-    Buffer buffer, int delta, TransformationInput input) {
+    Buffer buffer, number delta, TransformationInput input) {
   auto position = ScrollBackToFirstPositionInNumber(
       buffer, FindNextNumber(buffer, input.position()));
   string integer_str = IntegerAsString(buffer, position);
@@ -68,7 +61,7 @@ TransformationOutput AddToIntegerTransformationCallback(
       .push(SetPositionTransformation(position));
 }
 
-void AddToIntegerTransformation(Buffer buffer, int delta) {
+void AddToIntegerTransformation(Buffer buffer, number delta) {
   buffer.ApplyTransformation(FunctionTransformation(
       [](TransformationInput input) -> TransformationOutput {
         return AddToIntegerTransformationCallback(buffer, delta, input);

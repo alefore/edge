@@ -6,6 +6,7 @@
 #include "../public/vm.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
+#include "src/language/numbers.h"
 
 namespace afc {
 namespace vm {
@@ -48,9 +49,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
     std::unique_ptr<Expression> b,
     std::function<language::ValueOrError<wstring>(wstring, wstring)>
         str_operator,
-    std::function<language::ValueOrError<int>(int, int)> int_operator,
-    std::function<language::ValueOrError<double>(double, double)>
-        double_operator,
+    std::function<language::ValueOrError<language::numbers::Number>(
+        language::numbers::NumberPtr, language::numbers::NumberPtr)>
+        number_operator,
     std::function<language::ValueOrError<wstring>(wstring, int)>
         str_int_operator);
 

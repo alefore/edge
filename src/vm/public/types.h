@@ -44,26 +44,25 @@ PurityType CombinePurityType(PurityType a, PurityType b);
 namespace types {
 struct Void {};
 struct Bool {};
-struct Int {};
+struct Number {};
 struct String {};
 struct Symbol {};
-struct Double {};
 GHOST_TYPE(ObjectName, std::wstring);
 
 // Function depends on `Type`, so we only forward declare it here.
 struct Function;
 bool operator==(const Void&, const Void&);
 bool operator==(const Bool&, const Bool&);
-bool operator==(const Int&, const Int&);
+bool operator==(const Number&, const Number&);
 bool operator==(const String&, const String&);
 bool operator==(const Symbol&, const Symbol&);
-bool operator==(const Double&, const Double&);
+bool operator==(const Number&, const Number&);
 bool operator==(const Function&, const Function&);
 }  // namespace types
 
-using Type = std::variant<types::Void, types::Bool, types::Int, types::String,
-                          types::Symbol, types::Double, types::ObjectName,
-                          types::Function>;
+using Type =
+    std::variant<types::Void, types::Bool, types::Number, types::String,
+                 types::Symbol, types::ObjectName, types::Function>;
 
 namespace types {
 // Simple wrapper around NonNull<unique_ptr<>> that copies values.

@@ -28,6 +28,7 @@
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
+// TODO(trivial, 2023-09-22): Get rid of the `using` declarations.
 namespace gc = afc::language::gc;
 
 using afc::language::EmptyValue;
@@ -56,8 +57,13 @@ struct Traits<std::vector<ValueType>> : public TraitsBase {
   }
 
   static constexpr bool has_erase_by_index = true;
-  static void EraseByIndex(ContainerPtr v, int index) {
+  static futures::ValueOrError<EmptyValue> EraseByIndex(
+      ContainerPtr v, language::numbers::Number index_number) {
+    // TODO(easy, 2023-09-22): Use `ToSizeT` rather than `ToInt`.
+    FUTURES_ASSIGN_OR_RETURN(size_t index,
+                             language::numbers::ToSizeT(index_number));
     v->erase(v->begin() + index);
+    return futures::Past(Success());
   }
 
   static constexpr bool has_push_back = true;
@@ -117,22 +123,21 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                   return c->empty();
                 }).ptr());
   object_type.ptr()->AddField(
-      L"size",
-      vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr v) -> int {
-        return v->size();
-      }).ptr());
+      L"size", vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr v) {
+                 return afc::language::numbers::FromSizeT(v->size());
+               }).ptr());
   object_type.ptr()->AddField(
       L"get",
       Value::NewFunction(
           pool, PurityType::kPure,
           GetVMType<typename Container::value_type>::vmtype(),
-          {vmtype, types::Int{}},
+          {vmtype, types::Number{}},
           [object_type_name](std::vector<language::gc::Root<Value>> args,
                              Trampoline& trampoline)
               -> futures::ValueOrError<EvaluationOutput> {
             CHECK_EQ(args.size(), 2ul);
             auto v = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
-            int index = args[1].ptr()->get_int();
+            FUTURES_ASSIGN_OR_RETURN(int index, args[1].ptr()->get_int());
             if (index < 0 || static_cast<size_t>(index) >= v->size()) {
               return futures::Past(language::Error(
                   object_type_name.read() + L": Index out of range " +
@@ -150,7 +155,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
         L"set",
         Value::NewFunction(
             pool, PurityType::kPure, types::Void{},
-            {vmtype, types::Int{},
+            {vmtype, types::Number{},
              GetVMType<typename Container::value_type>::vmtype()},
             [object_type_name](std::vector<language::gc::Root<Value>> args,
                                Trampoline& trampoline)
@@ -158,16 +163,23 @@ void Export(language::gc::Pool& pool, Environment& environment) {
               CHECK_EQ(args.size(), 3ul);
               ContainerPtr v =
                   VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
-              int index = args[1].ptr()->get_int();
+              FUTURES_ASSIGN_OR_RETURN(int index, args[1].ptr()->get_int());
               if (index < 0 || static_cast<size_t>(index) >= v->size()) {
                 return futures::Past(language::Error(
                     object_type_name.read() + L": Index out of range " +
                     std::to_wstring(index) + L" (size: " +
                     std::to_wstring(v->size()) + L")"));
               }
-              T::SetAtIndex(v, index,
-                            VMTypeMapper<typename Container::value_type>::get(
-                                args[2].ptr().value()));
+              auto value = VMTypeMapper<typename Container::value_type>::get(
+                  args[2].ptr().value());
+              if constexpr (afc::language::IsValueOrError<
+                                decltype(value)>::value) {
+                if (language::IsError(value))
+                  return futures::Past(std::get<language::Error>(value));
+                T::SetAtIndex(v, index, ValueOrDie(value));
+              } else {
+                T::SetAtIndex(v, index, value);
+              }
               return futures::Past(language::Success(
                   EvaluationOutput::New(Value::NewVoid(trampoline.pool()))));
             })

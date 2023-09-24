@@ -1,9 +1,14 @@
 #include "src/vm/internal/negate_expression.h"
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/numbers.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
+
+using afc::language::MakeNonNullShared;
+using afc::language::numbers::Negation;
+using afc::language::numbers::Number;
 
 namespace afc::vm {
 namespace {
@@ -70,24 +75,16 @@ std::unique_ptr<Expression> NewNegateExpressionBool(
       types::Bool{});
 }
 
-std::unique_ptr<Expression> NewNegateExpressionInt(
+std::unique_ptr<Expression> NewNegateExpressionNumber(
     Compilation& compilation, std::unique_ptr<Expression> expr) {
   return NewNegateExpression(
       compilation, std::move(expr),
       [](gc::Pool& pool, Value& value) {
-        return Value::NewInt(pool, -value.get_int());
+        return Value::NewNumber(
+            pool,
+            Number(Negation{MakeNonNullShared<Number>(value.get_number())}));
       },
-      types::Int{});
-}
-
-std::unique_ptr<Expression> NewNegateExpressionDouble(
-    Compilation& compilation, std::unique_ptr<Expression> expr) {
-  return NewNegateExpression(
-      compilation, std::move(expr),
-      [](gc::Pool& pool, Value& value) {
-        return Value::NewDouble(pool, -value.get_double());
-      },
-      types::Double{});
+      types::Number{});
 }
 
 }  // namespace afc::vm

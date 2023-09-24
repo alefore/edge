@@ -7,6 +7,12 @@
 #include "src/tests/tests.h"
 #include "src/vm/public/escape.h"
 
+using afc::language::numbers::Number;
+using afc::language::numbers::ToDouble;
+using afc::language::numbers::ToString;
+
+size_t constexpr kDefaultPrecision = 5ul;
+
 namespace afc::vm {
 using language::Error;
 using language::MakeNonNullUnique;
@@ -34,14 +40,8 @@ namespace gc = language::gc;
   return output;
 }
 
-/* static */ gc::Root<Value> Value::NewInt(gc::Pool& pool, int value) {
-  gc::Root<Value> output = New(pool, types::Int{});
-  output.ptr()->value_ = value;
-  return output;
-}
-
-/* static */ gc::Root<Value> Value::NewDouble(gc::Pool& pool, double value) {
-  gc::Root<Value> output = New(pool, types::Double{});
+/* static */ gc::Root<Value> Value::NewNumber(gc::Pool& pool, Number value) {
+  gc::Root<Value> output = New(pool, types::Number{});
   output.ptr()->value_ = value;
   return output;
 }
@@ -97,9 +97,8 @@ namespace gc = language::gc;
 
 bool Value::IsVoid() const { return std::holds_alternative<types::Void>(type); }
 bool Value::IsBool() const { return std::holds_alternative<types::Bool>(type); }
-bool Value::IsInt() const { return std::holds_alternative<types::Int>(type); }
-bool Value::IsDouble() const {
-  return std::holds_alternative<types::Double>(type);
+bool Value::IsNumber() const {
+  return std::holds_alternative<types::Number>(type);
 }
 bool Value::IsString() const {
   return std::holds_alternative<types::String>(type);
@@ -119,14 +118,13 @@ bool Value::get_bool() const {
   return std::get<bool>(value_);
 }
 
-int Value::get_int() const {
-  CHECK(IsInt());
-  return std::get<int>(value_);
+language::ValueOrError<int> Value::get_int() const {
+  return language::numbers::ToInt(get_number());
 }
 
-double Value::get_double() const {
-  CHECK(IsDouble());
-  return std::get<double>(value_);
+const language::numbers::Number& Value::get_number() const {
+  CHECK(IsNumber());
+  return std::get<Number>(value_);
 }
 
 // TODO(easy, 2022-06-10): Embrace LazyString.
@@ -165,17 +163,14 @@ ValueOrError<double> Value::ToDouble() const {
                [](const types::Bool&) -> ValueOrError<double> {
                  return Error(L"Unable to convert to double: bool");
                },
-               [&](const types::Int&) -> ValueOrError<double> {
-                 return Success(static_cast<double>(get_int()));
+               [&](const types::Number&) -> ValueOrError<double> {
+                 return afc::language::numbers::ToDouble(get_number());
                },
                [&](const types::String&) -> ValueOrError<double> {
                  return Error(L"Unable to convert to double: string");
                },
                [&](const types::Symbol&) -> ValueOrError<double> {
                  return Error(L"Unable to convert to double: symbol");
-               },
-               [&](const types::Double&) -> ValueOrError<double> {
-                 return Success(get_double());
                },
                [&](const types::ObjectName& object) -> ValueOrError<double> {
                  return Error(L"Unable to convert to double: " + object.read());
@@ -201,14 +196,17 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                [&](const types::Bool&) {
                  os << (value.get_bool() ? L"true" : L"false");
                },
-               [&](const types::Int&) { os << value.get_int(); },
+               [&](const types::Number&) {
+                 std::visit(overload{[&](std::wstring str) { os << str; },
+                                     [&](Error error) { os << error; }},
+                            ToString(value.get_number(), kDefaultPrecision));
+               },
                [&](const types::String&) {
                  os << EscapedString::FromString(
                            NewLazyString(value.get_string()))
                            .CppRepresentation();
                },
                [&](const types::Symbol&) { os << ToString(value.type); },
-               [&](const types::Double&) { os << value.get_double(); },
                [&](const types::ObjectName&) { os << ToString(value.type); },
                [&](const types::Function&) { os << ToString(value.type); }},
       value.type);

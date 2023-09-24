@@ -63,7 +63,7 @@ hg_sub_commands.insert("uploadchain");
 
 string GetSubCommand(string command) {
   command = SkipInitialSpaces(command);
-  int space = command.find_first_of(" ", 0);
+  number space = command.find_first_of(" ", 0);
   if (space == -1) {
     return "";
   }

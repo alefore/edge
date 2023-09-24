@@ -10,6 +10,9 @@
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 
+using afc::language::numbers::Number;
+using afc::language::numbers::ToInt;
+
 namespace afc ::editor {
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
@@ -18,8 +21,8 @@ using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
 
-NonNull<std::shared_ptr<std::vector<std::wstring>>> Justify(
-    NonNull<std::shared_ptr<std::vector<std::wstring>>> input, int width) {
+futures::ValueOrError<NonNull<std::shared_ptr<std::vector<std::wstring>>>>
+Justify(NonNull<std::shared_ptr<std::vector<std::wstring>>> input, int width) {
   LOG(INFO) << "Evaluating breaks with inputs: " << input->size();
 
   // Push back a dummy string for the end. This is the goal of our graph search.
@@ -63,7 +66,7 @@ NonNull<std::shared_ptr<std::vector<std::wstring>>> Justify(
   }
   LOG(INFO) << "Returning breaks: " << output->size() << ", cost "
             << std::get<0>(options.back());
-  return output;
+  return futures::Past(Success(output));
 }
 
 // output_right contains LineColumn(i, j) if there's a line cross into

@@ -17,23 +17,33 @@ GHOST_TYPE_CONTAINER(Digits, std::vector<size_t>);
 
 struct Decimal {
   bool positive = true;
+  bool exact = true;
   Digits digits;
 };
 
 std::wstring ToString(const Decimal& decimal, size_t decimal_digits) {
   std::wstring output;
   if (!decimal.positive) output.push_back(L'-');
+  bool has_dot = false;
   if (decimal_digits >= decimal.digits.size()) {
     output.push_back(L'0');
     if (decimal_digits > decimal.digits.size()) {
       output.push_back(L'.');
+      has_dot = true;
       for (size_t i = 0; i < decimal_digits - decimal.digits.size(); ++i)
         output.push_back(L'0');
     }
   }
   for (size_t i = 0; i < decimal.digits.size(); i++) {
-    if (i == decimal.digits.size() - decimal_digits) output.push_back(L'.');
+    if (i == decimal.digits.size() - decimal_digits) {
+      has_dot = true;
+      output.push_back(L'.');
+    }
     output.push_back(L'0' + decimal.digits[decimal.digits.size() - 1 - i]);
+  }
+  if (decimal.exact && has_dot) {
+    while (!output.empty() && output.back() == L'0') output.pop_back();
+    if (!output.empty() && output.back() == L'.') output.pop_back();
   }
   return output;
 }
@@ -43,7 +53,7 @@ Digits RemoveSignificantZeros(Digits value) {
   return value;
 }
 
-Decimal AsDecimalBase(int value, size_t decimal_digits) {
+Decimal ToDecimalBase(int value, size_t decimal_digits) {
   LOG(INFO) << "Representing int: " << value;
   Decimal output{.positive = value >= 0,
                  .digits = {Digits(std::vector<size_t>(decimal_digits, 0))}};
@@ -106,6 +116,7 @@ bool operator>(const Digits& a, const Digits& b) {
   return false;
 }
 
+bool operator<(const Digits& a, const Digits& b) { return b > a; }
 bool operator>=(const Digits& a, const Digits& b) { return a > b || a == b; }
 bool operator<=(const Digits& a, const Digits& b) { return b >= a; }
 
@@ -155,6 +166,16 @@ Digits operator*(const Digits& a, const Digits& b) {
   return RemoveSignificantZeros(std::move(result));
 }
 
+bool operator==(const Decimal& a, const Decimal& b) {
+  return a.positive == b.positive && a.digits == b.digits;
+}
+
+bool operator<(const Decimal& a, const Decimal& b) {
+  if (a.positive && !b.positive) return false;
+  if (!a.positive && b.positive) return true;
+  return (a.positive && b.positive) ? a.digits < b.digits : b.digits < a.digits;
+}
+
 ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
                                   size_t extra_precision) {
   LOG(INFO) << "Dividing: " << divisor.size();
@@ -174,107 +195,120 @@ ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
   return RemoveSignificantZeros(quotient);
 }
 
-ValueOrError<Decimal> AsDecimal(const Number& number, size_t decimal_digits);
+ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits);
 
-ValueOrError<Decimal> AsDecimalBase(Addition value, size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal a, AsDecimal(value.a.value(), decimal_digits + 1));
-  ASSIGN_OR_RETURN(Decimal b, AsDecimal(value.b.value(), decimal_digits + 1));
+ValueOrError<Decimal> ToDecimalBase(Addition value, size_t decimal_digits) {
+  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a.value(), decimal_digits + 1));
+  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b.value(), decimal_digits + 1));
   if (a.positive == b.positive)
     return Decimal{.positive = a.positive,
+                   .exact = a.exact && b.exact,
                    .digits = RemoveDecimals(a.digits + b.digits, 1)};
   else if (a.digits > b.digits)
     return Decimal{.positive = a.positive,
+                   .exact = a.exact && b.exact,
                    .digits = RemoveDecimals(a.digits - b.digits, 1)};
   else
     return Decimal{.positive = b.positive,
+                   .exact = a.exact && b.exact,
                    .digits = RemoveDecimals(b.digits - a.digits, 1)};
 }
 
-ValueOrError<Decimal> AsDecimalBase(Multiplication value,
+ValueOrError<Decimal> ToDecimalBase(Negation value, size_t decimal_digits) {
+  ASSIGN_OR_RETURN(Decimal output, ToDecimal(value.a.value(), decimal_digits));
+  output.positive = !output.positive;
+  return output;
+}
+
+ValueOrError<Decimal> ToDecimalBase(Multiplication value,
                                     size_t decimal_digits) {
   // TODO(2023-09-21): This can be optimized to compute fewer decimal digits
   // in the recursions.
-  ASSIGN_OR_RETURN(Decimal a, AsDecimal(value.a.value(), decimal_digits));
-  ASSIGN_OR_RETURN(Decimal b, AsDecimal(value.b.value(), decimal_digits));
+  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a.value(), decimal_digits));
+  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b.value(), decimal_digits));
   return Decimal{.positive = a.positive == b.positive,
+                 .exact = a.exact && b.exact,
                  .digits = RemoveDecimals(a.digits * b.digits, decimal_digits)};
 }
 
-ValueOrError<Decimal> AsDecimalBase(Division value, size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal a, AsDecimal(value.a.value(), decimal_digits));
-  ASSIGN_OR_RETURN(Decimal b, AsDecimal(value.b.value(), decimal_digits));
+ValueOrError<Decimal> ToDecimalBase(Division value, size_t decimal_digits) {
+  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a.value(), decimal_digits));
+  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b.value(), decimal_digits));
   ASSIGN_OR_RETURN(Digits output,
                    DivideDigits(a.digits, b.digits, decimal_digits));
+  // TODO(2023-09-23, numbers): Compute `exact`? If both are exact, check that
+  // one is an exact multiple of the other?
   return Decimal{.positive = a.positive == b.positive,
+                 .exact = false,
                  .digits = std::move(output)};
 }
 
-ValueOrError<Decimal> AsDecimal(const Number& number, size_t decimal_digits) {
+ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits) {
   return std::visit(
       [decimal_digits](const auto& value) -> ValueOrError<Decimal> {
-        return AsDecimalBase(value, decimal_digits);
+        return ToDecimalBase(value, decimal_digits);
       },
       number);
 }
 
 const bool as_decimal_tests_registration =
-    tests::Register(L"numbers::AsDecimal", [] {
+    tests::Register(L"numbers::ToDecimal", [] {
       auto test = [](Number number, std::wstring expectation) {
         return tests::Test(
             {.name = expectation, .callback = [=] {
                std::wstring str = std::visit(
                    overload{[](Error error) { return error.read(); },
                             [](Decimal d) { return ToString(d, 2); }},
-                   AsDecimal(number, 2));
+                   ToDecimal(number, 2));
                LOG(INFO) << "Representation: " << str;
                CHECK(str == expectation);
              }});
       };
       return std::vector(
-          {test(45, L"45.00"),
-           test(0, L"0.00"),
-           test(-328, L"-328.00"),
+          {test(45, L"45"),
+           test(0, L"0"),
+           test(-328, L"-328"),
            test(Addition{MakeNonNullShared<Number>(1),
                          MakeNonNullShared<Number>(0)},
-                L"1.00"),
+                L"1"),
            test(Addition{MakeNonNullShared<Number>(Number(7)),
                          MakeNonNullShared<Number>(5)},
-                L"12.00"),
+                L"12"),
            test(Addition{MakeNonNullShared<Number>(Number(7)),
                          MakeNonNullShared<Number>(-5)},
-                L"2.00"),
+                L"2"),
            test(Addition{MakeNonNullShared<Number>(Number(7)),
                          MakeNonNullShared<Number>(-30)},
-                L"-23.00"),
+                L"-23"),
            test(Addition{MakeNonNullShared<Number>(Number(-7)),
                          MakeNonNullShared<Number>(-30)},
-                L"-37.00"),
+                L"-37"),
            test(Addition{MakeNonNullShared<Number>(Number(-100)),
                          MakeNonNullShared<Number>(30)},
-                L"-70.00"),
+                L"-70"),
            test(Addition{MakeNonNullShared<Number>(2147483647),
                          MakeNonNullShared<Number>(2147483647)},
-                L"4294967294.00"),
+                L"4294967294"),
            test(Multiplication{MakeNonNullShared<Number>(1),
                                MakeNonNullShared<Number>(10)},
-                L"10.00"),
+                L"10"),
            test(Multiplication{MakeNonNullShared<Number>(-2),
                                MakeNonNullShared<Number>(25)},
-                L"-50.00"),
+                L"-50"),
            test(Multiplication{MakeNonNullShared<Number>(-1),
                                MakeNonNullShared<Number>(-35)},
-                L"35.00"),
+                L"35"),
            test(Multiplication{MakeNonNullShared<Number>(11),
                                MakeNonNullShared<Number>(12)},
-                L"132.00"),
+                L"132"),
            test(Multiplication{MakeNonNullShared<Number>(-1),
                                MakeNonNullShared<Number>(
                                    Addition{MakeNonNullShared<Number>(2),
                                             MakeNonNullShared<Number>(3)})},
-                L"-5.00"),
+                L"-5"),
            test(Multiplication{MakeNonNullShared<Number>(2147483647),
                                MakeNonNullShared<Number>(2147483647)},
-                L"4611686014132420609.00"),
+                L"4611686014132420609"),
            test(Addition{MakeNonNullShared<Number>(Multiplication{
                              MakeNonNullShared<Number>(2147483647),
                              MakeNonNullShared<Number>(2147483647)}),
@@ -310,7 +344,85 @@ const bool as_decimal_tests_registration =
 
 ValueOrError<std::wstring> ToString(const Number& number,
                                     size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal decimal, AsDecimal(number, decimal_digits));
+  ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, decimal_digits));
   return ToString(decimal, decimal_digits);
 }
+
+ValueOrError<int> ToInt(const Number& number) {
+  ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, 0));
+  if (!decimal.exact)
+    return Error(L"Inexact numbers can't be represented as integer.");
+  // TODO(P1, 2023-09-23): Check bounds and fail if the number is too large or
+  // small.
+  int value = 0;
+  for (int digit : decimal.digits | std::views::reverse)
+    value = value * 10 + (decimal.positive ? 1 : -1) * digit;
+  return value;
+}
+
+ValueOrError<double> ToDouble(const Number& number) {
+  static constexpr size_t kDefaultPrecision = 6;
+  static constexpr double kFinalDivision = 10e5;
+
+  ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, kDefaultPrecision));
+  double value = 0;
+  for (int digit : decimal.digits | std::views::reverse)
+    value = value * 10 + (decimal.positive ? 1 : -1) * digit;
+  return value / kFinalDivision;
+}
+
+Number FromDouble(double value) {
+  static constexpr int kFinalDivision = 10e5;
+  return Division{
+      MakeNonNullShared<Number>(static_cast<int>(value * kFinalDivision)),
+      MakeNonNullShared<Number>(kFinalDivision)};
+}
+
+namespace {
+const bool double_tests_registration = tests::Register(
+    L"numbers::Double",
+    {{.name = L"FromDouble",
+      .callback =
+          [] { CHECK(ValueOrDie(ToString(FromDouble(5.0), 2)) == L"5.00"); }},
+     {.name = L"ToDouble",
+      .callback =
+          [] { CHECK_NEAR(ValueOrDie(ToDouble(Number(5))), 5.0, 0.00001); }},
+     {.name = L"5", .callback = [] {
+        CHECK_NEAR(ValueOrDie(ToDouble(FromDouble(5))), 5.0, 0.00001);
+      }}});
+}
+
+Number FromSizeT(size_t value) {
+  // TODO(P1, 2023-09-23): Detect and handle overflows.
+  return Number{static_cast<int>(value)};
+}
+
+ValueOrError<size_t> ToSizeT(const Number& number) {
+  // TODO(P1, 2023-09-23): Handle overflows.
+  ASSIGN_OR_RETURN(int value_int, ToInt(number));
+  if (value_int < 0)
+    return Error(L"Negative numbers can't be represented as size_t.");
+  return static_cast<size_t>(value_int);
+}
+
+ValueOrError<bool> IsEqual(const Number& a, const Number& b, size_t precision) {
+  ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
+  ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
+  return a_decimal == b_decimal;
+}
+
+ValueOrError<bool> IsLessThan(const Number& a, const Number& b,
+                              size_t precision) {
+  ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
+  ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
+  return a_decimal < b_decimal;
+}
+
+ValueOrError<bool> IsLessThanOrEqual(const Number& a, const Number& b,
+                                     size_t precision) {
+  ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
+  ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
+  return a_decimal < b_decimal || a_decimal == b_decimal;
+}
+
 };  // namespace afc::language::numbers

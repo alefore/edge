@@ -27,7 +27,7 @@ void build() {
 
 TransformationOutput StdMoveTransformation(TransformationInput input,
                                            string text_to_insert,
-                                           int delta_from_end) {
+                                           number delta_from_end) {
   return TransformationOutput()
       .push(InsertTransformationBuilder().set_text(text_to_insert).build())
       .push(SetColumnTransformation(input.position().column() +
@@ -35,7 +35,7 @@ TransformationOutput StdMoveTransformation(TransformationInput input,
 }
 
 void RegisterSimpleCppBinding(string keys, string text_to_insert,
-                              int delta_from_end) {
+                              number delta_from_end) {
   buffer.AddBinding(keys, "C++: Insert `" + text_to_insert + "`", []() -> void {
     buffer.ApplyTransformation(FunctionTransformation(
         [](TransformationInput input) -> TransformationOutput {

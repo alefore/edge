@@ -1,9 +1,9 @@
 string SubstituteComponent(string path) {
-  int last_slash = path.find_last_of("/", path.size());
+  number last_slash = path.find_last_of("/", path.size());
   if (last_slash <= 0) {
     return path;
   }
-  int second_to_last_slash = path.find_last_of("/", last_slash - 1);
+  number second_to_last_slash = path.find_last_of("/", last_slash - 1);
   if (second_to_last_slash == -1) {
     return path;
   }
@@ -21,7 +21,7 @@ string SubstituteComponent(string path) {
   return path;
 }
 
-void LoadFileWithExtension(string old_path, int dot, string extension) {
+void LoadFileWithExtension(string old_path, number dot, string extension) {
   string new_path = old_path.substr(0, dot + 1) + extension;
   editor.OpenFile(SubstituteComponent(new_path), true);
   editor.SetStatus(new_path);
@@ -29,7 +29,7 @@ void LoadFileWithExtension(string old_path, int dot, string extension) {
 
 void ShowHeader(Buffer buffer) {
   string path = buffer.path();
-  int dot = path.find_last_of(".", path.size());
+  number dot = path.find_last_of(".", path.size());
   if (dot == -1) {
     editor.SetStatus("Unable to extract extension: " + path);
   } else {

@@ -10,6 +10,7 @@
 
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
+#include "src/language/numbers.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/vm.h"
 
@@ -37,9 +38,8 @@ class Value {
   static language::gc::Root<Value> NewVoid(language::gc::Pool& pool);
   static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
                                            bool value);
-  static language::gc::Root<Value> NewInt(language::gc::Pool& pool, int value);
-  static language::gc::Root<Value> NewDouble(language::gc::Pool& pool,
-                                             double value);
+  static language::gc::Root<Value> NewNumber(language::gc::Pool& pool,
+                                             language::numbers::Number value);
   static language::gc::Root<Value> NewString(language::gc::Pool& pool,
                                              std::wstring value);
   static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
@@ -69,8 +69,7 @@ class Value {
 
   bool IsVoid() const;
   bool IsBool() const;
-  bool IsInt() const;
-  bool IsDouble() const;
+  bool IsNumber() const;
   bool IsString() const;
   bool IsSymbol() const;
   bool IsFunction() const;
@@ -79,8 +78,8 @@ class Value {
   Type type;
 
   bool get_bool() const;
-  int get_int() const;
-  double get_double() const;
+  language::ValueOrError<int> get_int() const;
+  const language::numbers::Number& get_number() const;
   const std::wstring& get_string() const;
   const std::wstring& get_symbol() const;
 
@@ -119,8 +118,8 @@ class Value {
   struct ObjectInstance {
     language::NonNull<std::shared_ptr<void>> value;
   };
-  std::variant<bool, int, double, std::wstring, Symbol, ObjectInstance,
-               Callback>
+  std::variant<bool, language::numbers::Number, std::wstring, Symbol,
+               ObjectInstance, Callback>
       value_;
 
   ExpandCallback expand_callback;

@@ -52,10 +52,10 @@ void CenterScreenAroundCurrentLine(Buffer buffer) {
   // TODO(easy): Fix this. Requires defining `screen` in EditorState, which it
   // currently isn't. Or, alternatively, loading this file later than at
   // construction of EditorState. Ugh.
-  int size = 80;  // screen.lines();
-  size--;         // The status line doesn't count.
-  int line = buffer.position().line();
-  int start_line = line - size / 2;
+  number size = 80;  // screen.lines();
+  size--;            // The status line doesn't count.
+  number line = buffer.position().line();
+  number start_line = line - size / 2;
   if (start_line < 0) {
     buffer.SetStatus("Near beginning of file.");
     start_line = 0;
@@ -233,14 +233,14 @@ void HandleKeyboardControlU(Buffer buffer) {
   if (buffer.contents_type() == "path") {
     LineColumn position = buffer.position();
     string line = buffer.line(position.line());
-    int column = position.column();
+    number column = position.column();
     if (column > 1 && line.substr(column - 1, 1) == "/") {
       column--;
     }
     if (column == 0) {
       return;
     }
-    int last_slash = line.find_last_of("/", min(column - 1, line.size()));
+    number last_slash = line.find_last_of("/", min(column - 1, line.size()));
     if (last_slash == -1) {
       modifiers.set_line();
     } else {
@@ -260,8 +260,8 @@ editor.AddBinding(terminal_control_u, "Edit: Delete the current line",
                     editor.ForEachActiveBuffer(HandleKeyboardControlU);
                   });
 
-void IncrementNumber(int direction) {
-  int delta = direction * editor.pop_repetitions();
+void IncrementNumber(number direction) {
+  number delta = direction * editor.pop_repetitions();
   editor.ForEachActiveBuffer(
       [](Buffer buffer) -> void { AddToIntegerTransformation(buffer, delta); });
   return;

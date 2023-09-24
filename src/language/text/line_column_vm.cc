@@ -16,6 +16,8 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::numbers::Number;
+using afc::language::numbers::ToInt;
 
 namespace gc = afc::language::gc;
 
@@ -95,23 +97,21 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
       ObjectType::New(pool, VMTypeMapper<LineColumn>::object_type_name);
 
   // Methods for LineColumn.
-  environment.Define(L"LineColumn",
-                     NewCallback(pool, PurityType::kPure,
-                                 [](int line_number, int column_number) {
-                                   return LineColumn(
-                                       LineNumber(line_number),
-                                       ColumnNumber(column_number));
-                                 }));
+  environment.Define(
+      L"LineColumn",
+      NewCallback(pool, PurityType::kPure, [](int line, int column) {
+        return LineColumn(LineNumber(line), ColumnNumber(column));
+      }));
 
   line_column.ptr()->AddField(
       L"line", NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
-                 return static_cast<int>(line_column.line.read());
+                 return Number(static_cast<int>(line_column.line.read()));
                }).ptr());
 
   line_column.ptr()->AddField(
       L"column",
       NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
-        return static_cast<int>(line_column.column.read());
+        return Number(static_cast<int>(line_column.column.read()));
       }).ptr());
 
   line_column.ptr()->AddField(
@@ -129,25 +129,24 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
       ObjectType::New(pool, VMTypeMapper<LineColumnDelta>::object_type_name);
 
   // Methods for LineColumn.
-  environment.Define(L"LineColumnDelta",
-                     NewCallback(pool, PurityType::kPure,
-                                 [](int line_number, int column_number) {
-                                   return LineColumnDelta(
-                                       LineNumberDelta(line_number),
-                                       ColumnNumberDelta(column_number));
-                                 }));
+  environment.Define(
+      L"LineColumnDelta",
+      NewCallback(pool, PurityType::kPure, [](int line, int column) {
+        return LineColumnDelta(LineNumberDelta(line),
+                               ColumnNumberDelta(column));
+      }));
 
   line_column_delta.ptr()->AddField(
       L"line", NewCallback(pool, PurityType::kPure,
                            [](LineColumnDelta line_column_delta) {
-                             return line_column_delta.line.read();
+                             return Number{line_column_delta.line.read()};
                            })
                    .ptr());
 
   line_column_delta.ptr()->AddField(
       L"column", NewCallback(pool, PurityType::kPure,
                              [](LineColumnDelta line_column_delta) {
-                               return line_column_delta.column.read();
+                               return Number{line_column_delta.column.read()};
                              })
                      .ptr());
 

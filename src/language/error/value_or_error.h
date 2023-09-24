@@ -26,16 +26,22 @@ template <typename T>
 using ValueOrError = std::variant<T, Error>;
 
 template <typename T>
+bool IsError(const T&) {
+  return false;
+}
+
+template <typename T>
 bool IsError(const ValueOrError<T>& value) {
   return std::holds_alternative<Error>(value);
 }
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const ValueOrError<T>& p) {
-  std::visit(
-      overload{[&](const Error& error) { os << error; },
-               [&](const T& value) { os << "[Value: " << value << "]"; }},
-      p);
+  std::visit(overload{[&](const Error& error) { os << error; },
+                      [&](const T& value) {
+                        os << "[ValueOrError::Value: " << value << "]";
+                      }},
+             p);
   return os;
 }
 

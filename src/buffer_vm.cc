@@ -17,6 +17,7 @@
 #include "src/transformation/vm.h"
 
 namespace gc = afc::language::gc;
+namespace numbers = afc::language::numbers;
 
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
@@ -174,17 +175,17 @@ std::pair<LineNumber, LineNumberDelta> GetBoundariesForTransformation(
 }
 
 template <typename KeyType>
-void DefineSortLinesByKey(gc::Pool& pool,
-                          gc::Root<ObjectType>& buffer_object_type,
-                          vm::Type vm_type_key,
-                          std::function<KeyType(const vm::Value&)> get_key) {
+void DefineSortLinesByKey(
+    gc::Pool& pool, gc::Root<ObjectType>& buffer_object_type,
+    vm::Type vm_type_key,
+    std::function<ValueOrError<KeyType>(const vm::Value&)> get_key) {
   buffer_object_type.ptr()->AddField(
       L"SortLinesByKey",
       vm::Value::NewFunction(
           pool, PurityType::kUnknown, vm::types::Void{},
           {buffer_object_type.ptr()->type(),
            vm::types::Function{.output = vm::Type{vm_type_key},
-                               .inputs = {vm::types::Int{}}}},
+                               .inputs = {vm::types::Number{}}}},
           [get_key](std::vector<gc::Root<vm::Value>> args,
                     Trampoline& trampoline) {
             CHECK_EQ(args.size(), size_t(2));
@@ -225,22 +226,26 @@ void DefineSortLinesByKey(gc::Pool& pool,
                        [data, get_key](LineNumber line_number) {
                          return data
                              ->callback(
-                                 {vm::Value::NewInt(data->trampoline.pool(),
-                                                    line_number.read())},
+                                 {vm::Value::NewNumber(
+                                     data->trampoline.pool(),
+                                     numbers::FromSizeT(line_number.read()))},
                                  data->trampoline)
                              .Transform([data, get_key,
-                                         line_number](EvaluationOutput output) {
+                                         line_number](EvaluationOutput output)
+                                            -> ValueOrError<
+                                                futures::
+                                                    IterationControlCommand> {
                                auto line = data->buffer.ptr()->contents().at(
                                    line_number);
                                VLOG(9)
                                    << "Value for line: " << line.value() << ": "
                                    << get_key(output.value.ptr().value());
-                               data->keys.insert(
-                                   {line->ToString(),
-                                    get_key(output.value.ptr().value())});
-                               return futures::Past(
-                                   Success(futures::IterationControlCommand::
-                                               kContinue));
+                               ASSIGN_OR_RETURN(
+                                   auto key_value,
+                                   get_key(output.value.ptr().value()));
+                               data->keys.insert({line->ToString(), key_value});
+                               return Success(
+                                   futures::IterationControlCommand::kContinue);
                              })
                              .ConsumeErrors([data](Error error_input) {
                                data->possible_error = error_input;
@@ -398,15 +403,14 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                       })
           .ptr());
 
-  DefineSortLinesByKey<int>(
-      pool, buffer_object_type, vm::types::Int{},
-      [](const vm::Value& value) { return value.get_int(); });
+  DefineSortLinesByKey<int>(pool, buffer_object_type, vm::types::Number{},
+                            [](const vm::Value& value) {
+                              return numbers::ToInt(value.get_number());
+                            });
 
-  // TODO(2023-09-16): Very interestingly, this isn't showing up. There must be
-  // something lacking in the polymorphism support, which is very sad.
   DefineSortLinesByKey<std::wstring>(
       pool, buffer_object_type, vm::types::String{},
-      [](const vm::Value& value) { return value.get_string(); });
+      [](const vm::Value& value) { return Success(value.get_string()); });
 
   buffer_object_type.ptr()->AddField(
       L"tree", vm::NewCallback(pool, PurityType::kReader,

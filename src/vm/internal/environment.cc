@@ -5,7 +5,8 @@
 #include <map>
 #include <set>
 
-#include "numbers.h"
+#include "src/language/numbers.h"
+#include "src/vm/internal/numbers.h"
 #include "src/vm/internal/string.h"
 #include "src/vm/internal/time.h"
 #include "src/vm/internal/types_promotion.h"
@@ -14,13 +15,16 @@
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 
+namespace gc = afc::language::gc;
+
 using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
 using afc::language::PossibleError;
+using afc::language::numbers::Number;
+using afc::language::numbers::ToString;
 
 namespace afc::vm {
-using language::MakeNonNullUnique;
-using language::NonNull;
-namespace gc = language::gc;
 
 template <>
 const types::ObjectName
@@ -49,22 +53,17 @@ language::gc::Root<Environment> Environment::NewDefault(
                        .ptr());
   environment_value.DefineType(bool_type.ptr());
 
-  gc::Root<ObjectType> int_type = ObjectType::New(pool, types::Int{});
-  int_type.ptr()->AddField(
-      L"tostring", NewCallback(pool, PurityType::kPure,
-                               std::function<std::wstring(int)>([](int value) {
-                                 return std::to_wstring(value);
-                               }))
-                       .ptr());
-  environment_value.DefineType(int_type.ptr());
-
-  gc::Root<ObjectType> double_type = ObjectType::New(pool, types::Double{});
-  double_type.ptr()->AddField(
+  gc::Root<ObjectType> number_type = ObjectType::New(pool, types::Number{});
+  number_type.ptr()->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure,
-                  std::function<std::wstring(double)>(
-                      [](double value) { return std::to_wstring(value); }))
+                  /*std::function<std::wstring(Number)>*/ ([](Number value) {
+                    return futures::Past(ToString(value, 5));
+                  }))
           .ptr());
+  environment_value.DefineType(number_type.ptr());
+
+#if 0
   double_type.ptr()->AddField(
       L"round", NewCallback(pool, PurityType::kPure,
                             std::function<int(double)>([](double value) {
@@ -72,6 +71,7 @@ language::gc::Root<Environment> Environment::NewDefault(
                             }))
                     .ptr());
   environment_value.DefineType(double_type.ptr());
+#endif
 
   environment_value.Define(
       L"Error",
@@ -113,8 +113,8 @@ const Type* Environment::LookupType(const wstring& symbol) {
   } else if (symbol == L"bool") {
     static Type output = types::Bool{};
     return &output;
-  } else if (symbol == L"int") {
-    static Type output = types::Int{};
+  } else if (symbol == L"number") {
+    static Type output = types::Number{};
     return &output;
   } else if (symbol == L"string") {
     static Type output = types::String{};

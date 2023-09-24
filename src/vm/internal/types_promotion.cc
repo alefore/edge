@@ -4,6 +4,10 @@
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 
+using afc::language::ValueOrError;
+using afc::language::numbers::Number;
+using afc::language::numbers::ToString;
+
 namespace afc::vm {
 using language::NonNull;
 using language::Success;
@@ -16,12 +20,6 @@ using PromotionCallback =
 PromotionCallback GetImplicitPromotion(Type original, Type desired) {
   if (original == desired)
     return [](gc::Pool&, gc::Root<Value> value) { return value; };
-  if (std::holds_alternative<types::Int>(original) &&
-      std::holds_alternative<types::Double>(desired)) {
-    return [](gc::Pool& pool, gc::Root<Value> value) {
-      return Value::NewDouble(pool, value.ptr()->get_int());
-    };
-  }
 
   types::Function* original_function = std::get_if<types::Function>(&original);
   types::Function* desired_function = std::get_if<types::Function>(&desired);
@@ -87,18 +85,22 @@ const bool tests_registration = tests::Register(
         {.name = L"NoPromotion",
          .callback =
              [] {
-               CHECK(GetImplicitPromotion(types::String{}, types::Int{}) ==
+               CHECK(GetImplicitPromotion(types::String{}, types::Number{}) ==
                      nullptr);
              }},
-        {.name = L"IntToDouble",
+        {.name = L"NumberToNumber",
          .callback =
              [] {
                gc::Pool pool({});
                PromotionCallback callback =
-                   GetImplicitPromotion(types::Int{}, types::Double{});
+                   GetImplicitPromotion(types::Number{}, types::Number{});
                CHECK(callback != nullptr);
-               gc::Root<Value> output = callback(pool, Value::NewInt(pool, 5));
-               CHECK_EQ(output.ptr()->get_double(), 5.0);
+               gc::Root<Value> output =
+                   callback(pool, Value::NewNumber(pool, Number(5)));
+               ValueOrError<std::wstring> output_str =
+                   ToString(output.ptr()->get_number(), 2);
+               LOG(INFO) << "Output str: " << output_str;
+               CHECK(ValueOrDie(output_str) == L"5");
              }},
         {.name = L"FunctionNoPromotion",
          .callback =
@@ -106,7 +108,7 @@ const bool tests_registration = tests::Register(
                // No promotion: the return type doesn't match (int and string).
                std::vector<Type> inputs = {types::String(), types::Bool()};
                CHECK(GetImplicitPromotion(
-                         types::Function{.output = Type{types::Int{}},
+                         types::Function{.output = Type{types::Number{}},
                                          .inputs = inputs},
                          types::Function{.output = Type{types::String{}},
                                          .inputs = inputs}) == nullptr);
@@ -117,15 +119,15 @@ const bool tests_registration = tests::Register(
                gc::Pool pool({});
                std::vector<Type> inputs = {types::String(), types::Bool()};
                gc::Root<Value> promoted_function = GetImplicitPromotion(
-                   types::Function{.output = Type{types::Int{}},
+                   types::Function{.output = Type{types::Number{}},
                                    .inputs = inputs},
-                   types::Function{.output = Type{types::Double{}},
+                   types::Function{.output = Type{types::Number{}},
                                    .inputs = inputs})(
                    pool, vm::NewCallback(pool, PurityType::kUnknown,
-                                         [](std::wstring s, bool b) -> int {
+                                         [](std::wstring s, bool b) -> Number {
                                            CHECK(s == L"alejo");
                                            CHECK_EQ(b, true);
-                                           return 4;
+                                           return Number(4);
                                          }));
                Trampoline trampoline(Trampoline::Options{
                    .pool = pool,
@@ -136,10 +138,11 @@ const bool tests_registration = tests::Register(
                        {Value::NewString(pool, L"alejo"),
                         Value::NewBool(pool, true)},
                        trampoline);
-               CHECK_EQ(std::get<EvaluationOutput>(output.Get().value())
-                            .value.ptr()
-                            ->get_double(),
-                        4.0);
+               CHECK(ValueOrDie(ToString(
+                         std::get<EvaluationOutput>(output.Get().value())
+                             .value.ptr()
+                             ->get_number(),
+                         2)) == L"4");
              }},
     });
 }

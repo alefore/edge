@@ -146,7 +146,7 @@ if (path == "") {
   }
 } else {
   // If path is non-empty, this buffer is loading a file.
-  int dot = path.find_last_of(".", path.size());
+  number dot = path.find_last_of(".", path.size());
   string extension =
       dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);

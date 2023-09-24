@@ -6,17 +6,18 @@
 #include "src/vm/internal/compilation.h"
 #include "src/vm/public/value.h"
 
-namespace afc {
-namespace vm {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::PossibleError;
-using language::Success;
-using language::ValueOrError;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::numbers::Number;
+using afc::language::numbers::ToInt;
 
+namespace afc::vm {
 BinaryOperator::BinaryOperator(NonNull<std::shared_ptr<Expression>> a,
                                NonNull<std::shared_ptr<Expression>> b,
                                const Type type,
@@ -61,10 +62,13 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
 std::unique_ptr<Expression> NewBinaryExpression(
     Compilation* compilation, std::unique_ptr<Expression> a_raw,
     std::unique_ptr<Expression> b_raw,
-    std::function<ValueOrError<wstring>(wstring, wstring)> str_operator,
-    std::function<ValueOrError<int>(int, int)> int_operator,
-    std::function<ValueOrError<double>(double, double)> double_operator,
-    std::function<ValueOrError<wstring>(wstring, int)> str_int_operator) {
+    std::function<language::ValueOrError<wstring>(wstring, wstring)>
+        str_operator,
+    std::function<language::ValueOrError<language::numbers::Number>(
+        language::numbers::NumberPtr, language::numbers::NumberPtr)>
+        number_operator,
+    std::function<language::ValueOrError<wstring>(wstring, int)>
+        str_int_operator) {
   if (a_raw == nullptr || b_raw == nullptr) {
     return nullptr;
   }
@@ -84,49 +88,29 @@ std::unique_ptr<Expression> NewBinaryExpression(
         });
   }
 
-  if (int_operator != nullptr && a->IsInt() && b->IsInt()) {
+  if (number_operator != nullptr && a->IsNumber() && b->IsNumber()) {
     return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), types::Int{},
-        [int_operator](gc::Pool& pool, const Value& value_a,
-                       const Value& value_b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(int value,
-                           int_operator(value_a.get_int(), value_b.get_int()));
-          return Value::NewInt(pool, value);
-        });
-  }
-
-  if (double_operator != nullptr && (a->IsInt() || a->IsDouble()) &&
-      (b->IsInt() || b->IsDouble())) {
-    return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), types::Double{},
-        [double_operator](
-            gc::Pool& pool, const Value& a_value,
-            const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          auto to_double = [](const Value& x) {
-            if (std::holds_alternative<types::Int>(x.type)) {
-              return static_cast<double>(x.get_int());
-            } else if (std::holds_alternative<types::Double>(x.type)) {
-              return x.get_double();
-            } else {
-              CHECK(false) << "Unexpected type: " << x.type;
-              return 0.0;  // Silence warning: no return.
-            }
-          };
-          ASSIGN_OR_RETURN(double value, double_operator(to_double(a_value),
-                                                         to_double(b_value)));
-          return Value::NewDouble(pool, value);
-        });
-  }
-
-  if (str_int_operator != nullptr && a->IsString() && b->IsInt()) {
-    return std::make_unique<BinaryOperator>(
-        std::move(a), std::move(b), types::String{},
-        [str_int_operator](
+        std::move(a), std::move(b), types::Number{},
+        [number_operator](
             gc::Pool& pool, const Value& value_a,
             const Value& value_b) -> ValueOrError<gc::Root<Value>> {
           ASSIGN_OR_RETURN(
-              std::wstring value,
-              str_int_operator(value_a.get_string(), value_b.get_int()));
+              Number value,
+              number_operator(MakeNonNullShared<Number>(value_a.get_number()),
+                              MakeNonNullShared<Number>(value_b.get_number())));
+          return Value::NewNumber(pool, value);
+        });
+  }
+
+  if (str_int_operator != nullptr && a->IsString() && b->IsNumber()) {
+    return std::make_unique<BinaryOperator>(
+        std::move(a), std::move(b), types::String{},
+        [str_int_operator](
+            gc::Pool& pool, const Value& a_value,
+            const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(int b_value_int, ToInt(b_value.get_number()));
+          ASSIGN_OR_RETURN(std::wstring value,
+                           str_int_operator(a_value.get_string(), b_value_int));
           return Value::NewString(pool, std::move(value));
         });
   }
@@ -137,5 +121,4 @@ std::unique_ptr<Expression> NewBinaryExpression(
   return nullptr;
 }
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
