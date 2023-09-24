@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include <limits>
 #include <ranges>
 
 #include "src/language/error/value_or_error.h"
@@ -324,6 +325,9 @@ const bool as_decimal_tests_registration =
            test(Division{MakeNonNullShared<Number>(3),
                          MakeNonNullShared<Number>(10)},
                 L"0.3"),
+           test(Division{MakeNonNullShared<Number>(949949),
+                         MakeNonNullShared<Number>(1)},
+                L"949949"),
            test(Addition{MakeNonNullShared<Number>(
                              Multiplication{MakeNonNullShared<Number>(20),
                                             MakeNonNullShared<Number>(20)}),
@@ -357,12 +361,62 @@ ValueOrError<int> ToInt(const Number& number) {
   ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, 0));
   if (!decimal.exact)
     return Error(L"Inexact numbers can't be represented as integer.");
-  // TODO(P1, 2023-09-23): Check bounds and fail if the number is too large or
-  // small.
   int value = 0;
-  for (int digit : decimal.digits | std::views::reverse)
-    value = value * 10 + (decimal.positive ? 1 : -1) * digit;
+  for (int digit : decimal.digits | std::views::reverse) {
+    if (decimal.positive ? value > std::numeric_limits<int>::max() / 10
+                         : value < std::numeric_limits<int>::min() / 10)
+      return Error(
+          L"Overflow: the resulting number can't be represented as an `int`.");
+    value *= 10;
+
+    if (decimal.positive ? value > std::numeric_limits<int>::max() - digit
+                         : value < std::numeric_limits<int>::min() + digit)
+      return Error(
+          L"Overflow: the resulting number can't be represented as an `int`.");
+    value += (decimal.positive ? 1 : -1) * digit;
+  }
   return value;
+}
+
+namespace {
+const bool int_tests_registration = tests::Register(
+    L"numbers::Int",
+    {{.name = L"ToIntZero",
+      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(Number{0})), 0); }},
+     {.name = L"ToIntSmallPositive",
+      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(Number{1024})), 1024); }},
+     {.name = L"ToIntSmallNegative",
+      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(Number{-249})), -249); }},
+     {.name = L"ToIntPositiveLimit",
+      .callback =
+          [] { CHECK_EQ(ValueOrDie(ToInt(Number{2147483647})), 2147483647); }},
+     {.name = L"ToIntNegativeLimit",
+      .callback =
+          [] {
+            int input = -2147483648;
+            int value = ValueOrDie(
+                ToInt(Addition{MakeNonNullShared<Number>(Number(input)),
+                               MakeNonNullShared<Number>(Number{0})}));
+            CHECK_EQ(value, input);
+          }},
+     {.name = L"OverflowPositive",
+      .callback =
+          [] {
+            int input = 2147483647;
+            CHECK(std::get<Error>(
+                      ToInt(Addition{MakeNonNullShared<Number>(Number(input)),
+                                     MakeNonNullShared<Number>(Number{1})}))
+                      .read()
+                      .substr(0, 10) == L"Overflow: ");
+          }},
+     {.name = L"OverflowNegative", .callback = [] {
+        int input = -2147483648;
+        CHECK(std::get<Error>(
+                  ToInt(Addition{MakeNonNullShared<Number>(Number(input)),
+                                 MakeNonNullShared<Number>(Number{-1})}))
+                  .read()
+                  .substr(0, 10) == L"Overflow: ");
+      }}});
 }
 
 ValueOrError<double> ToDouble(const Number& number) {
