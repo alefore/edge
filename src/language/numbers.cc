@@ -176,23 +176,28 @@ bool operator<(const Decimal& a, const Decimal& b) {
   return (a.positive && b.positive) ? a.digits < b.digits : b.digits < a.digits;
 }
 
-ValueOrError<Digits> DivideDigits(const Digits& dividend, const Digits& divisor,
-                                  size_t extra_precision) {
-  LOG(INFO) << "Dividing: " << divisor.size();
+struct DivisionOutput {
+  Digits digits;
+  bool exact;
+};
+ValueOrError<DivisionOutput> DivideDigits(const Digits& dividend,
+                                          const Digits& divisor,
+                                          size_t extra_precision) {
   if (divisor.empty()) return Error(L"Division by zero.");
   Digits quotient;
   Digits current_dividend;
   for (size_t i = 0; i < dividend.size() + extra_precision; ++i) {
-    current_dividend.insert(
-        current_dividend.begin(),
-        i < dividend.size() ? dividend[dividend.size() - 1 - i] : 0);
+    size_t next = i < dividend.size() ? dividend[dividend.size() - 1 - i] : 0;
+    if (!current_dividend.empty() || next != 0)
+      current_dividend.insert(current_dividend.begin(), next);
     size_t x = 0;  // Largest number such that divisor * x <= current_dividend.
     while (divisor * Digits({x + 1}) <= current_dividend) ++x;
     CHECK_LE(x, 9ul);
     if (x > 0) current_dividend = current_dividend - divisor * Digits({x});
     quotient.insert(quotient.begin(), std::move(x));
   }
-  return RemoveSignificantZeros(quotient);
+  return DivisionOutput{.digits = RemoveSignificantZeros(quotient),
+                        .exact = current_dividend.empty()};
 }
 
 ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits);
@@ -234,13 +239,13 @@ ValueOrError<Decimal> ToDecimalBase(Multiplication value,
 ValueOrError<Decimal> ToDecimalBase(Division value, size_t decimal_digits) {
   ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a.value(), decimal_digits));
   ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b.value(), decimal_digits));
-  ASSIGN_OR_RETURN(Digits output,
+  ASSIGN_OR_RETURN(DivisionOutput output,
                    DivideDigits(a.digits, b.digits, decimal_digits));
   // TODO(2023-09-23, numbers): Compute `exact`? If both are exact, check that
   // one is an exact multiple of the other?
   return Decimal{.positive = a.positive == b.positive,
-                 .exact = false,
-                 .digits = std::move(output)};
+                 .exact = a.exact && b.exact && output.exact,
+                 .digits = std::move(output.digits)};
 }
 
 ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits) {
