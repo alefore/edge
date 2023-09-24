@@ -1855,20 +1855,21 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
             [this](const LazyString& input) {
               RegisterProgress();
               if (!Read(buffer_variables::vm_exec)) return;
-              LOG(INFO) << name() << ": Evaluating VM code" << input.ToString();
+              LOG(INFO) << name()
+                        << ": Evaluating VM code: " << input.ToString();
               EvaluateString(input.ToString());
             },
         .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); },
         .process_terminal_input =
             terminal_ == nullptr
-                 ? std::function<void(const language::NonNull<std::shared_ptr<
-                                           language::lazy_string::LazyString>>&,
-                                       std::function<void()>)>()
-                 : [this](const language::NonNull<std::shared_ptr<
-                               language::lazy_string::LazyString>>& input,
-                           std::function<void()> new_line) {
-                     terminal_->ProcessCommandInput(input, std::move(new_line));
-                   },
+                ? std::function<void(const language::NonNull<std::shared_ptr<
+                                         language::lazy_string::LazyString>>&,
+                                     std::function<void()>)>()
+                : ([this](const language::NonNull<std::shared_ptr<
+                              language::lazy_string::LazyString>>& input,
+                          std::function<void()> new_line) {
+                    terminal_->ProcessCommandInput(input, std::move(new_line));
+                  }),
         .fd = fd,
         .modifiers = std::move(modifiers),
         .thread_pool = editor().thread_pool()});
