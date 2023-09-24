@@ -9,7 +9,6 @@ void ClangFormatOnSave() {
   if (!clang_format) {
     return;
   }
-  return;
   buffer.SetStatus(reformat_command + " ...");
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(reformat_command_in_place + " " + path.shell_escape() +
@@ -56,7 +55,7 @@ if (extension == "cc" || extension == "h" || extension == "cpp" ||
   reformat_command_in_place = "buildifier";
 }
 
-if (reformat_command != "" && false) {
+if (reformat_command != "") {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command(
       "test ! -f " + path.shell_escape() + "||" + reformat_command + " " +
