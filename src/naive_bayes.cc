@@ -1,5 +1,7 @@
 #include "src/naive_bayes.h"
 
+#include <ranges>
+
 #include "glog/logging.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/wstring.h"
@@ -26,7 +28,7 @@ EventProbabilityMap GetEventProbability(const History& history) {
   return output;
 }
 
-const bool get_event_probability_tests_registration =
+const bool get_probability_of_event_tests_registration =
     tests::Register(L"GetEventProbabilityTests", [] {
       Event e0(L"e0"), e1(L"e1"), e2(L"e2");
       Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5");
@@ -90,122 +92,63 @@ const bool get_event_probability_tests_registration =
             }}});
     }());
 
-std::unordered_map<Event, FeatureProbabilityMap> GetPerEventFeatureProbability(
-    const History& history) {
-  std::unordered_map<Event, FeatureProbabilityMap> output;
-  for (const auto& [event, instances] : history) {
-    std::unordered_map<Feature, size_t> feature_count;
-    for (const auto& instance : instances) {
-      for (const auto& feature : instance) {
-        feature_count[feature]++;
-      }
-    }
-    FeatureProbabilityMap* feature_probability = &output[event];
-    for (const auto& [feature, count] : feature_count) {
-      feature_probability->insert(
-          {feature, static_cast<double>(count) / instances.size()});
-      VLOG(8) << "Probability for " << feature << " given " << event << ": "
-              << feature_probability->find(feature)->second;
-    }
-  }
+FeatureProbabilityMap GetFeatureProbability(
+    const std::vector<FeaturesSet>& instances) {
+  std::unordered_map<Feature, size_t> feature_count;
+  for (const auto& instance : instances)
+    for (const auto& feature : instance) feature_count[feature]++;
+  FeatureProbabilityMap output;
+  for (const auto& [feature, count] : feature_count)
+    output.insert({feature, static_cast<double>(count) / instances.size()});
   return output;
 }
 
-const bool get_per_event_feature_probability_tests_registration =
+const bool get_probability_of_feature_given_event_tests_registration =
     tests::Register(L"GetPerEventFeatureProbabilityTests", []() {
       Event e0(L"e0"), e1(L"e1");
       Feature f1(L"f1"), f2(L"f2"), f3(L"f3");
       return std::vector<tests::Test>(
           {{.name = L"Empty",
             .callback =
-                [] {
-                  CHECK_EQ(GetPerEventFeatureProbability(History()).size(),
-                           0ul);
-                }},
+                [] { CHECK_EQ(GetFeatureProbability({}).size(), 0ul); }},
            {.name = L"SingleEventSingleInstance",
             .callback =
                 [=] {
-                  auto result = GetPerEventFeatureProbability(
-                      History{{{e0, {FeaturesSet({f1, f2})}}}});
-                  CHECK_EQ(result.size(), 1ul);
-                  CHECK_EQ(result.count(e0), 1ul);
-                  CHECK_EQ(result[e0].size(), 2ul);
+                  auto result = GetFeatureProbability({FeaturesSet({f1, f2})});
+                  CHECK_EQ(result.size(), 2ul);
 
-                  CHECK_EQ(result[e0].count(f1), 1ul);
-                  CHECK_EQ(result[e0][f1], 1.0);
+                  CHECK_EQ(result.count(f1), 1ul);
+                  CHECK_EQ(result[f1], 1.0);
 
-                  CHECK_EQ(result[e0].count(f2), 1ul);
-                  CHECK_EQ(result[e0][f2], 1.0);
+                  CHECK_EQ(result.count(f2), 1ul);
+                  CHECK_EQ(result[f2], 1.0);
                 }},
-           {.name = L"SingleEventMultipleInstances",
-            .callback =
-                [=] {
-                  auto result = GetPerEventFeatureProbability(
-                      History{{{e0,
-                                {
-                                    FeaturesSet({f1, f2, f3}),
-                                    FeaturesSet({f1, f2}),
-                                    FeaturesSet({f1}),
-                                    FeaturesSet({f1}),
-                                    FeaturesSet({f1}),
-                                }}}});
-                  CHECK_EQ(result.size(), 1ul);
-                  CHECK_EQ(result.count(e0), 1ul);
-                  CHECK_EQ(result[e0].size(), 3ul);
+           {.name = L"SingleEventMultipleInstances", .callback = [=] {
+              auto result = GetFeatureProbability({
+                  FeaturesSet({f1, f2, f3}),
+                  FeaturesSet({f1, f2}),
+                  FeaturesSet({f1}),
+                  FeaturesSet({f1}),
+                  FeaturesSet({f1}),
+              });
+              CHECK_EQ(result.size(), 3ul);
 
-                  CHECK_EQ(result[e0].count(f1), 1ul);
-                  CHECK_EQ(result[e0][f1], 1.0);
+              CHECK_EQ(result.count(f1), 1ul);
+              CHECK_EQ(result[f1], 1.0);
 
-                  CHECK_EQ(result[e0].count(f2), 1ul);
-                  CHECK_EQ(result[e0][f2], 0.4);
+              CHECK_EQ(result.count(f2), 1ul);
+              CHECK_EQ(result[f2], 0.4);
 
-                  CHECK_EQ(result[e0].count(f3), 1ul);
-                  CHECK_EQ(result[e0][f3], 0.2);
-                }},
-           {.name = L"MultipleEventMultipleInstance", .callback = [=] {
-              auto result = GetPerEventFeatureProbability(
-                  History{{{e0,
-                            {
-                                FeaturesSet({f1, f2, f3}),
-                                FeaturesSet({f1, f2}),
-                                FeaturesSet({f1}),
-                                FeaturesSet({f1}),
-                                FeaturesSet({f1}),
-                            }},
-                           {e1,
-                            {
-                                FeaturesSet({f1, f2, f3}),
-                                FeaturesSet({f3}),
-                            }}}});
-
-              CHECK_EQ(result.size(), 2ul);
-              CHECK_EQ(result.count(e0), 1ul);
-              CHECK_EQ(result.count(e1), 1ul);
-              CHECK_EQ(result[e0].size(), 3ul);
-              CHECK_EQ(result[e1].size(), 3ul);
-
-              CHECK_EQ(result[e0].count(f1), 1ul);
-              CHECK_EQ(result[e0][f1], 1.0);
-
-              CHECK_EQ(result[e0].count(f2), 1ul);
-              CHECK_EQ(result[e0][f2], 0.4);
-
-              CHECK_EQ(result[e0].count(f3), 1ul);
-              CHECK_EQ(result[e0][f3], 0.2);
-
-              CHECK_EQ(result[e1].count(f1), 1ul);
-              CHECK_EQ(result[e1][f1], 0.5);
-
-              CHECK_EQ(result[e1].count(f3), 1ul);
-              CHECK_EQ(result[e1][f3], 1.0);
+              CHECK_EQ(result.count(f3), 1ul);
+              CHECK_EQ(result[f3], 0.2);
             }}});
     }());
 
 double MinimalFeatureProbability(
     std::unordered_map<Event, FeatureProbabilityMap>
-        per_event_feature_probability) {
+        probability_of_feature_given_event) {
   double output = 1.0;
-  for (auto& [_0, features] : per_event_feature_probability) {
+  for (auto& [_0, features] : probability_of_feature_given_event) {
     for (auto& [_1, value] : features) {
       output = std::min(output, value);
     }
@@ -281,21 +224,24 @@ std::vector<Event> Sort(const History& history,
   auto call = tracker.Call();
 
   // p(eᵢ):
-  EventProbabilityMap event_probability = GetEventProbability(history);
+  EventProbabilityMap probability_of_event = GetEventProbability(history);
 
-  // per_event_feature_probability[eᵢ][fj] represents a value p(fj | eᵢ): the
-  // probability of feature fj given event eᵢ.
+  // probability_of_feature_given_event[eᵢ][fj] represents a value p(fj | eᵢ):
+  // the probability of feature fj given event eᵢ.
   std::unordered_map<Event, FeatureProbabilityMap>
-      per_event_feature_probability = GetPerEventFeatureProbability(history);
+      probability_of_feature_given_event;
+  for (const auto& [event, features_sets] : history)
+    probability_of_feature_given_event.insert(
+        {event, GetFeatureProbability(features_sets)});
 
   const double epsilon =
-      MinimalFeatureProbability(per_event_feature_probability) / 2;
+      MinimalFeatureProbability(probability_of_feature_given_event) / 2;
   VLOG(5) << "Found epsilon: " << epsilon;
 
   std::unordered_map<Event, double> current_probability_value;
   for (const auto& [event, instances] : history) {
-    double p = event_probability[event];
-    const auto& feature_probability = per_event_feature_probability[event];
+    double p = probability_of_event[event];
+    const auto& feature_probability = probability_of_feature_given_event[event];
     for (const auto& feature : current_features) {
       if (auto it = feature_probability.find(feature);
           it != feature_probability.end()) {
@@ -311,10 +257,9 @@ std::vector<Event> Sort(const History& history,
     current_probability_value[event] = p;
   }
 
-  std::vector<Event> output;
-  for (const auto& [event, _] : history) {
-    output.push_back(event);
-  }
+  auto events = std::views::keys(history);
+  std::vector<Event> output(events.begin(), events.end());
+
   sort(output.begin(), output.end(),
        [&current_probability_value](const Event& a, const Event& b) {
          return current_probability_value[a] < current_probability_value[b];
