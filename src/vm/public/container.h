@@ -28,12 +28,6 @@
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
-// TODO(trivial, 2023-09-22): Get rid of the `using` declarations.
-namespace gc = afc::language::gc;
-
-using afc::language::EmptyValue;
-using afc::language::Success;
-
 namespace afc::vm::container {
 
 struct TraitsBase {
@@ -57,13 +51,13 @@ struct Traits<std::vector<ValueType>> : public TraitsBase {
   }
 
   static constexpr bool has_erase_by_index = true;
-  static futures::ValueOrError<EmptyValue> EraseByIndex(
+  static futures::ValueOrError<afc::language::EmptyValue> EraseByIndex(
       ContainerPtr v, language::numbers::Number index_number) {
     // TODO(easy, 2023-09-22): Use `ToSizeT` rather than `ToInt`.
     FUTURES_ASSIGN_OR_RETURN(size_t index,
                              language::numbers::ToSizeT(index_number));
     v->erase(v->begin() + index);
-    return futures::Past(Success());
+    return futures::Past(afc::language::Success());
   }
 
   static constexpr bool has_push_back = true;
@@ -201,14 +195,14 @@ void Export(language::gc::Pool& pool, Environment& environment) {
             auto output_container = language::MakeNonNullShared<Container>();
             auto input = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
             auto callback = args[1].ptr()->LockCallback();
-            futures::ValueOrError<EmptyValue> output =
-                futures::Past(EmptyValue());
+            futures::ValueOrError<afc::language::EmptyValue> output =
+                futures::Past(afc::language::EmptyValue());
             for (const auto& current_value : input.value()) {
               output =
                   std::move(output)
                       .Transform([&trampoline, callback,
-                                  current_value](EmptyValue) {
-                        std::vector<gc::Root<vm::Value>> call_args;
+                                  current_value](afc::language::EmptyValue) {
+                        std::vector<language::gc::Root<vm::Value>> call_args;
                         call_args.push_back(
                             VMTypeMapper<typename Container::value_type>::New(
                                 trampoline.pool(), current_value));
@@ -223,12 +217,13 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                           if (callback_output.value.ptr()->get_bool())
                             output_container->insert(current_value);
                         }
-                        return Success();
+                        return afc::language::Success();
                       });
             }
             return std::move(output).Transform(
-                [&pool = trampoline.pool(), output_container](EmptyValue) {
-                  return futures::Past(Success(
+                [&pool = trampoline.pool(),
+                 output_container](afc::language::EmptyValue) {
+                  return futures::Past(afc::language::Success(
                       EvaluationOutput::Return(VMTypeMapper<ContainerPtr>::New(
                           pool, std::move(output_container)))));
                 });
@@ -250,26 +245,26 @@ void Export(language::gc::Pool& pool, Environment& environment) {
             CHECK_EQ(args.size(), 2ul);
             auto input = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
             auto callback = args[1].ptr()->LockCallback();
-            futures::ValueOrError<EmptyValue> output =
-                futures::Past(EmptyValue());
+            futures::ValueOrError<afc::language::EmptyValue> output =
+                futures::Past(afc::language::EmptyValue());
             for (const auto& current_value : input.value())
               output =
                   std::move(output)
                       .Transform([&trampoline, callback,
-                                  current_value](EmptyValue) {
-                        std::vector<gc::Root<vm::Value>> call_args;
+                                  current_value](afc::language::EmptyValue) {
+                        std::vector<language::gc::Root<vm::Value>> call_args;
                         call_args.push_back(
                             VMTypeMapper<typename Container::value_type>::New(
                                 trampoline.pool(), current_value));
                         return callback(std::move(call_args), trampoline);
                       })
                       .Transform([](EvaluationOutput) {
-                        return futures::Past(Success());
+                        return futures::Past(afc::language::Success());
                       });
             return std::move(output).Transform(
-                [&pool = trampoline.pool()](EmptyValue) {
-                  return futures::Past(
-                      Success(EvaluationOutput::Return(Value::NewVoid(pool))));
+                [&pool = trampoline.pool()](afc::language::EmptyValue) {
+                  return futures::Past(afc::language::Success(
+                      EvaluationOutput::Return(Value::NewVoid(pool))));
                 });
           })
           .ptr());
