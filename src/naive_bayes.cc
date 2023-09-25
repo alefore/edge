@@ -28,7 +28,7 @@ EventProbabilityMap GetEventProbability(const History& history) {
 }
 
 const bool get_probability_of_event_tests_registration =
-    tests::Register(L"GetEventProbabilityTests", [] {
+    tests::Register(L"GetEventProbability", [] {
       Event e0(L"e0"), e1(L"e1"), e2(L"e2");
       Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5");
       return std::vector<tests::Test>(
@@ -104,7 +104,7 @@ FeatureProbabilityMap GetFeatureProbability(
 }
 
 const bool get_probability_of_feature_given_event_tests_registration =
-    tests::Register(L"GetPerEventFeatureProbabilityTests", []() {
+    tests::Register(L"GetFeatureProbability", []() {
       Event e0(L"e0"), e1(L"e1");
       Feature f1(L"f1"), f2(L"f2"), f3(L"f3");
       return std::vector<tests::Test>(
@@ -156,7 +156,7 @@ Probability MinimalFeatureProbability(
 }
 
 const bool minimal_feature_probability_tests_registration = tests::Register(
-    L"MinimalFeatureProbabilityTests",
+    L"MinimalFeatureProbability",
     {{.name = L"Empty",
       .callback =
           [] { CHECK_EQ(MinimalFeatureProbability({}), Probability(1.0)); }},
@@ -261,7 +261,7 @@ std::vector<Event> Sort(const History& history,
 }
 
 const bool bayes_sort_tests_probability_tests_registration =
-    tests::Register(L"BayesSortTests", [] {
+    tests::Register(L"BayesSort", [] {
       Event e0(L"e0"), e1(L"e1"), e2(L"e2"), e3(L"e3"), e4(L"e4");
       Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5"), f6(L"f6");
       return std::vector<tests::Test>({
