@@ -11,8 +11,8 @@
 namespace afc::naive_bayes {
 GHOST_TYPE_DOUBLE(Probability);
 namespace {
-using EventProbabilityMap = std::unordered_map<Event, double>;
-using FeatureProbabilityMap = std::unordered_map<Feature, double>;
+using EventProbabilityMap = std::unordered_map<Event, Probability>;
+using FeatureProbabilityMap = std::unordered_map<Feature, Probability>;
 
 // Returns the probability of each event in history.
 EventProbabilityMap GetEventProbability(const History& history) {
@@ -22,8 +22,8 @@ EventProbabilityMap GetEventProbability(const History& history) {
 
   EventProbabilityMap output;
   for (const auto& [event, instances] : history)
-    output.insert(
-        {event, static_cast<double>(instances.size()) / instances_count});
+    output.insert({event, Probability(static_cast<double>(instances.size()) /
+                                      instances_count)});
   return output;
 }
 
@@ -42,7 +42,7 @@ const bool get_probability_of_event_tests_registration =
                       History{{{e0, {FeaturesSet({f1, f2})}}}});
                   CHECK_EQ(result.size(), 1ul);
                   CHECK_EQ(result.count(e0), 1ul);
-                  CHECK_EQ(result.find(e0)->second, 1.0);
+                  CHECK_EQ(result.find(e0)->second, Probability(1.0));
                 }},
            {.name = L"SingleEventMultipleInstance",
             .callback =
@@ -56,7 +56,7 @@ const bool get_probability_of_event_tests_registration =
                                                     }}}});
                   CHECK_EQ(result.size(), 1ul);
                   CHECK_EQ(result.count(e0), 1ul);
-                  CHECK_EQ(result.find(e0)->second, 1.0);
+                  CHECK_EQ(result.find(e0)->second, Probability(1.0));
                 }},
            {.name = L"MultipleEvents", .callback = [=] {
               auto result = GetEventProbability(History{{{e0,
@@ -81,13 +81,13 @@ const bool get_probability_of_event_tests_registration =
               CHECK_EQ(result.size(), 3ul);
 
               CHECK_EQ(result.count(e0), 1ul);
-              CHECK_EQ(result.find(e0)->second, 0.5);
+              CHECK_EQ(result.find(e0)->second, Probability(0.5));
 
               CHECK_EQ(result.count(e1), 1ul);
-              CHECK_EQ(result.find(e1)->second, 0.4);
+              CHECK_EQ(result.find(e1)->second, Probability(0.4));
 
               CHECK_EQ(result.count(e2), 1ul);
-              CHECK_EQ(result.find(e2)->second, 0.1);
+              CHECK_EQ(result.find(e2)->second, Probability(0.1));
             }}});
     }());
 
@@ -98,7 +98,8 @@ FeatureProbabilityMap GetFeatureProbability(
     for (const auto& feature : instance) feature_count[feature]++;
   FeatureProbabilityMap output;
   for (const auto& [feature, count] : feature_count)
-    output.insert({feature, static_cast<double>(count) / instances.size()});
+    output.insert(
+        {feature, Probability(static_cast<double>(count) / instances.size())});
   return output;
 }
 
@@ -117,10 +118,10 @@ const bool get_probability_of_feature_given_event_tests_registration =
                   CHECK_EQ(result.size(), 2ul);
 
                   CHECK_EQ(result.count(f1), 1ul);
-                  CHECK_EQ(result[f1], 1.0);
+                  CHECK_EQ(result[f1], Probability(1.0));
 
                   CHECK_EQ(result.count(f2), 1ul);
-                  CHECK_EQ(result[f2], 1.0);
+                  CHECK_EQ(result[f2], Probability(1.0));
                 }},
            {.name = L"SingleEventMultipleInstances", .callback = [=] {
               auto result = GetFeatureProbability({
@@ -133,13 +134,13 @@ const bool get_probability_of_feature_given_event_tests_registration =
               CHECK_EQ(result.size(), 3ul);
 
               CHECK_EQ(result.count(f1), 1ul);
-              CHECK_EQ(result[f1], 1.0);
+              CHECK_EQ(result[f1], Probability(1.0));
 
               CHECK_EQ(result.count(f2), 1ul);
-              CHECK_EQ(result[f2], 0.4);
+              CHECK_EQ(result[f2], Probability(0.4));
 
               CHECK_EQ(result.count(f3), 1ul);
-              CHECK_EQ(result[f3], 0.2);
+              CHECK_EQ(result[f3], Probability(0.2));
             }}});
     }());
 
@@ -148,8 +149,7 @@ Probability MinimalFeatureProbability(
         probability_of_feature_given_event) {
   Probability output(1.0);
   for (auto& [_0, features] : probability_of_feature_given_event)
-    for (auto& [_1, value] : features)
-      output = std::min(output, Probability(value));
+    for (auto& [_1, value] : features) output = std::min(output, value);
   return output;
 }
 
@@ -163,12 +163,12 @@ const bool minimal_feature_probability_tests_registration = tests::Register(
         Feature f1(L"f1"), f2(L"f2");
 
         std::unordered_map<Event, FeatureProbabilityMap> data;
-        data[e0][f1] = 0.2;
-        data[e0][f2] = 0.8;
-        data[e1][f1] = 0.8;
-        data[e1][f2] = 0.5;
-        data[e2][f1] = 0.1;  // <--- Minimal.
-        data[e2][f2] = 0.5;
+        data[e0][f1] = Probability(0.2);
+        data[e0][f2] = Probability(0.8);
+        data[e1][f1] = Probability(0.8);
+        data[e1][f2] = Probability(0.5);
+        data[e2][f1] = Probability(0.1);  // <--- Minimal.
+        data[e2][f2] = Probability(0.5);
         CHECK_EQ(MinimalFeatureProbability(data), Probability(0.1));
       }}});
 }  // namespace
@@ -238,11 +238,11 @@ std::vector<Event> Sort(const History& history,
 
   std::unordered_map<Event, double> current_probability_value;
   for (const auto& [event, instances] : history) {
-    Probability p = Probability(probability_of_event[event]);
+    Probability p = probability_of_event[event];
     const auto& feature_probability = probability_of_feature_given_event[event];
     for (const auto& feature : current_features) {
       auto it = feature_probability.find(feature);
-      p *= it != feature_probability.end() ? Probability(it->second) : epsilon;
+      p *= it != feature_probability.end() ? it->second : epsilon;
     }
     VLOG(6) << "Current probability for " << event << ": " << p;
     current_probability_value[event] = p.read();
