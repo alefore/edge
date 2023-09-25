@@ -150,7 +150,8 @@ Probability MinimalFeatureProbability(
   Probability output(1.0);
   for (const FeatureProbabilityMap& features :
        probability_of_feature_given_event | std::views::values)
-    output = std::min(output, std::ranges::min(features | std::views::values));
+    for (const Probability p : features | std::views::values)
+      output = std::min(output, p);
   return output;
 }
 
