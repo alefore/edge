@@ -221,6 +221,8 @@
     GHOST_TYPE_EQ(ClassName, value);                        \
     GHOST_TYPE_BEGIN_END                                    \
     GHOST_TYPE_INDEX                                        \
+    GHOST_TYPE_COUNT                                        \
+    GHOST_TYPE_FIND                                         \
     GHOST_TYPE_BACK                                         \
     GHOST_TYPE_PUSH_BACK                                    \
     GHOST_TYPE_POP_BACK                                     \
@@ -492,6 +494,26 @@
   template <typename KeyType>                             \
   auto& operator[](const KeyType& ghost_type_key) const { \
     return value[ghost_type_key];                         \
+  }
+
+#define GHOST_TYPE_COUNT                                             \
+  template <typename V = ValueType, typename KeyType>                \
+  auto count(const KeyType& ghost_type_key) {                        \
+    typename V::size_type (V::*f)(const KeyType&) const = &V::count; \
+    return (value.*f)(ghost_type_key);                               \
+  }
+
+#define GHOST_TYPE_FIND                                                  \
+  template <typename V = ValueType, typename KeyType>                    \
+  auto find(const KeyType& ghost_type_key) const {                       \
+    typename V::const_iterator (V::*f)(const KeyType&) const = &V::find; \
+    return (value.*f)(ghost_type_key);                                   \
+  }                                                                      \
+                                                                         \
+  template <typename V = ValueType, typename KeyType>                    \
+  auto find(const KeyType& ghost_type_key) {                             \
+    typename V::iterator (V::*f)(const KeyType&) = &V::find;             \
+    return (value.*f)(ghost_type_key);                                   \
   }
 
 // We use the template type V to use SFINAE to disable this expression on ghost
