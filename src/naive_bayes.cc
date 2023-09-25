@@ -1,5 +1,6 @@
 #include "src/naive_bayes.h"
 
+#include <numeric>
 #include <ranges>
 
 #include "glog/logging.h"
@@ -16,7 +17,7 @@ using FeatureProbabilityMap = std::unordered_map<Feature, double>;
 // Returns the probability of each event in history.
 EventProbabilityMap GetEventProbability(const History& history) {
   size_t instances_count = 0;
-  for (const auto& [_, instances] : history)
+  for (const std::vector<FeaturesSet>& instances : std::views::values(history))
     instances_count += instances.size();
 
   EventProbabilityMap output;
