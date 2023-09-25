@@ -243,15 +243,8 @@ std::vector<Event> Sort(const History& history,
     double p = probability_of_event[event];
     const auto& feature_probability = probability_of_feature_given_event[event];
     for (const auto& feature : current_features) {
-      if (auto it = feature_probability.find(feature);
-          it != feature_probability.end()) {
-        VLOG(9) << event << ": Feature " << feature
-                << " contributes prob: " << it->second;
-        p *= it->second;
-      } else {
-        VLOG(9) << event << ": Feature " << feature << " contributes epsilon.";
-        p *= epsilon;
-      }
+      auto it = feature_probability.find(feature);
+      p *= it != feature_probability.end() ? it->second : epsilon;
     }
     VLOG(6) << "Current probability for " << event << ": " << p;
     current_probability_value[event] = p;
