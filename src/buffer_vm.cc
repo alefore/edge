@@ -4,6 +4,7 @@
 #include "src/buffer_variables.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/dirname_vm.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/append.h"
