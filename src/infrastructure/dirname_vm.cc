@@ -8,7 +8,7 @@ using afc::infrastructure::Path;
 using afc::language::ValueOrError;
 
 namespace afc::vm {
-const Type VMTypeMapper<Path>::vmtype = types::Void{};
+const Type VMTypeMapper<Path>::vmtype = types::String{};
 
 ValueOrError<Path> vm::VMTypeMapper<Path>::get(Value& value) {
   return Path::FromString(value.get_string());
