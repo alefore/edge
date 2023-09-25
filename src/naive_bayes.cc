@@ -17,18 +17,30 @@ GHOST_TYPE_CONTAINER(EventProbabilityMap, EventProbabilityMapInternal);
 using FeatureProbabilityMapInternal = std::unordered_map<Feature, Probability>;
 GHOST_TYPE_CONTAINER(FeatureProbabilityMap, FeatureProbabilityMapInternal);
 
+template <typename Container, typename Callable>
+auto TransformValues(const Container& container, Callable callable) {
+  using K = std::remove_const<
+      decltype(std::declval<typename Container::value_type>().first)>::type;
+  using V = decltype(std::declval<typename Container::value_type>().second);
+  std::unordered_map<K,
+                     decltype(callable(std::declval<K>(), std::declval<V>()))>
+      output;
+  for (const std::pair<const K, V>& entry : container)
+    output.insert({entry.first, callable(entry.first, entry.second)});
+  return output;
+}
+
 // Returns the probability of each event in history.
 EventProbabilityMap GetEventProbability(const History& history) {
-  size_t instances_count = 0;
+  size_t count = 0;
   for (const std::vector<FeaturesSet>& instances : std::views::values(history))
-    instances_count += instances.size();
+    count += instances.size();
 
-  EventProbabilityMap output;
-  for (const std::pair<const Event, std::vector<FeaturesSet>>& entry : history)
-    output.insert(
-        {entry.first, Probability(static_cast<double>(entry.second.size()) /
-                                  instances_count)});
-  return output;
+  return EventProbabilityMap(TransformValues(
+      history,
+      [&count](const Event&, const std::vector<FeaturesSet>& instances) {
+        return Probability(static_cast<double>(instances.size()) / count);
+      }));
 }
 
 const bool get_probability_of_event_tests_registration =
@@ -42,7 +54,7 @@ const bool get_probability_of_event_tests_registration =
            {.name = L"SingleEventSingleInstance",
             .callback =
                 [=] {
-                  auto result = GetEventProbability(
+                  EventProbabilityMap result = GetEventProbability(
                       History{{{e0, {FeaturesSet({f1, f2})}}}});
                   CHECK_EQ(result.size(), 1ul);
                   CHECK_EQ(result.count(e0), 1ul);
@@ -51,7 +63,7 @@ const bool get_probability_of_event_tests_registration =
            {.name = L"SingleEventMultipleInstance",
             .callback =
                 [=] {
-                  auto result =
+                  EventProbabilityMap result =
                       GetEventProbability(History{{{e0,
                                                     {
                                                         FeaturesSet({f1, f2}),
@@ -63,25 +75,26 @@ const bool get_probability_of_event_tests_registration =
                   CHECK_EQ(result.find(e0)->second, Probability(1.0));
                 }},
            {.name = L"MultipleEvents", .callback = [=] {
-              auto result = GetEventProbability(History{{{e0,
-                                                          {
-                                                              FeaturesSet({f1}),
-                                                              FeaturesSet({f2}),
-                                                              FeaturesSet({f3}),
-                                                              FeaturesSet({f4}),
-                                                              FeaturesSet({f5}),
-                                                          }},
-                                                         {e1,
-                                                          {
-                                                              FeaturesSet({f1}),
-                                                              FeaturesSet({f2}),
-                                                              FeaturesSet({f3}),
-                                                              FeaturesSet({f4}),
-                                                          }},
-                                                         {e2,
-                                                          {
-                                                              FeaturesSet({f1}),
-                                                          }}}});
+              EventProbabilityMap result =
+                  GetEventProbability(History{{{e0,
+                                                {
+                                                    FeaturesSet({f1}),
+                                                    FeaturesSet({f2}),
+                                                    FeaturesSet({f3}),
+                                                    FeaturesSet({f4}),
+                                                    FeaturesSet({f5}),
+                                                }},
+                                               {e1,
+                                                {
+                                                    FeaturesSet({f1}),
+                                                    FeaturesSet({f2}),
+                                                    FeaturesSet({f3}),
+                                                    FeaturesSet({f4}),
+                                                }},
+                                               {e2,
+                                                {
+                                                    FeaturesSet({f1}),
+                                                }}}});
               CHECK_EQ(result.size(), 3ul);
 
               CHECK_EQ(result.count(e0), 1ul);
@@ -97,14 +110,15 @@ const bool get_probability_of_event_tests_registration =
 
 FeatureProbabilityMap GetFeatureProbability(
     const std::vector<FeaturesSet>& instances) {
-  std::unordered_map<Feature, size_t> feature_count;
-  for (const auto& instance : instances)
-    for (const auto& feature : instance) feature_count[feature]++;
-  FeatureProbabilityMap output;
-  for (const auto& [feature, count] : feature_count)
-    output.insert(
-        {feature, Probability(static_cast<double>(count) / instances.size())});
-  return output;
+  std::unordered_map<Feature, size_t> features;
+  for (const FeaturesSet& instance : instances)
+    for (const Feature& f : instance) features[f]++;
+
+  return FeatureProbabilityMap(
+      TransformValues(features, [&](const Feature&, size_t feature_count) {
+        return Probability(static_cast<double>(feature_count) /
+                           instances.size());
+      }));
 }
 
 const bool get_probability_of_feature_given_event_tests_registration =
@@ -118,7 +132,8 @@ const bool get_probability_of_feature_given_event_tests_registration =
            {.name = L"SingleEventSingleInstance",
             .callback =
                 [=] {
-                  auto result = GetFeatureProbability({FeaturesSet({f1, f2})});
+                  FeatureProbabilityMap result =
+                      GetFeatureProbability({FeaturesSet({f1, f2})});
                   CHECK_EQ(result.size(), 2ul);
 
                   CHECK_EQ(result.count(f1), 1ul);
@@ -128,7 +143,7 @@ const bool get_probability_of_feature_given_event_tests_registration =
                   CHECK_EQ(result[f2], Probability(1.0));
                 }},
            {.name = L"SingleEventMultipleInstances", .callback = [=] {
-              auto result = GetFeatureProbability({
+              FeatureProbabilityMap result = GetFeatureProbability({
                   FeaturesSet({f1, f2, f3}),
                   FeaturesSet({f1, f2}),
                   FeaturesSet({f1}),
@@ -227,39 +242,39 @@ std::vector<Event> Sort(const History& history,
       L"NaiveBayes::SortByProportionalProbability");
   auto call = tracker.Call();
 
-  // p(eᵢ):
-  EventProbabilityMap probability_of_event = GetEventProbability(history);
-
   // probability_of_feature_given_event[eᵢ][fⱼ] represents a value p(fⱼ | eᵢ):
   // the probability of fⱼ given eᵢ.
-  std::unordered_map<Event, FeatureProbabilityMap>
-      probability_of_feature_given_event;
-  for (const auto& [event, features_sets] : history)
-    probability_of_feature_given_event.insert(
-        {event, GetFeatureProbability(features_sets)});
+  const std::unordered_map<Event, FeatureProbabilityMap>
+      probability_of_feature_given_event = TransformValues(
+          history, [](const Event&, const std::vector<FeaturesSet>& instances) {
+            return GetFeatureProbability(instances);
+          });
 
   const Probability epsilon =
       MinimalFeatureProbability(probability_of_feature_given_event) / 2;
   VLOG(5) << "Found epsilon: " << epsilon;
 
-  std::unordered_map<Event, Probability> current_probability_value;
-  for (const auto& [event, instances] : history) {
-    Probability p = probability_of_event[event];
-    const auto& feature_probability = probability_of_feature_given_event[event];
-    for (const auto& feature : current_features) {
-      auto it = feature_probability.find(feature);
-      p *= it != feature_probability.end() ? it->second : epsilon;
-    }
-    VLOG(6) << "Current probability for " << event << ": " << p;
-    current_probability_value[event] = p;
-  }
+  const std::unordered_map<Event, Probability> current_probability_value =
+      TransformValues(GetEventProbability(history), [&](const Event& event,
+                                                        Probability p) {
+        auto feature_probability =
+            probability_of_feature_given_event.find(event);
+        CHECK(feature_probability != probability_of_feature_given_event.end());
+        for (const Feature& feature : current_features) {
+          auto it = feature_probability->second.find(feature);
+          p *= it != feature_probability->second.end() ? it->second : epsilon;
+        }
+        VLOG(6) << "Current probability for " << event << ": " << p;
+        return p;
+      });
 
   auto events = std::views::keys(history);
   std::vector<Event> output(events.begin(), events.end());
 
   sort(output.begin(), output.end(),
        [&current_probability_value](const Event& a, const Event& b) {
-         return current_probability_value[a] < current_probability_value[b];
+         return *current_probability_value.find(a) <
+                *current_probability_value.find(b);
        });
   return output;
 }
@@ -283,7 +298,7 @@ const bool bayes_sort_tests_probability_tests_registration =
                  History history;
                  history[e0] = {FeaturesSet({f1}), FeaturesSet({f2})};
                  history[e1] = {FeaturesSet({f3})};
-                 auto results = Sort(history, FeaturesSet());
+                 std::vector<Event> results = Sort(history, FeaturesSet());
                  CHECK_EQ(results.size(), 2ul);
                  CHECK_EQ(results.front(), e1);
                  CHECK_EQ(results.back(), e0);
@@ -294,7 +309,7 @@ const bool bayes_sort_tests_probability_tests_registration =
                  History history;
                  history[e0] = {FeaturesSet({f1}), FeaturesSet({f2})};
                  history[e1] = {FeaturesSet({f3})};
-                 auto results = Sort(history, FeaturesSet({f4}));
+                 std::vector<Event> results = Sort(history, FeaturesSet({f4}));
                  CHECK_EQ(results.size(), 2ul);
                  // TODO: Why is m0 more likely than m1?
                  CHECK_EQ(results.front(), e1);
@@ -303,15 +318,16 @@ const bool bayes_sort_tests_probability_tests_registration =
           {.name = L"FeatureSelects",
            .callback =
                [=] {
-                 auto results = Sort(History{{
-                                         {e0,
-                                          {
-                                              FeaturesSet({f1}),
-                                              FeaturesSet({f2}),
-                                          }},
-                                         {e1, {FeaturesSet({f3})}},
-                                     }},
-                                     FeaturesSet({f3}));
+                 std::vector<Event> results =
+                     Sort(History{{
+                              {e0,
+                               {
+                                   FeaturesSet({f1}),
+                                   FeaturesSet({f2}),
+                               }},
+                              {e1, {FeaturesSet({f3})}},
+                          }},
+                          FeaturesSet({f3}));
                  CHECK_EQ(results.size(), 2ul);
                  CHECK_EQ(results.front(), e0);
                  CHECK_EQ(results.back(), e1);
@@ -319,15 +335,16 @@ const bool bayes_sort_tests_probability_tests_registration =
           {.name = L"FeatureSelectsSomeOverlap",
            .callback =
                [=] {
-                 auto results = Sort(History{{
-                                         {e0,
-                                          {
-                                              FeaturesSet({f1}),
-                                              FeaturesSet({f2}),
-                                          }},
-                                         {e1, {FeaturesSet({f1})}},
-                                     }},
-                                     FeaturesSet({f2}));
+                 std::vector<Event> results =
+                     Sort(History{{
+                              {e0,
+                               {
+                                   FeaturesSet({f1}),
+                                   FeaturesSet({f2}),
+                               }},
+                              {e1, {FeaturesSet({f1})}},
+                          }},
+                          FeaturesSet({f2}));
                  CHECK_EQ(results.size(), 2ul);
                  CHECK_EQ(results.front(), e1);
                  CHECK_EQ(results.back(), e0);
@@ -335,36 +352,37 @@ const bool bayes_sort_tests_probability_tests_registration =
           {.name = L"FeatureSelectsFive",
            .callback =
                [=] {
-                 auto results = Sort(History{{
-                                         {e0,
-                                          {
-                                              FeaturesSet({f1}),
-                                              FeaturesSet({f5, f6}),
-                                              FeaturesSet({f2}),
-                                          }},
-                                         {e1,
-                                          {
-                                              FeaturesSet({f5}),
-                                              FeaturesSet({f6}),
-                                              FeaturesSet({f5}),
-                                          }},
-                                         {e2,
-                                          {
-                                              FeaturesSet({f5}),
-                                              FeaturesSet({f2}),
-                                              FeaturesSet({f3}),
-                                          }},
-                                         {e3,
-                                          {
-                                              FeaturesSet({f5, f2}),
-                                              FeaturesSet({f6}),
-                                          }},
-                                         {e4,
-                                          {
-                                              FeaturesSet({f4}),
-                                          }},
-                                     }},
-                                     FeaturesSet({f5, f6}));
+                 std::vector<Event> results =
+                     Sort(History{{
+                              {e0,
+                               {
+                                   FeaturesSet({f1}),
+                                   FeaturesSet({f5, f6}),
+                                   FeaturesSet({f2}),
+                               }},
+                              {e1,
+                               {
+                                   FeaturesSet({f5}),
+                                   FeaturesSet({f6}),
+                                   FeaturesSet({f5}),
+                               }},
+                              {e2,
+                               {
+                                   FeaturesSet({f5}),
+                                   FeaturesSet({f2}),
+                                   FeaturesSet({f3}),
+                               }},
+                              {e3,
+                               {
+                                   FeaturesSet({f5, f2}),
+                                   FeaturesSet({f6}),
+                               }},
+                              {e4,
+                               {
+                                   FeaturesSet({f4}),
+                               }},
+                          }},
+                          FeaturesSet({f5, f6}));
                  CHECK_EQ(results.size(), 5ul);
                  CHECK(results[4] == e1);
                  CHECK(results[3] == e3);

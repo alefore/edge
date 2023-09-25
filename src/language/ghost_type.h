@@ -213,6 +213,7 @@
     using ValueType = VariableType;                         \
                                                             \
    public:                                                  \
+    using value_type = ValueType::value_type;               \
     GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
     GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)              \
     GHOST_TYPE_EMPTY                                        \
