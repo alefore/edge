@@ -148,8 +148,9 @@ Probability MinimalFeatureProbability(
     std::unordered_map<Event, FeatureProbabilityMap>
         probability_of_feature_given_event) {
   Probability output(1.0);
-  for (auto& [_0, features] : probability_of_feature_given_event)
-    for (auto& [_1, value] : features) output = std::min(output, value);
+  for (const FeatureProbabilityMap& features :
+       probability_of_feature_given_event | std::views::values)
+    output = std::min(output, std::ranges::min(features | std::views::values));
   return output;
 }
 
@@ -236,7 +237,7 @@ std::vector<Event> Sort(const History& history,
       MinimalFeatureProbability(probability_of_feature_given_event) / 2;
   VLOG(5) << "Found epsilon: " << epsilon;
 
-  std::unordered_map<Event, double> current_probability_value;
+  std::unordered_map<Event, Probability> current_probability_value;
   for (const auto& [event, instances] : history) {
     Probability p = probability_of_event[event];
     const auto& feature_probability = probability_of_feature_given_event[event];
@@ -245,7 +246,7 @@ std::vector<Event> Sort(const History& history,
       p *= it != feature_probability.end() ? it->second : epsilon;
     }
     VLOG(6) << "Current probability for " << event << ": " << p;
-    current_probability_value[event] = p.read();
+    current_probability_value[event] = p;
   }
 
   auto events = std::views::keys(history);
