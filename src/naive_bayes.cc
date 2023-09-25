@@ -26,55 +26,69 @@ EventProbabilityMap GetEventProbability(const History& history) {
   return output;
 }
 
-const bool get_event_probability_tests_registration = tests::Register(
-    L"GetEventProbabilityTests",
-    {{.name = L"Empty",
-      .callback = [] { CHECK_EQ(GetEventProbability(History()).size(), 0ul); }},
-     {.name = L"SingleEventSingleInstance",
-      .callback =
-          [] {
-            History history;
-            history[Event(L"m0")].push_back(
-                FeaturesSet({Feature(L"foo"), Feature(L"bar")}));
-            auto result = GetEventProbability(history);
-            CHECK_EQ(result.size(), 1ul);
-            CHECK_EQ(result.count(Event(L"m0")), 1ul);
-            CHECK_EQ(result.find(Event(L"m0"))->second, 1.0);
-          }},
-     {.name = L"SingleEventMultipleInstance",
-      .callback =
-          [] {
-            History history;
-            history[Event(L"m0")] = {
-                FeaturesSet({Feature(L"foo"), Feature(L"bar")}),
-                FeaturesSet({Feature(L"foo")}), FeaturesSet({Feature(L"bar")})};
-            auto result = GetEventProbability(history);
-            CHECK_EQ(result.size(), 1ul);
-            CHECK_EQ(result.count(Event(L"m0")), 1ul);
-            CHECK_EQ(result.find(Event(L"m0"))->second, 1.0);
-          }},
-     {.name = L"MultipleEvents", .callback = [] {
-        History history;
-        history[Event(L"m0")] = {
-            FeaturesSet({Feature(L"1")}), FeaturesSet({Feature(L"2")}),
-            FeaturesSet({Feature(L"3")}), FeaturesSet({Feature(L"4")}),
-            FeaturesSet({Feature(L"5")})};
-        history[Event(L"m1")] = {
-            FeaturesSet({Feature(L"1")}), FeaturesSet({Feature(L"2")}),
-            FeaturesSet({Feature(L"3")}), FeaturesSet({Feature(L"4")})};
-        history[Event(L"m2")] = {FeaturesSet({Feature(L"1")})};
-        auto result = GetEventProbability(history);
-        CHECK_EQ(result.size(), 3ul);
+const bool get_event_probability_tests_registration =
+    tests::Register(L"GetEventProbabilityTests", [] {
+      Event e0(L"e0"), e1(L"e1"), e2(L"e2");
+      Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5");
+      return std::vector<tests::Test>(
+          {{.name = L"Empty",
+            .callback =
+                [] { CHECK_EQ(GetEventProbability(History()).size(), 0ul); }},
+           {.name = L"SingleEventSingleInstance",
+            .callback =
+                [=] {
+                  auto result = GetEventProbability(
+                      History{{{e0, {FeaturesSet({f1, f2})}}}});
+                  CHECK_EQ(result.size(), 1ul);
+                  CHECK_EQ(result.count(e0), 1ul);
+                  CHECK_EQ(result.find(e0)->second, 1.0);
+                }},
+           {.name = L"SingleEventMultipleInstance",
+            .callback =
+                [=] {
+                  auto result =
+                      GetEventProbability(History{{{e0,
+                                                    {
+                                                        FeaturesSet({f1, f2}),
+                                                        FeaturesSet({f1}),
+                                                        FeaturesSet({f2}),
+                                                    }}}});
+                  CHECK_EQ(result.size(), 1ul);
+                  CHECK_EQ(result.count(e0), 1ul);
+                  CHECK_EQ(result.find(e0)->second, 1.0);
+                }},
+           {.name = L"MultipleEvents", .callback = [=] {
+              auto result = GetEventProbability(History{{{e0,
+                                                          {
+                                                              FeaturesSet({f1}),
+                                                              FeaturesSet({f2}),
+                                                              FeaturesSet({f3}),
+                                                              FeaturesSet({f4}),
+                                                              FeaturesSet({f5}),
+                                                          }},
+                                                         {e1,
+                                                          {
+                                                              FeaturesSet({f1}),
+                                                              FeaturesSet({f2}),
+                                                              FeaturesSet({f3}),
+                                                              FeaturesSet({f4}),
+                                                          }},
+                                                         {e2,
+                                                          {
+                                                              FeaturesSet({f1}),
+                                                          }}}});
+              CHECK_EQ(result.size(), 3ul);
 
-        CHECK_EQ(result.count(Event(L"m0")), 1ul);
-        CHECK_EQ(result.find(Event(L"m0"))->second, 0.5);
+              CHECK_EQ(result.count(e0), 1ul);
+              CHECK_EQ(result.find(e0)->second, 0.5);
 
-        CHECK_EQ(result.count(Event(L"m1")), 1ul);
-        CHECK_EQ(result.find(Event(L"m1"))->second, 0.4);
+              CHECK_EQ(result.count(e1), 1ul);
+              CHECK_EQ(result.find(e1)->second, 0.4);
 
-        CHECK_EQ(result.count(Event(L"m2")), 1ul);
-        CHECK_EQ(result.find(Event(L"m2"))->second, 0.1);
-      }}});
+              CHECK_EQ(result.count(e2), 1ul);
+              CHECK_EQ(result.find(e2)->second, 0.1);
+            }}});
+    }());
 
 std::unordered_map<Event, FeatureProbabilityMap> GetPerEventFeatureProbability(
     const History& history) {
@@ -98,87 +112,94 @@ std::unordered_map<Event, FeatureProbabilityMap> GetPerEventFeatureProbability(
 }
 
 const bool get_per_event_feature_probability_tests_registration =
-    tests::Register(
-        L"GetPerEventFeatureProbabilityTests",
-        {{.name = L"Empty",
-          .callback =
-              [] {
-                CHECK_EQ(GetPerEventFeatureProbability(History()).size(), 0ul);
-              }},
-         {.name = L"SingleEventSingleInstance",
-          .callback =
-              [] {
-                History history;
-                history[Event(L"m0")].push_back(
-                    FeaturesSet({Feature(L"a"), Feature(L"b")}));
-                auto result = GetPerEventFeatureProbability(history);
-                CHECK_EQ(result.size(), 1ul);
-                CHECK_EQ(result.count(Event(L"m0")), 1ul);
-                CHECK_EQ(result[Event(L"m0")].size(), 2ul);
+    tests::Register(L"GetPerEventFeatureProbabilityTests", []() {
+      Event e0(L"e0"), e1(L"e1");
+      Feature f1(L"f1"), f2(L"f2"), f3(L"f3");
+      return std::vector<tests::Test>(
+          {{.name = L"Empty",
+            .callback =
+                [] {
+                  CHECK_EQ(GetPerEventFeatureProbability(History()).size(),
+                           0ul);
+                }},
+           {.name = L"SingleEventSingleInstance",
+            .callback =
+                [=] {
+                  auto result = GetPerEventFeatureProbability(
+                      History{{{e0, {FeaturesSet({f1, f2})}}}});
+                  CHECK_EQ(result.size(), 1ul);
+                  CHECK_EQ(result.count(e0), 1ul);
+                  CHECK_EQ(result[e0].size(), 2ul);
 
-                CHECK_EQ(result[Event(L"m0")].count(Feature(L"a")), 1ul);
-                CHECK_EQ(result[Event(L"m0")][Feature(L"a")], 1.0);
+                  CHECK_EQ(result[e0].count(f1), 1ul);
+                  CHECK_EQ(result[e0][f1], 1.0);
 
-                CHECK_EQ(result[Event(L"m0")].count(Feature(L"b")), 1ul);
-                CHECK_EQ(result[Event(L"m0")][Feature(L"b")], 1.0);
-              }},
-         {.name = L"SingleEventMultipleInstances",
-          .callback =
-              [] {
-                History history;
-                history[Event(L"m0")] = {
-                    FeaturesSet({Feature(L"a"), Feature(L"b"), Feature(L"c")}),
-                    FeaturesSet({Feature(L"a"), Feature(L"b")}),
-                    FeaturesSet({Feature(L"a")}), FeaturesSet({Feature(L"a")}),
-                    FeaturesSet({Feature(L"a")})};
-                auto result = GetPerEventFeatureProbability(history);
-                CHECK_EQ(result.size(), 1ul);
-                CHECK_EQ(result.count(Event(L"m0")), 1ul);
-                CHECK_EQ(result[Event(L"m0")].size(), 3ul);
+                  CHECK_EQ(result[e0].count(f2), 1ul);
+                  CHECK_EQ(result[e0][f2], 1.0);
+                }},
+           {.name = L"SingleEventMultipleInstances",
+            .callback =
+                [=] {
+                  auto result = GetPerEventFeatureProbability(
+                      History{{{e0,
+                                {
+                                    FeaturesSet({f1, f2, f3}),
+                                    FeaturesSet({f1, f2}),
+                                    FeaturesSet({f1}),
+                                    FeaturesSet({f1}),
+                                    FeaturesSet({f1}),
+                                }}}});
+                  CHECK_EQ(result.size(), 1ul);
+                  CHECK_EQ(result.count(e0), 1ul);
+                  CHECK_EQ(result[e0].size(), 3ul);
 
-                CHECK_EQ(result[Event(L"m0")].count(Feature(L"a")), 1ul);
-                CHECK_EQ(result[Event(L"m0")][Feature(L"a")], 1.0);
+                  CHECK_EQ(result[e0].count(f1), 1ul);
+                  CHECK_EQ(result[e0][f1], 1.0);
 
-                CHECK_EQ(result[Event(L"m0")].count(Feature(L"b")), 1ul);
-                CHECK_EQ(result[Event(L"m0")][Feature(L"b")], 0.4);
+                  CHECK_EQ(result[e0].count(f2), 1ul);
+                  CHECK_EQ(result[e0][f2], 0.4);
 
-                CHECK_EQ(result[Event(L"m0")].count(Feature(L"c")), 1ul);
-                CHECK_EQ(result[Event(L"m0")][Feature(L"c")], 0.2);
-              }},
-         {.name = L"MultipleEventMultipleInstance", .callback = [] {
-            History history;
-            history[Event(L"m0")] = {
-                FeaturesSet({Feature(L"a"), Feature(L"b"), Feature(L"c")}),
-                FeaturesSet({Feature(L"a"), Feature(L"b")}),
-                FeaturesSet({Feature(L"a")}), FeaturesSet({Feature(L"a")}),
-                FeaturesSet({Feature(L"a")})};
-            history[Event(L"m1")] = {
-                FeaturesSet({Feature(L"a"), Feature(L"b"), Feature(L"c")}),
-                FeaturesSet({Feature(L"c")})};
+                  CHECK_EQ(result[e0].count(f3), 1ul);
+                  CHECK_EQ(result[e0][f3], 0.2);
+                }},
+           {.name = L"MultipleEventMultipleInstance", .callback = [=] {
+              auto result = GetPerEventFeatureProbability(
+                  History{{{e0,
+                            {
+                                FeaturesSet({f1, f2, f3}),
+                                FeaturesSet({f1, f2}),
+                                FeaturesSet({f1}),
+                                FeaturesSet({f1}),
+                                FeaturesSet({f1}),
+                            }},
+                           {e1,
+                            {
+                                FeaturesSet({f1, f2, f3}),
+                                FeaturesSet({f3}),
+                            }}}});
 
-            auto result = GetPerEventFeatureProbability(history);
+              CHECK_EQ(result.size(), 2ul);
+              CHECK_EQ(result.count(e0), 1ul);
+              CHECK_EQ(result.count(e1), 1ul);
+              CHECK_EQ(result[e0].size(), 3ul);
+              CHECK_EQ(result[e1].size(), 3ul);
 
-            CHECK_EQ(result.size(), 2ul);
-            CHECK_EQ(result.count(Event(L"m0")), 1ul);
-            CHECK_EQ(result.count(Event(L"m1")), 1ul);
-            CHECK_EQ(result[Event(L"m0")].size(), 3ul);
-            CHECK_EQ(result[Event(L"m1")].size(), 3ul);
+              CHECK_EQ(result[e0].count(f1), 1ul);
+              CHECK_EQ(result[e0][f1], 1.0);
 
-            CHECK_EQ(result[Event(L"m0")].count(Feature(L"a")), 1ul);
-            CHECK_EQ(result[Event(L"m0")][Feature(L"a")], 1.0);
+              CHECK_EQ(result[e0].count(f2), 1ul);
+              CHECK_EQ(result[e0][f2], 0.4);
 
-            CHECK_EQ(result[Event(L"m0")].count(Feature(L"b")), 1ul);
-            CHECK_EQ(result[Event(L"m0")][Feature(L"b")], 0.4);
+              CHECK_EQ(result[e0].count(f3), 1ul);
+              CHECK_EQ(result[e0][f3], 0.2);
 
-            CHECK_EQ(result[Event(L"m0")].count(Feature(L"c")), 1ul);
-            CHECK_EQ(result[Event(L"m0")][Feature(L"c")], 0.2);
+              CHECK_EQ(result[e1].count(f1), 1ul);
+              CHECK_EQ(result[e1][f1], 0.5);
 
-            CHECK_EQ(result[Event(L"m1")].count(Feature(L"a")), 1ul);
-            CHECK_EQ(result[Event(L"m1")][Feature(L"a")], 0.5);
-
-            CHECK_EQ(result[Event(L"m1")].count(Feature(L"c")), 1ul);
-            CHECK_EQ(result[Event(L"m1")][Feature(L"c")], 1.0);
-          }}});
+              CHECK_EQ(result[e1].count(f3), 1ul);
+              CHECK_EQ(result[e1][f3], 1.0);
+            }}});
+    }());
 
 double MinimalFeatureProbability(
     std::unordered_map<Event, FeatureProbabilityMap>
@@ -197,13 +218,16 @@ const bool minimal_feature_probability_tests_registration = tests::Register(
     {{.name = L"Empty",
       .callback = [] { CHECK_EQ(MinimalFeatureProbability({}), 1.0); }},
      {.name = L"SomeData", .callback = [] {
+        Event e0(L"e0"), e1(L"e1"), e2(L"e2");
+        Feature f1(L"f1"), f2(L"f2");
+
         std::unordered_map<Event, FeatureProbabilityMap> data;
-        data[Event(L"m0")][Feature(L"a")] = 0.2;
-        data[Event(L"m0")][Feature(L"b")] = 0.8;
-        data[Event(L"m1")][Feature(L"a")] = 0.8;
-        data[Event(L"m1")][Feature(L"b")] = 0.5;
-        data[Event(L"m2")][Feature(L"a")] = 0.1;  // <--- Minimal.
-        data[Event(L"m2")][Feature(L"b")] = 0.5;
+        data[e0][f1] = 0.2;
+        data[e0][f2] = 0.8;
+        data[e1][f1] = 0.8;
+        data[e1][f2] = 0.5;
+        data[e2][f1] = 0.1;  // <--- Minimal.
+        data[e2][f2] = 0.5;
         CHECK_EQ(MinimalFeatureProbability(data), 0.1);
       }}});
 }  // namespace
@@ -211,56 +235,56 @@ const bool minimal_feature_probability_tests_registration = tests::Register(
 std::vector<Event> Sort(const History& history,
                         const FeaturesSet& current_features) {
   // Let F = f0, f1, ..., fn be the set of current features. We'd like to
-  // compute the probability of each event mi in history given current_features:
-  // p(mi | F).
+  // compute the probability of each event eᵢ in history given current_features:
+  // p(eᵢ | F).
   //
   // We know that:
   //
-  //     p(mi | F) p(F) = p(mi ∩ F)                         (1)
+  //     p(eᵢ | F) p(F) = p(eᵢ ∩ F)                         (1)
   //
   // Since p(F) is the same for all i (and thus won't affect the computation for
-  // mi for different values if i), we get rid of it.
+  // eᵢ for different values if i), we get rid of it.
   //
-  //     p(mi | F) ~= p(mi ∩ F)
+  //     p(eᵢ | F) ~= p(eᵢ ∩ F)
   //
   // We know that (1):
   //
-  //     p(mi ∩ F)
-  //   = p(f0 ∩ f1 ∩ f2 ∩ ... fn ∩ mi)
-  //   = p(f0 | (f1 ∩ f2 ∩ ... fn ∩ mi)) *
-  //     p(f1 | (f2 ∩ ... ∩ fn ∩ mi)) *
+  //     p(eᵢ ∩ F)
+  //   = p(f0 ∩ f1 ∩ f2 ∩ ... fn ∩ eᵢ)
+  //   = p(f0 | (f1 ∩ f2 ∩ ... fn ∩ eᵢ)) *
+  //     p(f1 | (f2 ∩ ... ∩ fn ∩ eᵢ)) *
   //     ... *
-  //     p(fn | mi) *
-  //     p(mi)
+  //     p(fn | eᵢ) *
+  //     p(eᵢ)
   //
-  // The naive assumption lets us simplify to p(fj | mi) the expression:
+  // The naive assumption lets us simplify to p(fj | eᵢ) the expression:
   //
-  //   p(fj | f(j+1) ∩ f(j+2) ∩ ... fn ∩ mi)
+  //   p(fj | f(j+1) ∩ f(j+2) ∩ ... fn ∩ eᵢ)
   //
   // So (1) simplifies to:
   //
-  //     p(mi ∩ F)
-  //   = p(f0 | mi) * ... * p(fn | mi) * p(mi)
-  //   = p(mi) Πj p(fj | mi)
+  //     p(eᵢ ∩ F)
+  //   = p(f0 | eᵢ) * ... * p(fn | eᵢ) * p(eᵢ)
+  //   = p(eᵢ) Πj p(fj | eᵢ)
   //
   // Πj denotes the multiplication over all values j.
   //
-  // There's a small catch. For features absent from mi's history (that is, for
-  // features fj where p(fj|mi) is 0), we don't want to fully discard mi (i.e.,
+  // There's a small catch. For features absent from eᵢ's history (that is, for
+  // features fj where p(fj|eᵢ) is 0), we don't want to fully discard eᵢ (i.e.,
   // we don't want to assign it a proportional probability of 0). If we did
   // that, sporadic features would be given too much weight. To achieve this, we
   // compute a small value epsilon and use:
   //
-  //     p(mi, F) = p(mi) Πj max(epsilon, p(fj | mi))
+  //     p(eᵢ, F) = p(eᵢ) Πj max(epsilon, p(fj | eᵢ))
   static infrastructure::Tracker tracker(
       L"NaiveBayes::SortByProportionalProbability");
   auto call = tracker.Call();
 
-  // p(mi):
+  // p(eᵢ):
   EventProbabilityMap event_probability = GetEventProbability(history);
 
-  // per_event_feature_probability[mi][fj] represents a value p(fj | mi): the
-  // probability of feature fj given event mi.
+  // per_event_feature_probability[eᵢ][fj] represents a value p(fj | eᵢ): the
+  // probability of feature fj given event eᵢ.
   std::unordered_map<Event, FeatureProbabilityMap>
       per_event_feature_probability = GetPerEventFeatureProbability(history);
 
@@ -298,93 +322,112 @@ std::vector<Event> Sort(const History& history,
   return output;
 }
 
-const bool bayes_sort_tests_probability_tests_registration = tests::Register(
-    L"BayesSortTests",
-    {
-        {.name = L"EmptyHistoryAndFeatures",
-         .callback =
-             [] { CHECK_EQ(Sort(History(), FeaturesSet()).size(), 0ul); }},
-        {.name = L"EmptyHistory",
-         .callback =
-             [] {
-               CHECK_EQ(
-                   Sort(History(), FeaturesSet({Feature(L"a"), Feature(L"b")}))
-                       .size(),
-                   0ul);
-             }},
-        {.name = L"EmptyFeatures",
-         .callback =
-             [] {
-               History history;
-               history[Event(L"m0")] = {FeaturesSet({Feature(L"a")}),
-                                        FeaturesSet({Feature(L"b")})};
-               history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
-               auto results = Sort(history, FeaturesSet());
-               CHECK_EQ(results.size(), 2ul);
-               CHECK_EQ(results.front(), Event(L"m1"));
-               CHECK_EQ(results.back(), Event(L"m0"));
-             }},
-        {.name = L"NewFeature",
-         .callback =
-             [] {
-               History history;
-               history[Event(L"m0")] = {FeaturesSet({Feature(L"a")}),
-                                        FeaturesSet({Feature(L"b")})};
-               history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
-               auto results = Sort(history, FeaturesSet({Feature(L"d")}));
-               CHECK_EQ(results.size(), 2ul);
-               // TODO: Why is m0 more likely than m1?
-               CHECK_EQ(results.front(), Event(L"m1"));
-               CHECK_EQ(results.back(), Event(L"m0"));
-             }},
-        {.name = L"FeatureSelects",
-         .callback =
-             [] {
-               History history;
-               history[Event(L"m0")] = {FeaturesSet({Feature(L"a")}),
-                                        FeaturesSet({Feature(L"b")})};
-               history[Event(L"m1")] = {FeaturesSet({Feature(L"c")})};
-               auto results = Sort(history, FeaturesSet({Feature(L"c")}));
-               CHECK_EQ(results.size(), 2ul);
-               CHECK_EQ(results.front(), Event(L"m0"));
-               CHECK_EQ(results.back(), Event(L"m1"));
-             }},
-        {.name = L"FeatureSelectsSomeOverlap",
-         .callback =
-             [] {
-               History history;
-               history[Event(L"m0")] = {FeaturesSet({Feature(L"a")}),
-                                        FeaturesSet({Feature(L"b")})};
-               history[Event(L"m1")] = {FeaturesSet({Feature(L"a")})};
-               auto results = Sort(history, FeaturesSet({Feature(L"b")}));
-               CHECK_EQ(results.size(), 2ul);
-               CHECK_EQ(results.front(), Event(L"m1"));
-               CHECK_EQ(results.back(), Event(L"m0"));
-             }},
-        {.name = L"FeatureSelectsFive",
-         .callback =
-             [] {
-               History history;
-               history[Event(L"m0")] = {
-                   FeaturesSet({Feature(L"1")}),
-                   FeaturesSet({Feature(L"a"), Feature(L"red")}),
-                   FeaturesSet({Feature(L"2")})};
-               history[Event(L"m1")] = {FeaturesSet({Feature(L"a")}),
-                                        FeaturesSet({Feature(L"red")}),
-                                        FeaturesSet({Feature(L"a")})};
-               history[Event(L"m2")] = {FeaturesSet({Feature(L"a")}),
-                                        FeaturesSet({Feature(L"2")}),
-                                        FeaturesSet({Feature(L"3")})};
-               history[Event(L"m3")] = {
-                   FeaturesSet({Feature(L"a"), Feature(L"2")}),
-                   FeaturesSet({Feature(L"red")})};
-               history[Event(L"m4")] = {FeaturesSet({Feature(L"4")})};
-               auto results =
-                   Sort(history, FeaturesSet({Feature(L"a"), Feature(L"red")}));
-               CHECK_EQ(results.size(), 5ul);
-               CHECK(results[4] == Event(L"m1"));
-               CHECK(results[3] == Event(L"m3"));
-               CHECK(results[2] == Event(L"m0"));
-             }},
-    });
+const bool bayes_sort_tests_probability_tests_registration =
+    tests::Register(L"BayesSortTests", [] {
+      Event e0(L"e0"), e1(L"e1"), e2(L"e2"), e3(L"e3"), e4(L"e4");
+      Feature f1(L"f1"), f2(L"f2"), f3(L"f3"), f4(L"f4"), f5(L"f5"), f6(L"f6");
+      return std::vector<tests::Test>({
+          {.name = L"EmptyHistoryAndFeatures",
+           .callback =
+               [] { CHECK_EQ(Sort(History(), FeaturesSet()).size(), 0ul); }},
+          {.name = L"EmptyHistory",
+           .callback =
+               [=] {
+                 CHECK_EQ(Sort(History(), FeaturesSet({f1, f2})).size(), 0ul);
+               }},
+          {.name = L"EmptyFeatures",
+           .callback =
+               [=] {
+                 History history;
+                 history[e0] = {FeaturesSet({f1}), FeaturesSet({f2})};
+                 history[e1] = {FeaturesSet({f3})};
+                 auto results = Sort(history, FeaturesSet());
+                 CHECK_EQ(results.size(), 2ul);
+                 CHECK_EQ(results.front(), e1);
+                 CHECK_EQ(results.back(), e0);
+               }},
+          {.name = L"NewFeature",
+           .callback =
+               [=] {
+                 History history;
+                 history[e0] = {FeaturesSet({f1}), FeaturesSet({f2})};
+                 history[e1] = {FeaturesSet({f3})};
+                 auto results = Sort(history, FeaturesSet({f4}));
+                 CHECK_EQ(results.size(), 2ul);
+                 // TODO: Why is m0 more likely than m1?
+                 CHECK_EQ(results.front(), e1);
+                 CHECK_EQ(results.back(), e0);
+               }},
+          {.name = L"FeatureSelects",
+           .callback =
+               [=] {
+                 auto results = Sort(History{{
+                                         {e0,
+                                          {
+                                              FeaturesSet({f1}),
+                                              FeaturesSet({f2}),
+                                          }},
+                                         {e1, {FeaturesSet({f3})}},
+                                     }},
+                                     FeaturesSet({f3}));
+                 CHECK_EQ(results.size(), 2ul);
+                 CHECK_EQ(results.front(), e0);
+                 CHECK_EQ(results.back(), e1);
+               }},
+          {.name = L"FeatureSelectsSomeOverlap",
+           .callback =
+               [=] {
+                 auto results = Sort(History{{
+                                         {e0,
+                                          {
+                                              FeaturesSet({f1}),
+                                              FeaturesSet({f2}),
+                                          }},
+                                         {e1, {FeaturesSet({f1})}},
+                                     }},
+                                     FeaturesSet({f2}));
+                 CHECK_EQ(results.size(), 2ul);
+                 CHECK_EQ(results.front(), e1);
+                 CHECK_EQ(results.back(), e0);
+               }},
+          {.name = L"FeatureSelectsFive",
+           .callback =
+               [=] {
+                 auto results = Sort(History{{
+                                         {e0,
+                                          {
+                                              FeaturesSet({f1}),
+                                              FeaturesSet({f5, f6}),
+                                              FeaturesSet({f2}),
+                                          }},
+                                         {e1,
+                                          {
+                                              FeaturesSet({f5}),
+                                              FeaturesSet({f6}),
+                                              FeaturesSet({f5}),
+                                          }},
+                                         {e2,
+                                          {
+                                              FeaturesSet({f5}),
+                                              FeaturesSet({f2}),
+                                              FeaturesSet({f3}),
+                                          }},
+                                         {e3,
+                                          {
+                                              FeaturesSet({f5, f2}),
+                                              FeaturesSet({f6}),
+                                          }},
+                                         {e4,
+                                          {
+                                              FeaturesSet({f4}),
+                                          }},
+                                     }},
+                                     FeaturesSet({f5, f6}));
+                 CHECK_EQ(results.size(), 5ul);
+                 CHECK(results[4] == e1);
+                 CHECK(results[3] == e3);
+                 CHECK(results[2] == e0);
+               }},
+      });
+    }());
 }  // namespace afc::naive_bayes
