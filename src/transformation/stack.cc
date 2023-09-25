@@ -14,32 +14,33 @@
 #include "src/transformation/switch_case.h"
 #include "src/transformation/vm.h"
 
-namespace afc::editor {
-namespace transformation {
 using ::operator<<;
 
-using infrastructure::screen::LineModifier;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::PossibleError;
-using language::Success;
-using language::ToByteString;
-using language::lazy_string::Append;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::Range;
+namespace gc = afc::language::gc;
+using afc::infrastructure::screen::LineModifier;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
 
-namespace gc = language::gc;
+namespace afc::editor {
+namespace transformation {
 namespace {
 void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
                const vm::Value& value) {
@@ -206,9 +207,9 @@ Variant OptimizeBase(Stack stack) {
 namespace {
 struct ContentStats {
   size_t lines = 0;
-  size_t words = 0;
-  size_t alnums = 0;
-  size_t characters = 0;
+  std::optional<size_t> words = std::nullopt;
+  std::optional<size_t> alnums = std::nullopt;
+  std::optional<size_t> characters = std::nullopt;
 
   bool operator==(const ContentStats& other) const {
     return lines == other.lines && words == other.words &&
@@ -217,26 +218,40 @@ struct ContentStats {
 };
 
 NonNull<std::shared_ptr<LazyString>> ToString(const ContentStats& stats) {
-  return NewLazyString(L"🌳" + std::to_wstring(stats.lines) + L" 🍀" +
-                       std::to_wstring(stats.words) + L" 🍄" +
-                       std::to_wstring(stats.alnums) + L" 🌰" +
-                       std::to_wstring(stats.characters));
+  NonNull<std::shared_ptr<LazyString>> output = EmptyString();
+  auto key = [&output](std::wstring s, std::optional<size_t> value) {
+    if (value)
+      output = Append(std::move(output),
+                      NewLazyString(L" " + s + std::to_wstring(*value)));
+  };
+  key(L"🌳", stats.lines);
+  key(L" 🍀", stats.words);
+  key(L" 🍄", stats.alnums);
+  key(L" 🌰", stats.characters);
+  return output;
 }
 
-ContentStats AnalyzeContent(const LineSequence& contents) {
+ContentStats AnalyzeContent(const LineSequence& contents,
+                            const LineNumberDelta& lines_limit) {
   ContentStats output{.lines = contents.EndLine().read()};
-  contents.ForEach([&output](const NonNull<std::shared_ptr<const Line>>& line) {
-    ColumnNumber i;
-    output.characters += line->EndColumn().read();
-    while (i < line->EndColumn()) {
-      while (i < line->EndColumn() && !isalnum(line->get(i))) ++i;
-      if (i < line->EndColumn()) ++output.words;
-      while (i < line->EndColumn() && isalnum(line->get(i))) {
-        ++i;
-        ++output.alnums;
-      }
-    }
-  });
+  if (contents.size() <= lines_limit) {
+    output.words = 0;
+    output.alnums = 0;
+    output.characters = 0;
+    contents.ForEach(
+        [&output](const NonNull<std::shared_ptr<const Line>>& line) {
+          ColumnNumber i;
+          output.characters = *output.characters + line->EndColumn().read();
+          while (i < line->EndColumn()) {
+            while (i < line->EndColumn() && !isalnum(line->get(i))) ++i;
+            if (i < line->EndColumn()) ++*output.words;
+            while (i < line->EndColumn() && isalnum(line->get(i))) {
+              ++i;
+              ++*output.alnums;
+            }
+          }
+        });
+  }
   VLOG(7) << "AnalyzeContent: Output: " << ToString(output).value();
   return output;
 }
@@ -246,22 +261,23 @@ const bool analyze_content_tests_registration = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            CHECK(AnalyzeContent(LineSequence()) ==
+            CHECK(AnalyzeContent(LineSequence(), LineNumberDelta(10)) ==
                   ContentStats(
                       {.lines = 0, .words = 0, .alnums = 0, .characters = 0}));
           }},
      {.name = L"SingleWord",
       .callback =
           [] {
-            CHECK(AnalyzeContent(LineSequence::ForTests({L"foo"})) ==
+            CHECK(AnalyzeContent(LineSequence::ForTests({L"foo"}),
+                                 LineNumberDelta(10)) ==
                   ContentStats(
                       {.lines = 0, .words = 1, .alnums = 3, .characters = 3}));
           }},
      {.name = L"SingleLine",
       .callback =
           [] {
-            CHECK(AnalyzeContent(
-                      LineSequence::ForTests({L"foo bar hey alejo"})) ==
+            CHECK(AnalyzeContent(LineSequence::ForTests({L"foo bar hey alejo"}),
+                                 LineNumberDelta(10)) ==
                   ContentStats({.lines = 0,
                                 .words = 4,
                                 .alnums = 3 + 3 + 3 + 5,
@@ -271,19 +287,32 @@ const bool analyze_content_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(AnalyzeContent(LineSequence::ForTests(
-                      {L"   foo    bar   hey   alejo   "})) ==
+                                     {L"   foo    bar   hey   alejo   "}),
+                                 LineNumberDelta(10)) ==
                   ContentStats({.lines = 0,
                                 .words = 4,
                                 .alnums = 3 + 3 + 3 + 5,
                                 .characters = 30}));
           }},
-     {.name = L"VariousEmptyLines", .callback = [] {
-        CHECK(AnalyzeContent(LineSequence::ForTests(
-                  {L"", L"foo", L"", L"", L"", L"bar"})) ==
+     {.name = L"VariousEmptyLines",
+      .callback =
+          [] {
+            CHECK(AnalyzeContent(LineSequence::ForTests(
+                                     {L"", L"foo", L"", L"", L"", L"bar"}),
+                                 LineNumberDelta(10)) ==
+                  ContentStats({.lines = 5,
+                                .words = 2,
+                                .alnums = 3 + 3,
+                                .characters = 3 + 3}));
+          }},
+     {.name = L"PastLimit", .callback = [] {
+        CHECK(AnalyzeContent(
+                  LineSequence::ForTests({L"", L"foo", L"", L"", L"", L"bar"}),
+                  LineNumberDelta(3)) ==
               ContentStats({.lines = 5,
-                            .words = 2,
-                            .alnums = 3 + 3,
-                            .characters = 3 + 3}));
+                            .words = std::nullopt,
+                            .alnums = std::nullopt,
+                            .characters = std::nullopt}));
       }}});
 }  // namespace
 
@@ -316,16 +345,15 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                     [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([input, output, contents](EmptyValue) {
                   if (input.mode == Input::Mode::kPreview &&
-                      input.buffer.status().text()->empty() &&
-                      contents.EndLine() <
-                          LineNumber(input.buffer.Read(
-                              buffer_variables::analyze_content_lines_limit))) {
-                    // TODO(trivial): Always produce the count of lines; just
-                    // use analyze_content_lines_limit to decide of the finer
-                    // grained values should be computed.
+                      input.buffer.status().text()->empty()) {
                     input.buffer.status().SetInformationText(
                         MakeNonNullShared<Line>(
-                            LineBuilder(ToString(AnalyzeContent(contents)))
+                            LineBuilder(
+                                ToString(AnalyzeContent(
+                                    contents,
+                                    LineNumberDelta(input.buffer.Read(
+                                        buffer_variables::
+                                            analyze_content_lines_limit)))))
                                 .Build()));
                   }
                   return futures::Past(std::move(*output));
