@@ -12,6 +12,10 @@
 #include "../public/value.h"
 #include "../public/vm.h"
 
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::Success;
+using afc::language::ValueOrError;
 using afc::language::numbers::FromSizeT;
 using afc::language::numbers::Number;
 using afc::language::numbers::ToInt;
@@ -49,12 +53,12 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       string_type);
   AddMethod(
       L"toint", pool,
-      [](const wstring& str) {
+      [](const wstring& str) -> futures::ValueOrError<int> {
         try {
-          return std::stoi(str);
+          return futures::Past(Success(std::stoi(str)));
         } catch (const std::invalid_argument& ia) {
-          // TODO(easy, 2023-09-23): Don't swallow the error.
-          return 0;
+          return futures::Past(
+              Error(L"toint: stoi failure: " + FromByteString(ia.what())));
         }
       },
       string_type);
@@ -82,12 +86,13 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
   AddMethod(L"shell_escape", pool, language::ShellEscape, string_type);
   AddMethod(
       L"substr", pool,
-      [](const wstring& str, size_t pos, size_t len) -> std::wstring {
+      [](const wstring& str, size_t pos,
+         size_t len) -> futures::ValueOrError<std::wstring> {
         if (static_cast<size_t>(pos + len) > str.size()) {
-          // TODO(easy, 2023-09-23): Don't swallow the error.
-          return L"";
+          return futures::Past(
+              Error(L"substr: Invalid index (past end of string)."));
         }
-        return str.substr(pos, len);
+        return futures::Past(Success(str.substr(pos, len)));
       },
       string_type);
   AddMethod(
