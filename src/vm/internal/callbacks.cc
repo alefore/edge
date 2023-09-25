@@ -9,7 +9,6 @@ using afc::language::ValueOrError;
 using afc::language::numbers::Number;
 
 namespace afc::vm {
-const Type VMTypeMapper<void>::vmtype = types::Void{};
 const Type VMTypeMapper<bool>::vmtype = types ::Bool{};
 const Type VMTypeMapper<Number>::vmtype = types::Number{};
 const Type VMTypeMapper<int>::vmtype = types::Number{};

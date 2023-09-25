@@ -43,8 +43,6 @@ struct VMTypeMapper<void> {
   static language::gc::Root<Value> New(language::gc::Pool& pool) {
     return Value::NewVoid(pool);
   }
-  // TODO(trivial, 2023-09-23): This can probably be removed?
-  static const Type vmtype;
 };
 
 template <>
@@ -310,7 +308,10 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
   language::gc::Root<Value> callback_wrapper = Value::NewFunction(
       pool, purity_type,
       [&] {
-        if constexpr (!futures::is_future<typename ft::ReturnType>::value) {
+        if constexpr (std::is_same<typename ft::ReturnType, void>::value) {
+          return types::Void();
+        } else if constexpr (!futures::is_future<
+                                 typename ft::ReturnType>::value) {
           return GetVMType<typename ft::ReturnType>::vmtype();
         } else if constexpr (std::is_same<typename ft::ReturnType::type,
                                           language::PossibleError>::value) {
