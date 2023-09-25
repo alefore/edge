@@ -52,10 +52,7 @@ struct Traits<std::vector<ValueType>> : public TraitsBase {
 
   static constexpr bool has_erase_by_index = true;
   static futures::ValueOrError<afc::language::EmptyValue> EraseByIndex(
-      ContainerPtr v, language::numbers::Number index_number) {
-    // TODO(easy, 2023-09-22): Use `ToSizeT` rather than `ToInt`.
-    FUTURES_ASSIGN_OR_RETURN(size_t index,
-                             language::numbers::ToSizeT(index_number));
+      ContainerPtr v, size_t index) {
     v->erase(v->begin() + index);
     return futures::Past(afc::language::Success());
   }
