@@ -256,6 +256,7 @@
   friend ClassName operator/(const ClassName& a, VariableType other); \
   friend ClassName& operator+=(ClassName& a, const ClassName& value); \
   friend ClassName& operator-=(ClassName& a, const ClassName& value); \
+  friend ClassName& operator*=(ClassName& a, const ClassName& value); \
   friend ClassName& operator++(ClassName& a);                         \
   friend ClassName operator++(ClassName& a, int);                     \
   friend ClassName& operator--(ClassName& a);                         \
@@ -343,6 +344,10 @@
   }                                                                    \
   inline ClassName& operator-=(ClassName& a, const ClassName& value) { \
     a.value -= value.read();                                           \
+    return a;                                                          \
+  }                                                                    \
+  inline ClassName& operator*=(ClassName& a, const ClassName& value) { \
+    a.value *= value.read();                                           \
     return a;                                                          \
   }                                                                    \
   inline int operator%(const ClassName& a, const ClassName& b) {       \
