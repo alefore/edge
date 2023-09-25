@@ -11,8 +11,11 @@
 namespace afc::naive_bayes {
 GHOST_TYPE_DOUBLE(Probability);
 namespace {
-using EventProbabilityMap = std::unordered_map<Event, Probability>;
-using FeatureProbabilityMap = std::unordered_map<Feature, Probability>;
+using EventProbabilityMapInternal = std::unordered_map<Event, Probability>;
+GHOST_TYPE_CONTAINER(EventProbabilityMap, EventProbabilityMapInternal);
+
+using FeatureProbabilityMapInternal = std::unordered_map<Feature, Probability>;
+GHOST_TYPE_CONTAINER(FeatureProbabilityMap, FeatureProbabilityMapInternal);
 
 // Returns the probability of each event in history.
 EventProbabilityMap GetEventProbability(const History& history) {
@@ -21,9 +24,10 @@ EventProbabilityMap GetEventProbability(const History& history) {
     instances_count += instances.size();
 
   EventProbabilityMap output;
-  for (const auto& [event, instances] : history)
-    output.insert({event, Probability(static_cast<double>(instances.size()) /
-                                      instances_count)});
+  for (const std::pair<const Event, std::vector<FeaturesSet>>& entry : history)
+    output.insert(
+        {entry.first, Probability(static_cast<double>(entry.second.size()) /
+                                  instances_count)});
   return output;
 }
 
