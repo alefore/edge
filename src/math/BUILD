@@ -7,3 +7,9 @@ cc_library(
         "//src/infrastructure:time",
     ],
 )
+
+cc_library(
+    name = "naive_bayes",
+    srcs = ["naive_bayes.cc"],
+    hdrs = ["naive_bayes.h"],
+)

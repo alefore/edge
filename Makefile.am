@@ -12,8 +12,6 @@ src/vm/internal/cpp.y
 COMMON_SOURCES = \
 src/args.cc \
 src/args.h \
-src/naive_bayes.cc \
-src/naive_bayes.h \
 src/buffer.cc \
 src/buffer.h \
 src/buffer_contents_util.cc \
@@ -187,6 +185,8 @@ src/lru_cache.h \
 src/map_mode.cc \
 src/math/decaying_counter.cc \
 src/math/decaying_counter.h \
+src/math/naive_bayes.cc \
+src/math/naive_bayes.h \
 src/modifiers.cc \
 src/modifiers.h \
 src/navigation_buffer.cc \

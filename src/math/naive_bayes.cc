@@ -1,4 +1,4 @@
-#include "src/naive_bayes.h"
+#include "src/math/naive_bayes.h"
 
 #include <numeric>
 #include <ranges>
@@ -10,7 +10,7 @@
 
 using ::operator<<;
 
-namespace afc::naive_bayes {
+namespace afc::math::naive_bayes {
 GHOST_TYPE_DOUBLE(Probability);
 namespace {
 using EventProbabilityMapInternal = std::unordered_map<Event, Probability>;
@@ -394,4 +394,4 @@ const bool bayes_sort_tests_probability_tests_registration =
                }},
       });
     }());
-}  // namespace afc::naive_bayes
+}  // namespace afc::math::naive_bayes

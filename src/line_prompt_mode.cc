@@ -22,7 +22,7 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
-#include "src/naive_bayes.h"
+#include "src/math/naive_bayes.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
@@ -388,9 +388,9 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   FilterSortHistorySyncOutput output;
   if (abort_value.has_value()) return output;
   // Sets of features for each unique `prompt` value in the history.
-  naive_bayes::History history_data;
+  math::naive_bayes::History history_data;
   // Tokens by parsing the `prompt` value in the history.
-  std::unordered_map<naive_bayes::Event, std::vector<Token>>
+  std::unordered_map<math::naive_bayes::Event, std::vector<Token>>
       history_prompt_tokens;
   std::vector<Token> filter_tokens =
       TokenizeBySpaces(NewLazyString(filter).value());
@@ -449,9 +449,9 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                       prompt_value,
                       TokenizeNameForPrefixSearches(prompt_value));
                   // TODO(easy, 2022-11-26): Get rid of call ToString.
-                  naive_bayes::Event event_key(
+                  math::naive_bayes::Event event_key(
                       cpp_string.OriginalString()->ToString());
-                  std::vector<naive_bayes::FeaturesSet>* features_output =
+                  std::vector<math::naive_bayes::FeaturesSet>* features_output =
                       nullptr;
                   if (filter_tokens.empty()) {
                     VLOG(6) << "Accepting value (empty filters): "
@@ -470,10 +470,10 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                             << line->contents().value();
                     return;
                   }
-                  naive_bayes::FeaturesSet current_features;
+                  math::naive_bayes::FeaturesSet current_features;
                   for (auto& [key, value] : *line_keys) {
                     if (key != L"prompt") {
-                      current_features.insert(naive_bayes::Feature(
+                      current_features.insert(math::naive_bayes::Feature(
                           key + L":" + QuoteString(value)->ToString()));
                     }
                   }
@@ -486,18 +486,18 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   VLOG(4) << "Matches found: " << history_data.read().size();
 
   // For sorting.
-  naive_bayes::FeaturesSet current_features;
+  math::naive_bayes::FeaturesSet current_features;
   for (const auto& [name, value] : features) {
-    current_features.insert(
-        naive_bayes::Feature(name + L":" + QuoteString(value)->ToString()));
+    current_features.insert(math::naive_bayes::Feature(
+        name + L":" + QuoteString(value)->ToString()));
   }
   for (const auto& [name, value] : GetSyntheticFeatures(features)) {
-    current_features.insert(
-        naive_bayes::Feature(name + L":" + QuoteString(value)->ToString()));
+    current_features.insert(math::naive_bayes::Feature(
+        name + L":" + QuoteString(value)->ToString()));
   }
 
-  for (naive_bayes::Event& key :
-       naive_bayes::Sort(history_data, current_features)) {
+  for (math::naive_bayes::Event& key :
+       math::naive_bayes::Sort(history_data, current_features)) {
     std::vector<TokenAndModifiers> tokens;
     for (const Token& token : history_prompt_tokens[key]) {
       VLOG(6) << "Add token BOLD: " << token;

@@ -428,12 +428,6 @@ cc_library(
 )
 
 cc_library(
-    name = "naive_bayes",
-    srcs = ["naive_bayes.cc"],
-    hdrs = ["naive_bayes.h"],
-)
-
-cc_library(
     name = "navigate_command",
     srcs = ["navigate_command.cc"],
     hdrs = ["navigate_command.h"],

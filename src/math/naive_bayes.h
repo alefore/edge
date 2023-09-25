@@ -7,7 +7,7 @@
 #include "src/language/ghost_type.h"
 #include "src/language/wstring.h"
 
-namespace afc::naive_bayes {
+namespace afc::math::naive_bayes {
 using ::operator<<;
 
 // An Event represents an arbitrary action, such as opening a specific file.
@@ -21,13 +21,12 @@ GHOST_TYPE(Event, std::wstring);
 // - Today is Wednesday.
 // - A given process is currently executing.
 GHOST_TYPE(Feature, std::wstring);
-}  // namespace afc::naive_bayes
+}  // namespace afc::math::naive_bayes
 
-GHOST_TYPE_HASH(afc::naive_bayes::Event);
-GHOST_TYPE_HASH(afc::naive_bayes::Feature);
+GHOST_TYPE_HASH(afc::math::naive_bayes::Event);
+GHOST_TYPE_HASH(afc::math::naive_bayes::Feature);
 
-namespace afc::naive_bayes {
-
+namespace afc::math::naive_bayes {
 // FeaturesSet represents a set of features. Typically this is used to capture
 // the state of the environment in which an event is executed.
 GHOST_TYPE_CONTAINER(FeaturesSet, std::unordered_set<Feature>);
@@ -44,4 +43,4 @@ GHOST_TYPE_CONTAINER(History, InternalHistoryType);
 // The returned vector contains the keys of `history`.
 std::vector<Event> Sort(const History& history,
                         const FeaturesSet& current_features);
-}  // namespace afc::naive_bayes
+}  // namespace afc::math::naive_bayes
