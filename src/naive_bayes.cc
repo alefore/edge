@@ -9,7 +9,7 @@
 #include "src/tests/tests.h"
 
 namespace afc::naive_bayes {
-
+GHOST_TYPE_DOUBLE(Probability);
 namespace {
 using EventProbabilityMap = std::unordered_map<Event, double>;
 using FeatureProbabilityMap = std::unordered_map<Feature, double>;
@@ -143,22 +143,21 @@ const bool get_probability_of_feature_given_event_tests_registration =
             }}});
     }());
 
-double MinimalFeatureProbability(
+Probability MinimalFeatureProbability(
     std::unordered_map<Event, FeatureProbabilityMap>
         probability_of_feature_given_event) {
-  double output = 1.0;
-  for (auto& [_0, features] : probability_of_feature_given_event) {
-    for (auto& [_1, value] : features) {
-      output = std::min(output, value);
-    }
-  }
+  Probability output(1.0);
+  for (auto& [_0, features] : probability_of_feature_given_event)
+    for (auto& [_1, value] : features)
+      output = std::min(output, Probability(value));
   return output;
 }
 
 const bool minimal_feature_probability_tests_registration = tests::Register(
     L"MinimalFeatureProbabilityTests",
     {{.name = L"Empty",
-      .callback = [] { CHECK_EQ(MinimalFeatureProbability({}), 1.0); }},
+      .callback =
+          [] { CHECK_EQ(MinimalFeatureProbability({}), Probability(1.0)); }},
      {.name = L"SomeData", .callback = [] {
         Event e0(L"e0"), e1(L"e1"), e2(L"e2");
         Feature f1(L"f1"), f2(L"f2");
@@ -170,7 +169,7 @@ const bool minimal_feature_probability_tests_registration = tests::Register(
         data[e1][f2] = 0.5;
         data[e2][f1] = 0.1;  // <--- Minimal.
         data[e2][f2] = 0.5;
-        CHECK_EQ(MinimalFeatureProbability(data), 0.1);
+        CHECK_EQ(MinimalFeatureProbability(data), Probability(0.1));
       }}});
 }  // namespace
 
@@ -233,20 +232,20 @@ std::vector<Event> Sort(const History& history,
     probability_of_feature_given_event.insert(
         {event, GetFeatureProbability(features_sets)});
 
-  const double epsilon =
+  const Probability epsilon =
       MinimalFeatureProbability(probability_of_feature_given_event) / 2;
   VLOG(5) << "Found epsilon: " << epsilon;
 
   std::unordered_map<Event, double> current_probability_value;
   for (const auto& [event, instances] : history) {
-    double p = probability_of_event[event];
+    Probability p = Probability(probability_of_event[event]);
     const auto& feature_probability = probability_of_feature_given_event[event];
     for (const auto& feature : current_features) {
       auto it = feature_probability.find(feature);
-      p *= it != feature_probability.end() ? it->second : epsilon;
+      p *= it != feature_probability.end() ? Probability(it->second) : epsilon;
     }
     VLOG(6) << "Current probability for " << event << ": " << p;
-    current_probability_value[event] = p;
+    current_probability_value[event] = p.read();
   }
 
   auto events = std::views::keys(history);
