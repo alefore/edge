@@ -599,15 +599,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
 
   buffer_object_type.ptr()->AddField(
       L"EvaluateFile",
-      vm::NewCallback(
-          pool, vm::PurityTypeWriter,
-          [](gc::Root<OpenBuffer> buffer, std::wstring path_str) {
-            std::visit(overload{[](Error error) { LOG(ERROR) << error; },
-                                [&](Path path) {
-                                  buffer.ptr()->EvaluateFile(std::move(path));
-                                }},
-                       Path::FromString(path_str));
-          })
+      vm::NewCallback(pool, vm::PurityTypeWriter,
+                      [](gc::Root<OpenBuffer> buffer, Path path) {
+                        buffer.ptr()->EvaluateFile(std::move(path));
+                      })
           .ptr());
 
   buffer_object_type.ptr()->AddField(

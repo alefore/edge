@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "src/editor.h"
+#include "src/infrastructure/dirname_vm.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/screen/screen.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -138,9 +139,8 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
       L"RemoteScreen",
       vm::NewCallback(
           pool, PurityType::kUnknown,
-          [&editor](std::wstring str_path)
+          [&editor](Path path)
               -> futures::ValueOrError<NonNull<std::shared_ptr<Screen>>> {
-            FUTURES_ASSIGN_OR_RETURN(Path path, Path::FromString(str_path));
             return editor.thread_pool()
                 .Run([path] { return SyncConnectToServer(path); })
                 .Transform([](FileDescriptor fd)

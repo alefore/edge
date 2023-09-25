@@ -99,6 +99,8 @@ src/infrastructure/command_line.h \
 src/infrastructure/command_line.cc \
 src/infrastructure/dirname.cc \
 src/infrastructure/dirname.h \
+src/infrastructure/dirname_vm.cc \
+src/infrastructure/dirname_vm.h \
 src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
 src/infrastructure/time.cc \

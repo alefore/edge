@@ -4,6 +4,7 @@
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/dirname_vm.h"
 #include "src/insert_history_buffer.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -296,18 +297,12 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
 
   editor_type.ptr()->AddField(
       L"ConnectTo",
-      vm::NewCallback(
-          pool, PurityType::kUnknown,
-          [](EditorState& editor_arg,
-             std::wstring path_str) -> futures::ValueOrError<EmptyValue> {
-            // TODO(trivial, 2023-09-23): Add a VMTypeMapper for Path?
-            FUTURES_ASSIGN_OR_RETURN(
-                Path target_path,
-                editor_arg.status().LogErrors(AugmentErrors(
-                    L"ConnectTo error", Path::FromString(path_str))));
-            OpenServerBuffer(editor_arg, target_path);
-            return futures::Past(EmptyValue());
-          })
+      vm::NewCallback(pool, PurityType::kUnknown,
+                      [](EditorState& editor_arg, Path target_path)
+                          -> futures::ValueOrError<EmptyValue> {
+                        OpenServerBuffer(editor_arg, target_path);
+                        return futures::Past(EmptyValue());
+                      })
           .ptr());
 
   editor_type.ptr()->AddField(
