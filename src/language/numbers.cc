@@ -242,8 +242,6 @@ ValueOrError<Decimal> ToDecimalBase(Division value, size_t decimal_digits) {
   ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b.value(), decimal_digits));
   ASSIGN_OR_RETURN(DivisionOutput output,
                    DivideDigits(a.digits, b.digits, decimal_digits));
-  // TODO(2023-09-23, numbers): Compute `exact`? If both are exact, check that
-  // one is an exact multiple of the other?
   return Decimal{.positive = a.positive == b.positive,
                  .exact = a.exact && b.exact && output.exact,
                  .digits = std::move(output.digits)};
