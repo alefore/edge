@@ -5,8 +5,8 @@
 #include "src/vm/public/environment.h"
 
 using afc::language::ValueOrError;
-using afc::language::numbers::Number;
-using afc::language::numbers::ToString;
+using afc::math::numbers::Number;
+using afc::math::numbers::ToString;
 
 namespace afc::vm {
 using language::NonNull;

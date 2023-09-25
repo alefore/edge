@@ -16,9 +16,9 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::Success;
 using afc::language::ValueOrError;
-using afc::language::numbers::FromSizeT;
-using afc::language::numbers::Number;
-using afc::language::numbers::ToInt;
+using afc::math::numbers::FromSizeT;
+using afc::math::numbers::Number;
+using afc::math::numbers::ToInt;
 
 namespace afc::language::gc {
 class Pool;

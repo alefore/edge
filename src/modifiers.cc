@@ -2,9 +2,6 @@
 
 #include "src/language/wstring.h"
 
-using afc::language::numbers::Number;
-using afc::language::numbers::ToInt;
-
 namespace afc::vm {
 using language::NonNull;
 namespace gc = language::gc;

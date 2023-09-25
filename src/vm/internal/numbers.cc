@@ -6,9 +6,9 @@
 #include "src/vm/public/environment.h"
 
 using afc::language::Success;
-using afc::language::numbers::FromDouble;
-using afc::language::numbers::Number;
-using afc::language::numbers::ToDouble;
+using afc::math::numbers::FromDouble;
+using afc::math::numbers::Number;
+using afc::math::numbers::ToDouble;
 
 namespace afc::vm {
 namespace gc = language::gc;

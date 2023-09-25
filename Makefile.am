@@ -148,8 +148,6 @@ src/language/lazy_string/substring.cc \
 src/language/lazy_string/substring.h \
 src/language/lazy_string/trim.cc \
 src/language/lazy_string/trim.h \
-src/language/numbers.cc \
-src/language/numbers.h \
 src/language/observers.h \
 src/language/observers.cc \
 src/language/observers_gc.h \
@@ -187,6 +185,8 @@ src/math/decaying_counter.cc \
 src/math/decaying_counter.h \
 src/math/naive_bayes.cc \
 src/math/naive_bayes.h \
+src/math/numbers.cc \
+src/math/numbers.h \
 src/modifiers.cc \
 src/modifiers.h \
 src/navigation_buffer.cc \

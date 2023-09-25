@@ -5,7 +5,7 @@
 #include <map>
 #include <set>
 
-#include "src/language/numbers.h"
+#include "src/math/numbers.h"
 #include "src/vm/internal/numbers.h"
 #include "src/vm/internal/string.h"
 #include "src/vm/internal/time.h"
@@ -21,8 +21,8 @@ using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::PossibleError;
-using afc::language::numbers::Number;
-using afc::language::numbers::ToString;
+using afc::math::numbers::Number;
+using afc::math::numbers::ToString;
 
 namespace afc::vm {
 

@@ -16,8 +16,6 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::numbers::Number;
-using afc::language::numbers::ToInt;
 
 namespace gc = afc::language::gc;
 
@@ -105,13 +103,13 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
 
   line_column.ptr()->AddField(
       L"line", NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
-                 return Number(static_cast<int>(line_column.line.read()));
+                 return line_column.line.read();
                }).ptr());
 
   line_column.ptr()->AddField(
       L"column",
       NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
-        return Number(static_cast<int>(line_column.column.read()));
+        return line_column.column.read();
       }).ptr());
 
   line_column.ptr()->AddField(
@@ -139,14 +137,14 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
   line_column_delta.ptr()->AddField(
       L"line", NewCallback(pool, PurityType::kPure,
                            [](LineColumnDelta line_column_delta) {
-                             return Number{line_column_delta.line.read()};
+                             return line_column_delta.line.read();
                            })
                    .ptr());
 
   line_column_delta.ptr()->AddField(
       L"column", NewCallback(pool, PurityType::kPure,
                              [](LineColumnDelta line_column_delta) {
-                               return Number{line_column_delta.column.read()};
+                               return line_column_delta.column.read();
                              })
                      .ptr());
 

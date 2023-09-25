@@ -10,7 +10,7 @@
 
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
-#include "src/language/numbers.h"
+#include "src/math/numbers.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/vm.h"
 
@@ -39,7 +39,7 @@ class Value {
   static language::gc::Root<Value> NewBool(language::gc::Pool& pool,
                                            bool value);
   static language::gc::Root<Value> NewNumber(language::gc::Pool& pool,
-                                             language::numbers::Number value);
+                                             math::numbers::Number value);
   static language::gc::Root<Value> NewString(language::gc::Pool& pool,
                                              std::wstring value);
   static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
@@ -79,7 +79,7 @@ class Value {
 
   bool get_bool() const;
   language::ValueOrError<int> get_int() const;
-  const language::numbers::Number& get_number() const;
+  const math::numbers::Number& get_number() const;
   const std::wstring& get_string() const;
   const std::wstring& get_symbol() const;
 
@@ -118,7 +118,7 @@ class Value {
   struct ObjectInstance {
     language::NonNull<std::shared_ptr<void>> value;
   };
-  std::variant<bool, language::numbers::Number, std::wstring, Symbol,
+  std::variant<bool, math::numbers::Number, std::wstring, Symbol,
                ObjectInstance, Callback>
       value_;
 

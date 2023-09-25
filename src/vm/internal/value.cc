@@ -7,9 +7,9 @@
 #include "src/tests/tests.h"
 #include "src/vm/public/escape.h"
 
-using afc::language::numbers::Number;
-using afc::language::numbers::ToDouble;
-using afc::language::numbers::ToString;
+using afc::math::numbers::Number;
+using afc::math::numbers::ToDouble;
+using afc::math::numbers::ToString;
 
 size_t constexpr kDefaultPrecision = 5ul;
 
@@ -119,10 +119,10 @@ bool Value::get_bool() const {
 }
 
 language::ValueOrError<int> Value::get_int() const {
-  return language::numbers::ToInt(get_number());
+  return math::numbers::ToInt(get_number());
 }
 
-const language::numbers::Number& Value::get_number() const {
+const math::numbers::Number& Value::get_number() const {
   CHECK(IsNumber());
   return std::get<Number>(value_);
 }
@@ -164,7 +164,7 @@ ValueOrError<double> Value::ToDouble() const {
                  return Error(L"Unable to convert to double: bool");
                },
                [&](const types::Number&) -> ValueOrError<double> {
-                 return afc::language::numbers::ToDouble(get_number());
+                 return afc::math::numbers::ToDouble(get_number());
                },
                [&](const types::String&) -> ValueOrError<double> {
                  return Error(L"Unable to convert to double: string");

@@ -115,7 +115,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                 }).ptr());
   object_type.ptr()->AddField(
       L"size", vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr v) {
-                 return afc::language::numbers::FromSizeT(v->size());
+                 return v->size();
                }).ptr());
   object_type.ptr()->AddField(
       L"get",

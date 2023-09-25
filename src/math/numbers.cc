@@ -1,4 +1,4 @@
-#include "src/language/numbers.h"
+#include "src/math/numbers.h"
 
 #include <glog/logging.h>
 
@@ -7,9 +7,15 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/overload.h"
+#include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
-namespace afc::language::numbers {
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::overload;
+using afc::language::ValueOrError;
+
+namespace afc::math::numbers {
 namespace {
 
 // Least significative digit first. Zero should always be represented as the
@@ -488,4 +494,4 @@ ValueOrError<bool> IsLessThanOrEqual(const Number& a, const Number& b,
   return a_decimal < b_decimal || a_decimal == b_decimal;
 }
 
-};  // namespace afc::language::numbers
+};  // namespace afc::math::numbers

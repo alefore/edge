@@ -14,8 +14,8 @@ using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
-using afc::language::numbers::Number;
-using afc::language::numbers::ToInt;
+using afc::math::numbers::Number;
+using afc::math::numbers::ToInt;
 
 namespace afc::vm {
 BinaryOperator::BinaryOperator(NonNull<std::shared_ptr<Expression>> a,
@@ -64,8 +64,8 @@ std::unique_ptr<Expression> NewBinaryExpression(
     std::unique_ptr<Expression> b_raw,
     std::function<language::ValueOrError<wstring>(wstring, wstring)>
         str_operator,
-    std::function<language::ValueOrError<language::numbers::Number>(
-        language::numbers::NumberPtr, language::numbers::NumberPtr)>
+    std::function<language::ValueOrError<math::numbers::Number>(
+        math::numbers::NumberPtr, math::numbers::NumberPtr)>
         number_operator,
     std::function<language::ValueOrError<wstring>(wstring, int)>
         str_int_operator) {

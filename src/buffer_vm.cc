@@ -18,7 +18,7 @@
 #include "src/transformation/vm.h"
 
 namespace gc = afc::language::gc;
-namespace numbers = afc::language::numbers;
+namespace numbers = afc::math::numbers;
 
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;

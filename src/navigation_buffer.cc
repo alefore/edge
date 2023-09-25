@@ -29,14 +29,14 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
-using afc::language::numbers::Number;
-using afc::language::numbers::ToSizeT;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::OutgoingLink;
+using afc::math::numbers::Number;
+using afc::math::numbers::ToSizeT;
 
 namespace afc::editor {
 namespace {

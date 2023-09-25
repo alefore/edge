@@ -23,7 +23,7 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/function_traits.h"
-#include "src/language/numbers.h"
+#include "src/math/numbers.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
@@ -57,10 +57,10 @@ struct VMTypeMapper<bool> {
 template <>
 struct VMTypeMapper<size_t> {
   static afc::language::ValueOrError<size_t> get(Value& value) {
-    return afc::language::numbers::ToSizeT(value.get_number());
+    return afc::math::numbers::ToSizeT(value.get_number());
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool, size_t value) {
-    return Value::NewNumber(pool, afc::language::numbers::FromSizeT(value));
+    return Value::NewNumber(pool, afc::math::numbers::FromSizeT(value));
   }
   static const Type vmtype;
 };
@@ -68,10 +68,10 @@ struct VMTypeMapper<size_t> {
 template <>
 struct VMTypeMapper<int> {
   static afc::language::ValueOrError<int> get(Value& value) {
-    return afc::language::numbers::ToInt(value.get_number());
+    return afc::math::numbers::ToInt(value.get_number());
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
-    return Value::NewNumber(pool, afc::language::numbers::Number(value));
+    return Value::NewNumber(pool, afc::math::numbers::Number(value));
   }
   static const Type vmtype;
 };
@@ -79,21 +79,19 @@ struct VMTypeMapper<int> {
 template <>
 struct VMTypeMapper<double> {
   static afc::language::ValueOrError<double> get(Value& value) {
-    return afc::language::numbers::ToDouble(value.get_number());
+    return afc::math::numbers::ToDouble(value.get_number());
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool, double value) {
-    return Value::NewNumber(pool, afc::language::numbers::FromDouble(value));
+    return Value::NewNumber(pool, afc::math::numbers::FromDouble(value));
   }
   static const Type vmtype;
 };
 
 template <>
-struct VMTypeMapper<language::numbers::Number> {
-  static language::numbers::Number get(Value& value) {
-    return value.get_number();
-  }
+struct VMTypeMapper<math::numbers::Number> {
+  static math::numbers::Number get(Value& value) { return value.get_number(); }
   static language::gc::Root<Value> New(language::gc::Pool& pool,
-                                       language::numbers::Number value) {
+                                       math::numbers::Number value) {
     return Value::NewNumber(pool, value);
   }
   static const Type vmtype;

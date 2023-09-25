@@ -25,9 +25,9 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::Pointer;
 using afc::language::lazy_string::NewLazyString;
-using afc::language::numbers::Number;
-using afc::language::numbers::ToInt;
 using afc::language::text::Line;
+using afc::math::numbers::Number;
+using afc::math::numbers::ToInt;
 
 namespace afc::vm {
 /* static */ editor::EditorState& VMTypeMapper<editor::EditorState>::get(

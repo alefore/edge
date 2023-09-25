@@ -1,14 +1,14 @@
 #include "src/vm/internal/negate_expression.h"
 
 #include "src/language/error/value_or_error.h"
-#include "src/language/numbers.h"
+#include "src/math/numbers.h"
 #include "src/vm/internal/compilation.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
 
 using afc::language::MakeNonNullShared;
-using afc::language::numbers::Negation;
-using afc::language::numbers::Number;
+using afc::math::numbers::Negation;
+using afc::math::numbers::Number;
 
 namespace afc::vm {
 namespace {

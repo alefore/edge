@@ -10,9 +10,6 @@
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 
-using afc::language::numbers::Number;
-using afc::language::numbers::ToInt;
-
 namespace afc ::editor {
 using language::NonNull;
 using language::lazy_string::ColumnNumber;

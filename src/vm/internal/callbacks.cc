@@ -6,7 +6,7 @@
 using afc::language::Error;
 using afc::language::Success;
 using afc::language::ValueOrError;
-using afc::language::numbers::Number;
+using afc::math::numbers::Number;
 
 namespace afc::vm {
 const Type VMTypeMapper<bool>::vmtype = types ::Bool{};
