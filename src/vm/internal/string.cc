@@ -35,16 +35,6 @@ const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<std::set<std::wstring>>>>::object_type_name =
     types::ObjectName(L"SetString");
 
-#if 0
-template <typename ReturnType, typename... Args>
-void AddMethod(const wstring& name, language::gc::Pool& pool,
-               std::function<ReturnType(const wstring&, Args...)> callback,
-               gc::Root<ObjectType>& string_type) {
-  string_type.ptr()->AddField(
-      name, NewCallback(pool, PurityType::kPure, callback).ptr());
-}
-#endif
-
 template <typename Callable>
 void AddMethod(const wstring& name, language::gc::Pool& pool, Callable callback,
                gc::Root<ObjectType>& string_type) {
