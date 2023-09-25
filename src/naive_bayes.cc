@@ -145,7 +145,7 @@ const bool get_probability_of_feature_given_event_tests_registration =
     }());
 
 Probability MinimalFeatureProbability(
-    std::unordered_map<Event, FeatureProbabilityMap>
+    const std::unordered_map<Event, FeatureProbabilityMap>&
         probability_of_feature_given_event) {
   Probability output(1.0);
   for (const FeatureProbabilityMap& features :
@@ -176,7 +176,7 @@ const bool minimal_feature_probability_tests_registration = tests::Register(
 
 std::vector<Event> Sort(const History& history,
                         const FeaturesSet& current_features) {
-  // Let F = f0, f1, ..., fn be the set of current features. We'd like to
+  // Let F = f₀, f₁, ..., fₙ be the set of current features. We'd like to
   // compute the probability of each event eᵢ in history given current_features:
   // p(eᵢ | F).
   //
@@ -192,32 +192,32 @@ std::vector<Event> Sort(const History& history,
   // We know that (1):
   //
   //     p(eᵢ ∩ F)
-  //   = p(f0 ∩ f1 ∩ f2 ∩ ... fn ∩ eᵢ)
-  //   = p(f0 | (f1 ∩ f2 ∩ ... fn ∩ eᵢ)) *
-  //     p(f1 | (f2 ∩ ... ∩ fn ∩ eᵢ)) *
+  //   = p(f₀ ∩ f₁ ∩ f₂ ∩ ... fₙ ∩ eᵢ)
+  //   = p(f₀ | (f₁ ∩ f₂ ∩ ... fₙ ∩ eᵢ)) *
+  //     p(f₁ | (f₂ ∩ ... ∩ fₙ ∩ eᵢ)) *
   //     ... *
-  //     p(fn | eᵢ) *
+  //     p(fₙ | eᵢ) *
   //     p(eᵢ)
   //
-  // The naive assumption lets us simplify to p(fj | eᵢ) the expression:
+  // The naive assumption lets us simplify to p(fⱼ | eᵢ) the expression:
   //
-  //   p(fj | f(j+1) ∩ f(j+2) ∩ ... fn ∩ eᵢ)
+  //   p(fⱼ | fⱼ₊₁ ∩ fⱼ₊₂ ∩ ... fₙ ∩ eᵢ)
   //
   // So (1) simplifies to:
   //
   //     p(eᵢ ∩ F)
-  //   = p(f0 | eᵢ) * ... * p(fn | eᵢ) * p(eᵢ)
-  //   = p(eᵢ) Πj p(fj | eᵢ)
+  //   = p(f₀ | eᵢ) * ... * p(fₙ | eᵢ) * p(eᵢ)
+  //   = p(eᵢ) Πj p(fⱼ | eᵢ)
   //
   // Πj denotes the multiplication over all values j.
   //
   // There's a small catch. For features absent from eᵢ's history (that is, for
-  // features fj where p(fj|eᵢ) is 0), we don't want to fully discard eᵢ (i.e.,
+  // features fⱼ where p(fⱼ|eᵢ) is 0), we don't want to fully discard eᵢ (i.e.,
   // we don't want to assign it a proportional probability of 0). If we did
   // that, sporadic features would be given too much weight. To achieve this, we
   // compute a small value epsilon and use:
   //
-  //     p(eᵢ, F) = p(eᵢ) Πj max(epsilon, p(fj | eᵢ))
+  //     p(eᵢ, F) = p(eᵢ) Πj max(epsilon, p(fⱼ | eᵢ))
   static infrastructure::Tracker tracker(
       L"NaiveBayes::SortByProportionalProbability");
   auto call = tracker.Call();
@@ -225,8 +225,8 @@ std::vector<Event> Sort(const History& history,
   // p(eᵢ):
   EventProbabilityMap probability_of_event = GetEventProbability(history);
 
-  // probability_of_feature_given_event[eᵢ][fj] represents a value p(fj | eᵢ):
-  // the probability of feature fj given event eᵢ.
+  // probability_of_feature_given_event[eᵢ][fⱼ] represents a value p(fⱼ | eᵢ):
+  // the probability of fⱼ given eᵢ.
   std::unordered_map<Event, FeatureProbabilityMap>
       probability_of_feature_given_event;
   for (const auto& [event, features_sets] : history)
