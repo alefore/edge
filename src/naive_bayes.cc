@@ -16,15 +16,13 @@ using FeatureProbabilityMap = std::unordered_map<Feature, double>;
 // Returns the probability of each event in history.
 EventProbabilityMap GetEventProbability(const History& history) {
   size_t instances_count = 0;
-  for (const auto& [event, instances] : history) {
+  for (const auto& [_, instances] : history)
     instances_count += instances.size();
-  }
 
   EventProbabilityMap output;
-  for (const auto& [event, instances] : history) {
+  for (const auto& [event, instances] : history)
     output.insert(
         {event, static_cast<double>(instances.size()) / instances_count});
-  }
   return output;
 }
 
