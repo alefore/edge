@@ -8,6 +8,8 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
+using ::operator<<;
+
 namespace afc::naive_bayes {
 GHOST_TYPE_DOUBLE(Probability);
 namespace {
@@ -273,8 +275,10 @@ std::vector<Event> Sort(const History& history,
 
   sort(output.begin(), output.end(),
        [&current_probability_value](const Event& a, const Event& b) {
-         return *current_probability_value.find(a) <
-                *current_probability_value.find(b);
+         CHECK(current_probability_value.contains(a));
+         CHECK(current_probability_value.contains(b));
+         return current_probability_value.find(a)->second <
+                current_probability_value.find(b)->second;
        });
   return output;
 }
