@@ -66,7 +66,9 @@ void Run(std::vector<std::wstring> tests_filter) {
           std::cerr << "## Group: " << name << std::endl << std::endl;
         printed_group_name = true;
         std::cerr << "* " << test.name << std::endl;
-        for (size_t i = 0; i < test.runs; ++i) {
+        for (size_t i = 0;
+             i < std::max(test.runs, tests_filter_set.empty() ? 0ul : 1ul);
+             ++i) {
           if (tests_filter_set.size() == 1) {
             // We prefer not to fork if we're just running a single test. That
             // makes it easier to do things like attach a debugger.

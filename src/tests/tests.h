@@ -36,6 +36,10 @@
 namespace afc::tests {
 struct Test {
   std::wstring name;
+  // How many times should this test be run by default?
+  //
+  // If set to 0, the test will only be run if it's selected explicitly (through
+  // tests_filter).
   size_t runs = 1;
   std::function<void()> callback;
 };
