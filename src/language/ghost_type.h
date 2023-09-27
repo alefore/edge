@@ -5,9 +5,18 @@
 //   }
 //   GHOST_TYPE_TOP_LEVEL(foo::bar::HistoryFile);
 //
+// For convenience, the following entry points are encouraged:
+//
+//   GHOST_TYPE_CONTAINER(Children, std::vector<Node>);
+//   GHOST_TYPE_INT(Count);
+//   GHOST_TYPE_DOUBLE(Probability);
+//   GHOST_TYPE_SIZE_T(OperationId);
+//
 // This is based on the principle that code is more readable if the types it
 // operates on convey more semantics than just what their underlying
-// representation as basic types is (e.g., string, int, etc.).
+// representation as basic types is (e.g., string, int, etc.). The base
+// principle is that the basic types should only be used to define the
+// application-specific types.
 //
 // For example, suppose you have a class that represents the following values as
 // strings:
@@ -102,7 +111,7 @@
   GHOST_TYPE_HASH(ClassName)            \
   GHOST_TYPE_NUMERIC_LIMITS(ClassName)
 
-#define GHOST_TYPE_NUMBER(ClassName, VariableType)                       \
+#define INTERNAL_GHOST_TYPE_NUMBER(ClassName, VariableType)              \
   class ClassName {                                                      \
    public:                                                               \
     using ValueType = VariableType;                                      \
@@ -130,7 +139,7 @@
 // DeltaName represents a delta in ClassName.
 #define GHOST_TYPE_NUMBER_WITH_DELTA(ClassName, VariableType, DeltaName, \
                                      DeltaNestedType)                    \
-  GHOST_TYPE_NUMBER(DeltaName, DeltaNestedType)                          \
+  INTERNAL_GHOST_TYPE_NUMBER(DeltaName, DeltaNestedType)                 \
   GHOST_TYPE_NUMBER_OPERATORS_BASE(DeltaName, DeltaNestedType)           \
   GHOST_TYPE_NUMBER_OPERATORS_SELF(DeltaName)                            \
   class ClassName {                                                      \
@@ -194,17 +203,17 @@
   GHOST_TYPE_NUMBER_OPERATORS_DELTA(ClassName, DeltaName)
 
 #define GHOST_TYPE_DOUBLE(ClassName)                  \
-  GHOST_TYPE_NUMBER(ClassName, double)                \
+  INTERNAL_GHOST_TYPE_NUMBER(ClassName, double)       \
   GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, double) \
   GHOST_TYPE_NUMBER_OPERATORS_SELF(ClassName)
 
 #define GHOST_TYPE_INT(ClassName)                  \
-  GHOST_TYPE_NUMBER(ClassName, int)                \
+  INTERNAL_GHOST_TYPE_NUMBER(ClassName, int)       \
   GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, int) \
   GHOST_TYPE_NUMBER_OPERATORS_SELF(ClassName)
 
 #define GHOST_TYPE_SIZE_T(ClassName)                  \
-  GHOST_TYPE_NUMBER(ClassName, size_t)                \
+  INTERNAL_GHOST_TYPE_NUMBER(ClassName, size_t)       \
   GHOST_TYPE_NUMBER_OPERATORS_BASE(ClassName, size_t) \
   GHOST_TYPE_NUMBER_OPERATORS_SELF(ClassName)
 
