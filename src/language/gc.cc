@@ -78,13 +78,20 @@ Pool::Pool(Options options)
               MakeNonNullShared<ThreadPool>(8, nullptr));
         return std::move(options);
       }()),
-      root_backtrace_(VLOG_IS_ON(9) ? std::make_optional(Bag<Backtrace>(
-                                          BagOptions{.shards = 64}))
-                                    : std::optional<Bag<Backtrace>>()),
+      eden_(Eden(options_.max_bag_shards, 0)),
+      data_(Data{.expand_list = concurrent::Bag<ObjectExpandList>(
+                     {.shards = options_.max_bag_shards})}),
+      root_backtrace_(VLOG_IS_ON(9)
+                          ? std::make_optional(Bag<Backtrace>(
+                                BagOptions{.shards = options_.max_bag_shards}))
+                          : std::optional<Bag<Backtrace>>()),
       async_work_(options_.operation_factory->New(nullptr)) {}
 
 Pool::~Pool() {
+  LOG(INFO) << "Deleting Pool.";
   FullCollect();
+
+  LOG(INFO) << "Waiting for async work.";
   async_work_->BlockUntilDone();
   data_.lock([](const Data& data) {
     CHECK(data.expand_list.empty());
@@ -101,6 +108,7 @@ Pool::~Pool() {
     });
     CHECK_EQ(shown, 0ul);
   }
+  LOG(INFO) << "Destructor returning.";
 }
 
 void Pool::BlockUntilDone() const { async_work_->BlockUntilDone(); }
@@ -129,41 +137,39 @@ Pool::CollectOutput Pool::Collect(bool full) {
   });
 
   LightCollectStats light_stats;
-  std::optional<Eden> eden =
-      eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
-        if (!full) {
-          if (options_.collect_duration_threshold.has_value())
-            timer = CountDownTimer(
-                std::exp2(eden_data.consecutive_unfinished_collect_calls) *
-                options_.collect_duration_threshold.value());
+  std::optional<Eden> eden = eden_.lock([&](Eden& eden_data)
+                                            -> std::optional<Eden> {
+    if (!full) {
+      if (options_.collect_duration_threshold.has_value())
+        timer = CountDownTimer(
+            std::exp2(eden_data.consecutive_unfinished_collect_calls) *
+            options_.collect_duration_threshold.value());
 
-          if (eden_data.expand_list == std::nullopt) {
-            size_t max_metadata_size = std::max(1024ul, data_size);
-            light_stats.begin_eden_size = eden_data.object_metadata->size();
-            if (eden_data.object_metadata->size() > max_metadata_size) {
-              VLOG(3) << "CleanEden starts: "
-                      << eden_data.object_metadata->size();
-              eden_data.object_metadata->remove_if(
-                  options_.operation_factory
-                      ->New(INLINE_TRACKER(gc_Pool_Collect_CleanEden))
-                      .value(),
-                  [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
-                    return object_metadata.expired();
-                  });
-              VLOG(4) << "CleanEden ends: "
-                      << eden_data.object_metadata->size();
-            }
-            light_stats.end_eden_size = eden_data.object_metadata->size();
-            if (eden_data.object_metadata->size() <= max_metadata_size) {
-              eden_data.consecutive_unfinished_collect_calls = 0;
-              return std::nullopt;
-            }
-          }
+      if (eden_data.expand_list == std::nullopt) {
+        size_t max_metadata_size = std::max(1024ul, data_size);
+        light_stats.begin_eden_size = eden_data.object_metadata->size();
+        if (eden_data.object_metadata->size() > max_metadata_size) {
+          VLOG(3) << "CleanEden starts: " << eden_data.object_metadata->size();
+          eden_data.object_metadata->remove_if(
+              options_.operation_factory
+                  ->New(INLINE_TRACKER(gc_Pool_Collect_CleanEden))
+                  .value(),
+              [](const std::weak_ptr<ObjectMetadata>& object_metadata) {
+                return object_metadata.expired();
+              });
+          VLOG(4) << "CleanEden ends: " << eden_data.object_metadata->size();
         }
-        return std::exchange(
-            eden_data, Eden::NewWithExpandList(
-                           eden_data.consecutive_unfinished_collect_calls + 1));
-      });
+        light_stats.end_eden_size = eden_data.object_metadata->size();
+        if (eden_data.object_metadata->size() <= max_metadata_size) {
+          eden_data.consecutive_unfinished_collect_calls = 0;
+          return std::nullopt;
+        }
+      }
+    }
+    return std::exchange(
+        eden_data, Eden(options_.max_bag_shards,
+                        eden_data.consecutive_unfinished_collect_calls + 1));
+  });
 
   if (eden == std::nullopt) {
     CHECK(!full);
@@ -174,7 +180,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
   // unlocked data_. We don't need high parallelism here (the only concurrent
   // operation is adding vectors of objects), so 4 shards are good enough.
   Bag<std::vector<ObjectMetadata::ExpandCallback>> expired_objects_callbacks(
-      BagOptions{.shards = 4});
+      BagOptions{.shards = std::min(options_.max_bag_shards, 4ul)});
 
   FullCollectStats stats;
   if (!data_.lock([&](Data& data) {
@@ -213,8 +219,9 @@ Pool::CollectOutput Pool::Collect(bool full) {
 
             TRACK_OPERATION(gc_Pool_Collect_EdenChanged);
             return std::exchange(
-                eden_data, Eden::NewWithExpandList(
-                               eden_data.consecutive_unfinished_collect_calls));
+                eden_data,
+                Eden(options_.max_bag_shards,
+                     eden_data.consecutive_unfinished_collect_calls));
           });
         }
 
@@ -456,11 +463,15 @@ language::NonNull<std::shared_ptr<ObjectMetadata>> Pool::NewObjectMetadata(
   return object_metadata;
 }
 
-/* static */ Pool::Eden Pool::Eden::NewWithExpandList(
-    size_t consecutive_unfinished_collect_calls) {
-  return Eden{.consecutive_unfinished_collect_calls =
-                  consecutive_unfinished_collect_calls};
-}
+Pool::Eden::Eden(size_t bag_shards,
+                 size_t input_consecutive_unfinished_collect_calls)
+    : object_metadata(
+          language::MakeNonNullUnique<ObjectMetadataBag::element_type>(
+              concurrent::BagOptions{.shards = bag_shards})),
+      roots(language::MakeNonNullUnique<ObjectMetadataBag::element_type>(
+          concurrent::BagOptions{.shards = bag_shards})),
+      consecutive_unfinished_collect_calls(
+          input_consecutive_unfinished_collect_calls) {}
 
 std::ostream& operator<<(std::ostream& os,
                          const Pool::FullCollectStats& stats) {

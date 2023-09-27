@@ -61,7 +61,8 @@ class ThreadPool {
     std::vector<std::thread> threads = {};
     std::list<std::function<void()>> work = {};
   };
-  ProtectedWithCondition<Data> data_ = ProtectedWithCondition<Data>(Data{});
+  ProtectedWithCondition<Data, EmptyValidator<Data>, false> data_ =
+      ProtectedWithCondition<Data, EmptyValidator<Data>, false>(Data{});
 };
 }  // namespace afc::concurrent
 #endif  //__AFC_EDITOR_THREAD_POOL_H__

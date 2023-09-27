@@ -5,10 +5,12 @@
 namespace afc::infrastructure {
 namespace {
 using Trackers = std::list<Tracker*>;
+using concurrent::EmptyValidator;
 using concurrent::Protected;
 
 Protected<Trackers>::Lock lock_trackers() {
-  static Protected<Trackers>* const output = new Protected<Trackers>();
+  static Protected<Trackers, EmptyValidator<Trackers>, false>* const output =
+      new Protected<Trackers, EmptyValidator<Trackers>, false>();
   return output->lock();
 }
 }  // namespace
@@ -37,13 +39,17 @@ Tracker::Tracker(std::wstring name)
 Tracker::~Tracker() { lock_trackers()->erase(trackers_it_); }
 
 std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
-  data_.lock([](Data& data) { data.executions++; });
+  data_.lock([](Data& data) {
+    VLOG(5) << "Start: " << data.name;
+    data.executions++;
+  });
   struct timespec start = infrastructure::Now();
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this, start](bool* value) {
         double seconds = GetElapsedSecondsSince(start);
         delete value;
         data_.lock([seconds](Data& data) {
+          VLOG(6) << "Finish: " << data.name;
           data.seconds += seconds;
           data.longest_seconds = std::max(data.longest_seconds, seconds);
         });

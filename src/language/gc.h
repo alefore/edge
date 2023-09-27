@@ -219,6 +219,8 @@ class Pool {
     std::optional<afc::infrastructure::Duration> collect_duration_threshold;
 
     std::shared_ptr<concurrent::OperationFactory> operation_factory;
+
+    size_t max_bag_shards = 64;
   };
 
   Pool(Options options);
@@ -288,19 +290,15 @@ class Pool {
   // The eden area holds information about recent activity. This is optimized to
   // be locked only very briefly, to avoid blocking progress.
   struct Eden {
-    bool IsEmpty() const;
+    Eden(size_t bag_shards, size_t consecutive_unfinished_collect_calls);
 
-    static Eden NewWithExpandList(size_t consecutive_unfinished_collect_calls);
+    bool IsEmpty() const;
 
     // `object_metadata` and `roots` are unique_ptr to allow us to move them
     // into `data_` preserving all iterators.
-    ObjectMetadataBag object_metadata =
-        language::MakeNonNullUnique<ObjectMetadataBag::element_type>(
-            concurrent::BagOptions{.shards = 64});
+    ObjectMetadataBag object_metadata;
 
-    ObjectMetadataBag roots =
-        language::MakeNonNullUnique<ObjectMetadataBag::element_type>(
-            concurrent::BagOptions{.shards = 64});
+    ObjectMetadataBag roots;
 
     // Normally is absent. If a `Collect` operation is interrupted, set to a
     // list to which `AddToEdenExpandList` will add objects (so that when the
@@ -311,7 +309,7 @@ class Pool {
     // Incremented each time a call to `Collect` stops without finishing, and
     // reset as soon as the call finishes. Used to adjust the execution
     // threshold dynamically.
-    size_t consecutive_unfinished_collect_calls = 0;
+    size_t consecutive_unfinished_collect_calls;
   };
 
   // Data holds all the information of objects that have survived a collection.
@@ -319,9 +317,9 @@ class Pool {
   // interval, as collection progresses). Should never be locked while holding
   // eden locked.
   struct Data {
-    std::list<ObjectMetadataBag> object_metadata_list;
+    std::list<ObjectMetadataBag> object_metadata_list = {};
 
-    std::list<ObjectMetadataBag> roots_list;
+    std::list<ObjectMetadataBag> roots_list = {};
 
     // After inserting from the eden and updating roots, we copy objects from
     // `roots` into `expand_list` (in `ScheduleExpandRoots`). We then
@@ -331,8 +329,7 @@ class Pool {
     // If we reach a deadline while traversing this list, we stop. The next
     // execution will avoid (most of) the work we've done (because it will
     // quickly skip already scheduled or expanded objects).
-    concurrent::Bag<ObjectExpandList> expand_list =
-        concurrent::Bag<ObjectExpandList>({.shards = 64});
+    concurrent::Bag<ObjectExpandList> expand_list;
   };
 
   // Moves objects from `eden` into `data`.

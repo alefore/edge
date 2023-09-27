@@ -6,6 +6,7 @@
 #include "src/concurrent/protected.h"
 #include "src/concurrent/thread_pool.h"
 #include "src/language/safe_types.h"
+#include "src/tests/concurrent_interfaces.h"
 
 namespace afc::concurrent {
 // A barrier: blocks deletion until all callables given to `Operation::Add` have
@@ -35,6 +36,7 @@ class Operation {
       // Allow it to release its dependencies before we decrement our counter,
       // in case deletion needs synchronization.
       callable = nullptr;
+
       VLOG(9) << "Callable returned.";
       pending_operations_.lock(
           [this](unsigned int& i, std::condition_variable& c) {
@@ -81,8 +83,11 @@ class Operation {
   ThreadPool& thread_pool_;
   const std::unique_ptr<bool, std::function<void(bool*)>> tracker_call_;
   const std::optional<size_t> concurrency_limit_;
-  mutable ProtectedWithCondition<unsigned int> pending_operations_ =
-      ProtectedWithCondition<unsigned int>(0);
+  mutable ProtectedWithCondition<unsigned int, EmptyValidator<unsigned int>,
+                                 false>
+      pending_operations_ =
+          ProtectedWithCondition<unsigned int, EmptyValidator<unsigned int>,
+                                 false>(0);
 };
 
 class OperationFactory {

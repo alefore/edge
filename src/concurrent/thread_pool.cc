@@ -30,6 +30,10 @@ ThreadPool::~ThreadPool() {
 
 void ThreadPool::Schedule(std::function<void()> work) {
   CHECK(work != nullptr);
+  if (auto handler = tests::concurrent::GetGlobalHandler();
+      handler != nullptr) {
+    work = handler->Wrap(std::move(work));
+  }
   data_.lock([&work](Data& data, std::condition_variable& condition) {
     CHECK(!data.shutting_down);
     data.work.push_back(std::move(work));

@@ -129,6 +129,7 @@ src/language/ghost_type.h \
 src/language/ghost_type_test.cc \
 src/language/gc.cc \
 src/language/gc.h \
+src/language/gc_tests.cc \
 src/language/gc_util.h \
 src/language/hash.cc \
 src/language/hash.h \
@@ -258,6 +259,10 @@ src/terminal_input_parser.cc \
 src/terminal_input_parser.h \
 src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
+src/tests/concurrent.cc \
+src/tests/concurrent.h \
+src/tests/concurrent_interfaces.cc \
+src/tests/concurrent_interfaces.h \
 src/tests/fuzz.h \
 src/tests/fuzz.cc \
 src/tests/fuzz_testable.h \
