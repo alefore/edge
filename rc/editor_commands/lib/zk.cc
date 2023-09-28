@@ -593,6 +593,25 @@ void Journal(number days_to_generate, Time start, string template_path) {
     // buffer.Save();
   });
 }
+
+void AddNextDayLink() {
+  editor.ForEachActiveBuffer([](Buffer buffer) -> void {
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          TransformationOutput output = TransformationOutput();
+          output.push(SetPositionTransformation(
+              LineColumn(buffer.line_count() - 1, 0)));
+          output.push(InsertTransformationBuilder()
+                          .set_text("* Next: [" + Today() + "]")
+                          .build());
+          return output;
+        }));
+    buffer.ApplyTransformation(FunctionTransformation(
+        [](TransformationInput input) -> TransformationOutput {
+          return zettelkasten::internal::NewLink(buffer, input, "Prev");
+        }));
+  });
+}
 }  // namespace internal
 
 void Journal(string days_to_generate, string start_day, string template_path) {
@@ -691,6 +710,7 @@ void ND() {  // Short for NewDown.
 void Up() { return internal::FindLink("Up"); }
 void Ne() { return internal::FindLink("Next"); }
 void Pr() { return internal::FindLink("Prev"); }
+void NDay() { return internal::AddNextDayLink(); }
 
 auto Expand = internal::ExpandIntoPath;
 }  // namespace zettelkasten
