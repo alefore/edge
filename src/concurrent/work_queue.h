@@ -59,6 +59,11 @@ class WorkQueue {
   // won't) be executed.
   void Execute();
 
+  template <typename CopyableObject>
+  void DeleteLater(struct timespec time, CopyableObject object) {
+    Schedule(time, [object] {});
+  }
+
   // Returns the time at which the earliest callback wants to run, or nullopt if
   // there are no pending callbacks.
   std::optional<struct timespec> NextExecution();
