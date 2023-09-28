@@ -22,29 +22,29 @@
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/value.h"
 
+namespace gc = afc::language::gc;
+using afc::futures::DeleteNotification;
+using afc::infrastructure::screen::LineModifier;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::vm::TypesToString;
+using afc::vm::VMTypeMapper;
+
 namespace afc::editor {
-using futures::DeleteNotification;
-using infrastructure::screen::LineModifier;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::EmptyString;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-
-using vm::VMTypeMapper;
-
-namespace gc = language::gc;
 namespace {
 
 struct SearchNamespaces {
@@ -127,10 +127,12 @@ ValueOrError<ParsedCommand> Parse(
   // Filter functions that match our type expectations.
   std::vector<gc::Root<vm::Value>> type_match_functions;
   std::optional<gc::Root<vm::Value>> function_vector;
+  std::vector<vm::Type> all_types_found;
   for (gc::Root<vm::Value>& candidate : functions) {
     if (!candidate.ptr()->IsFunction()) {
       continue;
     }
+    all_types_found.push_back(candidate.ptr()->type);
     const vm::types::Function* function_type =
         std::get_if<vm::types::Function>(&candidate.ptr()->type);
     if (function_type == nullptr ||
@@ -185,8 +187,11 @@ ValueOrError<ParsedCommand> Parse(
       output_function_inputs.push_back(
           vm::NewConstantExpression(vm::Value::NewString(pool, L"")));
     }
+  } else if (!all_types_found.empty()) {
+    return Error(L"Incompatible type found: " + output_tokens[0].value + L": " +
+                 TypesToString(all_types_found));
   } else {
-    return Error(L"No suitable definition found: " + output_tokens[0].value);
+    return Error(L"No definition found: " + output_tokens[0].value);
   }
   return ParsedCommand{.tokens = std::move(output_tokens),
                        .function = output_function.value(),
