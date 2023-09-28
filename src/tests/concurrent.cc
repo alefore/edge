@@ -8,12 +8,16 @@
 
 #include "src/concurrent/protected.h"
 #include "src/futures/delete_notification.h"
+#include "src/language/containers.h"
 #include "src/language/ghost_type.h"
 #include "src/language/hash.h"
 #include "src/tests/concurrent_interfaces.h"
 
 using afc::language::compute_hash;
+using afc::language::EraseOrDie;
+using afc::language::GetValueOrDie;
 using afc::language::hash_combine;
+using afc::language::InsertOrDie;
 using afc::language::MakeHashableIteratorRange;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -132,7 +136,7 @@ class Execution {
   OperationId ReserveOperationId() {
     ++next_operation_;
     LOG(INFO) << "Reserving ID: " << next_operation_;
-    CHECK(expected_operations_.insert(next_operation_).second);
+    InsertOrDie(expected_operations_, next_operation_);
     return next_operation_;
   }
 
@@ -141,25 +145,25 @@ class Execution {
       return it->second;
 
     OperationId op = CurrentOperation();
-    LockId lock = {.operation = op, .lock = next_lock_[op]++};
-    CHECK(lock_map_.insert({&mutex, lock}).second);
-    return lock;
+    return InsertOrDie(lock_map_,
+                       {&mutex, {.operation = op, .lock = next_lock_[op]++}})
+        ->second;
   }
 
   void AddThread(OperationId operation_id) {
     LOG(INFO) << "AddThread: " << std::this_thread::get_id();
-    CHECK(expected_operations_.erase(operation_id));
-    threads_.insert({std::this_thread::get_id(), operation_id});
+    EraseOrDie(expected_operations_, operation_id);
+    InsertOrDie(threads_, {std::this_thread::get_id(), operation_id});
   }
 
   void RemoveThread() {
     LOG(INFO) << "RemoveThread: " << std::this_thread::get_id();
-    CHECK(threads_.erase(std::this_thread::get_id()));
+    EraseOrDie(threads_, std::this_thread::get_id());
   }
 
-  void MarkLocked(LockId lock) { CHECK(locked_locks_.insert(lock).second); }
+  void MarkLocked(LockId lock) { InsertOrDie(locked_locks_, lock); }
 
-  void MarkUnlocked(LockId lock) { CHECK(locked_locks_.erase(lock)); }
+  void MarkUnlocked(LockId lock) { EraseOrDie(locked_locks_, lock); }
 
   bool ThreadsRunning() {
     return GetBreakpoints().size() <
@@ -168,27 +172,27 @@ class Execution {
 
   void AddLockIntent(const std::mutex& mutex,
                      NonNull<Notification*> notification) {
-    CHECK(waiting_threads_[LookUp(mutex)]
-              .insert({CurrentOperation(), notification})
-              .second);
+    InsertOrDie(waiting_threads_[LookUp(mutex)],
+                {CurrentOperation(), notification});
   }
 
   void RegisterUnlock(const std::mutex& mutex) {
-    CHECK(locked_locks_.erase(LookUp(mutex)));
+    EraseOrDie(locked_locks_, LookUp(mutex));
   }
 
   OperationId CurrentOperation() const {
-    auto thread = threads_.find(std::this_thread::get_id());
-    CHECK(thread != threads_.end()) << "Breakpoint reached by unknown thread: "
-                                    << std::this_thread::get_id();
-    return thread->second;
+    return GetValueOrDie(threads_, std::this_thread::get_id());
   }
 
   std::unordered_set<Breakpoint> GetBreakpoints() const {
     std::unordered_set<Breakpoint> output;
-    for (auto const& entry : waiting_threads_)
+    for (const std::pair<
+             const LockId,
+             std::unordered_map<OperationId, NonNull<Notification*>>>& entry :
+         waiting_threads_)
       for (const OperationId& operation : entry.second | std::views::keys)
-        output.insert(Breakpoint{.operation = operation, .lock = entry.first});
+        InsertOrDie(output,
+                    Breakpoint{.operation = operation, .lock = entry.first});
     return output;
   }
 
@@ -201,16 +205,9 @@ class Execution {
   }
 
   NonNull<Notification*> PrepareToAdvance(Breakpoint breakpoint) {
-    CHECK(locked_locks_.insert(breakpoint.lock).second)
-        << "Attempted to advance breakpoint for lock that is already locked.";
-    auto it = waiting_threads_.find(breakpoint.lock);
-    CHECK(it != waiting_threads_.end())
-        << "Attempted to advance breakpoint that has not been reached.";
-    auto it_inner = it->second.find(breakpoint.operation);
-    CHECK(it_inner != it->second.end());
-    NonNull<Notification*> output = it_inner->second;
-    it->second.erase(it_inner);
-    return output;
+    InsertOrDie(locked_locks_, breakpoint.lock);
+    return PopValueOrDie(GetValueOrDie(waiting_threads_, breakpoint.lock),
+                         breakpoint.operation);
   }
 
  private:
@@ -344,7 +341,7 @@ class HandlerImpl : public Handler {
     if (auto it = traces_map_.find(trace_); it != traces_map_.end()) {
       CHECK_EQ(breakpoints, it->second);
     } else {
-      CHECK(traces_map_.insert({trace_, breakpoints}).second);
+      InsertOrDie(traces_map_, {trace_, breakpoints});
     }
   }
 

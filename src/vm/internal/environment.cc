@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 
+#include "src/language/containers.h"
 #include "src/math/numbers.h"
 #include "src/vm/internal/numbers.h"
 #include "src/vm/internal/string.h"
@@ -18,6 +19,7 @@
 namespace gc = afc::language::gc;
 
 using afc::language::Error;
+using afc::language::InsertOrDie;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::PossibleError;
@@ -144,9 +146,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
 
   gc::Root<Environment> namespace_env =
       pool.NewRoot(MakeNonNullUnique<Environment>(parent.ptr()));
-  auto [_, inserted] =
-      parent.ptr()->namespaces_.insert({name, namespace_env.ptr()});
-  CHECK(inserted);
+  InsertOrDie(parent.ptr()->namespaces_, {name, namespace_env.ptr()});
   namespace_env.ptr().Protect();
   return namespace_env;
 }

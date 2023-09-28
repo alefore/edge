@@ -7,6 +7,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "src/language/containers.h"
+
+using afc::language::InsertOrDie;
+
 namespace afc::tests {
 namespace {
 std::unordered_map<std::wstring, std::vector<Test>>* tests_map() {
@@ -35,16 +39,9 @@ int ForkAndWait(std::function<void()> callable) {
 bool Register(std::wstring name, std::vector<Test> tests) {
   CHECK_GT(tests.size(), 0ul);
   std::unordered_set<std::wstring> test_names;
-  for (const auto& test : tests) {
-    CHECK(test_names.insert(test.name).second)
-        << "Repeated test name: " << name << ": " << test.name;
-  }
-  for (const auto& test : tests) {
-    CHECK_LT(test.runs, 1000000ul);
-  }
-  auto [_, result] = tests_map()->insert({name, std::move(tests)});
-  CHECK(result) << "Unable to insert tests (repeated name for group?): "
-                << name;
+  for (const auto& test : tests) InsertOrDie(test_names, test.name);
+  for (const auto& test : tests) CHECK_LT(test.runs, 1000000ul);
+  InsertOrDie(*tests_map(), {name, std::move(tests)});
   return true;
 }
 

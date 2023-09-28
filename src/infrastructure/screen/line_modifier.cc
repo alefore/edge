@@ -4,6 +4,10 @@
 
 #include <ostream>
 
+#include "src/language/containers.h"
+
+using afc::language::InsertOrDie;
+
 namespace afc::infrastructure::screen {
 const std::unordered_map<std::string, LineModifier>& ModifierNames() {
   static const std::unordered_map<std::string, LineModifier> values = {
@@ -27,11 +31,9 @@ const std::unordered_map<std::string, LineModifier>& ModifierNames() {
 std::string ModifierToString(LineModifier modifier) {
   static const std::unordered_map<LineModifier, std::string> values = [] {
     std::unordered_map<LineModifier, std::string> output;
-    for (const auto& it : ModifierNames()) {
-      std::string name = it.first;
-      auto insert_result = output.insert({it.second, it.first}).second;
-      CHECK(insert_result);
-    }
+    for (const std::pair<const std::string, LineModifier>& entry :
+         ModifierNames())
+      InsertOrDie(output, {entry.second, entry.first});
     return output;
   }();
 

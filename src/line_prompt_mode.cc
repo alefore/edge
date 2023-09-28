@@ -17,6 +17,7 @@
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
+#include "src/language/containers.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
@@ -50,6 +51,7 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IgnoreErrors;
+using afc::language::InsertOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -741,9 +743,8 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     buffer.Set(buffer_variables::save_on_close, false);
     buffer.Set(buffer_variables::persist_state, false);
     buffer.Set(buffer_variables::completion_model_paths, L"");
-    auto insert_results = options_.editor_state.buffers()->insert_or_assign(
-        name, buffer_root.ptr().ToRoot());
-    CHECK(insert_results.second);
+    InsertOrDie(*options_.editor_state.buffers(),
+                {name, buffer_root.ptr().ToRoot()});
     InitializePromptBuffer(buffer);
     return buffer_root;
   }

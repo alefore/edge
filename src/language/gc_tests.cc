@@ -37,7 +37,7 @@ Root<Node> MakeLoop(Pool& pool, int size) {
 
 bool tests_registration = tests::Register(
     L"GCRaces",
-    {{.name = L"Simple", .callback = [] {
+    {{.name = L"Simple", .runs = 0, .callback = [] {
         auto thread_pool = MakeNonNullShared<ThreadPool>(64, nullptr);
         auto operation_factory =
             MakeNonNullShared<OperationFactory>(thread_pool);

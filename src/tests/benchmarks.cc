@@ -1,6 +1,9 @@
 #include "src/tests/benchmarks.h"
 
 #include "src/infrastructure/time.h"
+#include "src/language/containers.h"
+
+using afc::language::InsertOrDie;
 
 namespace afc::tests {
 namespace {
@@ -12,8 +15,7 @@ std::unordered_map<std::wstring, BenchmarkFunction>* benchmarks_map() {
 
 bool RegisterBenchmark(std::wstring name, BenchmarkFunction benchmark) {
   CHECK(benchmark != nullptr);
-  auto [_, result] = benchmarks_map()->insert({name, std::move(benchmark)});
-  CHECK(result) << "Unable to insert benchmarks (repeated name?): " << name;
+  InsertOrDie(*benchmarks_map(), {name, std::move(benchmark)});
   return true;
 }
 
