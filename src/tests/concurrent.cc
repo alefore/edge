@@ -124,10 +124,6 @@ class Notification {
       value_ = false;
 };
 
-using LockOperationNotificationMap =
-    std::unordered_map<LockId,
-                       std::unordered_map<OperationId, NonNull<Notification*>>>;
-
 // Holds the state of a single execution.
 //
 // Not thread-safe. Customer must synchronize.
