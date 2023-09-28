@@ -128,8 +128,10 @@ using LockOperationNotificationMap =
     std::unordered_map<LockId,
                        std::unordered_map<OperationId, NonNull<Notification*>>>;
 
+// Holds the state of a single execution.
+//
 // Not thread-safe. Customer must synchronize.
-class ThreadsMap {
+class Execution {
  public:
   OperationId ReserveOperationId() {
     ++next_operation_;
@@ -237,9 +239,9 @@ class HandlerImpl : public Handler {
     unexplored_traces_ = {Trace()};
     size_t runs = 0;
     while (!unexplored_traces_.empty()) {
-      threads_map_ = std::make_unique<afc::concurrent::ProtectedWithCondition<
-          ThreadsMap, afc::concurrent::EmptyValidator<ThreadsMap>, false>>(
-          ThreadsMap{});
+      execution_ = std::make_unique<afc::concurrent::ProtectedWithCondition<
+          Execution, afc::concurrent::EmptyValidator<Execution>, false>>(
+          Execution{});
 
       LOG(INFO) << "Starting run: " << runs++
                 << " (unexplored: " << unexplored_traces_.size() << ")";
@@ -262,7 +264,7 @@ class HandlerImpl : public Handler {
         unexplored_traces_.pop_back();
       }
       trace_.clear();
-      threads_map_ = nullptr;
+      execution_ = nullptr;
     }
     LOG(INFO) << "Resetting global handler.";
     SetGlobalHandler(nullptr);
@@ -270,8 +272,8 @@ class HandlerImpl : public Handler {
 
   void Lock(const std::mutex& mutex) override {
     Notification notification;
-    threads_map_->lock(
-        [&](ThreadsMap& threads_map, std::condition_variable& condition) {
+    execution_->lock(
+        [&](Execution& threads_map, std::condition_variable& condition) {
           threads_map.AddLockIntent(
               mutex, NonNull<Notification*>::AddressOf(notification));
           condition.notify_one();
@@ -280,19 +282,19 @@ class HandlerImpl : public Handler {
   }
 
   void Unlock(const std::mutex& mutex) override {
-    threads_map_->lock([&](ThreadsMap& threads_map, std::condition_variable&) {
+    execution_->lock([&](Execution& threads_map, std::condition_variable&) {
       threads_map.RegisterUnlock(mutex);
     });
   }
 
   std::function<void()> Wrap(std::function<void()> work) override {
     OperationId operation_id =
-        threads_map_->lock([](ThreadsMap& threads_map, auto&) {
+        execution_->lock([](Execution& threads_map, auto&) {
           return threads_map.ReserveOperationId();
         });
     return [this, operation_id, work = std::move(work)]() mutable {
-      threads_map_->lock(
-          [operation_id](ThreadsMap& m, std::condition_variable& condition) {
+      execution_->lock(
+          [operation_id](Execution& m, std::condition_variable& condition) {
             m.AddThread(operation_id);
             condition.notify_one();
           });
@@ -301,7 +303,7 @@ class HandlerImpl : public Handler {
       // registry, in case deletion of objects captured in lambda form reaches
       // breakpoints.
       work = nullptr;
-      threads_map_->lock([](ThreadsMap& m, std::condition_variable& condition) {
+      execution_->lock([](Execution& m, std::condition_variable& condition) {
         m.RemoveThread();
         condition.notify_one();
       });
@@ -310,7 +312,7 @@ class HandlerImpl : public Handler {
 
  private:
   bool PushNewTraces() {
-    return threads_map_->lock([&](const ThreadsMap& data, auto&) {
+    return execution_->lock([&](const Execution& data, auto&) {
       // Push all newly discovered neighbors into `unexplored_traces_`.
       std::unordered_set<Breakpoint> breakpoints =
           data.GetEligibleBreakpoints();
@@ -324,8 +326,8 @@ class HandlerImpl : public Handler {
 
   void ExpandBreakpoint(Breakpoint breakpoint) {
     trace_.push_back(breakpoint);
-    threads_map_
-        ->lock([breakpoint](ThreadsMap& breakpoints, auto&) {
+    execution_
+        ->lock([breakpoint](Execution& breakpoints, auto&) {
           return breakpoints.PrepareToAdvance(breakpoint);
         })
         ->Notify();
@@ -334,15 +336,15 @@ class HandlerImpl : public Handler {
 
   void WaitForThreads() {
     // TODO(trivial, 2023-09-25): Figure out how to pass the right timeout.
-    threads_map_->wait_until(
+    execution_->wait_until(
         std::chrono::system_clock::now() + std::chrono::milliseconds(200),
-        [&](ThreadsMap& threads_map) { return !threads_map.ThreadsRunning(); });
+        [&](Execution& threads_map) { return !threads_map.ThreadsRunning(); });
     MaybeAddTraces();
   }
 
   void MaybeAddTraces() {
-    std::unordered_set<Breakpoint> breakpoints = threads_map_->lock(
-        [](ThreadsMap& data, auto&) { return data.GetEligibleBreakpoints(); });
+    std::unordered_set<Breakpoint> breakpoints = execution_->lock(
+        [](Execution& data, auto&) { return data.GetEligibleBreakpoints(); });
     if (auto it = traces_map_.find(trace_); it != traces_map_.end()) {
       CHECK_EQ(breakpoints, it->second);
     } else {
@@ -355,8 +357,8 @@ class HandlerImpl : public Handler {
   Trace trace_ = Trace(std::vector<Breakpoint>{});
 
   std::unique_ptr<afc::concurrent::ProtectedWithCondition<
-      ThreadsMap, afc::concurrent::EmptyValidator<ThreadsMap>, false>>
-      threads_map_ = nullptr;
+      Execution, afc::concurrent::EmptyValidator<Execution>, false>>
+      execution_ = nullptr;
 
   std::vector<Trace> unexplored_traces_ = {Trace({})};
 
