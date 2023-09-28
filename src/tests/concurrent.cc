@@ -45,6 +45,9 @@ bool operator==(const Breakpoint& a, const Breakpoint& b) {
   return a.operation == b.operation && a.lock == b.lock;
 }
 
+GHOST_TYPE_CONTAINER(Trace, std::vector<Breakpoint>);
+
+#if 0
 std::ostream& operator<<(std::ostream& os, const LockId& obj) {
   os << obj.operation << ":" << obj.lock;
   return os;
@@ -55,9 +58,6 @@ std::ostream& operator<<(std::ostream& os, const Breakpoint& obj) {
   return os;
 }
 
-GHOST_TYPE_CONTAINER(Trace, std::vector<Breakpoint>);
-
-#if 0
 std::ostream& operator<<(std::ostream& os, const Trace& obj) {
   for (const Breakpoint& b : obj) os << b;
   return os;
@@ -98,16 +98,6 @@ GHOST_TYPE_TOP_LEVEL(afc::tests::concurrent::OperationId);
 GHOST_TYPE_TOP_LEVEL(afc::tests::concurrent::Trace);
 namespace afc::tests::concurrent {
 namespace {
-std::ostream& operator<<(std::ostream& os,
-                         const std::unordered_set<Breakpoint>& obj) {
-  os << "[";
-  for (const Breakpoint& b : obj) os << b;
-  os << "]";
-  return os;
-}
-
-class HandlerImpl;
-
 class Notification {
  public:
   void Wait() {
@@ -329,19 +319,22 @@ class HandlerImpl : public Handler {
 
   void WaitForThreads() {
     // TODO(trivial, 2023-09-25): Figure out how to pass the right timeout.
-    execution_->wait_until(
-        std::chrono::system_clock::now() + std::chrono::milliseconds(200),
-        [&](Execution& threads_map) { return !threads_map.ThreadsRunning(); });
-    MaybeAddTraces();
-  }
-
-  void MaybeAddTraces() {
-    std::unordered_set<Breakpoint> breakpoints = execution_->lock(
-        [](Execution& data, auto&) { return data.GetEligibleBreakpoints(); });
     if (auto it = traces_map_.find(trace_); it != traces_map_.end()) {
-      CHECK_EQ(breakpoints, it->second);
+      CHECK(execution_->wait_until(
+          std::chrono::system_clock::now() + std::chrono::milliseconds(500),
+          [&](Execution& threads_map) {
+            return threads_map.GetEligibleBreakpoints() == it->second;
+          }));
     } else {
-      InsertOrDie(traces_map_, {trace_, breakpoints});
+      execution_->wait_until(
+          std::chrono::system_clock::now() + std::chrono::milliseconds(500),
+          [&](Execution& threads_map) {
+            return !threads_map.ThreadsRunning();
+          });
+      InsertOrDie(traces_map_,
+                  {trace_, execution_->lock([](Execution& data, auto&) {
+                     return data.GetEligibleBreakpoints();
+                   })});
     }
   }
 
