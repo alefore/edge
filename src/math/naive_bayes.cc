@@ -315,7 +315,6 @@ const bool bayes_sort_tests_probability_tests_registration =
                  history[e1] = {FeaturesSet({f3})};
                  std::vector<Event> results = Sort(history, FeaturesSet({f4}));
                  CHECK_EQ(results.size(), 2ul);
-                 // TODO: Why is m0 more likely than m1?
                  CHECK_EQ(results.front(), e1);
                  CHECK_EQ(results.back(), e0);
                }},
