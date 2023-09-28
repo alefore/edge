@@ -245,6 +245,10 @@ class NonNull<std::shared_ptr<T>> {
   NonNull(NonNull<std::unique_ptr<Other>> value)
       : value_(std::move(value.get_unique())) {}
 
+  template <typename Other, typename Deleter>
+  NonNull(NonNull<std::unique_ptr<Other, Deleter>> value)
+      : value_(std::move(value.get_unique())) {}
+
   template <typename Other>
   NonNull operator=(const NonNull<std::shared_ptr<Other>>& value) {
     value_ = value.get_shared();

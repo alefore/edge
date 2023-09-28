@@ -526,7 +526,7 @@ class InsertMode : public EditorMode {
           DLOG(INFO) << "Set literal.";
           status_expiration_for_literal_ =
               options_.editor_state.status().SetExpiringInformationText(
-                  NewLazyString(L"<literal>"));
+                  MakeNonNullShared<Line>(Line(L"<literal>")));
           return;
         }
         break;
@@ -823,13 +823,14 @@ class InsertMode : public EditorMode {
       OpenBuffer& buffer,
       CompletionModelManager::CompressedText compressed_text,
       CompletionModelManager::Text text) {
-    std::shared_ptr<StatusExpirationControl> expiration =
-        buffer.status().SetExpiringInformationText(
-            Append(NewLazyString(L"`"), compressed_text,
-                   Append(NewLazyString(L"` is an alias for `"), text,
-                          NewLazyString(L"`"))));
-    buffer.work_queue()->Schedule(WorkQueue::Callback{
-        .time = AddSeconds(Now(), 2.0), .callback = [expiration] {}});
+    buffer.work_queue()->DeleteLater(
+        AddSeconds(Now(), 2.0),
+        std::shared_ptr<StatusExpirationControl>(
+            buffer.status().SetExpiringInformationText(MakeNonNullShared<Line>(
+                LineBuilder(Append(NewLazyString(L"`"), compressed_text,
+                                   Append(NewLazyString(L"` is an alias for `"),
+                                          text, NewLazyString(L"`"))))
+                    .Build()))));
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(

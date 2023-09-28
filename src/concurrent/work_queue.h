@@ -61,7 +61,7 @@ class WorkQueue {
 
   template <typename CopyableObject>
   void DeleteLater(struct timespec time, CopyableObject object) {
-    Schedule(time, [object] {});
+    Schedule({.time = time, .callback = [object] {}});
   }
 
   // Returns the time at which the earliest callback wants to run, or nullopt if

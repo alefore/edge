@@ -2075,15 +2075,15 @@ OpenBuffer::OpenBufferForCurrentPosition(
                          case RemoteURLBehavior::kIgnore:
                            break;
                          case RemoteURLBehavior::kLaunchBrowser:
-                           editor.work_queue()->Schedule(WorkQueue::Callback{
-                               .time = AddSeconds(Now(), 1.0),
-                               .callback =
-                                   [status_expiration = std::shared_ptr<
-                                        StatusExpirationControl>(
-                                        editor.status()
-                                            .SetExpiringInformationText(
-                                                Append(NewLazyString(L"Open: "),
-                                                       url.ToString())))] {}});
+                           editor.work_queue()->DeleteLater(
+                               AddSeconds(Now(), 1.0),
+                               std::shared_ptr<StatusExpirationControl>(
+                                   editor.status().SetExpiringInformationText(
+                                       MakeNonNullShared<Line>(
+                                           LineBuilder(
+                                               Append(NewLazyString(L"Open: "),
+                                                      url.ToString()))
+                                               .Build()))));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to
                            // std::wstring from the URL's LazyString.

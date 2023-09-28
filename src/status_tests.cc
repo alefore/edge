@@ -6,14 +6,16 @@
 #include "src/status.h"
 #include "src/tests/tests.h"
 
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+
 namespace afc::editor {
 namespace {
 namespace gc = language::gc;
 namespace audio = infrastructure::audio;
-
-using language::Error;
-using language::NonNull;
-using language::lazy_string::NewLazyString;
 
 const bool prompt_tests_registration = tests::Register(
     L"StatusPrompt",
@@ -34,7 +36,10 @@ const bool prompt_tests_registration = tests::Register(
         Status status(editor->audio_player());
         gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
         status.set_prompt(NewLazyString(L">"), prompt);
-        status.SetExpiringInformationText(NewLazyString(L"Foobar"));
+        auto value = status.SetExpiringInformationText(
+            MakeNonNullShared<Line>(Line(L"Foobar")));
+        CHECK(status.text()->ToString() == L">");
+        value = nullptr;
         CHECK(status.text()->ToString() == L">");
         CHECK(&status.prompt_buffer().value().ptr().value() ==
               &prompt.ptr().value());

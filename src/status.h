@@ -66,11 +66,11 @@ class Status {
   // Sets the status to a given text and returns an opaque token. The caller
   // uses the opaque token to control when the text given is retired (by letting
   // the token expire).
-  std::unique_ptr<StatusExpirationControl,
-                  std::function<void(StatusExpirationControl*)>>
+  [[nodiscard]] std::unique_ptr<StatusExpirationControl,
+                                std::function<void(StatusExpirationControl*)>>
   SetExpiringInformationText(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          text);
+      language::NonNull<std::shared_ptr<afc::language::text::Line>> text);
+
   // Prefer `InsertError` over `Set`.
   void Set(language::Error text);
 

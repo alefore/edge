@@ -35,40 +35,42 @@
 #include "src/vm/public/escape.h"
 #include "src/vm/public/value.h"
 
-namespace afc::editor {
-using concurrent::VersionPropertyKey;
-using concurrent::VersionPropertyReceiver;
-using concurrent::WorkQueueChannelConsumeMode;
-using futures::DeleteNotification;
-using futures::ListenableValue;
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::EmptyValue;
-using language::Error;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::EmptyString;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::MutableLineSequence;
+namespace gc = afc::language::gc;
+using afc::concurrent::VersionPropertyKey;
+using afc::concurrent::VersionPropertyReceiver;
+using afc::concurrent::WorkQueueChannelConsumeMode;
+using afc::futures::DeleteNotification;
+using afc::futures::ListenableValue;
+using afc::infrastructure::AddSeconds;
+using afc::infrastructure::Now;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
 
-namespace gc = language::gc;
+namespace afc::editor {
 namespace {
 template <typename T0, typename T1>
 futures::Value<std::tuple<T0, T1>> JoinValues(futures::Value<T0> f0,
@@ -640,9 +642,14 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
                   &filter_buffer](FilterSortHistorySyncOutput output) {
         LOG(INFO) << "Receiving output from history evaluator.";
         if (!output.errors.empty()) {
-          // TODO(P1, 2023-09-08): Uh, why do we let it expire immediately?
-          editor_state.status().SetExpiringInformationText(
-              NewLazyString(output.errors.front().read()));
+          editor_state.work_queue()->DeleteLater(
+              AddSeconds(Now(), 1.0),
+              std::shared_ptr<StatusExpirationControl>(
+                  editor_state.status().SetExpiringInformationText(
+                      MakeNonNullShared<Line>(
+                          LineBuilder(
+                              NewLazyString(output.errors.front().read()))
+                              .Build()))));
         }
         if (!abort_value.has_value()) {
           for (auto& line : output.lines) {

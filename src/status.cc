@@ -213,10 +213,9 @@ struct StatusExpirationControl {
 
 std::unique_ptr<StatusExpirationControl,
                 std::function<void(StatusExpirationControl*)>>
-Status::SetExpiringInformationText(NonNull<std::shared_ptr<LazyString>> text) {
+Status::SetExpiringInformationText(NonNull<std::shared_ptr<Line>> text) {
   ValidatePreconditions();
-  // TODO(easy, 2023-09-13): Just receive text as a Line.
-  SetInformationText(MakeNonNullShared<Line>(Line(LineBuilder(text).Build())));
+  SetInformationText(text);
   ValidatePreconditions();
   if (data_->prompt_buffer.has_value()) {
     return nullptr;

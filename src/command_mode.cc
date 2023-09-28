@@ -62,28 +62,29 @@
 #include "src/transformation/tree_navigate.h"
 #include "src/transformation/type.h"
 
+namespace gc = afc::language::gc;
+using afc::concurrent::WorkQueue;
+using afc::infrastructure::AddSeconds;
+using afc::infrastructure::Now;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::OutgoingLink;
+
 namespace afc::editor {
 namespace {
-using concurrent::WorkQueue;
-using infrastructure::AddSeconds;
-using infrastructure::Now;
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using language::EmptyValue;
-using language::Error;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::NewLazyString;
-using language::text::LineColumn;
-using language::text::OutgoingLink;
-
-namespace gc = language::gc;
 
 class UndoCommand : public Command {
  public:
@@ -513,12 +514,11 @@ class ResetStateCommand : public Command {
   void ProcessInput(wint_t) override {
     editor_state_.status().Reset();
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
-      buffer.work_queue()->Schedule(WorkQueue::Callback{
-          .time = AddSeconds(Now(), 0.2),
-          .callback = [status_expiration =
-                           std::shared_ptr<StatusExpirationControl>(
-                               buffer.status().SetExpiringInformationText(
-                                   NewLazyString(L"❌ ESC")))] {}});
+      buffer.work_queue()->DeleteLater(
+          AddSeconds(Now(), 0.2),
+          std::shared_ptr<StatusExpirationControl>(
+              buffer.status().SetExpiringInformationText(
+                  MakeNonNullShared<Line>(Line(L"❌ ESC")))));
       return futures::Past(EmptyValue());
     });
     editor_state_.set_modifiers(Modifiers());
