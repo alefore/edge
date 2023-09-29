@@ -8,12 +8,14 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
+#include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::overload;
 using afc::language::ValueOrError;
+using ::operator<<;
 
 namespace afc::math::numbers {
 namespace {
@@ -61,17 +63,40 @@ Digits RemoveSignificantZeros(Digits value) {
 }
 
 Decimal ToDecimalBase(int value, size_t decimal_digits) {
-  LOG(INFO) << "Representing int: " << value;
   Decimal output{.positive = value >= 0,
                  .digits = {Digits(std::vector<size_t>(decimal_digits, 0))}};
-  if (value < 0) value = -value;
+  bool positive = value >= 0;
   while (value != 0) {
-    output.digits.push_back(value % 10);
+    output.digits.push_back(positive ? value % 10 : -(value % 10));
     value /= 10;
   }
   output.digits = RemoveSignificantZeros(output.digits);
   return output;
 }
+
+const bool to_decimal_base_int_tests__registration =
+    tests::Register(L"numbers::ToDecimalBaseInt", [] {
+      auto test = [](std::wstring name, int input, bool positive_expectation,
+                     std::string expectation) {
+        return tests::Test{
+            .name = name,
+            .callback = [input, positive_expectation, expectation] {
+              Decimal output = ToDecimalBase(input, 0);
+              CHECK_EQ(output.positive, positive_expectation);
+              std::string output_str;
+              for (size_t d : output.digits | std::views::reverse)
+                output_str.push_back('0' + d);
+              CHECK_EQ(output_str, expectation);
+            }};
+      };
+      return std::vector<tests::Test>({
+          test(L"Zero", 0, true, ""),
+          test(L"SimplePositive", 871, true, "871"),
+          test(L"SimpleNegative", -6239, false, "6239"),
+          test(L"Min", std::numeric_limits<int>::min(), false, "2147483648"),
+          test(L"Max", std::numeric_limits<int>::max(), true, "2147483647"),
+      });
+    }());
 
 Digits RemoveDecimals(Digits value, size_t digits_to_remove) {
   if (digits_to_remove == 0) return value;
@@ -372,7 +397,6 @@ ValueOrError<int> ToInt(const Number& number) {
       return Error(
           L"Overflow: the resulting number can't be represented as an `int`.");
     value *= 10;
-
     if (decimal.positive ? value > std::numeric_limits<int>::max() - digit
                          : value < std::numeric_limits<int>::min() + digit)
       return Error(
@@ -493,5 +517,4 @@ ValueOrError<bool> IsLessThanOrEqual(const Number& a, const Number& b,
   ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
   return a_decimal < b_decimal || a_decimal == b_decimal;
 }
-
 };  // namespace afc::math::numbers
