@@ -56,6 +56,9 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const wstring& str) -> futures::ValueOrError<int> {
         try {
           return futures::Past(Success(std::stoi(str)));
+        } catch (const std::out_of_range& ia) {
+          return futures::Past(
+              Error(L"toint: stoi failure: " + FromByteString(ia.what())));
         } catch (const std::invalid_argument& ia) {
           return futures::Past(
               Error(L"toint: stoi failure: " + FromByteString(ia.what())));
