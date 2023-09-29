@@ -659,19 +659,21 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{}, [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.get_string() == b.get_string());
+        types::Bool{},
+        [](gc::Pool& pool, const Value& a_str, const Value& b_str) {
+          return Value::NewBool(pool, a_str.get_string() == b_str.get_string());
         });
   } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a,
-           const Value& b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(bool output,
-                           numbers::IsEqual(a.get_number(), b.get_number(),
-                                            kDefaultNumbersPrecision));
+        [](gc::Pool& pool, const Value& a_value,
+           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(
+              bool output,
+              numbers::IsEqual(a_value.get_number(), b_value.get_number(),
+                               kDefaultNumbersPrecision));
           return Value::NewBool(pool, output);
         });
   } else {
@@ -692,19 +694,22 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{}, [](gc::Pool& pool, const Value& a, const Value& b) {
-          return Value::NewBool(pool, a.get_string() != b.get_string());
+        types::Bool{},
+        [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
+          return Value::NewBool(pool,
+                                a_value.get_string() != b_value.get_string());
         });
   } else if (a->IsNumber() && b->IsNumber()) {
     OUT = new BinaryOperator(
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a,
-           const Value& b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(bool output,
-                           numbers::IsEqual(a.get_number(), b.get_number(),
-                                            kDefaultNumbersPrecision));
+        [](gc::Pool& pool, const Value& a_value,
+           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(
+              bool output,
+              numbers::IsEqual(a_value.get_number(), b_value.get_number(),
+                               kDefaultNumbersPrecision));
           return Value::NewBool(pool, !output);
         });
   } else {
@@ -726,11 +731,12 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a,
-           const Value& b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(bool output,
-                           numbers::IsLessThan(a.get_number(), b.get_number(),
-                                               kDefaultNumbersPrecision));
+        [](gc::Pool& pool, const Value& a_value,
+           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(
+              bool output,
+              numbers::IsLessThan(a_value.get_number(), b_value.get_number(),
+                                  kDefaultNumbersPrecision));
           return Value::NewBool(pool, output);
         });
   } else {
@@ -752,11 +758,12 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a,
-           const Value& b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(bool output, numbers::IsLessThanOrEqual(
-                                            a.get_number(), b.get_number(),
-                                            kDefaultNumbersPrecision));
+        [](gc::Pool& pool, const Value& a_value,
+           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(bool output,
+                           numbers::IsLessThanOrEqual(
+                               a_value.get_number(), b_value.get_number(),
+                               kDefaultNumbersPrecision));
           return Value::NewBool(pool, output);
         });
   } else {
@@ -778,11 +785,12 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a,
-           const Value& b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(bool output,
-                           numbers::IsLessThan(b.get_number(), a.get_number(),
-                                               kDefaultNumbersPrecision));
+        [](gc::Pool& pool, const Value& a_value,
+           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(
+              bool output,
+              numbers::IsLessThan(b_value.get_number(), a_value.get_number(),
+                                  kDefaultNumbersPrecision));
           return Value::NewBool(pool, output);
         });
   } else {
@@ -804,11 +812,12 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
         NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
         types::Bool{},
-        [](gc::Pool& pool, const Value& a,
-           const Value& b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(bool output, numbers::IsLessThanOrEqual(
-                                            b.get_number(), a.get_number(),
-                                            kDefaultNumbersPrecision));
+        [](gc::Pool& pool, const Value& a_value,
+           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+          ASSIGN_OR_RETURN(bool output,
+                           numbers::IsLessThanOrEqual(
+                               b_value.get_number(), a_value.get_number(),
+                               kDefaultNumbersPrecision));
           return Value::NewBool(pool, output);
         });
   } else {
@@ -839,24 +848,28 @@ expr(OUT) ::= expr(A) AND expr(B). {
 expr(OUT) ::= expr(A) PLUS expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
+
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b),
-            [](wstring a, wstring b) { return Success(a + b); },
-            [](numbers::NumberPtr a, numbers::NumberPtr b) {
-              return Success(numbers::Number(numbers::Addition{a, b}));
+            [](wstring a_str, wstring b_str) { return Success(a_str + b_str); },
+            [](numbers::NumberPtr a_number, numbers::NumberPtr b_number) {
+              return Success(
+                  numbers::Number(numbers::Addition{a_number, b_number}));
             },
-            nullptr).release();
+            nullptr)
+            .release();
 }
 
 expr(OUT) ::= expr(A) MINUS expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
+
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b), nullptr,
-            [](numbers::NumberPtr a, numbers::NumberPtr b) {
+            [](numbers::NumberPtr a_number, numbers::NumberPtr b_number) {
               return Success(numbers::Number(
-                numbers::Addition{a, MakeNonNullShared<numbers::Number>(
-                                          numbers::Negation{b})}));
+                numbers::Addition{a_number, MakeNonNullShared<numbers::Number>(
+                                          numbers::Negation{b_number})}));
             },
             nullptr).release();
 }
@@ -877,39 +890,41 @@ expr(OUT) ::= MINUS expr(A). {
 expr(OUT) ::= expr(A) TIMES expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
-  OUT =
-      NewBinaryExpression(
-          compilation, std::move(a), std::move(b), nullptr,
-          [](numbers::NumberPtr a, numbers::NumberPtr b) {
-            return Success(numbers::Number(numbers::Multiplication{a, b}));
-          },
-          [](wstring a, int b) -> language::ValueOrError<wstring> {
-            wstring output;
-            for (int i = 0; i < b; i++) {
-              try {
-                output += a;
-              } catch (const std::bad_alloc& e) {
-                output = L"";
-                return Error(L"Bad Alloc");
-              } catch (const std::length_error& e) {
-                output = L"";
-                return Error(L"Length Error");
+
+  OUT = NewBinaryExpression(
+            compilation, std::move(a), std::move(b), nullptr,
+            [](numbers::NumberPtr a_number, numbers::NumberPtr b_number) {
+              return Success(
+                  numbers::Number(numbers::Multiplication{a_number, b_number}));
+            },
+            [](wstring a_str, int b_int) -> language::ValueOrError<wstring> {
+              wstring output;
+              for (int i = 0; i < b_int; i++) {
+                try {
+                  output += a_str;
+                } catch (const std::bad_alloc& e) {
+                  return Error(L"Bad Alloc");
+                } catch (const std::length_error& e) {
+                  return Error(L"Length Error");
+                }
               }
-            }
-            return Success(output);
-          })
-          .release();
+              return Success(output);
+            })
+            .release();
 }
 
 expr(OUT) ::= expr(A) DIVIDE expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
+
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b), nullptr,
-            [](numbers::NumberPtr a, numbers::NumberPtr b) {
-              return Success(numbers::Number(numbers::Division{a, b}));
+            [](numbers::NumberPtr a_number, numbers::NumberPtr b_number) {
+              return Success(
+                  numbers::Number(numbers::Division{a_number, b_number}));
             },
-            nullptr).release();
+            nullptr)
+            .release();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
