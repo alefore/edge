@@ -495,8 +495,8 @@ LineBuilder GetBufferVisibleString(
       columns -= ColumnNumberDelta(separator.size());
       separator = it->complete ? L"/" : L"…";
       if (it != std::prev(components.end())) {
-        output.AppendString(
-            NewLazyString(std::move(it->path_component.ToString())), modifiers);
+        output.AppendString(NewLazyString(it->path_component.ToString()),
+                            modifiers);
         continue;
       }
 
