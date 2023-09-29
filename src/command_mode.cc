@@ -59,7 +59,6 @@
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/switch_case.h"
-#include "src/transformation/tree_navigate.h"
 #include "src/transformation/type.h"
 
 namespace gc = afc::language::gc;
@@ -542,27 +541,6 @@ class HardRedrawCommand : public Command {
   EditorState& editor_state_;
 };
 
-class TreeNavigateCommand : public Command {
- public:
-  TreeNavigateCommand(EditorState& editor_state)
-      : editor_state_(editor_state) {}
-  std::wstring Description() const override {
-    return L"Navigates to the start/end of the current children of the "
-           L"syntax tree";
-  }
-  std::wstring Category() const override { return L"Navigate"; }
-
-  void ProcessInput(wint_t) override {
-    static const NonNull<std::shared_ptr<CompositeTransformation>>*
-        transformation = new NonNull<std::shared_ptr<CompositeTransformation>>(
-            MakeNonNullShared<TreeNavigate>());
-    editor_state_.ApplyToActiveBuffers(*transformation);
-  }
-
- private:
-  EditorState& editor_state_;
-};
-
 enum class VariableLocation { kBuffer, kEditor };
 
 void ToggleVariable(EditorState& editor_state,
@@ -832,7 +810,15 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 {operation::CommandReach{
                     .repetitions = operation::CommandArgumentRepetitions(1)}}));
 
-  commands->Add(L"%", MakeNonNullUnique<TreeNavigateCommand>(editor_state));
+  commands->Add(
+      L"%",
+      operation::NewTopLevelCommand(
+          L"tree-navigate", L"moves past the next token in the syntax tree",
+          operation::TopCommand{}, editor_state,
+          {operation::CommandReach{
+              .structure = Structure::kTree,
+              .repetitions = operation::CommandArgumentRepetitions(1)}}));
+
   commands->Add(L"sr", NewRecordCommand(editor_state));
   commands->Add(L"\t", NewFindCompletionCommand(editor_state));
 
