@@ -148,7 +148,7 @@ class OpenBuffer {
 
   // If an error occurs, returns it (in the future). Otherwise, returns an
   // empty value.
-  futures::Value<language::PossibleError> Save();
+  futures::Value<language::PossibleError> Save(Options::SaveType save_type);
 
   // If we're currently at the end of the buffer *and* variable
   // `follow_end_of_file` is set, returns an object that, when deleted, will

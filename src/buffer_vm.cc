@@ -501,15 +501,15 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      L"Save", vm::NewCallback(pool, PurityType::kUnknown,
-                               [](gc::Root<OpenBuffer> buffer) {
-                                 buffer =
-                                     MaybeFollowOutgoingLink(std::move(buffer));
-                                 futures::Value<PossibleError> output =
-                                     buffer.ptr()->Save();
-                                 buffer.ptr()->editor().ResetModifiers();
-                                 return output;
-                               })
+      L"Save", vm::NewCallback(
+                   pool, PurityType::kUnknown,
+                   [](gc::Root<OpenBuffer> buffer) {
+                     buffer = MaybeFollowOutgoingLink(std::move(buffer));
+                     futures::Value<PossibleError> output = buffer.ptr()->Save(
+                         OpenBuffer::Options::SaveType::kMainFile);
+                     buffer.ptr()->editor().ResetModifiers();
+                     return output;
+                   })
                    .ptr());
 
   buffer_object_type.ptr()->AddField(

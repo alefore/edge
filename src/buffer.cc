@@ -444,7 +444,7 @@ futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
                          return futures::Past(Success());
                        }
                        LOG(INFO) << name() << ": attempting to save buffer.";
-                       return Save();
+                       return Save(Options::SaveType::kMainFile);
                      });
                }},
       IsUnableToPrepareToClose());
@@ -454,7 +454,7 @@ void OpenBuffer::Close() {
   log_->Append(L"Closing");
   if (dirty() && Read(buffer_variables::save_on_close)) {
     log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
-    Save();
+    Save(Options::SaveType::kMainFile);
   }
   editor().line_marks().RemoveSource(name());
   close_observers_.Notify();
@@ -944,14 +944,13 @@ void OpenBuffer::Reload() {
       });
 }
 
-futures::Value<PossibleError> OpenBuffer::Save() {
+futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   if (options_.handle_save == nullptr) {
     status_.InsertError(Error(L"Buffer can't be saved."));
     return futures::Past(PossibleError(Error(L"Buffer can't be saved.")));
   }
-  return options_.handle_save(
-      {.buffer = *this, .save_type = Options::SaveType::kMainFile});
+  return options_.handle_save({.buffer = *this, .save_type = save_type});
 }
 
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
