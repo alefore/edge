@@ -983,7 +983,8 @@ class OperationMode : public EditorMode {
                                                  ? nullptr
                                                  : std::get_if<CommandReach>(
                                                        &state.GetLastCommand());
-                       reach != nullptr && reach->structure == std::nullopt) {
+                       reach != nullptr && reach->structure == std::nullopt &&
+                       reach->repetitions.empty()) {
                      state.UndoLast();
                    }
                    state.Push(CommandReachLine{
