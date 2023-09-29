@@ -458,9 +458,14 @@ OpenBuffer::PrepareToClose() {
 
 void OpenBuffer::Close() {
   log_->Append(L"Closing");
-  if (dirty() && Read(buffer_variables::save_on_close)) {
-    log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
-    Save(Options::SaveType::kMainFile);
+  if (dirty() && !Read(buffer_variables::allow_dirty_delete)) {
+    if (Read(buffer_variables::save_on_close)) {
+      log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
+      Save(Options::SaveType::kMainFile);
+    } else {
+      log_->Append(L"Saving backup: " + Read(buffer_variables::name));
+      Save(Options::SaveType::kBackup);
+    }
   }
   editor().line_marks().RemoveSource(name());
   close_observers_.Notify();
