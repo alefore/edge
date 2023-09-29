@@ -218,53 +218,47 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
     return {};
   }
 
-  auto dummy_progress_channel = std::make_unique<ProgressChannel>(
-      work_queue, [](ProgressInformation) {},
-      WorkQueueChannelConsumeMode::kLastAvailable);
-  ASSIGN_OR_RETURN(
-      std::vector<LineColumn> results,
-      PerformSearch(options, contents, dummy_progress_channel.get()));
-  if (direction == Direction::kBackwards) {
-    std::reverse(results.begin(), results.end());
-  }
-
-  vector<LineColumn> head;
-  vector<LineColumn> tail;
-
+  Range before = Range(LineColumn(), options.starting_position);
+  Range after = Range(options.starting_position, contents.range().end);
   if (options.limit_position.has_value()) {
-    Range range = {
-        std::min(options.starting_position, options.limit_position.value()),
-        std::max(options.starting_position, options.limit_position.value())};
-    LOG(INFO) << "Removing elements outside of the range: " << range;
-    std::vector<LineColumn> valid_candidates;
-    for (auto& candidate : results) {
-      if (range.Contains(candidate)) {
-        valid_candidates.push_back(candidate);
+    if (*options.limit_position < options.starting_position)
+      before.begin = *options.limit_position;
+    else
+      after.end = *options.limit_position;
+  }
+
+  auto Search = [&work_queue, &options, &contents](
+                    Range& range) -> ValueOrError<std::vector<LineColumn>> {
+    ProgressChannel dummy_progress_channel(
+        work_queue, [](ProgressInformation) {},
+        WorkQueueChannelConsumeMode::kLastAvailable);
+
+    ASSIGN_OR_RETURN(std::vector<LineColumn> results,
+                     PerformSearch(options, contents.ViewRange(range),
+                                   &dummy_progress_channel));
+    if (!range.begin.column.IsZero())
+      for (LineColumn& result : results) {
+        result.line += range.begin.line.ToDelta();
+        if (result.line == range.begin.line)
+          result.column += range.begin.column.ToDelta();
       }
-    }
-    results = std::move(valid_candidates);
+    return results;
+  };
+
+  ASSIGN_OR_RETURN(std::vector<LineColumn> results_before, Search(before));
+  ASSIGN_OR_RETURN(std::vector<LineColumn> results_after, Search(after));
+
+  std::vector<LineColumn> output = std::move(results_after);
+  output.insert(output.end(), results_before.begin(), results_before.end());
+  switch (direction) {
+    case Direction::kForwards:
+      break;
+    case Direction::kBackwards:
+      std::reverse(output.begin(), output.end());
+      break;
   }
 
-  // Split them into head and tail depending on the current direction.
-  for (auto& candidate : results) {
-    bool use_head = true;
-    switch (direction) {
-      case Direction::kForwards:
-        use_head = candidate > options.starting_position;
-        break;
-      case Direction::kBackwards:
-        use_head = candidate < options.starting_position;
-        break;
-    }
-    (use_head ? head : tail).push_back(candidate);
-  }
-
-  // Append the tail to the head.
-  for (auto& candidate : tail) {
-    head.push_back(candidate);
-  }
-
-  return head;
+  return output;
 }
 
 ValueOrError<LineColumn> GetNextMatch(
