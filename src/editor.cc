@@ -25,6 +25,7 @@ extern "C" {
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
+#include "src/language/containers.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
@@ -38,39 +39,41 @@ extern "C" {
 #include "src/vm/public/value.h"
 #include "src/widget_list.h"
 
+using afc::concurrent::ThreadPool;
+using afc::concurrent::WorkQueue;
+using afc::infrastructure::AddSeconds;
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::Now;
+using afc::infrastructure::Path;
+using afc::language::EmptyValue;
+using afc::language::EraseOrDie;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language ::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Observers;
+using afc::language::overload;
+using afc::language::Pointer;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+
 namespace afc::editor {
 namespace gc = language::gc;
 namespace error = language::error;
-using afc::language::lazy_string::Append;
-using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
-using concurrent::ThreadPool;
-using concurrent::WorkQueue;
-using infrastructure::AddSeconds;
-using infrastructure::FileDescriptor;
-using infrastructure::Now;
-using infrastructure::Path;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language ::MakeNonNullUnique;
-using language::NonNull;
-using language::Observers;
-using language::overload;
-using language::Pointer;
-using language::PossibleError;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
 
 // Executes pending work from all buffers.
 void EditorState::ExecutePendingWork() { work_queue_->Execute(); }
@@ -302,8 +305,8 @@ void EditorState::CheckPosition() {
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
   OnError(buffer.PrepareToClose(),
-          [buffer =
-               buffer.NewRoot()](Error error) -> futures::Value<PossibleError> {
+          [buffer = buffer.NewRoot()](Error error)
+              -> futures::ValueOrError<OpenBuffer::PrepareToCloseOutput> {
             error = AugmentError(L"🖝  Unable to close (“*ad” to ignore): " +
                                      buffer.ptr()->Read(buffer_variables::name),
                                  error);
@@ -311,18 +314,19 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
               case error::Log::InsertResult::kInserted:
                 return futures::Past(error);
               case error::Log::InsertResult::kAlreadyFound:
-                return futures::Past(Success());
+                return futures::Past(OpenBuffer::PrepareToCloseOutput());
             }
             LOG(FATAL) << "Invalid enum value.";
             return futures::Past(error);
           })
-      .Transform([this, buffer = buffer.NewRoot()](EmptyValue) {
-        buffer.ptr()->Close();
-        buffer_tree_.RemoveBuffer(buffer.ptr().value());
-        buffers_.erase(buffer.ptr()->name());
-        AdjustWidgets();
-        return futures::Past(Success());
-      });
+      .Transform(
+          [this, buffer = buffer.NewRoot()](OpenBuffer::PrepareToCloseOutput) {
+            buffer.ptr()->Close();
+            buffer_tree_.RemoveBuffer(buffer.ptr().value());
+            buffers_.erase(buffer.ptr()->name());
+            AdjustWidgets();
+            return futures::Past(Success());
+          });
 }
 
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
@@ -469,6 +473,18 @@ BufferName EditorState::GetUnusedBufferName(const std::wstring& prefix) {
 
 void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 
+std::shared_ptr<LazyString> EditorState::GetExitNotice() const {
+  if (dirty_buffers_saved_to_backup_.empty()) return nullptr;
+  NonNull<std::shared_ptr<LazyString>> output =
+      Append(NewLazyString(L"Dirty contents backed up (in "),
+             NewLazyString(edge_path()[0].read()), NewLazyString(L"):\n"));
+  for (const BufferName& name : dirty_buffers_saved_to_backup_) {
+    output = Append(output, NewLazyString(L"  "), NewLazyString(name.read()),
+                    NewLazyString(L"\n"));
+  }
+  return output.get_shared();
+}
+
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   status().SetInformationText(MakeNonNullShared<Line>(
       LineBuilder(Append(NewLazyString(L"Exit: Preparing to close buffers ("),
@@ -489,7 +505,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                  it.second.ptr()->IsUnableToPrepareToClose());
 
     if (!buffers_with_problems.empty()) {
-      std::wstring error = L"🖝  Dirty buffers:";
+      std::wstring error = L"🖝  Dirty buffers (pre):";
       for (auto name : buffers_with_problems) {
         error += L" " + name;
       }
@@ -522,14 +538,12 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         LOG(INFO) << "Checking buffers state for termination.";
         std::vector<std::wstring> buffers_with_problems;
         for (auto& it : buffers_) {
-          if (it.second.ptr()->dirty() &&
-              !it.second.ptr()->Read(buffer_variables::allow_dirty_delete)) {
+          if (IsError(it.second.ptr()->IsUnableToPrepareToClose()))
             buffers_with_problems.push_back(
                 it.second.ptr()->Read(buffer_variables::name));
-          }
         }
         if (!buffers_with_problems.empty()) {
-          std::wstring error = L"🖝  Dirty buffers:";
+          std::wstring error = L"🖝  Dirty buffers (post):";
           for (auto name : buffers_with_problems) {
             error += L" " + name;
           }
@@ -546,29 +560,42 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         exit_value_ = exit_value;
       });
 
-  auto decrement = [this, pending_buffers](
-                       const gc::Root<OpenBuffer>& buffer_done, PossibleError) {
-    pending_buffers->erase(buffer_done);
-    // TODO(easy, 2023-09-08): Convert `extra` to LazyString.
-    std::wstring extra;
-    std::wstring separator = L": ";
-    int count = 0;
-    for (auto& buffer : *pending_buffers) {
-      if (count < 5) {
-        extra += separator + buffer.ptr()->name().read();
-        separator = L", ";
-      } else if (count == 5) {
-        extra += L"…";
-      }
-      count++;
-    }
-    status().SetInformationText(MakeNonNullShared<Line>(
-        LineBuilder(
-            Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
-                   NewLazyString(std::to_wstring(pending_buffers->size())),
-                   NewLazyString(extra)))
-            .Build()));
-  };
+  auto decrement =
+      [this, pending_buffers](
+          const gc::Root<OpenBuffer>& buffer_done,
+          ValueOrError<OpenBuffer::PrepareToCloseOutput> output_or_error) {
+        std::visit(
+            overload{IgnoreErrors{},
+                     [&](const OpenBuffer::PrepareToCloseOutput& output) {
+                       if (output.dirty_contents_saved_to_backup) {
+                         dirty_buffers_saved_to_backup_.insert(
+                             buffer_done.ptr()->name());
+                       }
+                     }},
+            output_or_error);
+
+        EraseOrDie(*pending_buffers, buffer_done);
+
+        // TODO(easy, 2023-09-08): Convert `extra` to LazyString.
+        std::wstring extra;
+        std::wstring separator = L": ";
+        int count = 0;
+        for (auto& buffer : *pending_buffers) {
+          if (count < 5) {
+            extra += separator + buffer.ptr()->name().read();
+            separator = L", ";
+          } else if (count == 5) {
+            extra += L"…";
+          }
+          count++;
+        }
+        status().SetInformationText(MakeNonNullShared<Line>(
+            LineBuilder(
+                Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
+                       NewLazyString(std::to_wstring(pending_buffers->size())),
+                       NewLazyString(extra)))
+                .Build()));
+      };
 
   for (const auto& it : buffers_) {
     pending_buffers->insert(it.second);

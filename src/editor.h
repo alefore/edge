@@ -112,6 +112,8 @@ class EditorState {
   BufferName GetUnusedBufferName(const std::wstring& prefix);
   void set_exit_value(int exit_value);
   std::optional<int> exit_value() const { return exit_value_; }
+  // May return null.
+  std::shared_ptr<language::lazy_string::LazyString> GetExitNotice() const;
 
   enum class TerminationType { kWhenClean, kIgnoringErrors };
   void Terminate(TerminationType termination_type, int exit_value);
@@ -238,6 +240,7 @@ class EditorState {
 
   std::map<BufferName, afc::language::gc::Root<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
+  std::set<BufferName> dirty_buffers_saved_to_backup_;
 
   const infrastructure::Path home_directory_;
   const std::vector<infrastructure::Path> edge_path_;

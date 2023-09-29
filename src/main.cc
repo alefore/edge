@@ -564,8 +564,14 @@ int main(int argc, const char** argv) {
   }
 
   int output = editor_state().exit_value().value();
+  std::shared_ptr<LazyString> exit_notice = editor_state().GetExitNotice();
   LOG(INFO) << "Deleting editor.";
   global_editor_state = nullptr;
-  LOG(INFO) << "Returning.";
+
+  LOG(INFO) << "Deleting screen_curses.";
+  screen_curses = nullptr;
+
+  LOG(INFO) << "Returning";
+  if (exit_notice != nullptr) std::cerr << *exit_notice;
   return output;
 }

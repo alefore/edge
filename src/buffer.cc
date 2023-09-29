@@ -387,66 +387,72 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor.modifiers().strength > Modifiers::Strength::kNormal) {
     return Success();
   }
-  if (child_pid_ != -1) {
-    if (!Read(buffer_variables::term_on_close)) {
-      return Error(L"Running subprocess (pid: " + std::to_wstring(child_pid_) +
-                   L")");
-    }
-    return Success();
-  }
-  if (dirty() && !Read(buffer_variables::save_on_close) &&
-      !Read(buffer_variables::allow_dirty_delete)) {
-    return Error(L"Unsaved changes");
+  if (child_pid_ != -1 && !Read(buffer_variables::term_on_close)) {
+    return Error(L"Running subprocess (pid: " + std::to_wstring(child_pid_) +
+                 L")");
   }
   return Success();
 }
 
-futures::Value<PossibleError> OpenBuffer::PrepareToClose() {
+futures::ValueOrError<OpenBuffer::PrepareToCloseOutput>
+OpenBuffer::PrepareToClose() {
   log_->Append(L"PrepareToClose");
   LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
   return std::visit(
-      overload{[&](Error error) {
-                 LOG(INFO) << name() << ": Unable to close: " << error;
-                 return futures::Past(PossibleError(error));
-               },
-               [&](EmptyValue) {
-                 return (options_.editor.modifiers().strength ==
-                                 Modifiers::Strength::kNormal
-                             ? PersistState()
-                             : futures::IgnoreErrors(PersistState()))
-                     .Transform([this](EmptyValue) {
-                       LOG(INFO) << name() << ": State persisted.";
-                       if (child_pid_ != -1) {
-                         if (Read(buffer_variables::term_on_close)) {
-                           if (on_exit_handler_ != nullptr) {
-                             return futures::Past(PossibleError(
-                                 Error(L"Already waiting for termination.")));
-                           }
-                           LOG(INFO)
-                               << "Sending termination and preparing handler: "
-                               << Read(buffer_variables::name);
-                           kill(child_pid_, SIGTERM);
-                           auto future = futures::Future<PossibleError>();
-                           on_exit_handler_ = [this,
-                                               consumer = std::move(
-                                                   future.consumer)]() mutable {
-                             CHECK_EQ(child_pid_, -1);
-                             LOG(INFO) << "Subprocess terminated: "
-                                       << Read(buffer_variables::name);
-                             PrepareToClose().SetConsumer(std::move(consumer));
-                           };
-                           return std::move(future.value);
-                         }
-                         CHECK(options_.editor.modifiers().strength >
-                               Modifiers::Strength::kNormal);
-                       }
-                       if (!dirty() || !Read(buffer_variables::save_on_close)) {
-                         return futures::Past(Success());
-                       }
-                       LOG(INFO) << name() << ": attempting to save buffer.";
-                       return Save(Options::SaveType::kMainFile);
-                     });
-               }},
+      overload{
+          [&](Error error) -> futures::ValueOrError<PrepareToCloseOutput> {
+            LOG(INFO) << name() << ": Unable to close: " << error;
+            return futures::Past(error);
+          },
+          [&](EmptyValue) {
+            return (options_.editor.modifiers().strength ==
+                            Modifiers::Strength::kNormal
+                        ? PersistState()
+                        : futures::IgnoreErrors(PersistState()))
+                .Transform([this](EmptyValue)
+                               -> futures::ValueOrError<PrepareToCloseOutput> {
+                  LOG(INFO) << name() << ": State persisted.";
+                  if (child_pid_ != -1) {
+                    if (Read(buffer_variables::term_on_close)) {
+                      if (on_exit_handler_ != nullptr) {
+                        return futures::Past(
+                            Error(L"Already waiting for termination."));
+                      }
+                      LOG(INFO) << "Sending termination and preparing handler: "
+                                << Read(buffer_variables::name);
+                      kill(child_pid_, SIGTERM);
+                      auto future =
+                          futures::Future<ValueOrError<PrepareToCloseOutput>>();
+                      on_exit_handler_ =
+                          [this,
+                           consumer = std::move(future.consumer)]() mutable {
+                            CHECK_EQ(child_pid_, -1);
+                            LOG(INFO) << "Subprocess terminated: "
+                                      << Read(buffer_variables::name);
+                            PrepareToClose().SetConsumer(std::move(consumer));
+                          };
+                      return std::move(future.value);
+                    }
+                    CHECK(options_.editor.modifiers().strength >
+                          Modifiers::Strength::kNormal);
+                  }
+                  if (!dirty() || Read(buffer_variables::allow_dirty_delete))
+                    return futures::Past(PrepareToCloseOutput{});
+
+                  LOG(INFO) << name() << ": attempting to save buffer.";
+                  if (Read(buffer_variables::save_on_close))
+                    return Save(Options::SaveType::kMainFile)
+                        .Transform([](EmptyValue) {
+                          return Success(PrepareToCloseOutput{});
+                        });
+
+                  return Save(Options::SaveType::kBackup)
+                      .Transform([](EmptyValue) {
+                        return Success(PrepareToCloseOutput{
+                            .dirty_contents_saved_to_backup = true});
+                      });
+                });
+          }},
       IsUnableToPrepareToClose());
 }
 

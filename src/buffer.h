@@ -121,9 +121,11 @@ class OpenBuffer {
   // we can predict that PrepareToClose will fail.
   language::PossibleError IsUnableToPrepareToClose() const;
 
-  // Starts saving this buffer. The future returned will have a value if there
-  // was an error.
-  futures::Value<language::PossibleError> PrepareToClose();
+  // Starts saving this buffer.
+  struct PrepareToCloseOutput {
+    bool dirty_contents_saved_to_backup = false;
+  };
+  futures::ValueOrError<PrepareToCloseOutput> PrepareToClose();
   void Close();
 
   // If the buffer was already read (fd_ == -1), this is immediately notified.
