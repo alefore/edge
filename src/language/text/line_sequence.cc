@@ -40,7 +40,7 @@ using ::operator<<;
   return LineSequence(Lines::PushBack(nullptr, std::move(line)));
 }
 
-LineSequence LineSequence::ViewRange(Range range) {
+LineSequence LineSequence::ViewRange(Range range) const {
   CHECK_LE(range.begin, range.end);
   CHECK_LE(range.end.line, EndLine());
   Lines::Ptr output = lines_;

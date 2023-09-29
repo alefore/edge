@@ -32,7 +32,7 @@ class LineSequence {
   static LineSequence WithLine(NonNull<std::shared_ptr<Line>> line);
 
   // Returns a new LineSequence that contains a subset of the current one.
-  LineSequence ViewRange(language::text::Range range);
+  LineSequence ViewRange(language::text::Range range) const;
 
   NonNull<std::shared_ptr<lazy_string::LazyString>> ToLazyString() const;
   std::wstring ToString() const;
