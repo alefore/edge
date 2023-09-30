@@ -65,7 +65,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
     std::function<language::ValueOrError<wstring>(wstring, wstring)>
         str_operator,
     std::function<language::ValueOrError<math::numbers::Number>(
-        math::numbers::NumberPtr, math::numbers::NumberPtr)>
+        math::numbers::Number, math::numbers::Number)>
         number_operator,
     std::function<language::ValueOrError<wstring>(wstring, int)>
         str_int_operator) {
@@ -94,10 +94,8 @@ std::unique_ptr<Expression> NewBinaryExpression(
         [number_operator](
             gc::Pool& pool, const Value& value_a,
             const Value& value_b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(
-              Number value,
-              number_operator(MakeNonNullShared<Number>(value_a.get_number()),
-                              MakeNonNullShared<Number>(value_b.get_number())));
+          ASSIGN_OR_RETURN(Number value, number_operator(value_a.get_number(),
+                                                         value_b.get_number()));
           return Value::NewNumber(pool, value);
         });
   }

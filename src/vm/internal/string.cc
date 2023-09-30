@@ -16,8 +16,8 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::math::numbers::FromInt;
 using afc::math::numbers::FromSizeT;
-using afc::math::numbers::Number;
 using afc::math::numbers::ToInt;
 
 namespace afc::language::gc {
@@ -108,24 +108,23 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       string_type);
   AddMethod(
       L"find", pool,
-      [](const wstring& str, const wstring& pattern,
-         size_t start_pos) -> Number {
+      [](const wstring& str, const wstring& pattern, size_t start_pos) {
         size_t pos = str.find(pattern, start_pos);
-        return pos == wstring::npos ? Number(-1) : FromSizeT(pos);
+        return pos == wstring::npos ? FromInt(-1) : FromSizeT(pos);
       },
       string_type);
   AddMethod(
       L"find_last_of", pool,
       [](const wstring& str, const wstring& pattern, size_t start_pos) {
         size_t pos = str.find_last_of(pattern, start_pos);
-        return pos == wstring::npos ? Number(-1) : FromSizeT(pos);
+        return pos == wstring::npos ? FromInt(-1) : FromSizeT(pos);
       },
       string_type);
   AddMethod(
       L"find_last_not_of", pool,
       [](const wstring& str, const wstring& pattern, size_t start_pos) {
         size_t pos = str.find_last_not_of(pattern, start_pos);
-        return pos == wstring::npos ? Number(-1) : FromSizeT(pos);
+        return pos == wstring::npos ? FromInt(-1) : FromSizeT(pos);
       },
       string_type);
   AddMethod(

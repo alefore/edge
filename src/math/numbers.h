@@ -3,38 +3,31 @@
 
 #include <memory>
 #include <string>
-#include <variant>
-#include <vector>
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/safe_types.h"
 
 namespace afc::math::numbers {
-struct Addition;
-struct Negation;
-struct Multiplication;
-struct Division;
+struct Base;
+struct Number {
+  language::NonNull<std::shared_ptr<const Base>> value;
 
-using Number = std::variant<int, Addition, Negation, Multiplication, Division>;
-using NumberPtr = language::NonNull<std::shared_ptr<Number>>;
-struct Addition {
-  NumberPtr a;
-  NumberPtr b;
+  Number& operator+=(Number rhs);
+  Number& operator-=(Number rhs);
+  Number& operator*=(Number rhs);
+  Number& operator/=(Number rhs);
 };
-struct Negation {
-  NumberPtr a;
-};
-struct Multiplication {
-  NumberPtr a;
-  NumberPtr b;
-};
-struct Division {
-  NumberPtr a;
-  NumberPtr b;
-};
+
+Number operator+(Number a, Number b);
+Number operator-(Number a, Number b);
+Number operator*(Number a, Number b);
+Number operator/(Number a, Number b);
+Number operator-(Number a);
 
 afc::language::ValueOrError<std::wstring> ToString(const Number& number,
                                                    size_t decimal_digits);
 
+Number FromInt(int);
 afc::language::ValueOrError<int> ToInt(const Number& number);
 
 afc::language::ValueOrError<double> ToDouble(const Number& number);
@@ -50,6 +43,7 @@ afc::language::ValueOrError<bool> IsLessThan(const Number& a, const Number& b,
 afc::language::ValueOrError<bool> IsLessThanOrEqual(const Number& a,
                                                     const Number& b,
                                                     size_t precision);
+
 }  // namespace afc::math::numbers
 
 #endif  // __AFC_MATH_NUMBERS_H__

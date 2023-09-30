@@ -35,7 +35,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::OutgoingLink;
-using afc::math::numbers::Number;
+using afc::math::numbers::FromInt;
 using afc::math::numbers::ToSizeT;
 
 namespace afc::editor {
@@ -180,7 +180,7 @@ class NavigationBufferCommand : public Command {
           buffer.Set(buffer_variables::allow_dirty_delete, true);
           buffer.environment()->Define(
               kDepthSymbol,
-              vm::Value::NewNumber(editor_state_.gc_pool(), Number{3}));
+              vm::Value::NewNumber(editor_state_.gc_pool(), FromInt(3)));
           buffer.Set(buffer_variables::reload_on_enter, true);
           editor_state_.StartHandlingInterrupts();
           editor_state_.AddBuffer(buffer_root,

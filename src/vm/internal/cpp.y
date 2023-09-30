@@ -444,9 +444,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value),
                 [](wstring a, wstring b) { return Success(a + b); },
-                [](numbers::NumberPtr a, numbers::NumberPtr b) {
-                  return Success(numbers::Number(numbers::Addition{a, b}));
-                },
+                [](numbers::Number a, numbers::Number b) { return a + b; },
                 nullptr))
             .release();
 }
@@ -462,11 +460,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
                 NewVariableLookup(compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](numbers::NumberPtr a, numbers::NumberPtr b) {
-                  return Success(numbers::Number(
-                      numbers::Addition{a, MakeNonNullShared<numbers::Number>(
-                                               numbers::Negation{b})}));
-                },
+                [](numbers::Number a, numbers::Number b) { return a - b; },
                 nullptr))
             .release();
 }
@@ -482,10 +476,7 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
                 NewVariableLookup(compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](numbers::NumberPtr a, numbers::NumberPtr b) {
-                  return Success(numbers::Number(
-                      numbers::Multiplication{a, b}));
-                },
+                [](numbers::Number a, numbers::Number b) { return a * b; },
                 [](wstring a, int b) -> language::ValueOrError<wstring> {
                   wstring output;
                   for (int i = 0; i < b; i++) {
@@ -515,9 +506,7 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
                 NewVariableLookup(compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](numbers::NumberPtr a, numbers::NumberPtr b) {
-                  return Success(numbers::Number(numbers::Division{a, b}));
-                },
+                [](numbers::Number a, numbers::Number b) { return a / b; },
                 nullptr))
             .release();
 }
@@ -538,11 +527,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
                   types::Number{},
                   [](gc::Pool& pool, const Value&, const Value& a) {
                     return Value::NewNumber(
-                        pool,
-                        numbers::Number(numbers::Addition{
-                            MakeNonNullShared<numbers::Number>(a.get_number()),
-                            MakeNonNullShared<numbers::Number>(
-                                numbers::Number(1))}));
+                        pool, a.get_number() + numbers::FromInt(1));
                   }))
               .release();
   } else {
@@ -568,11 +553,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
                   types::Number{},
                   [](gc::Pool& pool, const Value&, const Value& a) {
                     return Value::NewNumber(
-                        pool,
-                        numbers::Number(numbers::Addition{
-                            MakeNonNullShared<numbers::Number>(a.get_number()),
-                            MakeNonNullShared<numbers::Number>(
-                                numbers::Number(-1))}));
+                        pool, a.get_number() - numbers::FromInt(1));
                   }))
               .release();
   } else {
@@ -852,9 +833,8 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b),
             [](wstring a_str, wstring b_str) { return Success(a_str + b_str); },
-            [](numbers::NumberPtr a_number, numbers::NumberPtr b_number) {
-              return Success(
-                  numbers::Number(numbers::Addition{a_number, b_number}));
+            [](numbers::Number a_number, numbers::Number b_number) {
+              return a_number + b_number;
             },
             nullptr)
             .release();
@@ -866,12 +846,11 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
 
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b), nullptr,
-            [](numbers::NumberPtr a_number, numbers::NumberPtr b_number) {
-              return Success(numbers::Number(
-                numbers::Addition{a_number, MakeNonNullShared<numbers::Number>(
-                                          numbers::Negation{b_number})}));
+            [](numbers::Number a_number, numbers::Number b_number) {
+              return a_number - b_number;
             },
-            nullptr).release();
+            nullptr)
+            .release();
 }
 
 expr(OUT) ::= MINUS expr(A). {
@@ -893,9 +872,8 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
 
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b), nullptr,
-            [](numbers::NumberPtr a_number, numbers::NumberPtr b_number) {
-              return Success(
-                  numbers::Number(numbers::Multiplication{a_number, b_number}));
+            [](numbers::Number a_number, numbers::Number b_number) {
+              return a_number * b_number;
             },
             [](wstring a_str, int b_int) -> language::ValueOrError<wstring> {
               wstring output;
@@ -919,9 +897,8 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
 
   OUT = NewBinaryExpression(
             compilation, std::move(a), std::move(b), nullptr,
-            [](numbers::NumberPtr a_number, numbers::NumberPtr b_number) {
-              return Success(
-                  numbers::Number(numbers::Division{a_number, b_number}));
+            [](numbers::Number a_number, numbers::Number b_number) {
+              return a_number / b_number;
             },
             nullptr)
             .release();

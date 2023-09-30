@@ -85,13 +85,6 @@ ValueOrError<T> FromVmValue(T t) {
 
 ValueOrError<int> FromVmValue(Number number) { return ToInt(number); }
 
-template <typename T>
-T ToVmValue(T t) {
-  return t;
-}
-
-Number ToVmValue(int n) { return Number(n); }
-
 template <typename EdgeStruct, typename FieldValue,
           typename FieldVmValue = FieldValue>
 void RegisterVariableFields(
@@ -109,7 +102,7 @@ void RegisterVariableFields(
         variable->name(),
         vm::NewCallback(pool, PurityType::kReader,
                         [reader, variable](EditorState& editor) {
-                          return ToVmValue((editor.*reader)(variable));
+                          return (editor.*reader)(variable);
                         })
             .ptr());
 
@@ -205,9 +198,9 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   editor_type.ptr()->AddField(
       L"pop_repetitions",
       vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
-        auto value_arg = static_cast<int>(editor_arg.repetitions().value_or(1));
+        int value_arg = static_cast<int>(editor_arg.repetitions().value_or(1));
         editor_arg.ResetRepetitions();
-        return Number(value_arg);
+        return value_arg;
       }).ptr());
 
   // Define one version for pure functions and one for non-pure, and adjust the

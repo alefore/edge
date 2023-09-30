@@ -18,6 +18,29 @@ using afc::language::ValueOrError;
 using ::operator<<;
 
 namespace afc::math::numbers {
+struct Addition {
+  Number a;
+  Number b;
+};
+
+struct Negation {
+  Number a;
+};
+
+struct Multiplication {
+  Number a;
+  Number b;
+};
+
+struct Division {
+  Number a;
+  Number b;
+};
+
+struct Base {
+  std::variant<int, Addition, Negation, Multiplication, Division> variant;
+};
+
 namespace {
 
 // Least significative digit first. Zero should always be represented as the
@@ -235,8 +258,8 @@ ValueOrError<DivisionOutput> DivideDigits(const Digits& dividend,
 ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits);
 
 ValueOrError<Decimal> ToDecimalBase(Addition value, size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a.value(), decimal_digits + 1));
-  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b.value(), decimal_digits + 1));
+  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits + 1));
+  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits + 1));
   if (a.positive == b.positive)
     return Decimal{.positive = a.positive,
                    .exact = a.exact && b.exact,
@@ -252,7 +275,7 @@ ValueOrError<Decimal> ToDecimalBase(Addition value, size_t decimal_digits) {
 }
 
 ValueOrError<Decimal> ToDecimalBase(Negation value, size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal output, ToDecimal(value.a.value(), decimal_digits));
+  ASSIGN_OR_RETURN(Decimal output, ToDecimal(value.a, decimal_digits));
   output.positive = !output.positive;
   return output;
 }
@@ -261,16 +284,16 @@ ValueOrError<Decimal> ToDecimalBase(Multiplication value,
                                     size_t decimal_digits) {
   // TODO(2023-09-21): This can be optimized to compute fewer decimal digits
   // in the recursions.
-  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a.value(), decimal_digits));
-  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b.value(), decimal_digits));
+  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits));
+  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits));
   return Decimal{.positive = a.positive == b.positive,
                  .exact = a.exact && b.exact,
                  .digits = RemoveDecimals(a.digits * b.digits, decimal_digits)};
 }
 
 ValueOrError<Decimal> ToDecimalBase(Division value, size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a.value(), decimal_digits));
-  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b.value(), decimal_digits));
+  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits));
+  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits));
   ASSIGN_OR_RETURN(DivisionOutput output,
                    DivideDigits(a.digits, b.digits, decimal_digits));
   return Decimal{.positive = a.positive == b.positive,
@@ -283,7 +306,7 @@ ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits) {
       [decimal_digits](const auto& value) -> ValueOrError<Decimal> {
         return ToDecimalBase(value, decimal_digits);
       },
-      number);
+      number.value.value().variant);
 }
 
 const bool as_decimal_tests_registration =
@@ -300,83 +323,33 @@ const bool as_decimal_tests_registration =
              }});
       };
       return std::vector(
-          {test(45, L"45"),
-           test(0, L"0"),
-           test(-328, L"-328"),
-           test(Addition{MakeNonNullShared<Number>(1),
-                         MakeNonNullShared<Number>(0)},
-                L"1"),
-           test(Addition{MakeNonNullShared<Number>(Number(7)),
-                         MakeNonNullShared<Number>(5)},
-                L"12"),
-           test(Addition{MakeNonNullShared<Number>(Number(7)),
-                         MakeNonNullShared<Number>(-5)},
-                L"2"),
-           test(Addition{MakeNonNullShared<Number>(Number(7)),
-                         MakeNonNullShared<Number>(-30)},
-                L"-23"),
-           test(Addition{MakeNonNullShared<Number>(Number(-7)),
-                         MakeNonNullShared<Number>(-30)},
-                L"-37"),
-           test(Addition{MakeNonNullShared<Number>(Number(-100)),
-                         MakeNonNullShared<Number>(30)},
-                L"-70"),
-           test(Addition{MakeNonNullShared<Number>(2147483647),
-                         MakeNonNullShared<Number>(2147483647)},
-                L"4294967294"),
-           test(Multiplication{MakeNonNullShared<Number>(1),
-                               MakeNonNullShared<Number>(10)},
-                L"10"),
-           test(Multiplication{MakeNonNullShared<Number>(-2),
-                               MakeNonNullShared<Number>(25)},
-                L"-50"),
-           test(Multiplication{MakeNonNullShared<Number>(-1),
-                               MakeNonNullShared<Number>(-35)},
-                L"35"),
-           test(Multiplication{MakeNonNullShared<Number>(11),
-                               MakeNonNullShared<Number>(12)},
-                L"132"),
-           test(Multiplication{MakeNonNullShared<Number>(-1),
-                               MakeNonNullShared<Number>(
-                                   Addition{MakeNonNullShared<Number>(2),
-                                            MakeNonNullShared<Number>(3)})},
-                L"-5"),
-           test(Multiplication{MakeNonNullShared<Number>(2147483647),
-                               MakeNonNullShared<Number>(2147483647)},
+          {test(FromInt(45), L"45"),
+           test(FromInt(0), L"0"),
+           test(FromInt(-328), L"-328"),
+           test(FromInt(1) + FromInt(0), L"1"),
+           test(FromInt(7) + FromInt(5), L"12"),
+           test(FromInt(7) + FromInt(-5), L"2"),
+           test(FromInt(7) + FromInt(-30), L"-23"),
+           test(FromInt(-7) + FromInt(-30), L"-37"),
+           test(FromInt(-100) + FromInt(30), L"-70"),
+           test(FromInt(2147483647) + FromInt(2147483647), L"4294967294"),
+           test(FromInt(1) * FromInt(10), L"10"),
+           test(FromInt(-2) * FromInt(25), L"-50"),
+           test(FromInt(-1) * FromInt(-35), L"35"),
+           test(FromInt(11) * FromInt(12), L"132"),
+           test(FromInt(-1) * (FromInt(2) + FromInt(3)), L"-5"),
+           test(FromInt(2147483647) * FromInt(2147483647),
                 L"4611686014132420609"),
-           test(Addition{MakeNonNullShared<Number>(Multiplication{
-                             MakeNonNullShared<Number>(2147483647),
-                             MakeNonNullShared<Number>(2147483647)}),
-                         MakeNonNullShared<Number>(
-                             Division{MakeNonNullShared<Number>(3),
-                                      MakeNonNullShared<Number>(100)})},
+           test(FromInt(2147483647) * FromInt(2147483647) +
+                    FromInt(3) / FromInt(100),
                 L"4611686014132420609.03"),
-           test(Division{MakeNonNullShared<Number>(3),
-                         MakeNonNullShared<Number>(10)},
-                L"0.3"),
-           test(Division{MakeNonNullShared<Number>(949949),
-                         MakeNonNullShared<Number>(1)},
-                L"949949"),
-           test(Addition{MakeNonNullShared<Number>(
-                             Multiplication{MakeNonNullShared<Number>(20),
-                                            MakeNonNullShared<Number>(20)}),
-                         MakeNonNullShared<Number>(
-                             Division{MakeNonNullShared<Number>(3),
-                                      MakeNonNullShared<Number>(100)})},
+           test(FromInt(3) / FromInt(10), L"0.3"),
+           test(FromInt(949949) / FromInt(1), L"949949"),
+           test(FromInt(20) * FromInt(20) + FromInt(3) / FromInt(100),
                 L"400.03"),
-           test(Division{MakeNonNullShared<Number>(1),
-                         MakeNonNullShared<Number>(3)},
-                L"0.33"),
-           test(Addition{MakeNonNullShared<Number>(
-                             Division{MakeNonNullShared<Number>(1),
-                                      MakeNonNullShared<Number>(300)}),
-                         MakeNonNullShared<Number>(
-                             Division{MakeNonNullShared<Number>(1),
-                                      MakeNonNullShared<Number>(300)})},
-                L"0.01"),
-           test(Division{MakeNonNullShared<Number>(10),
-                         MakeNonNullShared<Number>(0)},
-                L"Division by zero.")});
+           test(FromInt(1) / FromInt(3), L"0.33"),
+           test(FromInt(1) / FromInt(300) + FromInt(1) / FromInt(300), L"0.01"),
+           test(FromInt(1) / FromInt(0), L"Division by zero.")});
     }());
 }  // namespace
 
@@ -384,6 +357,10 @@ ValueOrError<std::wstring> ToString(const Number& number,
                                     size_t decimal_digits) {
   ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, decimal_digits));
   return ToString(decimal, decimal_digits);
+}
+
+Number FromInt(int value) {
+  return Number{.value = MakeNonNullShared<Base>(Base{.variant = value})};
 }
 
 ValueOrError<int> ToInt(const Number& number) {
@@ -410,38 +387,32 @@ namespace {
 const bool int_tests_registration = tests::Register(
     L"numbers::Int",
     {{.name = L"ToIntZero",
-      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(Number{0})), 0); }},
+      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(FromInt(0))), 0); }},
      {.name = L"ToIntSmallPositive",
-      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(Number{1024})), 1024); }},
+      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(FromInt(1024))), 1024); }},
      {.name = L"ToIntSmallNegative",
-      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(Number{-249})), -249); }},
+      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(FromInt(-249))), -249); }},
      {.name = L"ToIntPositiveLimit",
       .callback =
-          [] { CHECK_EQ(ValueOrDie(ToInt(Number{2147483647})), 2147483647); }},
+          [] { CHECK_EQ(ValueOrDie(ToInt(FromInt(2147483647))), 2147483647); }},
      {.name = L"ToIntNegativeLimit",
       .callback =
           [] {
             int input = -2147483648;
-            int value = ValueOrDie(
-                ToInt(Addition{MakeNonNullShared<Number>(Number(input)),
-                               MakeNonNullShared<Number>(Number{0})}));
+            int value = ValueOrDie(ToInt(FromInt(input) + FromInt(0)));
             CHECK_EQ(value, input);
           }},
      {.name = L"OverflowPositive",
       .callback =
           [] {
             int input = 2147483647;
-            CHECK(std::get<Error>(
-                      ToInt(Addition{MakeNonNullShared<Number>(Number(input)),
-                                     MakeNonNullShared<Number>(Number{1})}))
+            CHECK(std::get<Error>(ToInt(FromInt(input) + FromInt(1)))
                       .read()
                       .substr(0, 10) == L"Overflow: ");
           }},
      {.name = L"OverflowNegative", .callback = [] {
         int input = -2147483648;
-        CHECK(std::get<Error>(
-                  ToInt(Addition{MakeNonNullShared<Number>(Number(input)),
-                                 MakeNonNullShared<Number>(Number{-1})}))
+        CHECK(std::get<Error>(ToInt(FromInt(input) - FromInt(1)))
                   .read()
                   .substr(0, 10) == L"Overflow: ");
       }}});
@@ -462,9 +433,8 @@ Number FromDouble(double value) {
   static constexpr int kFinalDivision = 10e5;
   // TODO(P1, 2023-09-24): We should find a way to make sure they always get
   // marked as inexact.
-  return Division{
-      MakeNonNullShared<Number>(static_cast<int>(value * kFinalDivision)),
-      MakeNonNullShared<Number>(kFinalDivision)};
+  return FromInt(static_cast<int>(value * kFinalDivision)) /
+         FromInt(kFinalDivision);
 }
 
 namespace {
@@ -479,7 +449,7 @@ const bool double_tests_registration = tests::Register(
           }},
      {.name = L"ToDouble",
       .callback =
-          [] { CHECK_NEAR(ValueOrDie(ToDouble(Number(5))), 5.0, 0.00001); }},
+          [] { CHECK_NEAR(ValueOrDie(ToDouble(FromInt(5))), 5.0, 0.00001); }},
      {.name = L"5", .callback = [] {
         CHECK_NEAR(ValueOrDie(ToDouble(FromDouble(5))), 5.0, 0.00001);
       }}});
@@ -487,7 +457,7 @@ const bool double_tests_registration = tests::Register(
 
 Number FromSizeT(size_t value) {
   // TODO(P1, 2023-09-23): Detect and handle overflows.
-  return Number{static_cast<int>(value)};
+  return FromInt(static_cast<int>(value));
 }
 
 ValueOrError<size_t> ToSizeT(const Number& number) {
@@ -516,5 +486,50 @@ ValueOrError<bool> IsLessThanOrEqual(const Number& a, const Number& b,
   ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
   ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
   return a_decimal < b_decimal || a_decimal == b_decimal;
+}
+
+Number& Number::operator+=(Number rhs) {
+  value = MakeNonNullShared<Base>(
+      Base{.variant = Addition{{std::move(value)}, std::move(rhs)}});
+  return *this;
+}
+
+Number& Number::operator-=(Number rhs) { return operator+=(-rhs); }
+
+Number& Number::operator*=(Number rhs) {
+  value = MakeNonNullShared<Base>(
+      Base{.variant = Multiplication{{std::move(value)}, std::move(rhs)}});
+  return *this;
+}
+
+Number& Number::operator/=(Number rhs) {
+  value = MakeNonNullShared<Base>(
+      Base{.variant = Division{{std::move(value)}, std::move(rhs)}});
+  return *this;
+}
+
+Number operator+(Number a, Number b) {
+  a += std::move(b);
+  return a;
+}
+
+Number operator-(Number a, Number b) {
+  a -= std::move(b);
+  return a;
+}
+
+Number operator*(Number a, Number b) {
+  a *= std::move(b);
+  return a;
+}
+
+Number operator/(Number a, Number b) {
+  a /= std::move(b);
+  return a;
+}
+
+Number operator-(Number a) {
+  return Number{
+      MakeNonNullShared<Base>(Base{.variant = Negation{std::move(a)}})};
 }
 };  // namespace afc::math::numbers

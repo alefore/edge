@@ -150,18 +150,11 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
   return Success();
 }
 
-numbers::Number Times10(numbers::Number number) {
-  return numbers::Multiplication{
-      MakeNonNullShared<numbers::Number>(numbers::Number(10)),
-      MakeNonNullShared<numbers::Number>(std::move(number))};
-}
-
 numbers::Number ConsumeDecimal(const wstring& str, size_t* pos) {
-  numbers::Number output = numbers::Number(0);
+  numbers::Number output = numbers::FromInt(0);
   while (*pos < str.size() && isdigit(str.at(*pos))) {
-    output = numbers::Addition{
-        MakeNonNullShared<numbers::Number>(Times10(std::move(output))),
-        MakeNonNullShared<numbers::Number>(str.at(*pos) - '0')};
+    output *= numbers::FromInt(10);
+    output += numbers::FromInt(str.at(*pos) - '0');
     (*pos)++;
   }
   return output;
@@ -358,21 +351,15 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
         if (pos < str.size() && (str.at(pos) == '.' || str.at(pos) == 'e')) {
           if (str.at(pos) == '.') {
             pos++;
-            numbers::Number decimal_numerator = numbers::Number{0};
-            numbers::Number decimal_denominator = numbers::Number{1};
+            numbers::Number decimal_numerator = numbers::FromInt(0);
+            numbers::Number decimal_denominator = numbers::FromInt(1);
             while (pos < str.size() && isdigit(str.at(pos))) {
-              decimal_numerator = numbers::Addition{
-                  MakeNonNullShared<numbers::Number>(
-                      Times10(std::move(decimal_numerator))),
-                  MakeNonNullShared<numbers::Number>(str.at(pos) - L'0')};
-              decimal_denominator = Times10(std::move(decimal_denominator));
+              decimal_numerator *= numbers::FromInt(10);
+              decimal_denominator *= numbers::FromInt(10);
+              decimal_numerator += numbers::FromInt(str.at(pos) - L'0');
               pos++;
             }
-            value = numbers::Addition{
-                MakeNonNullShared<numbers::Number>(value),
-                MakeNonNullShared<numbers::Number>(numbers::Division{
-                    MakeNonNullShared<numbers::Number>(decimal_numerator),
-                    MakeNonNullShared<numbers::Number>(decimal_denominator)})};
+            value += decimal_numerator / decimal_denominator;
           }
           if (pos < str.size() && str.at(pos) == 'e') {
             pos++;
@@ -397,19 +384,13 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
                                std::get<Error>(exponent)));
               return;
             }
-            numbers::Number exponent_factor = numbers::Number(1);
+            numbers::Number exponent_factor = numbers::FromInt(1);
             for (int i = 0; i < ValueOrDie(exponent); i++)
-              exponent_factor = Times10(std::move(exponent_factor));
+              exponent_factor *= numbers::FromInt(10);
             if (positive)
-              value = numbers::Multiplication{
-                  MakeNonNullShared<numbers::Number>(std::move(value)),
-                  MakeNonNullShared<numbers::Number>(
-                      std::move(exponent_factor))};
+              value *= std::move(exponent_factor);
             else
-              value = numbers::Division{
-                  MakeNonNullShared<numbers::Number>(std::move(value)),
-                  MakeNonNullShared<numbers::Number>(
-                      std::move(exponent_factor))};
+              value /= std::move(exponent_factor);
           }
         }
         input = Value::NewNumber(compilation.pool, value);

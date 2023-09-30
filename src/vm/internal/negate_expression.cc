@@ -7,7 +7,6 @@
 #include "src/vm/public/vm.h"
 
 using afc::language::MakeNonNullShared;
-using afc::math::numbers::Negation;
 using afc::math::numbers::Number;
 
 namespace afc::vm {
@@ -80,9 +79,7 @@ std::unique_ptr<Expression> NewNegateExpressionNumber(
   return NewNegateExpression(
       compilation, std::move(expr),
       [](gc::Pool& pool, Value& value) {
-        return Value::NewNumber(
-            pool,
-            Number(Negation{MakeNonNullShared<Number>(value.get_number())}));
+        return Value::NewNumber(pool, -value.get_number());
       },
       types::Number{});
 }

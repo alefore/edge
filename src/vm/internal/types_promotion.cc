@@ -5,7 +5,7 @@
 #include "src/vm/public/environment.h"
 
 using afc::language::ValueOrError;
-using afc::math::numbers::Number;
+using afc::math::numbers::FromInt;
 using afc::math::numbers::ToString;
 
 namespace afc::vm {
@@ -96,7 +96,7 @@ const bool tests_registration = tests::Register(
                    GetImplicitPromotion(types::Number{}, types::Number{});
                CHECK(callback != nullptr);
                gc::Root<Value> output =
-                   callback(pool, Value::NewNumber(pool, Number(5)));
+                   callback(pool, Value::NewNumber(pool, FromInt(5)));
                ValueOrError<std::wstring> output_str =
                    ToString(output.ptr()->get_number(), 2);
                LOG(INFO) << "Output str: " << output_str;
@@ -124,10 +124,10 @@ const bool tests_registration = tests::Register(
                    types::Function{.output = Type{types::Number{}},
                                    .inputs = inputs})(
                    pool, vm::NewCallback(pool, PurityType::kUnknown,
-                                         [](std::wstring s, bool b) -> Number {
+                                         [](std::wstring s, bool b) {
                                            CHECK(s == L"alejo");
                                            CHECK_EQ(b, true);
-                                           return Number(4);
+                                           return FromInt(4);
                                          }));
                Trampoline trampoline(Trampoline::Options{
                    .pool = pool,

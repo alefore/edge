@@ -50,7 +50,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
     std::function<language::ValueOrError<wstring>(wstring, wstring)>
         str_operator,
     std::function<language::ValueOrError<math::numbers::Number>(
-        math::numbers::NumberPtr, math::numbers::NumberPtr)>
+        math::numbers::Number, math::numbers::Number)>
         number_operator,
     std::function<language::ValueOrError<wstring>(wstring, int)>
         str_int_operator);

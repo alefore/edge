@@ -71,7 +71,7 @@ struct VMTypeMapper<int> {
     return afc::math::numbers::ToInt(value.get_number());
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
-    return Value::NewNumber(pool, afc::math::numbers::Number(value));
+    return Value::NewNumber(pool, afc::math::numbers::FromInt(value));
   }
   static const Type vmtype;
 };
