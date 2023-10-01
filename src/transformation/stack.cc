@@ -385,13 +385,13 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
               // TODO(async, easy, 2023-08-30): Use file_system_driver.
               // TODO(easy, 2023-08-30): Check errors.
               int tmp_fd = mkstemp(tmp_path_bytes);
-              std::wstring tmp_path =
+              std::wstring tmp_path_output =
                   FromByteString(std::string(tmp_path_bytes));
               free(tmp_path_bytes);
               std::string data = ToByteString(contents.ToString());
               write(tmp_fd, data.c_str(), data.size());
               close(tmp_fd);
-              return tmp_path;
+              return tmp_path_output;
             }();
             ForkCommand(
                 input.buffer.editor(),
