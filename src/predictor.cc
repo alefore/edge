@@ -672,10 +672,11 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
         .Transform([input, a_predictions, b_predictions](EmptyValue) {
           LineNumber a_line;
           LineNumber b_line;
-          auto advance = [&](const gc::Root<OpenBuffer>& b, LineNumber& p) {
-            CHECK_LT(p.ToDelta(), b.ptr()->contents().size());
+          auto advance = [&](const gc::Root<OpenBuffer>& buffer,
+                             LineNumber& p) {
+            CHECK_LT(p.ToDelta(), buffer.ptr()->contents().size());
             input.predictions.AppendToLastLine(
-                b.ptr()->contents().at(p)->contents());
+                buffer.ptr()->contents().at(p)->contents());
             ++p;
           };
           while (a_line.ToDelta() < a_predictions.ptr()->contents().size() ||
