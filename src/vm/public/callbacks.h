@@ -182,8 +182,8 @@ struct VMTypeMapperResolver {
 };
 
 template <typename Callable, std::size_t Index, typename ArgsVector>
-auto ProcessArg(const ArgsVector& args)
-    -> ArgTupleMaker<decltype(VMTypeMapperResolver<Callable, Index>::type::get(
+auto ProcessArg(const ArgsVector& args) -> typename ArgTupleMaker<
+    decltype(VMTypeMapperResolver<Callable, Index>::type::get(
         args.at(Index).ptr().value()))>::type {
   return VMTypeMapperResolver<Callable, Index>::type::get(
       args.at(Index).ptr().value());
@@ -193,8 +193,8 @@ template <typename Tuple, size_t Index = 0>
 struct ErrorChecker {
   static std::optional<afc::language::Error> Check(const Tuple& tup) {
     using ElementType = std::tuple_element_t<Index, Tuple>;
-    const auto& element = std::get<Index>(tup);
     if constexpr (afc::language::IsValueOrError<ElementType>::value) {
+      const auto& element = std::get<Index>(tup);
       if (afc::language::IsError(element))
         return std::optional<afc::language::Error>(
             std::get<afc::language::Error>(element));
