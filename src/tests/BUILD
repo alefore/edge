@@ -19,6 +19,15 @@ cc_binary(
 )
 
 cc_library(
+    name = "concurrent_interfaces",
+    srcs = ["concurrent_interfaces.cc"],
+    hdrs = ["concurrent_interfaces.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+cc_library(
     name = "fuzz",
     srcs = ["fuzz.cc"],
     hdrs = ["fuzz.h"],
@@ -44,5 +53,8 @@ cc_library(
     srcs = ["tests.cc"],
     hdrs = ["tests.h"],
     visibility = ["//visibility:public"],
-    deps = ["//src/language:wstring"],
+    deps = [
+        "//src/language:containers",
+        "//src/language:wstring",
+    ],
 )

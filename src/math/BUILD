@@ -12,4 +12,22 @@ cc_library(
     name = "naive_bayes",
     srcs = ["naive_bayes.cc"],
     hdrs = ["naive_bayes.h"],
+    deps = [
+        "//src/infrastructure:tracker",
+        "//src/language:ghost_type",
+        "//src/language:wstring",
+    ],
+)
+
+cc_library(
+    name = "numbers",
+    srcs = ["numbers.cc"],
+    hdrs = ["numbers.h"],
+    deps = [
+        "//src/language:overload",
+        "//src/language:safe_types",
+        "//src/language:wstring",
+        "//src/language/error:value_or_error",
+        "//src/tests",
+    ],
 )

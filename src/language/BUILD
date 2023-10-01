@@ -1,4 +1,10 @@
 cc_library(
+    name = "containers",
+    hdrs = ["containers.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "const_tree",
     srcs = ["const_tree.cc"],
     hdrs = ["const_tree.h"],

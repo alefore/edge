@@ -26,6 +26,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/tests",
+        "//src/tests:concurrent_interfaces",
     ],
 )
 
