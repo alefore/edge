@@ -91,7 +91,7 @@ using vm::VMTypeMapper;
 using vm::types::ObjectName;
 
 void LineColumnRegister(gc::Pool& pool, Environment& environment) {
-  gc::Root<ObjectType> line_column =
+  gc::Root<ObjectType> line_column_type =
       ObjectType::New(pool, VMTypeMapper<LineColumn>::object_type_name);
 
   // Methods for LineColumn.
@@ -101,29 +101,29 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
         return LineColumn(LineNumber(line), ColumnNumber(column));
       }));
 
-  line_column.ptr()->AddField(
+  line_column_type.ptr()->AddField(
       L"line", NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
                  return line_column.line.read();
                }).ptr());
 
-  line_column.ptr()->AddField(
+  line_column_type.ptr()->AddField(
       L"column",
       NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
         return line_column.column.read();
       }).ptr());
 
-  line_column.ptr()->AddField(
+  line_column_type.ptr()->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
         return std::to_wstring(line_column.line.read()) + L", " +
                std::to_wstring(line_column.column.read());
       }).ptr());
 
-  environment.DefineType(line_column.ptr());
+  environment.DefineType(line_column_type.ptr());
 }
 
 void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
-  gc::Root<ObjectType> line_column_delta =
+  gc::Root<ObjectType> line_column_delta_type =
       ObjectType::New(pool, VMTypeMapper<LineColumnDelta>::object_type_name);
 
   // Methods for LineColumn.
@@ -134,21 +134,21 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
                                ColumnNumberDelta(column));
       }));
 
-  line_column_delta.ptr()->AddField(
+  line_column_delta_type.ptr()->AddField(
       L"line", NewCallback(pool, PurityType::kPure,
                            [](LineColumnDelta line_column_delta) {
                              return line_column_delta.line.read();
                            })
                    .ptr());
 
-  line_column_delta.ptr()->AddField(
+  line_column_delta_type.ptr()->AddField(
       L"column", NewCallback(pool, PurityType::kPure,
                              [](LineColumnDelta line_column_delta) {
                                return line_column_delta.column.read();
                              })
                      .ptr());
 
-  line_column_delta.ptr()->AddField(
+  line_column_delta_type.ptr()->AddField(
       L"tostring",
       NewCallback(pool, PurityType::kPure,
                   [](LineColumnDelta line_column_delta) {
@@ -158,11 +158,11 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
                   })
           .ptr());
 
-  environment.DefineType(line_column_delta.ptr());
+  environment.DefineType(line_column_delta_type.ptr());
 }
 
 void RangeRegister(gc::Pool& pool, Environment& environment) {
-  gc::Root<ObjectType> range =
+  gc::Root<ObjectType> range_type =
       ObjectType::New(pool, VMTypeMapper<Range>::object_type_name);
 
   // Methods for Range.
@@ -172,17 +172,17 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
                                    return Range(begin, end);
                                  }));
 
-  range.ptr()->AddField(L"begin",
-                        NewCallback(pool, PurityType::kPure, [](Range range) {
-                          return range.begin;
-                        }).ptr());
+  range_type.ptr()->AddField(
+      L"begin", NewCallback(pool, PurityType::kPure, [](Range range) {
+                  return range.begin;
+                }).ptr());
 
-  range.ptr()->AddField(L"end",
-                        NewCallback(pool, PurityType::kPure, [](Range range) {
-                          return range.end;
-                        }).ptr());
+  range_type.ptr()->AddField(
+      L"end", NewCallback(pool, PurityType::kPure, [](Range range) {
+                return range.end;
+              }).ptr());
 
-  environment.DefineType(range.ptr());
+  environment.DefineType(range_type.ptr());
 
   vm::container::Export<typename std::vector<LineColumn>>(pool, environment);
   vm::container::Export<typename std::set<LineColumn>>(pool, environment);
