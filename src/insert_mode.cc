@@ -886,46 +886,39 @@ class InsertMode : public EditorMode {
                                            EmptyValue) mutable {
       return completion_model_supplier
           ->Query(std::move(model_paths.value()), token)
-          .Transform([buffer_root, token,
-                      position_start = LineColumn(
-                          position.line, position.column - token->size()),
-                      length = token->size(),
-                      modify_mode](CompletionModelManager::QueryOutput output) {
-            return std::visit(
-                overload{
-                    [&](CompletionModelManager::Text completion_text) {
-                      transformation::Stack stack;
-                      stack.PushBack(transformation::Delete{
-                          .range = Range::InLine(position_start, length),
-                          .initiator =
-                              transformation::Delete::Initiator::kInternal});
-                      const ColumnNumberDelta completion_text_size =
-                          completion_text->size();
-                      stack.PushBack(transformation::Insert{
-                          .contents_to_insert =
-                              LineSequence::WithLine(MakeNonNullShared<Line>(
-                                  LineBuilder(std::move(completion_text))
-                                      .Build())),
-                          .modifiers = {.insertion = modify_mode},
-                          .position = position_start});
-                      stack.PushBack(transformation::SetPosition(
-                          position_start.column + completion_text_size +
-                          ColumnNumberDelta(1)));
-                      return buffer_root.ptr()->ApplyToCursors(
-                          std::move(stack));
-                    },
-                    [buffer_root,
-                     token](CompletionModelManager::Suggestion suggestion) {
-                      ShowSuggestion(buffer_root.ptr().value(),
-                                     suggestion.compressed_text,
-                                     CompletionModelManager::Text(token));
-                      return futures::Past(EmptyValue());
-                    },
-                    [](CompletionModelManager::NothingFound) {
-                      return futures::Past(EmptyValue());
-                    }},
-                output);
-          });
+          .Transform(VisitCallback(overload{
+              [buffer_root, token,
+               position_start =
+                   LineColumn(position.line, position.column - token->size()),
+               length = token->size(),
+               modify_mode](CompletionModelManager::Text completion_text) {
+                transformation::Stack stack;
+                stack.PushBack(transformation::Delete{
+                    .range = Range::InLine(position_start, length),
+                    .initiator = transformation::Delete::Initiator::kInternal});
+                const ColumnNumberDelta completion_text_size =
+                    completion_text->size();
+                stack.PushBack(transformation::Insert{
+                    .contents_to_insert =
+                        LineSequence::WithLine(MakeNonNullShared<Line>(
+                            LineBuilder(std::move(completion_text)).Build())),
+                    .modifiers = {.insertion = modify_mode},
+                    .position = position_start});
+                stack.PushBack(transformation::SetPosition(
+                    position_start.column + completion_text_size +
+                    ColumnNumberDelta(1)));
+                return buffer_root.ptr()->ApplyToCursors(std::move(stack));
+              },
+              [buffer_root,
+               token](CompletionModelManager::Suggestion suggestion) {
+                ShowSuggestion(buffer_root.ptr().value(),
+                               suggestion.compressed_text,
+                               CompletionModelManager::Text(token));
+                return futures::Past(EmptyValue());
+              },
+              [](CompletionModelManager::NothingFound) {
+                return futures::Past(EmptyValue());
+              }}));
     });
   }
 
