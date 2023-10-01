@@ -23,7 +23,6 @@
 
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
-using afc::language::Pointer;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::math::numbers::Number;

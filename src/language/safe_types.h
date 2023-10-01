@@ -58,11 +58,6 @@ void IfObj(std::weak_ptr<T> p, Callable callable) {
   if (value != nullptr) callable(*value);
 }
 
-template <typename T, typename Callable>
-void IfObj(std::optional<T> p, Callable callable) {
-  if (p.has_value()) callable(*p);
-}
-
 template <typename P>
 class NonNull {};
 
