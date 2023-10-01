@@ -156,7 +156,7 @@ LineWithCursor::Generator NewGenerator(std::wstring input_prefix,
         return LineWithCursor{
             .line = MakeNonNullShared<Line>(std::move(options).Build())};
       },
-      line.info_char, line.modifier, std::move(line.suffix.value()),
+      line.info_char, line.modifier, std::move(line.suffix).value(),
       std::move(input_prefix)));
 }
 }  // namespace
