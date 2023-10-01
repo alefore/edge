@@ -87,24 +87,27 @@
 #include <functional>
 #include <string>
 
-#define GHOST_TYPE(ClassName, VariableType)                 \
-  class ClassName {                                         \
-   public:                                                  \
-    using ValueType = VariableType;                         \
-    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value); \
-    GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)              \
-    GHOST_TYPE_EQ(ClassName, value);                        \
-    GHOST_TYPE_ORDER(ClassName, value);                     \
-                                                            \
-    const VariableType& read() const { return value; }      \
-                                                            \
-   private:                                                 \
-    GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);             \
-    GHOST_TYPE_HASH_FRIEND(ClassName, value);               \
-    GHOST_TYPE_NUMERIC_LIMTS_FRIEND(ClassName);             \
-    VariableType value;                                     \
-  };                                                        \
-                                                            \
+#define GHOST_TYPE(ClassName, VariableType)                          \
+  class ClassName {                                                  \
+   public:                                                           \
+    using ValueType = VariableType;                                  \
+    GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value);          \
+    GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)                       \
+    GHOST_TYPE_EQ(ClassName, value);                                 \
+    GHOST_TYPE_ORDER(ClassName, value);                              \
+                                                                     \
+    const VariableType& read() const& { return value; }              \
+    VariableType& read() & { return value; }                         \
+    const VariableType&& read() const&& { return std::move(value); } \
+    VariableType&& read() && { return std::move(value); }            \
+                                                                     \
+   private:                                                          \
+    GHOST_TYPE_OUTPUT_FRIEND(ClassName, value);                      \
+    GHOST_TYPE_HASH_FRIEND(ClassName, value);                        \
+    GHOST_TYPE_NUMERIC_LIMTS_FRIEND(ClassName);                      \
+    VariableType value;                                              \
+  };                                                                 \
+                                                                     \
   GHOST_TYPE_OUTPUT(ClassName, value);
 
 #define GHOST_TYPE_TOP_LEVEL(ClassName) \
