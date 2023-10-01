@@ -8,30 +8,31 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 
-namespace afc::editor::transformation {
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::VisualOverlayKey;
+using afc::infrastructure::screen::VisualOverlayMap;
+using afc::infrastructure::screen::VisualOverlayPriority;
+using afc::language::NonNull;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using infrastructure::screen::VisualOverlayKey;
-using infrastructure::screen::VisualOverlayMap;
-using infrastructure::screen::VisualOverlayPriority;
-using language::text::Line;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
 
+namespace afc::editor::transformation {
 using ::operator<<;
-
 namespace {
 static const ColumnNumberDelta kQueryLength = ColumnNumberDelta(2);
 
-const Line& GetLine(const LineColumn& position, const LineSequence& contents) {
-  return contents.at(position.line).value();
+NonNull<std::shared_ptr<const Line>> GetLine(const LineColumn& position,
+                                             const LineSequence& contents) {
+  return contents.at(position.line);
 }
 
 std::vector<LineColumn> FindPositions(const std::wstring& query,
@@ -43,14 +44,15 @@ std::vector<LineColumn> FindPositions(const std::wstring& query,
   if (view_size == std::nullopt) return output;
   LineNumber end_line = view_start.line + view_size->line;
   while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
-    const Line& line = GetLine(view_start, buffer.contents().snapshot());
+    NonNull<std::shared_ptr<const Line>> line =
+        GetLine(view_start, buffer.contents().snapshot());
     while (view_start.column + std::max(kQueryLength + ColumnNumberDelta(1),
                                         ColumnNumberDelta(query.size())) <=
-           line.EndColumn()) {
+           line->EndColumn()) {
       bool match = true;
       for (size_t i = 0; i < query.size() && match; i++) {
         match = std::tolower(static_cast<wchar_t>(
-                    line.get(view_start.column + ColumnNumberDelta(i)))) ==
+                    line->get(view_start.column + ColumnNumberDelta(i)))) ==
                 std::tolower(query[i]);
       }
       if (match) output.push_back(view_start);
@@ -72,11 +74,11 @@ bool FindSyntheticIdentifier(LineColumn position, const LineSequence& contents,
                              PositionIdentifierMap& output) {
   static const std::wstring kIdentifiers =
       L"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const Line& line = GetLine(position, contents);
+  NonNull<std::shared_ptr<const Line>> line = GetLine(position, contents);
   const Identifier first_identifier =
-      std::tolower(line.get(position.column + ColumnNumberDelta(1)));
+      std::tolower(line->get(position.column + ColumnNumberDelta(1)));
   const Identifier desired_identifier =
-      line.get(position.column + ColumnNumberDelta(2));
+      line->get(position.column + ColumnNumberDelta(2));
   size_t start_position = kIdentifiers.find_first_of(desired_identifier);
   for (size_t i = 0; i < kIdentifiers.size(); i++) {
     Identifier candidate =
@@ -100,10 +102,10 @@ PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
   // different position. This lets us bias towards reducing the number of
   // "invented" identifiers.
   for (LineColumn position : matches) {
-    const Line& line = GetLine(position, contents);
+    NonNull<std::shared_ptr<const Line>> line = GetLine(position, contents);
     const Identifier desired_identifier =
-        line.get(position.column + kQueryLength);
-    if (!output[std::tolower(line.get(position.column + ColumnNumberDelta(1)))]
+        line->get(position.column + kQueryLength);
+    if (!output[std::tolower(line->get(position.column + ColumnNumberDelta(1)))]
              .insert({desired_identifier, position})
              .second)
       pending.push_back(position);
@@ -180,12 +182,12 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     for (std::pair<Identifier, LineColumn> match : group.second) {
       static const VisualOverlayPriority kPriority = VisualOverlayPriority(1);
       static const VisualOverlayKey kKey = VisualOverlayKey(L"bisect");
-      const Line& line =
+      NonNull<std::shared_ptr<const Line>> line =
           GetLine(match.second, input.buffer.contents().snapshot());
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
           afc::infrastructure::screen::VisualOverlay{
-              .content = line.Substring(match.second.column, kQueryLength),
+              .content = line->Substring(match.second.column, kQueryLength),
               .modifiers = {LineModifier::kUnderline}}));
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second + kQueryLength,
