@@ -217,15 +217,14 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
     Indices indices = {};
     std::optional<Error> pattern_error = std::nullopt;
   };
-  futures::Value<State> state = futures::Past(State{
+  futures::Value<State> state_future = futures::Past(State{
       .index = data.initial_number.value_or(buffers_list.GetCurrentIndex()) %
                initial_indices.size(),
-
       .indices = std::move(initial_indices)});
   for (const auto& operation : data.operations) {
     switch (operation.type) {
       case Operation::Type::kForward:
-        state = std::move(state).Transform([](State state) {
+        state_future = std::move(state_future).Transform([](State state) {
           if (state.indices.empty()) {
             state.index = 0;
           } else {
@@ -236,7 +235,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
         break;
 
       case Operation::Type::kBackward:
-        state = std::move(state).Transform([](State state) {
+        state_future = std::move(state_future).Transform([](State state) {
           if (state.indices.empty()) {
             state.index = 0;
           } else if (state.index == 0) {
@@ -250,139 +249,155 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 
       case Operation::Type::kPrevious:
       case Operation::Type::kNext:
-        state = std::move(state).Transform([&buffers_list,
-                                            op_type =
-                                                operation.type](State state) {
-          if (state.indices.empty()) {
-            state.index = 0;
-            return state;
-          }
-          CHECK_LT(state.index, state.indices.size());
-          auto last_visit_current_buffer =
-              buffers_list.GetBuffer(state.indices[state.index])
-                  .ptr()
-                  ->last_visit();
-          std::optional<size_t> new_index;
-          for (size_t i = 0; i < state.indices.size(); i++) {
-            OpenBuffer& candidate =
-                buffers_list.GetBuffer(state.indices[i]).ptr().value();
-            std::optional<struct timespec> last_visit_new_index;
-            if (new_index.has_value()) {
-              last_visit_new_index =
-                  buffers_list.GetBuffer(new_index.value()).ptr()->last_visit();
-            }
-            if (op_type == Operation::Type::kPrevious
-                    ? (candidate.last_visit() < last_visit_current_buffer &&
-                       (last_visit_new_index == std::nullopt ||
-                        candidate.last_visit() > last_visit_new_index))
-                    : (candidate.last_visit() > last_visit_current_buffer &&
-                       (last_visit_new_index == std::nullopt ||
-                        candidate.last_visit() <= last_visit_new_index))) {
-              new_index = i;
-            }
-          }
-          if (new_index.has_value()) {
-            state.index = new_index.value();
-          }
-          return state;
-        });
+        state_future =
+            std::move(state_future)
+                .Transform([&buffers_list,
+                            op_type = operation.type](State state) {
+                  if (state.indices.empty()) {
+                    state.index = 0;
+                    return state;
+                  }
+                  CHECK_LT(state.index, state.indices.size());
+                  auto last_visit_current_buffer =
+                      buffers_list.GetBuffer(state.indices[state.index])
+                          .ptr()
+                          ->last_visit();
+                  std::optional<size_t> new_index;
+                  for (size_t i = 0; i < state.indices.size(); i++) {
+                    OpenBuffer& candidate =
+                        buffers_list.GetBuffer(state.indices[i]).ptr().value();
+                    std::optional<struct timespec> last_visit_new_index;
+                    if (new_index.has_value()) {
+                      last_visit_new_index =
+                          buffers_list.GetBuffer(new_index.value())
+                              .ptr()
+                              ->last_visit();
+                    }
+                    if (op_type == Operation::Type::kPrevious
+                            ? (candidate.last_visit() <
+                                   last_visit_current_buffer &&
+                               (last_visit_new_index == std::nullopt ||
+                                candidate.last_visit() > last_visit_new_index))
+                            : (candidate.last_visit() >
+                                   last_visit_current_buffer &&
+                               (last_visit_new_index == std::nullopt ||
+                                candidate.last_visit() <=
+                                    last_visit_new_index))) {
+                      new_index = i;
+                    }
+                  }
+                  if (new_index.has_value()) {
+                    state.index = new_index.value();
+                  }
+                  return state;
+                });
         break;
 
       case Operation::Type::kNumber: {
         CHECK_GT(operation.number, 0ul);
-        state = std::move(state).Transform(
-            [number_requested = (operation.number - 1) %
+        state_future =
+            std::move(state_future)
+                .Transform([number_requested =
+                                (operation.number - 1) %
                                 buffers_list.BuffersCount()](State state) {
-              auto it = std::find_if(state.indices.begin(), state.indices.end(),
-                                     [number_requested](size_t index) {
-                                       return index >= number_requested;
-                                     });
-              state.index = it == state.indices.end()
-                                ? 0
-                                : std::distance(state.indices.begin(), it);
-              return state;
-            });
+                  auto it =
+                      std::find_if(state.indices.begin(), state.indices.end(),
+                                   [number_requested](size_t index) {
+                                     return index >= number_requested;
+                                   });
+                  state.index = it == state.indices.end()
+                                    ? 0
+                                    : std::distance(state.indices.begin(), it);
+                  return state;
+                });
       } break;
 
       case Operation::Type::kFilter:
-        state = std::move(state).Transform(
-            [filter =
-                 TokenizeBySpaces(NewLazyString(operation.text_input).value()),
-             &buffers_list](State state) {
-              Indices new_indices;
-              for (auto& index : state.indices) {
-                gc::Root<OpenBuffer> buffer = buffers_list.GetBuffer(index);
-                if (NonNull<std::shared_ptr<LazyString>> str = NewLazyString(
-                        buffer.ptr()->Read(buffer_variables::name));
-                    FindFilterPositions(
-                        filter, ExtendTokensToEndOfString(
-                                    str, TokenizeNameForPrefixSearches(str)))
-                        .has_value()) {
-                  new_indices.push_back(index);
-                }
-              }
-              state.indices = std::move(new_indices);
-              return state;
-            });
+        state_future =
+            std::move(state_future)
+                .Transform([filter = TokenizeBySpaces(
+                                NewLazyString(operation.text_input).value()),
+                            &buffers_list](State state) {
+                  Indices new_indices;
+                  for (auto& index : state.indices) {
+                    gc::Root<OpenBuffer> buffer = buffers_list.GetBuffer(index);
+                    if (NonNull<std::shared_ptr<LazyString>> str =
+                            NewLazyString(
+                                buffer.ptr()->Read(buffer_variables::name));
+                        FindFilterPositions(
+                            filter,
+                            ExtendTokensToEndOfString(
+                                str, TokenizeNameForPrefixSearches(str)))
+                            .has_value()) {
+                      new_indices.push_back(index);
+                    }
+                  }
+                  state.indices = std::move(new_indices);
+                  return state;
+                });
         break;
 
       case Operation::Type::kWarningFilter:
         break;  // Already handled.
 
       case Operation::Type::kSearch: {
-        state = std::move(state).Transform([&editor, &buffers_list,
-                                            text_input = operation.text_input](
-                                               State state) {
-          // TODO: Maybe tweak the parameters to allow more than just one to
-          // run at a given time?
-          auto progress_channel = std::make_shared<ProgressChannel>(
-              editor.work_queue(), [](ProgressInformation) {},
-              WorkQueueChannelConsumeMode::kLastAvailable);
-          auto new_state = std::make_shared<State>(
-              State{.index = state.index, .indices = {}});
-          using Control = futures::IterationControlCommand;
-          std::vector<futures::Value<Control>> search_futures;
-          for (auto& index : state.indices) {
-            OpenBuffer& buffer = buffers_list.GetBuffer(index).ptr().value();
-            // TODO: Pass SearchOptions::abort_notification to allow
-            // aborting as the user continues to type?
-            search_futures.push_back(
-                editor.thread_pool()
-                    .Run(BackgroundSearchCallback(
-                        {.search_query = text_input,
-                         .required_positions = 1,
-                         .case_sensitive = buffer.Read(
-                             buffer_variables::search_case_sensitive)},
-                        buffer.contents().snapshot(), *progress_channel))
-                    .Transform([new_state, progress_channel,
-                                index](SearchResultsSummary search_output) {
-                      if (search_output.matches > 0) {
-                        new_state->indices.push_back(index);
-                      }
-                      return Success(Control::kContinue);
-                    })
-                    .ConsumeErrors([new_state](Error error) {
-                      new_state->pattern_error = std::move(error);
-                      return futures::Past(Control::kStop);
-                    }));
-          }
-          return futures::ForEachWithCopy(
-                     search_futures.begin(), search_futures.end(),
-                     [](futures::Value<futures::IterationControlCommand>&
-                            output)
-                         -> futures::Value<futures::IterationControlCommand> {
-                       return std::move(output);
-                     })
-              .Transform([new_state](futures::IterationControlCommand) {
-                return std::move(*new_state);
-              });
-        });
+        state_future =
+            std::move(state_future)
+                .Transform([&editor, &buffers_list,
+                            text_input = operation.text_input](State state) {
+                  // TODO: Maybe tweak the parameters to allow more than just
+                  // one to run at a given time?
+                  auto progress_channel = std::make_shared<ProgressChannel>(
+                      editor.work_queue(), [](ProgressInformation) {},
+                      WorkQueueChannelConsumeMode::kLastAvailable);
+                  auto new_state = std::make_shared<State>(
+                      State{.index = state.index, .indices = {}});
+                  using Control = futures::IterationControlCommand;
+                  std::vector<futures::Value<Control>> search_futures;
+                  for (auto& index : state.indices) {
+                    OpenBuffer& buffer =
+                        buffers_list.GetBuffer(index).ptr().value();
+                    // TODO: Pass SearchOptions::abort_notification to allow
+                    // aborting as the user continues to type?
+                    search_futures.push_back(
+                        editor.thread_pool()
+                            .Run(BackgroundSearchCallback(
+                                {.search_query = text_input,
+                                 .required_positions = 1,
+                                 .case_sensitive = buffer.Read(
+                                     buffer_variables::search_case_sensitive)},
+                                buffer.contents().snapshot(),
+                                *progress_channel))
+                            .Transform([new_state, progress_channel, index](
+                                           SearchResultsSummary search_output) {
+                              if (search_output.matches > 0) {
+                                new_state->indices.push_back(index);
+                              }
+                              return Success(Control::kContinue);
+                            })
+                            .ConsumeErrors([new_state](Error error) {
+                              new_state->pattern_error = std::move(error);
+                              return futures::Past(Control::kStop);
+                            }));
+                  }
+                  return futures::ForEachWithCopy(
+                             search_futures.begin(), search_futures.end(),
+                             [](futures::Value<
+                                 futures::IterationControlCommand>& output)
+                                 -> futures::Value<
+                                     futures::IterationControlCommand> {
+                               return std::move(output);
+                             })
+                      .Transform([new_state](futures::IterationControlCommand) {
+                        return std::move(*new_state);
+                      });
+                });
       } break;
     }
   }
 
-  return std::move(state).Transform(
-      [&editor, mode, &buffers_list](State state) {
+  return std::move(state_future)
+      .Transform([&editor, mode, &buffers_list](State state) {
         if (state.pattern_error.has_value()) {
           // TODO: Find a better way to show it without hiding the input, ugh.
           editor.status().Set(
