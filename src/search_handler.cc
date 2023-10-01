@@ -200,8 +200,8 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   }
   if (!matches.empty()) {
     // Add the matches to the predictions buffer.
-    for (auto& match : matches) {
-      input.predictions.AppendToLastLine(NewLazyString(std::move(match)));
+    for (const std::wstring& match : matches) {
+      input.predictions.AppendToLastLine(NewLazyString(match));
       input.predictions.AppendRawLine(MakeNonNullShared<Line>());
     }
   }
