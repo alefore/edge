@@ -50,9 +50,9 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
             .Transform([&trampoline, a_value = std::move(a_value.value), type,
                         op](EvaluationOutput b_value)
                            -> ValueOrError<EvaluationOutput> {
-              ASSIGN_OR_RETURN(gc::Root<Value> result,
-                               op(trampoline.pool(), a_value.ptr().value(),
-                                  b_value.value.ptr().value()));
+              DECLARE_OR_RETURN(gc::Root<Value> result,
+                                op(trampoline.pool(), a_value.ptr().value(),
+                                   b_value.value.ptr().value()));
               CHECK(result.ptr()->type == type);
               return Success(EvaluationOutput::New(std::move(result)));
             });
@@ -81,7 +81,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
         std::move(a), std::move(b), types::String{},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(
+          DECLARE_OR_RETURN(
               std::wstring value,
               str_operator(value_a.get_string(), value_b.get_string()));
           return Value::NewString(pool, std::move(value));
@@ -94,8 +94,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
         [number_operator](
             gc::Pool& pool, const Value& value_a,
             const Value& value_b) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(Number value, number_operator(value_a.get_number(),
-                                                         value_b.get_number()));
+          DECLARE_OR_RETURN(
+              Number value,
+              number_operator(value_a.get_number(), value_b.get_number()));
           return Value::NewNumber(pool, value);
         });
   }
@@ -106,9 +107,10 @@ std::unique_ptr<Expression> NewBinaryExpression(
         [str_int_operator](
             gc::Pool& pool, const Value& a_value,
             const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(int b_value_int, ToInt(b_value.get_number()));
-          ASSIGN_OR_RETURN(std::wstring value,
-                           str_int_operator(a_value.get_string(), b_value_int));
+          DECLARE_OR_RETURN(int b_value_int, ToInt(b_value.get_number()));
+          DECLARE_OR_RETURN(
+              std::wstring value,
+              str_int_operator(a_value.get_string(), b_value_int));
           return Value::NewString(pool, std::move(value));
         });
   }
