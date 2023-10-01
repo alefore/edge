@@ -10,6 +10,7 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
+#include "src/tests/tests.h"
 
 namespace afc::editor {
 namespace {
@@ -18,6 +19,7 @@ using std::vector;
 using std::wstring;
 
 using concurrent::VersionPropertyKey;
+using concurrent::WorkQueue;
 using concurrent::WorkQueueChannelConsumeMode;
 using language::EmptyValue;
 using language::Error;
@@ -218,38 +220,34 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
     return {};
   }
 
-  Range before = Range(LineColumn(), options.starting_position);
-  Range after = Range(options.starting_position, contents.range().end);
+  Range range = Range(LineColumn(), contents.range().end);
   if (options.limit_position.has_value()) {
     if (*options.limit_position < options.starting_position)
-      before.begin = *options.limit_position;
+      range.begin = *options.limit_position;
     else
-      after.end = *options.limit_position;
+      range.end = *options.limit_position;
   }
 
-  auto Search = [&work_queue, &options, &contents](
-                    Range& range) -> ValueOrError<std::vector<LineColumn>> {
-    ProgressChannel dummy_progress_channel(
-        work_queue, [](ProgressInformation) {},
-        WorkQueueChannelConsumeMode::kLastAvailable);
+  ProgressChannel dummy_progress_channel(
+      work_queue, [](ProgressInformation) {},
+      WorkQueueChannelConsumeMode::kLastAvailable);
 
-    ASSIGN_OR_RETURN(std::vector<LineColumn> results,
-                     PerformSearch(options, contents.ViewRange(range),
-                                   &dummy_progress_channel));
-    if (!range.begin.column.IsZero())
-      for (LineColumn& result : results) {
-        result.line += range.begin.line.ToDelta();
-        if (result.line == range.begin.line)
-          result.column += range.begin.column.ToDelta();
-      }
-    return results;
-  };
+  DECLARE_OR_RETURN(std::vector<LineColumn> results,
+                    PerformSearch(options, contents.ViewRange(range),
+                                  &dummy_progress_channel));
+  if (!range.begin.column.IsZero())
+    for (LineColumn& result : results) {
+      result.line += range.begin.line.ToDelta();
+      if (result.line == range.begin.line)
+        result.column += range.begin.column.ToDelta();
+    }
 
-  ASSIGN_OR_RETURN(std::vector<LineColumn> results_before, Search(before));
-  ASSIGN_OR_RETURN(std::vector<LineColumn> results_after, Search(after));
+  std::vector<LineColumn> output;
+  for (LineColumn& position : results)
+    if (position > options.starting_position) output.push_back(position);
+  for (LineColumn& position : results)
+    if (position <= options.starting_position) output.push_back(position);
 
-  std::vector<LineColumn> output = std::move(results_after);
-  output.insert(output.end(), results_before.begin(), results_before.end());
   switch (direction) {
     case Direction::kForwards:
       break;
@@ -257,8 +255,79 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
       std::reverse(output.begin(), output.end());
       break;
   }
-
   return output;
+}
+
+namespace {
+bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
+  language::NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
+  LineSequence contents =
+      LineSequence::ForTests({L"Alejandro", L"Forero", L"Cuervo"});
+  return std::vector<tests::Test>(
+      {{.name = L"NoMatch",
+        .callback =
+            [=] {
+              CHECK(ValueOrDie(
+                        SearchHandler(
+                            work_queue, Direction::kForwards,
+                            SearchOptions{
+                                .starting_position = LineColumn(
+                                    contents.range().end.line,
+                                    std::numeric_limits<ColumnNumber>::max()),
+                                .search_query = L"xxxx",
+                                .required_positions = std::nullopt,
+                                .case_sensitive = false},
+                            contents))
+                        .empty());
+            }},
+       {.name = L"WithPositionAtEnd",
+        .callback =
+            [=] {
+              CHECK(ValueOrDie(SearchHandler(
+                        work_queue, Direction::kForwards,
+                        SearchOptions{
+                            .starting_position = LineColumn(
+                                contents.range().end.line,
+                                std::numeric_limits<ColumnNumber>::max()),
+                            .search_query = L"rero",
+                            .required_positions = std::nullopt,
+                            .case_sensitive = false},
+                        contents)) ==
+                    std::vector<LineColumn>(
+                        {LineColumn(LineNumber(1), ColumnNumber(2))}));
+            }},
+       {.name = L"SomeMatchesBackwards",
+        .callback =
+            [=] {
+              CHECK(ValueOrDie(SearchHandler(
+                        work_queue, Direction::kBackwards,
+                        SearchOptions{.starting_position = LineColumn(
+                                          LineNumber(1), ColumnNumber(3)),
+                                      .search_query = L"r",
+                                      .required_positions = std::nullopt,
+                                      .case_sensitive = false},
+                        contents)) ==
+                    std::vector<LineColumn>(
+                        {LineColumn(LineNumber(1), ColumnNumber(2)),
+                         LineColumn(LineNumber(0), ColumnNumber(7)),
+                         LineColumn(LineNumber(2), ColumnNumber(3)),
+                         LineColumn(LineNumber(1), ColumnNumber(4))}));
+            }},
+       {.name = L"SomeMatches", .callback = [=] {
+          CHECK(
+              ValueOrDie(SearchHandler(
+                  work_queue, Direction::kForwards,
+                  SearchOptions{.starting_position =
+                                    LineColumn(LineNumber(0), ColumnNumber(7)),
+                                .search_query = L"ro",
+                                .required_positions = std::nullopt,
+                                .case_sensitive = false},
+                  contents)) == std::vector<LineColumn>({
+                                    LineColumn(LineNumber(1), ColumnNumber(4)),
+                                    LineColumn(LineNumber(0), ColumnNumber(7)),
+                                }));
+        }}});
+}());
 }
 
 ValueOrError<LineColumn> GetNextMatch(
