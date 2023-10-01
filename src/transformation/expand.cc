@@ -391,9 +391,9 @@ class ExpandTransformation : public CompositeTransformation {
     return std::move(transformation_future)
         .Transform(
             [output = std::move(output)](
-                std::unique_ptr<CompositeTransformation> transformation) {
+                std::unique_ptr<CompositeTransformation> transformation_input) {
               VisitPointer(
-                  std::move(transformation),
+                  std::move(transformation_input),
                   [&output](NonNull<std::unique_ptr<CompositeTransformation>>
                                 transformation) {
                     output->Push(ModifiersAndComposite{
