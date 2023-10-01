@@ -234,8 +234,8 @@ std::vector<const ParseTree*> MapRoute(const ParseTree& root,
 
 const ParseTree& FollowRoute(const ParseTree& root,
                              const ParseTree::Route& route) {
-  auto tree = &root;
-  for (auto& index : route) {
+  const ParseTree* tree = &root;
+  for (size_t index : route) {
     CHECK_LT(index, tree->children().size());
     tree = &tree->children().at(index);
   }
