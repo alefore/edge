@@ -209,7 +209,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
       .ConsumeErrors([&output](Error error) {
         auto disk_state_freezer = output.FreezeDiskState();
         output.status().InsertError(error);
-        output.AppendLine(NewLazyString(std::move(error.read())));
+        output.AppendLine(NewLazyString(std::move(error).read()));
         return futures::Past(EmptyValue());
       });
 }
