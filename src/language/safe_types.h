@@ -34,22 +34,26 @@ class BoundPointer {
 
 template <typename T>
 auto Pointer(std::weak_ptr<T> p) {
-  return BoundPointer([p] { return p.lock(); });
+  auto extractor = [p = std::move(p)] { return p.lock(); };
+  return BoundPointer<decltype(extractor)>(std::move(extractor));
 }
 
 template <typename T>
 auto Pointer(std::shared_ptr<T> p) {
-  return BoundPointer([p] { return p; });
+  auto extractor = [p = std::move(p)] { return p; };
+  return BoundPointer<decltype(extractor)>(std::move(extractor));
 }
 
 template <typename T>
 auto Pointer(T* p) {
-  return BoundPointer([p] { return p; });
+  auto extractor = [p] { return p; };
+  return BoundPointer<decltype(extractor)>(std::move(extractor));
 }
 
 template <typename T>
 auto Pointer(std::unique_ptr<T>& p) {
-  return Pointer(p.get());
+  auto extractor = [&p] { return p.get(); };
+  return BoundPointer<decltype(extractor)>(std::move(extractor));
 }
 
 template <typename T, typename Callable>
