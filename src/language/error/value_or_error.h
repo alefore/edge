@@ -74,6 +74,15 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
   return input;
 }
 
+#define CONCAT_IMPL(x, y) x##y
+#define CONCAT(x, y) CONCAT_IMPL(x, y)
+
+#define DECLARE_OR_RETURN(variable, expr)                           \
+  decltype(auto) CONCAT(tmp_result_, __LINE__) = expr;              \
+  if (std::holds_alternative<Error>(CONCAT(tmp_result_, __LINE__))) \
+    return std::get<Error>(CONCAT(tmp_result_, __LINE__));          \
+  variable = std::get<0>(std::move(CONCAT(tmp_result_, __LINE__)));
+
 #define ASSIGN_OR_RETURN(variable, expression)               \
   variable = ({                                              \
     auto tmp = expression;                                   \
