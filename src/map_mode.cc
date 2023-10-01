@@ -102,11 +102,12 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
       MakeCommandFromFunction(
           BindFrontWithWeakPtr(
               [&editor_state = editor_state_](
-                  const gc::Root<vm::Environment> environment,
+                  const gc::Root<vm::Environment> environment_locked,
                   const NonNull<std::shared_ptr<vm::Expression>>& expression) {
                 LOG(INFO) << "Evaluating expression from Value...";
                 Evaluate(
-                    std::move(expression), environment.pool(), environment,
+                    std::move(expression), environment_locked.pool(),
+                    environment_locked,
                     [&editor_state](std::function<void()> callback) {
                       editor_state.work_queue()->Schedule(
                           WorkQueue::Callback{.callback = std::move(callback)});
