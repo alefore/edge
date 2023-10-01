@@ -637,7 +637,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName(L"Dictionary")});
   for (auto& word : words) {
-    dictionary.ptr()->AppendLine(NewLazyString(std::move(word)));
+    dictionary.ptr()->AppendLine(NewLazyString(word));
   }
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
