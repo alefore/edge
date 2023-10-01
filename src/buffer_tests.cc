@@ -268,12 +268,7 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                L"buffer.set_active_cursors(x);"),
       callback(L"sleep(0.001);"),
       callback(L"[](number x) -> number { return 0; }"),
-      // TODO(medium, 2022-05-29): Figure out why the following test fails.
-      // callback(L"number foo = 5; number foo = 6; foo + 0.0;"),
-      // TODO(medium, 2022-05-29): Figure out why the following test fails.
-      // Find a way to make it pass even when `screen` is correctly defined
-      // (just not to a VmScreen type).
-      // callback(L"screen.set_size(LineColumnDelta(1, 2));"),
+      callback(L"number foo = 5; number foo = 6; foo + 0.0;"),
       callback(L"{"
                L"auto foo = [](number x) -> number { return x * 5; };"
                L"foo(3) * 2;"
