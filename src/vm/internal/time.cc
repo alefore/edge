@@ -109,8 +109,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
             localtime_r(&(input.tv_sec), &t);
             char buffer[2048];
             if (strftime(buffer, sizeof(buffer),
-                         ToByteString(std::move(args[1].ptr()->get_string()))
-                             .c_str(),
+                         ToByteString(args[1].ptr()->get_string()).c_str(),
                          &t) == 0) {
               return futures::Past(Error(L"strftime error"));
             }
