@@ -315,13 +315,13 @@ class OpenBufferMutableLineSequenceObserver
             root_this->ptr()->backup_state_ = OpenBuffer::DiskState::kStale;
             auto flush_backup_time = Now();
             flush_backup_time.tv_sec += 30;
-            root_this->ptr()->work_queue_->Schedule(
-                WorkQueue::Callback{.time = flush_backup_time,
-                                    .callback = gc::BindFrontWithWeakPtr(
-                                        [](gc::Root<OpenBuffer> root_this) {
-                                          root_this.ptr()->UpdateBackup();
-                                        },
-                                        root_this->ptr().ToWeakPtr())});
+            root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
+                .time = flush_backup_time,
+                .callback = gc::BindFrontWithWeakPtr(
+                    [](gc::Root<OpenBuffer> locked_root_this) {
+                      locked_root_this.ptr()->UpdateBackup();
+                    },
+                    root_this->ptr().ToWeakPtr())});
           } break;
 
           case OpenBuffer::DiskState::kStale:
@@ -2129,10 +2129,10 @@ OpenBuffer::OpenBufferForCurrentPosition(
                          .ConsumeErrors([adjusted_position, data](Error) {
                            return VisitPointer(
                                data->source.Lock(),
-                               [&](gc::Root<OpenBuffer> buffer) {
+                               [&](gc::Root<OpenBuffer> locked_buffer) {
                                  if (adjusted_position !=
-                                     buffer.ptr()->AdjustLineColumn(
-                                         buffer.ptr()->position())) {
+                                     locked_buffer.ptr()->AdjustLineColumn(
+                                         locked_buffer.ptr()->position())) {
                                    data->output =
                                        Error(L"Computation was cancelled.");
                                    return futures::Past(ICC::kStop);
@@ -2333,8 +2333,8 @@ void StartAdjustingStatusContext(gc::Root<OpenBuffer> buffer) {
                      std::optional<gc::Root<OpenBuffer>> result) {
         VisitPointer(
             weak_buffer.Lock(),
-            [&result](gc::Root<OpenBuffer> buffer) {
-              buffer.ptr()->status().set_context(result);
+            [&result](gc::Root<OpenBuffer> locked_buffer) {
+              locked_buffer.ptr()->status().set_context(result);
             },
             [] {});
         return Success();
