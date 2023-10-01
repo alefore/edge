@@ -442,31 +442,32 @@
 //   for (const Feature& feature : features_set) ...
 //
 // This macro assumes that the ghost variable is called `value`.
-#define GHOST_TYPE_BEGIN_END                                                  \
-  auto begin() const { return value.begin(); }                                \
-  auto end() const { return value.end(); }                                    \
-                                                                              \
-  template <typename V = ValueType,                                           \
-            V::const_reverse_iterator (V::*F)() const = &V::rbegin>           \
-  auto rbegin() const {                                                       \
-    return (value.*F)();                                                      \
-  }                                                                           \
-                                                                              \
-  template <typename V = ValueType,                                           \
-            V::reverse_iterator (V::*F)() = &V::rbegin>                       \
-  auto rbegin() {                                                             \
-    return (value.*F)();                                                      \
-  }                                                                           \
-                                                                              \
-  template <typename V = ValueType,                                           \
-            V::const_reverse_iterator (V::*F)() const = &V::rend>             \
-  auto rend() const {                                                         \
-    return (value.*F)();                                                      \
-  }                                                                           \
-                                                                              \
-  template <typename V = ValueType, V::reverse_iterator (V::*F)() = &V::rend> \
-  auto rend() {                                                               \
-    return (value.*F)();                                                      \
+#define GHOST_TYPE_BEGIN_END                                                 \
+  auto begin() const { return value.begin(); }                               \
+  auto end() const { return value.end(); }                                   \
+                                                                             \
+  template <typename V = ValueType,                                          \
+            typename V::const_reverse_iterator (V::*F)() const = &V::rbegin> \
+  auto rbegin() const {                                                      \
+    return (value.*F)();                                                     \
+  }                                                                          \
+                                                                             \
+  template <typename V = ValueType,                                          \
+            typename V::reverse_iterator (V::*F)() = &V::rbegin>             \
+  auto rbegin() {                                                            \
+    return (value.*F)();                                                     \
+  }                                                                          \
+                                                                             \
+  template <typename V = ValueType,                                          \
+            typename V::const_reverse_iterator (V::*F)() const = &V::rend>   \
+  auto rend() const {                                                        \
+    return (value.*F)();                                                     \
+  }                                                                          \
+                                                                             \
+  template <typename V = ValueType,                                          \
+            typename V::reverse_iterator (V::*F)() = &V::rend>               \
+  auto rend() {                                                              \
+    return (value.*F)();                                                     \
   }
 
 #define GHOST_TYPE_HASH_FRIEND(ClassName, variable) \
