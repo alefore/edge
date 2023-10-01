@@ -45,7 +45,7 @@ class LineSequence {
 
   size_t CountCharacters() const;
 
-  language::NonNull<std::shared_ptr<const Line>> at(
+  const language::NonNull<std::shared_ptr<const Line>>& at(
       LineNumber line_number) const;
   language::NonNull<std::shared_ptr<const Line>> back() const;
   language::NonNull<std::shared_ptr<const Line>> front() const;

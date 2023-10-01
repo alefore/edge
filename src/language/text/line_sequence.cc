@@ -224,7 +224,7 @@ size_t LineSequence::CountCharacters() const {
   return output.read();
 }
 
-NonNull<std::shared_ptr<const Line>> LineSequence::at(
+const NonNull<std::shared_ptr<const Line>>& LineSequence::at(
     LineNumber line_number) const {
   CHECK_LT(line_number, LineNumber(0) + size());
   return lines_->Get(line_number.read());
