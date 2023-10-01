@@ -324,15 +324,15 @@ class ExpandTransformation : public CompositeTransformation {
 
     auto line = input.buffer.LineAt(input.position.line);
     auto c = line->get(input.position.column.previous());
-    futures::Value<std::unique_ptr<CompositeTransformation>> transformation =
-        futures::Past(nullptr);
+    futures::Value<std::unique_ptr<CompositeTransformation>>
+        transformation_future = futures::Past(nullptr);
     switch (c) {
       case 'r': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output->Push(DeleteLastCharacters(1 + symbol.size()));
         std::visit(overload{IgnoreErrors{},
                             [&](Path path) {
-                              transformation =
+                              transformation_future =
                                   futures::Past(std::make_unique<ReadAndInsert>(
                                       path, OpenFileIfFound));
                             }},
@@ -341,18 +341,18 @@ class ExpandTransformation : public CompositeTransformation {
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);
         output->Push(DeleteLastCharacters(1));
-        transformation = futures::Past(
+        transformation_future = futures::Past(
             std::make_unique<PredictorTransformation>(FilePredictor, path));
       } break;
       case ' ': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output->Push(DeleteLastCharacters(1));
-        futures::Value<Predictor> predictor =
+        futures::Value<Predictor> predictor_future =
             futures::Past(SyntaxBasedPredictor);
         if (ValueOrError<Path> path = Path::FromString(
                 input.buffer.Read(buffer_variables::dictionary));
             !IsError(path)) {
-          predictor =
+          predictor_future =
               OpenFileIfFound(
                   OpenFileOptions{
                       .editor_state = input.buffer.editor(),
@@ -368,25 +368,27 @@ class ExpandTransformation : public CompositeTransformation {
                     return futures::Past(SyntaxBasedPredictor);
                   });
         }
-        transformation =
-            std::move(predictor).Transform([symbol](Predictor predictor) {
-              return std::make_unique<PredictorTransformation>(predictor,
-                                                               symbol);
-            });
+        transformation_future =
+            std::move(predictor_future)
+                .Transform([symbol](Predictor predictor) {
+                  return std::make_unique<PredictorTransformation>(predictor,
+                                                                   symbol);
+                });
       } break;
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output->Push(DeleteLastCharacters(1 + symbol.size() + 1));
-        transformation = futures::Past(std::make_unique<Execute>(symbol));
+        transformation_future =
+            futures::Past(std::make_unique<Execute>(symbol));
       } break;
       case '.': {
         auto query = GetToken(input, buffer_variables::path_characters);
-        transformation =
+        transformation_future =
             futures::Past(std::make_unique<InsertHistoryTransformation>(
                 DeleteLastCharacters(query.size() + 1), query));
       }
     }
-    return std::move(transformation)
+    return std::move(transformation_future)
         .Transform(
             [output = std::move(output)](
                 std::unique_ptr<CompositeTransformation> transformation) {
