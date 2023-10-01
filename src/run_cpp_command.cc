@@ -396,7 +396,9 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
                        return futures::Past(error);
                      });
                }},
-      Parse(editor_state.gc_pool(), NewLazyString(std::move(command)),
+      // TODO(trivial, 2023-10-01): Avoid NewLazyString, just receive a lazy
+      // string.
+      Parse(editor_state.gc_pool(), NewLazyString(command),
             buffer->ptr()->environment().value(), search_namespaces));
 }
 
