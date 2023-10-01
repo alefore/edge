@@ -87,10 +87,11 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
                                                               : final_position);
 
   return std::move(delayed_shared_result)
-      .Transform([position](std::shared_ptr<transformation::Result> result) {
-        result->position = position;
-        return std::move(*result);
-      });
+      .Transform(
+          [position](std::shared_ptr<transformation::Result> final_result) {
+            final_result->position = position;
+            return std::move(*final_result);
+          });
 }
 
 std::wstring ToStringBase(const Insert& options) {
