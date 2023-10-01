@@ -142,8 +142,8 @@ GetSyntheticFeatures(
   }
 
   VLOG(5) << "Generating features from extensions.";
-  for (auto& extension : extensions) {
-    output.insert({L"extension", NewLazyString(std::move(extension))});
+  for (const std::wstring& extension : extensions) {
+    output.insert({L"extension", NewLazyString(extension)});
   }
   VLOG(5) << "Done generating synthetic features.";
   return output;
