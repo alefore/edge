@@ -171,7 +171,7 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
 
 ValueOrError<gc::Root<Value>> UserFunction::BuildValue(
     Compilation& compilation, NonNull<std::unique_ptr<Expression>> body) {
-  ASSIGN_OR_RETURN(
+  DECLARE_OR_RETURN(
       NonNull<std::unique_ptr<LambdaExpression>> expression,
       LambdaExpression::New(std::move(type), std::move(argument_names),
                             std::move(body)));
@@ -190,7 +190,7 @@ UserFunction::BuildExpression(Compilation& compilation,
   // We can't just return the result of LambdaExpression::New; that's a
   // ValueOrError<LambdaExpression>. We need to explicitly convert it to a
   // ValueOrError<Expression>.
-  ASSIGN_OR_RETURN(
+  DECLARE_OR_RETURN(
       NonNull<std::unique_ptr<LambdaExpression>> expression,
       LambdaExpression::New(std::move(type), std::move(argument_names),
                             std::move(body)));
