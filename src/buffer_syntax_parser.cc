@@ -48,8 +48,14 @@ std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(
     DVLOG(5) << "Get ranges for: " << line_column
              << ", relevant range: " << relevant_range;
 
+#pragma GCC diagnostic push
+// The compiler doesn't seem to understand that the `route` is just computed in
+// order to find `tree`, but that nothing in `tree` refers to the route. This
+// code is safe.
+#pragma GCC diagnostic ignored "-Wdangling-reference"
     const ParseTree& tree = FollowRoute(
         data.tree.value(), FindRouteToPosition(data.tree.value(), line_column));
+#pragma GCC diagnostic pop
     if (!tree.range().Contains(line_column) || !tree.children().empty()) return;
 
     std::unordered_map<language::text::Range, size_t>::iterator it_token =
