@@ -102,6 +102,24 @@ std::wstring LineColumn::Serialize() const {
   return InLine(LineColumn(line, column), size);
 }
 
+bool Range::Contains(const Range& subset) const {
+  return begin <= subset.begin && subset.end <= end;
+}
+
+bool Range::Contains(const LineColumn& position) const {
+  return begin <= position &&
+         (position < end ||
+          // Handle the case where `end.column` is max: this should include
+          // anything in the line. This matters when `position.column` is also
+          // max.
+          (position.line == end.line &&
+           end.column == std::numeric_limits<ColumnNumber>::max()));
+}
+
+bool Range::Disjoint(const Range& other) const {
+  return end <= other.begin || other.end <= begin;
+}
+
 language::ValueOrError<Range> Range::Union(const Range& other) const {
   if (end < other.begin || begin > other.end)
     return language::Error(L"Gap found between the ranges.");

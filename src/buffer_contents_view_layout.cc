@@ -185,13 +185,26 @@ BufferContentsViewLayout::Line GetScreenLine(
 
 const bool get_screen_line_tests_registration = tests::Register(
     L"GetScreenLine",
-    {{.name = L"SimpleLine", .callback = [] {
+    {{.name = L"SimpleLine",
+      .callback =
+          [] {
+            BufferContentsViewLayout::Line output = GetScreenLine(
+                LineSequence::ForTests({L"foo"}), std::nullopt, {},
+                LineNumber(0), ColumnRange{ColumnNumber(0), ColumnNumber(3)});
+            CHECK_EQ(output.range.end,
+                     LineColumn(LineNumber(0),
+                                std::numeric_limits<ColumnNumber>::max()));
+          }},
+     {.name = L"CursorAtEnd", .callback = [] {
+        LineColumn position =
+            LineColumn(LineNumber(), std::numeric_limits<ColumnNumber>::max());
         BufferContentsViewLayout::Line output = GetScreenLine(
-            LineSequence::ForTests({L"foo"}), std::nullopt, {}, LineNumber(0),
-            ColumnRange{ColumnNumber(0), ColumnNumber(3)});
-        CHECK_EQ(output.range.end,
-                 LineColumn(LineNumber(0),
-                            std::numeric_limits<ColumnNumber>::max()));
+            LineSequence::ForTests({L"Foo"}), position,
+            std::map<LineNumber, std::set<ColumnNumber>>(
+                {{LineNumber(), {position.column}}}),
+            LineNumber(), ColumnRange{ColumnNumber(0), ColumnNumber(3)});
+        CHECK(output.has_active_cursor);
+        CHECK(output.current_cursors.contains(position.column));
       }}});
 
 std::vector<BufferContentsViewLayout::Line> PrependLines(
@@ -653,6 +666,19 @@ const bool buffer_contents_view_layout_tests_registration =
                       CHECK_EQ(output.lines.back().range,
                                RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
+                    }),
+           new_test(L"CursorWhenPositionColumnMaxValue",
+                    [&](auto options) {
+                      options.status_lines = LineNumberDelta(2);
+                      options.lines_shown = LineNumberDelta(10);
+                      options.active_position =
+                          LineColumn(LineNumber(0),
+                                     std::numeric_limits<ColumnNumber>::max());
+                      auto output = BufferContentsViewLayout::Get(options);
+                      CHECK_EQ(output.lines.size(), 8ul);
+                      CHECK_EQ(output.lines.front().range,
+                               RangeToLineEnd(LineColumn(LineNumber(0))));
+                      CHECK(output.lines[0].has_active_cursor);
                     }),
            new_test(L"ViewStartWithPositionAtEnd",
                     [&](auto options) {

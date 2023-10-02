@@ -137,17 +137,9 @@ struct Range {
 
   bool IsEmpty() const { return begin >= end; }
 
-  bool Contains(const Range& subset) const {
-    return begin <= subset.begin && subset.end <= end;
-  }
-
-  bool Contains(const LineColumn& position) const {
-    return begin <= position && position < end;
-  }
-
-  bool Disjoint(const Range& other) const {
-    return end <= other.begin || other.end <= begin;
-  }
+  bool Contains(const Range& subset) const;
+  bool Contains(const LineColumn& position) const;
+  bool Disjoint(const Range& other) const;
 
   // Returns the union, unless there's a gap between the ranges.
   language::ValueOrError<Range> Union(const Range& other) const;
