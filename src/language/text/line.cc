@@ -271,7 +271,7 @@ void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
 
 void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
-  CHECK(modifier.find(LineModifier::kReset) == modifier.end());
+  CHECK(!modifier.contains(LineModifier::kReset));
   data_.modifiers[ColumnNumber(0) + data_.contents->size()] = modifier;
   data_.contents = lazy_string::Append(std::move(data_.contents),
                                        NewLazyString(std::wstring(1, c)));
@@ -530,7 +530,7 @@ Line::Line(Line::Data data)
     : data_(std::move(data)), hash_(ComputeHash(data_)) {
   for (auto& m : data_.modifiers) {
     CHECK_LE(m.first, EndColumn()) << "Modifiers found past end of line.";
-    CHECK(m.second.find(LineModifier::kReset) == m.second.end());
+    CHECK(!m.second.contains(LineModifier::kReset));
   }
 #if 0
   static Tracker tracker(L"Line::ValidateInvariants");
