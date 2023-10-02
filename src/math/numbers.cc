@@ -447,26 +447,94 @@ const bool double_tests_registration = tests::Register(
             LOG(INFO) << "Representation: " << str;
             CHECK(ValueOrDie(std::move(str)) == L"5");
           }},
-     {.name = L"ToDouble",
+     {.name = L"ToDoubleFromInt",
       .callback =
           [] { CHECK_NEAR(ValueOrDie(ToDouble(FromInt(5))), 5.0, 0.00001); }},
-     {.name = L"5", .callback = [] {
+     {.name = L"ToDoubleFromDouble", .callback = [] {
         CHECK_NEAR(ValueOrDie(ToDouble(FromDouble(5))), 5.0, 0.00001);
       }}});
 }
 
 Number FromSizeT(size_t value) {
-  // TODO(P1, 2023-09-23): Detect and handle overflows.
-  return FromInt(static_cast<int>(value));
+  const int base = 65536;  // 2^16
+  Number result = FromInt(0);
+  Number multiplier = FromInt(1);
+  while (value != 0) {
+    int chunk = value % base;
+    result = std::move(result) + FromInt(chunk) * multiplier;
+    value /= base;
+    multiplier = std::move(multiplier) * FromInt(base);
+  }
+  return result;
 }
 
 ValueOrError<size_t> ToSizeT(const Number& number) {
-  // TODO(P1, 2023-09-23): Handle overflows.
-  ASSIGN_OR_RETURN(int value_int, ToInt(number));
-  if (value_int < 0)
+  ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, 0));
+  if (!decimal.exact)
+    return Error(L"Inexact numbers can't be represented as size_t.");
+  if (!decimal.positive)
     return Error(L"Negative numbers can't be represented as size_t.");
-  return static_cast<size_t>(value_int);
+  size_t value = 0;
+  for (int digit : decimal.digits | std::views::reverse) {
+    if (value > std::numeric_limits<size_t>::max() / 10)
+      return Error(
+          L"Overflow: the resulting number can't be represented as `size_t`.");
+    value *= 10;
+    if (value > std::numeric_limits<size_t>::max() - digit)
+      return Error(
+          L"Overflow: the resulting number can't be represented as `size_t`.");
+    value += digit;
+  }
+  return value;
 }
+
+namespace {
+const bool size_t_tests_registration = tests::Register(
+    L"numbers::SizeT",
+    {{.name = L"FromSizeTSimple",
+      .callback =
+          [] {
+            auto str = ToString(FromSizeT(5), 2);
+            LOG(INFO) << "Representation: " << str;
+            CHECK(ValueOrDie(std::move(str)) == L"5");
+          }},
+     {.name = L"FromSizeTMax",
+      .callback =
+          [] {
+            auto str =
+                ToString(FromSizeT(std::numeric_limits<size_t>::max()), 2);
+            LOG(INFO) << "Representation: " << str;
+            CHECK(ValueOrDie(std::move(str)) == L"18446744073709551615");
+          }},
+     {.name = L"ToSizeTSimple",
+      .callback = [] { CHECK_EQ(ValueOrDie(ToSizeT(FromSizeT(5))), 5ul); }},
+     {.name = L"ToSizeTMax",
+      .callback =
+          [] {
+            CHECK_EQ(ValueOrDie(ToSizeT(
+                         FromSizeT(std::numeric_limits<size_t>::max()))),
+                     18446744073709551615ul);
+          }},
+     {.name = L"ToSizeTOverflow",
+      .callback =
+          [] {
+            CHECK(std::get<Error>(
+                      ToSizeT(FromInt(1) +
+                              FromSizeT(std::numeric_limits<size_t>::max())))
+                      .read()
+                      .substr(0, 10) == L"Overflow: ");
+          }},
+     {.name = L"ToSizeTNegative",
+      .callback =
+          [] {
+            CHECK(std::get<Error>(ToSizeT(FromInt(-1))).read().substr(0, 9) ==
+                  L"Negative ");
+          }},
+     {.name = L"ToSizeTInexact", .callback = [] {
+        CHECK(std::get<Error>(ToSizeT(FromDouble(1.5))).read().substr(0, 8) ==
+              L"Inexact ");
+      }}});
+}  // namespace
 
 ValueOrError<bool> IsEqual(const Number& a, const Number& b, size_t precision) {
   ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
