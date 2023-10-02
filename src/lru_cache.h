@@ -9,6 +9,7 @@
 #include <string>
 
 #include "src/concurrent/protected.h"
+#include "src/language/containers.h"
 
 namespace afc::editor {
 
@@ -84,8 +85,7 @@ class LRUCache {
   static void DeleteExpiredEntries(Data& data) {
     while (data.access_order.size() >= data.max_size) {
       VLOG(5) << "Expiring entry with key: " << data.access_order.back().key;
-      size_t erase_result = data.map.erase(data.access_order.back().key);
-      CHECK_EQ(erase_result, 1ul);
+      language::EraseOrDie(data.map, data.access_order.back().key);
       data.access_order.pop_back();
     }
   }
