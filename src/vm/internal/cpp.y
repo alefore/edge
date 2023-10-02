@@ -521,14 +521,20 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
   } else if (var->IsNumber()) {
     OUT = NewAssignExpression(
               compilation, name->value().ptr()->get_symbol(),
-              std::make_unique<BinaryOperator>(
-                  NewVoidExpression(compilation->pool),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
-                  types::Number{},
-                  [](gc::Pool& pool, const Value&, const Value& a) {
-                    return Value::NewNumber(
-                        pool, a.get_number() + numbers::FromInt(1));
-                  }))
+              std::unique_ptr<Expression>(
+                  // TODO(easy, 2023-10-02): This shouldn't require a move.
+                  std::move(
+                      ValueOrDie(
+                          BinaryOperator::New(
+                              NewVoidExpression(compilation->pool),
+                              NonNull<std::unique_ptr<Expression>>::Unsafe(
+                                  std::move(var)),
+                              types::Number{},
+                              [](gc::Pool& pool, const Value&, const Value& a) {
+                                return Value::NewNumber(
+                                    pool, a.get_number() + numbers::FromInt(1));
+                              }))
+                          .get_unique())))
               .release();
   } else {
     compilation->AddError(
@@ -547,14 +553,20 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
   } else if (var->IsNumber()) {
     OUT = NewAssignExpression(
               compilation, name->value().ptr()->get_symbol(),
-              std::make_unique<BinaryOperator>(
-                  NewVoidExpression(compilation->pool),
-                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(var)),
-                  types::Number{},
-                  [](gc::Pool& pool, const Value&, const Value& a) {
-                    return Value::NewNumber(
-                        pool, a.get_number() - numbers::FromInt(1));
-                  }))
+              std::unique_ptr<Expression>(
+                  // TODO(easy, 2023-10-02): This shouldn't require a move.
+                  std::move(
+                      ValueOrDie(
+                          BinaryOperator::New(
+                              NewVoidExpression(compilation->pool),
+                              NonNull<std::unique_ptr<Expression>>::Unsafe(
+                                  std::move(var)),
+                              types::Number{},
+                              [](gc::Pool& pool, const Value&, const Value& a) {
+                                return Value::NewNumber(
+                                    pool, a.get_number() - numbers::FromInt(1));
+                              }))
+                          .get_unique())))
               .release();
   } else {
     compilation->AddError(
@@ -637,26 +649,32 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsString() && b->IsString()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a_str, const Value& b_str) {
-          return Value::NewBool(pool, a_str.get_string() == b_str.get_string());
-        });
+    OUT = ToUniquePtr(
+              compilation->RegisterErrors(BinaryOperator::New(
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  types::Bool{},
+                  [](gc::Pool& pool, const Value& a_str, const Value& b_str) {
+                    return Value::NewBool(
+                        pool, a_str.get_string() == b_str.get_string());
+                  })))
+              .release();
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a_value,
-           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(
-              bool output,
-              numbers::IsEqual(a_value.get_number(), b_value.get_number(),
-                               kDefaultNumbersPrecision));
-          return Value::NewBool(pool, output);
-        });
+    OUT =
+        ToUniquePtr(
+            compilation->RegisterErrors(BinaryOperator::New(
+                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                types::Bool{},
+                [](gc::Pool& pool, const Value& a_value,
+                   const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+                  ASSIGN_OR_RETURN(bool output,
+                                   numbers::IsEqual(a_value.get_number(),
+                                                    b_value.get_number(),
+                                                    kDefaultNumbersPrecision));
+                  return Value::NewBool(pool, output);
+                })))
+            .release();
   } else {
     compilation->AddError(Error(L"Unable to compare types: " +
                                 TypesToString(a->Types()) + L" == " +
@@ -672,27 +690,33 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsString() && b->IsString()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
-          return Value::NewBool(pool,
-                                a_value.get_string() != b_value.get_string());
-        });
+    OUT =
+        ToUniquePtr(
+            compilation->RegisterErrors(BinaryOperator::New(
+                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                types::Bool{},
+                [](gc::Pool& pool, const Value& a_value, const Value& b_value) {
+                  return Value::NewBool(
+                      pool, a_value.get_string() != b_value.get_string());
+                })))
+            .release();
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a_value,
-           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(
-              bool output,
-              numbers::IsEqual(a_value.get_number(), b_value.get_number(),
-                               kDefaultNumbersPrecision));
-          return Value::NewBool(pool, !output);
-        });
+    OUT =
+        ToUniquePtr(
+            compilation->RegisterErrors(BinaryOperator::New(
+                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                types::Bool{},
+                [](gc::Pool& pool, const Value& a_value,
+                   const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+                  ASSIGN_OR_RETURN(bool output,
+                                   numbers::IsEqual(a_value.get_number(),
+                                                    b_value.get_number(),
+                                                    kDefaultNumbersPrecision));
+                  return Value::NewBool(pool, !output);
+                })))
+            .release();
   } else {
     compilation->AddError(Error(L"Unable to compare types: " +
                                 TypesToString(a->Types()) + L" == " +
@@ -708,18 +732,21 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a_value,
-           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(
-              bool output,
-              numbers::IsLessThan(a_value.get_number(), b_value.get_number(),
-                                  kDefaultNumbersPrecision));
-          return Value::NewBool(pool, output);
-        });
+    OUT = ToUniquePtr(
+              compilation->RegisterErrors(BinaryOperator::New(
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  types::Bool{},
+                  [](gc::Pool& pool, const Value& a_value,
+                     const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+                    ASSIGN_OR_RETURN(
+                        bool output,
+                        numbers::IsLessThan(a_value.get_number(),
+                                            b_value.get_number(),
+                                            kDefaultNumbersPrecision));
+                    return Value::NewBool(pool, output);
+                  })))
+              .release();
   } else {
     compilation->AddError(Error(L"Unable to compare types: " +
                                 TypesToString(a->Types()) + L" <= " +
@@ -735,18 +762,21 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a_value,
-           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(bool output,
-                           numbers::IsLessThanOrEqual(
-                               a_value.get_number(), b_value.get_number(),
-                               kDefaultNumbersPrecision));
-          return Value::NewBool(pool, output);
-        });
+    OUT = ToUniquePtr(
+              compilation->RegisterErrors(BinaryOperator::New(
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  types::Bool{},
+                  [](gc::Pool& pool, const Value& a_value,
+                     const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+                    ASSIGN_OR_RETURN(
+                        bool output,
+                        numbers::IsLessThanOrEqual(a_value.get_number(),
+                                                   b_value.get_number(),
+                                                   kDefaultNumbersPrecision));
+                    return Value::NewBool(pool, output);
+                  })))
+              .release();
   } else {
     compilation->AddError(Error(L"Unable to compare types: " +
                                 TypesToString(a->Types()) + L" <= " +
@@ -762,18 +792,21 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a_value,
-           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(
-              bool output,
-              numbers::IsLessThan(b_value.get_number(), a_value.get_number(),
-                                  kDefaultNumbersPrecision));
-          return Value::NewBool(pool, output);
-        });
+    OUT = ToUniquePtr(
+              compilation->RegisterErrors(BinaryOperator::New(
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  types::Bool{},
+                  [](gc::Pool& pool, const Value& a_value,
+                     const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+                    ASSIGN_OR_RETURN(
+                        bool output,
+                        numbers::IsLessThan(b_value.get_number(),
+                                            a_value.get_number(),
+                                            kDefaultNumbersPrecision));
+                    return Value::NewBool(pool, output);
+                  })))
+              .release();
   } else {
     compilation->AddError(Error(L"Unable to compare types: " +
                                 TypesToString(a->Types()) + L" <= " +
@@ -789,18 +822,21 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
   if (a == nullptr || b == nullptr) {
     OUT = nullptr;
   } else if (a->IsNumber() && b->IsNumber()) {
-    OUT = new BinaryOperator(
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
-        NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
-        types::Bool{},
-        [](gc::Pool& pool, const Value& a_value,
-           const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          ASSIGN_OR_RETURN(bool output,
-                           numbers::IsLessThanOrEqual(
-                               b_value.get_number(), a_value.get_number(),
-                               kDefaultNumbersPrecision));
-          return Value::NewBool(pool, output);
-        });
+    OUT = ToUniquePtr(
+              compilation->RegisterErrors(BinaryOperator::New(
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
+                  NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
+                  types::Bool{},
+                  [](gc::Pool& pool, const Value& a_value,
+                     const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+                    ASSIGN_OR_RETURN(
+                        bool output,
+                        numbers::IsLessThanOrEqual(b_value.get_number(),
+                                                   a_value.get_number(),
+                                                   kDefaultNumbersPrecision));
+                    return Value::NewBool(pool, output);
+                  })))
+              .release();
   } else {
     compilation->AddError(Error(L"Unable to compare types: " +
                                 TypesToString(a->Types()) + L" <= " +

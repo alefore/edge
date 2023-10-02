@@ -6,6 +6,7 @@
 #include "../public/vm.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
+#include "src/language/safe_types.h"
 #include "src/math/numbers.h"
 
 namespace afc {
@@ -17,10 +18,22 @@ class Evaluation;
 struct Compilation;
 
 class BinaryOperator : public Expression {
+ private:
+  struct ConstructorAccessKey {};
+
  public:
-  BinaryOperator(language::NonNull<std::shared_ptr<Expression>> a,
-                 language::NonNull<std::shared_ptr<Expression>> b,
-                 const Type type,
+  static language::ValueOrError<
+      language::NonNull<std::unique_ptr<BinaryOperator>>>
+  New(language::NonNull<std::shared_ptr<Expression>> a,
+      language::NonNull<std::shared_ptr<Expression>> b, Type type,
+      function<language::ValueOrError<language::gc::Root<Value>>(
+          language::gc::Pool& pool, const Value&, const Value&)>
+          callback);
+
+  BinaryOperator(ConstructorAccessKey,
+                 language::NonNull<std::shared_ptr<Expression>> a,
+                 language::NonNull<std::shared_ptr<Expression>> b, Type type,
+                 std::unordered_set<Type> return_types,
                  function<language::ValueOrError<language::gc::Root<Value>>(
                      language::gc::Pool& pool, const Value&, const Value&)>
                      callback);
@@ -36,8 +49,9 @@ class BinaryOperator : public Expression {
  private:
   const language::NonNull<std::shared_ptr<Expression>> a_;
   const language::NonNull<std::shared_ptr<Expression>> b_;
-  Type type_;
-  std::function<language::ValueOrError<language::gc::Root<Value>>(
+  const Type type_;
+  const std::unordered_set<Type> return_types_;
+  const std::function<language::ValueOrError<language::gc::Root<Value>>(
       language::gc::Pool&, const Value&, const Value&)>
       operator_;
 };

@@ -18,20 +18,38 @@ using afc::math::numbers::Number;
 using afc::math::numbers::ToInt;
 
 namespace afc::vm {
-BinaryOperator::BinaryOperator(NonNull<std::shared_ptr<Expression>> a,
+
+/*static*/
+ValueOrError<NonNull<std::unique_ptr<BinaryOperator>>> BinaryOperator::New(
+    NonNull<std::shared_ptr<Expression>> a,
+    NonNull<std::shared_ptr<Expression>> b, Type type,
+    function<ValueOrError<gc::Root<Value>>(gc::Pool& pool, const Value&,
+                                           const Value&)>
+        callback) {
+  ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
+                   CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
+  return MakeNonNullUnique<BinaryOperator>(
+      ConstructorAccessKey(), std::move(a), std::move(b), std::move(type),
+      std::move(return_types), std::move(callback));
+}
+
+BinaryOperator::BinaryOperator(ConstructorAccessKey,
+                               NonNull<std::shared_ptr<Expression>> a,
                                NonNull<std::shared_ptr<Expression>> b,
-                               const Type type,
+                               Type type, std::unordered_set<Type> return_types,
                                function<ValueOrError<gc::Root<Value>>(
                                    gc::Pool& pool, const Value&, const Value&)>
                                    callback)
-    : a_(std::move(a)), b_(std::move(b)), type_(type), operator_(callback) {}
+    : a_(std::move(a)),
+      b_(std::move(b)),
+      type_(std::move(type)),
+      return_types_(std::move(return_types)),
+      operator_(std::move(callback)) {}
 
 std::vector<Type> BinaryOperator::Types() { return {type_}; }
 
 std::unordered_set<Type> BinaryOperator::ReturnTypes() const {
-  // TODO(easy): Should take b into account. That means changing cpp.y to be
-  // able to handle errors here.
-  return a_->ReturnTypes();
+  return return_types_;
 }
 
 PurityType BinaryOperator::purity() {
@@ -77,7 +95,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
   auto b = NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b_raw));
 
   if (str_operator != nullptr && a->IsString() && b->IsString()) {
-    return std::make_unique<BinaryOperator>(
+    return ToUniquePtr(compilation->RegisterErrors(BinaryOperator::New(
         std::move(a), std::move(b), types::String{},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
@@ -85,11 +103,11 @@ std::unique_ptr<Expression> NewBinaryExpression(
               std::wstring value,
               str_operator(value_a.get_string(), value_b.get_string()));
           return Value::NewString(pool, std::move(value));
-        });
+        })));
   }
 
   if (number_operator != nullptr && a->IsNumber() && b->IsNumber()) {
-    return std::make_unique<BinaryOperator>(
+    return ToUniquePtr(compilation->RegisterErrors(BinaryOperator::New(
         std::move(a), std::move(b), types::Number{},
         [number_operator](
             gc::Pool& pool, const Value& value_a,
@@ -98,11 +116,11 @@ std::unique_ptr<Expression> NewBinaryExpression(
               Number value,
               number_operator(value_a.get_number(), value_b.get_number()));
           return Value::NewNumber(pool, value);
-        });
+        })));
   }
 
   if (str_int_operator != nullptr && a->IsString() && b->IsNumber()) {
-    return std::make_unique<BinaryOperator>(
+    return ToUniquePtr(compilation->RegisterErrors(BinaryOperator::New(
         std::move(a), std::move(b), types::String{},
         [str_int_operator](
             gc::Pool& pool, const Value& a_value,
@@ -112,7 +130,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
               std::wstring value,
               str_int_operator(a_value.get_string(), b_value_int));
           return Value::NewString(pool, std::move(value));
-        });
+        })));
   }
 
   compilation->AddError(Error(L"Unable to add types: " +
