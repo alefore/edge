@@ -2,10 +2,10 @@
 #define __AFC_EDITOR_RUN_CPP_COMMAND_H__
 
 #include <memory>
-#include <string>
 
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 
 namespace afc {
@@ -33,7 +33,9 @@ class Command;
 //
 // In this case, that'd run something like: build("foo", "bar hey");
 futures::ValueOrError<language::gc::Root<vm::Value>> RunCppCommandShell(
-    const std::wstring& command, EditorState& editor_state);
+    const language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>&
+        command,
+    EditorState& editor_state);
 
 language::NonNull<std::unique_ptr<Command>> NewRunCppCommand(
     EditorState& editor_state, CppCommandMode mode);

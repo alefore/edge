@@ -169,9 +169,9 @@ ValueOrError<ParsedCommand> Parse(
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.
     output_function = type_match_functions[0];
-    const vm::types::Function* function_type =
-        std::get_if<vm::types::Function>(&output_function.value().ptr()->type);
-    size_t expected_arguments = function_type->inputs.size();
+    const vm::types::Function& function_type =
+        std::get<vm::types::Function>(output_function.value().ptr()->type);
+    size_t expected_arguments = function_type.inputs.size();
     if (output_tokens.size() - 1 > expected_arguments) {
       return Error(L"Too many arguments given for `" + output_tokens[0].value +
                    L"` (expected: " + std::to_wstring(expected_arguments) +
@@ -268,8 +268,7 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
 
 futures::Value<EmptyValue> RunCppCommandShellHandler(
     EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> command) {
-  // TODO(easy, 2022-06-05): Get rid of ToString.
-  return RunCppCommandShell(command->ToString(), editor_state)
+  return RunCppCommandShell(command, editor_state)
       .Transform([](auto) { return Success(); })
       .ConsumeErrors([](auto) { return futures::Past(EmptyValue()); });
 }
@@ -371,7 +370,8 @@ std::vector<std::wstring> GetCppTokens(
 }  // namespace
 
 futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
-    const std::wstring& command, EditorState& editor_state) {
+    const NonNull<std::shared_ptr<LazyString>>& command,
+    EditorState& editor_state) {
   using futures::Past;
   auto buffer = editor_state.current_buffer();
   if (!buffer.has_value()) {
@@ -396,9 +396,7 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
                        return futures::Past(error);
                      });
                }},
-      // TODO(trivial, 2023-10-01): Avoid NewLazyString, just receive a lazy
-      // string.
-      Parse(editor_state.gc_pool(), NewLazyString(command),
+      Parse(editor_state.gc_pool(), command,
             buffer->ptr()->environment().value(), search_namespaces));
 }
 

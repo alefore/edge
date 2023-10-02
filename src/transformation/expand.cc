@@ -18,31 +18,33 @@
 #include "src/transformation/type.h"
 #include "src/transformation/vm.h"
 
-namespace afc::editor {
-using language::NonNull;
-namespace {
-using futures::OnError;
-using infrastructure::Path;
-using language::EmptyValue;
-using language::Error;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::overload;
-using language::Success;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::Append;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineSequence;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::futures::OnError;
+using afc::infrastructure::Path;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineSequence;
+
+namespace afc::editor {
+namespace {
 
 std::wstring GetToken(const CompositeTransformation::Input& input,
                       EdgeVariable<std::wstring>* characters_variable) {
@@ -290,13 +292,14 @@ const bool read_and_insert_tests_registration = tests::Register(
 
 class Execute : public CompositeTransformation {
  public:
-  Execute(std::wstring command) : command_(std::move(command)) {}
+  Execute(NonNull<std::shared_ptr<LazyString>> command)
+      : command_(std::move(command)) {}
 
   std::wstring Serialize() const override { return L"Execute();"; }
 
   futures::Value<Output> Apply(Input input) const override {
     return RunCppCommandShell(command_, input.editor)
-        .Transform([command_size = command_.size()](gc::Root<vm::Value> value) {
+        .Transform([](gc::Root<vm::Value> value) {
           Output output;
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
@@ -309,7 +312,7 @@ class Execute : public CompositeTransformation {
   }
 
  private:
-  const std::wstring command_;
+  const NonNull<std::shared_ptr<LazyString>> command_;
 };
 
 class ExpandTransformation : public CompositeTransformation {
@@ -378,8 +381,9 @@ class ExpandTransformation : public CompositeTransformation {
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output->Push(DeleteLastCharacters(1 + symbol.size() + 1));
+        // TODO(trivial, 2023-10-02): Avoid call to NewLazyString.
         transformation_future =
-            futures::Past(std::make_unique<Execute>(symbol));
+            futures::Past(std::make_unique<Execute>(NewLazyString(symbol)));
       } break;
       case '.': {
         auto query = GetToken(input, buffer_variables::path_characters);
