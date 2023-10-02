@@ -109,7 +109,7 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 
   StartClassDeclaration(
       *compilation,
-      types::ObjectName(std::move(name->value().ptr()->get_symbol())));
+      types::ObjectName(std::move(name)->value().ptr()->get_symbol()));
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
@@ -120,7 +120,8 @@ statement(OUT) ::= RETURN expr(A) SEMICOLON . {
 
 statement(OUT) ::= RETURN SEMICOLON . {
   OUT = NewReturnExpression(compilation,
-      std::move(NewVoidExpression(compilation->pool).get_unique())).release();
+                            NewVoidExpression(compilation->pool).get_unique())
+            .release();
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)
@@ -204,17 +205,14 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
   std::unique_ptr<Expression> true_case(TRUE_CASE);
   std::unique_ptr<Expression> false_case(FALSE_CASE);
 
-  A = ToUniquePtr(
-          NewIfExpression(
-              compilation, std::move(condition),
-              ToUniquePtr(NewAppendExpression(
-                  compilation, std::move(true_case),
-                  std::move(
-                      NewVoidExpression(compilation->pool).get_unique()))),
-              ToUniquePtr(NewAppendExpression(
-                  compilation, std::move(false_case),
-                  std::move(
-                      NewVoidExpression(compilation->pool).get_unique())))))
+  A = ToUniquePtr(NewIfExpression(
+                      compilation, std::move(condition),
+                      ToUniquePtr(NewAppendExpression(
+                          compilation, std::move(true_case),
+                          NewVoidExpression(compilation->pool).get_unique())),
+                      ToUniquePtr(NewAppendExpression(
+                          compilation, std::move(false_case),
+                          NewVoidExpression(compilation->pool).get_unique()))))
           .release();
 }
 
