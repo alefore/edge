@@ -2,28 +2,31 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
+#include "src/language/containers.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
-using concurrent::WorkQueue;
-using infrastructure::screen::CursorsSet;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::Pointer;
-using language::ValueOrDie;
-using language::ValueOrError;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::concurrent::WorkQueue;
+using afc::infrastructure::screen::CursorsSet;
+using afc::language::EraseOrDie;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::Pointer;
+using afc::language::ValueOrDie;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::MutableLineSequence;
+
+namespace afc::editor {
 namespace {
 std::wstring GetMetadata(std::wstring line) {
   NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
@@ -206,9 +209,7 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                         CHECK(editor->active_buffers()[0] == buffer);
                         auto output =
                             ValueOrDie(buffer.ptr()->CompileString(code));
-                        auto erase_result =
-                            editor->buffers()->erase(buffer.ptr()->name());
-                        CHECK_EQ(erase_result, 1ul);
+                        EraseOrDie(*editor->buffers(), buffer.ptr()->name());
                         editor->CloseBuffer(buffer.ptr().value());
                         return output;
                       }();
