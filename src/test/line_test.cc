@@ -27,7 +27,7 @@ using language::text::LineBuilder;
 template <typename C, typename V>
 void CheckSingleton(C const container, V value) {
   CHECK_EQ(container.size(), 1ul);
-  CHECK(container.find(value) != container.end());
+  CHECK(container.contains(value));
 }
 
 void TestLineDeleteCharacters() {
