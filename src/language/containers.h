@@ -14,16 +14,15 @@ auto InsertOrDie(Container& container, typename Container::value_type value) {
   return it;
 }
 
-template <typename Container>
-auto FindOrDie(Container& container, const typename Container::key_type& key) {
+template <typename Container, typename KeyType>
+auto FindOrDie(Container& container, const KeyType& key) {
   auto it = container.find(key);
   CHECK(it != container.end());
   return it;
 }
 
-template <typename Container>
-const Container::mapped_type& GetValueOrDie(
-    const Container& container, const typename Container::key_type& key) {
+template <typename Container, typename KeyType>
+const auto& GetValueOrDie(const Container& container, const KeyType& key) {
   return FindOrDie(container, key)->second;
 }
 
