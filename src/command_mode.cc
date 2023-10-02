@@ -640,7 +640,8 @@ void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
   std::vector<std::wstring> variable_names;
   edge_struct->RegisterVariableNames(&variable_names);
   for (const std::wstring& name : variable_names) {
-    auto variable = edge_struct->find_variable(name);
+    const EdgeVariable<T>* variable = edge_struct->find_variable(name);
+    CHECK(variable != nullptr);
     if (!variable->key().empty()) {
       ToggleVariable(editor_state, variable_location, variable, map_mode);
     }
