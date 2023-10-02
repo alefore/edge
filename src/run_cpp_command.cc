@@ -303,7 +303,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                                 .text = line->ToString(),
                                 .source_buffers = editor.active_buffers(),
                                 .progress_channel =
-                                    std::move(progress_channel.get_unique()),
+                                    std::move(progress_channel).get_unique(),
                                 .abort_value = std::move(abort_value)})
       .Transform([output](std::optional<PredictResults> results) {
         if (results.has_value()) output->context = results->predictions_buffer;

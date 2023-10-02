@@ -227,9 +227,8 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
               compilation, std::move(condition),
               ToUniquePtr(NewAppendExpression(
                   compilation, std::move(true_case),
-                  std::move(
-                      NewVoidExpression(compilation->pool).get_unique()))),
-              std::move(NewVoidExpression(compilation->pool).get_unique())))
+                      NewVoidExpression(compilation->pool).get_unique())),
+              NewVoidExpression(compilation->pool).get_unique()))
           .release();
 }
 
@@ -522,19 +521,17 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
     OUT = NewAssignExpression(
               compilation, name->value().ptr()->get_symbol(),
               std::unique_ptr<Expression>(
-                  // TODO(easy, 2023-10-02): This shouldn't require a move.
-                  std::move(
-                      ValueOrDie(
-                          BinaryOperator::New(
-                              NewVoidExpression(compilation->pool),
-                              NonNull<std::unique_ptr<Expression>>::Unsafe(
-                                  std::move(var)),
-                              types::Number{},
-                              [](gc::Pool& pool, const Value&, const Value& a) {
-                                return Value::NewNumber(
-                                    pool, a.get_number() + numbers::FromInt(1));
-                              }))
-                          .get_unique())))
+                  ValueOrDie(
+                      BinaryOperator::New(
+                          NewVoidExpression(compilation->pool),
+                          NonNull<std::unique_ptr<Expression>>::Unsafe(
+                              std::move(var)),
+                          types::Number{},
+                          [](gc::Pool& pool, const Value&, const Value& a) {
+                            return Value::NewNumber(
+                                pool, a.get_number() + numbers::FromInt(1));
+                          }))
+                      .get_unique()))
               .release();
   } else {
     compilation->AddError(
@@ -554,23 +551,21 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
     OUT = NewAssignExpression(
               compilation, name->value().ptr()->get_symbol(),
               std::unique_ptr<Expression>(
-                  // TODO(easy, 2023-10-02): This shouldn't require a move.
-                  std::move(
-                      ValueOrDie(
-                          BinaryOperator::New(
-                              NewVoidExpression(compilation->pool),
-                              NonNull<std::unique_ptr<Expression>>::Unsafe(
-                                  std::move(var)),
-                              types::Number{},
-                              [](gc::Pool& pool, const Value&, const Value& a) {
-                                return Value::NewNumber(
-                                    pool, a.get_number() - numbers::FromInt(1));
-                              }))
-                          .get_unique())))
+                  ValueOrDie(
+                      BinaryOperator::New(
+                          NewVoidExpression(compilation->pool),
+                          NonNull<std::unique_ptr<Expression>>::Unsafe(
+                              std::move(var)),
+                          types::Number{},
+                          [](gc::Pool& pool, const Value&, const Value& a) {
+                            return Value::NewNumber(
+                                pool, a.get_number() - numbers::FromInt(1));
+                          }))
+                      .get_unique()))
               .release();
   } else {
     compilation->AddError(
-        Error(L"++: Type not supported: " + TypesToString(var->Types())));
+        Error(L"--: Type not supported: " + TypesToString(var->Types())));
     OUT = nullptr;
   }
 }

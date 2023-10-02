@@ -445,7 +445,7 @@ const bool double_tests_registration = tests::Register(
           [] {
             auto str = ToString(FromDouble(5), 2);
             LOG(INFO) << "Representation: " << str;
-            CHECK(ValueOrDie(str) == L"5");
+            CHECK(ValueOrDie(std::move(str)) == L"5");
           }},
      {.name = L"ToDouble",
       .callback =

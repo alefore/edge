@@ -16,21 +16,25 @@
 #include "src/parse_tree.h"
 #include "src/status_output_producer.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::Screen;
+using afc::language::IgnoreErrors;
+using afc::language::overload;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+
 namespace afc {
 namespace editor {
-using infrastructure::Path;
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using infrastructure::screen::Screen;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::NewLazyString;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-
-namespace gc = language::gc;
 
 constexpr int Terminal::DOWN_ARROW;
 constexpr int Terminal::UP_ARROW;
@@ -154,11 +158,15 @@ std::wstring TransformCommandNameForStatus(std::wstring name) {
   size_t end = name.find_first_of(L' ', index);
   std::wstring output = name.substr(
       index, end == std::wstring::npos ? std::wstring::npos : end - index);
-  if (auto first_path = Path::FromString(output); !IsError(first_path)) {
-    if (auto basename = ValueOrDie(first_path).Basename(); !IsError(basename)) {
-      output = ValueOrDie(basename).ToString();
-    }
-  }
+  std::visit(overload{IgnoreErrors{},
+                      [&](Path first_path) {
+                        std::visit(overload{IgnoreErrors{},
+                                            [&](PathComponent basename) {
+                                              output = basename.ToString();
+                                            }},
+                                   first_path.Basename());
+                      }},
+             Path::FromString(output));
 
   if (output.size() > kMaxLength) {
     output = output.substr(0, kMaxLength - kDefaultName.size()) + kDefaultName;

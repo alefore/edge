@@ -248,7 +248,7 @@ NonNull<std::unique_ptr<Command>> NewSetVariableCommand(
                              .text = line->ToString(),
                              .source_buffers = editor_state.active_buffers(),
                              .progress_channel =
-                                 std::move(progress_channel.get_unique()),
+                                 std::move(progress_channel).get_unique(),
                              .abort_value = std::move(abort_value)})
                   .Transform([line](std::optional<PredictResults> results) {
                     return ColorizePromptOptions{

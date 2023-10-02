@@ -279,13 +279,10 @@ const bool expand_home_directory_tests_registration = tests::Register(
 
 /* static */ Path Path::WithExtension(const Path& path,
                                       const std::wstring& extension) {
-  auto dir = path.Dirname();
-  auto base = path.Basename();
-  CHECK(!IsError(dir));
-  CHECK(!IsError(base));
-  return Path::Join(ValueOrDie(dir, L"Path::WithExtension"),
-                    PathComponent::WithExtension(
-                        ValueOrDie(base, L"Path::WithExtension"), extension));
+  return Path::Join(
+      ValueOrDie(path.Dirname(), L"Path::WithExtension"),
+      PathComponent::WithExtension(
+          ValueOrDie(path.Basename(), L"Path::WithExtension"), extension));
 }
 
 ValueOrError<Path> Path::Dirname() const {

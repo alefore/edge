@@ -133,7 +133,7 @@ class NonNull<std::unique_ptr<T>> {
   // converted to `std::unique_ptr<T>`.
   template <typename Other>
   NonNull(NonNull<std::unique_ptr<Other>> value)
-      : value_(std::move(value.get_unique())) {
+      : value_(std::move(value).get_unique()) {
     CHECK(value_ != nullptr);
   }
 
@@ -144,7 +144,7 @@ class NonNull<std::unique_ptr<T>> {
   T* operator->() const { return value_.get(); }
   NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
   NonNull<T*> release() { return NonNull<T*>(value_.release()); }
-  std::unique_ptr<T>& get_unique() { return value_; }
+  std::unique_ptr<T> get_unique() && { return std::move(value_); }
 
  private:
   template <typename Other>
@@ -242,11 +242,11 @@ class NonNull<std::shared_ptr<T>> {
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
   NonNull(NonNull<std::unique_ptr<Other>> value)
-      : value_(std::move(value.get_unique())) {}
+      : value_(std::move(value).get_unique()) {}
 
   template <typename Other, typename Deleter>
   NonNull(NonNull<std::unique_ptr<Other, Deleter>> value)
-      : value_(std::move(value.get_unique())) {}
+      : value_(std::move(value).get_unique()) {}
 
   template <typename Other>
   NonNull operator=(const NonNull<std::shared_ptr<Other>>& value) {
@@ -256,7 +256,7 @@ class NonNull<std::shared_ptr<T>> {
 
   template <typename Other>
   NonNull operator=(NonNull<std::unique_ptr<Other>> value) {
-    value_ = std::move(value.get_unique());
+    value_ = std::move(value).get_unique();
     return *this;
   }
 

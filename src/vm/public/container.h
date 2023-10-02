@@ -167,7 +167,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                                 decltype(value)>::value) {
                 if (language::IsError(value))
                   return futures::Past(std::get<language::Error>(value));
-                T::SetAtIndex(v, index, ValueOrDie(value));
+                T::SetAtIndex(v, index, ValueOrDie(std::move(value)));
               } else {
                 T::SetAtIndex(v, index, value);
               }

@@ -127,8 +127,8 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewForExpression(
       NewAppendExpression(compilation, std::move(body), std::move(update)));
   ASSIGN_OR_RETURN(NonNull<std::unique_ptr<Expression>> while_expression,
                    NewWhileExpression(compilation, std::move(condition),
-                                      std::move(body_expression.get_unique())));
+                                      std::move(body_expression).get_unique()));
   return NewAppendExpression(compilation, std::move(init),
-                             std::move(while_expression.get_unique()));
+                             std::move(while_expression).get_unique());
 }
 }  // namespace afc::vm

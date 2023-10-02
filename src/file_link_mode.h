@@ -153,15 +153,16 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                           return Past(IterationControlCommand::kStop);
                         }
 
-                        auto input_path = Path::FromString(
+                        ValueOrError<Path> input_path = Path::FromString(
                             input.path.substr(0, state->str_end));
                         if (IsError(input_path)) {
                           state->str_end =
                               input.path.find_last_of(':', state->str_end - 1);
                           return Past(IterationControlCommand::kContinue);
                         }
-                        auto path_with_prefix = Path::Join(
-                            state->search_path, ValueOrDie(input_path));
+                        auto path_with_prefix =
+                            Path::Join(state->search_path,
+                                       ValueOrDie(std::move(input_path)));
                         CHECK(input.validator != nullptr);
                         return input.validator(path_with_prefix)
                             .Transform([input, output, state, path_with_prefix](

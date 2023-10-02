@@ -36,22 +36,23 @@
 #include "variable_lookup.h"
 #include "while_expression.h"
 
+using afc::infrastructure::Path;
+using afc::language::Error;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ToUniquePtr;
+using afc::language::ValueOrDie;
+using afc::language::ValueOrError;
+
 namespace afc {
 namespace vm {
-
 namespace {
-using infrastructure::Path;
-using language::Error;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::PossibleError;
-using language::Success;
-using language::ToByteString;
-using language::ToUniquePtr;
-using language::ValueOrError;
 
 namespace gc = language::gc;
 using ::operator<<;
@@ -375,17 +376,14 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
                   break;
               }
             }
-            ValueOrError<int> exponent =
-                numbers::ToInt(ConsumeDecimal(str, &pos));
-            if (IsError(exponent)) {
-              compilation.AddError(
-                  AugmentError(L"Exponent (in scientific notation) can't be "
-                               L"converted to integer",
-                               std::get<Error>(exponent)));
-              return;
-            }
+            ValueOrError<int> exponent_or_error = compilation.RegisterErrors(
+                AugmentErrors(L"Exponent (in scientific notation) can't be "
+                              L"converted to integer",
+                              numbers::ToInt(ConsumeDecimal(str, &pos))));
+            if (IsError(exponent_or_error)) return;
+            int exponent = ValueOrDie(std::move(exponent_or_error));
             numbers::Number exponent_factor = numbers::FromInt(1);
-            for (int i = 0; i < ValueOrDie(exponent); i++)
+            for (int i = 0; i < exponent; i++)
               exponent_factor *= numbers::FromInt(10);
             if (positive)
               value *= std::move(exponent_factor);

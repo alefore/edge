@@ -100,7 +100,7 @@ const bool tests_registration = tests::Register(
                ValueOrError<std::wstring> output_str =
                    ToString(output.ptr()->get_number(), 2);
                LOG(INFO) << "Output str: " << output_str;
-               CHECK(ValueOrDie(output_str) == L"5");
+               CHECK(ValueOrDie(std::move(output_str)) == L"5");
              }},
         {.name = L"FunctionNoPromotion",
          .callback =

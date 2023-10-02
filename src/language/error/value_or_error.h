@@ -96,15 +96,14 @@ struct IgnoreErrors {
 };
 
 template <typename T>
-T ValueOrDie(ValueOrError<T> value, std::wstring error_location = L"") {
-  return std::visit(language::overload{
-                        [&](Error error) {
-                          LOG(FATAL) << error_location << ": " << error;
-                          return std::optional<T>();
-                        },
-                        [](T t) { return std::optional<T>(std::move(t)); }},
-                    std::move(value))
-      .value();
+T ValueOrDie(ValueOrError<T>&& value, std::wstring error_location = L"") {
+  return std::visit(
+      language::overload{[&](Error error) -> T {
+                           LOG(FATAL) << error_location << ": " << error;
+                           throw std::runtime_error("Error in ValueOrDie.");
+                         },
+                         [](T&& t) { return std::forward<T>(t); }},
+      std::forward<ValueOrError<T>>(value));
 }
 
 template <typename Overload>
@@ -118,7 +117,7 @@ std::unique_ptr<T> ToUniquePtr(
     ValueOrError<NonNull<std::unique_ptr<T>>> value_or_error) {
   return std::visit(overload{[](Error) { return std::unique_ptr<T>(); },
                              [](NonNull<std::unique_ptr<T>> value) {
-                               return std::move(value.get_unique());
+                               return std::move(value).get_unique();
                              }},
                     std::move(value_or_error));
 }
