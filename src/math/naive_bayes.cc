@@ -5,10 +5,12 @@
 
 #include "glog/logging.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/containers.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
 using ::operator<<;
+using afc::language::GetValueOrDie;
 
 namespace afc::math::naive_bayes {
 GHOST_TYPE_DOUBLE(Probability);
@@ -59,8 +61,7 @@ const bool get_probability_of_event_tests_registration =
                   EventProbabilityMap result = GetEventProbability(
                       History{{{e0, {FeaturesSet({f1, f2})}}}});
                   CHECK_EQ(result.size(), 1ul);
-                  CHECK_EQ(result.count(e0), 1ul);
-                  CHECK_EQ(result.find(e0)->second, Probability(1.0));
+                  CHECK_EQ(GetValueOrDie(result, e0), Probability(1.0));
                 }},
            {.name = L"SingleEventMultipleInstance",
             .callback =
@@ -73,8 +74,7 @@ const bool get_probability_of_event_tests_registration =
                                                         FeaturesSet({f2}),
                                                     }}}});
                   CHECK_EQ(result.size(), 1ul);
-                  CHECK_EQ(result.count(e0), 1ul);
-                  CHECK_EQ(result.find(e0)->second, Probability(1.0));
+                  CHECK_EQ(GetValueOrDie(result, e0), Probability(1.0));
                 }},
            {.name = L"MultipleEvents", .callback = [=] {
               EventProbabilityMap result =
@@ -98,15 +98,9 @@ const bool get_probability_of_event_tests_registration =
                                                     FeaturesSet({f1}),
                                                 }}}});
               CHECK_EQ(result.size(), 3ul);
-
-              CHECK_EQ(result.count(e0), 1ul);
-              CHECK_EQ(result.find(e0)->second, Probability(0.5));
-
-              CHECK_EQ(result.count(e1), 1ul);
-              CHECK_EQ(result.find(e1)->second, Probability(0.4));
-
-              CHECK_EQ(result.count(e2), 1ul);
-              CHECK_EQ(result.find(e2)->second, Probability(0.1));
+              CHECK_EQ(GetValueOrDie(result, e0), Probability(0.5));
+              CHECK_EQ(GetValueOrDie(result, e1), Probability(0.4));
+              CHECK_EQ(GetValueOrDie(result, e2), Probability(0.1));
             }}});
     }());
 
@@ -137,12 +131,8 @@ const bool get_probability_of_feature_given_event_tests_registration =
                   FeatureProbabilityMap result =
                       GetFeatureProbability({FeaturesSet({f1, f2})});
                   CHECK_EQ(result.size(), 2ul);
-
-                  CHECK_EQ(result.count(f1), 1ul);
-                  CHECK_EQ(result[f1], Probability(1.0));
-
-                  CHECK_EQ(result.count(f2), 1ul);
-                  CHECK_EQ(result[f2], Probability(1.0));
+                  CHECK_EQ(GetValueOrDie(result, f1), Probability(1.0));
+                  CHECK_EQ(GetValueOrDie(result, f2), Probability(1.0));
                 }},
            {.name = L"SingleEventMultipleInstances", .callback = [=] {
               FeatureProbabilityMap result = GetFeatureProbability({
@@ -154,14 +144,9 @@ const bool get_probability_of_feature_given_event_tests_registration =
               });
               CHECK_EQ(result.size(), 3ul);
 
-              CHECK_EQ(result.count(f1), 1ul);
-              CHECK_EQ(result[f1], Probability(1.0));
-
-              CHECK_EQ(result.count(f2), 1ul);
-              CHECK_EQ(result[f2], Probability(0.4));
-
-              CHECK_EQ(result.count(f3), 1ul);
-              CHECK_EQ(result[f3], Probability(0.2));
+              CHECK_EQ(GetValueOrDie(result, f1), Probability(1.0));
+              CHECK_EQ(GetValueOrDie(result, f2), Probability(0.4));
+              CHECK_EQ(GetValueOrDie(result, f3), Probability(0.2));
             }}});
     }());
 
