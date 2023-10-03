@@ -219,8 +219,7 @@ bool operator==(const Decimal& a, const Decimal& b) {
 }
 
 bool operator<(const Decimal& a, const Decimal& b) {
-  if (a.positive && !b.positive) return false;
-  if (!a.positive && b.positive) return true;
+  if (a.positive != b.positive) return b.positive;
   return (a.positive && b.positive) ? a.digits < b.digits : b.digits < a.digits;
 }
 
