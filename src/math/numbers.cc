@@ -18,7 +18,7 @@ using afc::language::ValueOrError;
 using ::operator<<;
 
 namespace afc::math::numbers {
-struct Addition {
+struct BinaryOperation {
   Number a;
   Number b;
 };
@@ -27,24 +27,18 @@ struct Negation {
   Number a;
 };
 
-struct Multiplication {
-  Number a;
-  Number b;
-};
-
-struct Division {
-  Number a;
-  Number b;
-};
+struct Addition : public BinaryOperation {};
+struct Multiplication : public BinaryOperation {};
+struct Division : public BinaryOperation {};
 
 struct Base {
   std::variant<int, Addition, Negation, Multiplication, Division> variant;
 };
 
 namespace {
-
-// Least significative digit first. Zero should always be represented as the
-// empty vector (never as {0}).
+// Least significative digit first. The most significant digit (last digit) must
+// not be 0. Zero should always be represented as the empty vector (never as
+// {0}).
 GHOST_TYPE_CONTAINER(Digits, std::vector<size_t>);
 
 struct Decimal {
@@ -558,7 +552,7 @@ ValueOrError<bool> IsLessThanOrEqual(const Number& a, const Number& b,
 
 Number& Number::operator+=(Number rhs) {
   value = MakeNonNullShared<Base>(
-      Base{.variant = Addition{{std::move(value)}, std::move(rhs)}});
+      Base{.variant = Addition{{{std::move(value)}, std::move(rhs)}}});
   return *this;
 }
 
@@ -566,13 +560,13 @@ Number& Number::operator-=(Number rhs) { return operator+=(-rhs); }
 
 Number& Number::operator*=(Number rhs) {
   value = MakeNonNullShared<Base>(
-      Base{.variant = Multiplication{{std::move(value)}, std::move(rhs)}});
+      Base{.variant = Multiplication{{{std::move(value)}, std::move(rhs)}}});
   return *this;
 }
 
 Number& Number::operator/=(Number rhs) {
   value = MakeNonNullShared<Base>(
-      Base{.variant = Division{{std::move(value)}, std::move(rhs)}});
+      Base{.variant = Division{{{std::move(value)}, std::move(rhs)}}});
   return *this;
 }
 
