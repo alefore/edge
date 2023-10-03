@@ -31,7 +31,7 @@ struct Addition : public BinaryOperation {};
 struct Multiplication : public BinaryOperation {};
 struct Division : public BinaryOperation {};
 
-struct Base {
+struct OperationTree {
   std::variant<int, Addition, Negation, Multiplication, Division> variant;
 };
 
@@ -79,26 +79,25 @@ Digits RemoveSignificantZeros(Digits value) {
   return value;
 }
 
-Decimal ToDecimalBase(int value, size_t decimal_digits) {
+Decimal OperationTreeToDecimal(int value, size_t decimal_digits) {
   Decimal output{.positive = value >= 0,
                  .digits = {Digits(std::vector<size_t>(decimal_digits, 0))}};
-  bool positive = value >= 0;
   while (value != 0) {
-    output.digits.push_back(positive ? value % 10 : -(value % 10));
+    output.digits.push_back(output.positive ? value % 10 : -(value % 10));
     value /= 10;
   }
   output.digits = RemoveSignificantZeros(output.digits);
   return output;
 }
 
-const bool to_decimal_base_int_tests__registration =
-    tests::Register(L"numbers::ToDecimalBaseInt", [] {
+const bool operation_tree_to_decimal_int_tests_registration =
+    tests::Register(L"numbers::OperationTreeToDecimalInt", [] {
       auto test = [](std::wstring name, int input, bool positive_expectation,
                      std::string expectation) {
         return tests::Test{
             .name = name,
             .callback = [input, positive_expectation, expectation] {
-              Decimal output = ToDecimalBase(input, 0);
+              Decimal output = OperationTreeToDecimal(input, 0);
               CHECK_EQ(output.positive, positive_expectation);
               std::string output_str;
               for (size_t d : output.digits | std::views::reverse)
@@ -129,7 +128,7 @@ Digits RemoveDecimals(Digits value, size_t digits_to_remove) {
   return value;
 }
 
-const bool remove_decimals_tests__registration =
+const bool remove_decimals_tests_registration =
     tests::Register(L"numbers::RemoveDecimals", [] {
       auto test = [](std::wstring input, size_t digits,
                      std::wstring expectation) {
@@ -251,7 +250,8 @@ ValueOrError<DivisionOutput> DivideDigits(const Digits& dividend,
 
 ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits);
 
-ValueOrError<Decimal> ToDecimalBase(Addition value, size_t decimal_digits) {
+ValueOrError<Decimal> OperationTreeToDecimal(Addition value,
+                                             size_t decimal_digits) {
   ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits + 1));
   ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits + 1));
   if (a.positive == b.positive)
@@ -268,14 +268,15 @@ ValueOrError<Decimal> ToDecimalBase(Addition value, size_t decimal_digits) {
                    .digits = RemoveDecimals(b.digits - a.digits, 1)};
 }
 
-ValueOrError<Decimal> ToDecimalBase(Negation value, size_t decimal_digits) {
+ValueOrError<Decimal> OperationTreeToDecimal(Negation value,
+                                             size_t decimal_digits) {
   ASSIGN_OR_RETURN(Decimal output, ToDecimal(value.a, decimal_digits));
   output.positive = !output.positive;
   return output;
 }
 
-ValueOrError<Decimal> ToDecimalBase(Multiplication value,
-                                    size_t decimal_digits) {
+ValueOrError<Decimal> OperationTreeToDecimal(Multiplication value,
+                                             size_t decimal_digits) {
   // TODO(2023-09-21): This can be optimized to compute fewer decimal digits
   // in the recursions.
   ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits));
@@ -285,7 +286,8 @@ ValueOrError<Decimal> ToDecimalBase(Multiplication value,
                  .digits = RemoveDecimals(a.digits * b.digits, decimal_digits)};
 }
 
-ValueOrError<Decimal> ToDecimalBase(Division value, size_t decimal_digits) {
+ValueOrError<Decimal> OperationTreeToDecimal(Division value,
+                                             size_t decimal_digits) {
   ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits));
   ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits));
   ASSIGN_OR_RETURN(DivisionOutput output,
@@ -298,7 +300,7 @@ ValueOrError<Decimal> ToDecimalBase(Division value, size_t decimal_digits) {
 ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits) {
   return std::visit(
       [decimal_digits](const auto& value) -> ValueOrError<Decimal> {
-        return ToDecimalBase(value, decimal_digits);
+        return OperationTreeToDecimal(value, decimal_digits);
       },
       number.value.value().variant);
 }
@@ -354,7 +356,8 @@ ValueOrError<std::wstring> ToString(const Number& number,
 }
 
 Number FromInt(int value) {
-  return Number{.value = MakeNonNullShared<Base>(Base{.variant = value})};
+  return Number{.value = MakeNonNullShared<OperationTree>(
+                    OperationTree{.variant = value})};
 }
 
 ValueOrError<int> ToInt(const Number& number) {
@@ -551,22 +554,22 @@ ValueOrError<bool> IsLessThanOrEqual(const Number& a, const Number& b,
 }
 
 Number& Number::operator+=(Number rhs) {
-  value = MakeNonNullShared<Base>(
-      Base{.variant = Addition{{{std::move(value)}, std::move(rhs)}}});
+  value = MakeNonNullShared<OperationTree>(
+      OperationTree{.variant = Addition{{{std::move(value)}, std::move(rhs)}}});
   return *this;
 }
 
 Number& Number::operator-=(Number rhs) { return operator+=(-rhs); }
 
 Number& Number::operator*=(Number rhs) {
-  value = MakeNonNullShared<Base>(
-      Base{.variant = Multiplication{{{std::move(value)}, std::move(rhs)}}});
+  value = MakeNonNullShared<OperationTree>(OperationTree{
+      .variant = Multiplication{{{std::move(value)}, std::move(rhs)}}});
   return *this;
 }
 
 Number& Number::operator/=(Number rhs) {
-  value = MakeNonNullShared<Base>(
-      Base{.variant = Division{{{std::move(value)}, std::move(rhs)}}});
+  value = MakeNonNullShared<OperationTree>(
+      OperationTree{.variant = Division{{{std::move(value)}, std::move(rhs)}}});
   return *this;
 }
 
@@ -591,7 +594,7 @@ Number operator/(Number a, Number b) {
 }
 
 Number operator-(Number a) {
-  return Number{
-      MakeNonNullShared<Base>(Base{.variant = Negation{std::move(a)}})};
+  return Number{MakeNonNullShared<OperationTree>(
+      OperationTree{.variant = Negation{std::move(a)}})};
 }
 };  // namespace afc::math::numbers

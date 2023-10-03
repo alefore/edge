@@ -8,9 +8,9 @@
 #include "src/language/safe_types.h"
 
 namespace afc::math::numbers {
-struct Base;
+struct OperationTree;
 struct Number {
-  language::NonNull<std::shared_ptr<const Base>> value;
+  language::NonNull<std::shared_ptr<const OperationTree>> value;
 
   Number& operator+=(Number rhs);
   Number& operator-=(Number rhs);
