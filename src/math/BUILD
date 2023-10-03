@@ -12,6 +12,7 @@ cc_library(
     name = "naive_bayes",
     srcs = ["naive_bayes.cc"],
     hdrs = ["naive_bayes.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//src/infrastructure:tracker",
         "//src/language:ghost_type",
@@ -23,6 +24,7 @@ cc_library(
     name = "numbers",
     srcs = ["numbers.cc"],
     hdrs = ["numbers.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//src/language:overload",
         "//src/language:safe_types",
