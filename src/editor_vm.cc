@@ -20,6 +20,7 @@
 #include "src/terminal.h"
 #include "src/transformation/vm.h"
 #include "src/vm/callbacks.h"
+#include "src/vm/default_environment.h"
 
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
@@ -125,7 +126,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   gc::Pool& pool = editor.gc_pool();
   gc::Root<Environment> environment =
       pool.NewRoot(MakeNonNullUnique<Environment>(
-          afc::vm::Environment::NewDefault(pool).ptr()));
+          afc::vm::NewDefaultEnvironment(pool).ptr()));
   Environment& value = environment.ptr().value();
   value.Define(L"terminal_backspace",
                vm::Value::NewString(pool, {Terminal::BACKSPACE}));

@@ -2,8 +2,8 @@
 
 #include <glog/logging.h>
 
+#include "src/vm/expression.h"
 #include "src/vm/value.h"
-#include "src/vm/vm.h"
 
 namespace afc::language::gc {
 class Pool;

@@ -6,8 +6,8 @@
 
 #include "compilation.h"
 #include "src/vm/environment.h"
+#include "src/vm/expression.h"
 #include "src/vm/value.h"
-#include "src/vm/vm.h"
 
 namespace afc::vm {
 namespace {

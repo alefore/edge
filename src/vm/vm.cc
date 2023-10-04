@@ -16,6 +16,7 @@
 #include "binary_operator.h"
 #include "class_expression.h"
 #include "compilation.h"
+#include "expression.h"
 #include "if_expression.h"
 #include "lambda.h"
 #include "logical_expression.h"
@@ -32,7 +33,6 @@
 #include "src/vm/function_call.h"
 #include "src/vm/value.h"
 #include "string.h"
-#include "types_promotion.h"
 #include "variable_lookup.h"
 #include "while_expression.h"
 
@@ -613,75 +613,6 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileString(
   CompileStream(instr, compilation, GetParser(compilation).get());
   compilation.PopSource();
   return ResultsFromCompilation(std::move(compilation));
-}
-
-Trampoline::Trampoline(Options options)
-    : pool_(NonNull<gc::Pool*>::AddressOf(options.pool)),
-      environment_(std::move(options.environment)),
-      yield_callback_(std::move(options.yield_callback)) {}
-
-futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
-    const NonNull<std::shared_ptr<Expression>>& expression, Type type) {
-  if (!expression->SupportsType(type)) {
-    LOG(FATAL) << "Expression has types: " << TypesToString(expression->Types())
-               << ", expected: " << type;
-  }
-  static const size_t kMaximumJumps = 100;
-  if (++jumps_ < kMaximumJumps || yield_callback_ == nullptr) {
-    return expression->Evaluate(*this, type);
-  }
-
-  futures::Future<language::ValueOrError<EvaluationOutput>> output;
-  yield_callback_([this, type, expression = std::move(expression),
-                   consumer = std::move(output.consumer)]() {
-    jumps_ = 0;
-    Bounce(expression, type).SetConsumer(std::move(consumer));
-  });
-  return std::move(output.value);
-}
-
-void Trampoline::SetEnvironment(gc::Root<Environment> environment) {
-  environment_ = std::move(environment);
-}
-
-const gc::Root<Environment>& Trampoline::environment() const {
-  return environment_;
-}
-
-gc::Pool& Trampoline::pool() const { return pool_.value(); }
-
-bool Expression::SupportsType(const Type& type) {
-  auto types = Types();
-  if (std::find(types.begin(), types.end(), type) != types.end()) {
-    return true;
-  }
-  for (auto& source : types) {
-    CHECK(!(source == type));
-    if (GetImplicitPromotion(source, type) != nullptr) return true;
-  }
-  return false;
-}
-
-futures::ValueOrError<gc::Root<Value>> Evaluate(
-    const NonNull<std::shared_ptr<Expression>>& expr, gc::Pool& pool,
-    gc::Root<Environment> environment,
-    std::function<void(std::function<void()>)> yield_callback) {
-  NonNull<std::shared_ptr<Trampoline>> trampoline =
-      MakeNonNullShared<Trampoline>(
-          Trampoline::Options{.pool = pool,
-                              .environment = std::move(environment),
-                              .yield_callback = std::move(yield_callback)});
-  return OnError(trampoline->Bounce(expr, expr->Types()[0])
-                     .Transform([trampoline](EvaluationOutput value)
-                                    -> language::ValueOrError<gc::Root<Value>> {
-                       DVLOG(5)
-                           << "Evaluation done: " << value.value.ptr().value();
-                       return Success(std::move(value.value));
-                     }),
-                 [](Error error) {
-                   LOG(INFO) << "Evaluation error: " << error;
-                   return futures::Past(error);
-                 });
 }
 
 }  // namespace vm

@@ -1,8 +1,8 @@
 #include "src/vm/append_expression.h"
 
 #include "src/vm/compilation.h"
+#include "src/vm/expression.h"
 #include "src/vm/value.h"
-#include "src/vm/vm.h"
 
 namespace afc::vm {
 namespace {

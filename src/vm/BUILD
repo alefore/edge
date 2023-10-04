@@ -4,6 +4,7 @@ cc_library(
     hdrs = ["append_expression.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":value",
         "//src/language:safe_types",
         "//src/language/error:value_or_error",
@@ -16,6 +17,7 @@ cc_library(
     hdrs = ["assign_expression.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":types",
         ":value",
     ],
@@ -38,7 +40,6 @@ cc_library(
     hdrs = ["callbacks.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":expression",
         ":value",
         "//src/language:function_traits",
         "//src/language/error:value_or_error",
@@ -75,6 +76,7 @@ cc_library(
     hdrs = ["constant_expression.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":expression",
         ":value",
         "//src/language:gc",
     ],
@@ -86,6 +88,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":environment",
+        ":expression",
     ],
 )
 
@@ -96,8 +99,28 @@ genrule(
         "lempar.c",
     ],
     outs = ["cpp.c"],
-    cmd = "$(location :lemon) -Tsrc/vm/internal/lempar.c src/vm/internal/cpp.y -d$(GENDIR)/src/vm/internal",
+    cmd = "$(location :lemon) -Tsrc/vm/lempar.c src/vm/cpp.y -d$(GENDIR)/src/vm",
     tools = [":lemon"],
+)
+
+cc_library(
+    name = "default_environment",
+    srcs = ["default_environment.cc"],
+    hdrs = ["default_environment.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":callbacks",
+        ":container",
+        ":environment",
+        ":numbers",
+        ":string",
+        ":time",
+        "//src/futures",
+        "//src/language:gc",
+        "//src/language:safe_types",
+        "//src/language/error:value_or_error",
+        "//src/math:numbers",
+    ],
 )
 
 cc_library(
@@ -107,6 +130,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":callbacks",
+        ":expression",
         ":types",
     ],
 )
@@ -116,7 +140,6 @@ cc_library(
     srcs = ["escape.cc"],
     hdrs = ["escape.h"],
     deps = [
-        ":value",
         "//src/language:ghost_type",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
@@ -125,7 +148,14 @@ cc_library(
 
 cc_library(
     name = "expression",
+    srcs = ["expression.cc"],
     hdrs = ["expression.h"],
+    deps = [
+        ":types",
+        ":value",
+        "//src/futures",
+        "//src/language:gc",
+    ],
 )
 
 cc_library(
@@ -140,6 +170,13 @@ cc_library(
     hdrs = ["function_call.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":compilation",
+        ":constant_expression",
+        ":environment",
+        ":expression",
+        ":filter_similar_names",
+        ":types",
+        ":value",
         "//src/futures",
         "//src/language:gc",
     ],
@@ -179,7 +216,6 @@ cc_library(
     deps = [
         ":compilation",
         ":expression",
-        ":types_promotion",
     ],
 )
 
@@ -198,6 +234,7 @@ cc_library(
     hdrs = ["logical_expression.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":value",
         "//src/language:safe_types",
         "//src/language/error:value_or_error",
@@ -221,6 +258,7 @@ cc_library(
     hdrs = ["negate_expression.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":types",
         ":value",
         "//src/language/error:value_or_error",
@@ -260,6 +298,7 @@ cc_library(
     deps = [
         ":callbacks",
         ":container",
+        ":expression",
     ],
 )
 
@@ -270,20 +309,17 @@ cc_library(
     deps = [
         ":callbacks",
         ":environment",
+        ":expression",
         "//src/infrastructure:time",
     ],
 )
 
 cc_library(
-    name = "types_promotion",
-    srcs = ["types_promotion.cc"],
-    hdrs = ["types_promotion.h"],
+    name = "types_promotion_tests",
+    srcs = ["types_promotion_tests.cc"],
     deps = [
-        ":callbacks",
-        ":environment",
-        ":types",
-        ":value",
-        "//src/language:safe_types",
+        ":default_environment",
+        "//src/tests",
     ],
 )
 
@@ -304,6 +340,7 @@ cc_library(
     hdrs = ["value.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":escape",
         ":types",
         "//src/futures",
         "//src/language:gc",
@@ -319,6 +356,7 @@ cc_library(
     deps = [
         ":compilation",
         ":environment",
+        ":expression",
         ":value",
     ],
 )
@@ -362,6 +400,7 @@ cc_library(
     hdrs = ["while_expression.h"],
     deps = [
         ":append_expression",
+        ":expression",
         ":value",
         "//src/language:safe_types",
         "//src/language/error:value_or_error",

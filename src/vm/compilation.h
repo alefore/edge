@@ -13,6 +13,7 @@
 #include "src/language/gc.h"
 #include "src/language/overload.h"
 #include "src/vm/environment.h"
+#include "src/vm/expression.h"
 #include "src/vm/types.h"
 
 namespace afc::vm {

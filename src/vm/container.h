@@ -25,8 +25,8 @@
 #include "src/language/safe_types.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/environment.h"
+#include "src/vm/expression.h"
 #include "src/vm/value.h"
-#include "src/vm/vm.h"
 
 namespace gc = afc::language::gc;
 

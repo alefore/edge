@@ -317,6 +317,8 @@ src/variables.h \
 src/vm/container.h \
 src/vm/optional.h \
 src/vm/callbacks.cc \
+src/vm/default_environment.cc \
+src/vm/default_environment.h \
 src/vm/escape.cc \
 src/vm/escape.h \
 src/vm/expression.cc \
@@ -340,8 +342,7 @@ src/vm/filter_similar_names.cc \
 src/vm/filter_similar_names.h \
 src/vm/if_expression.cc \
 src/vm/return_expression.cc \
-src/vm/types_promotion.cc \
-src/vm/types_promotion.h \
+src/vm/types_promotion_tests.cc \
 src/vm/while_expression.cc \
 src/vm/constant_expression.cc \
 src/vm/function_call.cc \

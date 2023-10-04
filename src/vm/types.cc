@@ -6,7 +6,6 @@
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
-#include "src/vm/value.h"
 
 namespace std {
 template <>

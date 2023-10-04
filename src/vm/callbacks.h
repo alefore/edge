@@ -24,7 +24,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/function_traits.h"
 #include "src/math/numbers.h"
-#include "src/vm/expression.h"
+// #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
 namespace afc {

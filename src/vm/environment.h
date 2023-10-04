@@ -42,8 +42,6 @@ class Environment {
 
   std::optional<language::gc::Ptr<Environment>> parent_environment() const;
 
-  static language::gc::Root<Environment> NewDefault(language::gc::Pool& pool);
-
   const ObjectType* LookupObjectType(const types::ObjectName& symbol);
   const Type* LookupType(const std::wstring& symbol);
   void DefineType(language::gc::Ptr<ObjectType> value);

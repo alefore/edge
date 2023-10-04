@@ -498,6 +498,7 @@ cc_library(
         "//src/language:ghost_type",
         "//src/language:safe_types",
         "//src/language/text:line_column",
+        "//src/vm:environment",
     ],
 )
 

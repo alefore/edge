@@ -10,11 +10,10 @@
 #include "src/vm/compilation.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/environment.h"
+#include "src/vm/expression.h"
 #include "src/vm/filter_similar_names.h"
 #include "src/vm/types.h"
-#include "src/vm/types_promotion.h"
 #include "src/vm/value.h"
-#include "src/vm/vm.h"
 
 namespace afc::vm {
 namespace {

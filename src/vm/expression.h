@@ -112,5 +112,20 @@ struct EvaluationOutput {
 language::ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
     std::unordered_set<Type> a, std::unordered_set<Type> b);
 
+// `yield_callback` is an optional function that must ensure that the callback
+// it receives will run in the future.
+//
+// `expr` can be deleted as soon as this returns (even before a value is given
+// to the returned future).
+futures::ValueOrError<language::gc::Root<Value>> Evaluate(
+    const language::NonNull<std::shared_ptr<Expression>>& expr,
+    language::gc::Pool& pool, language::gc::Root<Environment> environment,
+    std::function<void(std::function<void()>)> yield_callback);
+
+// If a value of `original` type can be promoted implicitly to a value of
+// `desired` type, returns a function that executes the promotion.
+std::function<language::gc::Root<Value>(language::gc::Pool&,
+                                        language::gc::Root<Value>)>
+GetImplicitPromotion(Type original, Type desired);
 }  // namespace afc::vm
 #endif

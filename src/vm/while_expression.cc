@@ -5,8 +5,8 @@
 #include "append_expression.h"
 #include "compilation.h"
 #include "src/language/overload.h"
+#include "src/vm/expression.h"
 #include "src/vm/value.h"
-#include "src/vm/vm.h"
 
 namespace afc::vm {
 namespace {

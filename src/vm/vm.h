@@ -45,16 +45,6 @@ language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
 CompileString(const std::wstring& str, language::gc::Pool& pool,
               language::gc::Root<Environment> environment);
 
-// `yield_callback` is an optional function that must ensure that the callback
-// it receives will run in the future.
-//
-// `expr` can be deleted as soon as this returns (even before a value is given
-// to the returned future).
-futures::ValueOrError<language::gc::Root<Value>> Evaluate(
-    const language::NonNull<std::shared_ptr<Expression>>& expr,
-    language::gc::Pool& pool, language::gc::Root<Environment> environment,
-    std::function<void(std::function<void()>)> yield_callback);
-
 }  // namespace vm
 }  // namespace afc
 

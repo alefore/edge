@@ -8,9 +8,9 @@
 #include "src/vm/callbacks.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
+#include "src/vm/expression.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
-#include "src/vm/vm.h"
 
 using afc::language::Error;
 using afc::language::FromByteString;

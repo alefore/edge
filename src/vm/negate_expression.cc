@@ -3,8 +3,8 @@
 #include "src/language/error/value_or_error.h"
 #include "src/math/numbers.h"
 #include "src/vm/compilation.h"
+#include "src/vm/expression.h"
 #include "src/vm/value.h"
-#include "src/vm/vm.h"
 
 using afc::language::MakeNonNullShared;
 using afc::math::numbers::Number;

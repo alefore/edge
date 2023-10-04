@@ -4,7 +4,6 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/vm/environment.h"
-#include "src/vm/types_promotion.h"
 #include "src/vm/value.h"
 
 namespace afc::vm {
