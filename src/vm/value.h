@@ -16,7 +16,6 @@
 
 namespace afc::vm {
 class Trampoline;
-struct EvaluationOutput;
 
 class Value {
  private:
@@ -29,8 +28,9 @@ class Value {
   explicit Value(ConstructorAccessTag, language::gc::Pool& pool, const Type& t)
       : type(t), pool_(pool) {}
 
-  using Callback = std::function<futures::ValueOrError<EvaluationOutput>(
-      std::vector<language::gc::Root<Value>>, Trampoline&)>;
+  using Callback =
+      std::function<futures::ValueOrError<language::gc::Root<Value>>(
+          std::vector<language::gc::Root<Value>>, Trampoline&)>;
   using ExpandCallback = std::function<std::vector<
       language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>()>;
 

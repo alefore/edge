@@ -148,11 +148,11 @@ class FunctionCall : public Expression {
                 DVLOG(3) << "Function call aborted: " << error;
                 consumer(std::move(error));
               },
-              [consumer](EvaluationOutput return_value) {
+              [consumer](gc::Root<Value> return_value) {
                 DVLOG(5) << "Function call consumer gets value: "
-                         << return_value.value.ptr().value();
-                consumer(Success(
-                    EvaluationOutput::New(std::move(return_value.value))));
+                         << return_value.ptr().value();
+                consumer(
+                    Success(EvaluationOutput::New(std::move(return_value))));
               }}));
       return;
     }
@@ -209,8 +209,7 @@ std::unique_ptr<Expression> NewFunctionCall(
     if (Error* error = std::get_if<Error>(&check_results); error != nullptr)
       errors.push_back(*error);
     else
-      return std::move(
-          NewFunctionCall(std::move(func), std::move(args)).get_unique());
+      return NewFunctionCall(std::move(func), std::move(args)).get_unique();
   }
 
   CHECK(!errors.empty());

@@ -124,7 +124,6 @@ class ScreenVm : public Screen {
 }  // namespace
 
 void RegisterScreenType(EditorState& editor, Environment& environment) {
-  using vm::EvaluationOutput;
   using vm::PurityType;
   using vm::Trampoline;
   using vm::VMTypeMapper;

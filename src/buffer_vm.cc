@@ -45,7 +45,6 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
-using afc::vm::EvaluationOutput;
 using afc::vm::ObjectType;
 using afc::vm::PurityType;
 using afc::vm::Trampoline;
@@ -231,19 +230,17 @@ void DefineSortLinesByKey(
                                      data->trampoline.pool(),
                                      numbers::FromSizeT(line_number.read()))},
                                  data->trampoline)
-                             .Transform([data, get_key,
-                                         line_number](EvaluationOutput output)
+                             .Transform([data, get_key, line_number](
+                                            gc::Root<vm::Value> output)
                                             -> ValueOrError<
                                                 futures::
                                                     IterationControlCommand> {
                                auto line = data->buffer.ptr()->contents().at(
                                    line_number);
-                               VLOG(9)
-                                   << "Value for line: " << line.value() << ": "
-                                   << get_key(output.value.ptr().value());
-                               ASSIGN_OR_RETURN(
-                                   auto key_value,
-                                   get_key(output.value.ptr().value()));
+                               VLOG(9) << "Value for line: " << line.value()
+                                       << ": " << get_key(output.ptr().value());
+                               ASSIGN_OR_RETURN(auto key_value,
+                                                get_key(output.ptr().value()));
                                data->keys.insert({line->ToString(), key_value});
                                return Success(
                                    futures::IterationControlCommand::kContinue);
@@ -254,12 +251,12 @@ void DefineSortLinesByKey(
                                    futures::IterationControlCommand::kStop);
                              });
                        })
-                .Transform([data, boundaries](futures::IterationControlCommand)
-                               -> ValueOrError<EvaluationOutput> {
+                .Transform([data,
+                            boundaries](futures::IterationControlCommand) {
                   return std::visit(
                       overload{
-                          [](Error error) {
-                            return ValueOrError<EvaluationOutput>(error);
+                          [](Error error) -> ValueOrError<gc::Root<vm::Value>> {
+                            return error;
                           },
                           [data, boundaries](EmptyValue) {
                             data->buffer.ptr()->SortContents(
@@ -283,8 +280,7 @@ void DefineSortLinesByKey(
                                   return it_a->second < it_b->second;
                                 });
                             return Success(
-                                EvaluationOutput{.value = vm::Value::NewVoid(
-                                                     data->trampoline.pool())});
+                                vm::Value::NewVoid(data->trampoline.pool()));
                           }},
                       data->possible_error);
                 });

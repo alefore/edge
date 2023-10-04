@@ -4,6 +4,7 @@
 #include "src/vm/callbacks.h"
 #include "src/vm/environment.h"
 
+using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::math::numbers::FromInt;
 using afc::math::numbers::ToString;
@@ -66,10 +67,8 @@ PromotionCallback GetImplicitPromotion(Type original, Type desired) {
                 return original_callback.ptr()
                     ->LockCallback()(std::move(arguments), trampoline)
                     .Transform([output_callback, &pool = trampoline.pool()](
-                                   EvaluationOutput output) {
-                      output.value =
-                          output_callback(pool, std::move(output.value));
-                      return Success(std::move(output));
+                                   gc::Root<Value> output) {
+                      return Success(output_callback(pool, std::move(output)));
                     });
               },
               std::move(value)));
@@ -133,15 +132,13 @@ const bool tests_registration = tests::Register(
                    .pool = pool,
                    .environment = Environment::NewDefault(pool),
                    .yield_callback = nullptr});
-               futures::ValueOrError<EvaluationOutput> output =
+               futures::ValueOrError<gc::Root<Value>> output =
                    promoted_function.ptr()->LockCallback()(
                        {Value::NewString(pool, L"alejo"),
                         Value::NewBool(pool, true)},
                        trampoline);
                CHECK(ValueOrDie(ToString(
-                         std::get<EvaluationOutput>(output.Get().value())
-                             .value.ptr()
-                             ->get_number(),
+                         ValueOrDie(output.Get().value()).ptr()->get_number(),
                          2)) == L"4");
              }},
     });

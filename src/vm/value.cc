@@ -89,8 +89,7 @@ namespace gc = language::gc;
   return NewFunction(
       pool, purity_type, std::move(output), std::move(inputs),
       [callback](std::vector<gc::Root<Value>> args, Trampoline&) {
-        return futures::Past(
-            Success(EvaluationOutput::New(callback(std::move(args)))));
+        return futures::Past(Success(callback(std::move(args))));
       });
 }
 
@@ -228,8 +227,7 @@ bool value_gc_tests_registration = tests::Register(
             gc::Root<Value> child = Value::NewFunction(
                 pool, PurityType::kPure, types::Void{}, {},
                 [](std::vector<gc::Root<Value>>, Trampoline& t) {
-                  return futures::Past(
-                      EvaluationOutput::Return(Value::NewVoid(t.pool())));
+                  return futures::Past(Value::NewVoid(t.pool()));
                 },
                 [nested] {
                   return std::vector<

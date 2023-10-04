@@ -50,7 +50,6 @@ using language::Success;
 using language::ToByteString;
 using language::ValueOrError;
 using vm::Environment;
-using vm::EvaluationOutput;
 using vm::GetVMType;
 using vm::ObjectType;
 using vm::PurityType;
@@ -226,7 +225,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                       VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
                           trampoline.pool(), buffer.NewRoot()));
                   return callback(std::move(args), trampoline)
-                      .Transform([](EvaluationOutput) { return Success(); })
+                      .Transform([](gc::Root<vm::Value>) { return Success(); })
                       .ConsumeErrors([output](Error error) {
                         output.value() = error;
                         return futures::Past(EmptyValue());
@@ -234,13 +233,13 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                 })
                 .Transform([output, &pool](EmptyValue) {
                   return std::visit(
-                      overload{[](Error error) {
-                                 return ValueOrError<EvaluationOutput>(error);
-                               },
-                               [&pool](EmptyValue) {
-                                 return Success(EvaluationOutput::Return(
-                                     vm::Value::NewVoid(pool)));
-                               }},
+                      overload{
+                          [](Error error) -> ValueOrError<gc::Root<vm::Value>> {
+                            return error;
+                          },
+                          [&pool](EmptyValue) {
+                            return Success(vm::Value::NewVoid(pool));
+                          }},
                       output.value());
                 });
           })
@@ -267,16 +266,16 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                           VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
                               trampoline.pool(), buffer.NewRoot()));
                       return callback(std::move(args), trampoline)
-                          .Transform([](EvaluationOutput) { return Success(); })
+                          .Transform(
+                              [](gc::Root<vm::Value>) { return Success(); })
                           // TODO(easy): Don't ConsumeErrors; change
                           // ForEachActiveBuffer.
                           .ConsumeErrors([](Error) {
                             return futures::Past(EmptyValue());
                           });
                     })
-                .Transform([&pool](EmptyValue) {
-                  return EvaluationOutput::Return(vm::Value::NewVoid(pool));
-                });
+                .Transform(
+                    [&pool](EmptyValue) { return vm::Value::NewVoid(pool); });
           })
           .ptr());
 

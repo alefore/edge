@@ -100,8 +100,8 @@ class LambdaExpression : public Expression {
                   [original_trampoline, &trampoline, body,
                    promotion_function](EvaluationOutput body_output) mutable {
                     trampoline = std::move(original_trampoline);
-                    return Success(EvaluationOutput::New(promotion_function(
-                        trampoline.pool(), std::move(body_output.value))));
+                    return Success(promotion_function(
+                        trampoline.pool(), std::move(body_output.value)));
                   });
         },
         [parent_environment] {

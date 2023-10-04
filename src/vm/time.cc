@@ -101,8 +101,8 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       Value::NewFunction(
           pool, PurityType::kPure, types::String{},
           {time_type.ptr()->type(), types::String{}},
-          [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
-              -> futures::ValueOrError<EvaluationOutput> {
+          [](std::vector<gc::Root<Value>> args,
+             Trampoline& trampoline) -> futures::ValueOrError<gc::Root<Value>> {
             CHECK_EQ(args.size(), 2ul);
             Time input = VMTypeMapper<Time>::get(args[0].ptr().value());
             struct tm t;
@@ -113,8 +113,8 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                          &t) == 0) {
               return futures::Past(Error(L"strftime error"));
             }
-            return futures::Past(Success(EvaluationOutput::Return(
-                Value::NewString(trampoline.pool(), FromByteString(buffer)))));
+            return futures::Past(Success(
+                Value::NewString(trampoline.pool(), FromByteString(buffer))));
           })
           .ptr());
   time_type.ptr()->AddField(
@@ -136,8 +136,8 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       vm::Value::NewFunction(
           pool, PurityType::kPure, time_type.ptr()->type(),
           {types::String{}, types::String{}},
-          [](std::vector<gc::Root<Value>> args, Trampoline& trampoline)
-              -> futures::ValueOrError<EvaluationOutput> {
+          [](std::vector<gc::Root<Value>> args,
+             Trampoline& trampoline) -> futures::ValueOrError<gc::Root<Value>> {
             CHECK_EQ(args.size(), 2ul);
             std::wstring value = args[0].ptr()->get_string();
             std::wstring format = args[1].ptr()->get_string();
@@ -152,9 +152,8 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
               return futures::Past(Error(L"mktime error: value: " + value +
                                          L", format: " + format));
             }
-            return futures::Past(
-                Success(EvaluationOutput::Return(VMTypeMapper<Time>::New(
-                    trampoline.pool(), Time{.tv_sec = output, .tv_nsec = 0}))));
+            return futures::Past(Success(VMTypeMapper<Time>::New(
+                trampoline.pool(), Time{.tv_sec = output, .tv_nsec = 0})));
           }));
 
   gc::Root<ObjectType> duration_type =

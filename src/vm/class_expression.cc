@@ -50,8 +50,7 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
             .ptr()
             ->Assign(field_name, std::move(args[1]));
 
-        return futures::Past(
-            Success(EvaluationOutput::New(std::move(args[0]))));
+        return futures::Past(Success(std::move(args[0])));
       });
 
   std::get<types::Function>(output.ptr()->type).function_purity =
@@ -72,9 +71,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
         return futures::Past(VisitPointer(
             environment.ptr()->Lookup(pool, empty_namespace, field_name,
                                       field_type),
-            [](gc::Root<Value> value) {
-              return Success(EvaluationOutput::New(std::move(value)));
-            },
+            [](gc::Root<Value> value) { return Success(std::move(value)); },
             [&]() {
               return Error(L"Unexpected: variable value is null: " +
                            field_name);
@@ -128,18 +125,18 @@ PossibleError FinishClassDeclaration(
             .Transform([constructor_expression, original_environment,
                         class_type, instance_environment,
                         &trampoline](EvaluationOutput constructor_evaluation)
-                           -> language::ValueOrError<EvaluationOutput> {
+                           -> language::ValueOrError<gc::Root<Value>> {
               trampoline.SetEnvironment(original_environment);
               switch (constructor_evaluation.type) {
                 case EvaluationOutput::OutputType::kReturn:
                   return Error(
                       L"Unexpected: return (inside class declaration).");
                 case EvaluationOutput::OutputType::kContinue:
-                  return Success(EvaluationOutput::New(Value::NewObject(
+                  return Success(Value::NewObject(
                       trampoline.pool(),
                       std::get<types::ObjectName>(class_type),
                       MakeNonNullShared<Instance>(
-                          Instance{.environment = instance_environment}))));
+                          Instance{.environment = instance_environment})));
               }
               language::Error error(L"Unhandled OutputType case.");
               LOG(FATAL) << error;
