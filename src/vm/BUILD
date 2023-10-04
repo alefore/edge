@@ -98,8 +98,16 @@ genrule(
         "cpp.y",
         "lempar.c",
     ],
-    outs = ["cpp.c"],
-    cmd = "$(location :lemon) -Tsrc/vm/lempar.c src/vm/cpp.y -d$(GENDIR)/src/vm",
+    outs = [
+        "cpp.c",
+        "cpp.h",
+    ],
+    cmd = """
+      $(location :lemon) \
+      -T$(location lempar.c) \
+      $(location cpp.y) \
+      -d$(GENDIR)/src/vm
+    """,
     tools = [":lemon"],
 )
 
