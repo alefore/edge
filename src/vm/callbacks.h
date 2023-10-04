@@ -190,8 +190,8 @@ auto ProcessArg(const ArgsVector& args) -> typename ArgTupleMaker<
 }
 
 template <typename Tuple, size_t Index = 0>
-struct ErrorChecker {
-  static std::optional<afc::language::Error> Check(const Tuple& tup) {
+std::optional<afc::language::Error> ErrorChecker(const Tuple& tup) {
+  if constexpr (Index < std::tuple_size_v<Tuple>) {
     using ElementType = std::tuple_element_t<Index, Tuple>;
     if constexpr (afc::language::IsValueOrError<ElementType>::value) {
       const auto& element = std::get<Index>(tup);
@@ -199,21 +199,16 @@ struct ErrorChecker {
         return std::optional<afc::language::Error>(
             std::get<afc::language::Error>(element));
     }
-    return ErrorChecker<Tuple, Index + 1>::Check(tup);
-  }
-};
-
-template <typename Tuple>
-struct ErrorChecker<Tuple, std::tuple_size_v<Tuple>> {
-  static std::optional<afc::language::Error> Check(const Tuple&) {
+    return ErrorChecker<Tuple, Index + 1>(tup);
+  } else {
     return std::nullopt;
   }
-};
+}
 
 template <typename... Args>
 std::optional<afc::language::Error> ExtractFirstError(
     const std::tuple<Args...>& tuple) {
-  return ErrorChecker<std::tuple<Args...>>::Check(tuple);
+  return ErrorChecker<std::tuple<Args...>>(tuple);
 }
 
 template <typename T>
