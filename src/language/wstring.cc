@@ -31,11 +31,8 @@ std::string ToByteString(std::wstring input) {
 }
 
 std::wstring FromByteString(std::string input) {
-  VLOG(5) << "FromByteString: " << input;
-
   const char* src = input.data();
   int length = mbsnrtowcs(nullptr, &src, input.length(), 0, nullptr);
-  VLOG(6) << "Output length: " << length;
   if (length == -1) {
     return L"<bad conversion>";
   }
@@ -45,7 +42,6 @@ std::wstring FromByteString(std::string input) {
   mbsnrtowcs(&output[0], &src, input.length(), output.size(), nullptr);
 
   std::wstring output_string(&output[0], output.size());
-  VLOG(6) << "Conversion result: [" << output_string << "]";
   return output_string;
 }
 
