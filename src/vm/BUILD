@@ -103,10 +103,11 @@ genrule(
         "cpp.h",
     ],
     cmd = """
+      mkdir -p $(@D)
       $(location :lemon) \
       -T$(location lempar.c) \
       $(location cpp.y) \
-      -d$(GENDIR)/src/vm
+      -d$(@D)
     """,
     tools = [":lemon"],
 )
