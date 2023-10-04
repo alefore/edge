@@ -2,10 +2,6 @@
 
 #include <glog/logging.h>
 
-#include "compilation.h"
-#include "src/vm/value.h"
-#include "src/vm/vm.h"
-
 namespace afc::vm {
 namespace {
 using language::MakeNonNullUnique;

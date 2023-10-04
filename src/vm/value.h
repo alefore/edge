@@ -12,7 +12,6 @@
 #include "src/language/gc.h"
 #include "src/math/numbers.h"
 #include "src/vm/types.h"
-#include "src/vm/vm.h"
 
 namespace afc::vm {
 class Trampoline;

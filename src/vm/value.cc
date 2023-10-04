@@ -226,8 +226,8 @@ bool value_gc_tests_registration = tests::Register(
           gc::Root<Value> parent = [&] {
             gc::Root<Value> child = Value::NewFunction(
                 pool, PurityType::kPure, types::Void{}, {},
-                [](std::vector<gc::Root<Value>>, Trampoline& t) {
-                  return futures::Past(Value::NewVoid(t.pool()));
+                [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
+                  return futures::Past(Value::NewVoid(pool));
                 },
                 [nested] {
                   return std::vector<

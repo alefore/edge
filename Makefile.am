@@ -315,10 +315,11 @@ src/url.cc \
 src/url.h \
 src/variables.h \
 src/vm/container.h \
-src/vm/escape.h \
 src/vm/optional.h \
 src/vm/callbacks.cc \
 src/vm/escape.cc \
+src/vm/escape.h \
+src/vm/expression.h \
 src/vm/lambda.cc \
 src/vm/lambda.h \
 src/vm/numbers.cc \

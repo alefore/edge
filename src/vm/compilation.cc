@@ -1,7 +1,5 @@
 #include "src/vm/compilation.h"
 
-#include "src/vm/vm.h"
-
 namespace afc::vm {
 using language::Error;
 namespace gc = language::gc;

@@ -65,7 +65,6 @@ cc_library(
         ":environment",
         "//src/infrastructure:dirname",
         "//src/language:gc",
-        "//src/vm",
     ],
 )
 
@@ -111,6 +110,11 @@ cc_library(
     name = "escape",
     srcs = ["escape.cc"],
     hdrs = ["escape.h"],
+)
+
+cc_library(
+    name = "expression",
+    hdrs = ["expression.h"],
 )
 
 cc_library(
@@ -180,8 +184,8 @@ cc_library(
     hdrs = ["namespace_expression.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":value",
-        "//src/vm",
     ],
 )
 
@@ -218,8 +222,8 @@ cc_library(
     hdrs = ["return_expression.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":value",
-        "//src/vm",
     ],
 )
 
@@ -274,7 +278,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":types",
-        ":vm",
         "//src/futures",
         "//src/language:gc",
     ],

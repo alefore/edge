@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "src/vm/vm.h"
+#include "src/vm/expression.h"
 
 namespace afc::vm {
 struct Compilation;
