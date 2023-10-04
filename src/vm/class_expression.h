@@ -5,7 +5,8 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/safe_types.h"
-#include "src/vm/vm.h"
+#include "src/vm/compilation.h"
+#include "src/vm/expression.h"
 
 namespace afc::vm {
 struct Compilation;

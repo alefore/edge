@@ -1,13 +1,14 @@
 #ifndef __AFC_VM_BINARY_OPERATOR_H__
 #define __AFC_VM_BINARY_OPERATOR_H__
 
+#include <functional>
 #include <memory>
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/math/numbers.h"
-#include "src/vm/vm.h"
+#include "src/vm/expression.h"
 
 namespace afc {
 namespace vm {
@@ -26,17 +27,17 @@ class BinaryOperator : public Expression {
       language::NonNull<std::unique_ptr<BinaryOperator>>>
   New(language::NonNull<std::shared_ptr<Expression>> a,
       language::NonNull<std::shared_ptr<Expression>> b, Type type,
-      function<language::ValueOrError<language::gc::Root<Value>>(
+      std::function<language::ValueOrError<language::gc::Root<Value>>(
           language::gc::Pool& pool, const Value&, const Value&)>
           callback);
 
-  BinaryOperator(ConstructorAccessKey,
-                 language::NonNull<std::shared_ptr<Expression>> a,
-                 language::NonNull<std::shared_ptr<Expression>> b, Type type,
-                 std::unordered_set<Type> return_types,
-                 function<language::ValueOrError<language::gc::Root<Value>>(
-                     language::gc::Pool& pool, const Value&, const Value&)>
-                     callback);
+  BinaryOperator(
+      ConstructorAccessKey, language::NonNull<std::shared_ptr<Expression>> a,
+      language::NonNull<std::shared_ptr<Expression>> b, Type type,
+      std::unordered_set<Type> return_types,
+      std::function<language::ValueOrError<language::gc::Root<Value>>(
+          language::gc::Pool& pool, const Value&, const Value&)>
+          callback);
 
   std::vector<Type> Types() override;
   std::unordered_set<Type> ReturnTypes() const override;

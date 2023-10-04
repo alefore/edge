@@ -23,8 +23,8 @@ namespace afc::vm {
 ValueOrError<NonNull<std::unique_ptr<BinaryOperator>>> BinaryOperator::New(
     NonNull<std::shared_ptr<Expression>> a,
     NonNull<std::shared_ptr<Expression>> b, Type type,
-    function<ValueOrError<gc::Root<Value>>(gc::Pool& pool, const Value&,
-                                           const Value&)>
+    std::function<ValueOrError<gc::Root<Value>>(gc::Pool& pool, const Value&,
+                                                const Value&)>
         callback) {
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));
@@ -37,7 +37,7 @@ BinaryOperator::BinaryOperator(ConstructorAccessKey,
                                NonNull<std::shared_ptr<Expression>> a,
                                NonNull<std::shared_ptr<Expression>> b,
                                Type type, std::unordered_set<Type> return_types,
-                               function<ValueOrError<gc::Root<Value>>(
+                               std::function<ValueOrError<gc::Root<Value>>(
                                    gc::Pool& pool, const Value&, const Value&)>
                                    callback)
     : a_(std::move(a)),

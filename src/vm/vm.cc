@@ -597,17 +597,6 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
 }
 }  // namespace
 
-ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
-    std::unordered_set<Type> a, std::unordered_set<Type> b) {
-  if (a.empty()) return Success(b);
-  if (b.empty()) return Success(a);
-  if (a != b) {
-    return Error(L"Incompatible return types found: `" + ToString(*a.cbegin()) +
-                 L"` and `" + ToString(*b.cbegin()) + L"`.");
-  }
-  return Success(a);
-}
-
 ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
     Path path, gc::Pool& pool, gc::Root<Environment> environment) {
   Compilation compilation(pool, std::move(environment));

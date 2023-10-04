@@ -4,10 +4,10 @@
 #include <memory>
 
 #include "src/language/gc.h"
-#include "src/vm/vm.h"
+#include "src/vm/compilation.h"
+#include "src/vm/expression.h"
 
 namespace afc::vm {
-struct Compilation;
 
 // Temporary type used during compilation of a function expression. On `New`,
 // receives parameters from the function's declaration. These are used on

@@ -37,11 +37,6 @@ class Evaluation;
 class Expression;
 struct EvaluationOutput;
 
-// Combine the return types of two sub-expressions (see Expression::ReturnType).
-// If there's an error, a string will be stored in `error` describing it.
-language::ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
-    std::unordered_set<Type> a, std::unordered_set<Type> b);
-
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
 CompileFile(infrastructure::Path path, language::gc::Pool& pool,
             language::gc::Root<Environment> environment);

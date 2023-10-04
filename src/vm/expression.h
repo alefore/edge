@@ -107,5 +107,10 @@ struct EvaluationOutput {
   OutputType type = OutputType::kContinue;
 };
 
+// Combine the return types of two sub-expressions (see Expression::ReturnType).
+// If there's an error, a string will be stored in `error` describing it.
+language::ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
+    std::unordered_set<Type> a, std::unordered_set<Type> b);
+
 }  // namespace afc::vm
 #endif

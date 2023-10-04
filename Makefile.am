@@ -319,6 +319,7 @@ src/vm/optional.h \
 src/vm/callbacks.cc \
 src/vm/escape.cc \
 src/vm/escape.h \
+src/vm/expression.cc \
 src/vm/expression.h \
 src/vm/lambda.cc \
 src/vm/lambda.h \

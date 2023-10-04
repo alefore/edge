@@ -3,7 +3,6 @@
 #include <glog/logging.h>
 
 #include "src/language/error/value_or_error.h"
-#include "src/vm/compilation.h"
 #include "src/vm/environment.h"
 #include "src/vm/types_promotion.h"
 #include "src/vm/value.h"
@@ -135,7 +134,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
 
   types::Function function_type{.output = *return_type_def};
-  for (pair<Type, wstring> arg : *args) {
+  for (std::pair<Type, wstring> arg : *args) {
     function_type.inputs.push_back(arg.first);
   }
 
@@ -143,7 +142,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
       UserFunction{.name = std::nullopt,
                    .type = std::move(function_type),
                    .argument_names = {}});
-  for (pair<Type, wstring> arg : *args) {
+  for (std::pair<Type, wstring> arg : *args) {
     output->argument_names->push_back(arg.second);
   }
 
@@ -154,7 +153,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
   compilation.environment = compilation.pool.NewRoot(
       MakeNonNullUnique<Environment>(compilation.environment.ptr()));
-  for (const pair<Type, wstring>& arg : *args) {
+  for (const std::pair<Type, wstring>& arg : *args) {
     compilation.environment.ptr()->Define(
         arg.second, Value::New(compilation.pool, arg.first));
   }
