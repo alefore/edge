@@ -404,6 +404,8 @@ src/vm/cpp.h: src/vm/cpp.y lemon
 
 src/vm/cpp.c: src/vm/cpp.h
 
+src/vm/vm.o: src/vm/vm.cc src/vm/cpp.c src/vm/cpp.h
+
 GLOG=glog-0.4.0/libglog_la-demangle.o \
 glog-0.4.0/libglog_la-logging.o \
 glog-0.4.0/libglog_la-symbolize.o \
