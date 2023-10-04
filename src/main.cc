@@ -35,8 +35,8 @@ extern "C" {
 #include "src/terminal.h"
 #include "src/tests/benchmarks.h"
 #include "src/tests/tests.h"
-#include "src/vm/public/escape.h"
-#include "src/vm/public/value.h"
+#include "src/vm/escape.h"
+#include "src/vm/value.h"
 
 namespace {
 

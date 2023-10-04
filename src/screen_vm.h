@@ -4,8 +4,8 @@
 #include <memory>
 
 #include "src/infrastructure/screen/screen.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/escape.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/escape.h"
 
 namespace afc::infrastructure {
 class FileDescriptor;

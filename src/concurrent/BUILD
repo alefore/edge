@@ -13,6 +13,7 @@ cc_library(
     name = "operation",
     srcs = ["operation.cc"],
     hdrs = ["operation.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":protected",
         ":thread_pool",

@@ -13,9 +13,9 @@
 #include "src/language/text/line_column_vm.h"
 #include "src/language/wstring.h"
 #include "src/server.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/environment.h"
-#include "src/vm/public/value.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/environment.h"
+#include "src/vm/value.h"
 
 namespace afc {
 using infrastructure::FileDescriptor;

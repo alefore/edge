@@ -6,10 +6,10 @@
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/container.h"
-#include "src/vm/public/environment.h"
-#include "src/vm/public/value.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/container.h"
+#include "src/vm/environment.h"
+#include "src/vm/value.h"
 
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;

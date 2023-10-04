@@ -35,8 +35,8 @@ extern "C" {
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/stack.h"
-#include "src/vm/public/environment.h"
-#include "src/vm/public/value.h"
+#include "src/vm/environment.h"
+#include "src/vm/value.h"
 #include "src/widget_list.h"
 
 using afc::concurrent::ThreadPool;

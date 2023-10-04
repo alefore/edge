@@ -11,8 +11,8 @@ extern "C" {
 #include "src/language/hash.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/text/line_column_vm.h"
-#include "src/vm/public/container.h"
-#include "src/vm/public/environment.h"
+#include "src/vm/container.h"
+#include "src/vm/environment.h"
 
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;

@@ -14,7 +14,7 @@
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/predictor.h"
-#include "vm/public/types.h"
+#include "src/vm/types.h"
 
 namespace afc {
 namespace editor {

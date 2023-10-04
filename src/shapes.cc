@@ -6,9 +6,9 @@
 
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_column_vm.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/types.h"
-#include "src/vm/public/value.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/types.h"
+#include "src/vm/value.h"
 
 namespace afc ::editor {
 using language::NonNull;

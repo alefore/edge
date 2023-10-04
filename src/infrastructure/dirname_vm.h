@@ -6,8 +6,8 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/value.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/value.h"
 
 namespace afc::vm {
 template <>

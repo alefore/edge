@@ -8,7 +8,7 @@
 #include "src/concurrent/work_queue.h"
 #include "src/editor.h"
 #include "src/language/wstring.h"
-#include "src/vm/public/vm.h"
+#include "src/vm/vm.h"
 
 namespace afc::editor {
 using concurrent::WorkQueue;

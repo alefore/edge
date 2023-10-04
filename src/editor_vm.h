@@ -1,5 +1,5 @@
 #include "src/language/gc.h"
-#include "src/vm/public/callbacks.h"
+#include "src/vm/callbacks.h"
 
 namespace afc::vm {
 class Environment;

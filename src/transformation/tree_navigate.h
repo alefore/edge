@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "src/transformation.h"
-#include "src/vm/public/environment.h"
+#include "src/vm/environment.h"
 
 namespace afc::editor {
 class TreeNavigate : public CompositeTransformation {

@@ -9,7 +9,7 @@
 #include "src/transformation/insert.h"
 #include "src/transformation/move.h"
 #include "src/transformation/set_position.h"
-#include "src/vm/public/environment.h"
+#include "src/vm/environment.h"
 
 namespace afc::editor {
 class OpenBuffer;

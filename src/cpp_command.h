@@ -7,7 +7,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
-#include "vm/public/vm.h"
+#include "src/vm/vm.h"
 
 namespace afc::editor {
 class EditorState;

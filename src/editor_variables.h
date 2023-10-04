@@ -2,7 +2,7 @@
 #define __AFC_EDITOR_EDITOR_VARIABLES_H__
 
 #include "src/variables.h"
-#include "vm/public/value.h"
+#include "src/vm/value.h"
 
 namespace afc::editor::editor_variables {
 

@@ -7,7 +7,7 @@
 #include "src/futures/futures.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
-#include "src/vm/public/environment.h"
+#include "src/vm/environment.h"
 
 namespace afc::language::gc {
 class Pool;

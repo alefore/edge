@@ -97,10 +97,10 @@ cc_library(
         "//src/language/lazy_string:substring",
         "//src/language/text:line",
         "//src/language/text:line_column",
+        "//src/public:environment",
+        "//src/public:value",
+        "//src/public:vm",
         "//src/transformation:type",
-        "//src/vm/public:environment",
-        "//src/vm/public:value",
-        "//src/vm/public:vm",
     ],
 )
 
@@ -422,8 +422,8 @@ cc_library(
         ":direction",
         ":structure",
         "//src/language/text:line_column",
-        "//src/vm/public:callbacks",
-        "//src/vm/public:environment",
+        "//src/public:callbacks",
+        "//src/public:environment",
     ],
 )
 
@@ -772,7 +772,7 @@ cc_library(
     deps = [
         ":predictor",
         "//src/language:observers",
-        "//src/vm/public:types",
+        "//src/public:types",
     ],
 )
 

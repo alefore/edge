@@ -10,8 +10,8 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/line_prompt_mode.h"
-#include "src/vm/public/constant_expression.h"
-#include "src/vm/public/function_call.h"
+#include "src/vm/constant_expression.h"
+#include "src/vm/function_call.h"
 
 namespace afc::editor {
 using infrastructure::OpenDir;

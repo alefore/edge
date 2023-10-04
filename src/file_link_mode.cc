@@ -35,8 +35,8 @@ extern "C" {
 #include "src/search_handler.h"
 #include "src/server.h"
 #include "src/tests/tests.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/value.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/value.h"
 
 namespace afc::editor {
 using language::MakeNonNullShared;

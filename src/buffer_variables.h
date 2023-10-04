@@ -3,7 +3,7 @@
 
 #include "src/language/text/line_column.h"
 #include "src/variables.h"
-#include "vm/public/value.h"
+#include "src/vm/value.h"
 
 namespace afc {
 namespace editor {

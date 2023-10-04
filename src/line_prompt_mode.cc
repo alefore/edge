@@ -33,8 +33,8 @@
 #include "src/transformation/insert.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
-#include "src/vm/public/escape.h"
-#include "src/vm/public/value.h"
+#include "src/vm/escape.h"
+#include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
 using afc::concurrent::VersionPropertyKey;

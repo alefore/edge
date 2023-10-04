@@ -1,7 +1,7 @@
 #ifndef __AFC_EDITOR_SHAPES_H__
 #define __AFC_EDITOR_SHAPES_H__
 
-#include "src/vm/public/environment.h"
+#include "src/vm/environment.h"
 
 namespace afc::language::gc {
 class Pool;

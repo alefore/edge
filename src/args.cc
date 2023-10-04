@@ -21,7 +21,7 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/server.h"
 #include "src/tests/benchmarks.h"
-#include "src/vm/public/escape.h"
+#include "src/vm/escape.h"
 
 namespace afc::editor {
 using infrastructure::Path;

@@ -16,10 +16,10 @@
 #include "src/transformation/noop.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/type.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/constant_expression.h"
-#include "src/vm/public/function_call.h"
-#include "src/vm/public/types.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/constant_expression.h"
+#include "src/vm/function_call.h"
+#include "src/vm/types.h"
 
 namespace afc {
 using language::MakeNonNullShared;

@@ -3,7 +3,7 @@
 #include "src/futures/futures.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/vm.h"
-#include "src/vm/public/types.h"
+#include "src/vm/types.h"
 
 namespace afc::editor {
 using language::MakeNonNullUnique;

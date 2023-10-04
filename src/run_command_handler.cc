@@ -29,11 +29,11 @@ extern "C" {
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
-#include "src/vm/public/constant_expression.h"
-#include "src/vm/public/environment.h"
-#include "src/vm/public/escape.h"
-#include "src/vm/public/function_call.h"
-#include "src/vm/public/value.h"
+#include "src/vm/constant_expression.h"
+#include "src/vm/environment.h"
+#include "src/vm/escape.h"
+#include "src/vm/function_call.h"
+#include "src/vm/value.h"
 
 namespace afc {
 using language::NonNull;

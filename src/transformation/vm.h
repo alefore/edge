@@ -8,7 +8,7 @@
 
 #include "src/language/safe_types.h"
 #include "src/transformation/type.h"
-#include "src/vm/public/callbacks.h"
+#include "src/vm/callbacks.h"
 
 namespace afc::language::gc {
 class Pool;

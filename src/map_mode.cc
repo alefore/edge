@@ -10,11 +10,11 @@
 #include "src/help_command.h"
 #include "src/language/gc_util.h"
 #include "src/language/safe_types.h"
-#include "src/vm/public/constant_expression.h"
-#include "src/vm/public/function_call.h"
-#include "src/vm/public/types.h"
-#include "src/vm/public/value.h"
-#include "src/vm/public/vm.h"
+#include "src/vm/constant_expression.h"
+#include "src/vm/function_call.h"
+#include "src/vm/types.h"
+#include "src/vm/value.h"
+#include "src/vm/vm.h"
 
 namespace afc::editor {
 using concurrent::WorkQueue;

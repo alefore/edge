@@ -7,7 +7,7 @@ bin_PROGRAMS = edge benchmark test fuzz_test test_fuzz_parser test_fuzz_compiler
 noinst_PROGRAMS = lemon
 
 EXTRA_DIST = \
-src/vm/internal/cpp.y
+src/vm/cpp.y
 
 COMMON_SOURCES = \
 src/args.cc \
@@ -314,43 +314,43 @@ src/undo_state.h \
 src/url.cc \
 src/url.h \
 src/variables.h \
-src/vm/public/container.h \
-src/vm/public/escape.h \
-src/vm/public/optional.h \
-src/vm/internal/callbacks.cc \
-src/vm/internal/escape.cc \
-src/vm/internal/lambda.cc \
-src/vm/internal/lambda.h \
-src/vm/internal/numbers.cc \
-src/vm/internal/numbers.h \
-src/vm/internal/vm.cc \
-src/vm/internal/value.cc \
-src/vm/internal/string.cc \
-src/vm/internal/time.cc \
-src/vm/internal/time.h \
-src/vm/internal/types.cc \
-src/vm/internal/binary_operator.cc \
-src/vm/internal/class_expression.cc \
-src/vm/internal/class_expression.h \
-src/vm/internal/compilation.h \
-src/vm/internal/compilation.cc \
-src/vm/internal/filter_similar_names.cc \
-src/vm/internal/filter_similar_names.h \
-src/vm/internal/if_expression.cc \
-src/vm/internal/return_expression.cc \
-src/vm/internal/types_promotion.cc \
-src/vm/internal/types_promotion.h \
-src/vm/internal/while_expression.cc \
-src/vm/internal/constant_expression.cc \
-src/vm/internal/function_call.cc \
-src/vm/internal/environment.cc \
-src/vm/internal/assign_expression.cc \
-src/vm/internal/append_expression.cc \
-src/vm/internal/namespace_expression.cc \
-src/vm/internal/namespace_expression.h \
-src/vm/internal/negate_expression.cc \
-src/vm/internal/logical_expression.cc \
-src/vm/internal/variable_lookup.cc \
+src/vm/container.h \
+src/vm/escape.h \
+src/vm/optional.h \
+src/vm/callbacks.cc \
+src/vm/escape.cc \
+src/vm/lambda.cc \
+src/vm/lambda.h \
+src/vm/numbers.cc \
+src/vm/numbers.h \
+src/vm/vm.cc \
+src/vm/value.cc \
+src/vm/string.cc \
+src/vm/time.cc \
+src/vm/time.h \
+src/vm/types.cc \
+src/vm/binary_operator.cc \
+src/vm/class_expression.cc \
+src/vm/class_expression.h \
+src/vm/compilation.h \
+src/vm/compilation.cc \
+src/vm/filter_similar_names.cc \
+src/vm/filter_similar_names.h \
+src/vm/if_expression.cc \
+src/vm/return_expression.cc \
+src/vm/types_promotion.cc \
+src/vm/types_promotion.h \
+src/vm/while_expression.cc \
+src/vm/constant_expression.cc \
+src/vm/function_call.cc \
+src/vm/environment.cc \
+src/vm/assign_expression.cc \
+src/vm/append_expression.cc \
+src/vm/namespace_expression.cc \
+src/vm/namespace_expression.h \
+src/vm/negate_expression.cc \
+src/vm/logical_expression.cc \
+src/vm/variable_lookup.cc \
 src/widget.h
 
 BENCHMARK_SOURCES = \
@@ -365,9 +365,9 @@ src/tests/benchmarks.h \
 src/tests/tests.cc \
 src/tests/tests.h
 
-CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
+CLEANFILES = src/vm/cpp.c src/vm/cpp.h
 
-BUILT_SOURCES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
+BUILT_SOURCES = src/vm/cpp.c src/vm/cpp.h
 
 docdir = $(prefix)/share/doc/$(PACKAGE)-$(VERSION)
 dist_doc_DATA = README.md
@@ -392,14 +392,14 @@ test_fuzz_compiler_SOURCES = $(COMMON_SOURCES) src/test/fuzz/compiler.cc
 
 test_fuzz_classes_SOURCES = $(COMMON_SOURCES) src/test/fuzz/classes.cc
 
-test_fuzz_vm_SOURCES = $(COMMON_SOURCES) src/vm/internal/fuzz.cc
+test_fuzz_vm_SOURCES = $(COMMON_SOURCES) src/vm/fuzz.cc
 
-lemon_SOURCES = src/vm/internal/lemon.c
+lemon_SOURCES = src/vm/lemon.c
 
-src/vm/internal/cpp.h: src/vm/internal/cpp.y lemon
-	./lemon -Tsrc/vm/internal/lempar.c src/vm/internal/cpp.y
+src/vm/cpp.h: src/vm/cpp.y lemon
+	./lemon -Tsrc/vm/lempar.c src/vm/cpp.y
 
-src/vm/internal/cpp.cc: src/vm/internal/cpp.h
+src/vm/cpp.c: src/vm/cpp.h
 
 GLOG=glog-0.4.0/libglog_la-demangle.o \
 glog-0.4.0/libglog_la-logging.o \

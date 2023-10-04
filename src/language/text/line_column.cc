@@ -8,7 +8,7 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
-#include "src/vm/public/environment.h"
+#include "src/vm/environment.h"
 
 namespace afc::language::text {
 using language::lazy_string::ColumnNumber;

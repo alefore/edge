@@ -11,8 +11,8 @@
 #include "src/direction.h"
 #include "src/language/text/line_column.h"
 #include "src/structure.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/environment.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/environment.h"
 
 namespace afc {
 namespace language::gc {

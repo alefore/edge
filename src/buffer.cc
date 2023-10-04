@@ -58,13 +58,13 @@ extern "C" {
 #include "src/transformation/repetitions.h"
 #include "src/transformation/stack.h"
 #include "src/url.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/constant_expression.h"
-#include "src/vm/public/escape.h"
-#include "src/vm/public/function_call.h"
-#include "src/vm/public/types.h"
-#include "src/vm/public/value.h"
-#include "src/vm/public/vm.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/constant_expression.h"
+#include "src/vm/escape.h"
+#include "src/vm/function_call.h"
+#include "src/vm/types.h"
+#include "src/vm/value.h"
+#include "src/vm/vm.h"
 
 namespace afc::editor {
 namespace gc = language::gc;

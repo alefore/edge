@@ -6,7 +6,7 @@
 
 #include "src/language/text/line_column.h"
 #include "src/line_with_cursor.h"
-#include "src/vm/public/environment.h"
+#include "src/vm/environment.h"
 
 namespace afc::editor {
 class Widget {

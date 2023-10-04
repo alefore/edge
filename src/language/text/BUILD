@@ -34,7 +34,7 @@ cc_library(
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
         "//src/tests:fuzz",
-        "//src/vm/public:environment",
+        "//src/vm:environment",
     ],
 )
 
@@ -46,7 +46,7 @@ cc_library(
     deps = [
         "//src/language:safe_types",
         "//src/language/text:line_column",
-        "//src/vm/public:callbacks",
-        "//src/vm/public:container",
+        "//src/vm:callbacks",
+        "//src/vm:container",
     ],
 )

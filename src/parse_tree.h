@@ -11,7 +11,7 @@
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
-#include "src/vm/public/callbacks.h"
+#include "src/vm/callbacks.h"
 
 namespace afc::editor {
 enum class IdentifierBehavior { kNone, kColorByHash };

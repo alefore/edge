@@ -19,7 +19,7 @@
 #include "src/shapes.h"
 #include "src/terminal.h"
 #include "src/transformation/vm.h"
-#include "src/vm/public/callbacks.h"
+#include "src/vm/callbacks.h"
 
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;

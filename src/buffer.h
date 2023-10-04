@@ -36,9 +36,9 @@
 #include "src/transformation/type.h"
 #include "src/undo_state.h"
 #include "src/variables.h"
-#include "src/vm/public/environment.h"
-#include "src/vm/public/value.h"
-#include "src/vm/public/vm.h"
+#include "src/vm/environment.h"
+#include "src/vm/value.h"
+#include "src/vm/vm.h"
 
 namespace afc {
 namespace editor {

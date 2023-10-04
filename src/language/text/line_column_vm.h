@@ -8,8 +8,8 @@
 
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
-#include "src/vm/public/callbacks.h"
-#include "src/vm/public/container.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/container.h"
 
 namespace afc::language::gc {
 class Pool;

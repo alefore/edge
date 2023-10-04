@@ -18,9 +18,9 @@
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 #include "src/tokenize.h"
-#include "src/vm/public/constant_expression.h"
-#include "src/vm/public/function_call.h"
-#include "src/vm/public/value.h"
+#include "src/vm/constant_expression.h"
+#include "src/vm/function_call.h"
+#include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
 using afc::futures::DeleteNotification;

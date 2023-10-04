@@ -75,7 +75,7 @@ cc_library(
         "//src/infrastructure/screen:line_modifier",
         "//src/language:safe_types",
         "//src/language/text:line_column_vm",
-        "//src/vm/public:environment",
+        "//src/vm:environment",
     ],
 )
 
@@ -138,7 +138,7 @@ cc_library(
         "//src/futures",
         "//src/language/text:line_column",
         "//src/language/text:line_column_vm",
-        "//src/vm/public:environment",
+        "//src/vm:environment",
     ],
 )
 
@@ -182,7 +182,7 @@ cc_library(
         ":cursors",
         ":delete",
         ":set_position",
-        "//src/vm/public:environment",
+        "//src/vm:environment",
     ],
 )
 

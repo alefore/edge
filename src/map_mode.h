@@ -13,8 +13,8 @@
 #include "src/editor_mode.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
-#include "vm/public/environment.h"
-#include "vm/public/value.h"
+#include "src/vm/environment.h"
+#include "src/vm/value.h"
 
 namespace afc::editor {
 
