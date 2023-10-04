@@ -27,8 +27,8 @@ cc_library(
     hdrs = ["binary_operator.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":value",
-        "//src/vm",
     ],
 )
 
@@ -38,6 +38,7 @@ cc_library(
     hdrs = ["callbacks.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":expression",
         ":value",
         "//src/language:function_traits",
         "//src/language/error:value_or_error",
@@ -52,8 +53,8 @@ cc_library(
         ":append_expression",
         ":compilation",
         ":constant_expression",
+        ":expression",
         ":value",
-        "//src/vm",
     ],
 )
 
@@ -73,6 +74,10 @@ cc_library(
     srcs = ["constant_expression.cc"],
     hdrs = ["constant_expression.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        ":value",
+        "//src/language:gc",
+    ],
 )
 
 cc_library(
@@ -110,6 +115,12 @@ cc_library(
     name = "escape",
     srcs = ["escape.cc"],
     hdrs = ["escape.h"],
+    deps = [
+        ":value",
+        "//src/language:ghost_type",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:char_buffer",
+    ],
 )
 
 cc_library(
@@ -128,11 +139,26 @@ cc_library(
     srcs = ["function_call.cc"],
     hdrs = ["function_call.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//src/futures",
+        "//src/language:gc",
+    ],
 )
 
 cc_binary(
     name = "fuzz",
     srcs = ["fuzz.cc"],
+    deps = [
+        ":environment",
+        ":types",
+        ":value",
+        ":vm",
+        "//src/concurrent:operation",
+        "//src/concurrent:thread_pool",
+        "//src/futures",
+        "//src/language:gc",
+        "//src/language:safe_types",
+    ],
 )
 
 cc_library(
@@ -141,8 +167,8 @@ cc_library(
     hdrs = ["if_expression.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":value",
-        "//src/vm",
     ],
 )
 
@@ -152,8 +178,8 @@ cc_library(
     hdrs = ["lambda.h"],
     deps = [
         ":compilation",
+        ":expression",
         ":types_promotion",
-        "//src/vm",
     ],
 )
 
@@ -268,6 +294,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:gc",
+        "//src/language:hash",
     ],
 )
 
@@ -280,6 +307,8 @@ cc_library(
         ":types",
         "//src/futures",
         "//src/language:gc",
+        "//src/language/lazy_string:char_buffer",
+        "//src/math:numbers",
     ],
 )
 
