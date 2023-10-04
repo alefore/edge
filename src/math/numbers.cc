@@ -257,7 +257,7 @@ ValueOrError<Decimal> OperationTreeToDecimal(Addition value,
     return Decimal{.positive = a.positive,
                    .exact = a.exact && b.exact,
                    .digits = RemoveDecimals(a.digits + b.digits, 1)};
-  else if (a.digits > b.digits)
+  else if (a.digits >= b.digits)
     return Decimal{.positive = a.positive,
                    .exact = a.exact && b.exact,
                    .digits = RemoveDecimals(a.digits - b.digits, 1)};
@@ -319,8 +319,8 @@ const bool as_decimal_tests_registration =
       };
       return std::vector(
           {test(FromInt(45), L"45"),
-           test(FromInt(0), L"0"),
            test(FromInt(-328), L"-328"),
+           test(FromInt(5) - FromInt(5), L"0"),
            test(FromInt(1) + FromInt(0), L"1"),
            test(FromInt(7) + FromInt(5), L"12"),
            test(FromInt(7) + FromInt(-5), L"2"),
