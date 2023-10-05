@@ -69,11 +69,11 @@ NonNull<std::shared_ptr<LazyString>> GetToken(
       line_str.substr(symbol_start.read(), (end - symbol_start).read() + 1));
 }
 
-// TODO(trivial, 2023-10-06): Receive characters as ColumnNumberDelta.
-transformation::Delete DeleteLastCharacters(int characters) {
+transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
+  CHECK_GT(characters, ColumnNumberDelta());
   return transformation::Delete{
       .modifiers = {.direction = Direction::kBackwards,
-                    .repetitions = characters,
+                    .repetitions = characters.read(),
                     .paste_buffer_behavior =
                         Modifiers::PasteBufferBehavior::kDoNothing},
       .initiator = transformation::Delete::Initiator::kInternal};
@@ -125,7 +125,8 @@ class PredictorTransformation : public CompositeTransformation {
           }
 
           Output output;
-          output.Push(DeleteLastCharacters(text.size()));
+          CHECK_GT(text.size(), 0ul);
+          output.Push(DeleteLastCharacters(ColumnNumberDelta(text.size())));
           output.Push(transformation::Insert{
               .contents_to_insert =
                   LineSequence::WithLine(MakeNonNullShared<Line>(
@@ -339,7 +340,8 @@ class ExpandTransformation : public CompositeTransformation {
       case 'r': {
         NonNull<std::shared_ptr<LazyString>> symbol =
             GetToken(input, buffer_variables::symbol_characters);
-        output->Push(DeleteLastCharacters(1 + symbol->size().read()));
+        output->Push(
+            DeleteLastCharacters(ColumnNumberDelta(1) + symbol->size()));
         std::visit(overload{IgnoreErrors{},
                             [&](Path path) {
                               transformation_future =
@@ -350,7 +352,7 @@ class ExpandTransformation : public CompositeTransformation {
       } break;
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);
-        output->Push(DeleteLastCharacters(1));
+        output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
         // TODO(trivial, 2023-10-06): Avoid call to ToString.
         transformation_future =
             futures::Past(std::make_unique<PredictorTransformation>(
@@ -358,7 +360,7 @@ class ExpandTransformation : public CompositeTransformation {
       } break;
       case ' ': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output->Push(DeleteLastCharacters(1));
+        output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
         futures::Value<Predictor> predictor_future =
             futures::Past(SyntaxBasedPredictor);
         if (ValueOrError<Path> path = Path::FromString(
@@ -390,7 +392,8 @@ class ExpandTransformation : public CompositeTransformation {
       } break;
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output->Push(DeleteLastCharacters(1 + symbol->size().read() + 1));
+        output->Push(DeleteLastCharacters(
+            ColumnNumberDelta(1) + symbol->size() + ColumnNumberDelta(1)));
         transformation_future =
             futures::Past(std::make_unique<Execute>(symbol));
       } break;
@@ -399,7 +402,7 @@ class ExpandTransformation : public CompositeTransformation {
         // TODO(trivial, 2023-10-06): Avoid call to ToString.
         transformation_future =
             futures::Past(std::make_unique<InsertHistoryTransformation>(
-                DeleteLastCharacters(query->size().read() + 1),
+                DeleteLastCharacters(query->size() + ColumnNumberDelta(1)),
                 query->ToString()));
       }
     }
