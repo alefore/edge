@@ -362,7 +362,9 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                     search_futures.push_back(
                         editor.thread_pool()
                             .Run(BackgroundSearchCallback(
-                                {.search_query = text_input,
+                                // TODO(trivial, 2023-10-06): Get rid of
+                                // NewLazyString.
+                                {.search_query = NewLazyString(text_input),
                                  .required_positions = 1,
                                  .case_sensitive = buffer.Read(
                                      buffer_variables::search_case_sensitive)},

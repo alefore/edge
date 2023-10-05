@@ -85,7 +85,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
 
   std::wregex pattern;
   try {
-    pattern = std::wregex(options.search_query,
+    pattern = std::wregex(options.search_query->ToString(),
                           GetRegexTraits(options.case_sensitive));
   } catch (std::regex_error& e) {
     Error error(L"Regex failure: " + FromByteString(e.what()));
@@ -170,15 +170,14 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
 
 PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
                              std::set<std::wstring>& matches) {
-  SearchOptions options;
-  options.search_query = input.input;
-  options.starting_position = buffer.position();
-
   ASSIGN_OR_RETURN(
       std::vector<LineColumn> positions,
       buffer.status().LogErrors(SearchHandler(
           input.editor.work_queue(), input.editor.modifiers().direction,
-          options, buffer.contents().snapshot())));
+          SearchOptions{.starting_position = buffer.position(),
+                        // TODO(trivial, 2023-10-06): Get rid of NewLazyString.
+                        .search_query = NewLazyString(input.input)},
+          buffer.contents().snapshot())));
 
   // Get the first kMatchesLimit matches:
   for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit;
@@ -216,7 +215,7 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
     language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
     const LineSequence& contents) {
-  if (options.search_query.empty()) {
+  if (options.search_query->size().IsZero()) {
     return {};
   }
 
@@ -294,7 +293,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                                 .starting_position = LineColumn(
                                     contents.range().end.line,
                                     std::numeric_limits<ColumnNumber>::max()),
-                                .search_query = L"xxxx",
+                                .search_query = NewLazyString(L"xxxx"),
                                 .required_positions = std::nullopt,
                                 .case_sensitive = false},
                             contents))
@@ -309,7 +308,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                             .starting_position = LineColumn(
                                 contents.range().end.line,
                                 std::numeric_limits<ColumnNumber>::max()),
-                            .search_query = L"rero",
+                            .search_query = NewLazyString(L"rero"),
                             .required_positions = std::nullopt,
                             .case_sensitive = false},
                         contents)) ==
@@ -323,7 +322,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                         work_queue, Direction::kBackwards,
                         SearchOptions{.starting_position = LineColumn(
                                           LineNumber(1), ColumnNumber(3)),
-                                      .search_query = L"r",
+                                      .search_query = NewLazyString(L"r"),
                                       .required_positions = std::nullopt,
                                       .case_sensitive = false},
                         contents)) ==
@@ -340,7 +339,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                         work_queue, Direction::kForwards,
                         SearchOptions{.starting_position = LineColumn(
                                           LineNumber(0), ColumnNumber(7)),
-                                      .search_query = L"ro",
+                                      .search_query = NewLazyString(L"ro"),
                                       .required_positions = std::nullopt,
                                       .case_sensitive = false},
                         contents)) ==
@@ -355,7 +354,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                   work_queue, Direction::kForwards,
                   SearchOptions{.starting_position =
                                     LineColumn(LineNumber(1), ColumnNumber(3)),
-                                .search_query = L".",
+                                .search_query = NewLazyString(L"."),
                                 .required_positions = 1,
                                 .case_sensitive = false},
                   contents)) == std::vector<LineColumn>({
@@ -385,9 +384,8 @@ ValueOrError<LineColumn> GetNextMatch(
     return results->at(0);
 
   // TODO(easy, 2023-09-09): Get rid of ToString.
-  return Error(Append(NewLazyString(L"No matches: "),
-                      NewLazyString(options.search_query))
-                   ->ToString());
+  return Error(
+      Append(NewLazyString(L"No matches: "), options.search_query)->ToString());
 }
 
 void HandleSearchResults(

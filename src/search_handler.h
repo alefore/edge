@@ -1,10 +1,10 @@
 #ifndef __AFC_EDITOR_SEARCH_HANDLER_H__
 #define __AFC_EDITOR_SEARCH_HANDLER_H__
 
-#include <string>
 #include <vector>
 
 #include "src/futures/delete_notification.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
@@ -24,20 +24,21 @@ struct SearchOptions {
   language::text::LineColumn starting_position = {};
 
   // The regular expression to search.
-  std::wstring search_query;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+      search_query;
 
   // An optional position where the search should stop.
   std::optional<language::text::LineColumn> limit_position = std::nullopt;
 
   // If set, signals that it is okay for the search operation to stop once this
   // number of positions has been found.
-  std::optional<size_t> required_positions;
+  std::optional<size_t> required_positions = std::nullopt;
 
   // When notified, interrupts the search.
   futures::DeleteNotification::Value abort_value =
       futures::DeleteNotification::Never();
 
-  bool case_sensitive;
+  bool case_sensitive = false;
 };
 
 // Returns all matches starting at start. If end is not nullptr, only matches

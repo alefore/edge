@@ -204,7 +204,6 @@ class SearchCommand : public Command {
       editor_state_
           .ForEachActiveBuffer([&editor_state =
                                     editor_state_](OpenBuffer& buffer) {
-            SearchOptions search_options;
             Range range = buffer.FindPartialRange(editor_state.modifiers(),
                                                   buffer.position());
             if (range.begin == range.end) {
@@ -231,13 +230,13 @@ class SearchCommand : public Command {
             }
             CHECK_LT(range.begin.column, range.end.column);
             buffer.set_position(range.begin);
-            search_options.search_query =
-                buffer.LineAt(range.begin.line)
-                    ->Substring(range.begin.column,
-                                range.end.column - range.begin.column)
-                    ->ToString();
-            search_options.starting_position = buffer.position();
-            DoSearch(buffer, search_options);
+            DoSearch(buffer, SearchOptions{
+                                 .starting_position = buffer.position(),
+                                 .search_query =
+                                     buffer.LineAt(range.begin.line)
+                                         ->Substring(range.begin.column,
+                                                     range.end.column -
+                                                         range.begin.column)});
             return futures::Past(EmptyValue());
           })
           .Transform([&editor_state = editor_state_](EmptyValue) {
@@ -346,9 +345,7 @@ class SearchCommand : public Command {
       NonNull<std::shared_ptr<LazyString>> input, OpenBuffer& buffer,
       DeleteNotification::Value abort_value) {
     auto& editor = buffer.editor();
-    SearchOptions search_options;
-    // TODO(easy, 2022-06-05): Avoid call to ToString.
-    search_options.search_query = input->ToString();
+    SearchOptions search_options{.search_query = std::move(input)};
     if (GetStructureSearchRange(editor.structure()) ==
         StructureSearchRange::kBuffer) {
       search_options.starting_position = buffer.position();
