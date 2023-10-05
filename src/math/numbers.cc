@@ -79,7 +79,7 @@ Digits RemoveSignificantZeros(Digits value) {
   return value;
 }
 
-Decimal OperationTreeToDecimal(int value, size_t decimal_digits) {
+ValueOrError<Decimal> OperationTreeToDecimal(int value, size_t decimal_digits) {
   Decimal output{.positive = value >= 0,
                  .digits = {Digits(std::vector<size_t>(decimal_digits, 0))}};
   while (value != 0) {
@@ -97,7 +97,7 @@ const bool operation_tree_to_decimal_int_tests_registration =
         return tests::Test{
             .name = name,
             .callback = [input, positive_expectation, expectation] {
-              Decimal output = OperationTreeToDecimal(input, 0);
+              Decimal output = ValueOrDie(OperationTreeToDecimal(input, 0));
               CHECK_EQ(output.positive, positive_expectation);
               std::string output_str;
               for (size_t d : output.digits | std::views::reverse)
@@ -280,9 +280,11 @@ ValueOrError<Decimal> OperationTreeToDecimal(Multiplication value,
   // in the recursions.
   ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits));
   ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits));
-  return Decimal{.positive = a.positive == b.positive,
-                 .exact = a.exact && b.exact,
-                 .digits = RemoveDecimals(a.digits * b.digits, decimal_digits)};
+  Digits output_digits = std::move(a.digits) * std::move(b.digits);
+  return Decimal{
+      .positive = a.positive == b.positive || output_digits.empty(),
+      .exact = a.exact && b.exact,
+      .digits = RemoveDecimals(std::move(output_digits), decimal_digits)};
 }
 
 ValueOrError<Decimal> OperationTreeToDecimal(Division value,
@@ -291,7 +293,7 @@ ValueOrError<Decimal> OperationTreeToDecimal(Division value,
   ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits));
   ASSIGN_OR_RETURN(DivisionOutput output,
                    DivideDigits(a.digits, b.digits, decimal_digits));
-  return Decimal{.positive = a.positive == b.positive,
+  return Decimal{.positive = a.positive == b.positive || output.digits.empty(),
                  .exact = a.exact && b.exact && output.exact,
                  .digits = std::move(output.digits)};
 }
@@ -299,16 +301,21 @@ ValueOrError<Decimal> OperationTreeToDecimal(Division value,
 ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits) {
   return std::visit(
       [decimal_digits](const auto& value) -> ValueOrError<Decimal> {
-        return OperationTreeToDecimal(value, decimal_digits);
+        ASSIGN_OR_RETURN(Decimal output,
+                         OperationTreeToDecimal(value, decimal_digits));
+        CHECK(!output.digits.empty() || output.positive);
+        CHECK(output.digits.empty() || output.digits.back() != 0);
+        return output;
       },
       number.value.value().variant);
 }
 
 const bool as_decimal_tests_registration =
     tests::Register(L"numbers::ToDecimal", [] {
-      auto test = [](Number number, std::wstring expectation) {
+      auto test = [](Number number, std::wstring expectation,
+                     std::wstring name = L"") {
         return tests::Test(
-            {.name = expectation, .callback = [=] {
+            {.name = name.empty() ? expectation : name, .callback = [=] {
                std::wstring str = std::visit(
                    overload{[](Error error) { return error.read(); },
                             [](Decimal d) { return ToString(d, 2); }},
@@ -329,6 +336,8 @@ const bool as_decimal_tests_registration =
            test(FromInt(-100) + FromInt(30), L"-70"),
            test(FromInt(2147483647) + FromInt(2147483647), L"4294967294"),
            test(FromInt(1) * FromInt(10), L"10"),
+           test(FromInt(-5) * FromInt(0), L"0", L"X*0."),
+           test(FromInt(0) * FromInt(-100), L"0", L"0*X."),
            test(FromInt(-2) * FromInt(25), L"-50"),
            test(FromInt(-1) * FromInt(-35), L"35"),
            test(FromInt(11) * FromInt(12), L"132"),
@@ -338,6 +347,7 @@ const bool as_decimal_tests_registration =
            test(FromInt(2147483647) * FromInt(2147483647) +
                     FromInt(3) / FromInt(100),
                 L"4611686014132420609.03"),
+           test(FromInt(0) / FromInt(-10), L"0", L"Division.0ByNegative"),
            test(FromInt(3) / FromInt(10), L"0.3"),
            test(FromInt(949949) / FromInt(1), L"949949"),
            test(FromInt(20) * FromInt(20) + FromInt(3) / FromInt(100),
