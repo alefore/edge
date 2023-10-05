@@ -270,7 +270,7 @@ ValueOrError<Decimal> OperationTreeToDecimal(Addition value,
 ValueOrError<Decimal> OperationTreeToDecimal(Negation value,
                                              size_t decimal_digits) {
   ASSIGN_OR_RETURN(Decimal output, ToDecimal(value.a, decimal_digits));
-  output.positive = !output.positive;
+  output.positive = output.digits.empty() || !output.positive;
   return output;
 }
 
@@ -327,6 +327,7 @@ const bool as_decimal_tests_registration =
       return std::vector(
           {test(FromInt(45), L"45"),
            test(FromInt(-328), L"-328"),
+           test(-FromInt(0), L"0", L"ZeroNegation"),
            test(FromInt(5) - FromInt(5), L"0"),
            test(FromInt(1) + FromInt(0), L"1"),
            test(FromInt(7) + FromInt(5), L"12"),
