@@ -81,7 +81,8 @@ transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
 
 class PredictorTransformation : public CompositeTransformation {
  public:
-  PredictorTransformation(Predictor predictor, std::wstring text)
+  PredictorTransformation(Predictor predictor,
+                          NonNull<std::shared_ptr<LazyString>> text)
       : predictor_(std::move(predictor)), text_(std::move(text)) {}
 
   std::wstring Serialize() const override {
@@ -91,7 +92,8 @@ class PredictorTransformation : public CompositeTransformation {
   futures::Value<Output> Apply(Input input) const override {
     return Predict({.editor_state = input.buffer.editor(),
                     .predictor = predictor_,
-                    .text = text_,
+                    // TODO(easy, 2023-10-06): Avoid call to ToString.
+                    .text = text_->ToString(),
                     // TODO: Ugh, the const_cast below is fucking ugly. I have a
                     // lake in my model: should PredictionOptions::source_buffer
                     // be `const` so that it can be applied here? But then...
@@ -107,26 +109,26 @@ class PredictorTransformation : public CompositeTransformation {
             return Output();
           }
           if (!results->common_prefix.has_value() ||
-              results->common_prefix.value().size() < text.size()) {
-            CHECK_LE(results->predictor_output.longest_prefix,
-                     ColumnNumberDelta(text.size()));
-            auto prefix =
-                text.substr(0, results->predictor_output.longest_prefix.read());
-            if (!prefix.empty()) {
+              ColumnNumberDelta(results->common_prefix.value().size()) <
+                  text->size()) {
+            CHECK_LE(results->predictor_output.longest_prefix, text->size());
+            NonNull<std::shared_ptr<LazyString>> prefix =
+                Substring(text, ColumnNumber(0),
+                          results->predictor_output.longest_prefix);
+            if (!prefix->size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
               buffer.status().SetInformationText(MakeNonNullShared<Line>(
                   LineBuilder(Append(NewLazyString(L"No matches found. Longest "
                                                    L"prefix with matches: \""),
-                                     NewLazyString(prefix),
-                                     NewLazyString(L"\"")))
+                                     prefix, NewLazyString(L"\"")))
                       .Build()));
             }
             return Output();
           }
 
           Output output;
-          CHECK_GT(text.size(), 0ul);
-          output.Push(DeleteLastCharacters(ColumnNumberDelta(text.size())));
+          CHECK_GT(text->size(), ColumnNumberDelta());
+          output.Push(DeleteLastCharacters(text->size()));
           output.Push(transformation::Insert{
               .contents_to_insert =
                   LineSequence::WithLine(MakeNonNullShared<Line>(
@@ -137,15 +139,16 @@ class PredictorTransformation : public CompositeTransformation {
 
  private:
   const Predictor predictor_;
-  const std::wstring text_;
+  const NonNull<std::shared_ptr<LazyString>> text_;
 };
 
 class InsertHistoryTransformation : public CompositeTransformation {
  public:
   InsertHistoryTransformation(transformation::Variant delete_transformation,
-                              std::wstring query)
+                              NonNull<std::shared_ptr<LazyString>> query)
       : delete_transformation_(std::move(delete_transformation)),
-        search_options_({.query = std::move(query)}) {}
+        // TODO(easy, 2023-10-06): Avoid call to ToString.
+        search_options_({.query = query->ToString()}) {}
 
   std::wstring Serialize() const override {
     return L"InsertHistoryTransformation";
@@ -188,7 +191,7 @@ bool predictor_transformation_tests_register = tests::Register(
                       predictions_buffer = &input.predictions;
                       return std::move(inner_future.value);
                     },
-                    L"foo"));
+                    NewLazyString(L"foo")));
         // We've dropped our reference to the buffer, even though it still has
         // work scheduled. This is the gist of this tests: validate that the
         // transformation executes successfully regardless.
@@ -353,10 +356,8 @@ class ExpandTransformation : public CompositeTransformation {
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);
         output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
-        // TODO(trivial, 2023-10-06): Avoid call to ToString.
-        transformation_future =
-            futures::Past(std::make_unique<PredictorTransformation>(
-                FilePredictor, path->ToString()));
+        transformation_future = futures::Past(
+            std::make_unique<PredictorTransformation>(FilePredictor, path));
       } break;
       case ' ': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
@@ -385,9 +386,8 @@ class ExpandTransformation : public CompositeTransformation {
         transformation_future =
             std::move(predictor_future)
                 .Transform([symbol](Predictor predictor) {
-                  // TODO(trivial, 2023-10-06): Avoid call to ToString.
-                  return std::make_unique<PredictorTransformation>(
-                      predictor, symbol->ToString());
+                  return std::make_unique<PredictorTransformation>(predictor,
+                                                                   symbol);
                 });
       } break;
       case ':': {
@@ -403,7 +403,7 @@ class ExpandTransformation : public CompositeTransformation {
         transformation_future =
             futures::Past(std::make_unique<InsertHistoryTransformation>(
                 DeleteLastCharacters(query->size() + ColumnNumberDelta(1)),
-                query->ToString()));
+                query));
       }
     }
     return std::move(transformation_future)
