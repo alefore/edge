@@ -20,7 +20,7 @@ class InsertHistory {
   const std::vector<language::text::LineSequence>& get() const;
 
   struct SearchOptions {
-    std::wstring query;
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> query;
   };
 
   // Return the entry from the history that best fits `search_options`. For now,

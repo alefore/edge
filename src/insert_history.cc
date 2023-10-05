@@ -25,14 +25,12 @@ namespace {
 bool IsMatch(EditorState& editor,
              const InsertHistory::SearchOptions& search_options,
              const LineSequence& candidate) {
-  ValueOrError<std::vector<LineColumn>> matches =
-      SearchHandler(editor.work_queue(), editor.modifiers().direction,
-                    // TODO(trivial, 2023-10-06): Get rid of NewLazyString:
-                    afc::editor::SearchOptions{
-                        .search_query = NewLazyString(search_options.query),
-                        .required_positions = 1,
-                        .case_sensitive = false},
-                    candidate);
+  ValueOrError<std::vector<LineColumn>> matches = SearchHandler(
+      editor.work_queue(), editor.modifiers().direction,
+      afc::editor::SearchOptions{.search_query = search_options.query,
+                                 .required_positions = 1,
+                                 .case_sensitive = false},
+      candidate);
   std::vector<LineColumn>* matches_vector =
       std::get_if<std::vector<LineColumn>>(&matches);
   return matches_vector != nullptr && !matches_vector->empty();

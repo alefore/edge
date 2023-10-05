@@ -147,8 +147,7 @@ class InsertHistoryTransformation : public CompositeTransformation {
   InsertHistoryTransformation(transformation::Variant delete_transformation,
                               NonNull<std::shared_ptr<LazyString>> query)
       : delete_transformation_(std::move(delete_transformation)),
-        // TODO(easy, 2023-10-06): Avoid call to ToString.
-        search_options_({.query = query->ToString()}) {}
+        search_options_({.query = std::move(query)}) {}
 
   std::wstring Serialize() const override {
     return L"InsertHistoryTransformation";
@@ -164,8 +163,9 @@ class InsertHistoryTransformation : public CompositeTransformation {
               transformation::Insert{.contents_to_insert = std::move(text)});
         },
         [&] {
+          // TODO(easy, 2023-10-06): Get rid of ToString.
           input.editor.status().InsertError(
-              Error(L"No matches: " + search_options_.query));
+              Error(L"No matches: " + search_options_.query->ToString()));
         });
     return futures::Past(std::move(output));
   }
