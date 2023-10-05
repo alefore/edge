@@ -399,7 +399,6 @@ class ExpandTransformation : public CompositeTransformation {
       } break;
       case '.': {
         auto query = GetToken(input, buffer_variables::path_characters);
-        // TODO(trivial, 2023-10-06): Avoid call to ToString.
         transformation_future =
             futures::Past(std::make_unique<InsertHistoryTransformation>(
                 DeleteLastCharacters(query->size() + ColumnNumberDelta(1)),
