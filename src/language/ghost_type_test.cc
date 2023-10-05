@@ -20,11 +20,11 @@ bool ghost_type_tests_registration = tests::Register(
                                .callback =
                                    [] {
                                      TestMap m;
-                                     CHECK_EQ(m.size(), 0);
+                                     CHECK_EQ(m.size(), 0ul);
                                      m.insert({1, L"foo"});
-                                     CHECK_EQ(m.size(), 1);
+                                     CHECK_EQ(m.size(), 1ul);
                                      m.insert({5, L"bar"});
-                                     CHECK_EQ(m.size(), 2);
+                                     CHECK_EQ(m.size(), 2ul);
                                      auto it = m.lower_bound(2);
                                      CHECK(it != m.end());
                                      CHECK_EQ(it->first, 5);
@@ -33,14 +33,14 @@ bool ghost_type_tests_registration = tests::Register(
                               {.name = L"Vector", .callback = [] {
                                  TestVector m;
                                  CHECK(m.empty());
-                                 CHECK_EQ(m.size(), 0);
+                                 CHECK_EQ(m.size(), 0ul);
 
                                  m.push_back(1);
-                                 CHECK_EQ(m.size(), 1);
+                                 CHECK_EQ(m.size(), 1ul);
                                  CHECK_EQ(m[0], 1);
 
                                  m.push_back(5);
-                                 CHECK_EQ(m.size(), 2);
+                                 CHECK_EQ(m.size(), 2ul);
                                  CHECK_EQ(m[0], 1);
                                  CHECK_EQ(m[1], 5);
                                }}}));
