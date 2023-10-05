@@ -35,6 +35,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -46,11 +47,14 @@ using afc::language::text::LineSequence;
 namespace afc::editor {
 namespace {
 
-std::wstring GetToken(const CompositeTransformation::Input& input,
-                      EdgeVariable<std::wstring>* characters_variable) {
-  if (input.position.column < ColumnNumber(2)) return L"";
+NonNull<std::shared_ptr<LazyString>> GetToken(
+    const CompositeTransformation::Input& input,
+    EdgeVariable<std::wstring>* characters_variable) {
+  if (input.position.column < ColumnNumber(2)) return EmptyString();
   ColumnNumber end = input.position.column.previous().previous();
   auto line = input.buffer.LineAt(input.position.line);
+  // TODO(trivial, 2023-10-06): Avoid the call to ToString. Define similar
+  // functions to `find_last_not_of` for LazyString.
   auto line_str = line->ToString();
 
   size_t index_before_symbol = line_str.find_last_not_of(
@@ -61,9 +65,11 @@ std::wstring GetToken(const CompositeTransformation::Input& input,
   } else {
     symbol_start = ColumnNumber(index_before_symbol + 1);
   }
-  return line_str.substr(symbol_start.read(), (end - symbol_start).read() + 1);
+  return NewLazyString(
+      line_str.substr(symbol_start.read(), (end - symbol_start).read() + 1));
 }
 
+// TODO(trivial, 2023-10-06): Receive characters as ColumnNumberDelta.
 transformation::Delete DeleteLastCharacters(int characters) {
   return transformation::Delete{
       .modifiers = {.direction = Direction::kBackwards,
@@ -331,8 +337,9 @@ class ExpandTransformation : public CompositeTransformation {
         transformation_future = futures::Past(nullptr);
     switch (c) {
       case 'r': {
-        auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output->Push(DeleteLastCharacters(1 + symbol.size()));
+        NonNull<std::shared_ptr<LazyString>> symbol =
+            GetToken(input, buffer_variables::symbol_characters);
+        output->Push(DeleteLastCharacters(1 + symbol->size().read()));
         std::visit(overload{IgnoreErrors{},
                             [&](Path path) {
                               transformation_future =
@@ -344,8 +351,10 @@ class ExpandTransformation : public CompositeTransformation {
       case '/': {
         auto path = GetToken(input, buffer_variables::path_characters);
         output->Push(DeleteLastCharacters(1));
-        transformation_future = futures::Past(
-            std::make_unique<PredictorTransformation>(FilePredictor, path));
+        // TODO(trivial, 2023-10-06): Avoid call to ToString.
+        transformation_future =
+            futures::Past(std::make_unique<PredictorTransformation>(
+                FilePredictor, path->ToString()));
       } break;
       case ' ': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
@@ -374,22 +383,24 @@ class ExpandTransformation : public CompositeTransformation {
         transformation_future =
             std::move(predictor_future)
                 .Transform([symbol](Predictor predictor) {
-                  return std::make_unique<PredictorTransformation>(predictor,
-                                                                   symbol);
+                  // TODO(trivial, 2023-10-06): Avoid call to ToString.
+                  return std::make_unique<PredictorTransformation>(
+                      predictor, symbol->ToString());
                 });
       } break;
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output->Push(DeleteLastCharacters(1 + symbol.size() + 1));
-        // TODO(trivial, 2023-10-02): Avoid call to NewLazyString.
+        output->Push(DeleteLastCharacters(1 + symbol->size().read() + 1));
         transformation_future =
-            futures::Past(std::make_unique<Execute>(NewLazyString(symbol)));
+            futures::Past(std::make_unique<Execute>(symbol));
       } break;
       case '.': {
         auto query = GetToken(input, buffer_variables::path_characters);
+        // TODO(trivial, 2023-10-06): Avoid call to ToString.
         transformation_future =
             futures::Past(std::make_unique<InsertHistoryTransformation>(
-                DeleteLastCharacters(query.size() + 1), query));
+                DeleteLastCharacters(query->size().read() + 1),
+                query->ToString()));
       }
     }
     return std::move(transformation_future)
