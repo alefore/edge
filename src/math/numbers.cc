@@ -36,6 +36,36 @@ struct OperationTree {
 };
 
 namespace {
+template <typename T>
+ValueOrError<T> CheckedAdd(T a, T b) {
+  static_assert(std::is_integral<T>::value,
+                "CheckedAdd supports only integral types.");
+  if (b >= 0 ? std::numeric_limits<T>::max() - b < a
+             : std::numeric_limits<T>::min() - b > a)
+    return Error(L"Overflow: the resulting number can't be represented.");
+  return a + b;
+}
+
+template <typename T>
+ValueOrError<T> CheckedMultiply(T a, T b) {
+  static_assert(std::is_integral<T>::value,
+                "CheckedMultiply supports only integral types.");
+  if (a > 0 && b > 0) {
+    if (a > std::numeric_limits<T>::max() / b)
+      return Error(L"Overflow: the resulting number can't be represented.");
+  } else if (a > 0 && b < 0) {
+    if (a > std::numeric_limits<T>::min() / b)
+      return Error(L"Underflow: the resulting number can't be represented.");
+  } else if (a < 0 && b > 0) {
+    if (a < std::numeric_limits<T>::min() / b)
+      return Error(L"Underflow: the resulting number can't be represented.");
+  } else if (a < 0 && b < 0) {
+    if (a < std::numeric_limits<T>::max() / b)
+      return Error(L"Overflow: the resulting number can't be represented.");
+  }
+  return a * b;
+}
+
 // Least significative digit first. The most significant digit (last digit) must
 // not be 0. Zero should always be represented as the empty vector (never as
 // {0}).
@@ -402,17 +432,10 @@ ValueOrError<int64_t> ToInt(const Number& number) {
   if (!decimal.exact)
     return Error(L"Inexact numbers can't be represented as integer.");
   int64_t value = 0;
-  for (int digit : decimal.digits | std::views::reverse) {
-    if (decimal.positive ? value > std::numeric_limits<int64_t>::max() / 10
-                         : value < std::numeric_limits<int64_t>::min() / 10)
-      return Error(
-          L"Overflow: the resulting number can't be represented as an `int`.");
-    value *= 10;
-    if (decimal.positive ? value > std::numeric_limits<int64_t>::max() - digit
-                         : value < std::numeric_limits<int64_t>::min() + digit)
-      return Error(
-          L"Overflow: the resulting number can't be represented as an `int`.");
-    value += (decimal.positive ? 1 : -1) * digit;
+  for (size_t digit : decimal.digits | std::views::reverse) {
+    ASSIGN_OR_RETURN(value, CheckedMultiply<int64_t>(value, 10));
+    ASSIGN_OR_RETURN(
+        value, CheckedAdd<int64_t>(value, decimal.positive ? digit : -digit));
   }
   return value;
 }
@@ -548,15 +571,9 @@ ValueOrError<size_t> ToSizeT(const Number& number) {
   if (!decimal.positive)
     return Error(L"Negative numbers can't be represented as size_t.");
   size_t value = 0;
-  for (int digit : decimal.digits | std::views::reverse) {
-    if (value > std::numeric_limits<size_t>::max() / 10)
-      return Error(
-          L"Overflow: the resulting number can't be represented as `size_t`.");
-    value *= 10;
-    if (value > std::numeric_limits<size_t>::max() - digit)
-      return Error(
-          L"Overflow: the resulting number can't be represented as `size_t`.");
-    value += digit;
+  for (size_t digit : decimal.digits | std::views::reverse) {
+    ASSIGN_OR_RETURN(value, CheckedMultiply<size_t>(value, 10));
+    ASSIGN_OR_RETURN(value, CheckedAdd(value, digit));
   }
   return value;
 }
@@ -611,6 +628,11 @@ const bool size_t_tests_registration = tests::Register(
 }  // namespace
 
 ValueOrError<bool> IsEqual(const Number& a, const Number& b, size_t precision) {
+  if (const int64_t* a_as_int64 = std::get_if<int64_t>(&a.value->variant);
+      a_as_int64 != nullptr)
+    if (const int64_t* b_as_int64 = std::get_if<int64_t>(&b.value->variant);
+        b_as_int64 != nullptr)
+      return *a_as_int64 == *b_as_int64;
   ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
   ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
   return a_decimal == b_decimal;
@@ -618,6 +640,11 @@ ValueOrError<bool> IsEqual(const Number& a, const Number& b, size_t precision) {
 
 ValueOrError<bool> IsLessThan(const Number& a, const Number& b,
                               size_t precision) {
+  if (const int64_t* a_as_int64 = std::get_if<int64_t>(&a.value->variant);
+      a_as_int64 != nullptr)
+    if (const int64_t* b_as_int64 = std::get_if<int64_t>(&b.value->variant);
+        b_as_int64 != nullptr)
+      return *a_as_int64 < *b_as_int64;
   ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
   ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
   return a_decimal < b_decimal;
@@ -625,12 +652,27 @@ ValueOrError<bool> IsLessThan(const Number& a, const Number& b,
 
 ValueOrError<bool> IsLessThanOrEqual(const Number& a, const Number& b,
                                      size_t precision) {
+  if (const int64_t* a_as_int64 = std::get_if<int64_t>(&a.value->variant);
+      a_as_int64 != nullptr)
+    if (const int64_t* b_as_int64 = std::get_if<int64_t>(&b.value->variant);
+        b_as_int64 != nullptr)
+      return *a_as_int64 <= *b_as_int64;
   ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
   ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
   return a_decimal < b_decimal || a_decimal == b_decimal;
 }
 
 Number& Number::operator+=(Number rhs) {
+  if (const int64_t* this_as_int64 = std::get_if<int64_t>(&value->variant);
+      this_as_int64 != nullptr)
+    if (const int64_t* rhs_as_int64 = std::get_if<int64_t>(&rhs.value->variant);
+        rhs_as_int64 != nullptr)
+      if (ValueOrError<int64_t> output =
+              CheckedAdd(*this_as_int64, *rhs_as_int64);
+          std::holds_alternative<int64_t>(output)) {
+        value = FromInt(std::get<int64_t>(output)).value;
+        return *this;
+      }
   value = MakeNonNullShared<OperationTree>(
       OperationTree{.variant = Addition{{{std::move(value)}, std::move(rhs)}}});
   return *this;
@@ -639,6 +681,16 @@ Number& Number::operator+=(Number rhs) {
 Number& Number::operator-=(Number rhs) { return operator+=(-rhs); }
 
 Number& Number::operator*=(Number rhs) {
+  if (const int64_t* this_as_int64 = std::get_if<int64_t>(&value->variant);
+      this_as_int64 != nullptr)
+    if (const int64_t* rhs_as_int64 = std::get_if<int64_t>(&rhs.value->variant);
+        rhs_as_int64 != nullptr)
+      if (ValueOrError<int64_t> output =
+              CheckedMultiply(*this_as_int64, *rhs_as_int64);
+          std::holds_alternative<int64_t>(output)) {
+        value = FromInt(std::get<int64_t>(output)).value;
+        return *this;
+      }
   value = MakeNonNullShared<OperationTree>(OperationTree{
       .variant = Multiplication{{{std::move(value)}, std::move(rhs)}}});
   return *this;
@@ -671,6 +723,10 @@ Number operator/(Number a, Number b) {
 }
 
 Number operator-(Number a) {
+  if (const int64_t* a_as_int64 = std::get_if<int64_t>(&a.value->variant);
+      a_as_int64 != nullptr &&
+      *a_as_int64 != std::numeric_limits<int64_t>::min())
+    return FromInt(-*a_as_int64);
   return Number{MakeNonNullShared<OperationTree>(
       OperationTree{.variant = Negation{std::move(a)}})};
 }
