@@ -27,8 +27,9 @@ Number operator-(Number a);
 afc::language::ValueOrError<std::wstring> ToString(const Number& number,
                                                    size_t decimal_digits);
 
-Number FromInt(int);
-afc::language::ValueOrError<int> ToInt(const Number& number);
+Number FromInt(int64_t);
+afc::language::ValueOrError<int32_t> ToInt32(const Number& number);
+afc::language::ValueOrError<int64_t> ToInt(const Number& number);
 
 afc::language::ValueOrError<double> ToDouble(const Number& number);
 Number FromDouble(double);

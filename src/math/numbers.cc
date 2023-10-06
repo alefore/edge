@@ -32,7 +32,7 @@ struct Multiplication : public BinaryOperation {};
 struct Division : public BinaryOperation {};
 
 struct OperationTree {
-  std::variant<int, Addition, Negation, Multiplication, Division> variant;
+  std::variant<int64_t, Addition, Negation, Multiplication, Division> variant;
 };
 
 namespace {
@@ -79,7 +79,8 @@ Digits RemoveSignificantZeros(Digits value) {
   return value;
 }
 
-ValueOrError<Decimal> OperationTreeToDecimal(int value, size_t decimal_digits) {
+ValueOrError<Decimal> OperationTreeToDecimal(int64_t value,
+                                             size_t decimal_digits) {
   Decimal output{.positive = value >= 0,
                  .digits = {Digits(std::vector<size_t>(decimal_digits, 0))}};
   while (value != 0) {
@@ -325,8 +326,25 @@ const bool as_decimal_tests_registration =
              }});
       };
       return std::vector(
-          {test(FromInt(45), L"45"),
-           test(FromInt(-328), L"-328"),
+          {test(FromInt(45), L"45"), test(FromInt(-328), L"-328"),
+           // Testing boundaries of int and numbers near them.
+           test(FromInt(std::numeric_limits<int64_t>::min()),
+                L"-9223372036854775808", L"MinInt64"),
+           test(FromInt(std::numeric_limits<int64_t>::max()),
+                L"9223372036854775807", L"MaxInt64"),
+           // Testing numbers close to boundaries.
+           test(FromInt(std::numeric_limits<int64_t>::max()) + FromInt(1),
+                L"9223372036854775808", L"OverflowAddition"),
+           test(FromInt(std::numeric_limits<int64_t>::min()) - FromInt(1),
+                L"-9223372036854775809", L"UnderflowSubtraction"),
+           test(FromInt(std::numeric_limits<int64_t>::max()) * FromInt(2),
+                L"18446744073709551614", L"OverflowMultiplication"),
+           test(FromInt(std::numeric_limits<int64_t>::min()) * FromInt(2),
+                L"-18446744073709551616", L"UnderflowMultiplication"),
+
+           // Other tests.
+           test(FromInt(1) / FromDouble(0.01), L"100.00",
+                L"DivisionByVerySmall"),
            test(-FromInt(0), L"0", L"ZeroNegation"),
            test(FromInt(5) - FromInt(5), L"0"),
            test(FromInt(1) + FromInt(0), L"1"),
@@ -365,24 +383,33 @@ ValueOrError<std::wstring> ToString(const Number& number,
   return ToString(decimal, decimal_digits);
 }
 
-Number FromInt(int value) {
+Number FromInt(int64_t value) {
   return Number{.value = MakeNonNullShared<OperationTree>(
                     OperationTree{.variant = value})};
 }
 
-ValueOrError<int> ToInt(const Number& number) {
+ValueOrError<int32_t> ToInt32(const Number& number) {
+  ASSIGN_OR_RETURN(int64_t value, ToInt(number));
+  if (value < std::numeric_limits<int>::min() ||
+      value > std::numeric_limits<int>::max())
+    return Error(
+        L"Overflow: the resulting number can't be represented as `int32_t`");
+  return static_cast<int32_t>(value);
+}
+
+ValueOrError<int64_t> ToInt(const Number& number) {
   ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, 0));
   if (!decimal.exact)
     return Error(L"Inexact numbers can't be represented as integer.");
-  int value = 0;
+  int64_t value = 0;
   for (int digit : decimal.digits | std::views::reverse) {
-    if (decimal.positive ? value > std::numeric_limits<int>::max() / 10
-                         : value < std::numeric_limits<int>::min() / 10)
+    if (decimal.positive ? value > std::numeric_limits<int64_t>::max() / 10
+                         : value < std::numeric_limits<int64_t>::min() / 10)
       return Error(
           L"Overflow: the resulting number can't be represented as an `int`.");
     value *= 10;
-    if (decimal.positive ? value > std::numeric_limits<int>::max() - digit
-                         : value < std::numeric_limits<int>::min() + digit)
+    if (decimal.positive ? value > std::numeric_limits<int64_t>::max() - digit
+                         : value < std::numeric_limits<int64_t>::min() + digit)
       return Error(
           L"Overflow: the resulting number can't be represented as an `int`.");
     value += (decimal.positive ? 1 : -1) * digit;
@@ -405,20 +432,20 @@ const bool int_tests_registration = tests::Register(
      {.name = L"ToIntNegativeLimit",
       .callback =
           [] {
-            int input = -2147483648;
-            int value = ValueOrDie(ToInt(FromInt(input) + FromInt(0)));
+            int64_t input = -2147483648;
+            int64_t value = ValueOrDie(ToInt(FromInt(input) + FromInt(0)));
             CHECK_EQ(value, input);
           }},
      {.name = L"OverflowPositive",
       .callback =
           [] {
-            int input = 2147483647;
+            int64_t input = 9223372036854775807;
             CHECK(std::get<Error>(ToInt(FromInt(input) + FromInt(1)))
                       .read()
                       .substr(0, 10) == L"Overflow: ");
           }},
      {.name = L"OverflowNegative", .callback = [] {
-        int input = -2147483648;
+        int64_t input = -9223372036854775807 - 1;
         CHECK(std::get<Error>(ToInt(FromInt(input) - FromInt(1)))
                   .read()
                   .substr(0, 10) == L"Overflow: ");
@@ -436,12 +463,44 @@ ValueOrError<double> ToDouble(const Number& number) {
   return value / kFinalDivision;
 }
 
+Number Pow(Number base, size_t i) {
+  Number output = FromInt(1);
+  while (i > 0) {
+    if (i % 2 == 1) {
+      output = output * base;
+      --i;
+    } else {
+      base *= base;
+      i /= 2;
+    }
+  }
+  return output;
+}
+
 Number FromDouble(double value) {
-  static constexpr int kFinalDivision = 10e5;
-  // TODO(P1, 2023-09-24): We should find a way to make sure they always get
-  // marked as inexact.
-  return FromInt(static_cast<int>(value * kFinalDivision)) /
-         FromInt(kFinalDivision);
+  union DoubleIntUnion {
+    double dvalue;
+    int64_t ivalue;
+  };
+  DoubleIntUnion du;
+  du.dvalue = value;
+  int64_t bits = du.ivalue;
+  Number sign = ((bits >> 63) == 0) ? FromInt(1) : FromInt(-1);
+  int64_t exponent = ((bits >> 52) & 0x7FFL) - 1023;
+  Number mantissa = FromInt((bits & ((1LL << 52) - 1)) | (1LL << 52));
+  VLOG(5) << "Sign: " << ToString(sign, 0) << ", exponent: " << exponent
+          << ", mantissa: " << ToString(mantissa, 0);
+  Number numerator, denominator;
+
+  // TODO(2023-10-06): Handle subnormal numbers, where exponent is -1023.
+  if (exponent > 0) {
+    numerator = sign * (mantissa * Pow(FromInt(2), exponent));
+    denominator = Pow(FromInt(2), 52);
+  } else {
+    numerator = sign * mantissa;
+    denominator = Pow(FromInt(2), 52 - exponent);
+  }
+  return numerator / denominator;
 }
 
 namespace {
@@ -453,6 +512,13 @@ const bool double_tests_registration = tests::Register(
             auto str = ToString(FromDouble(5), 2);
             LOG(INFO) << "Representation: " << str;
             CHECK(ValueOrDie(std::move(str)) == L"5");
+          }},
+     {.name = L"FromDoubleSmall",
+      .callback =
+          [] {
+            auto str = ToString(FromDouble(0.00000001), 8);
+            LOG(INFO) << "Representation: " << str;
+            CHECK(ValueOrDie(std::move(str)) == L"0.00000001");
           }},
      {.name = L"ToDoubleFromInt",
       .callback =
@@ -538,8 +604,9 @@ const bool size_t_tests_registration = tests::Register(
                   L"Negative ");
           }},
      {.name = L"ToSizeTInexact", .callback = [] {
-        CHECK(std::get<Error>(ToSizeT(FromDouble(1.5))).read().substr(0, 8) ==
-              L"Inexact ");
+        ValueOrError<size_t> value = ToSizeT(FromDouble(1.5));
+        LOG(INFO) << "Output: " << value;
+        CHECK(std::get<Error>(value).read().substr(0, 8) == L"Inexact ");
       }}});
 }  // namespace
 

@@ -82,7 +82,7 @@ ValueOrError<T> FromVmValue(T t) {
   return t;
 }
 
-ValueOrError<int> FromVmValue(Number number) { return ToInt(number); }
+ValueOrError<int> FromVmValue(Number number) { return ToInt32(number); }
 
 template <typename EdgeStruct, typename FieldValue,
           typename FieldVmValue = FieldValue>

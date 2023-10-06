@@ -400,10 +400,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                       })
           .ptr());
 
-  DefineSortLinesByKey<int>(pool, buffer_object_type, vm::types::Number{},
-                            [](const vm::Value& value) {
-                              return numbers::ToInt(value.get_number());
-                            });
+  DefineSortLinesByKey<int64_t>(pool, buffer_object_type, vm::types::Number{},
+                                [](const vm::Value& value) {
+                                  return numbers::ToInt(value.get_number());
+                                });
 
   DefineSortLinesByKey<std::wstring>(
       pool, buffer_object_type, vm::types::String{},

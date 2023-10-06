@@ -68,7 +68,7 @@ struct VMTypeMapper<size_t> {
 template <>
 struct VMTypeMapper<int> {
   static afc::language::ValueOrError<int> get(Value& value) {
-    return afc::math::numbers::ToInt(value.get_number());
+    return afc::math::numbers::ToInt32(value.get_number());
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
     return Value::NewNumber(pool, afc::math::numbers::FromInt(value));

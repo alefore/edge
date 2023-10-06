@@ -116,7 +116,11 @@ bool Value::get_bool() const {
   return std::get<bool>(value_);
 }
 
-language::ValueOrError<int> Value::get_int() const {
+language::ValueOrError<int32_t> Value::get_int32() const {
+  return math::numbers::ToInt32(get_number());
+}
+
+language::ValueOrError<int64_t> Value::get_int() const {
   return math::numbers::ToInt(get_number());
 }
 

@@ -77,7 +77,8 @@ class Value {
   Type type;
 
   bool get_bool() const;
-  language::ValueOrError<int> get_int() const;
+  language::ValueOrError<int32_t> get_int32() const;
+  language::ValueOrError<int64_t> get_int() const;
   const math::numbers::Number& get_number() const;
   const std::wstring& get_string() const;
   const std::wstring& get_symbol() const;

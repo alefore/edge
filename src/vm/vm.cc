@@ -376,12 +376,13 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
                   break;
               }
             }
-            ValueOrError<int> exponent_or_error = compilation.RegisterErrors(
-                AugmentErrors(L"Exponent (in scientific notation) can't be "
-                              L"converted to integer",
-                              numbers::ToInt(ConsumeDecimal(str, &pos))));
+            ValueOrError<int64_t> exponent_or_error =
+                compilation.RegisterErrors(
+                    AugmentErrors(L"Exponent (in scientific notation) can't be "
+                                  L"converted to integer",
+                                  numbers::ToInt(ConsumeDecimal(str, &pos))));
             if (IsError(exponent_or_error)) return;
-            int exponent = ValueOrDie(std::move(exponent_or_error));
+            int64_t exponent = ValueOrDie(std::move(exponent_or_error));
             numbers::Number exponent_factor = numbers::FromInt(1);
             for (int i = 0; i < exponent; i++)
               exponent_factor *= numbers::FromInt(10);
