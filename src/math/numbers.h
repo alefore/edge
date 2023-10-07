@@ -31,6 +31,8 @@ Number FromInt(int64_t);
 afc::language::ValueOrError<int32_t> ToInt32(const Number& number);
 afc::language::ValueOrError<int64_t> ToInt(const Number& number);
 
+Number Pow(Number base, size_t i);
+
 afc::language::ValueOrError<double> ToDouble(const Number& number);
 Number FromDouble(double);
 
