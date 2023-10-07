@@ -11,6 +11,8 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
@@ -33,6 +35,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -92,20 +95,21 @@ ColorizePromptOptions DrawPath(
   ColorizePromptOptions output;
   output.context = context_buffer;
 
-  for (auto i = ColumnNumber(0); i < ColumnNumber(0) + line->size(); ++i) {
+  ForEachColumn(line.value(), [&](ColumnNumber column, wchar_t c) {
     LineModifierSet modifiers;
-    switch (line->get(i)) {
+    switch (c) {
       case L'/':
       case L'.':
         modifiers.insert(LineModifier::kDim);
         break;
       default:
-        if (i.ToDelta() >= results.predictor_output.longest_directory_match) {
+        if (column.ToDelta() >=
+            results.predictor_output.longest_directory_match) {
           if (results.predictor_output.found_exact_match) {
             modifiers.insert(LineModifier::kBold);
           }
           if (results.matches == 0 &&
-              i.ToDelta() >= results.predictor_output.longest_prefix) {
+              column.ToDelta() >= results.predictor_output.longest_prefix) {
             modifiers.insert(LineModifier::kRed);
           } else if (results.matches == 1) {
             modifiers.insert(LineModifier::kGreen);
@@ -116,9 +120,10 @@ ColorizePromptOptions DrawPath(
           }
         }
     }
-    output.tokens.push_back(TokenAndModifiers{
-        .token = {.begin = i, .end = i.next()}, .modifiers = modifiers});
-  }
+    output.tokens.push_back(
+        TokenAndModifiers{.token = {.begin = column, .end = column.next()},
+                          .modifiers = modifiers});
+  });
   return output;
 }
 
