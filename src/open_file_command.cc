@@ -15,29 +15,30 @@ extern "C" {
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 
+namespace gc = afc::language::gc;
+
+using afc::futures::DeleteNotification;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::IgnoreErrors;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+
 namespace afc::editor {
 namespace {
-using futures::DeleteNotification;
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::EmptyValue;
-using language::Error;
-using language::IgnoreErrors;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::LazyString;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-
-namespace gc = language::gc;
-
 futures::Value<EmptyValue> OpenFileHandler(
     EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> name) {
   return OpenOrCreateFile(
@@ -109,8 +110,8 @@ ColorizePromptOptions DrawPath(
           } else if (results.matches == 1) {
             modifiers.insert(LineModifier::kGreen);
           } else if (results.common_prefix.has_value() &&
-                     ColumnNumber() + line->size() <
-                         ColumnNumber(results.common_prefix.value().size())) {
+                     line->size() < ColumnNumberDelta(
+                                        results.common_prefix.value().size())) {
             modifiers.insert(LineModifier::kYellow);
           }
         }
