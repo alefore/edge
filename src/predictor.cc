@@ -28,38 +28,39 @@ extern "C" {
 #include "src/structure.h"
 #include "src/tests/tests.h"
 
+namespace gc = afc::language::gc;
+
+using afc::concurrent::VersionPropertyKey;
+using afc::concurrent::WorkQueue;
+using afc::concurrent::WorkQueueChannelConsumeMode;
+using afc::futures::DeleteNotification;
+using afc::infrastructure::FileSystemDriver;
+using afc::infrastructure::OpenDir;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathJoin;
+using afc::infrastructure::Tracker;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
+
 namespace afc::editor {
 namespace {
-using concurrent::VersionPropertyKey;
-using concurrent::WorkQueue;
-using concurrent::WorkQueueChannelConsumeMode;
-using futures::DeleteNotification;
-using infrastructure::FileSystemDriver;
-using infrastructure::OpenDir;
-using infrastructure::Path;
-using infrastructure::PathJoin;
-using infrastructure::Tracker;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-
-namespace gc = language::gc;
-
 PredictResults BuildResults(OpenBuffer& predictions_buffer,
                             PredictorOutput predictor_output) {
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
@@ -276,15 +277,17 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   std::vector<NonNull<std::shared_ptr<Line>>> predictions;
 
   auto FlushPredictions = [&predictions, get_buffer] {
-    get_buffer([batch = std::move(predictions)](OpenBuffer& buffer) mutable {
-      static Tracker tracker(L"FilePredictor::ScanDirectory::FlushPredictions");
-      auto call = tracker.Call();
-      for (NonNull<std::shared_ptr<Line>>& prediction : batch) {
-        buffer.AppendToLastLine(std::move(prediction.value()));
-        buffer.AppendRawLine(NonNull<std::shared_ptr<Line>>());
-      }
-    });
+    TRACK_OPERATION(FilePredictor_ScanDirectory_FlushPredictions);
+    MutableLineSequence lines_builder;
+    for (NonNull<std::shared_ptr<Line>>& prediction : predictions)
+      lines_builder.push_back(std::move(prediction),
+                              MutableLineSequence::ObserverBehavior::kHide);
     predictions.clear();
+    get_buffer([lines = lines_builder.snapshot()](OpenBuffer& buffer) mutable {
+      TRACK_OPERATION(FilePredictor_ScanDirectory_FlushPredictions_Lock);
+      buffer.InsertInPosition(std::move(lines), buffer.contents().range().end,
+                              std::nullopt);
+    });
   };
 
   while ((entry = readdir(dir)) != nullptr) {
