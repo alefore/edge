@@ -103,13 +103,13 @@ const bool work_queue_tests_registration = tests::Register(
       }}});
 
 const bool work_queue_channel_tests_registration = tests::Register(
-    L"WorkQueueChannel",
-    {{.name = L"CreateAndDestroy",
+    L"Channel",
+    {{.name = L"All::CreateAndDestroy",
+      .callback = [] { ChannelAll<int>([](int) {}); }},
+     {.name = L"Latest::CreateAndDestroy",
       .callback =
           [] {
-            WorkQueueChannel<int>(
-                WorkQueue::New(), [](int) {},
-                WorkQueueChannelConsumeMode::kAll);
+            ChannelLast<int>(WorkQueueScheduler(WorkQueue::New()), [](int) {});
           }},
      // Creates a channel with consume mode kAll and pushes a few values. It
      // simulates that the work_queue executes in a somewhat random manner.
@@ -118,9 +118,10 @@ const bool work_queue_channel_tests_registration = tests::Register(
           [] {
             std::vector<int> values;
             NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
-            WorkQueueChannel<int> channel(
-                work_queue, [&](int value) { values.push_back(value); },
-                WorkQueueChannelConsumeMode::kAll);
+            ChannelAll<int> channel([&values, work_queue](int value) {
+              work_queue->Schedule(
+                  {.callback = [&values, value] { values.push_back(value); }});
+            });
             channel.Push(0);
             CHECK_EQ(values.size(), 0ul);
             work_queue->Execute();
@@ -149,9 +150,9 @@ const bool work_queue_channel_tests_registration = tests::Register(
           [] {
             std::vector<int> values;
             auto work_queue = WorkQueue::New();
-            WorkQueueChannel<int> channel(
-                work_queue, [&](int value) { values.push_back(value); },
-                WorkQueueChannelConsumeMode::kLastAvailable);
+            ChannelLast<int> channel(
+                WorkQueueScheduler(work_queue),
+                [&](int value) { values.push_back(value); });
             channel.Push(0);
             CHECK_EQ(values.size(), 0ul);
             work_queue->Execute();
@@ -179,9 +180,12 @@ const bool work_queue_channel_tests_registration = tests::Register(
           [] {
             std::vector<int> values;
             auto work_queue = WorkQueue::New();
-            auto channel = std::make_unique<WorkQueueChannel<int>>(
-                work_queue, [&](int value) { values.push_back(value); },
-                WorkQueueChannelConsumeMode::kAll);
+            auto channel = std::make_unique<ChannelAll<int>>(
+                [&values, work_queue](int value) {
+                  work_queue->Schedule({.callback = [&values, value] {
+                    values.push_back(value);
+                  }});
+                });
             channel->Push(0);
             channel->Push(1);
             channel->Push(2);
@@ -199,9 +203,9 @@ const bool work_queue_channel_tests_registration = tests::Register(
      {.name = L"LastAvailableChannelDeleteBeforeExecute", .callback = [] {
         std::vector<int> values;
         auto work_queue = WorkQueue::New();
-        auto channel = std::make_unique<WorkQueueChannel<int>>(
-            work_queue, [&](int value) { values.push_back(value); },
-            WorkQueueChannelConsumeMode::kLastAvailable);
+        auto channel = std::make_unique<ChannelLast<int>>(
+            WorkQueueScheduler(work_queue),
+            [&](int value) { values.push_back(value); });
         channel->Push(0);
         channel->Push(1);
         channel->Push(2);
@@ -213,4 +217,11 @@ const bool work_queue_channel_tests_registration = tests::Register(
         CHECK_EQ(values[0], 2);
       }}});
 }  // namespace
+
+std::function<void(std::function<void()>)> WorkQueueScheduler(
+    language::NonNull<std::shared_ptr<WorkQueue>> work_queue) {
+  return [work_queue](std::function<void()> work) {
+    work_queue->Schedule({.callback = std::move(work)});
+  };
+}
 }  // namespace afc::concurrent

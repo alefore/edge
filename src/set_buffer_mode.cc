@@ -4,18 +4,19 @@
 #include "src/search_handler.h"
 #include "src/tokenize.h"
 
+namespace gc = afc::language::gc;
+
+using afc::concurrent::ChannelLast;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::Success;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+
 namespace afc::editor {
-using concurrent::WorkQueueChannelConsumeMode;
-using language::EmptyValue;
-using language::Error;
-using language::NonNull;
-using language::Success;
-using language::VisitPointer;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-
-namespace gc = language::gc;
-
 namespace {
 struct Operation {
   enum class Type {
@@ -347,9 +348,10 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                             text_input = operation.text_input](State state) {
                   // TODO: Maybe tweak the parameters to allow more than just
                   // one to run at a given time?
-                  auto progress_channel = std::make_shared<ProgressChannel>(
-                      editor.work_queue(), [](ProgressInformation) {},
-                      WorkQueueChannelConsumeMode::kLastAvailable);
+                  auto progress_channel =
+                      MakeNonNullShared<ChannelLast<ProgressInformation>>(
+                          WorkQueueScheduler(editor.work_queue()),
+                          [](ProgressInformation) {});
                   auto new_state = std::make_shared<State>(
                       State{.index = state.index, .indices = {}});
                   using Control = futures::IterationControlCommand;
@@ -369,7 +371,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                                  .case_sensitive = buffer.Read(
                                      buffer_variables::search_case_sensitive)},
                                 buffer.contents().snapshot(),
-                                *progress_channel))
+                                progress_channel.value()))
                             .Transform([new_state, progress_channel, index](
                                            SearchResultsSummary search_output) {
                               if (search_output.matches > 0) {

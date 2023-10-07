@@ -30,9 +30,9 @@ extern "C" {
 
 namespace gc = afc::language::gc;
 
+using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::WorkQueue;
-using afc::concurrent::WorkQueueChannelConsumeMode;
 using afc::futures::DeleteNotification;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::OpenDir;
@@ -174,9 +174,9 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                                      .name = PredictionsBufferName()};
 
   if (shared_options->progress_channel == nullptr) {
-    shared_options->progress_channel = std::make_unique<ProgressChannel>(
-        shared_options->editor_state.work_queue(), [](ProgressInformation) {},
-        WorkQueueChannelConsumeMode::kLastAvailable);
+    shared_options->progress_channel =
+        std::make_unique<ChannelAll<ProgressInformation>>(
+            [](ProgressInformation) {});
   }
   CHECK(!shared_options->abort_value.has_value());
 
@@ -423,7 +423,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 buffer.EndOfFile();
               });
             },
-            predictor_input.progress_channel,
+            std::ref(predictor_input.progress_channel),
             std::move(predictor_input.abort_value)));
         return predictor_input.predictions.WaitForEndOfFile();
       })
@@ -504,9 +504,7 @@ const bool buffer_tests_registration =
       const static Predictor test_predictor = PrecomputedPredictor(
           {L"foo", L"bar", L"bard", L"foo_bar", L"alejo"}, L'_');
       auto predict = [&](std::wstring input) {
-        ProgressChannel channel(
-            WorkQueue::New(), [](ProgressInformation) {},
-            WorkQueueChannelConsumeMode::kAll);
+        ChannelAll<ProgressInformation> channel([](ProgressInformation) {});
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         test_predictor(PredictorInput{.editor = buffer.ptr()->editor(),

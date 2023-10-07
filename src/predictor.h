@@ -33,7 +33,7 @@ struct ProgressInformation {
   std::map<concurrent::VersionPropertyKey, size_t> counters = {};
 };
 
-using ProgressChannel = concurrent::WorkQueueChannel<ProgressInformation>;
+using ProgressChannel = concurrent::Channel<ProgressInformation>;
 
 // A Predictor is a function that generates predictions (autocompletions) for a
 // given prompt input and writes them to a buffer.

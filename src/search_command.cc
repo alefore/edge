@@ -12,32 +12,34 @@
 #include "src/tests/tests.h"
 #include "src/transformation.h"
 
+namespace gc = afc::language::gc;
+
+using afc::concurrent::ChannelLast;
+using afc::concurrent::VersionPropertyKey;
+using afc::concurrent::WorkQueue;
+using afc::futures::DeleteNotification;
+using afc::futures::IterationControlCommand;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::Range;
+
 namespace afc::editor {
 namespace {
-using concurrent::VersionPropertyKey;
-using futures::DeleteNotification;
-using futures::IterationControlCommand;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::EmptyValue;
-using language::Error;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ValueOrError;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineColumn;
-using language::text::Range;
-
 using ::operator<<;
-
-namespace gc = language::gc;
 
 void MergeInto(SearchResultsSummary current_results,
                ValueOrError<SearchResultsSummary>& final_results) {
@@ -135,14 +137,16 @@ ColorizePromptOptions SearchResultsModifiers(
 // This class isn't thread-safe.
 class ProgressAggregator {
  public:
-  ProgressAggregator(NonNull<std::unique_ptr<ProgressChannel>> parent_channel)
-      : data_(MakeNonNullShared<Data>(std::move(parent_channel))) {}
+  ProgressAggregator(NonNull<std::shared_ptr<WorkQueue>> work_queue,
+                     NonNull<std::unique_ptr<ProgressChannel>> parent_channel)
+      : data_(MakeNonNullShared<Data>(std::move(work_queue),
+                                      std::move(parent_channel))) {}
 
   NonNull<std::unique_ptr<ProgressChannel>> NewChild() {
     NonNull<std::shared_ptr<ProgressInformation>> child_information;
     data_->children_created++;
-    return MakeNonNullUnique<ProgressChannel>(
-        data_->parent_channel->work_queue(),
+    return MakeNonNullUnique<ChannelLast<ProgressInformation>>(
+        WorkQueueScheduler(data_->work_queue),
         [data = data_, child_information](ProgressInformation information) {
           if (HasMatches(information) &&
               !HasMatches(child_information.value())) {
@@ -167,8 +171,7 @@ class ProgressAggregator {
           }
 
           data->parent_channel->Push(data->aggregates);
-        },
-        data_->parent_channel->consume_mode());
+        });
   }
 
  private:
@@ -178,9 +181,12 @@ class ProgressAggregator {
   }
 
   struct Data {
-    Data(NonNull<std::unique_ptr<ProgressChannel>> input_parent_channel)
-        : parent_channel(std::move(input_parent_channel)) {}
+    Data(NonNull<std::shared_ptr<WorkQueue>> input_work_queue,
+         NonNull<std::unique_ptr<ProgressChannel>> input_parent_channel)
+        : work_queue(std::move(input_work_queue)),
+          parent_channel(std::move(input_parent_channel)) {}
 
+    const NonNull<std::shared_ptr<WorkQueue>> work_queue;
     const NonNull<std::unique_ptr<ProgressChannel>> parent_channel;
 
     ProgressInformation aggregates;
@@ -264,6 +270,7 @@ class SearchCommand : public Command {
                    MakeNonNullShared<ValueOrError<SearchResultsSummary>>(
                        Success(SearchResultsSummary()));
                auto progress_aggregator = MakeNonNullShared<ProgressAggregator>(
+                   editor_state.work_queue(),
                    std::move(parent_progress_channel));
                using Control = futures::IterationControlCommand;
                return futures::ForEach(

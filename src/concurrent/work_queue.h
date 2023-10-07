@@ -92,70 +92,64 @@ class WorkQueue {
   language::Observers schedule_observers_;
 };
 
-enum class WorkQueueChannelConsumeMode {
-  // consume_callback will execute on all values given to Push, in order.
-  kAll,
-  // If multiple values are pushed quickly (before the work queue can consume
-  // some of them), we'd rather skip intermediate values and only process the
-  // very last available value.
-  //
-  // Obviously, because of possible races, there are no guarrantees, so this
-  // optimization is applied in a best-effort manner.
-  kLastAvailable
+// Represents the "writing" end of a channel: grants the ability to push items,
+// to be consumed by ... something.
+template <typename T>
+class Channel {
+ public:
+  virtual ~Channel() = default;
+  virtual void Push(T value) = 0;
 };
 
-// Schedules in a work_queue execution of consume_callback for the values given
-// to WorkQueueChannel::Push.
-//
-// A WorkQueueChannel can be deleted before the callbacks it schedules in
-// work_queue have executed.
+// Executes `consume_callback` directly with all values received.
 template <typename T>
-class WorkQueueChannel {
+class ChannelAll : public Channel<T> {
  public:
-  WorkQueueChannel(language::NonNull<std::shared_ptr<WorkQueue>> work_queue,
-                   std::function<void(T t)> consume_callback,
-                   WorkQueueChannelConsumeMode consume_mode)
-      : work_queue_(std::move(work_queue)),
-        consume_mode_(consume_mode),
+  ChannelAll(std::function<void(T t)> consume_callback)
+      : consume_callback_(std::move(consume_callback)) {
+    CHECK(consume_callback_ != nullptr);
+  }
+
+  void Push(T value) override { consume_callback_(std::move(value)); }
+
+ private:
+  const std::function<void(T t)> consume_callback_;
+};
+
+// Schedule processing of work through `schedule`, feeding it callbacks that
+// represent invocations to `consume_callback`. If multiple calls to `Push`
+// happen before `consume_callback` gets a chance to run, only runs
+// `consume_callback` with the last value received.
+//
+// Obviously, because of possible races, there are no guarrantees, so this
+// optimization is applied in a best-effort manner.
+template <typename T>
+class ChannelLast : public Channel<T> {
+ public:
+  ChannelLast(std::function<void(std::function<void()>)> schedule,
+              std::function<void(T t)> consume_callback)
+      : schedule_(std::move(schedule)),
         data_(language::MakeNonNullShared<Data>(std::move(consume_callback))) {
     CHECK(data_->consume_callback != nullptr);
   }
 
-  const language::NonNull<std::shared_ptr<WorkQueue>>& work_queue() const {
-    return work_queue_;
-  }
+  void Push(T value) override {
+    auto value_lock = data_->value.lock();
+    bool already_scheduled = value_lock->has_value();
+    *value_lock = std::move(value);
+    value_lock = nullptr;
+    if (already_scheduled) return;
 
-  WorkQueueChannelConsumeMode consume_mode() const { return consume_mode_; }
-
-  void Push(T value) {
-    switch (consume_mode_) {
-      case WorkQueueChannelConsumeMode::kAll:
-        work_queue_->Schedule(WorkQueue::Callback{
-            .callback = [data = data_, value = std::move(value)]() mutable {
-              data->consume_callback(std::move(value));
-            }});
-        break;
-
-      case WorkQueueChannelConsumeMode::kLastAvailable:
-        auto value_lock = data_->value.lock();
-        bool already_scheduled = value_lock->has_value();
-        *value_lock = std::move(value);
-        value_lock = nullptr;
-        if (already_scheduled) return;
-
-        work_queue_->Schedule(WorkQueue::Callback{.callback = [data = data_] {
-          std::optional<T> optional_value;
-          data->value.lock()->swap(optional_value);
-          CHECK(optional_value.has_value());
-          data->consume_callback(*optional_value);
-        }});
-        break;
-    }
+    schedule_([data = data_] {
+      std::optional<T> optional_value;
+      data->value.lock()->swap(optional_value);
+      CHECK(optional_value.has_value());
+      data->consume_callback(*optional_value);
+    });
   }
 
  private:
-  const language::NonNull<std::shared_ptr<WorkQueue>> work_queue_;
-  const WorkQueueChannelConsumeMode consume_mode_;
+  const std::function<void(std::function<void()>)> schedule_;
 
   // To enable deletion of the channel before the callbacks it schedules in
   // work_queue have executed, we move the fields that such callbacks depend on
@@ -166,10 +160,12 @@ class WorkQueueChannel {
 
     const std::function<void(T t)> consume_callback;
 
-    // Only used when consume_mode_ is kLastAvailable.
     Protected<std::optional<T>> value;
   };
   const language::NonNull<std::shared_ptr<Data>> data_;
 };
+
+std::function<void(std::function<void()>)> WorkQueueScheduler(
+    language::NonNull<std::shared_ptr<WorkQueue>> work_queue);
 }  // namespace afc::concurrent
 #endif  // __AFC_CONCURRENT_WORK_QUEUE_H__

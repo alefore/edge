@@ -49,7 +49,7 @@ class BufferSyntaxParser {
   mutable concurrent::ThreadPool thread_pool_ = concurrent::ThreadPool(1);
 
   struct Data {
-    // When the tree changes, we replace this and schedule in `syntax_data_` new
+    // When the tree changes, we replace this and schedule in `thread_pool_` new
     // work.
     language::NonNull<std::unique_ptr<futures::DeleteNotification>>
         cancel_state;
@@ -71,7 +71,7 @@ class BufferSyntaxParser {
     language::NonNull<std::shared_ptr<const ParseTree>> simplified_tree =
         language::MakeNonNullShared<const ParseTree>(language::text::Range());
 
-    // Caches the last parse done (by syntax_data_zoom_) for a given view size.
+    // Caches the last parse done for a given view size.
     struct ZoomedOutTreeData {
       // The input parse tree from which zoomed_out_parse_tree was computed.
       // This is kept so that we can detect when the parse tree has changed and

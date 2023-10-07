@@ -37,9 +37,10 @@
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
+using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::VersionPropertyReceiver;
-using afc::concurrent::WorkQueueChannelConsumeMode;
+using afc::concurrent::WorkQueueScheduler;
 using afc::futures::DeleteNotification;
 using afc::futures::ListenableValue;
 using afc::infrastructure::AddSeconds;
@@ -862,15 +863,19 @@ futures::Value<EmptyValue> PromptState::OnModify() {
   abort_notification_ = MakeNonNullShared<DeleteNotification>();
   auto abort_notification_value = abort_notification_->listenable_value();
 
-  NonNull<std::unique_ptr<ProgressChannel>> progress_channel(
-      prompt_buffer_.ptr()->work_queue(),
-      [status_value_viewer](ProgressInformation extra_information) {
-        if (!status_value_viewer->Expired()) {
-          status_value_viewer->SetStatusValues(extra_information.values);
-          status_value_viewer->SetStatusValues(extra_information.counters);
-        }
-      },
-      WorkQueueChannelConsumeMode::kAll);
+  NonNull<std::unique_ptr<ProgressChannel>> progress_channel =
+      MakeNonNullUnique<ChannelAll<ProgressInformation>>(
+          [work_queue = prompt_buffer_.ptr()->work_queue(),
+           status_value_viewer](ProgressInformation extra_information) {
+            work_queue->Schedule({.callback = [status_value_viewer,
+                                               extra_information] {
+              if (!status_value_viewer->Expired()) {
+                status_value_viewer->SetStatusValues(extra_information.values);
+                status_value_viewer->SetStatusValues(
+                    extra_information.counters);
+              }
+            }});
+          });
 
   return JoinValues(
              FilterHistory(editor_state(), history(), abort_notification_value,

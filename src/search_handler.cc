@@ -18,9 +18,9 @@ namespace {
 using std::vector;
 using std::wstring;
 
+using concurrent::ChannelAll;
 using concurrent::VersionPropertyKey;
 using concurrent::WorkQueue;
-using concurrent::WorkQueueChannelConsumeMode;
 using language::EmptyValue;
 using language::Error;
 using language::FromByteString;
@@ -236,9 +236,8 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
   auto Search =
       [&options, &work_queue,
        &contents](const Range& range) -> ValueOrError<std::vector<LineColumn>> {
-    ProgressChannel dummy_progress_channel(
-        work_queue, [](ProgressInformation) {},
-        WorkQueueChannelConsumeMode::kLastAvailable);
+    ChannelAll<ProgressInformation> dummy_progress_channel(
+        [](ProgressInformation) {});
     DECLARE_OR_RETURN(std::vector<LineColumn> results,
                       PerformSearch(options, contents.ViewRange(range),
                                     &dummy_progress_channel));
