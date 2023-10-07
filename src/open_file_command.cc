@@ -91,47 +91,40 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
       });
 }
 
-futures::Value<ColorizePromptOptions> DrawPath(
-    EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
-    PredictResults results) {
-  return StatusContext(editor, results, line)
-      .Transform([line,
-                  results](std::optional<gc::Root<OpenBuffer>> context_buffer) {
-        ColorizePromptOptions output;
-        output.context = context_buffer;
+ColorizePromptOptions DrawPath(
+    NonNull<std::shared_ptr<LazyString>> line, PredictResults results,
+    std::optional<gc::Root<OpenBuffer>> context_buffer) {
+  ColorizePromptOptions output;
+  output.context = context_buffer;
 
-        for (auto i = ColumnNumber(0); i < ColumnNumber(0) + line->size();
-             ++i) {
-          LineModifierSet modifiers;
-          switch (line->get(i)) {
-            case L'/':
-            case L'.':
-              modifiers.insert(LineModifier::kDim);
-              break;
-            default:
-              if (i.ToDelta() >=
-                  results.predictor_output.longest_directory_match) {
-                if (results.predictor_output.found_exact_match) {
-                  modifiers.insert(LineModifier::kBold);
-                }
-                if (results.matches == 0 &&
-                    i.ToDelta() >= results.predictor_output.longest_prefix) {
-                  modifiers.insert(LineModifier::kRed);
-                } else if (results.matches == 1) {
-                  modifiers.insert(LineModifier::kGreen);
-                } else if (results.common_prefix.has_value() &&
-                           ColumnNumber() + line->size() <
-                               ColumnNumber(
-                                   results.common_prefix.value().size())) {
-                  modifiers.insert(LineModifier::kYellow);
-                }
-              }
+  for (auto i = ColumnNumber(0); i < ColumnNumber(0) + line->size(); ++i) {
+    LineModifierSet modifiers;
+    switch (line->get(i)) {
+      case L'/':
+      case L'.':
+        modifiers.insert(LineModifier::kDim);
+        break;
+      default:
+        if (i.ToDelta() >= results.predictor_output.longest_directory_match) {
+          if (results.predictor_output.found_exact_match) {
+            modifiers.insert(LineModifier::kBold);
           }
-          output.tokens.push_back(TokenAndModifiers{
-              .token = {.begin = i, .end = i.next()}, .modifiers = modifiers});
+          if (results.matches == 0 &&
+              i.ToDelta() >= results.predictor_output.longest_prefix) {
+            modifiers.insert(LineModifier::kRed);
+          } else if (results.matches == 1) {
+            modifiers.insert(LineModifier::kGreen);
+          } else if (results.common_prefix.has_value() &&
+                     ColumnNumber() + line->size() <
+                         ColumnNumber(results.common_prefix.value().size())) {
+            modifiers.insert(LineModifier::kYellow);
+          }
         }
-        return output;
-      });
+    }
+    output.tokens.push_back(TokenAndModifiers{
+        .token = {.begin = i, .end = i.next()}, .modifiers = modifiers});
+  }
+  return output;
 }
 
 futures::Value<ColorizePromptOptions> AdjustPath(
@@ -147,7 +140,8 @@ futures::Value<ColorizePromptOptions> AdjustPath(
                                 .abort_value = std::move(abort_value)})
       .Transform([&editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
-        return DrawPath(editor, line, std::move(results.value()));
+        return StatusContext(editor, results.value(), line)
+            .Transform(std::bind_front(DrawPath, line, results.value()));
       });
 }
 
