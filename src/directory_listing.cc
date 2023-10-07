@@ -35,6 +35,8 @@ using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
+using language::text::LineSequence;
+using language::text::MutableLineSequence;
 using vm::Environment;
 using vm::Expression;
 using vm::Type;
@@ -50,6 +52,7 @@ struct BackgroundReadDirOutput {
 
 ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
                                               std::wregex noise_regex) {
+  TRACK_OPERATION(GenerateDirectoryListing_ReadDir);
   BackgroundReadDirOutput output;
   auto dir = OpenDir(path.read());
   if (dir == nullptr) {
@@ -89,6 +92,10 @@ void StartDeleteFile(EditorState& editor_state, std::wstring path) {
           .Build()));
 }
 
+#if 0
+// This is disable because we don't seem to have found any use for it. By
+// disabling it, we are able to construct all the contents in the background
+// thread, which matters when generating views for very large directories.
 language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
                                               std::wstring path) {
   VLOG(6) << "Get metadata for: " << path;
@@ -126,8 +133,10 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
                     NewLazyString(L"E: " + std::move(error.read())));
               })};
 }
+#endif
 
-void AddLine(OpenBuffer& target, const dirent& entry) {
+NonNull<std::shared_ptr<Line>> ShowLine(EditorState& editor,
+                                        const dirent& entry) {
   enum class SizeBehavior { kShow, kSkip };
 
   struct FileType {
@@ -156,31 +165,28 @@ void AddLine(OpenBuffer& target, const dirent& entry) {
     line_options.set_modifiers(ColumnNumber(0), type_it->second.modifiers);
   }
 
-  line_options.SetMetadata(GetMetadata(target, path));
+  // See note about why GetMetadata is disabled (above).
+  // line_options.SetMetadata(GetMetadata(target, path));
   line_options.SetExplicitDeleteObserver(
-      [&editor = target.editor(), path] { StartDeleteFile(editor, path); });
+      [&editor, path] { StartDeleteFile(editor, path); });
 
-  NonNull<std::shared_ptr<Line>> line =
-      MakeNonNullShared<Line>(std::move(line_options).Build());
-  target.AppendRawLine(line);
+  return MakeNonNullShared<Line>(std::move(line_options).Build());
 }
 
-void ShowFiles(std::wstring name, std::vector<dirent> entries,
-               OpenBuffer& target) {
-  if (entries.empty()) {
-    return;
-  }
+void ShowFiles(EditorState& editor, std::wstring name,
+               std::vector<dirent> entries, MutableLineSequence& builder) {
+  if (entries.empty()) return;
   std::sort(entries.begin(), entries.end(),
             [](const dirent& a, const dirent& b) {
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  target.AppendLine(NewLazyString(L"## " + name + L" (" +
-                                  std::to_wstring(entries.size()) + L")"));
-  for (auto& entry : entries) {
-    AddLine(target, entry);
-  }
-  target.AppendEmptyLine();
+  builder.push_back(MakeNonNullShared<Line>(
+      LineBuilder(NewLazyString(L"## " + name + L" (" +
+                                std::to_wstring(entries.size()) + L")"))
+          .Build()));
+  for (auto& entry : entries) builder.push_back(ShowLine(editor, entry));
+  builder.push_back(L"");
 }
 }  // namespace
 
@@ -195,15 +201,26 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
 
   return output.editor()
       .thread_pool()
-      .Run([path,
-            noise_regexp = output.Read(buffer_variables::directory_noise)] {
-        return ReadDir(path, std::wregex(noise_regexp));
+      .Run([&editor = output.editor(), path,
+            noise_regexp = output.Read(buffer_variables::directory_noise)]()
+               -> ValueOrError<LineSequence> {
+        DECLARE_OR_RETURN(BackgroundReadDirOutput results,
+                          ReadDir(path, std::wregex(noise_regexp)));
+
+        TRACK_OPERATION(GenerateDirectoryListing_ReadDir);
+        MutableLineSequence builder;
+        ShowFiles(editor, L"🗁  Directories", std::move(results.directories),
+                  builder);
+        ShowFiles(editor, L"🗀  Files", std::move(results.regular_files),
+                  builder);
+        ShowFiles(editor, L"🗐  Noise", std::move(results.noise), builder);
+        return Success(builder.snapshot());
       })
-      .Transform([&output, path](BackgroundReadDirOutput results) {
+      .Transform([&output, path](LineSequence contents) {
+        TRACK_OPERATION(GenerateDirectoryListing_InsertContents);
         auto disk_state_freezer = output.FreezeDiskState();
-        ShowFiles(L"🗁  Directories", std::move(results.directories), output);
-        ShowFiles(L"🗀  Files", std::move(results.regular_files), output);
-        ShowFiles(L"🗐  Noise", std::move(results.noise), output);
+        output.InsertInPosition(contents, output.contents().range().end,
+                                std::nullopt);
         return Success();
       })
       .ConsumeErrors([&output](Error error) {
