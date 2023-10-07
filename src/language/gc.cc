@@ -75,7 +75,7 @@ Pool::Pool(Options options)
     : options_([&] {
         if (options.operation_factory == nullptr)
           options.operation_factory = std::make_shared<OperationFactory>(
-              MakeNonNullShared<ThreadPool>(8, nullptr));
+              MakeNonNullShared<ThreadPool>(8));
         return std::move(options);
       }()),
       eden_(Eden(options_.max_bag_shards, 0)),

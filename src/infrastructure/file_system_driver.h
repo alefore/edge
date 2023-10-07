@@ -20,7 +20,7 @@ GHOST_TYPE(FileDescriptor, int);
 // asynchronously in a thread pool.
 class FileSystemDriver {
  public:
-  FileSystemDriver(concurrent::ThreadPool& thread_pool);
+  FileSystemDriver(concurrent::ThreadPoolWithWorkQueue& thread_pool);
 
   futures::ValueOrError<FileDescriptor> Open(Path path, int flags,
                                              mode_t mode) const;
@@ -33,7 +33,7 @@ class FileSystemDriver {
   futures::Value<language::PossibleError> Mkdir(Path path, mode_t mode) const;
 
  private:
-  concurrent::ThreadPool& thread_pool_;
+  concurrent::ThreadPoolWithWorkQueue& thread_pool_;
 };
 
 }  // namespace afc::infrastructure

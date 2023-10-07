@@ -221,7 +221,7 @@ class EditorState {
   std::optional<struct timespec> WorkQueueNextExecution() const;
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>>& work_queue()
       const;
-  concurrent::ThreadPool& thread_pool();
+  concurrent::ThreadPoolWithWorkQueue& thread_pool();
 
   void ResetInternalEventNotifications();
 
@@ -229,7 +229,8 @@ class EditorState {
   void NotifyInternalEvent();
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
-  language::NonNull<std::shared_ptr<concurrent::ThreadPool>> thread_pool_;
+  language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
+      thread_pool_;
 
   language::gc::Pool gc_pool_;
 

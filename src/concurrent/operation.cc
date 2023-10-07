@@ -14,11 +14,11 @@ const bool tests_registration = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            ThreadPool thread_pool(5, nullptr);
+            ThreadPool thread_pool(5);
             Operation op(thread_pool);
           }},
      {.name = L"Sleeps", .callback = [] {
-        ThreadPool thread_pool(4, nullptr);
+        ThreadPool thread_pool(4);
         Protected<int> executions(0);
         auto op = std::make_unique<Operation>(thread_pool);
         for (size_t i = 0; i < 8; i++)

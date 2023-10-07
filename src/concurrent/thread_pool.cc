@@ -1,11 +1,12 @@
 #include "src/concurrent/thread_pool.h"
 
+#include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
+using afc::language::NonNull;
+
 namespace afc::concurrent {
-ThreadPool::ThreadPool(size_t size,
-                       std::shared_ptr<WorkQueue> completion_work_queue)
-    : completion_work_queue_(completion_work_queue), size_(size) {
+ThreadPool::ThreadPool(size_t size) : size_(size) {
   data_.lock([this](Data& data, std::condition_variable&) {
     for (size_t i = 0; i < size_; i++) {
       data.threads.push_back(std::thread([this]() { BackgroundThread(); }));
@@ -60,6 +61,17 @@ void ThreadPool::BackgroundThread() {
     VLOG(9) << "BackgroundThread executing work.";
     callback();
   }
+}
+
+ThreadPoolWithWorkQueue::ThreadPoolWithWorkQueue(
+    NonNull<std::shared_ptr<ThreadPool>> thread_pool,
+    std::shared_ptr<WorkQueue> work_queue)
+    : thread_pool_(std::move(thread_pool)),
+      work_queue_(std::move(work_queue)) {}
+
+const language::NonNull<std::shared_ptr<ThreadPool>>&
+ThreadPoolWithWorkQueue::thread_pool() {
+  return thread_pool_;
 }
 
 }  // namespace afc::concurrent

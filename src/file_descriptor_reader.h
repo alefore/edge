@@ -50,7 +50,7 @@ class FileDescriptorReader {
     // We want to avoid potentially expensive/slow parsing operations in the
     // main thread. To achieve that, we receive a thread pool owned by our
     // customer and we delegate as much work as feasible to it.
-    concurrent::ThreadPool& thread_pool;
+    concurrent::ThreadPoolWithWorkQueue& thread_pool;
   };
 
   FileDescriptorReader(Options options);

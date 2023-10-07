@@ -56,7 +56,7 @@ const bool tests_registration = tests::Register(
         {.name = L"RemoveIf",
          .callback =
              [] {
-               ThreadPool thread_pool(5, nullptr);
+               ThreadPool thread_pool(5);
 
                std::set<size_t> expected = BagToSet(NumbersBag(0, 100));
                expected.erase(27);

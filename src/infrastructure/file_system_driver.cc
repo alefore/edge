@@ -20,7 +20,8 @@ PossibleError SyscallReturnValue(std::wstring description, int return_value) {
 }
 }  // namespace
 
-FileSystemDriver::FileSystemDriver(concurrent::ThreadPool& thread_pool)
+FileSystemDriver::FileSystemDriver(
+    concurrent::ThreadPoolWithWorkQueue& thread_pool)
     : thread_pool_(thread_pool) {}
 
 futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(

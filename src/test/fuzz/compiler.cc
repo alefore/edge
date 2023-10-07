@@ -38,7 +38,7 @@ int main(int, char** argv) {
   afc::language::gc::Pool pool(afc::language::gc::Pool::Options{
       .collect_duration_threshold = std::nullopt,
       .operation_factory = std::make_shared<OperationFactory>(
-          MakeNonNullShared<afc::concurrent::ThreadPool>(6, nullptr))});
+          MakeNonNullShared<afc::concurrent::ThreadPool>(6))});
 
   afc::vm::CompileFile(ValueOrDie(Path::FromString(FromByteString(argv[1]))),
                        pool, afc::vm::Environment::NewDefault(pool));

@@ -44,7 +44,7 @@ using language::NonNull;
 using language::VisitPointer;
 using language::lazy_string::NewLazyString;
 namespace {
-using concurrent::ThreadPool;
+using concurrent::ThreadPoolWithWorkQueue;
 using concurrent::WorkQueue;
 using infrastructure::FileDescriptor;
 using infrastructure::FileSystemDriver;
@@ -208,10 +208,9 @@ futures::Value<PossibleError> Save(
       });
 }
 
-futures::Value<PossibleError> SaveContentsToOpenFile(ThreadPool& thread_pool,
-                                                     Path path,
-                                                     FileDescriptor fd,
-                                                     LineSequence contents) {
+futures::Value<PossibleError> SaveContentsToOpenFile(
+    ThreadPoolWithWorkQueue& thread_pool, Path path, FileDescriptor fd,
+    LineSequence contents) {
   return thread_pool.Run([contents, path, fd]() {
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
     std::optional<PossibleError> error;
@@ -235,7 +234,8 @@ futures::Value<PossibleError> SaveContentsToOpenFile(ThreadPool& thread_pool,
 // Caller must ensure that file_system_driver survives until the future is
 // notified.
 futures::Value<PossibleError> SaveContentsToFile(
-    const Path& path, LineSequence contents, ThreadPool& thread_pool,
+    const Path& path, LineSequence contents,
+    ThreadPoolWithWorkQueue& thread_pool,
     FileSystemDriver& file_system_driver) {
   Path tmp_path =
       Path::Join(ValueOrDie(path.Dirname()),

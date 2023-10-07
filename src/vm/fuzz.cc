@@ -30,7 +30,7 @@ int main(int, char** argv) {
   afc::language::gc::Pool pool(afc::language::gc::Pool::Options{
       .collect_duration_threshold = std::nullopt,
       .operation_factory = std::make_shared<OperationFactory>(
-          MakeNonNullShared<ThreadPool>(6, nullptr))});
+          MakeNonNullShared<ThreadPool>(6))});
   gc::Root<afc::vm::Environment> environment =
       pool.NewRoot(MakeNonNullUnique<afc::vm::Environment>());
   ValueOrError<NonNull<std::shared_ptr<Expression>>> expr =

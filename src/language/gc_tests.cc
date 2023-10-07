@@ -38,7 +38,7 @@ Root<Node> MakeLoop(Pool& pool, int size) {
 bool tests_registration = tests::Register(
     L"GCRaces",
     {{.name = L"Simple", .runs = 0, .callback = [] {
-        auto thread_pool = MakeNonNullShared<ThreadPool>(64, nullptr);
+        auto thread_pool = MakeNonNullShared<ThreadPool>(64);
         auto operation_factory =
             MakeNonNullShared<OperationFactory>(thread_pool);
         TestFlows({.thread_pool = thread_pool,
@@ -48,31 +48,6 @@ bool tests_registration = tests::Register(
                              afc::infrastructure::Duration(0.02),
                          .operation_factory = operation_factory.get_shared(),
                          .max_bag_shards = 1});
-#if 0
-               NonNull<std::unique_ptr<Operation>> operation =
-                   operation_factory->New(nullptr);
-               thread_pool->RunIgnoringResult([] {
-                 tests::concurrent::GetGlobalHandler()->AddBreakpoint("foo", 0);
-                 tests::concurrent::GetGlobalHandler()->AddBreakpoint("foo", 1);
-               });
-               thread_pool->RunIgnoringResult([] {
-                 tests::concurrent::GetGlobalHandler()->AddBreakpoint("foo", 2);
-                 tests::concurrent::GetGlobalHandler()->AddBreakpoint("foo", 3);
-               });
-               thread_pool->RunIgnoringResult(
-                   [pointer =
-                        std::shared_ptr<bool>(new bool(true), [](bool* value) {
-                          delete value;
-                          tests::concurrent::GetGlobalHandler()->AddBreakpoint(
-                              "delete", 5);
-                        })] {
-                     tests::concurrent::GetGlobalHandler()->AddBreakpoint("foo",
-                                                                          4);
-                     concurrent::Protected<bool> data =
-                         concurrent::Protected<bool>(true);
-                     data.lock();
-                   });
-#endif
                      thread_pool->RunIgnoringResult([pool] {
                        Root<Node> nodes = MakeLoop(pool.value(), 3);
                        MakeLoop(pool.value(), 2);

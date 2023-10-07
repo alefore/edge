@@ -46,8 +46,7 @@ class BufferSyntaxParser {
       language::text::Range relevant_range);
 
  private:
-  mutable concurrent::ThreadPool thread_pool_ =
-      concurrent::ThreadPool(1, nullptr);
+  mutable concurrent::ThreadPool thread_pool_ = concurrent::ThreadPool(1);
 
   struct Data {
     // When the tree changes, we replace this and schedule in `syntax_data_` new

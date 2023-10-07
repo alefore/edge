@@ -40,6 +40,7 @@ extern "C" {
 #include "src/widget_list.h"
 
 using afc::concurrent::ThreadPool;
+using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
 using afc::infrastructure::AddSeconds;
 using afc::infrastructure::FileDescriptor;
@@ -94,7 +95,9 @@ const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
   return work_queue_;
 }
 
-ThreadPool& EditorState::thread_pool() { return thread_pool_.value(); }
+ThreadPoolWithWorkQueue& EditorState::thread_pool() {
+  return thread_pool_.value();
+}
 
 void EditorState::ResetInternalEventNotifications() {
   char buffer[4096];
@@ -150,12 +153,14 @@ class BuffersListAdapter : public BuffersList::CustomerAdapter {
 EditorState::EditorState(CommandLineValues args,
                          infrastructure::audio::Player& audio_player)
     : work_queue_(WorkQueue::New()),
-      thread_pool_(MakeNonNullShared<ThreadPool>(32, work_queue_.get_shared())),
+      thread_pool_(MakeNonNullShared<ThreadPoolWithWorkQueue>(
+          MakeNonNullShared<ThreadPool>(32), work_queue_.get_shared())),
       gc_pool_(gc::Pool::Options{
           .collect_duration_threshold = 0.05,
-          .operation_factory = std::move(
-              MakeNonNullUnique<concurrent::OperationFactory>(thread_pool_)
-                  .get_unique())}),
+          .operation_factory =
+              std::move(MakeNonNullUnique<concurrent::OperationFactory>(
+                            thread_pool_->thread_pool())
+                            .get_unique())}),
       string_variables_(editor_variables::StringStruct()->NewInstance()),
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),

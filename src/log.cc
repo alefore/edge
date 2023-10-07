@@ -22,7 +22,7 @@ using language::ToByteString;
 using language::ValueOrError;
 
 ThreadPool& LoggingThreadPool() {
-  static ThreadPool* output = new ThreadPool(1, nullptr);
+  static ThreadPool* output = new ThreadPool(1);
   return *output;
 }
 

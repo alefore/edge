@@ -15,33 +15,10 @@ namespace afc::concurrent {
 // thread pool.
 class ThreadPool {
  public:
-  // completion_work_queue can be null (in which case `Run` should not be
-  // called).
-  //
-  // TODO(2023-07-04): Find a way to separate this into two types, perhaps
-  // a subtype.
-  ThreadPool(size_t size, std::shared_ptr<WorkQueue> completion_work_queue);
+  ThreadPool(size_t size);
   ~ThreadPool();
 
   size_t size() const;
-
-  // Evaluates a producer in a background thread and returns a future that will
-  // receive the value. The future will be notified through
-  // completion_work_queue, which can be used to ensure that only certain
-  // threads receive the produced values.
-  //
-  // Should only be called if completion_work_queue is non-nullptr.
-  template <typename Callable>
-  auto Run(Callable callable) {
-    futures::Future<decltype(callable())> output;
-    RunIgnoringResult([callable, consumer = output.consumer,
-                       work_queue = completion_work_queue_] {
-      CHECK(work_queue != nullptr);
-      work_queue->Schedule(WorkQueue::Callback{
-          .callback = std::bind_front(consumer, callable())});
-    });
-    return std::move(output.value);
-  }
 
   template <typename Callable>
   void RunIgnoringResult(Callable callable) {
@@ -54,7 +31,6 @@ class ThreadPool {
   void Schedule(std::function<void()> work);
   void BackgroundThread();
 
-  const std::shared_ptr<WorkQueue> completion_work_queue_;
   const size_t size_;
   struct Data {
     bool shutting_down = false;
@@ -64,5 +40,44 @@ class ThreadPool {
   ProtectedWithCondition<Data, EmptyValidator<Data>, false> data_ =
       ProtectedWithCondition<Data, EmptyValidator<Data>, false>(Data{});
 };
+
+// This is very similar to ThreadPool, but holds a work_queue. This allows us to
+// define a futures-based `Run` method: we return a future that will be notied
+// when the callable finishes inside the work_queue.
+class ThreadPoolWithWorkQueue {
+ public:
+  // TODO(trivial, 2023-10-07): Use NonNull for work_queue.
+  ThreadPoolWithWorkQueue(
+      language::NonNull<std::shared_ptr<ThreadPool>> thread_pool,
+      std::shared_ptr<WorkQueue> work_queue);
+
+  const language::NonNull<std::shared_ptr<ThreadPool>>& thread_pool();
+
+  template <typename Callable>
+  void RunIgnoringResult(Callable callable) {
+    thread_pool()->RunIgnoringResult(std::move(callable));
+  }
+
+  // Evaluates a producer in a background thread and returns a future that will
+  // receive the value. The future will be notified through
+  // completion_work_queue, which can be used to ensure that only certain
+  // threads receive the produced values.
+  template <typename Callable>
+  auto Run(Callable callable) {
+    futures::Future<decltype(callable())> output;
+    thread_pool()->RunIgnoringResult(
+        [callable, consumer = output.consumer, work_queue = work_queue_] {
+          CHECK(work_queue != nullptr);
+          work_queue->Schedule(WorkQueue::Callback{
+              .callback = std::bind_front(consumer, callable())});
+        });
+    return std::move(output.value);
+  }
+
+ private:
+  const language::NonNull<std::shared_ptr<ThreadPool>> thread_pool_;
+  const std::shared_ptr<WorkQueue> work_queue_;
+};
+
 }  // namespace afc::concurrent
 #endif  //__AFC_EDITOR_THREAD_POOL_H__

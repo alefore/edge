@@ -18,7 +18,7 @@ namespace editor {
 // Saves the contents of the buffer to the path given.
 futures::Value<language::PossibleError> SaveContentsToFile(
     const infrastructure::Path& path, language::text::LineSequence contents,
-    concurrent::ThreadPool& thread_pool,
+    concurrent::ThreadPoolWithWorkQueue& thread_pool,
     infrastructure::FileSystemDriver& file_system_driver);
 
 struct OpenFileOptions {
