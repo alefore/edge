@@ -5,7 +5,6 @@
 #include "src/language/lazy_string/functional.h"
 
 namespace afc::editor::parsers {
-using infrastructure::Tracker;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
 using language::lazy_string::ColumnNumber;
@@ -27,8 +26,7 @@ namespace {
 size_t GetLineHash(const LazyString& line, const std::vector<size_t>& states) {
   using language::compute_hash;
   using language::MakeHashableIteratorRange;
-  static Tracker tracker(L"CppTreeParser::GetLineHash");
-  auto call = tracker.Call();
+  TRACK_OPERATION(LineOrientedTreeParser_GetLineHash);
   return compute_hash(line, MakeHashableIteratorRange(states));
 }
 }  // namespace
@@ -96,8 +94,7 @@ void ParseNumber(ParseData* result, LineModifierSet number_modifiers,
 
 ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
                                                Range range) {
-  static Tracker top_tracker(L"CppTreeParser::FindChildren");
-  auto top_call = top_tracker.Call();
+  TRACK_OPERATION(LineOrientedTreeParser_FindChildren);
   cache_.SetMaxSize(contents.size().read());
 
   std::vector<size_t> states_stack = {kDefaultState};
@@ -106,8 +103,7 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
   range.ForEachLine([&](LineNumber i) {
     size_t hash = GetLineHash(contents.at(i)->contents().value(), states_stack);
     auto parse_results = cache_.Get(hash, [&] {
-      static Tracker tracker(L"CppTreeParser::FindChildren::Parse");
-      auto call = tracker.Call();
+      TRACK_OPERATION(LineOrientedTreeParser_FindChildren_Parse);
       ParseData data(contents, std::move(states_stack),
                      std::min(LineColumn(i + LineNumberDelta(1)), range.end));
       data.set_position(std::max(LineColumn(i), range.begin));
@@ -115,12 +111,8 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
       return *data.parse_results();
     });
 
-    static Tracker execute_tracker(
-        L"CppTreeParser::FindChildren::ExecuteActions");
-    auto execute_call = execute_tracker.Call();
-    for (auto& action : parse_results->actions) {
-      action.Execute(&trees, i);
-    }
+    TRACK_OPERATION(LineOrientedTreeParser_FindChildren_ExecuteActions);
+    for (auto& action : parse_results->actions) action.Execute(&trees, i);
     states_stack = parse_results->states_stack;
   });
 
