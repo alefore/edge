@@ -383,6 +383,15 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
                                   numbers::ToInt(ConsumeDecimal(str, &pos))));
             if (IsError(exponent_or_error)) return;
             int64_t exponent = ValueOrDie(std::move(exponent_or_error));
+            if (exponent > 1024) {
+              // The template type (int) doesn't matter, but we need to resolve
+              // the ambiguity:
+              compilation.RegisterErrors<int>(
+                  Error(L"Cowardly refusing to create a number with very large "
+                        L"exponent: " +
+                        std::to_wstring(exponent)));
+              return;
+            }
             numbers::Number exponent_factor = numbers::FromInt(1);
             for (int i = 0; i < exponent; i++)
               exponent_factor *= numbers::FromInt(10);
