@@ -112,44 +112,36 @@ void PrepareTokenPartition(
 }  // namespace
 
 void BufferSyntaxParser::Parse(const LineSequence contents) {
-  data_->lock([&pool = thread_pool_, data_ptr = data_, observers = observers_,
-               contents = std::move(contents)](Data& data) {
-    if (TreeParser::IsNull(data.tree_parser.get().get())) return;
+  parse_channel_.Push(contents);
+}
 
-    data.cancel_state = MakeNonNullUnique<DeleteNotification>();
+void BufferSyntaxParser::ParseInternal(const LineSequence contents) {
+  language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
+      data_->lock([](const Data& data) { return data.tree_parser; });
+  if (TreeParser::IsNull(tree_parser.get().get())) return;
 
-    pool.RunIgnoringResult([contents, parser = data.tree_parser,
-                            cancel_value =
-                                data.cancel_state->listenable_value(),
-                            data_ptr, observers] {
-      static Tracker tracker(
-          L"OpenBuffer::MaybeStartUpdatingSyntaxTrees::produce");
-      auto tracker_call = tracker.Call();
-      VLOG(3) << "Executing parse tree update.";
-      if (cancel_value.has_value()) return;
-      NonNull<std::shared_ptr<const ParseTree>> tree =
-          MakeNonNullShared<const ParseTree>(
-              parser->FindChildren(contents, contents.range()));
+  TRACK_OPERATION(BufferSyntaxParser_ParseInternal_produce);
+  VLOG(3) << "Executing parse tree update.";
 
-      std::unordered_map<language::text::Range, size_t> token_id;
-      std::vector<std::set<language::text::Range>> token_partition;
-      PrepareTokenPartition(tree.get(), contents, token_id, token_partition);
-      DVLOG(5) << "Generated partitions: [entries: " << token_id.size()
-               << "][sets: " << token_partition.size() << "]";
-      data_ptr->lock(
-          [cancel_value, tree, token_id = std::move(token_id),
-           token_partition = std::move(token_partition),
-           simplified_tree = MakeNonNullShared<const ParseTree>(
-               SimplifyTree(tree.value()))](Data& data_nested) mutable {
-            if (cancel_value.has_value()) return;
-            data_nested.tree = std::move(tree);
-            data_nested.token_id = std::move(token_id);
-            data_nested.token_partition = std::move(token_partition);
-            data_nested.simplified_tree = std::move(simplified_tree);
-          });
-      observers->Notify();
-    });
+  NonNull<std::shared_ptr<const ParseTree>> tree =
+      MakeNonNullShared<const ParseTree>(
+          tree_parser->FindChildren(contents, contents.range()));
+
+  std::unordered_map<language::text::Range, size_t> token_id;
+  std::vector<std::set<language::text::Range>> token_partition;
+  PrepareTokenPartition(tree.get(), contents, token_id, token_partition);
+  DVLOG(5) << "Generated partitions: [entries: " << token_id.size()
+           << "][sets: " << token_partition.size() << "]";
+  data_->lock([tree, token_id = std::move(token_id),
+               token_partition = std::move(token_partition),
+               simplified_tree = MakeNonNullShared<const ParseTree>(
+                   SimplifyTree(tree.value()))](Data& data_nested) mutable {
+    data_nested.tree = std::move(tree);
+    data_nested.token_id = std::move(token_id);
+    data_nested.token_partition = std::move(token_partition);
+    data_nested.simplified_tree = std::move(simplified_tree);
   });
+  observers_->Notify();
 }
 
 NonNull<std::shared_ptr<const ParseTree>> BufferSyntaxParser::tree() const {
@@ -170,31 +162,27 @@ BufferSyntaxParser::current_zoomed_out_parse_tree(
     auto it = data.zoomed_out_trees.find(view_size);
     if (it == data.zoomed_out_trees.end() ||
         it->second.simplified_tree != data.simplified_tree) {
-      pool.RunIgnoringResult(
-          [view_size, lines_size, simplified_tree = data.simplified_tree,
-           cancel_value = data.cancel_state->listenable_value(), data_ptr,
-           observers]() {
-            static Tracker tracker(
-                L"OpenBuffer::current_zoomed_out_parse_tree::produce");
-            auto tracker_call = tracker.Call();
-            if (cancel_value.has_value()) return;
+      pool.RunIgnoringResult([view_size, lines_size,
+                              simplified_tree = data.simplified_tree, data_ptr,
+                              observers]() {
+        TRACK_OPERATION(
+            BufferSyntaxParser_current_zoomed_out_parse_tree_produce);
 
-            Data::ZoomedOutTreeData output = {
-                .simplified_tree = simplified_tree,
-                .zoomed_out_tree =
-                    MakeNonNullShared<const ParseTree>(ZoomOutTree(
-                        simplified_tree.value(), lines_size, view_size))};
-            data_ptr->lock([view_size, &output](Data& data_nested) {
-              if (data_nested.simplified_tree != output.simplified_tree) {
-                LOG(INFO) << "Parse tree changed in the meantime, discarding.";
-                return;
-              }
-              LOG(INFO) << "Installing tree.";
-              data_nested.zoomed_out_trees.insert_or_assign(view_size,
-                                                            std::move(output));
-            });
-            observers->Notify();
-          });
+        Data::ZoomedOutTreeData output = {
+            .simplified_tree = simplified_tree,
+            .zoomed_out_tree = MakeNonNullShared<const ParseTree>(
+                ZoomOutTree(simplified_tree.value(), lines_size, view_size))};
+        data_ptr->lock([view_size, &output](Data& data_nested) {
+          if (data_nested.simplified_tree != output.simplified_tree) {
+            LOG(INFO) << "Parse tree changed in the meantime, discarding.";
+            return;
+          }
+          LOG(INFO) << "Installing tree.";
+          data_nested.zoomed_out_trees.insert_or_assign(view_size,
+                                                        std::move(output));
+        });
+        observers->Notify();
+      });
     }
 
     // We don't check if it's still current: we prefer returning a stale tree

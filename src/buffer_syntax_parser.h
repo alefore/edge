@@ -46,14 +46,17 @@ class BufferSyntaxParser {
       language::text::Range relevant_range);
 
  private:
+  void ParseInternal(language::text::LineSequence contents);
+
   mutable concurrent::ThreadPool thread_pool_ = concurrent::ThreadPool(1);
+  concurrent::ChannelLast<language::text::LineSequence> parse_channel_ =
+      concurrent::ChannelLast<language::text::LineSequence>(
+          std::bind_front(
+              &concurrent::ThreadPool::RunIgnoringResult<std::function<void()>>,
+              &thread_pool_),
+          std::bind_front(&BufferSyntaxParser::ParseInternal, this));
 
   struct Data {
-    // When the tree changes, we replace this and schedule in `thread_pool_` new
-    // work.
-    language::NonNull<std::unique_ptr<futures::DeleteNotification>>
-        cancel_state;
-
     language::NonNull<std::shared_ptr<TreeParser>> tree_parser =
         NewNullTreeParser();
 
