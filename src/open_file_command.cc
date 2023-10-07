@@ -40,11 +40,12 @@ namespace gc = language::gc;
 
 futures::Value<EmptyValue> OpenFileHandler(
     EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> name) {
-  OpenOrCreateFile(
-      OpenFileOptions{.editor_state = editor_state,
-                      .path = OptionalFrom(Path::FromString(name)),
-                      .insertion_type = BuffersList::AddBufferType::kVisit});
-  return futures::Past(EmptyValue());
+  return OpenOrCreateFile(
+             OpenFileOptions{
+                 .editor_state = editor_state,
+                 .path = OptionalFrom(Path::FromString(name)),
+                 .insertion_type = BuffersList::AddBufferType::kVisit})
+      .Transform([](gc::Root<OpenBuffer>) { return EmptyValue(); });
 }
 
 // Returns the buffer to show for context, or nullptr.
