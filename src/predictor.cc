@@ -360,7 +360,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   // TODO(easy, 2022-12-11, non-copyable-function): Change to MakeNonNullUnique.
   auto predictor_output =
-      MakeNonNullShared<concurrent::Protected<PredictorOutput>>();
+      MakeNonNullShared<concurrent::Protected<PredictorOutput>>(
+          PredictorOutput({.contents = SortedLineSequence(LineSequence())}));
   return GetSearchPaths(predictor_input.editor)
       .Transform([predictor_input,
                   predictor_output](std::vector<Path> search_paths) {
@@ -437,7 +438,11 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     predictor_output.value());
                 if (abort_value.has_value()) return;
               }
-              get_buffer([](OpenBuffer& buffer) {
+              get_buffer([predictor_output](OpenBuffer& buffer) {
+                predictor_output->lock([&buffer](PredictorOutput& output) {
+                  output.contents =
+                      SortedLineSequence(buffer.contents().snapshot());
+                });
                 LOG(INFO) << "Signaling end of file.";
                 buffer.EndOfFile();
               });
@@ -454,7 +459,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
   input.predictions.EndOfFile();
-  return futures::Past(PredictorOutput());
+  return futures::Past(
+      PredictorOutput({.contents = SortedLineSequence(LineSequence())}));
 }
 
 namespace {
@@ -513,7 +519,9 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
             {VersionPropertyKey(L"values"),
              std::to_wstring(input.predictions.lines_size().read() - 1)}}});
     input.predictions.EndOfFile();
-    return futures::Past(PredictorOutput());
+    return futures::Past(PredictorOutput(
+        {.contents =
+             SortedLineSequence(input.predictions.contents().snapshot())}));
   };
 }
 
@@ -618,7 +626,13 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     }
 
     input.predictions.EndOfFile();
-    return futures::Past(PredictorOutput());
+
+    // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add
+    // methods to SortedLineSequence that allows us to extract a sub-range view,
+    // and filter. There shouldn't be a need to re-sort.
+    return futures::Past(PredictorOutput(
+        {.contents =
+             SortedLineSequence(input.predictions.contents().snapshot())}));
   };
 }
 
@@ -645,7 +659,9 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
 }
 
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
-  if (input.source_buffers.empty()) return futures::Past(PredictorOutput());
+  if (input.source_buffers.empty())
+    return futures::Past(
+        PredictorOutput({.contents = SortedLineSequence(LineSequence())}));
   std::set<std::wstring> words;
   for (gc::Root<OpenBuffer>& buffer : input.source_buffers) {
     RegisterLeaves(buffer.ptr().value(), buffer.ptr()->parse_tree().value(),
@@ -724,7 +740,11 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
             input.predictions.AppendRawLine(NonNull<std::shared_ptr<Line>>());
           }
           input.predictions.EndOfFile();
-          return PredictorOutput();
+          // TODO(easy, 2023-10-08): There shouldn't be a need to re-sort here.
+          // Add methods to SortedLineSequence to merge.
+          return PredictorOutput(
+              {.contents = SortedLineSequence(
+                   input.predictions.contents().snapshot())});
         });
   };
 }

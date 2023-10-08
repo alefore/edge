@@ -12,36 +12,37 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
+namespace gc = afc::language::gc;
+namespace audio = afc::infrastructure::audio;
+
+using afc::concurrent::ChannelAll;
+using afc::concurrent::VersionPropertyKey;
+using afc::concurrent::WorkQueue;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
+using afc::language::text::SortedLineSequence;
+
 namespace afc::editor {
 namespace {
 
 using std::vector;
 using std::wstring;
-
-using concurrent::ChannelAll;
-using concurrent::VersionPropertyKey;
-using concurrent::WorkQueue;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::PossibleError;
-using language::Success;
-using language::ValueOrError;
-using language::lazy_string::Append;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineSequence;
-using language::text::Range;
-
-namespace gc = language::gc;
-namespace audio = afc::infrastructure::audio;
 
 static constexpr int kMatchesLimit = 100;
 
@@ -195,6 +196,9 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
 }
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
+  // TODO(2023-10-08, easy): This whole function could probably be optimized.
+  // We could probably add matches directly to the sorted contents; or, at
+  // least, build the sorted contents from matches directly.
   std::set<std::wstring> matches;
   for (gc::Root<OpenBuffer>& search_buffer : input.source_buffers) {
     SearchInBuffer(input, search_buffer.ptr().value(), matches);
@@ -207,8 +211,10 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     }
   }
   input.predictions.EndOfFile();
-  return input.predictions.WaitForEndOfFile().Transform(
-      [](EmptyValue) { return PredictorOutput(); });
+  return input.predictions.WaitForEndOfFile().Transform([input](EmptyValue) {
+    return PredictorOutput({.contents = SortedLineSequence(
+                                input.predictions.contents().snapshot())});
+  });
 }
 
 ValueOrError<std::vector<LineColumn>> SearchHandler(

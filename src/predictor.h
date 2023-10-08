@@ -12,6 +12,7 @@
 #include "src/futures/delete_notification.h"
 #include "src/futures/futures.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/sorted_line_sequence.h"
 #include "src/status.h"
 
 namespace afc {
@@ -85,6 +86,8 @@ struct PredictorOutput {
 
   // Did the input match a file exactly?
   bool found_exact_match = false;
+
+  language::text::SortedLineSequence contents;
 };
 
 std::ostream& operator<<(std::ostream& os, const PredictorOutput& lc);
