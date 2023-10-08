@@ -46,7 +46,9 @@ using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::PossibleError;
 using afc::language::Success;
+using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -61,16 +63,26 @@ using afc::language::text::MutableLineSequence;
 
 namespace afc::editor {
 namespace {
-PredictResults BuildResults(OpenBuffer& predictions_buffer,
-                            PredictorOutput predictor_output) {
+ValueOrError<PredictResults> BuildResults(
+    OpenBuffer& predictions_buffer, PredictorOutput predictor_output,
+    DeleteNotification::Value& abort_value) {
+  TRACK_OPERATION(Predictor_BuildResults);
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
             << predictions_buffer.contents().size();
-  if (predictions_buffer.lines_size() > LineNumberDelta(1))
+  if (abort_value.has_value()) return Error(L"Aborted");
+
+  if (predictions_buffer.lines_size() > LineNumberDelta(1)) {
+    // TODO(2023-10-08): Receive a sorted LineSequence as a field of
+    // predictor_output and use that. That way we can offload the sorting to a
+    // background thread.
+    TRACK_OPERATION(Predictor_BuildResults_Sort);
     predictions_buffer.SortAllContentsIgnoringCase();
+  }
 
   LOG(INFO) << "Removing duplicates.";
   for (auto line = LineNumber(1);
        line.ToDelta() < predictions_buffer.contents().size();) {
+    if (abort_value.has_value()) return Error(L"Aborted");
     if (predictions_buffer.contents().at(line.previous())->ToString() !=
         predictions_buffer.contents().at(line)->ToString()) {
       line++;
@@ -80,8 +92,9 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
   }
 
   std::optional<std::wstring> common_prefix;
-  predictions_buffer.contents().EveryLine([&common_prefix](LineNumber,
-                                                           const Line& line) {
+  predictions_buffer.contents().EveryLine([&common_prefix, &abort_value](
+                                              LineNumber, const Line& line) {
+    if (abort_value.has_value()) return false;
     if (line.empty()) {
       return true;
     }
@@ -113,6 +126,7 @@ PredictResults BuildResults(OpenBuffer& predictions_buffer,
     }
     return true;
   });
+  if (abort_value.has_value()) return Error(L"Aborted");
   return PredictResults{
       .common_prefix = common_prefix,
       .predictions_buffer = predictions_buffer.NewRoot(),
@@ -192,11 +206,13 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                          .source_buffers = shared_options->source_buffers,
                          .progress_channel = *shared_options->progress_channel,
                          .abort_value = shared_options->abort_value})
-            .Transform([shared_options, input, &buffer,
-                        consumer](PredictorOutput predictor_output) {
+            .Transform([shared_options, input, &buffer, consumer](
+                           PredictorOutput predictor_output) -> PossibleError {
               shared_options->progress_channel = nullptr;
               buffer.set_current_cursor(LineColumn());
-              auto results = BuildResults(buffer, predictor_output);
+              DECLARE_OR_RETURN(auto results,
+                                BuildResults(buffer, predictor_output,
+                                             shared_options->abort_value));
               consumer(GetPredictInput(*shared_options) == input &&
                                !shared_options->abort_value.has_value()
                            ? std::optional<PredictResults>(results)
@@ -276,13 +292,16 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   struct dirent* entry;
   std::vector<NonNull<std::shared_ptr<Line>>> predictions;
 
-  auto FlushPredictions = [&predictions, get_buffer] {
+  auto FlushPredictions = [matches, &progress_channel, get_buffer,
+                           &predictions] {
     TRACK_OPERATION(FilePredictor_ScanDirectory_FlushPredictions);
     MutableLineSequence lines_builder;
     for (NonNull<std::shared_ptr<Line>>& prediction : predictions)
       lines_builder.push_back(std::move(prediction),
                               MutableLineSequence::ObserverBehavior::kHide);
     predictions.clear();
+    progress_channel.Push(ProgressInformation{
+        .values = {{VersionPropertyKey(L"files"), std::to_wstring(*matches)}}});
     get_buffer([lines = lines_builder.snapshot()](OpenBuffer& buffer) mutable {
       TRACK_OPERATION(FilePredictor_ScanDirectory_FlushPredictions_Lock);
       buffer.InsertInPosition(std::move(lines), buffer.contents().range().end,
@@ -290,6 +309,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
     });
   };
 
+  size_t flush_size = 10;
   while ((entry = readdir(dir)) != nullptr) {
     if (abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
@@ -316,16 +336,13 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
     }
     predictions.push_back(MakeNonNullShared<Line>(
         LineBuilder(NewLazyString(std::move(full_path))).Build()));
-    if (predictions.size() > 100) {
-      FlushPredictions();
-    }
     ++*matches;
-    progress_channel.Push(ProgressInformation{
-        .values = {{VersionPropertyKey(L"files"), std::to_wstring(*matches)}}});
+    if (predictions.size() >= flush_size) {
+      FlushPredictions();
+      flush_size *= 2;
+    }
   }
   FlushPredictions();
-  progress_channel.Push(ProgressInformation{
-      .values = {{VersionPropertyKey(L"files"), std::to_wstring(*matches)}}});
 
   predictor_output.lock([&](PredictorOutput& output) {
     output.longest_prefix =
