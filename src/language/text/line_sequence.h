@@ -12,6 +12,7 @@
 
 namespace afc::language::text {
 class MutableLineSequence;
+class SortedLineSequence;
 // TODO: Add more methods here.
 
 // This class is thread-compatible.
@@ -50,18 +51,6 @@ class LineSequence {
   language::NonNull<std::shared_ptr<const Line>> back() const;
   language::NonNull<std::shared_ptr<const Line>> front() const;
 
-  // Returns the first element such that key < element. Assumes that the
-  // sequence is sorted.
-  //
-  // TODO(interesting, 2023-09-10): How would we use types to validate that the
-  // sequence is sorted?
-  template <class C>
-  language::text::LineNumber upper_bound(
-      const language::NonNull<std::shared_ptr<const language::text::Line>>& key,
-      C compare) const {
-    return language::text::LineNumber(Lines::UpperBound(lines_, key, compare));
-  }
-
   // Iterates: runs the callback on every line in the buffer intersecting the
   // range, passing as the first argument the line count (starts counting at 0).
   // Stops the iteration if the callback returns false. Returns true iff the
@@ -88,7 +77,8 @@ class LineSequence {
   LineColumn AdjustLineColumn(LineColumn position) const;
 
  private:
-  friend MutableLineSequence;
+  friend class MutableLineSequence;
+  friend class SortedLineSequence;
   LineSequence(Lines::Ptr lines) : lines_(lines) {}
 
   Lines::Ptr lines_ = Lines::PushBack(nullptr, {});

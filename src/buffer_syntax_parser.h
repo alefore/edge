@@ -10,6 +10,7 @@
 #include "src/futures/delete_notification.h"
 #include "src/language/observers.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/sorted_line_sequence.h"
 #include "src/parse_tree.h"
 
 namespace afc::editor {
@@ -22,7 +23,7 @@ class BufferSyntaxParser {
     std::unordered_set<std::wstring> language_keywords;
     std::wstring symbol_characters;
     IdentifierBehavior identifier_behavior;
-    language::text::LineSequence dictionary;
+    language::text::SortedLineSequence dictionary;
   };
   void UpdateParser(ParserOptions options);
 

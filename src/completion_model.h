@@ -39,7 +39,7 @@ class CompletionModelManager {
                                     CompressedText compressed_text);
 
  private:
-  using CompletionModel = language::text::LineSequence;
+  using CompletionModel = language::text::SortedLineSequence;
   using ModelsMap =
       std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>;
 

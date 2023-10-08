@@ -164,9 +164,13 @@ src/language/text/line_column_vm.cc \
 src/language/text/line_column_vm.h \
 src/language/text/line_sequence.cc \
 src/language/text/line_sequence.h \
+src/language/text/line_sequence_functional.cc \
+src/language/text/line_sequence_functional.h \
 src/language/text/mutable_line_sequence.cc \
 src/language/text/mutable_line_sequence.h \
 src/language/text/mutable_line_sequence_observer.h \
+src/language/text/sorted_line_sequence.cc \
+src/language/text/sorted_line_sequence.h \
 src/language/wstring.cc \
 src/language/wstring.h \
 src/line_output.cc \

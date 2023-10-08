@@ -12,24 +12,25 @@
 #include "src/parsers/util.h"
 #include "src/seek.h"
 
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::Substring;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
+using afc::language::text::SortedLineSequence;
+
 namespace afc::editor::parsers {
 namespace {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::Substring;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::Range;
-
 using ::operator<<;
 
 enum State {
@@ -51,10 +52,11 @@ enum State {
 
 class MarkdownParser : public LineOrientedTreeParser {
  public:
-  MarkdownParser(std::wstring symbol_characters, LineSequence dictionary)
+  MarkdownParser(std::wstring symbol_characters, SortedLineSequence dictionary)
       : symbol_characters_(std::move(symbol_characters)),
         dictionary_(std::move(dictionary)) {
-    LOG(INFO) << "Created with dictionary entries: " << dictionary_.size();
+    LOG(INFO) << "Created with dictionary entries: "
+              << dictionary_.lines().size();
   }
 
  protected:
@@ -125,17 +127,13 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   bool IsTypo(NonNull<std::shared_ptr<LazyString>> symbol) const {
-    if (dictionary_.range().IsEmpty()) return false;
+    if (dictionary_.lines().range().IsEmpty()) return false;
     LineNumber line = dictionary_.upper_bound(
-        MakeNonNullShared<const Line>(LineBuilder(LowerCase(symbol)).Build()),
-        [](const NonNull<std::shared_ptr<const Line>>& a,
-           const NonNull<std::shared_ptr<const Line>>& b) {
-          return a->ToString() < b->ToString();
-        });
+        MakeNonNullShared<const Line>(LineBuilder(LowerCase(symbol)).Build()));
     if (line.IsZero()) return false;
 
     --line;
-    return LowerCase(dictionary_.at(line)->contents()).value() !=
+    return LowerCase(dictionary_.lines().at(line)->contents()).value() !=
            LowerCase(symbol).value();
   }
 
@@ -314,12 +312,12 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   const std::wstring symbol_characters_;
-  const LineSequence dictionary_;
+  const SortedLineSequence dictionary_;
 };
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
-    std::wstring symbol_characters, LineSequence dictionary) {
+    std::wstring symbol_characters, SortedLineSequence dictionary) {
   return MakeNonNullUnique<MarkdownParser>(std::move(symbol_characters),
                                            std::move(dictionary));
 }

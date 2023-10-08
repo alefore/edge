@@ -42,6 +42,7 @@ extern "C" {
 #include "src/language/safe_types.h"
 #include "src/language/text/delegating_mutable_line_sequence_observer.h"
 #include "src/language/text/line_column_vm.h"
+#include "src/language/text/sorted_line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
@@ -66,63 +67,64 @@ extern "C" {
 #include "src/vm/value.h"
 #include "src/vm/vm.h"
 
-namespace afc::editor {
-namespace gc = language::gc;
-namespace audio = infrastructure::audio;
-using concurrent::WorkQueue;
-using futures::IterationControlCommand;
-using infrastructure::AbsolutePath;
-using infrastructure::AddSeconds;
-using infrastructure::FileDescriptor;
-using infrastructure::FileSystemDriver;
-using infrastructure::Now;
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using infrastructure::Tracker;
-using infrastructure::UpdateIfMillisecondsHavePassed;
-using infrastructure::screen::CursorsSet;
-using infrastructure::screen::CursorsTracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using infrastructure::screen::VisualOverlay;
-using infrastructure::screen::VisualOverlayKey;
-using infrastructure::screen::VisualOverlayMap;
-using infrastructure::screen::VisualOverlayPriority;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::ObservableValue;
-using language::Observers;
-using language::overload;
-using language::Pointer;
-using language::PossibleError;
-using language::ShellEscape;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::WeakPtrLockingObserver;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::LowerCase;
-using language::lazy_string::NewLazyString;
-using language::text::DelegatingMutableLineSequenceObserver;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::MutableLineSequence;
-using language::text::MutableLineSequenceObserver;
-using language::text::Range;
+using afc::language::text::SortedLineSequence;
+namespace gc = afc::language::gc;
+namespace audio = afc::infrastructure::audio;
+using afc::concurrent::WorkQueue;
+using afc::futures::IterationControlCommand;
+using afc::infrastructure::AbsolutePath;
+using afc::infrastructure::AddSeconds;
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::FileSystemDriver;
+using afc::infrastructure::Now;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::infrastructure::Tracker;
+using afc::infrastructure::UpdateIfMillisecondsHavePassed;
+using afc::infrastructure::screen::CursorsSet;
+using afc::infrastructure::screen::CursorsTracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::VisualOverlay;
+using afc::infrastructure::screen::VisualOverlayKey;
+using afc::infrastructure::screen::VisualOverlayMap;
+using afc::infrastructure::screen::VisualOverlayPriority;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::ObservableValue;
+using afc::language::Observers;
+using afc::language::overload;
+using afc::language::Pointer;
+using afc::language::PossibleError;
+using afc::language::ShellEscape;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::WeakPtrLockingObserver;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::DelegatingMutableLineSequenceObserver;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
+using afc::language::text::MutableLineSequenceObserver;
+using afc::language::text::Range;
 
+namespace afc::editor {
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
@@ -714,11 +716,14 @@ void OpenBuffer::UpdateTreeParser() {
       .Transform([](gc::Root<OpenBuffer> dictionary_root) {
         return dictionary_root.ptr()->WaitForEndOfFile().Transform(
             [dictionary_root](EmptyValue) {
-              return Success(dictionary_root.ptr()->contents().snapshot());
+              return Success(SortedLineSequence(
+                  dictionary_root.ptr()->contents().snapshot()));
             });
       })
-      .ConsumeErrors([](Error) { return futures::Past(LineSequence()); })
-      .Transform([this, root_this = NewRoot()](LineSequence dictionary) {
+      .ConsumeErrors([](Error) {
+        return futures::Past(SortedLineSequence(LineSequence()));
+      })
+      .Transform([this, root_this = NewRoot()](SortedLineSequence dictionary) {
         std::wistringstream typos_stream(Read(buffer_variables::typos));
         std::wistringstream language_keywords(
             Read(buffer_variables::language_keywords));

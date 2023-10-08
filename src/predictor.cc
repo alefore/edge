@@ -23,6 +23,7 @@ extern "C" {
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/overload.h"
+#include "src/language/text/sorted_line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/predictor.h"
 #include "src/structure.h"
@@ -60,6 +61,7 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
+using afc::language::text::SortedLineSequence;
 
 namespace afc::editor {
 namespace {
@@ -586,23 +588,24 @@ const bool buffer_tests_registration =
 }  // namespace
 
 Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
-  return [dictionary_root](PredictorInput input) {
-    const OpenBuffer& dictionary = dictionary_root.ptr().value();
-    const LineSequence& contents = dictionary.contents().snapshot();
+  SortedLineSequence contents =
+      SortedLineSequence(dictionary_root.ptr()->contents().snapshot(),
+                         [](const NonNull<std::shared_ptr<const Line>>& a,
+                            const NonNull<std::shared_ptr<const Line>>& b) {
+                           return a->ToString() < b->ToString();
+                         });
+
+  return [contents](PredictorInput input) {
     auto input_line = MakeNonNullShared<const Line>(
         LineBuilder(NewLazyString(input.input)).Build());
 
-    LineNumber line = contents.upper_bound(
-        input_line, [](const NonNull<std::shared_ptr<const Line>>& a,
-                       const NonNull<std::shared_ptr<const Line>>& b) {
-          return a->ToString() < b->ToString();
-        });
+    LineNumber line = contents.upper_bound(input_line);
 
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).
-    while (line < contents.EndLine()) {
-      auto line_contents = contents.at(line);
+    while (line < contents.lines().EndLine()) {
+      auto line_contents = contents.lines().at(line);
       auto line_str = line_contents->ToString();
       auto result =
           mismatch(input.input.begin(), input.input.end(), line_str.begin());
