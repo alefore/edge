@@ -37,10 +37,12 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
+using afc::language::text::SortedLineSequenceUniqueLines;
 
 namespace afc::editor {
 namespace {
 
+// TODO(trivial, 2023-10-08): Remove these `using` declarations.
 using std::vector;
 using std::wstring;
 
@@ -212,8 +214,9 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   }
   input.predictions.EndOfFile();
   return input.predictions.WaitForEndOfFile().Transform([input](EmptyValue) {
-    return PredictorOutput({.contents = SortedLineSequence(
-                                input.predictions.contents().snapshot())});
+    return PredictorOutput(
+        {.contents = SortedLineSequenceUniqueLines(
+             SortedLineSequence(input.predictions.contents().snapshot()))});
   });
 }
 

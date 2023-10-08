@@ -17,22 +17,40 @@ SortedLineSequence::SortedLineSequence(LineSequence input)
 
 SortedLineSequence::SortedLineSequence(LineSequence input,
                                        SortedLineSequence::Compare compare)
-    : lines_([&] {
-        TRACK_OPERATION(SortedLineSequence_SortedLineSequence);
-        std::vector<
-            language::NonNull<std::shared_ptr<const language::text::Line>>>
-            lines;
-        input.ForEach(
-            [&lines](const language::NonNull<
-                     std::shared_ptr<const language::text::Line>>& line) {
-              lines.push_back(line);
-            });
-        std::sort(lines.begin(), lines.end(), compare);
-        MutableLineSequence builder;
-        for (auto& line : lines) builder.push_back(std::move(line));
-        if (builder.size() > LineNumberDelta(1))
-          builder.EraseLines(LineNumber(), LineNumber(1));
-        return builder.snapshot();
-      }()),
-      compare_(std::move(compare)) {}
+    : SortedLineSequence(
+          TrustedConstructorTag(),
+          [&] {
+            TRACK_OPERATION(SortedLineSequence_SortedLineSequence);
+            std::vector<
+                language::NonNull<std::shared_ptr<const language::text::Line>>>
+                lines;
+            input.ForEach(
+                [&lines](const language::NonNull<
+                         std::shared_ptr<const language::text::Line>>& line) {
+                  lines.push_back(line);
+                });
+            std::sort(lines.begin(), lines.end(), compare);
+            MutableLineSequence builder;
+            for (auto& line : lines) builder.push_back(std::move(line));
+            if (builder.size() > LineNumberDelta(1))
+              builder.EraseLines(LineNumber(), LineNumber(1));
+            return builder.snapshot();
+          }(),
+          compare) {}
+
+SortedLineSequence::SortedLineSequence(TrustedConstructorTag,
+                                       LineSequence lines, Compare compare)
+    : lines_(std::move(lines)), compare_(std::move(compare)) {}
+
+SortedLineSequence SortedLineSequence::FilterLines(
+    const std::function<FilterPredicateResult(const language::text::Line&)>&
+        predicate) const {
+  return SortedLineSequence(TrustedConstructorTag(),
+                            text::FilterLines(lines_, predicate), compare_);
+}
+
+SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
+    SortedLineSequence sorted_lines)
+    : sorted_lines_(std::move(sorted_lines)) {}
+
 }  // namespace afc::language::text

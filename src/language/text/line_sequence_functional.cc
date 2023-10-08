@@ -7,7 +7,7 @@ using ::operator<<;
 
 LineSequence FilterLines(
     LineSequence input,
-    std::function<FilterPredicateResult(const language::text::Line&)>
+    const std::function<FilterPredicateResult(const language::text::Line&)>&
         predicate) {
   MutableLineSequence builder;
   input.ForEach([&](const NonNull<std::shared_ptr<const Line>>& line) {

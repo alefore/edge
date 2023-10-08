@@ -44,6 +44,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
 using afc::language::text::SortedLineSequence;
+using afc::language::text::SortedLineSequenceUniqueLines;
 
 namespace afc::editor {
 namespace {
@@ -207,7 +208,8 @@ bool predictor_transformation_tests_register = tests::Register(
         CHECK(!final_value.has_value());
         inner_future.consumer(
             PredictorOutput{.longest_prefix = ColumnNumberDelta(2),
-                            .contents = SortedLineSequence(LineSequence())});
+                            .contents = SortedLineSequenceUniqueLines(
+                                SortedLineSequence(LineSequence()))});
         CHECK(final_value.has_value());
       }}});
 }

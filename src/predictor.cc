@@ -62,6 +62,7 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::SortedLineSequence;
+using afc::language::text::SortedLineSequenceUniqueLines;
 
 namespace afc::editor {
 namespace {
@@ -361,7 +362,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   // TODO(easy, 2022-12-11, non-copyable-function): Change to MakeNonNullUnique.
   auto predictor_output =
       MakeNonNullShared<concurrent::Protected<PredictorOutput>>(
-          PredictorOutput({.contents = SortedLineSequence(LineSequence())}));
+          PredictorOutput({.contents = SortedLineSequenceUniqueLines(
+                               SortedLineSequence(LineSequence()))}));
   return GetSearchPaths(predictor_input.editor)
       .Transform([predictor_input,
                   predictor_output](std::vector<Path> search_paths) {
@@ -440,8 +442,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               }
               get_buffer([predictor_output](OpenBuffer& buffer) {
                 predictor_output->lock([&buffer](PredictorOutput& output) {
-                  output.contents =
-                      SortedLineSequence(buffer.contents().snapshot());
+                  output.contents = SortedLineSequenceUniqueLines(
+                      SortedLineSequence(buffer.contents().snapshot()));
                 });
                 LOG(INFO) << "Signaling end of file.";
                 buffer.EndOfFile();
@@ -459,8 +461,9 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
   input.predictions.EndOfFile();
-  return futures::Past(
-      PredictorOutput({.contents = SortedLineSequence(LineSequence())}));
+  return futures::Past(PredictorOutput(
+      {.contents =
+           SortedLineSequenceUniqueLines(SortedLineSequence(LineSequence()))}));
 }
 
 namespace {
@@ -520,8 +523,8 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
              std::to_wstring(input.predictions.lines_size().read() - 1)}}});
     input.predictions.EndOfFile();
     return futures::Past(PredictorOutput(
-        {.contents =
-             SortedLineSequence(input.predictions.contents().snapshot())}));
+        {.contents = SortedLineSequenceUniqueLines(
+             SortedLineSequence(input.predictions.contents().snapshot()))}));
   };
 }
 
@@ -596,24 +599,24 @@ const bool buffer_tests_registration =
 }  // namespace
 
 Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
-  SortedLineSequence contents =
+  SortedLineSequenceUniqueLines contents(
       SortedLineSequence(dictionary_root.ptr()->contents().snapshot(),
                          [](const NonNull<std::shared_ptr<const Line>>& a,
                             const NonNull<std::shared_ptr<const Line>>& b) {
                            return a->ToString() < b->ToString();
-                         });
+                         }));
 
   return [contents](PredictorInput input) {
     auto input_line = MakeNonNullShared<const Line>(
         LineBuilder(NewLazyString(input.input)).Build());
 
-    LineNumber line = contents.upper_bound(input_line);
+    LineNumber line = contents.sorted_lines().upper_bound(input_line);
 
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).
-    while (line < contents.lines().EndLine()) {
-      auto line_contents = contents.lines().at(line);
+    while (line < contents.sorted_lines().lines().EndLine()) {
+      auto line_contents = contents.sorted_lines().lines().at(line);
       auto line_str = line_contents->ToString();
       auto result =
           mismatch(input.input.begin(), input.input.end(), line_str.begin());
@@ -631,8 +634,8 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     // methods to SortedLineSequence that allows us to extract a sub-range view,
     // and filter. There shouldn't be a need to re-sort.
     return futures::Past(PredictorOutput(
-        {.contents =
-             SortedLineSequence(input.predictions.contents().snapshot())}));
+        {.contents = SortedLineSequenceUniqueLines(
+             SortedLineSequence(input.predictions.contents().snapshot()))}));
   };
 }
 
@@ -661,7 +664,8 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
 futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   if (input.source_buffers.empty())
     return futures::Past(
-        PredictorOutput({.contents = SortedLineSequence(LineSequence())}));
+        PredictorOutput({.contents = SortedLineSequenceUniqueLines(
+                             SortedLineSequence(LineSequence()))}));
   std::set<std::wstring> words;
   for (gc::Root<OpenBuffer>& buffer : input.source_buffers) {
     RegisterLeaves(buffer.ptr().value(), buffer.ptr()->parse_tree().value(),
@@ -743,8 +747,8 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
           // TODO(easy, 2023-10-08): There shouldn't be a need to re-sort here.
           // Add methods to SortedLineSequence to merge.
           return PredictorOutput(
-              {.contents = SortedLineSequence(
-                   input.predictions.contents().snapshot())});
+              {.contents = SortedLineSequenceUniqueLines(SortedLineSequence(
+                   input.predictions.contents().snapshot()))});
         });
   };
 }
