@@ -266,7 +266,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
                    std::wstring pattern, std::wstring prefix, int* matches,
                    ProgressChannel& progress_channel,
                    DeleteNotification::Value& abort_value,
-                   OpenBuffer::LockFunction get_buffer,
+                   MutableLineSequence& output_lines,
                    concurrent::Protected<PredictorOutput>& predictor_output) {
   static Tracker top_tracker(L"FilePredictor::ScanDirectory");
   auto top_call = top_tracker.Call();
@@ -276,26 +276,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
   struct dirent* entry;
-  std::vector<NonNull<std::shared_ptr<Line>>> predictions;
 
-  auto FlushPredictions = [matches, &progress_channel, get_buffer,
-                           &predictions] {
-    TRACK_OPERATION(FilePredictor_ScanDirectory_FlushPredictions);
-    MutableLineSequence lines_builder;
-    for (NonNull<std::shared_ptr<Line>>& prediction : predictions)
-      lines_builder.push_back(std::move(prediction),
-                              MutableLineSequence::ObserverBehavior::kHide);
-    predictions.clear();
-    progress_channel.Push(ProgressInformation{
-        .values = {{VersionPropertyKey(L"files"), std::to_wstring(*matches)}}});
-    get_buffer([lines = lines_builder.snapshot()](OpenBuffer& buffer) mutable {
-      TRACK_OPERATION(FilePredictor_ScanDirectory_FlushPredictions_Lock);
-      buffer.InsertInPosition(std::move(lines), buffer.contents().range().end,
-                              std::nullopt);
-    });
-  };
-
-  size_t flush_size = 10;
   while ((entry = readdir(dir)) != nullptr) {
     if (abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
@@ -320,15 +301,19 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
     if (std::regex_match(full_path, noise_regex)) {
       continue;
     }
-    predictions.push_back(MakeNonNullShared<Line>(
-        LineBuilder(NewLazyString(std::move(full_path))).Build()));
+    output_lines.push_back(
+        MakeNonNullShared<Line>(
+            LineBuilder(NewLazyString(std::move(full_path))).Build()),
+        MutableLineSequence::ObserverBehavior::kHide);
     ++*matches;
-    if (predictions.size() >= flush_size) {
-      FlushPredictions();
-      flush_size *= 2;
-    }
+    if (*matches % 100 == 0)
+      progress_channel.Push(
+          ProgressInformation{.values = {{VersionPropertyKey(L"files"),
+                                          std::to_wstring(*matches)}}});
   }
-  FlushPredictions();
+
+  progress_channel.Push(ProgressInformation{
+      .values = {{VersionPropertyKey(L"files"), std::to_wstring(*matches)}}});
 
   predictor_output.lock([&](PredictorOutput& output) {
     output.longest_prefix =
@@ -397,6 +382,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               }
 
               int matches = 0;
+              MutableLineSequence predictions;
               for (const auto& search_path : search_paths) {
                 VLOG(4) << "Considering search path: " << search_path;
                 DescendDirectoryTreeOutput descend_results =
@@ -419,15 +405,22 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     path_input.substr(descend_results.valid_prefix_length,
                                       path_input.size()),
                     path_input.substr(0, descend_results.valid_prefix_length),
-                    &matches, progress_channel, abort_value, get_buffer,
+                    &matches, progress_channel, abort_value, predictions,
                     predictor_output.value());
                 if (abort_value.has_value()) return;
               }
-              get_buffer([predictor_output](OpenBuffer& buffer) {
-                predictor_output->lock([&buffer](PredictorOutput& output) {
-                  output.contents = SortedLineSequenceUniqueLines(
-                      SortedLineSequence(buffer.contents().snapshot()));
-                });
+              SortedLineSequenceUniqueLines output_lines(
+                  SortedLineSequence(std::move(predictions).snapshot()));
+              get_buffer([predictor_output, output_lines](OpenBuffer& buffer) {
+                predictor_output->lock(
+                    [&output_lines](PredictorOutput& output) {
+                      output.contents = output_lines;
+                    });
+                TRACK_OPERATION(FilePredictor_SetBufferContents);
+                buffer.InsertInPosition(output_lines.sorted_lines().lines(),
+                                        buffer.contents().range().end,
+                                        std::nullopt);
+
                 LOG(INFO) << "Signaling end of file.";
                 buffer.EndOfFile();
               });
@@ -582,6 +575,8 @@ const bool buffer_tests_registration =
 }  // namespace
 
 Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
+  // TODO(2023-10-09, Responsive): Move this to a background thread and use a
+  // future instead.
   SortedLineSequenceUniqueLines contents(
       SortedLineSequence(dictionary_root.ptr()->contents().snapshot(),
                          [](const NonNull<std::shared_ptr<const Line>>& a,
@@ -616,6 +611,7 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add
     // methods to SortedLineSequence that allows us to extract a sub-range view,
     // and filter. There shouldn't be a need to re-sort.
+    TRACK_OPERATION(DictionaryPredictor_Sorting);
     return futures::Past(PredictorOutput(
         {.contents = SortedLineSequenceUniqueLines(
              SortedLineSequence(input.predictions.contents().snapshot()))}));
@@ -729,6 +725,7 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
           input.predictions.EndOfFile();
           // TODO(easy, 2023-10-08): There shouldn't be a need to re-sort here.
           // Add methods to SortedLineSequence to merge.
+          TRACK_OPERATION(ComposePredictors_Sorting);
           return PredictorOutput(
               {.contents = SortedLineSequenceUniqueLines(SortedLineSequence(
                    input.predictions.contents().snapshot()))});
