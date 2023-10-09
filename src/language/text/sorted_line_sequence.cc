@@ -20,7 +20,8 @@ SortedLineSequence::SortedLineSequence(LineSequence input,
     : SortedLineSequence(
           TrustedConstructorTag(),
           [&] {
-            TRACK_OPERATION(SortedLineSequence_SortedLineSequence);
+            if (input.empty()) return input;
+            TRACK_OPERATION(SortedLineSequence_sort);
             std::vector<
                 language::NonNull<std::shared_ptr<const language::text::Line>>>
                 lines;
