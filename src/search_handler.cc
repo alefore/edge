@@ -42,29 +42,25 @@ using afc::language::text::SortedLineSequenceUniqueLines;
 namespace afc::editor {
 namespace {
 
-// TODO(trivial, 2023-10-08): Remove these `using` declarations.
-using std::vector;
-using std::wstring;
-
 static constexpr int kMatchesLimit = 100;
 
 typedef std::wregex RegexPattern;
 
 // Returns all columns where the current line matches the pattern.
-vector<ColumnNumber> GetMatches(const wstring& line,
-                                const RegexPattern& pattern) {
+std::vector<ColumnNumber> GetMatches(const std::wstring& line,
+                                     const RegexPattern& pattern) {
   size_t start = 0;
-  vector<ColumnNumber> output;
+  std::vector<ColumnNumber> output;
   while (start < line.size()) {
-    size_t match = wstring::npos;
-    wstring line_substr = line.substr(start);
+    size_t match = std::wstring::npos;
+    std::wstring line_substr = line.substr(start);
 
     std::wsmatch pattern_match;
     std::regex_search(line_substr, pattern_match, pattern);
     if (!pattern_match.empty()) {
       match = pattern_match.position();
     }
-    if (match == wstring::npos) {
+    if (match == std::wstring::npos) {
       return output;
     }
     output.push_back(ColumnNumber(start + match));
@@ -163,7 +159,7 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
   std::wstring results;
   static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
   ForEachColumn(str.value(), [&](ColumnNumber, wchar_t c) {
-    if (!iswalnum(c) && literal_characters.find(c) == wstring::npos) {
+    if (!iswalnum(c) && literal_characters.find(c) == std::wstring::npos) {
       results.push_back('\\');
     }
     results.push_back(c);
@@ -451,14 +447,14 @@ void HandleSearchResults(
         MakeNonNullShared<Line>(L"🔍 1 result."));
   } else {
     // TODO(easy, 2023-09-08): Convert `results_prefix` to use Padding?
-    wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');
+    std::wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');
     buffer.status().SetInformationText(MakeNonNullShared<Line>(
         LineBuilder(Append(NewLazyString(results_prefix),
                            NewLazyString(L" Results: "),
                            NewLazyString(std::to_wstring(size))))
             .Build()));
   }
-  vector<audio::Frequency> frequencies = {
+  std::vector<audio::Frequency> frequencies = {
       audio::Frequency(440.0), audio::Frequency(440.0),
       audio::Frequency(493.88), audio::Frequency(523.25),
       audio::Frequency(587.33)};
