@@ -207,7 +207,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
         DECLARE_OR_RETURN(BackgroundReadDirOutput results,
                           ReadDir(path, std::wregex(noise_regexp)));
 
-        TRACK_OPERATION(GenerateDirectoryListing_ReadDir);
+        TRACK_OPERATION(GenerateDirectoryListing_BuildingMarkdown);
         MutableLineSequence builder;
         ShowFiles(editor, L"🗁  Directories", std::move(results.directories),
                   builder);
