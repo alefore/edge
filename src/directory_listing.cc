@@ -217,10 +217,6 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
         return Success(builder.snapshot());
       })
       .Transform([&output, path](LineSequence contents) {
-        // TODO(2023-10-09, P1): Figure out why InsertInPosition takes so long.
-        // Find a way to optimize it. Perhaps we need a variable to disable
-        // metadata parsing. This should be a constant-time operation. Perhaps
-        // we need a new method, `overwrite contents` or such.
         TRACK_OPERATION(GenerateDirectoryListing_InsertContents);
         auto disk_state_freezer = output.FreezeDiskState();
         output.InsertInPosition(contents, output.contents().range().end,
