@@ -230,18 +230,28 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
   }
 
   Range range_before = Range(LineColumn(), options.starting_position);
-  Range range_after = Range(options.starting_position, contents.range().end);
+  Range range_after =
+      Range(std::min(contents.range().end, options.starting_position),
+            contents.range().end);
   if (options.limit_position.has_value()) {
     if (*options.limit_position < options.starting_position)
-      range_before.begin = *options.limit_position;
+      range_before = Range(std::min(*options.limit_position, range_before.end),
+                           range_before.end);
     else
-      range_after.end = *options.limit_position;
+      range_after = Range(range_after.begin,
+                          std::max(range_after.begin, *options.limit_position));
   }
 
   // We extend `range_before` to cover the entire line, in case the starting
   // position is in the middle of the match. We account for that afterwards.
   range_before.end.column = std::numeric_limits<ColumnNumber>::max();
-  ++range_after.begin.column;
+
+  // We should skip the current position. Start searching strictly after the
+  // current position. But avoid adjusting the range if it's already empty.
+  if (!range_after.IsEmpty())
+    range_after = Range(
+        LineColumn(range_after.begin.line, range_after.begin.column.next()),
+        range_after.end);
 
   auto Search =
       [&options, &work_queue,
@@ -308,7 +318,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                             contents))
                         .empty());
             }},
-       {.name = L"WithPositionAtEnd",
+       {.name = L"WithPositionAtEndInfiniteColumn",
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
@@ -320,6 +330,19 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                             .search_query = NewLazyString(L"rero"),
                             .required_positions = std::nullopt,
                             .case_sensitive = false},
+                        contents)) ==
+                    std::vector<LineColumn>(
+                        {LineColumn(LineNumber(1), ColumnNumber(2))}));
+            }},
+       {.name = L"WithPositionAtEnd",
+        .callback =
+            [=] {
+              CHECK(ValueOrDie(SearchHandler(
+                        work_queue, Direction::kForwards,
+                        SearchOptions{.starting_position = contents.range().end,
+                                      .search_query = NewLazyString(L"rero"),
+                                      .required_positions = std::nullopt,
+                                      .case_sensitive = false},
                         contents)) ==
                     std::vector<LineColumn>(
                         {LineColumn(LineNumber(1), ColumnNumber(2))}));
