@@ -176,14 +176,14 @@ Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
   double buffer_lines_per_screen_line =
       static_cast<double>(total_size.read()) /
       (lines_shown.end().line - lines_shown.begin().line).read();
-  Range output;
-  output.set_begin_line(
-      LineNumber(std::round(buffer_lines_per_screen_line *
-                            (current_line - lines_shown.begin().line).read())));
-  output.set_end_line(LineNumber(std::round(
-      buffer_lines_per_screen_line *
-      (current_line + LineNumberDelta(1) - lines_shown.begin().line).read())));
-  return output;
+  return Range(
+      LineColumn(LineNumber(
+          std::round(buffer_lines_per_screen_line *
+                     (current_line - lines_shown.begin().line).read()))),
+      LineColumn(LineNumber(std::round(
+          buffer_lines_per_screen_line *
+          (current_line + LineNumberDelta(1) - lines_shown.begin().line)
+              .read()))));
 }
 
 LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
