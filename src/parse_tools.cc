@@ -16,7 +16,8 @@ using language::text::Range;
 void Action::Execute(std::vector<ParseTree>* trees, LineNumber line) {
   switch (action_type) {
     case PUSH: {
-      trees->emplace_back(Range(LineColumn(line, column), LineColumn()));
+      trees->emplace_back(
+          Range(LineColumn(line, column), LineColumn(line, column)));
       trees->back().set_modifiers(modifiers);
       trees->back().set_properties(properties);
       DVLOG(5) << "Tree: Push: " << trees->back().range();
