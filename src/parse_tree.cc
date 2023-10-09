@@ -169,11 +169,11 @@ ParseTree SimplifyTree(const ParseTree& tree) {
 
 namespace {
 std::optional<ParseTree> ZoomOutTree(const ParseTree& input, double ratio) {
-  Range range = input.range();
   // TODO(trivial, 2023-10-10): The two lines below shouldn't need the call to
   // `read`: instead, ghost_type should declare the `operator*` overload.
-  range.set_begin_line(LineNumber(range.begin().line.read() * ratio));
-  range.set_end_line(LineNumber(range.end().line.read() * ratio));
+  Range range =
+      Range(LineColumn(LineNumber(input.range().begin().line.read() * ratio)),
+            LineColumn(LineNumber(input.range().end().line.read() * ratio)));
   if (range.begin().line == range.end().line) {
     return std::nullopt;
   }
