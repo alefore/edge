@@ -94,15 +94,19 @@ std::wstring LineColumn::Serialize() const {
 
 // TODO(easy?, 2023-09-18): Assert that input_begin <= input_end?
 Range::Range(LineColumn input_begin, LineColumn input_end)
-    : begin_(input_begin), end_(input_end) {}
+    : begin_(input_begin), end_(input_end) {
+  CHECK_LE(begin_, end_);
+}
 
 /* static */ Range Range::InLine(
     LineColumn start, afc::language::lazy_string::ColumnNumberDelta size) {
+  CHECK_GE(size, ColumnNumberDelta(0));
   return Range(start, LineColumn(start.line, start.column + size));
 }
 
 /* static */ Range Range::InLine(LineNumber line, ColumnNumber column,
                                  ColumnNumberDelta size) {
+  CHECK_GE(size, ColumnNumberDelta(0));
   return InLine(LineColumn(line, column), size);
 }
 
@@ -148,14 +152,32 @@ LineNumberDelta Range::lines() const {
 bool Range::IsSingleLine() const { return begin_.line == end_.line; }
 
 LineColumn Range::begin() const { return begin_; };
-void Range::set_begin(LineColumn value) { begin_ = value; }
-void Range::set_begin_line(LineNumber value) { begin_.line = value; }
-void Range::set_begin_column(ColumnNumber value) { begin_.column = value; }
+void Range::set_begin(LineColumn value) {
+  begin_ = value;
+  CHECK_LE(begin_, end_);
+}
+void Range::set_begin_line(LineNumber value) {
+  begin_.line = value;
+  CHECK_LE(begin_, end_);
+}
+void Range::set_begin_column(ColumnNumber value) {
+  begin_.column = value;
+  CHECK_LE(begin_, end_);
+}
 
 LineColumn Range::end() const { return end_; }
-void Range::set_end(LineColumn value) { end_ = value; }
-void Range::set_end_line(LineNumber value) { end_.line = value; }
-void Range::set_end_column(ColumnNumber value) { end_.column = value; }
+void Range::set_end(LineColumn value) {
+  end_ = value;
+  CHECK_LE(begin_, end_);
+}
+void Range::set_end_line(LineNumber value) {
+  end_.line = value;
+  CHECK_LE(begin_, end_);
+}
+void Range::set_end_column(ColumnNumber value) {
+  end_.column = value;
+  CHECK_LE(begin_, end_);
+}
 
 std::ostream& operator<<(std::ostream& os, const Range& range) {
   os << "[" << range.begin() << ", " << range.end() << ")";
