@@ -131,14 +131,14 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       L"find_first_of", pool,
       [](const wstring& str, const wstring& pattern, size_t start_pos) {
         size_t pos = str.find_first_of(pattern, start_pos);
-        return pos == wstring::npos ? -1 : pos;
+        return pos == wstring::npos ? FromInt(-1) : FromSizeT(pos);
       },
       string_type);
   AddMethod(
       L"find_first_not_of", pool,
       [](const wstring& str, const wstring& pattern, size_t start_pos) {
         size_t pos = str.find_first_not_of(pattern, start_pos);
-        return pos == wstring::npos ? -1 : pos;
+        return pos == wstring::npos ? FromInt(-1) : FromSizeT(pos);
       },
       string_type);
   environment.DefineType(string_type.ptr());

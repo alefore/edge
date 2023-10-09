@@ -88,6 +88,11 @@ const bool buffer_tests_registration = tests::Register(
              }},
         {.name = L"MetadataPurePow",
          .callback = [] { CHECK(GetMetadata(L"2 * pow(5, 3)") == L"250"); }},
+        {.name = L"MetadataStringFind",
+         .callback =
+             [] {
+               CHECK(GetMetadata(L"\"foo\".find_first_of(\" \", 0)") == L"-1");
+             }},
         {.name = L"MetadataScientificNotation",
          .callback = [] { CHECK(GetMetadata(L"1e3") == L"1000"); }},
         {.name = L"MetadataScientificNotationPlus",
