@@ -74,61 +74,44 @@ ValueOrError<PredictResults> BuildResults(
             << predictions_buffer.contents().size();
   if (abort_value.has_value()) return Error(L"Aborted");
 
-  if (predictions_buffer.lines_size() > LineNumberDelta(1)) {
-    // TODO(2023-10-08): Receive a sorted LineSequence as a field of
-    // predictor_output and use that. That way we can offload the sorting to a
-    // background thread.
-    TRACK_OPERATION(Predictor_BuildResults_Sort);
-    predictions_buffer.SortAllContentsIgnoringCase();
-  }
-
-  LOG(INFO) << "Removing duplicates.";
-  for (auto line = LineNumber(1);
-       line.ToDelta() < predictions_buffer.contents().size();) {
-    if (abort_value.has_value()) return Error(L"Aborted");
-    if (predictions_buffer.contents().at(line.previous())->ToString() !=
-        predictions_buffer.contents().at(line)->ToString()) {
-      line++;
-    } else {
-      predictions_buffer.EraseLines(line, line.next());
-    }
-  }
-
   std::optional<std::wstring> common_prefix;
-  predictions_buffer.contents().EveryLine([&common_prefix, &abort_value](
-                                              LineNumber, const Line& line) {
-    if (abort_value.has_value()) return false;
-    if (line.empty()) {
-      return true;
-    }
-    VLOG(5) << "Considering prediction: " << line.ToString()
-            << " (end column: " << line.EndColumn() << ")";
-    if (!common_prefix.has_value()) {
-      common_prefix = line.ToString();
-      return true;
-    }
+  predictor_output.contents.sorted_lines().lines().EveryLine(
+      [&common_prefix, &abort_value](
+          LineNumber,
+          const language::NonNull<std::shared_ptr<const Line>>& line) {
+        if (abort_value.has_value()) return false;
+        if (line->empty()) {
+          return true;
+        }
+        VLOG(5) << "Considering prediction: " << line->ToString()
+                << " (end column: " << line->EndColumn() << ")";
+        if (!common_prefix.has_value()) {
+          common_prefix = line->ToString();
+          return true;
+        }
 
-    ColumnNumberDelta current_size =
-        std::min(ColumnNumberDelta(common_prefix.value().size()),
-                 line.EndColumn().ToDelta());
-    std::wstring current =
-        line.Substring(ColumnNumber(0), current_size)->ToString();
+        ColumnNumberDelta current_size =
+            std::min(ColumnNumberDelta(common_prefix.value().size()),
+                     line->EndColumn().ToDelta());
+        std::wstring current =
+            line->Substring(ColumnNumber(0), current_size)->ToString();
 
-    auto prefix_end =
-        mismatch(common_prefix->begin(), common_prefix->end(), current.begin(),
-                 [](wchar_t common_c, wchar_t current_c) {
-                   return towlower(common_c) == towlower(current_c);
-                 });
-    if (prefix_end.first != common_prefix->end()) {
-      if (prefix_end.first == common_prefix->begin()) {
-        LOG(INFO) << "Aborting completion.";
-        common_prefix = L"";
-        return false;
-      }
-      common_prefix = std::wstring(common_prefix->begin(), prefix_end.first);
-    }
-    return true;
-  });
+        auto prefix_end =
+            mismatch(common_prefix->begin(), common_prefix->end(),
+                     current.begin(), [](wchar_t common_c, wchar_t current_c) {
+                       return towlower(common_c) == towlower(current_c);
+                     });
+        if (prefix_end.first != common_prefix->end()) {
+          if (prefix_end.first == common_prefix->begin()) {
+            LOG(INFO) << "Aborting completion.";
+            common_prefix = L"";
+            return false;
+          }
+          common_prefix =
+              std::wstring(common_prefix->begin(), prefix_end.first);
+        }
+        return true;
+      });
   if (abort_value.has_value()) return Error(L"Aborted");
   return PredictResults{
       .common_prefix = common_prefix,

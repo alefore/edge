@@ -11,7 +11,6 @@ enum class FilterPredicateResult { kKeep, kErase };
 
 LineSequence FilterLines(
     LineSequence input,
-    const std::function<FilterPredicateResult(const language::text::Line&)>&
-        predicate);
+    const std::function<FilterPredicateResult(const Line&)>& predicate);
 }  // namespace afc::language::text
 #endif
