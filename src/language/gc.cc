@@ -91,8 +91,6 @@ Pool::~Pool() {
   LOG(INFO) << "Deleting Pool.";
   FullCollect();
 
-  LOG(INFO) << "Waiting for async work.";
-  async_work_->BlockUntilDone();
   data_.lock([](const Data& data) {
     CHECK(data.expand_list.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
@@ -243,6 +241,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
   async_work_->Add([callbacks = std::move(expired_objects_callbacks)] {
     VLOG(3) << "Allowing lost object to be deleted: " << callbacks.size();
   });
+  if (full) async_work_->BlockUntilDone();
 
   LOG(INFO) << "Garbage collection results: " << stats;
   return stats;
