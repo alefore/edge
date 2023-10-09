@@ -317,22 +317,23 @@ const bool position_after_tests_registration = tests::Register(
 
 void MutableLineSequence::insert(
     LineNumber position_line, const LineSequence& source,
-    const std::optional<LineModifierSet>& modifiers) {
+    const std::optional<LineModifierSet>& optional_modifiers) {
   CHECK_LE(position_line, EndLine());
   auto prefix = Lines::Prefix(lines_, position_line.read());
   auto suffix = Lines::Suffix(lines_, position_line.read());
-  source.ForEach([&](const NonNull<std::shared_ptr<const Line>>& line) {
-    NonNull<std::shared_ptr<const Line>> line_to_insert = line;
-    VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
-            << (modifiers.has_value() ? modifiers->size() : -1);
-    if (modifiers.has_value()) {
-      LineBuilder builder(line_to_insert.value());
-      builder.SetAllModifiers(modifiers.value());
-      line_to_insert = MakeNonNullShared<Line>(std::move(builder).Build());
-    }
-    prefix = Lines::PushBack(prefix, line_to_insert);
-    return true;
-  });
+  VisitOptional(
+      [&prefix, &source](LineModifierSet modifiers) {
+        source.ForEach([&](NonNull<std::shared_ptr<const Line>> line) {
+          VLOG(6) << "Insert line: " << line->EndColumn()
+                  << " modifiers: " << modifiers.size();
+          LineBuilder builder(line.value());
+          builder.SetAllModifiers(modifiers);
+          prefix = Lines::PushBack(
+              prefix, MakeNonNullShared<Line>(std::move(builder).Build()));
+        });
+      },
+      [&] { prefix = Lines::Append(prefix, source.lines_); },
+      optional_modifiers);
   lines_ = Lines::Append(prefix, suffix);
   observer_->LinesInserted(position_line, source.size());
 }
