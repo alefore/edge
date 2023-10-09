@@ -49,7 +49,7 @@ std::unique_ptr<bool, std::function<void(bool*)>> Tracker::Call() {
         double seconds = GetElapsedSecondsSince(start);
         delete value;
         data_.lock([seconds](Data& data) {
-          VLOG(6) << "Finish: " << data.name;
+          VLOG(6) << "Finish: " << data.name << ": " << seconds;
           data.seconds += seconds;
           data.longest_seconds = std::max(data.longest_seconds, seconds);
         });
