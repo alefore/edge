@@ -61,6 +61,7 @@ ValueOrError<ParsedLine> Parse(NonNull<std::shared_ptr<LazyString>> line) {
 }
 
 SortedLineSequence PrepareBuffer(LineSequence input) {
+  TRACK_OPERATION(CompletionModel_PrepareBuffer_sort);
   return SortedLineSequence(FilterLines(input, [](const Line& line) {
     return line.contents()->size().IsZero()
                ? language::text::FilterPredicateResult::kErase
