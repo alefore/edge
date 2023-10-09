@@ -693,7 +693,7 @@ class InsertMode : public EditorMode {
         } else {
           current_insertion_->DeleteToLineEnd(
               current_insertion_->PositionBefore(
-                  current_insertion_->range().end));
+                  current_insertion_->range().end()));
         }
         break;
       case Direction::kForwards:
@@ -812,9 +812,9 @@ class InsertMode : public EditorMode {
   static CompletionModelManager::CompressedText GetCompletionToken(
       const LineSequence& buffer_contents, Range token_range) {
     CompletionModelManager::CompressedText output = LowerCase(
-        Substring(buffer_contents.at(token_range.begin.line)->contents(),
-                  token_range.begin.column,
-                  token_range.end.column - token_range.begin.column));
+        Substring(buffer_contents.at(token_range.begin().line)->contents(),
+                  token_range.begin().column,
+                  token_range.end().column - token_range.begin().column));
     VLOG(6) << "Found completion token: " << output.value();
     return output;
   }
@@ -859,10 +859,10 @@ class InsertMode : public EditorMode {
     if (token_range.IsEmpty()) {
       VLOG(5) << "Unable to rewind for completion token.";
       static const wchar_t kCompletionDisableSuffix = L'-';
-      if (token_range.end.column >= ColumnNumber(2) &&
-          line->get(token_range.end.column - ColumnNumberDelta(1)) ==
+      if (token_range.end().column >= ColumnNumber(2) &&
+          line->get(token_range.end().column - ColumnNumberDelta(1)) ==
               kCompletionDisableSuffix &&
-          line->get(token_range.end.column - ColumnNumberDelta(2)) != L' ') {
+          line->get(token_range.end().column - ColumnNumberDelta(2)) != L' ') {
         return std::move(output).Transform([buffer_root, position](EmptyValue) {
           VLOG(3) << "Found completion disabling suffix; removing it.";
           transformation::Stack stack;

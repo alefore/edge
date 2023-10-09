@@ -19,7 +19,7 @@ namespace {
 futures::Value<PossibleError> InsertHistoryBufferContents(OpenBuffer& output) {
   output.ClearContents(MutableLineSequence::ObserverBehavior::kHide);
   for (const LineSequence& contents : output.editor().insert_history().get()) {
-    LineColumn position = output.contents().range().end;
+    LineColumn position = output.contents().range().end();
     output.InsertInPosition(contents, position, {});
     output.AppendEmptyLine();
   };

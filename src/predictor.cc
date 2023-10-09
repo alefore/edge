@@ -130,20 +130,20 @@ std::wstring GetPredictInput(const PredictOptions& options) {
   modifiers.structure = Structure::kLine;
   auto range =
       buffer->ptr()->FindPartialRange(modifiers, buffer->ptr()->position());
-  range.end = std::max(range.end, buffer->ptr()->position());
-  auto line = buffer->ptr()->LineAt(range.begin.line);
-  CHECK_LE(range.begin.column, line->EndColumn());
-  if (range.begin.line == range.end.line) {
-    CHECK_GE(range.end.column, range.begin.column);
-    range.end.column = std::min(range.end.column, line->EndColumn());
+  range.set_end(std::max(range.end(), buffer->ptr()->position()));
+  auto line = buffer->ptr()->LineAt(range.begin().line);
+  CHECK_LE(range.begin().column, line->EndColumn());
+  if (range.begin().line == range.end().line) {
+    CHECK_GE(range.end().column, range.begin().column);
+    range.set_end_column(std::min(range.end().column, line->EndColumn()));
   } else {
-    CHECK_GE(line->EndColumn(), range.begin.column);
+    CHECK_GE(line->EndColumn(), range.begin().column);
   }
   return line
-      ->Substring(range.begin.column,
-                  (range.begin.line == range.end.line ? range.end.column
-                                                      : line->EndColumn()) -
-                      range.begin.column)
+      ->Substring(range.begin().column,
+                  (range.begin().line == range.end().line ? range.end().column
+                                                          : line->EndColumn()) -
+                      range.begin().column)
       ->ToString();
 }
 }  // namespace
@@ -418,7 +418,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     });
                 TRACK_OPERATION(FilePredictor_SetBufferContents);
                 buffer.InsertInPosition(output_lines.sorted_lines().lines(),
-                                        buffer.contents().range().end,
+                                        buffer.contents().range().end(),
                                         std::nullopt);
 
                 LOG(INFO) << "Signaling end of file.";
@@ -622,13 +622,13 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
                     std::set<std::wstring>* words) {
   DCHECK(words != nullptr);
   if (tree.children().empty() &&
-      tree.range().begin.line == tree.range().end.line) {
-    CHECK_LE(tree.range().begin.column, tree.range().end.column);
-    auto line = buffer.LineAt(tree.range().begin.line);
+      tree.range().begin().line == tree.range().end().line) {
+    CHECK_LE(tree.range().begin().column, tree.range().end().column);
+    auto line = buffer.LineAt(tree.range().begin().line);
     auto word =
-        line->Substring(tree.range().begin.column,
-                        std::min(tree.range().end.column, line->EndColumn()) -
-                            tree.range().begin.column)
+        line->Substring(tree.range().begin().column,
+                        std::min(tree.range().end().column, line->EndColumn()) -
+                            tree.range().begin().column)
             ->ToString();
     if (!word.empty()) {
       DVLOG(5) << "Found leave: " << word;

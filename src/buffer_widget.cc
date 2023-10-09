@@ -257,9 +257,7 @@ const bool merge_sections_tests_registration = tests::Register(
 
 LineNumberDelta SumSectionsLines(const std::set<Range> sections) {
   LineNumberDelta output;
-  for (auto& range : sections) {
-    output += range.end.line - range.begin.line;
-  }
+  for (auto& range : sections) output += range.end().line - range.begin().line;
   return output;
 }
 
@@ -269,9 +267,9 @@ std::set<Range> ExpandSections(LineNumber end_line,
   static const auto kMargin = LineNumberDelta(1);
   for (const auto& section : sections) {
     output.insert(
-        Range(LineColumn(section.begin.line.MinusHandlingOverflow(kMargin)),
+        Range(LineColumn(section.begin().line.MinusHandlingOverflow(kMargin)),
               LineColumn(std::min(end_line + LineNumberDelta(1),
-                                  section.end.line + kMargin))));
+                                  section.end().line + kMargin))));
   }
   return output;
 }
@@ -302,10 +300,10 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
   for (const auto& section : sections) {
     BufferContentsViewLayout::Input section_input =
         buffer_contents_window_input;
-    section_input.lines_shown = section.end.line - section.begin.line;
+    section_input.lines_shown = section.end().line - section.begin().line;
     section_input.status_lines = LineNumberDelta();
     // TODO: Maybe take columns into account? Ugh.
-    section_input.begin = LineColumn(section.begin.line);
+    section_input.begin = LineColumn(section.begin().line);
     Widget::OutputProducerOptions section_output_producer_options =
         output_producer_options;
     section_output_producer_options.size = LineColumnDelta(

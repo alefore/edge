@@ -160,7 +160,7 @@ const std::unordered_set<ParseTreeProperty>& ParseTree::properties() const {
 ParseTree SimplifyTree(const ParseTree& tree) {
   ParseTree output(tree.range());
   for (const auto& child : tree.children()) {
-    if (child.range().begin.line != child.range().end.line) {
+    if (child.range().begin().line != child.range().end().line) {
       output.PushChild(SimplifyTree(child));
     }
   }
@@ -170,9 +170,11 @@ ParseTree SimplifyTree(const ParseTree& tree) {
 namespace {
 std::optional<ParseTree> ZoomOutTree(const ParseTree& input, double ratio) {
   Range range = input.range();
-  range.begin.line *= ratio;
-  range.end.line *= ratio;
-  if (range.begin.line == range.end.line) {
+  // TODO(trivial, 2023-10-10): The two lines below shouldn't need the call to
+  // `read`: instead, ghost_type should declare the `operator*` overload.
+  range.set_begin_line(LineNumber(range.begin().line.read() * ratio));
+  range.set_end_line(LineNumber(range.end().line.read() * ratio));
+  if (range.begin().line == range.end().line) {
     return std::nullopt;
   }
   ParseTree output(range);
@@ -265,33 +267,33 @@ class WordsTreeParser : public TreeParser {
       const Line& contents = buffer.at(line).value();
 
       ColumnNumber line_end = contents.EndColumn();
-      if (line == range.end.line) {
-        line_end = std::min(line_end, range.end.column);
+      if (line == range.end().line) {
+        line_end = std::min(line_end, range.end().column);
       }
 
       ColumnNumber column =
-          line == range.begin.line ? range.begin.column : ColumnNumber(0);
+          line == range.begin().line ? range.begin().column : ColumnNumber(0);
       while (column < line_end) {
         Range keyword_range;
         while (column < line_end && IsSpace(contents, column)) {
           column++;
         }
-        keyword_range.begin = LineColumn(line, column);
+        keyword_range.begin() = LineColumn(line, column);
 
         while (column < line_end && !IsSpace(contents, column)) {
           column++;
         }
-        keyword_range.end = LineColumn(line, column);
+        keyword_range.set_end(LineColumn(line, column));
 
         if (keyword_range.IsEmpty()) {
           return;
         }
 
-        CHECK_GT(keyword_range.end.column, keyword_range.begin.column);
+        CHECK_GT(keyword_range.end().column, keyword_range.begin().column);
         // TODO(2022-04-22): Find a way to avoid the call to ToString?
         auto keyword =
-            Substring(contents.contents(), keyword_range.begin.column,
-                      keyword_range.end.column - keyword_range.begin.column)
+            Substring(contents.contents(), keyword_range.begin().column,
+                      keyword_range.end().column - keyword_range.begin().column)
                 ->ToString();
         ParseTree child = delegate_->FindChildren(buffer, keyword_range);
         if (typos_.find(keyword) != typos_.end()) {
@@ -328,9 +330,9 @@ class LineTreeParser : public TreeParser {
       }
 
       output.PushChild(delegate_->FindChildren(
-          buffer,
-          Range(LineColumn(line),
-                std::min(LineColumn(line, contents->EndColumn()), range.end))));
+          buffer, Range(LineColumn(line),
+                        std::min(LineColumn(line, contents->EndColumn()),
+                                 range.end()))));
     });
     return output;
   }

@@ -41,26 +41,27 @@ using ::operator<<;
 }
 
 LineSequence LineSequence::ViewRange(Range range) const {
-  CHECK_LE(range.begin, range.end);
-  CHECK_LE(range.end.line, EndLine());
+  // TODO(2023-10-10, easy): Move this validation to the Range constructor.
+  CHECK_LE(range.begin(), range.end());
+  CHECK_LE(range.end().line, EndLine());
   Lines::Ptr output = lines_;
 
-  output = Lines::Suffix(Lines::Prefix(output, range.end.line.read() + 1),
-                         range.begin.line.read());
+  output = Lines::Suffix(Lines::Prefix(output, range.end().line.read() + 1),
+                         range.begin().line.read());
 
-  if (range.end.column < output->Get(output->size() - 1)->EndColumn()) {
+  if (range.end().column < output->Get(output->size() - 1)->EndColumn()) {
     LineBuilder replacement(output->Get(output->size() - 1).value());
-    replacement.DeleteSuffix(range.end.column);
+    replacement.DeleteSuffix(range.end().column);
     output = output->Replace(
         output->size() - 1,
         MakeNonNullShared<Line>(std::move(replacement).Build()));
   }
 
-  if (!range.begin.column.IsZero()) {
+  if (!range.begin().column.IsZero()) {
     LineBuilder replacement(output->Get(0).value());
     replacement.DeleteCharacters(
         ColumnNumber(0),
-        std::min(output->Get(0)->EndColumn(), range.begin.column).ToDelta());
+        std::min(output->Get(0)->EndColumn(), range.begin().column).ToDelta());
     output = output->Replace(
         0, MakeNonNullShared<Line>(std::move(replacement).Build()));
   }

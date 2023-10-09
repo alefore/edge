@@ -34,7 +34,7 @@ Seek& Seek::WithRange(Range range) {
 }
 
 Range Seek::range() const { return range_; }
-bool Seek::AtRangeEnd() const { return *position_ >= range_.end; }
+bool Seek::AtRangeEnd() const { return *position_ >= range_.end(); }
 
 wchar_t Seek::read() const { return contents_.character_at(*position_); }
 
@@ -166,7 +166,7 @@ Seek::Result Seek::ToEndOfLine() const {
   auto original_position = *position_;
   CHECK_LE(position_->line, contents_.EndLine());
   position_->column = contents_.at(position_->line)->EndColumn();
-  *position_ = std::min(range_.end, *position_);
+  *position_ = std::min(range_.end(), *position_);
   return *position_ > original_position ? DONE : UNABLE_TO_ADVANCE;
 }
 
@@ -218,7 +218,7 @@ Seek::Result Seek::UntilNextLineIsNotSubsetOf(
 bool Seek::AdvanceLine(LineColumn* position) const {
   switch (direction_) {
     case Direction::kForwards:
-      if (position->line.next() >= range_.end.line) {
+      if (position->line.next() >= range_.end().line) {
         return false;
       }
       position->column = ColumnNumber(0);
@@ -226,7 +226,7 @@ bool Seek::AdvanceLine(LineColumn* position) const {
       return true;
 
     case Direction::kBackwards:
-      if (position->line == range_.begin.line) {
+      if (position->line == range_.begin().line) {
         return false;
       }
       position->column = ColumnNumber(0);
@@ -241,13 +241,13 @@ bool Seek::AdvanceLine(LineColumn* position) const {
 bool Seek::Advance(LineColumn* position) const {
   switch (direction_) {
     case Direction::kForwards:
-      if (*position >= range_.end) {
+      if (*position >= range_.end()) {
         return false;
       } else if (position->column < contents_.at(position->line)->EndColumn()) {
         ++position->column;
       } else if (!wrapping_lines_) {
         return false;
-      } else if (LineColumn(position->line.next()) == range_.end) {
+      } else if (LineColumn(position->line.next()) == range_.end()) {
         return false;
       } else {
         *position = LineColumn(position->line.next());
@@ -255,7 +255,7 @@ bool Seek::Advance(LineColumn* position) const {
       return true;
 
     case Direction::kBackwards:
-      if (*position <= range_.begin) {
+      if (*position <= range_.begin()) {
         return false;
       } else if (position->column > ColumnNumber(0)) {
         --position->column;

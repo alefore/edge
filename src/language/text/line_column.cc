@@ -92,6 +92,10 @@ std::wstring LineColumn::Serialize() const {
   return L"LineColumn(" + to_wstring(line) + L", " + to_wstring(column) + L")";
 }
 
+// TODO(easy?, 2023-09-18): Assert that input_begin <= input_end?
+Range::Range(LineColumn input_begin, LineColumn input_end)
+    : begin_(input_begin), end_(input_end) {}
+
 /* static */ Range Range::InLine(
     LineColumn start, afc::language::lazy_string::ColumnNumberDelta size) {
   return Range(start, LineColumn(start.line, start.column + size));
@@ -103,36 +107,63 @@ std::wstring LineColumn::Serialize() const {
 }
 
 bool Range::Contains(const Range& subset) const {
-  return begin <= subset.begin && subset.end <= end;
+  return begin() <= subset.begin() && subset.end() <= end();
 }
 
 bool Range::Contains(const LineColumn& position) const {
-  return begin <= position &&
-         (position < end ||
+  return begin() <= position &&
+         (position < end() ||
           // Handle the case where `end.column` is max: this should include
           // anything in the line. This matters when `position.column` is also
           // max.
-          (position.line == end.line &&
-           end.column == std::numeric_limits<ColumnNumber>::max()));
+          (position.line == end().line &&
+           end().column == std::numeric_limits<ColumnNumber>::max()));
 }
 
 bool Range::Disjoint(const Range& other) const {
-  return end <= other.begin || other.end <= begin;
+  return end() <= other.begin() || other.end() <= begin();
 }
 
 language::ValueOrError<Range> Range::Union(const Range& other) const {
-  if (end < other.begin || begin > other.end)
+  if (end() < other.begin() || begin() > other.end())
     return language::Error(L"Gap found between the ranges.");
-  return Range(std::min(begin, other.begin), std::max(end, other.end));
+  return Range(std::min(begin(), other.begin()), std::max(end(), other.end()));
 }
 
+Range Range::Intersection(const Range& other) const {
+  if (Disjoint(other)) {
+    return Range();
+  }
+  return Range(std::max(begin(), other.begin()), std::min(end(), other.end()));
+}
+
+bool Range::operator==(const Range& rhs) const {
+  return begin() == rhs.begin() && end() == rhs.end();
+}
+
+LineNumberDelta Range::lines() const {
+  return end().line - begin().line + LineNumberDelta(1);
+}
+
+bool Range::IsSingleLine() const { return begin_.line == end_.line; }
+
+LineColumn Range::begin() const { return begin_; };
+void Range::set_begin(LineColumn value) { begin_ = value; }
+void Range::set_begin_line(LineNumber value) { begin_.line = value; }
+void Range::set_begin_column(ColumnNumber value) { begin_.column = value; }
+
+LineColumn Range::end() const { return end_; }
+void Range::set_end(LineColumn value) { end_ = value; }
+void Range::set_end_line(LineNumber value) { end_.line = value; }
+void Range::set_end_column(ColumnNumber value) { end_.column = value; }
+
 std::ostream& operator<<(std::ostream& os, const Range& range) {
-  os << "[" << range.begin << ", " << range.end << ")";
+  os << "[" << range.begin() << ", " << range.end() << ")";
   return os;
 }
 
 bool operator<(const Range& a, const Range& b) {
-  return a.begin < b.begin || (a.begin == b.begin && a.end < b.end);
+  return a.begin() < b.begin() || (a.begin() == b.begin() && a.end() < b.end());
 }
 
 LineColumn LineColumn::operator+(const LineNumberDelta& value) const {

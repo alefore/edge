@@ -20,8 +20,9 @@ using language::text::Range;
 
 namespace {
 LineColumn MoveInRange(Range range, Modifiers modifiers) {
-  CHECK_LE(range.begin, range.end);
-  return modifiers.direction == Direction::kForwards ? range.end : range.begin;
+  CHECK_LE(range.begin(), range.end());
+  return modifiers.direction == Direction::kForwards ? range.end()
+                                                     : range.begin();
 }
 
 template <typename Iterator>

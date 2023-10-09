@@ -66,9 +66,10 @@ std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(
     const std::set<language::text::Range>& token_set =
         data.token_partition[it_token->second];
     auto it = token_set.lower_bound(relevant_range);
-    while (it != token_set.begin() && std::prev(it)->end > relevant_range.begin)
+    while (it != token_set.begin() &&
+           std::prev(it)->end() > relevant_range.begin())
       --it;
-    while (it != token_set.end() && it->begin <= relevant_range.end) {
+    while (it != token_set.end() && it->begin() <= relevant_range.end()) {
       output.insert(*it);
       ++it;
     }
@@ -79,8 +80,9 @@ std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(
 
 namespace {
 std::wstring GetSymbol(const Range& range, const LineSequence& contents) {
-  return contents.at(range.begin.line)
-      ->Substring(range.begin.column, range.end.column - range.begin.column)
+  return contents.at(range.begin().line)
+      ->Substring(range.begin().column,
+                  range.end().column - range.begin().column)
       ->ToString();
 }
 
@@ -95,7 +97,7 @@ void PrepareTokenPartition(
     trees.pop_back();
     const std::vector<ParseTree>& children = head.value().children();
     if (children.empty() &&
-        head->range().begin.line == head->range().end.line) {
+        head->range().begin().line == head->range().end().line) {
       auto insert_results = contents_to_id.insert(
           {GetSymbol(head->range(), contents), output_token_partition.size()});
       if (insert_results.second) {

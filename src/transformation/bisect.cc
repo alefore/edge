@@ -34,15 +34,15 @@ std::wstring Bisect::Serialize() const { return L"Bisect()"; }
 namespace {
 LineColumn RangeCenter(const Range& range, Structure structure) {
   if (structure == Structure::kChar) {
-    return LineColumn(
-        range.begin.line,
-        ColumnNumber() +
-            (range.begin.column.ToDelta() + range.end.column.ToDelta()) / 2);
+    return LineColumn(range.begin().line,
+                      ColumnNumber() + (range.begin().column.ToDelta() +
+                                        range.end().column.ToDelta()) /
+                                           2);
   } else if (structure == Structure::kLine) {
-    if (range.begin.line == range.end.line) return range.begin;
-    return LineColumn(LineNumber() +
-                      (range.begin.line.ToDelta() + range.end.line.ToDelta()) /
-                          2);
+    if (range.begin().line == range.end().line) return range.begin();
+    return LineColumn(
+        LineNumber() +
+        (range.begin().line.ToDelta() + range.end().line.ToDelta()) / 2);
   }
   LOG(FATAL) << "Invalid structure.";
   return LineColumn();
@@ -80,10 +80,10 @@ Range AdjustRange(Structure structure, Direction direction, Range range) {
   LineColumn center = RangeCenter(range, structure);
   switch (direction) {
     case Direction::kForwards:
-      range.begin = center;
+      range.set_begin(center);
       break;
     case Direction::kBackwards:
-      range.end = center;
+      range.set_end(center);
       break;
   }
   return range;
@@ -249,16 +249,17 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
       break;
     case transformation::Input::Mode::kPreview:
       VisualOverlayMap overlays;
-      if (range.value().begin != center)
+      if (range.value().begin() != center)
         overlays[kPriority][kKey].insert(
-            {range.value().begin, afc::infrastructure::screen::VisualOverlay{
-                                      .content = NewLazyString(L"⟦"),
+            {range.value().begin(),
+             afc::infrastructure::screen::VisualOverlay{
+                 .content = NewLazyString(L"⟦"),
+                 .modifiers = {LineModifier::kReverse}}});
+      if (range.value().end() != center)
+        overlays[kPriority][kKey].insert(
+            {range.value().end(), afc::infrastructure::screen::VisualOverlay{
+                                      .content = NewLazyString(L"⟧"),
                                       .modifiers = {LineModifier::kReverse}}});
-      if (range.value().end != center)
-        overlays[kPriority][kKey].insert(
-            {range.value().end, afc::infrastructure::screen::VisualOverlay{
-                                    .content = NewLazyString(L"⟧"),
-                                    .modifiers = {LineModifier::kReverse}}});
       output.Push(VisualOverlay{.visual_overlay_map = std::move(overlays)});
       break;
   }

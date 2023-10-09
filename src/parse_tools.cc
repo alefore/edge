@@ -28,7 +28,7 @@ void Action::Execute(std::vector<ParseTree>* trees, LineNumber line) {
       trees->pop_back();
 
       auto range = child.range();
-      range.end = LineColumn(line, column);
+      range.set_end(LineColumn(line, column));
       child.set_range(range);
       DVLOG(5) << "Tree: Pop: " << child.range();
       CHECK(!trees->empty());

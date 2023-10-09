@@ -105,8 +105,8 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
     auto parse_results = cache_.Get(hash, [&] {
       TRACK_OPERATION(LineOrientedTreeParser_FindChildren_Parse);
       ParseData data(contents, std::move(states_stack),
-                     std::min(LineColumn(i + LineNumberDelta(1)), range.end));
-      data.set_position(std::max(LineColumn(i), range.begin));
+                     std::min(LineColumn(i + LineNumberDelta(1)), range.end()));
+      data.set_position(std::max(LineColumn(i), range.begin()));
       ParseLine(&data);
       return *data.parse_results();
     });
@@ -118,12 +118,12 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
 
   auto final_position =
       LineColumn(contents.EndLine(), contents.back()->EndColumn());
-  if (final_position >= range.end) {
+  if (final_position >= range.end()) {
     DVLOG(5) << "Draining final states: " << states_stack.size();
     ParseData data(contents, std::move(states_stack),
                    std::min(LineColumn(LineNumber(0) + contents.size() +
                                        LineNumberDelta(1)),
-                            range.end));
+                            range.end()));
     while (data.parse_results()->states_stack.size() > 1) {
       data.PopBack();
     }

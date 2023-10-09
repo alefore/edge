@@ -47,14 +47,14 @@ bool FindTreeRange(const NonNull<std::shared_ptr<const ParseTree>>& root,
     while (child < tree->children().size() &&
            (get_child(child)->children().empty() ||
             (direction == Direction::kForwards
-                 ? get_child(child)->range().end <= position
-                 : get_child(child)->range().begin > position))) {
+                 ? get_child(child)->range().end() <= position
+                 : get_child(child)->range().begin() > position))) {
       child++;
     }
 
     if (child < tree->children().size() &&
-        (direction == Direction::kForwards ? tree->range().begin < position
-                                           : tree->range().end > position)) {
+        (direction == Direction::kForwards ? tree->range().begin() < position
+                                           : tree->range().end() > position)) {
       tree = get_child(child);
       continue;
     }
@@ -219,7 +219,7 @@ void SeekToNext(SeekInput input) {
         return;
       }
       if (!range.Contains(*input.position)) {
-        *input.position = range.begin;
+        *input.position = range.begin();
       }
     }
       return;
@@ -306,10 +306,10 @@ bool SeekToLimit(SeekInput input) {
       }
       switch (input.direction) {
         case Direction::kForwards:
-          *input.position = range.end;
+          *input.position = range.end();
           return true;
         case Direction::kBackwards:
-          *input.position = range.begin;
+          *input.position = range.begin();
           return true;
       }
       LOG(FATAL) << "Invalid direction value.";
@@ -391,7 +391,7 @@ bool SeekToLimit(SeekInput input) {
         *input.position = LineColumn();
       } else {
         CHECK_GT(input.contents.size(), LineNumberDelta(0));
-        *input.position = input.contents.range().end;
+        *input.position = input.contents.range().end();
       }
       return false;
   }

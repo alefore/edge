@@ -148,21 +148,21 @@ struct CursorsTracker::Transformation {
   std::wstring ToString();
 
   Transformation& WithBegin(language::text::LineColumn position) {
-    CHECK_EQ(range.begin, language::text::LineColumn());
-    range.begin = position;
+    CHECK_EQ(range.begin(), language::text::LineColumn());
+    range.set_begin(position);
     return *this;
   }
 
   Transformation& WithEnd(language::text::LineColumn position) {
-    CHECK_EQ(range.end, language::text::LineColumn::Max());
-    range.end = position;
+    CHECK_EQ(range.end(), language::text::LineColumn::Max());
+    range.set_end(position);
     return *this;
   }
 
   Transformation& WithLineEq(language::text::LineNumber line) {
-    range.begin = language::text::LineColumn(line);
-    range.end =
-        language::text::LineColumn(line + language::text::LineNumberDelta(1));
+    range = Range(
+        language::text::LineColumn(line),
+        language::text::LineColumn(line + language::text::LineNumberDelta(1)));
     return *this;
   }
 
@@ -197,8 +197,8 @@ struct CursorsTracker::Transformation {
 
   language::text::Range TransformRange(
       const language::text::Range& input) const {
-    return Range(TransformLineColumn(input.begin, false),
-                 TransformLineColumn(input.end, true));
+    return Range(TransformLineColumn(input.begin(), false),
+                 TransformLineColumn(input.end(), true));
   }
 
   language::text::LineColumn TransformLineColumn(LineColumn position,
@@ -221,8 +221,8 @@ struct CursorsTracker::Transformation {
     CursorsSet cursors_affected;
     bool transferred_active = false;
     {
-      auto it = cursors_set->lower_bound(range.begin);
-      auto end = cursors_set->lower_bound(range.end);
+      auto it = cursors_set->lower_bound(range.begin());
+      auto end = cursors_set->lower_bound(range.end());
       while (it != end) {
         auto result = cursors_affected.insert(*it);
         if (it == cursors_set->active() && !transferred_active) {
@@ -286,12 +286,12 @@ struct CursorsTracker::ExtendedTransformation {
                          ExtendedTransformation* previous)
       : transformation(std::move(input_transformation)) {
     if (transformation.line_delta > LineNumberDelta(0)) {
-      empty.begin = transformation.range.begin;
-      empty.end = std::min(
-          transformation.range.end,
-          LineColumn(
-              transformation.range.begin.line + transformation.line_delta,
-              transformation.range.begin.column + transformation.column_delta));
+      empty = Range(transformation.range.begin(),
+                    std::min(transformation.range.end(),
+                             LineColumn(transformation.range.begin().line +
+                                            transformation.line_delta,
+                                        transformation.range.begin().column +
+                                            transformation.column_delta)));
     }
     if (previous != nullptr) {
       owned = previous->empty.Intersection(transformation.OutputOf());
@@ -408,10 +408,11 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   // Remove unnecessary line_lower_bound.
   if (transformation.line_delta == LineNumberDelta(-1) &&
       transformation.column_delta == ColumnNumberDelta(0) &&
-      transformation.line_lower_bound == transformation.range.begin.line) {
+      transformation.line_lower_bound == transformation.range.begin().line) {
     VLOG(4) << "Remove unnecessary line_lower_bound: " << transformation;
     transformation.line_lower_bound = LineNumber(0);
-    ++transformation.range.begin.line;
+    transformation.range.set_begin(
+        LineColumn(transformation.range.begin().line.next()));
   }
 
   if (transformation.IsNoop()) {
@@ -439,8 +440,8 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   // Into:
   // [[A:0], [min(B, D):MAX]), line: C, line_ge: 0, column: 0, column_ge: 0
   if (last.transformation.range == transformation.range &&
-      last.transformation.range.begin.column.IsZero() &&
-      last.transformation.range.end.column ==
+      last.transformation.range.begin().column.IsZero() &&
+      last.transformation.range.end().column ==
           std::numeric_limits<ColumnNumber>::max() &&
       last.transformation.line_delta + transformation.line_delta ==
           LineNumberDelta(0) &&
@@ -451,11 +452,12 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "
             << transformation;
 
-    last.transformation.range.end.line = std::min(
-        last.transformation.range.end.line, transformation.line_lower_bound);
-    last.transformation.line_delta = std::min(
-        last.transformation.line_delta,
-        transformation.line_lower_bound - last.transformation.range.begin.line);
+    last.transformation.range.set_end_line(std::min(
+        last.transformation.range.end().line, transformation.line_lower_bound));
+    last.transformation.line_delta =
+        std::min(last.transformation.line_delta,
+                 transformation.line_lower_bound -
+                     last.transformation.range.begin().line);
     transformation = last.transformation;
     transformations->pop_back();
     AdjustCursors(transformation);
@@ -490,21 +492,22 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   // Into:
   // [range: [[4:0], [inf:inf]), line: 1, line_ge: 0, column: 0, column_ge: 0.
   // [range: [[0:0], [4:0]), line: 0, line_ge: 0, column: A, column_ge: 0.
-  if (last.transformation.range.begin.line + last.transformation.line_delta ==
-          transformation.range.begin.line &&
-      last.transformation.range.begin.column.IsZero() &&
-      transformation.range.end < LineColumn::Max() &&
-      transformation.range.begin.column.IsZero() &&
-      last.transformation.range.end == LineColumn::Max() &&
+  if (last.transformation.range.begin().line + last.transformation.line_delta ==
+          transformation.range.begin().line &&
+      last.transformation.range.begin().column.IsZero() &&
+      transformation.range.end() < LineColumn::Max() &&
+      transformation.range.begin().column.IsZero() &&
+      last.transformation.range.end() == LineColumn::Max() &&
       last.transformation.line_delta > LineNumberDelta(0) &&
       transformation.line_delta == -last.transformation.line_delta) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "
             << transformation;
     Transformation previous = last.transformation;
-    previous.range.begin.line =
-        transformation.range.end.line + transformation.line_delta;
-    transformation.range.begin = last.transformation.range.begin;
-    transformation.range.end.line += transformation.line_delta;
+    previous.range.set_begin_line(transformation.range.end().line +
+                                  transformation.line_delta);
+    transformation.range.set_begin(last.transformation.range.begin());
+    transformation.range.set_end_line(transformation.range.end().line +
+                                      transformation.line_delta);
     transformation.line_delta = LineNumberDelta(0);
     transformations->pop_back();
     AdjustCursors(transformation);
@@ -514,17 +517,18 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
 
   if (last.transformation.column_delta == ColumnNumberDelta(0) &&
       last.transformation.column_lower_bound.IsZero() &&
-      last.transformation.range.begin.column.IsZero() &&
+      last.transformation.range.begin().column.IsZero() &&
       transformation.column_delta == ColumnNumberDelta(0) &&
       transformation.column_lower_bound.IsZero() &&
-      transformation.range.begin.column.IsZero()) {
+      transformation.range.begin().column.IsZero()) {
     if (last.transformation.line_delta > LineNumberDelta(0) &&
-        last.transformation.range.begin.line + last.transformation.line_delta ==
-            transformation.range.begin.line &&
+        last.transformation.range.begin().line +
+                last.transformation.line_delta ==
+            transformation.range.begin().line &&
         transformation.line_delta < LineNumberDelta(0) &&
         last.transformation.line_delta >= -transformation.line_delta &&
-        last.transformation.range.end == LineColumn::Max() &&
-        transformation.range.end == LineColumn::Max()) {
+        last.transformation.range.end() == LineColumn::Max() &&
+        transformation.range.end() == LineColumn::Max()) {
       VLOG(4) << "Collapsing transformations: " << last.transformation
               << " and " << transformation;
       last.transformation.line_delta += transformation.line_delta;
@@ -533,12 +537,12 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
       AdjustCursors(transformation);
       return;
     }
-    if (transformation.range.end == last.transformation.range.begin &&
+    if (transformation.range.end() == last.transformation.range.begin() &&
         transformation.line_delta == last.transformation.line_delta &&
         transformation.line_delta > LineNumberDelta(0)) {
       VLOG(4) << "Collapsing transformations: " << last.transformation
               << " and " << transformation;
-      last.transformation.range.begin = transformation.range.begin;
+      last.transformation.range.begin() = transformation.range.begin();
       transformation = last.transformation;
       transformations->pop_back();
       AdjustCursors(transformation);
@@ -548,8 +552,8 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     }
   }
 
-  if (transformation.range.end == last.transformation.range.begin &&
-      transformation.range.end.column.IsZero() &&
+  if (transformation.range.end() == last.transformation.range.begin() &&
+      transformation.range.end().column.IsZero() &&
       transformation.line_delta == LineNumberDelta(0) &&
       last.transformation.line_delta >= LineNumberDelta(0)) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "

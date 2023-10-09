@@ -26,7 +26,7 @@ futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
     // Find the first relevant child at the current level.
     size_t child = 0;
     while (child < tree->children().size() &&
-           (tree->children()[child].range().end <= input.position ||
+           (tree->children()[child].range().end() <= input.position ||
             tree->children()[child].children().empty())) {
       child++;
     }
@@ -37,17 +37,17 @@ futures::Value<CompositeTransformation::Output> TreeNavigate::Apply(
 
     auto candidate =
         NonNull<const ParseTree*>::AddressOf(tree->children()[child]);
-    if (tree->range().begin >= input.position &&
-        (tree->range().end != next_position ||
-         candidate->range().end != next_position)) {
+    if (tree->range().begin() >= input.position &&
+        (tree->range().end() != next_position ||
+         candidate->range().end() != next_position)) {
       break;
     }
     tree = candidate;
   }
 
-  auto last_position = tree->range().end;
+  auto last_position = tree->range().end();
   Seek(input.buffer.contents().snapshot(), &last_position).Backwards().Once();
   return futures::Past(Output::SetPosition(
-      input.position == last_position ? tree->range().begin : last_position));
+      input.position == last_position ? tree->range().begin() : last_position));
 }
 }  // namespace afc::editor

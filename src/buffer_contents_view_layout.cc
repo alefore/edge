@@ -43,11 +43,11 @@ LineNumber FindPositionInScreen(
     const std::vector<BufferContentsViewLayout::Line>& screen_lines,
     LineColumn position) {
   CHECK(!screen_lines.empty());
-  if (position < screen_lines.front().range.begin) {
+  if (position < screen_lines.front().range.begin()) {
     return LineNumber();
   }
 
-  if (screen_lines.back().range.end < position) {
+  if (screen_lines.back().range.end() < position) {
     return LineNumber(screen_lines.size()) -
            LineNumberDelta(1);  // Optimization.
   }
@@ -55,7 +55,7 @@ LineNumber FindPositionInScreen(
   LineNumber output;
   for (auto it = std::next(screen_lines.cbegin()); it != screen_lines.cend();
        ++it) {
-    if (position < it->range.begin) {
+    if (position < it->range.begin()) {
       return output;
     }
     ++output;
@@ -191,7 +191,7 @@ const bool get_screen_line_tests_registration = tests::Register(
             BufferContentsViewLayout::Line output = GetScreenLine(
                 LineSequence::ForTests({L"foo"}), std::nullopt, {},
                 LineNumber(0), ColumnRange{ColumnNumber(0), ColumnNumber(3)});
-            CHECK_EQ(output.range.end,
+            CHECK_EQ(output.range.end(),
                      LineColumn(LineNumber(0),
                                 std::numeric_limits<ColumnNumber>::max()));
           }},
@@ -213,10 +213,10 @@ std::vector<BufferContentsViewLayout::Line> PrependLines(
     LineNumber line, LineNumberDelta lines_desired,
     std::vector<BufferContentsViewLayout::Line> output) {
   std::list<ColumnRange> line_breaks = ComputeBreaks(options, line);
-  if (line == output.front().range.begin.line) {
+  if (line == output.front().range.begin().line) {
     line_breaks.remove_if([&](const ColumnRange& r) {
-      return r.end > output.front().range.begin.column ||
-             r.begin >= output.front().range.begin.column;
+      return r.end > output.front().range.begin().column ||
+             r.begin >= output.front().range.begin().column;
     });
   }
   std::vector<BufferContentsViewLayout::Line> lines_to_insert;
@@ -364,14 +364,16 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
                          (options.lines_shown - options.status_lines -
                           std::max(options.margin_lines, LineNumberDelta(1))))
                 .read());
-    output.view_start =
-        output.lines.empty() ? options.begin : output.lines.front().range.begin;
+    output.view_start = output.lines.empty()
+                            ? options.begin
+                            : output.lines.front().range.begin();
   } else if (LineNumberDelta(output.lines.size()) <= lines_to_drop) {
     output.lines.clear();
   } else {
     output.lines.resize(output.lines.size() - lines_to_drop.read());
-    output.view_start =
-        output.lines.empty() ? options.begin : output.lines.front().range.begin;
+    output.view_start = output.lines.empty()
+                            ? options.begin
+                            : output.lines.front().range.begin();
   }
   return output;
 }
@@ -627,7 +629,7 @@ const bool buffer_contents_view_layout_tests_registration =
                     [&](auto options) {
                       options.status_lines = LineNumberDelta();
                       options.lines_shown = LineNumberDelta(10);
-                      options.active_position = options.contents.range().end;
+                      options.active_position = options.contents.range().end();
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
                       CHECK_EQ(output.lines.back().range,
@@ -638,7 +640,7 @@ const bool buffer_contents_view_layout_tests_registration =
                     [&](auto options) {
                       options.status_lines = LineNumberDelta(1);
                       options.lines_shown = LineNumberDelta(10);
-                      options.active_position = options.contents.range().end;
+                      options.active_position = options.contents.range().end();
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 9ul);
                       CHECK_EQ(output.lines.back().range,

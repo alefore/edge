@@ -31,8 +31,8 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
   MutableLineSequence contents_to_insert;
   VLOG(5) << "Switch Case Transformation at " << input.position << ": "
           << input.modifiers << ": Range: " << input.range;
-  LineColumn i = input.range.begin;
-  while (i < input.range.end) {
+  LineColumn i = input.range.begin();
+  while (i < input.range.end()) {
     NonNull<std::shared_ptr<const Line>> line =
         input.buffer.contents().at(i.line);
     if (i.column >= line->EndColumn()) {  // Switch to the next line.
@@ -47,7 +47,7 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
     }
   }
 
-  Output output = Output::SetPosition(input.range.begin);
+  Output output = Output::SetPosition(input.range.begin());
 
   output.Push(transformation::Delete{
       .modifiers = {.repetitions =

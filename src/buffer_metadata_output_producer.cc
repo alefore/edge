@@ -163,7 +163,7 @@ LineWithCursor::Generator NewGenerator(std::wstring input_prefix,
 
 LineNumber initial_line(const BufferMetadataOutputOptions& options) {
   CHECK(!options.screen_lines.empty());
-  return options.screen_lines.front().range.begin.line;
+  return options.screen_lines.front().range.begin().line;
 }
 
 // Assume that the screen is currently showing the screen_position lines out
@@ -172,17 +172,17 @@ LineNumber initial_line(const BufferMetadataOutputOptions& options) {
 // ignored by this function.
 Range MapScreenLineToContentsRange(Range lines_shown, LineNumber current_line,
                                    LineNumberDelta total_size) {
-  CHECK_GE(current_line, lines_shown.begin.line);
+  CHECK_GE(current_line, lines_shown.begin().line);
   double buffer_lines_per_screen_line =
       static_cast<double>(total_size.read()) /
-      (lines_shown.end.line - lines_shown.begin.line).read();
+      (lines_shown.end().line - lines_shown.begin().line).read();
   Range output;
-  output.begin.line =
+  output.set_begin_line(
       LineNumber(std::round(buffer_lines_per_screen_line *
-                            (current_line - lines_shown.begin.line).read()));
-  output.end.line = LineNumber(std::round(
+                            (current_line - lines_shown.begin().line).read())));
+  output.set_end_line(LineNumber(std::round(
       buffer_lines_per_screen_line *
-      (current_line + LineNumberDelta(1) - lines_shown.begin.line).read()));
+      (current_line + LineNumberDelta(1) - lines_shown.begin().line).read())));
   return output;
 }
 
@@ -198,12 +198,12 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   CHECK_GE(line, initial_line(options));
   auto range = MapScreenLineToContentsRange(
       Range(LineColumn(LineNumber(initial_line(options))),
-            options.screen_lines.back().range.begin),
+            options.screen_lines.back().range.begin()),
       line, options.buffer.lines_size());
   int count = 0;
-  auto cursors_end = cursors.lower_bound(range.end);
+  auto cursors_end = cursors.lower_bound(range.end());
   static const int kStopCount = 10;
-  for (auto cursors_it = cursors.lower_bound(range.begin);
+  for (auto cursors_it = cursors.lower_bound(range.begin());
        cursors_it != cursors_end && count < kStopCount; ++cursors_it) {
     count++;
   }
@@ -369,8 +369,8 @@ std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
   static Tracker tracker(L"BufferMetadataOutput::Prepare:PushMarks");
   auto call = tracker.Call();
   std::list<MarkType> output;
-  auto it_begin = input.lower_bound(range.begin);
-  auto it_end = input.lower_bound(range.end);
+  auto it_begin = input.lower_bound(range.begin());
+  auto it_end = input.lower_bound(range.end());
   while (it_begin != it_end) {
     if (range.Contains(it_begin->second.target_line_column)) {
       output.push_back(it_begin->second);
@@ -387,7 +387,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
 
   std::list<MetadataLine> output;
   NonNull<std::shared_ptr<const Line>> contents =
-      options.buffer.contents().at(range.begin.line);
+      options.buffer.contents().at(range.begin().line);
   std::optional<gc::Root<OpenBuffer>> target_buffer_dummy;
   NonNull<const OpenBuffer*> target_buffer =
       NonNull<const OpenBuffer*>::AddressOf(options.buffer);
@@ -496,7 +496,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   if (output.empty()) {
     output.push_back(
         MetadataLine{info_char, info_char_modifier,
-                     GetDefaultInformation(options, range.begin.line),
+                     GetDefaultInformation(options, range.begin().line),
                      MetadataLine::Type::kDefault});
   }
   CHECK(!output.empty());
@@ -810,7 +810,7 @@ ColumnsVector::Column BufferMetadataOutput(
       options.screen_lines.size());
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
     if (Range range = options.screen_lines[i.ToDelta().read()].range;
-        range.begin.line < LineNumber(0) + options.buffer.lines_size()) {
+        range.begin().line < LineNumber(0) + options.buffer.lines_size()) {
       metadata_by_line[i.read()] = Prepare(options, range);
     }
   }

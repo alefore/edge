@@ -117,9 +117,7 @@ namespace afc::language::text {
 // A range that contains every position i such that begin <= i < end.
 struct Range {
   Range() = default;
-  // TODO(easy?, 2023-09-18): Assert that input_begin <= input_end?
-  Range(LineColumn input_begin, LineColumn input_end)
-      : begin(input_begin), end(input_end) {}
+  Range(LineColumn input_begin, LineColumn input_end);
 
   static Range InLine(LineColumn start,
                       afc::language::lazy_string::ColumnNumberDelta size);
@@ -130,12 +128,12 @@ struct Range {
 
   template <typename Callback>
   void ForEachLine(Callback callback) {
-    for (LineNumber line = begin.line; line < end.line; ++line) {
+    for (LineNumber line = begin_.line; line < end_.line; ++line) {
       callback(line);
     }
   }
 
-  bool IsEmpty() const { return begin >= end; }
+  bool IsEmpty() const { return begin_ >= end_; }
 
   bool Contains(const Range& subset) const;
   bool Contains(const LineColumn& position) const;
@@ -144,23 +142,26 @@ struct Range {
   // Returns the union, unless there's a gap between the ranges.
   language::ValueOrError<Range> Union(const Range& other) const;
 
-  Range Intersection(const Range& other) const {
-    if (Disjoint(other)) {
-      return Range();
-    }
-    return Range(std::max(begin, other.begin), std::min(end, other.end));
-  }
+  Range Intersection(const Range& other) const;
+  bool operator==(const Range& rhs) const;
 
-  bool operator==(const Range& rhs) const {
-    return begin == rhs.begin && end == rhs.end;
-  }
+  LineNumberDelta lines() const;
 
-  LineNumberDelta lines() const {
-    return end.line - begin.line + LineNumberDelta(1);
-  }
+  bool IsSingleLine() const;
 
-  LineColumn begin;
-  LineColumn end;
+  LineColumn begin() const;
+  void set_begin(LineColumn value);
+  void set_begin_line(LineNumber value);
+  void set_begin_column(afc::language::lazy_string::ColumnNumber value);
+
+  LineColumn end() const;
+  void set_end(LineColumn value);
+  void set_end_line(LineNumber value);
+  void set_end_column(afc::language::lazy_string::ColumnNumber value);
+
+ private:
+  LineColumn begin_;
+  LineColumn end_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Range& range);
@@ -179,7 +180,7 @@ struct hash<afc::language::text::LineColumn> {
 template <>
 struct hash<afc::language::text::Range> {
   std::size_t operator()(const afc::language::text::Range& range) const {
-    return afc::language::compute_hash(range.begin, range.end);
+    return afc::language::compute_hash(range.begin(), range.end());
   }
 };
 }  // namespace std

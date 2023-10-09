@@ -100,11 +100,11 @@ LineWithCursor::Generator ParseTreeHighlighter(
 
 // Adds to `output` all modifiers for the tree relevant to a given range.
 //
-// If range.begin.column is non-zero, the columns in the output will have
+// If range.begin().column is non-zero, the columns in the output will have
 // already subtracted it. In other words, the columns in the output are
-// relative to range.begin.column, rather than absolute.
+// relative to range.begin().column, rather than absolute.
 //
-// Only modifiers in the line range.begin.line will ever be outputed. Most of
+// Only modifiers in the line range.begin().line will ever be outputed. Most of
 // the time, range.end is either in the same line or at the beginning of the
 // next, and this restriction won't apply.
 void GetSyntaxModifiersForLine(
@@ -113,24 +113,24 @@ void GetSyntaxModifiersForLine(
   VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
   if (range.Intersection(tree.range()).IsEmpty()) return;
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
-    if (tree_position.line != range.begin.line) return;
+    if (tree_position.line != range.begin().line) return;
     auto column = tree_position.column.MinusHandlingOverflow(
-        range.begin.column.ToDelta());
+        range.begin().column.ToDelta());
     output[column] = syntax_modifiers;
   };
 
-  PushCurrentModifiers(tree.range().end);
+  PushCurrentModifiers(tree.range().end());
   syntax_modifiers.insert(tree.modifiers().begin(), tree.modifiers().end());
-  PushCurrentModifiers(std::max(range.begin, tree.range().begin));
+  PushCurrentModifiers(std::max(range.begin(), tree.range().begin()));
 
   const auto& children = tree.children();
   auto it = std::upper_bound(
-      children.begin(), children.end(), range.begin,
+      children.begin(), children.end(), range.begin(),
       [](const LineColumn& position, const ParseTree& candidate) {
-        return position < candidate.range().end;
+        return position < candidate.range().end();
       });
 
-  while (it != children.end() && (*it).range().begin <= range.end) {
+  while (it != children.end() && (*it).range().begin() <= range.end()) {
     GetSyntaxModifiersForLine(range, *it, syntax_modifiers, output);
     ++it;
   }
@@ -211,7 +211,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
       .lines = {}, .width = output_producer_options.size.column};
 
   for (BufferContentsViewLayout::Line screen_line : lines) {
-    auto line = screen_line.range.begin.line;
+    auto line = screen_line.range.begin().line;
 
     if (line > buffer.EndLine()) {
       output.lines.push_back(LineWithCursor::Generator::Empty());
@@ -232,16 +232,17 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                EditorMode::CursorMode cursor_mode) {
               LineWithCursor::ViewOptions options{
                   .line = *line_contents_with_hash.value,
-                  .initial_column = screen_line.range.begin.column,
+                  .initial_column = screen_line.range.begin().column,
                   .width = size_columns,
                   .input_width =
-                      screen_line.range.begin.line == screen_line.range.end.line
-                          ? screen_line.range.end.column -
-                                screen_line.range.begin.column
+                      screen_line.range.begin().line ==
+                              screen_line.range.end().line
+                          ? screen_line.range.end().column -
+                                screen_line.range.begin().column
                           : std::numeric_limits<ColumnNumberDelta>::max()};
               if (!atomic_lines) {
                 options.inactive_cursor_columns = screen_line.current_cursors;
-                if (position.line == screen_line.range.begin.line &&
+                if (position.line == screen_line.range.begin().line &&
                     options.inactive_cursor_columns.erase(position.column)) {
                   options.active_cursor_column = position.column;
                 }
@@ -292,15 +293,15 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                 .cursor_mode()));
 
     if (&current_tree != root.get().get() &&
-        screen_line.range.begin.line >= current_tree.range().begin.line &&
-        screen_line.range.begin.line <= current_tree.range().end.line) {
+        screen_line.range.begin().line >= current_tree.range().begin().line &&
+        screen_line.range.begin().line <= current_tree.range().end().line) {
       ColumnNumber begin =
-          screen_line.range.begin.line == current_tree.range().begin.line
-              ? current_tree.range().begin.column
+          screen_line.range.begin().line == current_tree.range().begin().line
+              ? current_tree.range().begin().column
               : ColumnNumber(0);
       ColumnNumber end =
-          screen_line.range.begin.line == current_tree.range().end.line
-              ? current_tree.range().end.column
+          screen_line.range.begin().line == current_tree.range().end().line
+              ? current_tree.range().end().column
               : line_contents->EndColumn();
       generator = ParseTreeHighlighter(begin, end, std::move(generator));
     } else if (!buffer.parse_tree()->children().empty()) {

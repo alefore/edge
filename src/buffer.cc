@@ -1247,18 +1247,18 @@ OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
-  if (range.begin.line == range.end.line) {
-    contents_.DeleteCharactersFromLine(range.begin,
-                                       range.end.column - range.begin.column);
-    SetMutableLineSequenceLineMetadata(*this, contents_, range.begin.line);
+  if (range.IsSingleLine()) {
+    contents_.DeleteCharactersFromLine(
+        range.begin(), range.end().column - range.begin().column);
+    SetMutableLineSequenceLineMetadata(*this, contents_, range.begin().line);
   } else {
-    contents_.DeleteToLineEnd(range.begin);
-    contents_.DeleteCharactersFromLine(LineColumn(range.end.line),
-                                       range.end.column.ToDelta());
+    contents_.DeleteToLineEnd(range.begin());
+    contents_.DeleteCharactersFromLine(LineColumn(range.end().line),
+                                       range.end().column.ToDelta());
     // Lines in the middle.
-    EraseLines(range.begin.line + LineNumberDelta(1), range.end.line);
-    contents_.FoldNextLine(range.begin.line);
-    SetMutableLineSequenceLineMetadata(*this, contents_, range.begin.line);
+    EraseLines(range.begin().line + LineNumberDelta(1), range.end().line);
+    contents_.FoldNextLine(range.begin().line);
+    SetMutableLineSequenceLineMetadata(*this, contents_, range.begin().line);
   }
 }
 
@@ -1466,9 +1466,9 @@ void OpenBuffer::CreateCursor() {
     options_.editor.set_direction(Direction::kForwards);
     LOG(INFO) << "Range for cursors: " << range;
     while (!range.IsEmpty()) {
-      auto tmp_first = range.begin;
+      LineColumn tmp_first = range.begin();
       SeekToNext(NewSeekInput(structure, Direction::kForwards, &tmp_first));
-      if (tmp_first > range.begin && tmp_first < range.end) {
+      if (tmp_first > range.begin() && tmp_first < range.end()) {
         VLOG(5) << "Creating cursor at: " << tmp_first;
         active_cursors().insert(tmp_first);
       }
@@ -1476,7 +1476,7 @@ void OpenBuffer::CreateCursor() {
               NewSeekInput(structure, Direction::kForwards, &tmp_first))) {
         break;
       }
-      range.begin = tmp_first;
+      range.set_begin(tmp_first);
     }
   }
   status_.SetInformationText(MakeNonNullShared<Line>(L"Cursor created."));
@@ -1539,7 +1539,6 @@ void OpenBuffer::DestroyOtherCursors() {
 
 Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
                                    LineColumn position) const {
-  Range output;
   const auto forward = modifiers.direction;
   const auto backward = ReverseDirection(forward);
 
@@ -1560,24 +1559,25 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     Seek(contents_.snapshot(), &position).Backwards().WrappingLines().Once();
   }
 
-  output.begin = position;
+  LineColumn output_begin = position;
   LOG(INFO) << "Initial position: " << position
             << ", structure: " << modifiers.structure;
   if (GetStructureSpaceBehavior(modifiers.structure) ==
       StructureSpaceBehavior::kForwards) {
-    SeekToNext(NewSeekInput(modifiers.structure, forward, &output.begin));
+    SeekToNext(NewSeekInput(modifiers.structure, forward, &output_begin));
   }
+
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
-      output.begin = modifiers.direction == Direction::kForwards
-                         ? std::max(position, output.begin)
-                         : std::min(position, output.begin);
+      output_begin = modifiers.direction == Direction::kForwards
+                         ? std::max(position, output_begin)
+                         : std::min(position, output_begin);
       break;
 
     case Modifiers::LIMIT_CURRENT: {
       if (SeekToLimit(
-              NewSeekInput(modifiers.structure, backward, &output.begin))) {
-        Seek(contents_.snapshot(), &output.begin)
+              NewSeekInput(modifiers.structure, backward, &output_begin))) {
+        Seek(contents_.snapshot(), &output_begin)
             .WrappingLines()
             .WithDirection(forward)
             .Once();
@@ -1586,56 +1586,56 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
 
     case Modifiers::LIMIT_NEIGHBOR:
       if (SeekToLimit(
-              NewSeekInput(modifiers.structure, backward, &output.begin))) {
-        SeekToNext(NewSeekInput(modifiers.structure, backward, &output.begin));
-        SeekToLimit(NewSeekInput(modifiers.structure, forward, &output.begin));
+              NewSeekInput(modifiers.structure, backward, &output_begin))) {
+        SeekToNext(NewSeekInput(modifiers.structure, backward, &output_begin));
+        SeekToLimit(NewSeekInput(modifiers.structure, forward, &output_begin));
       }
   }
-  LOG(INFO) << "After seek, initial position: " << output.begin;
-  output.end = modifiers.direction == Direction::kForwards
-                   ? std::max(position, output.begin)
-                   : std::min(position, output.begin);
+
+  LOG(INFO) << "After seek, initial position: " << output_begin;
+  LineColumn output_end = modifiers.direction == Direction::kForwards
+                              ? std::max(position, output_begin)
+                              : std::min(position, output_begin);
   bool move_start = true;
   for (size_t i = 1; i < modifiers.repetitions.value_or(1); i++) {
-    LineColumn start_position = output.end;
-    if (!SeekToLimit(NewSeekInput(modifiers.structure, forward, &output.end))) {
+    LineColumn start_position = output_end;
+    if (!SeekToLimit(NewSeekInput(modifiers.structure, forward, &output_end))) {
       move_start = false;
       break;
     }
-    SeekToNext(NewSeekInput(modifiers.structure, forward, &output.end));
-    if (output.end == start_position) {
+    SeekToNext(NewSeekInput(modifiers.structure, forward, &output_end));
+    if (output_end == start_position) {
       break;
     }
   }
 
-  LOG(INFO) << "After repetitions: " << output;
+  LOG(INFO) << "After repetitions: " << output_begin << " to " << output_end;
+  ;
   switch (modifiers.boundary_end) {
     case Modifiers::CURRENT_POSITION:
       break;
 
     case Modifiers::LIMIT_CURRENT:
       move_start &=
-          SeekToLimit(NewSeekInput(modifiers.structure, forward, &output.end));
+          SeekToLimit(NewSeekInput(modifiers.structure, forward, &output_end));
       break;
 
     case Modifiers::LIMIT_NEIGHBOR:
       move_start &=
-          SeekToLimit(NewSeekInput(modifiers.structure, forward, &output.end));
-      SeekToNext(NewSeekInput(modifiers.structure, forward, &output.end));
+          SeekToLimit(NewSeekInput(modifiers.structure, forward, &output_end));
+      SeekToNext(NewSeekInput(modifiers.structure, forward, &output_end));
   }
-  LOG(INFO) << "After adjusting end: " << output;
+  LOG(INFO) << "After adjusting end: " << output_begin << " to " << output_end;
 
-  if (output.begin > output.end) {
+  if (output_begin > output_end) {
     CHECK(modifiers.direction == Direction::kBackwards);
-    auto tmp = output.end;
-    output.end = output.begin;
-    output.begin = tmp;
+    std::swap(output_begin, output_end);
     if (move_start) {
-      Seek(contents_.snapshot(), &output.begin).WrappingLines().Once();
+      Seek(contents_.snapshot(), &output_begin).WrappingLines().Once();
     }
   }
-  LOG(INFO) << "After wrap: " << output;
-  return output;
+  LOG(INFO) << "After wrap: " << output_begin << " to " << output_end;
+  return Range(output_begin, output_end);
 }
 
 const ParseTree& OpenBuffer::current_tree(const ParseTree& root) const {
@@ -2612,11 +2612,11 @@ void OpenBuffer::OnCursorMove() {
                   AdjustLineColumn(position()),
                   Range(view_start, view_start + view_size));
           for (const language::text::Range& range : ranges) {
-            CHECK_EQ(range.begin.line, range.end.line);
+            CHECK(range.IsSingleLine());
             visual_overlay_map_[kPriority][kKey].insert(
-                {range.begin,
-                 VisualOverlay{.content = ColumnNumberDelta(range.end.column -
-                                                            range.begin.column),
+                {range.begin(),
+                 VisualOverlay{.content = ColumnNumberDelta(
+                                   range.end().column - range.begin().column),
                                .modifiers = {LineModifier::kUnderline},
                                .behavior = VisualOverlay::Behavior::kOn}});
           }

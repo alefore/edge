@@ -212,37 +212,38 @@ class SearchCommand : public Command {
                                     editor_state_](OpenBuffer& buffer) {
             Range range = buffer.FindPartialRange(editor_state.modifiers(),
                                                   buffer.position());
-            if (range.begin == range.end) {
+            if (range.IsEmpty()) {
               return futures::Past(EmptyValue());
             }
             VLOG(5) << "FindPartialRange: [position:" << buffer.position()
                     << "][range:" << range
                     << "][modifiers:" << editor_state.modifiers() << "]";
-            CHECK_LT(range.begin, range.end);
-            if (range.end.line > range.begin.line) {
+            CHECK_LT(range.begin(), range.end());
+            if (range.end().line > range.begin().line) {
               // This can happen when repetitions are used (to find multiple
               // words). We just cap it at the start/end of the line.
               if (editor_state.direction() == Direction::kBackwards) {
-                range.begin = LineColumn(range.end.line);
+                range.set_begin(LineColumn(range.end().line));
               } else {
-                range.end =
-                    LineColumn(range.begin.line,
-                               buffer.LineAt(range.begin.line)->EndColumn());
+                range.set_end(
+                    LineColumn(range.begin().line,
+                               buffer.LineAt(range.begin().line)->EndColumn()));
               }
             }
-            CHECK_EQ(range.begin.line, range.end.line);
-            if (range.begin == range.end) {
+            CHECK_EQ(range.begin().line, range.end().line);
+            if (range.begin() == range.end()) {
               return futures::Past(EmptyValue());
             }
-            CHECK_LT(range.begin.column, range.end.column);
-            buffer.set_position(range.begin);
-            DoSearch(buffer, SearchOptions{
-                                 .starting_position = buffer.position(),
-                                 .search_query =
-                                     buffer.LineAt(range.begin.line)
-                                         ->Substring(range.begin.column,
-                                                     range.end.column -
-                                                         range.begin.column)});
+            CHECK_LT(range.begin().column, range.end().column);
+            buffer.set_position(range.begin());
+            DoSearch(
+                buffer,
+                SearchOptions{
+                    .starting_position = buffer.position(),
+                    .search_query = buffer.LineAt(range.begin().line)
+                                        ->Substring(range.begin().column,
+                                                    range.end().column -
+                                                        range.begin().column)});
             return futures::Past(EmptyValue());
           })
           .Transform([&editor_state = editor_state_](EmptyValue) {
@@ -359,18 +360,18 @@ class SearchCommand : public Command {
     } else {
       Range range =
           buffer.FindPartialRange(editor.modifiers(), buffer.position());
-      if (range.begin == range.end) {
+      if (range.IsEmpty()) {
         buffer.status().SetInformationText(
             MakeNonNullShared<Line>(L"Unable to extract region."));
         return std::nullopt;
       }
-      CHECK_LE(range.begin, range.end);
+      CHECK_LE(range.begin(), range.end());
       if (editor.modifiers().direction == Direction::kBackwards) {
-        search_options.starting_position = range.end;
-        search_options.limit_position = range.begin;
+        search_options.starting_position = range.end();
+        search_options.limit_position = range.begin();
       } else {
-        search_options.starting_position = range.begin;
-        search_options.limit_position = range.end;
+        search_options.starting_position = range.begin();
+        search_options.limit_position = range.end();
       }
       LOG(INFO) << "Searching region: " << search_options.starting_position
                 << " to " << search_options.limit_position.value();

@@ -68,14 +68,14 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
   LOG(INFO) << "Preparing deleted text buffer: " << range;
   gc::Root<OpenBuffer> delete_buffer = OpenBuffer::New(
       {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
-  for (LineNumber i = range.begin.line; i <= range.end.line; ++i) {
+  for (LineNumber i = range.begin().line; i <= range.end().line; ++i) {
     LineBuilder line_options(buffer.contents().at(i).value());
-    if (i == range.end.line) {
-      line_options.DeleteSuffix(range.end.column);
+    if (i == range.end().line) {
+      line_options.DeleteSuffix(range.end().column);
     }
-    if (i == range.begin.line) {
+    if (i == range.begin().line) {
       line_options.DeleteCharacters(ColumnNumber(0),
-                                    range.begin.column.ToDelta());
+                                    range.begin().column.ToDelta());
       delete_buffer.ptr()->AppendToLastLine(std::move(line_options).Build());
     } else {
       delete_buffer.ptr()->AppendRawLine(
@@ -89,8 +89,8 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
 void HandleLineDeletion(Range range, OpenBuffer& buffer) {
   std::vector<std::function<void()>> observers;
   std::shared_ptr<const Line> first_line_contents;
-  for (LineColumn delete_position = range.begin;
-       delete_position.line < range.end.line;
+  for (LineColumn delete_position = range.begin();
+       delete_position.line < range.end().line;
        delete_position = LineColumn(delete_position.line.next())) {
     LineColumn position = buffer.AdjustLineColumn(delete_position);
     if (position.line != delete_position.line || !position.column.IsZero())
@@ -162,23 +162,26 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     range = *options.range;
   } else {
     range = input.buffer.FindPartialRange(options.modifiers, output->position);
-    range.begin = std::min(range.begin, output->position);
-    range.end = std::max(range.end, output->position);
+    range.set_begin(std::min(range.begin(), output->position));
+    range.set_end(std::max(range.end(), output->position));
     if (range.IsEmpty()) {
       switch (options.modifiers.direction) {
         case Direction::kForwards:
-          range.end = input.buffer.contents().PositionAfter(range.end);
+          range.set_end(input.buffer.contents().PositionAfter(range.end()));
           break;
         case Direction::kBackwards:
-          range.begin = input.buffer.contents().PositionBefore(range.begin);
+          range.set_begin(
+              input.buffer.contents().PositionBefore(range.begin()));
           break;
       }
     }
   }
-  range.begin = input.buffer.AdjustLineColumn(range.begin);
-  range.end = input.buffer.AdjustLineColumn(range.end);
+  range = Range(input.buffer.AdjustLineColumn(range.begin()),
+                input.buffer.AdjustLineColumn(range.end()));
 
-  CHECK_LE(range.begin, range.end);
+  // TODO(trivial, 2023-10-10): Remove this check, once validation has been
+  // moved to the underlying type.
+  CHECK_LE(range.begin(), range.end());
   if (range.IsEmpty()) {
     VLOG(5) << "Nothing to delete.";
     return futures::Past(std::move(*output));
@@ -210,7 +213,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
           Modifiers::TextDeleteBehavior::kKeep &&
       input.mode == Input::Mode::kFinal) {
     LOG(INFO) << "Not actually deleting region.";
-    output->position = range.end;
+    output->position = range.end();
     return futures::Past(std::move(*output));
   }
 
@@ -218,7 +221,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
 
   output->modified_buffer = true;
 
-  return Apply(transformation::SetPosition(range.begin), input)
+  return Apply(transformation::SetPosition(range.begin()), input)
       .Transform([options, range, output, input,
                   delete_buffer](transformation::Result result) mutable {
         output->MergeFrom(std::move(result));
@@ -229,18 +232,19 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
                     ? Insert::FinalPosition::kEnd
                     : Insert::FinalPosition::kStart};
         output->undo_stack->PushFront(insert_options);
-        output->undo_stack->PushFront(transformation::SetPosition(range.begin));
+        output->undo_stack->PushFront(
+            transformation::SetPosition(range.begin()));
         if (input.mode != Input::Mode::kPreview) {
           return futures::Past(std::move(*output));
         }
-        LOG(INFO) << "Inserting preview at: " << range.begin;
+        LOG(INFO) << "Inserting preview at: " << range.begin();
         insert_options.modifiers_set =
             options.modifiers.text_delete_behavior ==
                     Modifiers::TextDeleteBehavior::kKeep
                 ? LineModifierSet{LineModifier::kUnderline,
                                   LineModifier::kYellow}
                 : options.preview_modifiers;
-        input.position = range.begin;
+        input.position = range.begin();
         return Apply(std::move(insert_options), input)
             .Transform([output](transformation::Result input_result) {
               output->MergeFrom(std::move(input_result));

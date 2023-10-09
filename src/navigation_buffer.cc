@@ -77,38 +77,40 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
                  OpenBuffer& target) {
   for (size_t i = 0; i < tree.children().size(); i++) {
     auto& child = tree.children()[i];
-    if (child.range().begin.line + LineNumberDelta(1) ==
-            child.range().end.line ||
+    if (child.range().begin().line + LineNumberDelta(1) ==
+            child.range().end().line ||
         depth_left == 0 || child.children().empty()) {
       LineBuilder options;
       options.set_contents(padding);
-      AddContents(source, *source.LineAt(child.range().begin.line), &options);
-      if (child.range().begin.line + LineNumberDelta(1) <
-          child.range().end.line) {
+      AddContents(source, *source.LineAt(child.range().begin().line), &options);
+      if (child.range().begin().line + LineNumberDelta(1) <
+          child.range().end().line) {
         options.set_contents(
             Append(options.contents(), NewLazyString(L" ... ")));
       } else {
         options.set_contents(Append(options.contents(), NewLazyString(L" ")));
       }
       if (i + 1 >= tree.children().size() ||
-          child.range().end.line != tree.children()[i + 1].range().begin.line) {
-        AddContents(source, *source.LineAt(child.range().end.line), &options);
+          child.range().end().line !=
+              tree.children()[i + 1].range().begin().line) {
+        AddContents(source, *source.LineAt(child.range().end().line), &options);
       }
-      options.SetOutgoingLink(OutgoingLink{.path = source.name().read(),
-                                           .line_column = child.range().begin});
+      options.SetOutgoingLink(OutgoingLink{
+          .path = source.name().read(), .line_column = child.range().begin()});
 
       target.AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()));
       continue;
     }
 
-    AppendLine(source, padding, child.range().begin, target);
+    AppendLine(source, padding, child.range().begin(), target);
     if (depth_left > 0) {
       DisplayTree(source, depth_left - 1, child,
                   Append(NewLazyString(L"  "), padding), target);
     }
     if (i + 1 >= tree.children().size() ||
-        child.range().end.line != tree.children()[i + 1].range().begin.line) {
-      AppendLine(source, padding, child.range().end, target);
+        child.range().end().line !=
+            tree.children()[i + 1].range().begin().line) {
+      AppendLine(source, padding, child.range().end(), target);
     }
   }
 }

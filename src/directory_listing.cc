@@ -219,7 +219,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
       .Transform([&output, path](LineSequence contents) {
         TRACK_OPERATION(GenerateDirectoryListing_InsertContents);
         auto disk_state_freezer = output.FreezeDiskState();
-        output.InsertInPosition(contents, output.contents().range().end,
+        output.InsertInPosition(contents, output.contents().range().end(),
                                 std::nullopt);
         return Success();
       })

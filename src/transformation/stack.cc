@@ -109,7 +109,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
             })
         .Transform([delete_transformation, input](EmptyValue) {
           return Apply(*delete_transformation,
-                       input.NewChild(delete_transformation->range->begin));
+                       input.NewChild(delete_transformation->range->begin()));
         });
   }
   // TODO(easy, 2023-09-10): Don't do ToString?
@@ -363,17 +363,18 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             delete_transformation.initiator =
                 transformation::Delete::Initiator::kUser;
             return Apply(delete_transformation,
-                         input.NewChild(delete_transformation.range->begin));
+                         input.NewChild(delete_transformation.range->begin()));
           case Stack::PostTransformationBehavior::kCopyRegion:
             delete_transformation.modifiers.text_delete_behavior =
                 Modifiers::TextDeleteBehavior::kKeep;
             return Apply(delete_transformation,
-                         input.NewChild(delete_transformation.range->begin));
+                         input.NewChild(delete_transformation.range->begin()));
           case Stack::PostTransformationBehavior::kCommandSystem: {
             if (input.mode == Input::Mode::kPreview) {
               delete_transformation.preview_modifiers = {
                   LineModifier::kGreen, LineModifier::kUnderline};
-              return Apply(delete_transformation, input.NewChild(range.begin));
+              return Apply(delete_transformation,
+                           input.NewChild(range.begin()));
             }
             LineSequence contents =
                 input.buffer.contents().snapshot().ViewRange(
@@ -422,14 +423,14 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                         .boundary_end = Modifiers::LIMIT_NEIGHBOR},
                    .transformation = transformation});
             auto columns = range.lines() <= LineNumberDelta(1)
-                               ? range.end.column - range.begin.column
-                               : range.end.column.ToDelta();
+                               ? range.end().column - range.begin().column
+                               : range.end().column.ToDelta();
             if (!columns.IsZero())
               transformations.push_back(
                   {.modifiers = {.repetitions = columns.read()},
                    .transformation = transformation});
             auto final_position = output->position;
-            auto sub_input = input.NewChild(range.begin);
+            auto sub_input = input.NewChild(range.begin());
             output->position = sub_input.position;
             return ApplyStackDirectly(transformations.begin(),
                                       transformations.end(), sub_input, trace,
@@ -445,15 +446,15 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             }
             struct Cursors cursors {
               .cursors = {},
-              .active = LineColumn(delete_transformation.range->begin.line)
+              .active = LineColumn(delete_transformation.range->begin().line)
             };
             delete_transformation.range->ForEachLine(
                 [&cursors](LineNumber line) {
                   cursors.cursors.insert(LineColumn(line));
                 });
             cursors.cursors.insert(
-                LineColumn(delete_transformation.range->end.line));
-            return ApplyBase(cursors, input.NewChild(range.begin));
+                LineColumn(delete_transformation.range->end().line));
+            return ApplyBase(cursors, input.NewChild(range.begin()));
           }
         }
         LOG(FATAL) << "Invalid post transformation behavior.";

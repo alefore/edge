@@ -174,12 +174,12 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
 
   range_type.ptr()->AddField(
       L"begin", NewCallback(pool, PurityType::kPure, [](Range range) {
-                  return range.begin;
+                  return range.begin();
                 }).ptr());
 
   range_type.ptr()->AddField(
       L"end", NewCallback(pool, PurityType::kPure, [](Range range) {
-                return range.end;
+                return range.end();
               }).ptr());
 
   environment.DefineType(range_type.ptr());

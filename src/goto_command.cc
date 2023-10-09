@@ -97,16 +97,16 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
         Modifiers modifiers_copy = modifiers;
         modifiers_copy.repetitions = 1;
         range = buffer.FindPartialRange(
-            modifiers_copy, buffer.contents().PositionBefore(range.end));
-        position = range.begin;
+            modifiers_copy, buffer.contents().PositionBefore(range.end()));
+        position = range.begin();
       } break;
 
       case Direction::kBackwards: {
         Modifiers modifiers_copy = modifiers;
         modifiers_copy.repetitions = 1;
         modifiers_copy.direction = Direction::kForwards;
-        range = buffer.FindPartialRange(modifiers_copy, range.begin);
-        position = buffer.contents().PositionBefore(range.end);
+        range = buffer.FindPartialRange(modifiers_copy, range.begin());
+        position = buffer.contents().PositionBefore(range.end());
       } break;
     }
     return position;
