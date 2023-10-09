@@ -89,7 +89,12 @@ Pool::Pool(Options options)
 
 Pool::~Pool() {
   LOG(INFO) << "Deleting Pool.";
-  FullCollect();
+  std::optional<size_t> end_total;
+  while (true) {
+    gc::Pool::FullCollectStats stats = FullCollect();
+    if (end_total == stats.end_total) break;
+    end_total = stats.end_total;
+  }
 
   data_.lock([](const Data& data) {
     CHECK(data.expand_list.empty());
