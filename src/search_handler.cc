@@ -214,6 +214,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   }
   input.predictions.EndOfFile();
   return input.predictions.WaitForEndOfFile().Transform([input](EmptyValue) {
+    TRACK_OPERATION(SearchHandlerPredictor_sort);
     return PredictorOutput(
         {.contents = SortedLineSequenceUniqueLines(
              SortedLineSequence(input.predictions.contents().snapshot()))});
