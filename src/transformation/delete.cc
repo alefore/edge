@@ -178,10 +178,6 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   }
   range = Range(input.buffer.AdjustLineColumn(range.begin()),
                 input.buffer.AdjustLineColumn(range.end()));
-
-  // TODO(trivial, 2023-10-10): Remove this check, once validation has been
-  // moved to the underlying type.
-  CHECK_LE(range.begin(), range.end());
   if (range.IsEmpty()) {
     VLOG(5) << "Nothing to delete.";
     return futures::Past(std::move(*output));

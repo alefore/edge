@@ -41,8 +41,6 @@ using ::operator<<;
 }
 
 LineSequence LineSequence::ViewRange(Range range) const {
-  // TODO(2023-10-10, easy): Move this validation to the Range constructor.
-  CHECK_LE(range.begin(), range.end());
   CHECK_LE(range.end().line, EndLine());
   Lines::Ptr output = lines_;
 
