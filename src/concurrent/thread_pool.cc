@@ -65,7 +65,7 @@ void ThreadPool::BackgroundThread() {
 
 ThreadPoolWithWorkQueue::ThreadPoolWithWorkQueue(
     NonNull<std::shared_ptr<ThreadPool>> thread_pool,
-    std::shared_ptr<WorkQueue> work_queue)
+    NonNull<std::shared_ptr<WorkQueue>> work_queue)
     : thread_pool_(std::move(thread_pool)),
       work_queue_(std::move(work_queue)) {}
 

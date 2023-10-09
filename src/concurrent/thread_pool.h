@@ -46,10 +46,9 @@ class ThreadPool {
 // when the callable finishes inside the work_queue.
 class ThreadPoolWithWorkQueue {
  public:
-  // TODO(trivial, 2023-10-07): Use NonNull for work_queue.
   ThreadPoolWithWorkQueue(
       language::NonNull<std::shared_ptr<ThreadPool>> thread_pool,
-      std::shared_ptr<WorkQueue> work_queue);
+      language::NonNull<std::shared_ptr<WorkQueue>> work_queue);
 
   const language::NonNull<std::shared_ptr<ThreadPool>>& thread_pool();
 
@@ -67,7 +66,6 @@ class ThreadPoolWithWorkQueue {
     futures::Future<decltype(callable())> output;
     thread_pool()->RunIgnoringResult(
         [callable, consumer = output.consumer, work_queue = work_queue_] {
-          CHECK(work_queue != nullptr);
           work_queue->Schedule(WorkQueue::Callback{
               .callback = std::bind_front(consumer, callable())});
         });
@@ -76,7 +74,7 @@ class ThreadPoolWithWorkQueue {
 
  private:
   const language::NonNull<std::shared_ptr<ThreadPool>> thread_pool_;
-  const std::shared_ptr<WorkQueue> work_queue_;
+  const language::NonNull<std::shared_ptr<WorkQueue>> work_queue_;
 };
 
 }  // namespace afc::concurrent

@@ -154,7 +154,7 @@ EditorState::EditorState(CommandLineValues args,
                          infrastructure::audio::Player& audio_player)
     : work_queue_(WorkQueue::New()),
       thread_pool_(MakeNonNullShared<ThreadPoolWithWorkQueue>(
-          MakeNonNullShared<ThreadPool>(32), work_queue_.get_shared())),
+          MakeNonNullShared<ThreadPool>(32), work_queue_)),
       gc_pool_(gc::Pool::Options{
           .collect_duration_threshold = 0.05,
           .operation_factory =
