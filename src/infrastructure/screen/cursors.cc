@@ -134,13 +134,20 @@ bool CursorsSet::operator==(const CursorsSet& b) const {
   return cursors_ == b.cursors_ && current_index() == b.current_index();
 }
 
-size_t TransformValue(size_t input, int delta, size_t clamp, bool is_end) {
-  if (delta < 0 && input <= clamp - delta) {
+template <typename Number, typename Delta>
+Number TransformValue(Number input, Delta delta, Number clamp, bool is_end) {
+  if (delta < Delta(0) && input <= clamp - delta) {
     return clamp;
   }
-  if (is_end ? input == 0 : input == std::numeric_limits<size_t>::max()) {
+  if (is_end ? input.IsZero() : input == std::numeric_limits<Number>::max()) {
     return input;
   }
+
+  // TODO(P1, 2023-10-10, Trivial): Use checked math!
+  if (delta > Delta(0) && std::numeric_limits<Number>::max() - delta <= input) {
+    return std::numeric_limits<Number>::max();
+  }
+
   return input + delta;
 }
 
@@ -203,13 +210,10 @@ struct CursorsTracker::Transformation {
 
   language::text::LineColumn TransformLineColumn(LineColumn position,
                                                  bool is_end) const {
-    position.line =
-        LineNumber(TransformValue(position.line.read(), line_delta.read(),
-                                  line_lower_bound.read(), is_end));
-    position.column =
-        ColumnNumber(TransformValue(position.column.read(), column_delta.read(),
-                                    column_lower_bound.read(), is_end));
-    return position;
+    return LineColumn(
+        TransformValue(position.line, line_delta, line_lower_bound, is_end),
+        TransformValue(position.column, column_delta, column_lower_bound,
+                       is_end));
   }
 
   language::text::Range OutputOf() const { return TransformRange(range); }
