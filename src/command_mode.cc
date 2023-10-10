@@ -112,9 +112,10 @@ class UndoCommand : public Command {
           return buffer.Undo(UndoState::ApplyOptions::Mode::kLoop,
                              UndoState::ApplyOptions::RedoMode::kPopulate);
         })
-        .SetConsumer([&editor_state = editor_state_](EmptyValue) {
+        .Transform([&editor_state = editor_state_](EmptyValue) {
           editor_state.ResetRepetitions();
           editor_state.ResetDirection();
+          return EmptyValue();
         });
   }
 
