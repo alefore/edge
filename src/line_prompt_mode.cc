@@ -1142,9 +1142,9 @@ InsertModeOptions PromptState::insert_mode_options() {
                      .predictor = prompt_state->options().predictor,
                      .input_buffer = buffer.NewRoot(),
                      .source_buffers = prompt_state->options().source_buffers})
-                .SetConsumer([prompt_state,
-                              input](std::optional<PredictResults> results) {
-                  if (!results.has_value()) return;
+                .Transform([prompt_state,
+                            input](std::optional<PredictResults> results) {
+                  if (!results.has_value()) return EmptyValue();
                   if (results.value().common_prefix.has_value() &&
                       !results.value().common_prefix.value().empty() &&
                       input != results.value().common_prefix.value()) {
@@ -1171,7 +1171,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                                  LineSequence::WithLine(MakeNonNullShared<Line>(
                                      LineBuilder(std::move(line)).Build()))}));
                     prompt_state->OnModify();
-                    return;
+                    return EmptyValue();
                   }
                   LOG(INFO) << "Prediction didn't advance.";
                   auto buffers = prompt_state->editor_state().buffers();
@@ -1192,6 +1192,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                         L"Error: Predict: predictions buffer not found: " +
                         name.read()));
                   }
+                  return EmptyValue();
                 });
             return true;
           }};
@@ -1202,22 +1203,22 @@ void Prompt(PromptOptions options) {
   EditorState& editor_state = options.editor_state;
   HistoryFile history_file = options.history_file;
   GetHistoryBuffer(editor_state, history_file)
-      .SetConsumer(
-          [options = std::move(options)](gc::Root<OpenBuffer> history) {
-            history.ptr()->set_current_position_line(
-                LineNumber(0) + history.ptr()->contents().size());
+      .Transform([options = std::move(options)](gc::Root<OpenBuffer> history) {
+        history.ptr()->set_current_position_line(
+            LineNumber(0) + history.ptr()->contents().size());
 
-            auto prompt_state = PromptState::New(options, history);
-            EnterInsertMode(prompt_state->insert_mode_options());
+        auto prompt_state = PromptState::New(options, history);
+        EnterInsertMode(prompt_state->insert_mode_options());
 
-            // We do this after `EnterInsertMode` because `EnterInsertMode`
-            // resets the status.
-            //
-            // TODO(easy, 2023-09-11): Avoid call to NewLazyString here.
-            prompt_state->status().set_prompt(NewLazyString(options.prompt),
-                                              prompt_state->prompt_buffer());
-            prompt_state->OnModify();
-          });
+        // We do this after `EnterInsertMode` because `EnterInsertMode`
+        // resets the status.
+        //
+        // TODO(easy, 2023-09-11): Avoid call to NewLazyString here.
+        prompt_state->status().set_prompt(NewLazyString(options.prompt),
+                                          prompt_state->prompt_buffer());
+        prompt_state->OnModify();
+        return futures::Past(EmptyValue());
+      });
 }
 
 NonNull<std::unique_ptr<Command>> NewLinePromptCommand(
