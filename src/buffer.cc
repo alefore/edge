@@ -2564,16 +2564,19 @@ bool OpenBuffer::IsPastPosition(LineColumn position) const {
            position.column <= LineAt(position.line)->EndColumn()));
 }
 
-void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>& source) {
+futures::Value<EmptyValue> OpenBuffer::ReadData(
+    std::unique_ptr<FileDescriptorReader>& source) {
   CHECK(source != nullptr);
-  source->ReadData().SetConsumer(
+  return source->ReadData().Transform(
       [this, &source](FileDescriptorReader::ReadResult value) {
-        if (value != FileDescriptorReader::ReadResult::kDone) return;
+        if (value != FileDescriptorReader::ReadResult::kDone)
+          return EmptyValue();
         RegisterProgress();
         source = nullptr;
         if (fd_ == nullptr && fd_error_ == nullptr) {
           EndOfFile();
         }
+        return EmptyValue();
       });
 }
 

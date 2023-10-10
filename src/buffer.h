@@ -556,7 +556,8 @@ class OpenBuffer {
 
   // Reads from one of the two FileDescriptorReader instances in the buffer
   // (i.e., `fd_` or `fd_error_`).
-  void ReadData(std::unique_ptr<FileDescriptorReader>& source);
+  futures::Value<language::EmptyValue> ReadData(
+      std::unique_ptr<FileDescriptorReader>& source);
 
   void UpdateLastAction();
   void InsertLines(
