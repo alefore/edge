@@ -283,20 +283,17 @@ const bool read_and_insert_tests_registration = tests::Register(
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                std::optional<Path> path_opened;
-               bool transformation_done = false;
-               ReadAndInsert(
-                   ValueOrDie(Path::FromString(L"unexistent")),
-                   [&](OpenFileOptions options) {
-                     path_opened = options.path;
-                     return futures::Past(Error(L"File does not exist."));
-                   })
-                   .Apply(CompositeTransformation::Input{
-                       .editor = buffer.ptr()->editor(),
-                       .buffer = buffer.ptr().value()})
-                   .SetConsumer([&](CompositeTransformation::Output) {
-                     transformation_done = true;
-                   });
-               CHECK(transformation_done);
+               futures::Value<CompositeTransformation::Output> output =
+                   ReadAndInsert(
+                       ValueOrDie(Path::FromString(L"unexistent")),
+                       [&](OpenFileOptions options) {
+                         path_opened = options.path;
+                         return futures::Past(Error(L"File does not exist."));
+                       })
+                       .Apply(CompositeTransformation::Input{
+                           .editor = buffer.ptr()->editor(),
+                           .buffer = buffer.ptr().value()});
+               CHECK(output.has_value());
                CHECK(path_opened.has_value());
                CHECK(path_opened.value() ==
                      ValueOrDie(Path::FromString(
