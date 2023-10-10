@@ -13,12 +13,8 @@ using language::Success;
 
 Value<language::ValueOrError<language::EmptyValue>> IgnoreErrors(
     Value<PossibleError> value) {
-  Future<PossibleError> output;
-  std::move(value).SetConsumer(
-      [consumer = std::move(output.consumer)](const PossibleError&) {
-        consumer(Success());
-      });
-  return std::move(output.value);
+  return std::move(value).Transform(
+      [](const PossibleError&) { return Success(); });
 }
 
 namespace {
