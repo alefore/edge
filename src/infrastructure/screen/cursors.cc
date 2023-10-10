@@ -603,7 +603,7 @@ futures::Value<EmptyValue> CursorsTracker::ApplyTransformationToCursors(
     }
     VLOG(6) << "Adjusting cursor: " << *data->cursors.begin();
     data->callback(*data->cursors.begin())
-        .SetConsumer([this, data, apply_next](LineColumn column) {
+        .Transform([this, data, apply_next](LineColumn column) {
           auto insert_result = already_applied_cursors_.insert(column);
           VLOG(7) << "Cursor moved to: " << *insert_result;
           if (!data->adjusted_active_cursor &&
@@ -615,6 +615,7 @@ futures::Value<EmptyValue> CursorsTracker::ApplyTransformationToCursors(
           }
           data->cursors.erase(data->cursors.begin());
           apply_next(apply_next);
+          return EmptyValue();
         });
   };
   apply_next_parent(apply_next_parent);
