@@ -23,24 +23,26 @@
 #include "src/transformation/reach_query.h"
 #include "src/transformation/stack.h"
 
-namespace afc::editor::operation {
-using futures::Past;
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using infrastructure::screen::VisualOverlayMap;
-using language::EmptyValue;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::lazy_string::Append;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::futures::Past;
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::VisualOverlayMap;
+using afc::language::EmptyValue;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+
+namespace afc::editor::operation {
 
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
@@ -326,19 +328,20 @@ class State {
   }
 
  private:
-  void Update(ApplicationType application_type) {
+  futures::Value<EmptyValue> Update(ApplicationType application_type) {
     static Tracker tracker(L"State::Update");
     auto call = tracker.Call();
     CHECK(!commands_.empty());
     RunUndoCallback();
     std::shared_ptr<UndoCallback> original_undo_callback = undo_callback_;
-    StartTransformationExecution(application_type, PrepareStack())
-        .SetConsumer([original_undo_callback](UndoCallback undo_callback) {
+    return StartTransformationExecution(application_type, PrepareStack())
+        .Transform([original_undo_callback](UndoCallback undo_callback) {
           *original_undo_callback =
               [previous = std::move(*original_undo_callback), undo_callback]() {
                 return undo_callback().Transform(
                     [previous](EmptyValue) { return previous(); });
               };
+          return EmptyValue();
         });
   }
 
