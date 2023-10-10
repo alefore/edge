@@ -565,47 +565,43 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         exit_value_ = exit_value;
       });
 
-  auto decrement =
-      [this, pending_buffers](
-          const gc::Root<OpenBuffer>& buffer_done,
-          ValueOrError<OpenBuffer::PrepareToCloseOutput> output_or_error) {
-        std::visit(
-            overload{IgnoreErrors{},
-                     [&](const OpenBuffer::PrepareToCloseOutput& output) {
-                       if (output.dirty_contents_saved_to_backup) {
-                         dirty_buffers_saved_to_backup_.insert(
-                             buffer_done.ptr()->name());
-                       }
-                     }},
-            output_or_error);
-
-        EraseOrDie(*pending_buffers, buffer_done);
-
-        // TODO(easy, 2023-09-08): Convert `extra` to LazyString.
-        std::wstring extra;
-        std::wstring separator = L": ";
-        int count = 0;
-        for (auto& buffer : *pending_buffers) {
-          if (count < 5) {
-            extra += separator + buffer.ptr()->name().read();
-            separator = L", ";
-          } else if (count == 5) {
-            extra += L"…";
-          }
-          count++;
-        }
-        status().SetInformationText(MakeNonNullShared<Line>(
-            LineBuilder(
-                Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
-                       NewLazyString(std::to_wstring(pending_buffers->size())),
-                       NewLazyString(extra)))
-                .Build()));
-      };
-
   for (const auto& it : buffers_) {
     pending_buffers->insert(it.second);
-    it.second.ptr()->PrepareToClose().SetConsumer(
-        std::bind_front(decrement, it.second));
+    it.second.ptr()
+        ->PrepareToClose()
+        .Transform([this, pending_buffers, buffer = it.second](
+                       OpenBuffer::PrepareToCloseOutput output) {
+          if (output.dirty_contents_saved_to_backup) {
+            dirty_buffers_saved_to_backup_.insert(buffer.ptr()->name());
+          }
+          return futures::Past(Success());
+        })
+        .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); })
+        .Transform([this, pending_buffers, buffer = it.second](EmptyValue) {
+          EraseOrDie(*pending_buffers, buffer);
+
+          // TODO(easy, 2023-09-08): Convert `extra` to LazyString.
+          std::wstring extra;
+          std::wstring separator = L": ";
+          int count = 0;
+          for (auto& pending_buffer : *pending_buffers) {
+            if (count < 5) {
+              extra += separator + pending_buffer.ptr()->name().read();
+              separator = L", ";
+            } else if (count == 5) {
+              extra += L"…";
+            }
+            count++;
+          }
+          status().SetInformationText(MakeNonNullShared<Line>(
+              LineBuilder(
+                  Append(
+                      NewLazyString(L"Exit: Closing buffers: Remaining: "),
+                      NewLazyString(std::to_wstring(pending_buffers->size())),
+                      NewLazyString(extra)))
+                  .Build()));
+          return futures::Past(EmptyValue());
+        });
   }
 }
 
