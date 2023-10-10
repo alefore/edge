@@ -839,10 +839,10 @@ void EditorState::PushPosition(LineColumn position) {
                 });
 
   std::move(future_positions_buffer)
-      .SetConsumer([line_to_insert = MakeNonNullShared<Line>(
-                        position.ToString() + L" " +
-                        buffer->ptr()->Read(buffer_variables::name))](
-                       gc::Root<OpenBuffer> positions_buffer_root) {
+      .Transform([line_to_insert = MakeNonNullShared<Line>(
+                      position.ToString() + L" " +
+                      buffer->ptr()->Read(buffer_variables::name))](
+                     gc::Root<OpenBuffer> positions_buffer_root) {
         OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
         positions_buffer.CheckPosition();
         CHECK_LE(positions_buffer.position().line,
@@ -851,6 +851,7 @@ void EditorState::PushPosition(LineColumn position) {
                                     line_to_insert);
         CHECK_LE(positions_buffer.position().line,
                  LineNumber(0) + positions_buffer.contents().size());
+        return Success();
       });
 }
 
