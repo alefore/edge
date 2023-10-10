@@ -299,26 +299,15 @@ static Value<Type> Past(Type value) {
 // Customers are encouraged to use the `ForEach(std::shared_ptr<Container>,
 // ...)` version provided below, when feasible.
 template <typename Iterator, typename Callable>
-Value<IterationControlCommand> ForEach(Iterator input_begin, Iterator end,
+Value<IterationControlCommand> ForEach(Iterator begin, Iterator end,
                                        Callable callable) {
-  Future<IterationControlCommand> output;
-  auto resume_external = [consumer = output.consumer, end, callable](
-                             Iterator begin, auto resume) mutable {
-    if (begin == end) {
-      consumer(IterationControlCommand::kContinue);
-      return;
-    }
-    callable(*begin).SetConsumer(
-        [consumer, begin, resume](IterationControlCommand result) mutable {
-          if (result == IterationControlCommand::kStop) {
-            consumer(result);
-          } else {
-            resume(++begin, resume);
-          }
-        });
-  };
-  resume_external(input_begin, resume_external);
-  return std::move(output.value);
+  if (begin == end) return futures::Past(IterationControlCommand::kContinue);
+  return callable(*begin).Transform(
+      [begin, end, callable](IterationControlCommand result) mutable {
+        if (result == IterationControlCommand::kStop)
+          return futures::Past(result);
+        return ForEach(++begin, end, callable);
+      });
 }
 
 // Version of ForEach optimized for the case where the customer has a shared_ptr
@@ -335,21 +324,12 @@ Value<IterationControlCommand> ForEach(std::shared_ptr<Container> container,
 
 template <typename Callable>
 Value<IterationControlCommand> While(Callable callable) {
-  Future<IterationControlCommand> output;
-  auto resume_external = [consumer = output.consumer,
-                          callable](auto resume) mutable -> void {
-    callable().SetConsumer([consumer = std::move(consumer),
-                            callable = std::move(callable),
-                            resume](IterationControlCommand result) mutable {
-      if (result == IterationControlCommand::kStop) {
-        consumer(result);
-      } else {
-        resume(resume);
-      }
-    });
-  };
-  resume_external(resume_external);
-  return std::move(output.value);
+  return callable().Transform(
+      [callable](IterationControlCommand result) mutable {
+        if (result == IterationControlCommand::kStop)
+          return futures::Past(result);
+        return While(std::move(callable));
+      });
 }
 
 Value<language::PossibleError> IgnoreErrors(
