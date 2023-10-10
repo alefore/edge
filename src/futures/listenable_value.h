@@ -1,6 +1,17 @@
 #ifndef __AFC_FUTURES_LISTENABLE_FUTURES_H__
 #define __AFC_FUTURES_LISTENABLE_FUTURES_H__
 
+#include <functional>
+#include <memory>
+#include <optional>
+#include <vector>
+
+#include "src/concurrent/protected.h"
+#include "src/futures/futures.h"
+#include "src/language/error/value_or_error.h"
+#include "src/language/overload.h"
+#include "src/language/safe_types.h"
+
 namespace afc::futures {
 // Similar to Value, but allows us to queue multiple listeners. The listeners
 // receive the value by const-ref.
@@ -12,7 +23,7 @@ class ListenableValue {
   using Listener = std::function<void(const Type&)>;
 
   ListenableValue(Value<Type> value) {
-    std::move(value).SetConsumer([shared_data = data_](Type immediate_value) {
+    std::move(value).Transform([shared_data = data_](Type immediate_value) {
       std::vector<std::function<void()>> callbacks;
       shared_data->lock([&](Data& data) {
         CHECK(!data.value.has_value());
@@ -24,6 +35,7 @@ class ListenableValue {
         data.listeners.clear();
       });
       for (auto& l : callbacks) l();
+      return language::EmptyValue();
     });
   }
 
@@ -65,8 +77,8 @@ class ListenableValue {
     std::vector<std::function<void(const Type&)>> listeners;
   };
 
-  std::shared_ptr<concurrent::Protected<Data>> data_ =
-      std::make_shared<concurrent::Protected<Data>>();
+  language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_ =
+      language::MakeNonNullShared<concurrent::Protected<Data>>();
 };
 
 template <typename T>
