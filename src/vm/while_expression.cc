@@ -40,53 +40,48 @@ class WhileExpression : public Expression {
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type&) override {
     DVLOG(4) << "Starting iteration.";
-    futures::Future<ValueOrError<EvaluationOutput>> output;
-    Iterate(trampoline, condition_, body_, std::move(output.consumer));
-    return std::move(output.value);
+    return Iterate(trampoline, condition_, body_);
   }
 
  private:
-  static void Iterate(
+  static futures::ValueOrError<EvaluationOutput> Iterate(
       Trampoline& trampoline, NonNull<std::shared_ptr<Expression>> condition,
-      NonNull<std::shared_ptr<Expression>> body,
-      futures::ValueOrError<EvaluationOutput>::Consumer consumer) {
-    trampoline.Bounce(condition, types::Bool{})
-        .SetConsumer(VisitCallback(overload{
-            [consumer](Error error) { return consumer(std::move(error)); },
-            [condition, body, consumer,
-             &trampoline](EvaluationOutput condition_output) {
-              switch (condition_output.type) {
-                case EvaluationOutput::OutputType::kReturn:
-                  consumer(std::move(condition_output));
-                  return;
+      NonNull<std::shared_ptr<Expression>> body) {
+    return trampoline.Bounce(condition, types::Bool{})
+        .Transform([condition, body,
+                    &trampoline](EvaluationOutput condition_output)
+                       -> futures::ValueOrError<EvaluationOutput> {
+          switch (condition_output.type) {
+            case EvaluationOutput::OutputType::kReturn:
+              return futures::Past(std::move(condition_output));
 
-                case EvaluationOutput::OutputType::kContinue:
-                  if (!condition_output.value.ptr()->get_bool()) {
-                    DVLOG(3) << "Iteration is done.";
-                    consumer(Success(EvaluationOutput::New(
-                        Value::NewVoid(trampoline.pool()))));
-                    return;
-                  }
-
-                  DVLOG(5) << "Iterating...";
-                  trampoline.Bounce(body, body->Types()[0])
-                      .SetConsumer(VisitCallback(overload{
-                          [consumer](Error error) {
-                            consumer(std::move(error));
-                          },
-                          [condition, body, consumer,
-                           &trampoline](EvaluationOutput body_output) {
-                            switch (body_output.type) {
-                              case EvaluationOutput::OutputType::kReturn:
-                                consumer(std::move(body_output));
-                                break;
-                              case EvaluationOutput::OutputType::kContinue:
-                                Iterate(trampoline, std::move(condition),
-                                        std::move(body), std::move(consumer));
-                            }
-                          }}));
+            case EvaluationOutput::OutputType::kContinue:
+              if (!condition_output.value.ptr()->get_bool()) {
+                DVLOG(3) << "Iteration is done.";
+                return futures::Past(
+                    EvaluationOutput::New(Value::NewVoid(trampoline.pool())));
               }
-            }}));
+
+              DVLOG(5) << "Iterating...";
+              return trampoline.Bounce(body, body->Types()[0])
+                  .Transform([condition, body,
+                              &trampoline](EvaluationOutput body_output)
+                                 -> futures::ValueOrError<EvaluationOutput> {
+                    switch (body_output.type) {
+                      case EvaluationOutput::OutputType::kReturn:
+                        return futures::Past(std::move(body_output));
+                        break;
+                      case EvaluationOutput::OutputType::kContinue:
+                        return Iterate(trampoline, std::move(condition),
+                                       std::move(body));
+                    }
+                    LOG(FATAL) << "Error: Unsupported EvaluationOutput type.";
+                    return futures::Past(Error(L"Internal error."));
+                  });
+          }
+          LOG(FATAL) << "Error: Unsupported EvaluationOutput type.";
+          return futures::Past(Error(L"Internal error."));
+        });
   }
 
   const NonNull<std::shared_ptr<Expression>> condition_;
