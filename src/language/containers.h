@@ -32,6 +32,13 @@ Container::mapped_type& GetValueOrDie(Container& container,
   return FindOrDie(container, key)->second;
 }
 
+template <typename Container, typename KeyType, typename Value>
+const auto& GetValueOrDefault(const Container& container, const KeyType& key,
+                              const Value& default_value) {
+  if (auto it = container.find(key); it != container.end()) return it->second;
+  return default_value;
+}
+
 template <typename Container>
 Container::mapped_type PopValueOrDie(Container& container,
                                      const typename Container::key_type& key) {

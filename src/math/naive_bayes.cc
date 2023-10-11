@@ -10,6 +10,7 @@
 #include "src/tests/tests.h"
 
 using ::operator<<;
+using afc::language::GetValueOrDefault;
 using afc::language::GetValueOrDie;
 
 namespace afc::math::naive_bayes {
@@ -242,28 +243,23 @@ std::vector<Event> Sort(const History& history,
   VLOG(5) << "Found epsilon: " << epsilon;
 
   const std::unordered_map<Event, Probability> current_probability_value =
-      TransformValues(GetEventProbability(history), [&](const Event& event,
-                                                        Probability p) {
-        auto feature_probability =
-            probability_of_feature_given_event.find(event);
-        CHECK(feature_probability != probability_of_feature_given_event.end());
-        for (const Feature& feature : current_features) {
-          auto it = feature_probability->second.find(feature);
-          p *= it != feature_probability->second.end() ? it->second : epsilon;
-        }
-        VLOG(6) << "Current probability for " << event << ": " << p;
-        return p;
-      });
+      TransformValues(
+          GetEventProbability(history), [&](const Event& event, Probability p) {
+            const FeatureProbabilityMap& feature_probability_map =
+                GetValueOrDie(probability_of_feature_given_event, event);
+            for (const Feature& feature : current_features)
+              p *= GetValueOrDefault(feature_probability_map, feature, epsilon);
+            VLOG(6) << "Current probability for " << event << ": " << p;
+            return p;
+          });
 
   auto events = std::views::keys(history);
   std::vector<Event> output(events.begin(), events.end());
 
   sort(output.begin(), output.end(),
        [&current_probability_value](const Event& a, const Event& b) {
-         CHECK(current_probability_value.contains(a));
-         CHECK(current_probability_value.contains(b));
-         return current_probability_value.find(a)->second <
-                current_probability_value.find(b)->second;
+         return GetValueOrDie(current_probability_value, a) <
+                GetValueOrDie(current_probability_value, b);
        });
   return output;
 }
