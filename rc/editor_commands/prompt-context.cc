@@ -33,8 +33,6 @@ git_sub_commands.insert("bisect");
 git_sub_commands.insert("branch");
 git_sub_commands.insert("checkout");
 git_sub_commands.insert("clone");
-git_sub_commands.insert("commit");
-git_sub_commands.insert("diff");
 git_sub_commands.insert("fetch");
 git_sub_commands.insert("grep");
 git_sub_commands.insert("init");
@@ -48,9 +46,15 @@ git_sub_commands.insert("reset");
 git_sub_commands.insert("restore");
 git_sub_commands.insert("rm");
 git_sub_commands.insert("show");
-git_sub_commands.insert("status");
 git_sub_commands.insert("switch");
 git_sub_commands.insert("tag");
+
+SetString git_sub_commands_status = SetString();
+git_sub_commands_status.insert("status");
+git_sub_commands_status.insert("commit");
+
+SetString git_sub_commands_diff = SetString();
+git_sub_commands_diff.insert("diff");
 
 SetString hg_sub_commands = SetString();
 hg_sub_commands.insert("amend");
@@ -97,6 +101,12 @@ string GetShellPromptContextProgram(string input) {
       return base_command + " help " + sub_command;
     }
   } else if (base_command == "git") {
+    if (LookUpSubCommand(git_sub_commands_status, input) != "") {
+      return "git diff --stat && git status --short";
+    }
+    if (LookUpSubCommand(git_sub_commands_diff, input) != "") {
+      return "git diff --stat";
+    }
     sub_command = LookUpSubCommand(git_sub_commands, input);
   } else if (base_command == "hg") {
     sub_command = LookUpSubCommand(hg_sub_commands, input);
