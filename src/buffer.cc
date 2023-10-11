@@ -777,7 +777,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   environment_->Define(
       L"sleep",
-      vm::NewCallback(editor().gc_pool(), PurityType::kUnknown,
+      vm::NewCallback(editor().gc_pool(), PurityType::kReader,
                       [weak_this](double delay_seconds) {
                         return VisitPointer(
                             weak_this.Lock(),
