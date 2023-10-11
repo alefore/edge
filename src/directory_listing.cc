@@ -6,6 +6,7 @@
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/language//safe_types.h"
+#include "src/language/containers.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -13,36 +14,38 @@
 #include "src/vm/constant_expression.h"
 #include "src/vm/function_call.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::OpenDir;
+using afc::infrastructure::Path;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::GetValueOrDefault;
+using afc::language::GetValueOrDie;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Observers;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
+using afc::vm::Environment;
+using afc::vm::Expression;
+using afc::vm::Type;
+
 namespace afc::editor {
-using infrastructure::OpenDir;
-using infrastructure::Path;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Observers;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using language::lazy_string::Append;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::EmptyString;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineSequence;
-using language::text::MutableLineSequence;
-using vm::Environment;
-using vm::Expression;
-using vm::Type;
-
-namespace gc = language::gc;
-
 namespace {
 struct BackgroundReadDirOutput {
   std::vector<dirent> directories;
@@ -154,15 +157,12 @@ NonNull<std::shared_ptr<Line>> ShowLine(EditorState& editor,
 
   auto path = FromByteString(entry.d_name);
 
-  auto type_it = types.find(entry.d_type);
-  if (type_it == types.end()) {
-    type_it = types.find(DT_REG);
-    CHECK(type_it != types.end());
-  }
+  FileType type =
+      GetValueOrDefault(types, entry.d_type, GetValueOrDie(types, DT_REG));
 
-  LineBuilder line_options(NewLazyString(path + type_it->second.description));
-  if (!type_it->second.modifiers.empty()) {
-    line_options.set_modifiers(ColumnNumber(0), type_it->second.modifiers);
+  LineBuilder line_options(NewLazyString(path + type.description));
+  if (!type.modifiers.empty()) {
+    line_options.set_modifiers(ColumnNumber(0), type.modifiers);
   }
 
   // See note about why GetMetadata is disabled (above).
