@@ -716,8 +716,10 @@ void OpenBuffer::UpdateTreeParser() {
       .Transform([](gc::Root<OpenBuffer> dictionary_root) {
         return dictionary_root.ptr()->WaitForEndOfFile().Transform(
             [dictionary_root](EmptyValue) {
-              return Success(SortedLineSequence(
-                  dictionary_root.ptr()->contents().snapshot()));
+              return dictionary_root.ptr()->editor().thread_pool().Run(
+                  [contents = dictionary_root.ptr()->contents().snapshot()] {
+                    return Success(SortedLineSequence(contents));
+                  });
             });
       })
       .ConsumeErrors([](Error) {
