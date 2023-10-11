@@ -9,6 +9,7 @@
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/math/checked_operation.h"
 #include "src/tests/tests.h"
 
 using afc::language::Error;
@@ -36,36 +37,6 @@ struct OperationTree {
 };
 
 namespace {
-template <typename T>
-ValueOrError<T> CheckedAdd(T a, T b) {
-  static_assert(std::is_integral<T>::value,
-                "CheckedAdd supports only integral types.");
-  if (b >= 0 ? std::numeric_limits<T>::max() - b < a
-             : std::numeric_limits<T>::min() - b > a)
-    return Error(L"Overflow: the resulting number can't be represented.");
-  return a + b;
-}
-
-template <typename T>
-ValueOrError<T> CheckedMultiply(T a, T b) {
-  static_assert(std::is_integral<T>::value,
-                "CheckedMultiply supports only integral types.");
-  if (a > 0 && b > 0) {
-    if (a > std::numeric_limits<T>::max() / b)
-      return Error(L"Overflow: the resulting number can't be represented.");
-  } else if (a > 0 && b < 0) {
-    if (a > std::numeric_limits<T>::min() / b)
-      return Error(L"Underflow: the resulting number can't be represented.");
-  } else if (a < 0 && b > 0) {
-    if (a < std::numeric_limits<T>::min() / b)
-      return Error(L"Underflow: the resulting number can't be represented.");
-  } else if (a < 0 && b < 0) {
-    if (a < std::numeric_limits<T>::max() / b)
-      return Error(L"Overflow: the resulting number can't be represented.");
-  }
-  return a * b;
-}
-
 // Least significative digit first. The most significant digit (last digit) must
 // not be 0. Zero should always be represented as the empty vector (never as
 // {0}).
@@ -433,9 +404,10 @@ ValueOrError<int64_t> ToInt(const Number& number) {
     return Error(L"Inexact numbers can't be represented as integer.");
   int64_t value = 0;
   for (size_t digit : decimal.digits | std::views::reverse) {
-    ASSIGN_OR_RETURN(value, CheckedMultiply<int64_t>(value, 10));
+    ASSIGN_OR_RETURN(value, CheckedMultiply(value, 10));
     ASSIGN_OR_RETURN(
-        value, CheckedAdd<int64_t>(value, decimal.positive ? digit : -digit));
+        value,
+        CheckedAdd(value, static_cast<int>(decimal.positive ? digit : -digit)));
   }
   return value;
 }
