@@ -6,7 +6,6 @@
 
 namespace afc::futures {
 void Serializer::Push(Callback callback) {
-  futures::Future<language::EmptyValue> new_future;
   auto last_execution = std::move(last_execution_);
   last_execution_ =
       std::move(last_execution)
