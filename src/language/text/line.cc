@@ -42,8 +42,7 @@ const bool line_tests_registration = tests::Register(
             LineBuilder options;
             options.insert_end_of_line_modifiers({LineModifier::kRed});
             Line line = std::move(options).Build();
-            CHECK(line.end_of_line_modifiers().find(LineModifier::kRed) !=
-                  line.end_of_line_modifiers().end());
+            CHECK(line.end_of_line_modifiers().contains(LineModifier::kRed));
           }},
      {.name = L"CopyOfEmptyPreservesEndOfLine",
       .callback =
@@ -52,8 +51,8 @@ const bool line_tests_registration = tests::Register(
             options.insert_end_of_line_modifiers({LineModifier::kRed});
             Line initial_line = std::move(options).Build();
             Line final_line(std::move(initial_line));
-            CHECK(final_line.end_of_line_modifiers().find(LineModifier::kRed) !=
-                  final_line.end_of_line_modifiers().end());
+            CHECK(final_line.end_of_line_modifiers().contains(
+                LineModifier::kRed));
           }},
      {.name = L"EndOfLineModifiersChangesHash",
       .callback =

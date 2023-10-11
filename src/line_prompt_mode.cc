@@ -559,15 +559,13 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             }
 
             {
-              auto s = modifiers.find(ColumnNumber(4));
-              CHECK(s != modifiers.end());
-              LOG(INFO) << "Modifiers found: " << s->second;
-              CHECK_EQ(s->second, LineModifierSet{LineModifier::kBold});
+              auto s = GetValueOrDie(modifiers, ColumnNumber(4));
+              LOG(INFO) << "Modifiers found: " << s;
+              CHECK_EQ(s, LineModifierSet{LineModifier::kBold});
             }
             {
-              auto s = modifiers.find(ColumnNumber(8));
-              CHECK(s != modifiers.end());
-              CHECK_EQ(s->second, LineModifierSet{});
+              auto s = GetValueOrDie(modifiers, ColumnNumber(8));
+              CHECK_EQ(s, LineModifierSet{});
             }
           }},
      {.name = L"MatchIncludingEscapeCorrectlyHandled",
