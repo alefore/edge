@@ -24,18 +24,12 @@ class SortedLineSequence {
   explicit SortedLineSequence(LineSequence input);
   SortedLineSequence(LineSequence input, Compare compare);
 
-  const LineSequence& lines() const { return lines_; }
+  const LineSequence& lines() const;
 
-  // Returns the first element such that key < element. Assumes that the
-  // sequence is sorted.
-  //
-  // TODO(trivial, 2023-10-08): Move implementation to .cc file.
+  // Returns the first element such that key < element.
   language::text::LineNumber upper_bound(
       const language::NonNull<std::shared_ptr<const language::text::Line>>& key)
-      const {
-    return language::text::LineNumber(
-        LineSequence::Lines::UpperBound(lines_.lines_, key, compare_));
-  }
+      const;
 
   SortedLineSequence FilterLines(
       const std::function<FilterPredicateResult(const language::text::Line&)>&

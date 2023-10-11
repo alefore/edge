@@ -43,6 +43,15 @@ SortedLineSequence::SortedLineSequence(TrustedConstructorTag,
                                        LineSequence lines, Compare compare)
     : lines_(std::move(lines)), compare_(std::move(compare)) {}
 
+const LineSequence& SortedLineSequence::lines() const { return lines_; }
+
+language::text::LineNumber SortedLineSequence::upper_bound(
+    const language::NonNull<std::shared_ptr<const language::text::Line>>& key)
+    const {
+  return language::text::LineNumber(
+      LineSequence::Lines::UpperBound(lines_.lines_, key, compare_));
+}
+
 SortedLineSequence SortedLineSequence::FilterLines(
     const std::function<FilterPredicateResult(const language::text::Line&)>&
         predicate) const {
