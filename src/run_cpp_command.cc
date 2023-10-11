@@ -277,27 +277,62 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(
 
 futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
     EditorState& editor, NonNull<std::shared_ptr<LazyString>> line,
-    NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
+    NonNull<std::shared_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value) {
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
   if (!buffer.has_value()) return futures::Past(ColorizePromptOptions());
   LineModifierSet modifiers;
-  std::visit(
+  return std::visit(
       overload{
           [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
-                        language::gc::Root<vm::Environment>>) {
+                        language::gc::Root<vm::Environment>>
+                  compilation_result) {
             modifiers.insert(LineModifier::kCyan);
+            progress_channel->Push(
+                {.values = {
+                     {VersionPropertyKey(L"type"),
+                      vm::TypesToString(compilation_result.first->Types())}}});
+            ColorizePromptOptions output{
+                .tokens = {{.token = {.value = L"",
+                                      .begin = ColumnNumber(0),
+                                      .end = ColumnNumber(0) + line->size()},
+                            .modifiers = modifiers}}};
+            if (compilation_result.first->Types() ==
+                std::vector<vm::Type>({vm::types::Void{}}))
+              return futures::Past(output);
+
+            switch (compilation_result.first->purity()) {
+              case vm::PurityType::kUnknown:
+                return futures::Past(output);
+              case vm::PurityType::kPure:
+              case vm::PurityType::kReader:
+                break;
+            }
+            return buffer->ptr()
+                ->EvaluateExpression(std::move(compilation_result.first),
+                                     compilation_result.second)
+                .Transform([progress_channel](gc::Root<vm::Value> value) {
+                  std::ostringstream oss;
+                  oss << value.ptr().value();
+                  progress_channel->Push(
+                      {.values = {{VersionPropertyKey(L"value"),
+                                   FromByteString(oss.str())}}});
+                  return futures::Past(Success());
+                })
+                .ConsumeErrors([progress_channel](Error error) {
+                  progress_channel->Push(
+                      {.values = {
+                           {VersionPropertyKey(L"runtime"), error.read()}}});
+                  return futures::Past(EmptyValue());
+                })
+                .Transform([output](EmptyValue) { return output; });
           },
           [&](Error error) {
             progress_channel->Push(
                 {.values = {{VersionPropertyKey(L"error"), error.read()}}});
+            return futures::Past(ColorizePromptOptions());
           }},
       buffer->ptr()->CompileString(line->ToString()));
-  return futures::Past(ColorizePromptOptions{
-      .tokens = {{.token = {.value = L"",
-                            .begin = ColumnNumber(0),
-                            .end = ColumnNumber(0) + line->size()},
-                  .modifiers = modifiers}}});
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
