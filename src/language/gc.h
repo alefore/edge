@@ -284,8 +284,8 @@ class Pool {
 
   using ObjectMetadataBag = language::NonNull<
       std::unique_ptr<concurrent::Bag<std::weak_ptr<ObjectMetadata>>>>;
-  using ObjectExpandList =
-      std::list<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
+  using ObjectExpandVector =
+      std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
 
   // The eden area holds information about recent activity. This is optimized to
   // be locked only very briefly, to avoid blocking progress.
@@ -304,7 +304,7 @@ class Pool {
     // list to which `AddToEdenExpandList` will add objects (so that when the
     // collection is resumed, those expansions happen). See
     // `ObjectMetadata::Protect`.
-    std::optional<ObjectExpandList> expand_list = std::nullopt;
+    std::optional<ObjectExpandVector> expansion_schedule = std::nullopt;
 
     // Incremented each time a call to `Collect` stops without finishing, and
     // reset as soon as the call finishes. Used to adjust the execution
@@ -322,36 +322,37 @@ class Pool {
     std::list<ObjectMetadataBag> roots_list = {};
 
     // After inserting from the eden and updating roots, we copy objects from
-    // `roots` into `expand_list` (in `ScheduleExpandRoots`). We then
+    // `roots` into `expansion_schedule` (in `ScheduleExpandRoots`). We then
     // recursively visit all objects here. Once the list is empty, we'll know
     // a set of unreachable objects.
     //
     // If we reach a deadline while traversing this list, we stop. The next
-    // execution will avoid (most of) the work we've done (because it will
-    // quickly skip already scheduled or expanded objects).
-    concurrent::Bag<ObjectExpandList> expand_list;
+    // execution will avoid (most of) the work we've done: we remove objects
+    // from here (marking them as already expanded).
+    concurrent::Bag<ObjectExpandVector> expansion_schedule;
   };
 
   // Moves objects from `eden` into `data`.
   //
   // Specifically, objects from fields `Eden::roots`, `Eden::object_metadata`
-  // and `Eden::expand_list` are moved into the corresponding fields in
+  // and `Eden::expansion_schedule` are moved into the corresponding fields in
   // `data`.
   void ConsumeEden(Eden eden, Data& data);
 
-  // Inserts all not-yet-scheduled objects from `roots_list` into `expand_list`.
+  // Inserts all not-yet-scheduled objects from `roots_list` into
+  // `expansion_schedule`.
   static void ScheduleExpandRoots(
       const concurrent::Operation& operation,
       const std::list<ObjectMetadataBag>& roots_list,
-      concurrent::Bag<ObjectExpandList>& expand_list);
+      concurrent::Bag<ObjectExpandVector>& schedule);
 
   static bool IsExpandAlreadyScheduled(
       const language::NonNull<std::shared_ptr<ObjectMetadata>>& object);
 
-  // Recursively expand all objects in `data.expand_list`. May stop early
+  // Recursively expand all objects in `data.expansion_schedule`. May stop early
   // if the timeout is reached.
   static void Expand(const concurrent::Operation& operation,
-                     concurrent::Bag<ObjectExpandList>& expand_list,
+                     concurrent::Bag<ObjectExpandVector>& schedule,
                      const std::optional<afc::infrastructure::CountDownTimer>&
                          count_down_timer);
   void RemoveUnreachable(

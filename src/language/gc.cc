@@ -79,7 +79,7 @@ Pool::Pool(Options options)
         return std::move(options);
       }()),
       eden_(Eden(options_.max_bag_shards, 0)),
-      data_(Data{.expand_list = concurrent::Bag<ObjectExpandList>(
+      data_(Data{.expansion_schedule = concurrent::Bag<ObjectExpandVector>(
                      {.shards = options_.max_bag_shards})}),
       root_backtrace_(VLOG_IS_ON(9)
                           ? std::make_optional(Bag<Backtrace>(
@@ -97,7 +97,7 @@ Pool::~Pool() {
   }
 
   data_.lock([](const Data& data) {
-    CHECK(data.expand_list.empty());
+    CHECK(data.expansion_schedule.empty());
     // TODO(gc, 2022-12-08): Enable this validation.
     // CHECK(roots_list.empty());
   });
@@ -148,7 +148,7 @@ Pool::CollectOutput Pool::Collect(bool full) {
             std::exp2(eden_data.consecutive_unfinished_collect_calls) *
             options_.collect_duration_threshold.value());
 
-      if (eden_data.expand_list == std::nullopt) {
+      if (eden_data.expansion_schedule == std::nullopt) {
         size_t max_metadata_size = std::max(1024ul, data_size);
         light_stats.begin_eden_size = eden_data.object_metadata->size();
         if (eden_data.object_metadata->size() > max_metadata_size) {
@@ -200,22 +200,23 @@ Pool::CollectOutput Pool::Collect(bool full) {
               options_.operation_factory
                   ->New(INLINE_TRACKER(gc_Pool_ScheduleExpandRoots))
                   .value(),
-              data.roots_list, data.expand_list);
-          VLOG(5) << "Roots registered: " << data.expand_list.size();
+              data.roots_list, data.expansion_schedule);
+          VLOG(5) << "Roots registered: " << data.expansion_schedule.size();
 
           Expand(options_.operation_factory->New(INLINE_TRACKER(gc_Pool_Expand))
                      .value(),
-                 data.expand_list, timer);
-          if (!data.expand_list.empty()) {
+                 data.expansion_schedule, timer);
+          if (!data.expansion_schedule.empty()) {
             VLOG(3) << "Expansion didn't finish. Interrupting.";
             return false;
           }
 
           eden = eden_.lock([&](Eden& eden_data) -> std::optional<Eden> {
             if (eden_data.IsEmpty()) {
-              VLOG(4) << "New eden is empty. We've reached all objects at this "
-                         "point. We no longer need to keep an expand_list.";
-              eden_data.expand_list = std::nullopt;
+              VLOG(4)
+                  << "New eden is empty. We've reached all objects at this "
+                     "point. We no longer need to keep an expansion_schedule.";
+              eden_data.expansion_schedule = std::nullopt;
               eden_data.consecutive_unfinished_collect_calls = 0;
               return std::nullopt;
             }
@@ -259,38 +260,38 @@ void Pool::ConsumeEden(Eden eden, Data& data) {
   PushAndClean(data.roots_list, std::move(eden.roots));
   PushAndClean(data.object_metadata_list, std::move(eden.object_metadata));
 
-  if (eden.expand_list.has_value()) {
-    TRACK_OPERATION(gc_Pool_ConsumeEden_expand_list);
-    data.expand_list.Add(std::move(eden.expand_list.value()));
+  if (eden.expansion_schedule.has_value()) {
+    TRACK_OPERATION(gc_Pool_ConsumeEden_expansion_schedule);
+    data.expansion_schedule.Add(std::move(eden.expansion_schedule.value()));
   }
 }
 
 bool Pool::Eden::IsEmpty() const {
   return roots->empty() && object_metadata->empty() &&
-         (expand_list == std::nullopt || expand_list->empty());
+         (expansion_schedule == std::nullopt || expansion_schedule->empty());
 }
 
 /* static */ void Pool::ScheduleExpandRoots(
     const Operation& parallel_operation,
     const std::list<ObjectMetadataBag>& roots_list,
-    Bag<ObjectExpandList>& expand_list) {
+    Bag<ObjectExpandVector>& schedule) {
   VLOG(3) << "Registering roots: " << roots_list.size();
   for (const ObjectMetadataBag& roots : roots_list)
     roots->ForEachShard(
         parallel_operation,
-        [&expand_list](const std::list<std::weak_ptr<ObjectMetadata>>& shard) {
-          ObjectExpandList local_expand_list;
+        [&schedule](const std::list<std::weak_ptr<ObjectMetadata>>& shard) {
+          ObjectExpandVector local_expand_vector;
           for (const std::weak_ptr<ObjectMetadata>& root_weak : shard)
             VisitPointer(
                 root_weak,
-                [&local_expand_list](
+                [&local_expand_vector](
                     NonNull<std::shared_ptr<ObjectMetadata>> obj) {
                   if (!IsExpandAlreadyScheduled(obj))
-                    local_expand_list.push_back(std::move(obj));
+                    local_expand_vector.push_back(std::move(obj));
                 },
                 [] { LOG(FATAL) << "Root was dead. Should never happen."; });
-          if (!local_expand_list.empty())
-            expand_list.Add(std::move(local_expand_list));
+          if (!local_expand_vector.empty())
+            schedule.Add(std::move(local_expand_vector));
         });
 }
 
@@ -312,21 +313,24 @@ bool Pool::Eden::IsEmpty() const {
 
 /* static */
 void Pool::Expand(const Operation& parallel_operation,
-                  Bag<ObjectExpandList>& expand_list,
+                  Bag<ObjectExpandVector>& schedule,
                   const std::optional<CountDownTimer>& count_down_timer) {
-  VLOG(3) << "Starting recursive expand (expand_list: " << expand_list.size()
-          << ")";
+  VLOG(3) << "Starting recursive expand (schedule: " << schedule.size() << ")";
 
-  expand_list.ForEachShard(
-      parallel_operation,
-      [&count_down_timer](std::list<ObjectExpandList>& shard) {
-        TRACK_OPERATION(gc_Pool_Expand_shard);
-        while (!shard.empty() &&
-               !(count_down_timer.has_value() && count_down_timer->IsDone())) {
-          for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : shard.front()) {
-            TRACK_OPERATION(gc_Pool_Expand_Step);
-            VLOG(10) << "Considering obj: " << obj.get_shared();
-            auto expansion = obj->data_.lock(
+  schedule.ForEachShard(parallel_operation, [&count_down_timer](
+                                                std::list<ObjectExpandVector>&
+                                                    shard) {
+    TRACK_OPERATION(gc_Pool_Expand_shard);
+    while (!shard.empty() &&
+           !(count_down_timer.has_value() && count_down_timer->IsDone())) {
+      std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> elements =
+          std::move(shard.back());
+      shard.pop_back();
+      for (NonNull<std::shared_ptr<ObjectMetadata>>& obj : elements) {
+        TRACK_OPERATION(gc_Pool_Expand_Step);
+        VLOG(10) << "Considering obj: " << obj.get_shared();
+        std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> expansion =
+            obj->data_.lock(
                 [&](ObjectMetadata::Data& object_data)
                     -> std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> {
                   CHECK(object_data.expand_callback != nullptr);
@@ -345,19 +349,16 @@ void Pool::Expand(const Operation& parallel_operation,
                   LOG(FATAL) << "Invalid state.";
                   return {};
                 });
-            VLOG(10) << "Installing expansion of " << obj.get_shared() << ": "
-                     << expansion.size();
-            // TODO(easy, 2023-09-15): Align the use of std::list and
-            // std::vector between ObjectExpandList and related class, and the
-            // return value of expand_callback; that should allow us to avoid
-            // having to convert here.
-            ObjectExpandList expansion_list(expansion.begin(), expansion.end());
-            expansion_list.remove_if(IsExpandAlreadyScheduled);
-            if (!expansion.empty()) shard.push_back(std::move(expansion_list));
-          }
-          shard.pop_front();
-        }
-      });
+        VLOG(10) << "Installing expansion of " << obj.get_shared() << ": "
+                 << expansion.size();
+
+        expansion.erase(std::remove_if(expansion.begin(), expansion.end(),
+                                       IsExpandAlreadyScheduled),
+                        expansion.end());
+        if (!expansion.empty()) shard.push_back(std::move(expansion));
+      }
+    }
+  });
 }
 
 void Pool::RemoveUnreachable(const Operation& parallel_operation,
@@ -448,9 +449,9 @@ Pool::RootRegistration Pool::AddRoot(
 void Pool::AddToEdenExpandList(
     language::NonNull<std::shared_ptr<ObjectMetadata>> object_metadata) {
   eden_.lock([&](Eden& eden) {
-    if (eden.expand_list.has_value() &&
+    if (eden.expansion_schedule.has_value() &&
         !IsExpandAlreadyScheduled(object_metadata))
-      eden.expand_list->push_back(std::move(object_metadata));
+      eden.expansion_schedule->push_back(std::move(object_metadata));
   });
 }
 
