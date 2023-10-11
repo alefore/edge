@@ -11,6 +11,8 @@
 #include "src/language/text/line_sequence_functional.h"
 
 namespace afc::language::text {
+class SortedLineSequenceUniqueLines;
+
 class SortedLineSequence {
  public:
   using Compare = std::function<bool(
@@ -36,6 +38,7 @@ class SortedLineSequence {
           predicate) const;
 
  private:
+  friend class SortedLineSequenceUniqueLines;
   struct TrustedConstructorTag {};
   SortedLineSequence(TrustedConstructorTag, LineSequence lines,
                      Compare compare);
@@ -53,6 +56,12 @@ class SortedLineSequenceUniqueLines {
       const SortedLineSequenceUniqueLines&) = default;
 
   explicit SortedLineSequenceUniqueLines(SortedLineSequence sorted_lines);
+
+  // Precondition: `a` and `b` must have the exact sampe Compare procedure.
+  //
+  // TODO(2023-10-11): Assert the above precondition with types.
+  SortedLineSequenceUniqueLines(SortedLineSequenceUniqueLines a,
+                                SortedLineSequenceUniqueLines b);
 
   const SortedLineSequence& sorted_lines() const { return sorted_lines_; }
 

@@ -675,60 +675,23 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
                             .source_buffers = input.source_buffers,
                             .progress_channel = input.progress_channel,
                             .abort_value = input.abort_value})
-        .Transform([input, b, b_predictions](PredictorOutput) {
+        .Transform([input, b, b_predictions](PredictorOutput a_output) {
           return b({.editor = input.editor,
                     .input = input.input,
                     .predictions = b_predictions.ptr().value(),
                     .source_buffers = input.source_buffers,
                     .progress_channel = input.progress_channel,
-                    .abort_value = input.abort_value});
-        })
-        .Transform([a_predictions](PredictorOutput) {
-          return a_predictions.ptr()->WaitForEndOfFile();
-        })
-        .Transform([b_predictions](EmptyValue) {
-          return b_predictions.ptr()->WaitForEndOfFile();
-        })
-        .Transform([input, a_predictions, b_predictions](EmptyValue) {
-          LineNumber a_line;
-          LineNumber b_line;
-          auto advance = [&](const gc::Root<OpenBuffer>& buffer,
-                             LineNumber& p) {
-            CHECK_LT(p.ToDelta(), buffer.ptr()->contents().size());
-            input.predictions.AppendToLastLine(
-                buffer.ptr()->contents().at(p)->contents());
-            ++p;
-          };
-          while (a_line.ToDelta() < a_predictions.ptr()->contents().size() ||
-                 b_line.ToDelta() < b_predictions.ptr()->contents().size()) {
-            if (a_line.ToDelta() == a_predictions.ptr()->contents().size()) {
-              advance(b_predictions, b_line);
-            } else if (b_line.ToDelta() ==
-                       b_predictions.ptr()->contents().size()) {
-              advance(a_predictions, a_line);
-            } else {
-              std::wstring a_str =
-                  a_predictions.ptr()->contents().at(a_line)->ToString();
-              std::wstring b_str =
-                  b_predictions.ptr()->contents().at(b_line)->ToString();
-              if (a_str < b_str) {
-                advance(a_predictions, a_line);
-              } else if (b_str < a_str) {
-                advance(b_predictions, b_line);
-              } else {
-                advance(a_predictions, a_line);
-                ++b_line;
-              }
-            }
-            input.predictions.AppendRawLine(NonNull<std::shared_ptr<Line>>());
-          }
-          input.predictions.EndOfFile();
-          // TODO(easy, 2023-10-08): There shouldn't be a need to re-sort here.
-          // Add methods to SortedLineSequence to merge.
-          TRACK_OPERATION(ComposePredictors_Sorting);
-          return PredictorOutput(
-              {.contents = SortedLineSequenceUniqueLines(SortedLineSequence(
-                   input.predictions.contents().snapshot()))});
+                    .abort_value = input.abort_value})
+              .Transform([input, a_output](PredictorOutput b_output) {
+                SortedLineSequenceUniqueLines merged_contents(
+                    a_output.contents, b_output.contents);
+                input.predictions.InsertInPosition(
+                    merged_contents.sorted_lines().lines(), LineColumn(),
+                    std::nullopt);
+                TRACK_OPERATION(ComposePredictors_Sorting);
+                return PredictorOutput(
+                    {.contents = std::move(merged_contents)});
+              });
         });
   };
 }
