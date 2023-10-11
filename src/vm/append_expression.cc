@@ -28,7 +28,9 @@ class AppendExpression : public Expression {
     return return_types_;
   }
 
-  PurityType purity() override { return PurityType::kUnknown; }
+  PurityType purity() override {
+    return CombinePurityType(e0_->purity(), e1_->purity());
+  }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type&) override {
