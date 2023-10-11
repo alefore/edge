@@ -23,8 +23,10 @@
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
+using afc::concurrent::VersionPropertyKey;
 using afc::futures::DeleteNotification;
 using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -273,6 +275,31 @@ futures::Value<EmptyValue> RunCppCommandShellHandler(
       .ConsumeErrors([](auto) { return futures::Past(EmptyValue()); });
 }
 
+futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
+    EditorState& editor, NonNull<std::shared_ptr<LazyString>> line,
+    NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
+    DeleteNotification::Value) {
+  std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
+  if (!buffer.has_value()) return futures::Past(ColorizePromptOptions());
+  LineModifierSet modifiers;
+  std::visit(
+      overload{
+          [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
+                        language::gc::Root<vm::Environment>>) {
+            modifiers.insert(LineModifier::kCyan);
+          },
+          [&](Error error) {
+            progress_channel->Push(
+                {.values = {{VersionPropertyKey(L"error"), error.read()}}});
+          }},
+      buffer->ptr()->CompileString(line->ToString()));
+  return futures::Past(ColorizePromptOptions{
+      .tokens = {{.token = {.value = L"",
+                            .begin = ColumnNumber(0),
+                            .end = ColumnNumber(0) + line->size()},
+                  .modifiers = modifiers}}});
+}
+
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
     EditorState& editor, const SearchNamespaces& search_namespaces,
     Predictor predictor, NonNull<std::shared_ptr<LazyString>> line,
@@ -426,6 +453,8 @@ NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
             handler = std::bind_front(RunCppCommandLiteralHandler,
                                       std::ref(editor_state));
             prompt = L"cpp";
+            colorize_options_provider = std::bind_front(
+                CppColorizeOptionsProvider, std::ref(editor_state));
             break;
           case CppCommandMode::kShell:
             handler = std::bind_front(RunCppCommandShellHandler,
