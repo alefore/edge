@@ -160,7 +160,7 @@ Line Status::prompt_extra_information_line() const {
   const VersionPropertyReceiver::PropertyValues values = receiver->GetValues();
   LineBuilder options;
   if (!values.property_values.empty()) {
-    options.AppendString(L"    -- ", dim);
+    options.AppendString(L"    🛈  ", dim);
     bool need_separator = false;
     for (const auto& [key, value] : values.property_values) {
       if (need_separator) {
