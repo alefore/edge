@@ -11,6 +11,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
@@ -37,6 +38,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 
@@ -251,7 +253,7 @@ NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
     auto source_buffers = editor.active_buffers();
     return PromptOptions{
         .editor_state = editor,
-        .prompt = L"<",
+        .prompt = NewLazyString(L"<"),
         .prompt_contents_type = L"path",
         .history_file = HistoryFileFiles(),
         .initial_value =

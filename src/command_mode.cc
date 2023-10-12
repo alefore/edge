@@ -671,7 +671,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           [&editor_state] {
             return PromptOptions{
                 .editor_state = editor_state,
-                .prompt = L"...$ ",
+                .prompt = NewLazyString(L"...$ "),
                 .history_file = HistoryFileCommands(),
                 .handler = std::bind_front(RunMultipleCommandsHandler,
                                            std::ref(editor_state))};

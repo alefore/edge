@@ -40,7 +40,7 @@ struct PromptOptions {
   EditorState& editor_state;
 
   // Text to show in the prompt.
-  std::wstring prompt;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> prompt;
 
   // Used to set buffer_variables::contents_type on the buffer for the prompt.
   // The extensions code inspects this and can adjust behaviors.

@@ -1212,9 +1212,7 @@ void Prompt(PromptOptions options) {
 
         // We do this after `EnterInsertMode` because `EnterInsertMode`
         // resets the status.
-        //
-        // TODO(easy, 2023-09-11): Avoid call to NewLazyString here.
-        prompt_state->status().set_prompt(NewLazyString(options.prompt),
+        prompt_state->status().set_prompt(options.prompt,
                                           prompt_state->prompt_buffer());
         prompt_state->OnModify();
         return futures::Past(EmptyValue());

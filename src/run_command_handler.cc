@@ -25,6 +25,7 @@ extern "C" {
 #include "src/file_descriptor_reader.h"
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/time.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -35,35 +36,38 @@ extern "C" {
 #include "src/vm/function_call.h"
 #include "src/vm/value.h"
 
+using afc::futures::DeleteNotification;
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::GetElapsedSecondsSince;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineNumber;
+using afc::vm::EscapedString;
+
 namespace afc {
 using language::NonNull;
 
 namespace gc = language::gc;
 namespace editor {
 namespace {
-using futures::DeleteNotification;
-using infrastructure::FileDescriptor;
-using infrastructure::GetElapsedSecondsSince;
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::IgnoreErrors;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::overload;
-using language::PossibleError;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineNumber;
-using vm::EscapedString;
 
 using std::cerr;
 using std::to_string;
@@ -438,11 +442,14 @@ class ForkEditorCommand : public Command {
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       Prompt(PromptOptions{
           .editor_state = editor_state_,
-          .prompt =
-              std::visit(overload{[](Error) -> std::wstring { return L""; },
-                                  [](Path path) { return path.read(); }},
-                         children_path) +
-              L"$ ",
+          .prompt = Append(
+              std::visit(overload{[](Error) { return EmptyString(); },
+                                  [](Path path)
+                                      -> NonNull<std::shared_ptr<LazyString>> {
+                                    return NewLazyString(path.read());
+                                  }},
+                         children_path),
+              NewLazyString(L"$ ")),
           .history_file = HistoryFileCommands(),
           .colorize_options_provider =
               prompt_state->context_command_callback.has_value()

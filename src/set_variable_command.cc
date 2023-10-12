@@ -79,7 +79,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
       var != nullptr) {
     Prompt(
         {.editor_state = editor_state,
-         .prompt = name + L" := ",
+         .prompt = Append(NewLazyString(name), NewLazyString(L" := ")),
          .history_file = history_file,
          .initial_value = active_buffers[0].ptr()->Read(var),
          .handler =
@@ -116,7 +116,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   if (auto var = editor_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
     Prompt({.editor_state = editor_state,
-            .prompt = name + L" := ",
+            .prompt = Append(NewLazyString(name), NewLazyString(L" := ")),
             .history_file = history_file,
             .initial_value = std::to_wstring(editor_state.Read(var)),
             .handler =
@@ -161,7 +161,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
       var != nullptr) {
     Prompt(PromptOptions{
         .editor_state = editor_state,
-        .prompt = name + L" := ",
+        .prompt = Append(NewLazyString(name), NewLazyString(L" := ")),
         .history_file = history_file,
         .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
         .handler =
@@ -193,7 +193,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
       var != nullptr) {
     Prompt(PromptOptions{
         .editor_state = editor_state,
-        .prompt = name + L" := ",
+        .prompt = Append(NewLazyString(name), NewLazyString(L" := ")),
         .history_file = history_file,
         .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
         .handler =
@@ -233,7 +233,7 @@ NonNull<std::unique_ptr<Command>> NewSetVariableCommand(
       editor_state, L"assigns to a variable", [&editor_state] {
         return PromptOptions{
             .editor_state = editor_state,
-            .prompt = L"🔧 ",
+            .prompt = NewLazyString(L"🔧 "),
             .history_file = HistoryFile(L"variables"),
             .colorize_options_provider =
                 [&editor_state, variables_predictor = variables_predictor](

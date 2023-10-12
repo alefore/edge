@@ -8,21 +8,24 @@
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/line_prompt_mode.h"
 
-namespace afc::editor {
-using infrastructure::FileSystemDriver;
-using language::EmptyValue;
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::PossibleError;
-using language::Success;
-using language::ValueOrError;
-using language::lazy_string::LazyString;
-using language::text::OutgoingLink;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::infrastructure::FileSystemDriver;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::OutgoingLink;
+
+namespace afc::editor {
 
 futures::Value<PossibleError> RunCppFileHandler(
     EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> input) {
@@ -102,7 +105,7 @@ class RunCppFileCommand : public Command {
     CHECK(buffer.has_value());
     Prompt(
         {.editor_state = editor_state_,
-         .prompt = L"cmd ",
+         .prompt = NewLazyString(L"cmd "),
          .history_file = HistoryFile(L"editor_commands"),
          .initial_value =
              buffer->ptr()->Read(buffer_variables::editor_commands_path),

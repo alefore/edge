@@ -256,7 +256,7 @@ class SearchCommand : public Command {
 
     Prompt(
         {.editor_state = editor_state_,
-         .prompt = L"🔎 ",
+         .prompt = NewLazyString(L"🔎 "),
          .history_file = HistoryFile(L"search"),
          .colorize_options_provider =
              [&editor_state = editor_state_,

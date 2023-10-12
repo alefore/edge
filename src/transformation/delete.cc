@@ -131,7 +131,7 @@ void HandleLineDeletion(Range range, OpenBuffer& buffer) {
                              : L" files: " + std::to_wstring(observers.size());
   Prompt(PromptOptions{
       .editor_state = buffer.editor(),
-      .prompt = L"unlink " + details + L"? [yes/no] ",
+      .prompt = NewLazyString(L"unlink " + details + L"? [yes/no] "),
       .history_file = HistoryFile(L"confirmation"),
       .handler =
           [buffer = buffer.NewRoot(),
