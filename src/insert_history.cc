@@ -25,6 +25,7 @@ namespace {
 bool IsMatch(EditorState& editor,
              const InsertHistory::SearchOptions& search_options,
              const LineSequence& candidate) {
+  // TODO(trivial, 2023-10-12): This could use std::visit for additional safety.
   ValueOrError<std::vector<LineColumn>> matches = SearchHandler(
       editor.work_queue(), editor.modifiers().direction,
       afc::editor::SearchOptions{.search_query = search_options.query,
