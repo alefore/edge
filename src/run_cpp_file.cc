@@ -67,12 +67,12 @@ futures::Value<PossibleError> RunCppFileHandler(
                   input](ResolvePathOutput<EmptyValue> resolved_path)
                      -> futures::Value<PossibleError> {
         using futures::IterationControlCommand;
-        auto index = std::make_shared<size_t>(0);
+        auto index = MakeNonNullShared<size_t>(0);
         return futures::While([buffer, total = editor_state.repetitions(),
                                adjusted_input = resolved_path.path, index]() {
-                 if (*index >= total)
+                 if (index.value() >= total)
                    return futures::Past(IterationControlCommand::kStop);
-                 ++*index;
+                 ++index.value();
                  return buffer->ptr()
                      ->EvaluateFile(adjusted_input)
                      .Transform([](gc::Root<vm::Value>) {
