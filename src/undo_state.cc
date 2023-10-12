@@ -4,6 +4,7 @@ namespace afc::editor {
 
 using futures::IterationControlCommand;
 using language::EmptyValue;
+using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
@@ -70,7 +71,7 @@ futures::Value<EmptyValue> UndoState::Apply(ApplyOptions apply_options) {
     size_t repetitions = 0;
     ApplyOptions options;
   };
-  auto data = std::make_shared<Data>();
+  auto data = MakeNonNullShared<Data>();
   data->options = std::move(apply_options);
   return futures::While([this, data] {
            if (data->repetitions == data->options.repetitions ||
