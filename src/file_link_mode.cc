@@ -528,8 +528,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                    buffer.ptr()->status().SetInformationText(
                        MakeNonNullShared<Line>(error.read()));
                  }},
-        GetNextMatch(options.editor_state.work_queue(),
-                     options.editor_state.modifiers().direction, search_options,
+        GetNextMatch(options.editor_state.modifiers().direction, search_options,
                      buffer.ptr()->contents().snapshot()));
   }
   return buffer;

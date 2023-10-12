@@ -43,10 +43,7 @@ struct SearchOptions {
 
 // Returns all matches starting at start. If end is not nullptr, only matches
 // in the region enclosed by start and *end will be returned.
-//
-// TODO(easy, 2023-09-09): Document why we receive a work_queue.
 language::ValueOrError<std::vector<language::text::LineColumn>> SearchHandler(
-    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
     const language::text::LineSequence& buffer);
 
@@ -56,7 +53,6 @@ void HandleSearchResults(
     OpenBuffer& buffer);
 
 language::ValueOrError<language::text::LineColumn> GetNextMatch(
-    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
     const language::text::LineSequence& contents);
 

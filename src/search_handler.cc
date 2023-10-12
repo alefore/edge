@@ -172,7 +172,7 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
   ASSIGN_OR_RETURN(
       std::vector<LineColumn> positions,
       buffer.status().LogErrors(SearchHandler(
-          input.editor.work_queue(), input.editor.modifiers().direction,
+          input.editor.modifiers().direction,
           SearchOptions{.starting_position = buffer.position(),
                         // TODO(trivial, 2023-10-06): Get rid of NewLazyString.
                         .search_query = NewLazyString(input.input)},
@@ -218,7 +218,6 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
 }
 
 ValueOrError<std::vector<LineColumn>> SearchHandler(
-    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
     Direction direction, const SearchOptions& options,
     const LineSequence& contents) {
   if (options.search_query->size().IsZero()) {
@@ -251,7 +250,7 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
                                      range_after.begin().column.next()));
 
   auto Search =
-      [&options, &work_queue,
+      [&options,
        &contents](const Range& range) -> ValueOrError<std::vector<LineColumn>> {
     ChannelAll<ProgressInformation> dummy_progress_channel(
         [](ProgressInformation) {});
@@ -294,7 +293,6 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
 
 namespace {
 bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
-  language::NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
   LineSequence contents =
       LineSequence::ForTests({L"Alejandro", L"Forero", L"Cuervo"});
   return std::vector<tests::Test>(
@@ -303,7 +301,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
             [=] {
               CHECK(ValueOrDie(
                         SearchHandler(
-                            work_queue, Direction::kForwards,
+                            Direction::kForwards,
                             SearchOptions{
                                 .starting_position = LineColumn(
                                     contents.range().end().line,
@@ -318,7 +316,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
-                        work_queue, Direction::kForwards,
+                        Direction::kForwards,
                         SearchOptions{
                             .starting_position = LineColumn(
                                 contents.range().end().line,
@@ -335,7 +333,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
             [=] {
               CHECK(
                   ValueOrDie(SearchHandler(
-                      work_queue, Direction::kForwards,
+                      Direction::kForwards,
                       SearchOptions{.starting_position = contents.range().end(),
                                     .search_query = NewLazyString(L"rero"),
                                     .required_positions = std::nullopt,
@@ -348,7 +346,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
-                        work_queue, Direction::kBackwards,
+                        Direction::kBackwards,
                         SearchOptions{.starting_position = LineColumn(
                                           LineNumber(1), ColumnNumber(3)),
                                       .search_query = NewLazyString(L"r"),
@@ -365,7 +363,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
         .callback =
             [=] {
               CHECK(ValueOrDie(SearchHandler(
-                        work_queue, Direction::kForwards,
+                        Direction::kForwards,
                         SearchOptions{.starting_position = LineColumn(
                                           LineNumber(0), ColumnNumber(7)),
                                       .search_query = NewLazyString(L"ro"),
@@ -380,7 +378,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
        {.name = L"ReachMatchLimit", .callback = [=] {
           CHECK(
               ValueOrDie(SearchHandler(
-                  work_queue, Direction::kForwards,
+                  Direction::kForwards,
                   SearchOptions{.starting_position =
                                     LineColumn(LineNumber(1), ColumnNumber(3)),
                                 .search_query = NewLazyString(L"."),
@@ -403,12 +401,11 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
 }());
 }
 
-ValueOrError<LineColumn> GetNextMatch(
-    language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue,
-    Direction direction, const SearchOptions& options,
-    const LineSequence& contents) {
+ValueOrError<LineColumn> GetNextMatch(Direction direction,
+                                      const SearchOptions& options,
+                                      const LineSequence& contents) {
   if (std::optional<std::vector<LineColumn>> results =
-          OptionalFrom(SearchHandler(work_queue, direction, options, contents));
+          OptionalFrom(SearchHandler(direction, options, contents));
       results.has_value() && !results->empty())
     return results->at(0);
 
