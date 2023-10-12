@@ -71,8 +71,9 @@ using language::text::MutableLineSequence;
 namespace gc = language::gc;
 
 futures::Value<PossibleError> GenerateContents(
-    std::shared_ptr<struct stat> stat_buffer,
-    std::shared_ptr<FileSystemDriver> file_system_driver, OpenBuffer& target) {
+    NonNull<std::shared_ptr<struct stat>> stat_buffer,
+    NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
+    OpenBuffer& target) {
   CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
   FUTURES_ASSIGN_OR_RETURN(
       Path path, Path::FromString(target.Read(buffer_variables::path)));
@@ -88,7 +89,7 @@ futures::Value<PossibleError> GenerateContents(
         if (!stat_results.has_value()) {
           return futures::Past(Success());
         }
-        *stat_buffer = stat_results.value();
+        stat_buffer.value() = stat_results.value();
 
         if (!S_ISDIR(stat_buffer->st_mode)) {
           return file_system_driver->Open(path, O_RDONLY | O_NONBLOCK, 0)
@@ -130,7 +131,7 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
 }
 
 futures::Value<PossibleError> Save(
-    EditorState*, struct stat* stat_buffer,
+    EditorState*, NonNull<std::shared_ptr<struct stat>> stat_buffer,
     OpenBuffer::Options::HandleSaveOptions options) {
   auto& buffer = options.buffer;
   FUTURES_ASSIGN_OR_RETURN(
@@ -198,7 +199,7 @@ futures::Value<PossibleError> Save(
                       }
                     }
                   }
-                  stat(ToByteString(path.read()).c_str(), stat_buffer);
+                  stat(ToByteString(path.read()).c_str(), &stat_buffer.value());
                   break;
                 case OpenBuffer::Options::SaveType::kBackup:
                   break;
@@ -433,19 +434,19 @@ gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
     std::optional<ResolvePathOutput<EmptyValue>> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
-  auto buffer_options = std::make_shared<OpenBuffer::Options>(
+  auto buffer_options = MakeNonNullShared<OpenBuffer::Options>(
       OpenBuffer::Options{.editor = options.editor_state});
 
-  auto stat_buffer = std::make_shared<struct stat>();
+  NonNull<std::shared_ptr<struct stat>> stat_buffer;
   auto file_system_driver =
-      std::make_shared<FileSystemDriver>(editor_state.thread_pool());
+      MakeNonNullShared<FileSystemDriver>(editor_state.thread_pool());
 
   buffer_options->generate_contents = [stat_buffer,
                                        file_system_driver](OpenBuffer& target) {
     return GenerateContents(stat_buffer, file_system_driver, target);
   };
   buffer_options->handle_visit = [stat_buffer](OpenBuffer& buffer) {
-    HandleVisit(*stat_buffer, buffer);
+    HandleVisit(stat_buffer.value(), buffer);
   };
   if (options.path.has_value())
     buffer_options->handle_save =
@@ -455,7 +456,7 @@ gc::Root<OpenBuffer> CreateBuffer(
       gc::WeakPtr<OpenBuffer> buffer_weak =
           save_options.buffer.NewRoot().ptr().ToWeakPtr();
       return futures::OnError(
-          Save(&editor_state, stat_buffer.get(), std::move(save_options)),
+          Save(&editor_state, stat_buffer, std::move(save_options)),
           [buffer_weak](Error error) {
             VisitPointer(
                 buffer_weak.Lock(),
@@ -497,7 +498,7 @@ gc::Root<OpenBuffer> CreateBuffer(
 
   gc::Root<OpenBuffer> buffer =
       options.editor_state.FindOrBuildBuffer(buffer_options->name, [&] {
-        gc::Root<OpenBuffer> output = OpenBuffer::New(*buffer_options);
+        gc::Root<OpenBuffer> output = OpenBuffer::New(buffer_options.value());
         output.ptr()->Set(buffer_variables::persist_state, true);
         output.ptr()->Reload();
         return output;
@@ -564,7 +565,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                                  options.editor_state.home_directory(),
                              .validator = std::bind_front(
                                  ResolvePathOptions<EmptyValue>::CanStatPath,
-                                 std::make_shared<FileSystemDriver>(
+                                 MakeNonNullShared<FileSystemDriver>(
                                      options.editor_state.thread_pool()),
                                  options.stat_validator)})
                   .Transform([options](ResolvePathOutput<EmptyValue> input) {

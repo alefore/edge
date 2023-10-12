@@ -16,6 +16,7 @@ namespace gc = afc::language::gc;
 using afc::infrastructure::FileSystemDriver;
 using afc::language::EmptyValue;
 using afc::language::Error;
+using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::PossibleError;
@@ -50,8 +51,8 @@ futures::Value<PossibleError> RunCppFileHandler(
   buffer->ptr()->ResetMode();
   return OnError(
              ResolvePathOptions<EmptyValue>::New(
-                 editor_state,
-                 std::make_shared<FileSystemDriver>(editor_state.thread_pool()))
+                 editor_state, MakeNonNullShared<FileSystemDriver>(
+                                   editor_state.thread_pool()))
                  .Transform([input](ResolvePathOptions<EmptyValue> options) {
                    options.path = input->ToString();
                    return ResolvePath(std::move(options));

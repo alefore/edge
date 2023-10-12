@@ -859,7 +859,7 @@ void OpenBuffer::AppendLines(
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
     ResolvePathOptions<EmptyValue>::New(
-        editor(), std::make_shared<FileSystemDriver>(editor().thread_pool()))
+        editor(), MakeNonNullShared<FileSystemDriver>(editor().thread_pool()))
         .Transform(
             [buffer_name = name(), lines_added, contents = contents_.snapshot(),
              start_new_section,

@@ -53,7 +53,8 @@ struct ResolvePathOptions {
  public:
   static futures::Value<ResolvePathOptions> New(
       EditorState& editor_state,
-      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver) {
+      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
+          file_system_driver) {
     return GetSearchPaths(editor_state)
         .Transform(std::bind_front(&NewWithSearchPaths, std::ref(editor_state),
                                    file_system_driver));
@@ -61,7 +62,8 @@ struct ResolvePathOptions {
 
   static ResolvePathOptions NewWithSearchPaths(
       EditorState& editor_state,
-      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver,
+      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
+          file_system_driver,
       std::vector<infrastructure::Path> search_paths = {}) {
     return ResolvePathOptions{
         .search_paths = std::move(search_paths),
@@ -82,7 +84,8 @@ struct ResolvePathOptions {
   Validator validator = nullptr;
 
   static futures::Value<language::PossibleError> CanStatPath(
-      std::shared_ptr<infrastructure::FileSystemDriver> file_system_driver,
+      language::NonNull<std::shared_ptr<infrastructure::FileSystemDriver>>
+          file_system_driver,
       std::function<language::PossibleError(struct stat)> stat_validator,
       const infrastructure::Path& path) {
     VLOG(5) << "Considering path: " << path;

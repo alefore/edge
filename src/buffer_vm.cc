@@ -550,7 +550,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                   std::wstring resolved_path;
                   ResolvePathOptions<EmptyValue>::New(
                       buffer.ptr()->editor(),
-                      std::make_shared<FileSystemDriver>(
+                      MakeNonNullShared<FileSystemDriver>(
                           buffer.ptr()->editor().thread_pool()))
                       .Transform([buffer, path](
                                      ResolvePathOptions<EmptyValue> options) {
