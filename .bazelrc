@@ -14,5 +14,6 @@ build --copt=-Werror=unused-function
 build --copt=-Werror=missing-field-initializers
 build --copt=-Werror=unused-but-set-variable
 build --copt=-Werror=range-loop-construct
+build --copt=-Wunused-lambda-capture
 # Enable shadow warnings
 build --copt=-Wshadow
