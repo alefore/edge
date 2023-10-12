@@ -11,7 +11,6 @@
 #include "src/language/wstring.h"
 
 namespace afc::editor {
-using infrastructure::Tracker;
 using language::lazy_string::NewLazyString;
 using language::text::LineColumn;
 using language::text::LineSequence;
@@ -25,28 +24,28 @@ void LineMarks::AddMark(Mark mark) {
 
 void LineMarks::RemoveSource(const BufferName& source) {
   LOG(INFO) << "Removing source: " << source;
-  auto it = marks_by_source_target.find(source);
-  if (it == marks_by_source_target.end()) return;
-  for (auto& [target, source_target_marks] : it->second) {
-    auto& target_marks = marks_by_target[target];
+  if (auto it = marks_by_source_target.find(source);
+      it != marks_by_source_target.end()) {
+    for (auto& [target, source_target_marks] : it->second) {
+      auto& target_marks = marks_by_target[target];
 
-    std::erase_if(target_marks.marks,
-                  [&](const std::pair<LineColumn, const Mark>& entry) {
-                    return entry.second.source_buffer == source;
-                  });
+      std::erase_if(target_marks.marks,
+                    [&](const std::pair<LineColumn, const Mark>& entry) {
+                      return entry.second.source_buffer == source;
+                    });
 
-    std::erase_if(target_marks.expired_marks,
-                  [&](const std::pair<LineColumn, const ExpiredMark>& entry) {
-                    return entry.second.source_buffer == source;
-                  });
+      std::erase_if(target_marks.expired_marks,
+                    [&](const std::pair<LineColumn, const ExpiredMark>& entry) {
+                      return entry.second.source_buffer == source;
+                    });
+    }
+    marks_by_source_target.erase(it);
   }
-  marks_by_source_target.erase(it);
 }
 
 void LineMarks::ExpireMarksFromSource(const LineSequence& source_buffer,
                                       const BufferName& source) {
-  static Tracker tracker(L"LineMarks::ExpireMarksFromSource");
-  auto call = tracker.Call();
+  TRACK_OPERATION(LineMarks_ExpireMarksFromSource);
 
   auto it = marks_by_source_target.find(source);
   if (it == marks_by_source_target.end() || it->second.empty()) {
@@ -82,8 +81,7 @@ void LineMarks::ExpireMarksFromSource(const LineSequence& source_buffer,
 }
 
 void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
-  static Tracker tracker(L"LineMarks::RemoveExpiredMarksFromSource");
-  auto call = tracker.Call();
+  TRACK_OPERATION(LineMarks_RemoveExpiredMarksFromSource);
 
   auto it = marks_by_source_target.find(source);
   if (it == marks_by_source_target.end() || it->second.empty()) {
@@ -107,8 +105,7 @@ void LineMarks::RemoveExpiredMarksFromSource(const BufferName& source) {
 
 const std::multimap<LineColumn, LineMarks::Mark>&
 LineMarks::GetMarksForTargetBuffer(const BufferName& target_buffer) const {
-  static Tracker tracker(L"LineMarks::GetMarksForTargetBuffer");
-  auto call = tracker.Call();
+  TRACK_OPERATION(LineMarks_GetMarksForTargetBuffer);
 
   VLOG(5) << "Producing marks for buffer: " << target_buffer;
   if (auto it = marks_by_target.find(target_buffer);
@@ -121,8 +118,7 @@ LineMarks::GetMarksForTargetBuffer(const BufferName& target_buffer) const {
 const std::multimap<LineColumn, LineMarks::ExpiredMark>&
 LineMarks::GetExpiredMarksForTargetBuffer(
     const BufferName& target_buffer) const {
-  static Tracker tracker(L"LineMarks::GetExpiredMarksForTargetBuffer");
-  auto call = tracker.Call();
+  TRACK_OPERATION(LineMarks_GetExpiredMarksForTargetBuffer);
 
   if (auto it = marks_by_target.find(target_buffer);
       it != marks_by_target.end())
