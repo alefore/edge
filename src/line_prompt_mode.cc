@@ -59,6 +59,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -130,22 +131,20 @@ GetSyntheticFeatures(
                               directories.insert(directory);
                           }},
                  path->Dirname());
-      if (std::optional<std::wstring> extension = path->extension();
-          extension.has_value()) {
-        extensions.insert(extension.value());
-      }
+      VisitOptional(
+          [&](std::wstring extension) { extensions.insert(extension); }, [] {},
+          path->extension());
     }
   }
 
   VLOG(5) << "Generating features from directories.";
-  for (auto& dir : directories) {
+  for (auto& dir : directories)
     output.insert({L"directory", NewLazyString(dir.read())});
-  }
 
   VLOG(5) << "Generating features from extensions.";
-  for (const std::wstring& extension : extensions) {
+  for (const std::wstring& extension : extensions)
     output.insert({L"extension", NewLazyString(extension)});
-  }
+
   VLOG(5) << "Done generating synthetic features.";
   return output;
 }
@@ -280,10 +279,9 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
       output;
   for (const Token& token : TokenizeBySpaces(line.value())) {
     auto colon = token.value.find(':');
-    if (colon == std::wstring::npos) {
+    if (colon == std::wstring::npos)
       return Error(L"Unable to parse prompt line (no colon found in token): " +
                    line->ToString());
-    }
     ColumnNumber value_start = token.begin + ColumnNumberDelta(colon);
     ++value_start;  // Skip the colon.
     ColumnNumber value_end = token.end;
@@ -299,10 +297,11 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
     output.insert({token.value.substr(0, colon),
                    Substring(line, value_start, value_end - value_start)});
   }
-  for (std::pair<std::wstring, NonNull<std::shared_ptr<LazyString>>>
-           additional_features : GetSyntheticFeatures(output)) {
-    output.insert(additional_features);
-  }
+
+  std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
+      synthetic_features = GetSyntheticFeatures(output);
+  output.insert(synthetic_features.begin(), synthetic_features.end());
+
   return output;
 }
 
@@ -826,8 +825,7 @@ class StatusVersionAdapter {
 
   // The prompt has disappeared.
   bool Expired() const {
-    if (prompt_state_->IsGone()) return true;
-    return status_version_->IsExpired();
+    return prompt_state_->IsGone() || status_version_->IsExpired();
   }
 
   template <typename T>
@@ -838,8 +836,8 @@ class StatusVersionAdapter {
 
   template <typename T>
   void SetStatusValues(T container) {
-    if (Expired()) return;
-    for (const auto& [key, value] : container) SetStatusValue(key, value);
+    if (!Expired())
+      for (const auto& [key, value] : container) SetStatusValue(key, value);
   }
 
  private:
@@ -1135,8 +1133,9 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .start_completion =
           [prompt_state](OpenBuffer& buffer) {
-            auto input = buffer.CurrentLine()->contents()->ToString();
-            LOG(INFO) << "Triggering predictions from: " << input;
+            NonNull<std::shared_ptr<LazyString>> input =
+                buffer.CurrentLine()->contents();
+            LOG(INFO) << "Triggering predictions from: " << input.value();
             CHECK(prompt_state->status().prompt_extra_information() != nullptr);
             Predict({.editor_state = prompt_state->editor_state(),
                      .predictor = prompt_state->options().predictor,
@@ -1147,9 +1146,10 @@ InsertModeOptions PromptState::insert_mode_options() {
                   if (!results.has_value()) return EmptyValue();
                   if (results.value().common_prefix.has_value() &&
                       !results.value().common_prefix.value().empty() &&
-                      input != results.value().common_prefix.value()) {
-                    LOG(INFO) << "Prediction advanced from " << input << " to "
-                              << results.value();
+                      input->ToString() !=
+                          results.value().common_prefix.value()) {
+                    LOG(INFO) << "Prediction advanced from " << input.value()
+                              << " to " << results.value();
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Delete{
