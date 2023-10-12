@@ -2,6 +2,7 @@
 #define __AFC_LANGUAGE_LAZY_STRING_FUNCTIONAL_H__
 
 #include <optional>
+#include <unordered_set>
 
 #include "src/language/hash.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -17,11 +18,21 @@ namespace afc::language::lazy_string {
 template <typename Predicate>
 std::optional<ColumnNumber> FindFirstColumnWithPredicate(
     const LazyString& input, const Predicate& f) {
-  for (ColumnNumber column; column < ColumnNumber(0) + input.size(); ++column) {
-    if (f(column, input.get(column))) {
+  for (ColumnNumberDelta delta; delta < input.size(); ++delta)
+    if (ColumnNumber column = ColumnNumber() + delta;
+        f(column, input.get(column)))
       return column;
-    }
-  }
+  return std::nullopt;
+}
+
+template <typename Predicate>
+std::optional<ColumnNumber> FindLastColumnWithPredicate(const LazyString& input,
+                                                        const Predicate& f,
+                                                        ColumnNumber start) {
+  CHECK_LT(start.ToDelta(), input.size());
+  for (ColumnNumberDelta delta; delta <= start.ToDelta(); ++delta)
+    if (ColumnNumber column = start - delta; f(column, input.get(column)))
+      return column;
   return std::nullopt;
 }
 
@@ -32,6 +43,11 @@ void ForEachColumn(const LazyString& input, Callback callback) {
     return false;
   });
 }
+
+std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
+                                          std::unordered_set<wchar_t> chars,
+                                          ColumnNumber start);
+
 }  // namespace afc::language::lazy_string
 namespace std {
 template <>

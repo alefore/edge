@@ -6,6 +6,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/overload.h"
 #include "src/predictor.h"
 #include "src/run_cpp_command.h"
@@ -31,11 +32,13 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::FindLastNotOf;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -53,18 +56,21 @@ NonNull<std::shared_ptr<LazyString>> GetToken(
     const CompositeTransformation::Input& input,
     EdgeVariable<std::wstring>* characters_variable) {
   if (input.position.column < ColumnNumber(2)) return EmptyString();
-  ColumnNumber end = input.position.column.previous().previous();
-  NonNull<std::shared_ptr<LazyString>> line =
+  const ColumnNumber end = input.position.column.previous().previous();
+  const NonNull<std::shared_ptr<LazyString>> line =
       input.buffer.contents().snapshot().at(input.position.line)->contents();
-  // TODO(trivial, 2023-10-06): Avoid the call to ToString. Define similar
-  // functions to `find_last_not_of` for LazyString.
-  const std::wstring line_str = line->ToString();
-  size_t index_before_symbol = line_str.find_last_not_of(
-      input.buffer.Read(characters_variable), end.read());
 
-  ColumnNumber symbol_start = index_before_symbol == std::wstring::npos
-                                  ? ColumnNumber(0)
-                                  : ColumnNumber(index_before_symbol + 1);
+  std::wstring chars_str = input.buffer.Read(characters_variable);
+  ColumnNumber symbol_start = VisitOptional(
+      [](ColumnNumber index_before_symbol) {
+        return index_before_symbol.next();
+      },
+      [] { return ColumnNumber(0); },
+      FindLastNotOf(
+          line.value(),
+          std::unordered_set<wchar_t>(chars_str.begin(), chars_str.end()),
+          end));
+
   return Substring(line, symbol_start,
                    end - symbol_start + ColumnNumberDelta(1));
 }
