@@ -225,12 +225,14 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
     return {};
   }
 
-  Range range_before = Range(LineColumn(), options.starting_position);
-  Range range_after =
-      Range(std::min(contents.range().end(), options.starting_position),
-            contents.range().end());
+  const LineColumn starting_position =
+      std::min(options.starting_position, contents.range().end());
+
+  Range range_before = Range(LineColumn(), starting_position);
+  Range range_after = Range(std::min(contents.range().end(), starting_position),
+                            contents.range().end());
   if (options.limit_position.has_value()) {
-    if (*options.limit_position < options.starting_position)
+    if (*options.limit_position < starting_position)
       range_before.set_begin(
           std::min(*options.limit_position, range_before.end()));
     else
@@ -274,10 +276,9 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
   // position: ignore matches past the starting position. They should have be in
   // `results_after` anyway.
   results_before.erase(
-      std::remove_if(results_before.begin(), results_before.end(),
-                     [&](LineColumn result) {
-                       return result > options.starting_position;
-                     }),
+      std::remove_if(
+          results_before.begin(), results_before.end(),
+          [&](LineColumn result) { return result > starting_position; }),
       results_before.end());
 
   output.insert(output.end(), results_before.begin(), results_before.end());
