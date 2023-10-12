@@ -54,21 +54,19 @@ NonNull<std::shared_ptr<LazyString>> GetToken(
     EdgeVariable<std::wstring>* characters_variable) {
   if (input.position.column < ColumnNumber(2)) return EmptyString();
   ColumnNumber end = input.position.column.previous().previous();
-  auto line = input.buffer.LineAt(input.position.line);
+  NonNull<std::shared_ptr<LazyString>> line =
+      input.buffer.contents().snapshot().at(input.position.line)->contents();
   // TODO(trivial, 2023-10-06): Avoid the call to ToString. Define similar
   // functions to `find_last_not_of` for LazyString.
-  auto line_str = line->ToString();
-
+  const std::wstring line_str = line->ToString();
   size_t index_before_symbol = line_str.find_last_not_of(
       input.buffer.Read(characters_variable), end.read());
-  ColumnNumber symbol_start;
-  if (index_before_symbol == std::wstring::npos) {
-    symbol_start = ColumnNumber(0);
-  } else {
-    symbol_start = ColumnNumber(index_before_symbol + 1);
-  }
-  return NewLazyString(
-      line_str.substr(symbol_start.read(), (end - symbol_start).read() + 1));
+
+  ColumnNumber symbol_start = index_before_symbol == std::wstring::npos
+                                  ? ColumnNumber(0)
+                                  : ColumnNumber(index_before_symbol + 1);
+  return Substring(line, symbol_start,
+                   end - symbol_start + ColumnNumberDelta(1));
 }
 
 transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
