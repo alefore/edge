@@ -529,7 +529,7 @@ ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
 }
 
 LineWithCursor::Generator::Vector ProduceBuffersList(
-    std::shared_ptr<BuffersListOptions> options) {
+    NonNull<std::shared_ptr<BuffersListOptions>> options) {
   static Tracker tracker(L"BuffersList::ProduceBuffersList");
   auto call = tracker.Call();
 
@@ -602,7 +602,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                     : FilterResult::kExcluded;
 
             LineModifierSet number_modifiers =
-                GetNumberModifiers(*options, buffer, filter_result);
+                GetNumberModifiers(options.value(), buffer, filter_result);
 
             start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             line_options_output.AppendString(
@@ -897,7 +897,7 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
     }
 
     output = ProduceBuffersList(
-        std::make_shared<BuffersListOptions>(BuffersListOptions{
+        MakeNonNullShared<BuffersListOptions>(BuffersListOptions{
             .buffers = buffers_,
             .active_buffer = active_buffer(),
             .active_buffers = std::move(active_buffers),
