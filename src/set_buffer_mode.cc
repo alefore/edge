@@ -15,6 +15,7 @@ using afc::language::Success;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::text::LineColumn;
 
 namespace afc::editor {
 namespace {
@@ -346,12 +347,6 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
             std::move(state_future)
                 .Transform([&editor, &buffers_list,
                             text_input = operation.text_input](State state) {
-                  // TODO: Maybe tweak the parameters to allow more than just
-                  // one to run at a given time?
-                  auto progress_channel =
-                      MakeNonNullShared<ChannelLast<ProgressInformation>>(
-                          WorkQueueScheduler(editor.work_queue()),
-                          [](ProgressInformation) {});
                   auto new_state = std::make_shared<State>(
                       State{.index = state.index, .indices = {}});
                   using Control = futures::IterationControlCommand;
@@ -363,18 +358,20 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                     // aborting as the user continues to type?
                     search_futures.push_back(
                         editor.thread_pool()
-                            .Run(BackgroundSearchCallback(
+                            .Run(std::bind_front(
+                                SearchHandler, Direction::kForwards,
                                 // TODO(trivial, 2023-10-06): Get rid of
                                 // NewLazyString.
-                                {.search_query = NewLazyString(text_input),
-                                 .required_positions = 1,
-                                 .case_sensitive = buffer.Read(
-                                     buffer_variables::search_case_sensitive)},
-                                buffer.contents().snapshot(),
-                                progress_channel.value()))
-                            .Transform([new_state, progress_channel, index](
-                                           SearchResultsSummary search_output) {
-                              if (search_output.matches > 0) {
+                                SearchOptions{
+                                    .search_query = NewLazyString(text_input),
+                                    .required_positions = 1,
+                                    .case_sensitive =
+                                        buffer.Read(buffer_variables::
+                                                        search_case_sensitive)},
+                                buffer.contents().snapshot()))
+                            .Transform([new_state, index](
+                                           std::vector<LineColumn> results) {
+                              if (results.size() > 0) {
                                 new_state->indices.push_back(index);
                               }
                               return Success(Control::kContinue);

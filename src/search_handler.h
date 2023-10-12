@@ -39,6 +39,11 @@ struct SearchOptions {
       futures::DeleteNotification::Never();
 
   bool case_sensitive = false;
+
+  language::NonNull<std::shared_ptr<concurrent::Channel<ProgressInformation>>>
+      progress_channel = language::MakeNonNullShared<
+          concurrent::ChannelAll<ProgressInformation>>(
+          [](ProgressInformation) {});
 };
 
 // Returns all matches starting at start. If end is not nullptr, only matches
@@ -69,18 +74,6 @@ struct SearchResultsSummary {
 
 std::ostream& operator<<(std::ostream& os, const SearchResultsSummary& a);
 bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b);
-
-// Return a callback that is safe to run in a background thread to count the
-// number of matches, feeding information to a `ProgressChannel`.
-//
-// Customer must ensure that `progress_channel` survives until the callback has
-// returned. It's OK for `contents` to be deleted as soon as
-// `BackgroundSearchCallback` has returned).
-std::function<language::ValueOrError<SearchResultsSummary>()>
-BackgroundSearchCallback(SearchOptions search_options,
-                         const language::text::LineSequence& contents,
-                         ProgressChannel&);
-
 }  // namespace editor
 }  // namespace afc
 

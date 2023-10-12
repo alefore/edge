@@ -42,8 +42,6 @@ using afc::language::text::SortedLineSequenceUniqueLines;
 namespace afc::editor {
 namespace {
 
-static constexpr int kMatchesLimit = 100;
-
 typedef std::wregex RegexPattern;
 
 // Returns all columns where the current line matches the pattern.
@@ -78,8 +76,7 @@ auto GetRegexTraits(bool case_sensitive) {
 }
 
 ValueOrError<std::vector<LineColumn>> PerformSearch(
-    const SearchOptions& options, const LineSequence& contents,
-    ProgressChannel* progress_channel) {
+    const SearchOptions& options, const LineSequence& contents) {
   std::vector<LineColumn> positions;
 
   std::wregex pattern;
@@ -88,29 +85,28 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
                           GetRegexTraits(options.case_sensitive));
   } catch (std::regex_error& e) {
     Error error(L"Regex failure: " + FromByteString(e.what()));
-    progress_channel->Push(
+    options.progress_channel->Push(
         {.values = {{VersionPropertyKey(L"!"), error.read()}}});
     return error;
   }
 
-  bool searched_every_line =
-      contents.EveryLine([&](LineNumber position,
-                             const NonNull<std::shared_ptr<const Line>>& line) {
-        auto matches = GetMatches(line->ToString(), pattern);
-        for (const auto& column : matches) {
-          positions.push_back(LineColumn(position, column));
-        }
-        if (!matches.empty())
-          progress_channel->Push(
-              ProgressInformation{.counters = {{VersionPropertyKey(L"matches"),
-                                                positions.size()}}});
-        return !options.abort_value.has_value() &&
-               (!options.required_positions.has_value() ||
-                options.required_positions.value() > positions.size());
-      });
-  if (!searched_every_line)
-    progress_channel->Push(
+  contents.EveryLine([&](LineNumber position,
+                         const NonNull<std::shared_ptr<const Line>>& line) {
+    auto matches = GetMatches(line->ToString(), pattern);
+    for (const auto& column : matches) {
+      positions.push_back(LineColumn(position, column));
+    }
+    if (!matches.empty())
+      options.progress_channel->Push(ProgressInformation{
+          .counters = {{VersionPropertyKey(L"matches"), positions.size()}}});
+    if (!options.abort_value.has_value() &&
+        (!options.required_positions.has_value() ||
+         options.required_positions.value() > positions.size()))
+      return true;
+    options.progress_channel->Push(
         ProgressInformation{.values = {{VersionPropertyKey(L"partial"), L""}}});
+    return false;
+  });
   VLOG(5) << "Perform search found matches: " << positions.size();
   return positions;
 }
@@ -135,26 +131,6 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
   return a.matches == b.matches && a.search_completion == b.search_completion;
 }
 
-std::function<ValueOrError<SearchResultsSummary>()> BackgroundSearchCallback(
-    SearchOptions search_options, const LineSequence& contents,
-    ProgressChannel& progress_channel) {
-  // Must take special care to only capture instances of thread-safe classes:
-  return std::bind_front(
-      [search_options, &progress_channel](
-          LineSequence buffer_contents) -> ValueOrError<SearchResultsSummary> {
-        ASSIGN_OR_RETURN(
-            auto search_results,
-            PerformSearch(search_options, buffer_contents, &progress_channel));
-        return SearchResultsSummary{
-            .matches = search_results.size(),
-            .search_completion =
-                search_results.size() >= kMatchesLimit
-                    ? SearchResultsSummary::SearchCompletion::kInterrupted
-                    : SearchResultsSummary::SearchCompletion::kFull};
-      },
-      std::move(contents));
-}
-
 std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
   std::wstring results;
   static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
@@ -168,6 +144,7 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
 }
 
 PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
+                             size_t required_positions,
                              std::set<std::wstring>& matches) {
   ASSIGN_OR_RETURN(
       std::vector<LineColumn> positions,
@@ -179,8 +156,8 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
           buffer.contents().snapshot())));
 
   // Get the first kMatchesLimit matches:
-  for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit;
-       i++) {
+  for (size_t i = 0;
+       i < positions.size() && matches.size() < required_positions; i++) {
     auto position = positions[i];
     if (i == 0) {
       buffer.set_position(position);
@@ -194,12 +171,13 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
 }
 
 futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
-  // TODO(2023-10-08, easy): This whole function could probably be optimized.
-  // We could probably add matches directly to the sorted contents; or, at
-  // least, build the sorted contents from matches directly.
+  // TODO(2023-10-08, easy): This whole function could probably be optimized. We
+  // could probably add matches directly to the sorted contents; or, at least,
+  // build the sorted contents from matches directly.
   std::set<std::wstring> matches;
   for (gc::Root<OpenBuffer>& search_buffer : input.source_buffers) {
-    SearchInBuffer(input, search_buffer.ptr().value(), matches);
+    static constexpr int kMatchesLimit = 100;
+    SearchInBuffer(input, search_buffer.ptr().value(), kMatchesLimit, matches);
   }
   if (!matches.empty()) {
     // Add the matches to the predictions buffer.
@@ -252,11 +230,8 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
   auto Search =
       [&options,
        &contents](const Range& range) -> ValueOrError<std::vector<LineColumn>> {
-    ChannelAll<ProgressInformation> dummy_progress_channel(
-        [](ProgressInformation) {});
     DECLARE_OR_RETURN(std::vector<LineColumn> results,
-                      PerformSearch(options, contents.ViewRange(range),
-                                    &dummy_progress_channel));
+                      PerformSearch(options, contents.ViewRange(range)));
     if (!range.begin().column.IsZero())
       for (LineColumn& result : results) {
         result.line += range.begin().line.ToDelta();
@@ -272,8 +247,8 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
                     Search(range_before));
 
   // Account for the fact that we extended `range_before` past the starting
-  // position: ignore matches past the starting position. They should have be in
-  // `results_after` anyway.
+  // position: ignore matches past the starting position. They should already be
+  // in `output` anyway.
   results_before.erase(
       std::remove_if(
           results_before.begin(), results_before.end(),

@@ -14,7 +14,7 @@
 
 namespace gc = afc::language::gc;
 
-using afc::concurrent::ChannelLast;
+using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
@@ -35,6 +35,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
+using afc::language::text::LineSequence;
 using afc::language::text::Range;
 
 namespace afc::editor {
@@ -145,8 +146,7 @@ class ProgressAggregator {
   NonNull<std::unique_ptr<ProgressChannel>> NewChild() {
     NonNull<std::shared_ptr<ProgressInformation>> child_information;
     data_->children_created++;
-    return MakeNonNullUnique<ChannelLast<ProgressInformation>>(
-        WorkQueueScheduler(data_->work_queue),
+    return MakeNonNullUnique<ChannelAll<ProgressInformation>>(
         [data = data_, child_information](ProgressInformation information) {
           if (HasMatches(information) &&
               !HasMatches(child_information.value())) {
@@ -298,23 +298,45 @@ class SearchCommand : public Command {
                               VLOG(6) << "search_options has no value.";
                               return futures::Past(Control::kContinue);
                             }
+                            search_options->progress_channel =
+                                std::move(progress_channel);
                             VLOG(5) << "Starting search in buffer: "
                                     << buffer.Read(buffer_variables::name);
+                            LineSequence contents =
+                                buffer.contents().snapshot();
                             return editor_state.thread_pool()
-                                .Run(BackgroundSearchCallback(
-                                    search_options.value(),
-                                    buffer.contents().snapshot(),
-                                    progress_channel.value()))
-                                .Transform(
-                                    [results, abort_value, line, buffer_root,
-                                     progress_channel](
-                                        SearchResultsSummary current_results) {
-                                      MergeInto(current_results,
-                                                results.value());
-                                      return abort_value.has_value()
-                                                 ? Success(Control::kStop)
-                                                 : Success(Control::kContinue);
-                                    })
+                                .Run([search_options, contents] {
+                                  return SearchHandler(Direction::kForwards,
+                                                       search_options.value(),
+                                                       contents);
+                                })
+                                .Transform([results, abort_value, line,
+                                            buffer_root, search_options](
+                                               std::vector<LineColumn>
+                                                   positions) {
+                                  MergeInto(
+                                      SearchResultsSummary{
+                                          .matches = positions.size(),
+                                          .search_completion =
+                                              positions.size() >=
+                                                      search_options
+                                                          ->required_positions
+                                                          .value_or(
+                                                              std::
+                                                                  numeric_limits<
+                                                                      size_t>::
+                                                                      max())
+                                                  ? SearchResultsSummary::
+                                                        SearchCompletion::
+                                                            kInterrupted
+                                                  : SearchResultsSummary::
+                                                        SearchCompletion::
+                                                            kFull},
+                                      results.value());
+                                  return abort_value.has_value()
+                                             ? Success(Control::kStop)
+                                             : Success(Control::kContinue);
+                                })
                                 .ConsumeErrors([results](Error error) {
                                   results.value() = error;
                                   return futures::Past(Control::kStop);
@@ -354,6 +376,7 @@ class SearchCommand : public Command {
       DeleteNotification::Value abort_value) {
     auto& editor = buffer.editor();
     SearchOptions search_options{.search_query = std::move(input)};
+
     if (GetStructureSearchRange(editor.structure()) ==
         StructureSearchRange::kBuffer) {
       search_options.starting_position = buffer.position();
