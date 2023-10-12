@@ -25,7 +25,7 @@ using language::text::Line;
 using language::text::LineBuilder;
 
 FileDescriptorReader::FileDescriptorReader(Options options)
-    : options_(std::make_shared<Options>(std::move(options))) {
+    : options_(MakeNonNullShared<Options>(std::move(options))) {
   CHECK(fd() != FileDescriptor(-1));
 }
 

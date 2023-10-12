@@ -53,7 +53,7 @@ class FileDescriptorReader {
     concurrent::ThreadPoolWithWorkQueue& thread_pool;
   };
 
-  FileDescriptorReader(Options options);
+  explicit FileDescriptorReader(Options options);
   ~FileDescriptorReader();
 
   infrastructure::FileDescriptor fd() const;
@@ -80,7 +80,7 @@ class FileDescriptorReader {
       language::NonNull<std::shared_ptr<afc::language::lazy_string::LazyString>>
           contents);
 
-  const std::shared_ptr<const Options> options_;
+  const language::NonNull<std::shared_ptr<const Options>> options_;
 
   enum State { kIdle, kParsing };
   State state_ = State::kIdle;
