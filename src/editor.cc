@@ -25,7 +25,7 @@ extern "C" {
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
-#include "src/language/containers.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"

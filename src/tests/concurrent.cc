@@ -8,7 +8,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/futures/delete_notification.h"
-#include "src/language/containers.h"
+#include "src/language/container.h"
 #include "src/language/ghost_type.h"
 #include "src/language/hash.h"
 #include "src/tests/concurrent_interfaces.h"

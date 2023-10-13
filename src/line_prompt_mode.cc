@@ -17,7 +17,7 @@
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
-#include "src/language/containers.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"

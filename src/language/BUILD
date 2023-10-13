@@ -1,6 +1,6 @@
 cc_library(
-    name = "containers",
-    hdrs = ["containers.h"],
+    name = "container",
+    hdrs = ["container.h"],
     visibility = ["//visibility:public"],
 )
 

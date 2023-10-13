@@ -6,7 +6,7 @@
 #include <ranges>
 #include <set>
 
-#include "src/language/containers.h"
+#include "src/language/container.h"
 #include "src/math/numbers.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/expression.h"
