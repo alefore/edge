@@ -83,19 +83,29 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
 
 /* static */ gc::Root<Environment> Environment::NewNamespace(
     gc::Pool& pool, gc::Root<Environment> parent, std::wstring name) {
+  // TODO(thread-safety, 2023-10-13): There's actually a race condition here.
+  // Multiple concurrent calls could trigger failures.
   if (std::optional<gc::Root<Environment>> previous =
           LookupNamespace(parent, Namespace({name}));
       previous.has_value()) {
     return *previous;
   }
-  if (auto result = parent.ptr()->namespaces_.find(name);
-      result != parent.ptr()->namespaces_.end()) {
-    return result->second.ToRoot();
-  }
+  if (auto parent_value = parent.ptr()->data_.lock(
+          [&name](Data& parent_data) -> std::optional<gc::Root<Environment>> {
+            if (auto result = parent_data.namespaces.find(name);
+                result != parent_data.namespaces.end()) {
+              return result->second.ToRoot();
+            }
+            return std::nullopt;
+          });
+      parent_value.has_value())
+    return parent_value.value();
 
   gc::Root<Environment> namespace_env =
       pool.NewRoot(MakeNonNullUnique<Environment>(parent.ptr()));
-  InsertOrDie(parent.ptr()->namespaces_, {name, namespace_env.ptr()});
+  parent.ptr()->data_.lock([&](Data& data) {
+    InsertOrDie(data.namespaces, {name, namespace_env.ptr()});
+  });
   namespace_env.ptr().Protect();
   return namespace_env;
 }
@@ -104,13 +114,15 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
     gc::Root<Environment> source, const Namespace& name) {
   std::optional<gc::Ptr<Environment>> output = {source.ptr()};
   for (auto& n : name) {
-    if (auto it = output.value()->namespaces_.find(n);
-        it != output.value()->namespaces_.end()) {
-      output = it->second;
-      continue;
-    }
-    output = std::nullopt;
-    break;
+    output = output.value()->data_.lock(
+        [&](Data& data) -> std::optional<gc::Ptr<Environment>> {
+          if (auto it = data.namespaces.find(n); it != data.namespaces.end()) {
+            return it->second;
+          } else {
+            return std::nullopt;
+          }
+        });
+    if (!output.has_value()) break;
   }
   if (output.has_value()) {
     return output->ToRoot();
@@ -145,17 +157,8 @@ std::optional<gc::Root<Value>> Environment::Lookup(
 void Environment::PolyLookup(const Namespace& symbol_namespace,
                              const wstring& symbol,
                              std::vector<gc::Root<Value>>* output) const {
-  const Environment* environment = this;
-  for (auto& n : symbol_namespace) {
-    CHECK(environment != nullptr);
-    auto it = environment->namespaces_.find(n);
-    if (it == environment->namespaces_.end()) {
-      environment = nullptr;
-      break;
-    }
-    environment = &it->second.value();
-  }
-  if (environment != nullptr) {
+  if (const Environment* environment = FindNamespace(symbol_namespace);
+      environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
       if (auto it = data.table.find(symbol); it != data.table.end()) {
         for (const gc::Ptr<Value>& entry : it->second | std::views::values)
@@ -172,16 +175,8 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
 void Environment::CaseInsensitiveLookup(
     const Namespace& symbol_namespace, const wstring& symbol,
     std::vector<gc::Root<Value>>* output) const {
-  const Environment* environment = this;
-  for (auto& n : symbol_namespace) {
-    auto it = environment->namespaces_.find(n);
-    if (it == environment->namespaces_.end()) {
-      environment = nullptr;
-      break;
-    }
-    environment = &it->second.value();
-  }
-  if (environment != nullptr) {
+  if (const Environment* environment = FindNamespace(symbol_namespace);
+      environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
       for (auto& item : data.table) {
         if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
@@ -274,9 +269,11 @@ Environment::Expand() const {
       [&output](const std::wstring&, const gc::Ptr<Value>& value) {
         output.push_back(value.object_metadata());
       });
-  for (std::pair<std::wstring, gc::Ptr<Environment>> entry : namespaces_) {
-    output.push_back(entry.second.object_metadata());
-  }
+  data_.lock([&output](const Data& data) {
+    for (const gc::Ptr<Environment>& namespace_environment :
+         data.namespaces | std::views::values)
+      output.push_back(namespace_environment.object_metadata());
+  });
   for (const std::pair<const types::ObjectName, gc::Ptr<ObjectType>>& entry :
        object_types_) {
     output.push_back(entry.second.object_metadata());
@@ -284,6 +281,22 @@ Environment::Expand() const {
   return output;
 }
 
+const Environment* Environment::FindNamespace(
+    const Namespace& namespace_name) const {
+  const Environment* environment = this;
+  for (auto& n : namespace_name) {
+    CHECK(environment != nullptr);
+    environment =
+        environment->data_.lock([&](const Data& data) -> const Environment* {
+          if (auto it = data.namespaces.find(n); it != data.namespaces.end())
+            return &it->second.value();
+          else
+            return nullptr;
+        });
+    if (environment == nullptr) return nullptr;
+  }
+  return environment;
+}
 }  // namespace afc::vm
 namespace afc::language::gc {
 std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
