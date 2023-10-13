@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include <map>
+#include <ranges>
 #include <set>
 
 #include "src/language/containers.h"
@@ -38,7 +39,7 @@ const types::ObjectName
 // needed.
 void Environment::Clear() {
   object_types_.clear();
-  table_.clear();
+  data_.lock([](Data& data) { data.table.clear(); });
 }
 
 std::optional<language::gc::Ptr<Environment>> Environment::parent_environment()
@@ -155,12 +156,12 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
     environment = &it->second.value();
   }
   if (environment != nullptr) {
-    if (auto it = environment->table_.find(symbol);
-        it != environment->table_.end()) {
-      for (auto& entry : it->second) {
-        output->push_back(entry.second.ToRoot());
+    environment->data_.lock([&output, &symbol](const Data& data) {
+      if (auto it = data.table.find(symbol); it != data.table.end()) {
+        for (const gc::Ptr<Value>& entry : it->second | std::views::values)
+          output->push_back(entry.ToRoot());
       }
-    }
+    });
   }
   // Deliverately ignoring `environment`:
   if (parent_environment_.has_value()) {
@@ -181,13 +182,15 @@ void Environment::CaseInsensitiveLookup(
     environment = &it->second.value();
   }
   if (environment != nullptr) {
-    for (auto& item : environment->table_) {
-      if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
-        for (auto& entry : item.second) {
-          output->push_back(entry.second.ToRoot());
+    environment->data_.lock([&output, &symbol](const Data& data) {
+      for (auto& item : data.table) {
+        if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
+          for (const gc::Ptr<Value>& entry : item.second | std::views::values) {
+            output->push_back(entry.ToRoot());
+          }
         }
       }
-    }
+    });
   }
   // Deliverately ignoring `environment`:
   if (parent_environment_.has_value()) {
@@ -197,31 +200,36 @@ void Environment::CaseInsensitiveLookup(
 }
 
 void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
-  Type type = value.ptr()->type;
-  table_[symbol].insert_or_assign(type, value.ptr());
   value.ptr().Protect();
+  Type type = value.ptr()->type;
+  data_.lock([&](Data& data) {
+    data.table[symbol].insert_or_assign(type, value.ptr());
+  });
 }
 
 void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
-  auto it = table_.find(symbol);
-  if (it == table_.end()) {
-    // TODO: Show the symbol.
-    CHECK(parent_environment_.has_value())
-        << "Environment::parent_environment_ is nullptr while trying to "
-           "assign a new value to a symbol `...`. This likely means that the "
-           "symbol is undefined (which the caller should have validated as "
-           "part of the compilation process).";
-    (*parent_environment_)->Assign(symbol, std::move(value));
-    return;
-  }
-  it->second.insert_or_assign(value.ptr()->type, value.ptr());
   value.ptr().Protect();
+  data_.lock([&](Data& data) {
+    if (auto it = data.table.find(symbol); it != data.table.end()) {
+      it->second.insert_or_assign(value.ptr()->type, value.ptr());
+    } else {
+      // TODO: Show the symbol.
+      CHECK(parent_environment_.has_value())
+          << "Environment::parent_environment_ is nullptr while trying to "
+             "assign a new value to a symbol `...`. This likely means that the "
+             "symbol is undefined (which the caller should have validated as "
+             "part of the compilation process).";
+      (*parent_environment_)->Assign(symbol, std::move(value));
+      return;
+    }
+  });
 }
 
 void Environment::Remove(const wstring& symbol, Type type) {
-  auto it = table_.find(symbol);
-  if (it == table_.end()) return;
-  it->second.erase(type);
+  data_.lock([&](Data& data) {
+    if (auto it = data.table.find(symbol); it != data.table.end())
+      it->second.erase(type);
+  });
 }
 
 void Environment::ForEachType(
@@ -246,12 +254,14 @@ void Environment::ForEach(
 void Environment::ForEachNonRecursive(
     std::function<void(const std::wstring&, const gc::Ptr<Value>&)> callback)
     const {
-  for (const auto& symbol_entry : table_) {
-    for (const std::pair<const Type, gc::Ptr<Value>>& type_entry :
-         symbol_entry.second) {
-      callback(symbol_entry.first, type_entry.second);
+  data_.lock([&](const Data& data) {
+    for (const auto& symbol_entry : data.table) {
+      for (const std::pair<const Type, gc::Ptr<Value>>& type_entry :
+           symbol_entry.second) {
+        callback(symbol_entry.first, type_entry.second);
+      }
     }
-  }
+  });
 }
 
 std::vector<language::NonNull<std::shared_ptr<gc::ObjectMetadata>>>

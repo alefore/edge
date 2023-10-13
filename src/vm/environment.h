@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "src/concurrent/protected.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
 #include "src/language/safe_types.h"
@@ -74,10 +75,14 @@ class Environment {
   Expand() const;
 
  private:
+  struct Data {
+    std::map<std::wstring, std::unordered_map<Type, language::gc::Ptr<Value>>>
+        table;
+  };
+
   std::map<types::ObjectName, language::gc::Ptr<ObjectType>> object_types_;
 
-  std::map<std::wstring, std::unordered_map<Type, language::gc::Ptr<Value>>>
-      table_;
+  concurrent::Protected<Data> data_;
 
   std::map<std::wstring, language::gc::Ptr<Environment>> namespaces_;
 
