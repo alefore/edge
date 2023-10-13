@@ -371,7 +371,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
         return futures::Past(EmptyValue());
       })
       .Transform([&editor, search_namespaces, line, output, buffer,
-                  environment](EmptyValue) -> futures::Value<EmptyValue> {
+                  &environment](EmptyValue) -> futures::Value<EmptyValue> {
         return std::visit(
             overload{[&](Error error) {
                        VLOG(4) << "Parse preview error: " << error;
