@@ -369,6 +369,10 @@ class SearchCommand : public Command {
          .predictor = SearchHandlerPredictor,
          .status = PromptOptions::Status::kBuffer});
   }
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override {
+    return {};
+  }
 
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(

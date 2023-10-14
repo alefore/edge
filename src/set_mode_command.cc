@@ -23,6 +23,11 @@ class SetModeCommand : public Command {
     options_.editor_state.set_keyboard_redirect(options_.factory());
   }
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override {
+    return {};
+  }
+
  private:
   const SetModeCommandOptions options_;
 };

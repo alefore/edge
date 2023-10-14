@@ -497,6 +497,11 @@ class ForkEditorCommand : public Command {
     editor_state_.ResetStructure();
   }
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override {
+    return {};
+  }
+
  private:
   static futures::Value<ColorizePromptOptions> PromptChange(
       PromptState& prompt_state,

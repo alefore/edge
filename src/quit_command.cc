@@ -36,6 +36,11 @@ class QuitCommand : public Command {
         [](gc::Root<OpenBuffer> buffer) { buffer.ptr()->ResetMode(); }, [] {});
   }
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
   const int exit_value_;

@@ -10,10 +10,13 @@
 #include "src/command_argument_mode.h"
 #include "src/editor.h"
 #include "src/futures/futures.h"
+#include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
+
+namespace gc = afc::language::gc;
 
 namespace afc::editor {
 using infrastructure::Tracker;
@@ -194,6 +197,11 @@ class GotoCommand : public Command {
     editor_state_.ResetRepetitions();
     editor_state_.set_keyboard_redirect(
         std::make_unique<GotoCommand>(editor_state_, calls_ + 1));
+  }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
   }
 
  private:

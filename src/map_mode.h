@@ -40,6 +40,9 @@ class MapModeCommands {
   void Add(std::wstring name, std::function<void()> value,
            std::wstring description);
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const;
+
  private:
   friend class MapMode;
 
@@ -63,6 +66,9 @@ class MapMode : public EditorMode {
 
   void ProcessInput(wint_t c) override;
   CursorMode cursor_mode() const override;
+
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override;
 
  private:
   std::wstring current_input_;

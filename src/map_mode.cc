@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include <memory>
+#include <ranges>
 #include <set>
 
 #include "src/command.h"
@@ -40,6 +41,12 @@ class CommandFromFunction : public Command {
   }
 
   void ProcessInput(wint_t) override { callback_(); }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    // TODO(easy, 2023-10-14): Return a value from callback_.
+    return {};
+  }
 
  private:
   Callback callback_;
@@ -125,6 +132,19 @@ void MapModeCommands::Add(std::wstring name, std::function<void()> callback,
       MakeCommandFromFunction(std::move(callback), std::move(description)));
 }
 
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
+MapModeCommands::Expand() const {
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
+  for (const NonNull<std::shared_ptr<Frame>>& frame : frames_)
+    for (const NonNull<std::unique_ptr<Command>>& command :
+         frame->commands | std::views::values) {
+      std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> local =
+          command->Expand();
+      output.insert(output.end(), local.begin(), local.end());
+    }
+  return output;
+}
+
 MapMode::MapMode(NonNull<std::shared_ptr<MapModeCommands>> commands)
     : commands_(std::move(commands)) {}
 
@@ -153,6 +173,11 @@ void MapMode::ProcessInput(wint_t c) {
 
 MapMode::CursorMode MapMode::cursor_mode() const {
   return CursorMode::kDefault;
+}
+
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> MapMode::Expand()
+    const {
+  return commands_->Expand();
 }
 
 }  // namespace afc::editor

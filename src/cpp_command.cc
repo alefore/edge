@@ -71,6 +71,12 @@ class CppCommand : public Command {
              });
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    // TODO(expansion, 2023-10-14, gc): Return this from Expression?
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
   const NonNull<std::shared_ptr<vm::Expression>> expression_;

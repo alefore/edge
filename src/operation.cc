@@ -769,6 +769,12 @@ class OperationMode : public EditorMode {
 
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override {
+    return {};
+  }
+
+ private:
   void ShowStatus() {
     LineBuilder output;
     AppendStatus(state_.top_command(), output);
@@ -783,7 +789,6 @@ class OperationMode : public EditorMode {
 
   void PushCommand(Command command) { state_.Push(std::move(command)); }
 
- private:
   KeyCommandsMapSequence GetGlobalKeyCommandsMap() {
     KeyCommandsMapSequence cmap;
 

@@ -301,6 +301,11 @@ class FindCompletionCommand : public Command {
         [] {});
   }
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
 };
@@ -626,6 +631,11 @@ class InsertMode : public EditorMode {
     return CursorMode::kInserting;
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in
   // every buffer without an fd.
@@ -926,6 +936,9 @@ class InsertMode : public EditorMode {
 
   // Copy of the contents of options_.buffers. shared_ptr to make it easy for it
   // to be captured efficiently.
+  //
+  // TODO(trivial, 2023-10-14): Turn them into `ptr` and just add them in
+  // `Expand`.
   const NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers_;
 
   std::optional<

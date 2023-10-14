@@ -121,6 +121,11 @@ class RunCppFileCommand : public Command {
          .predictor = FilePredictor});
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
 };

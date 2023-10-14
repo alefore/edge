@@ -91,6 +91,11 @@ class CommandArgumentMode : public EditorMode {
 
   CursorMode cursor_mode() const override { return CursorMode::kDefault; }
 
+  std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand() const override {
+    return {};
+  }
+
  private:
   Argument BuildArgument() {
     auto argument = options_.initial_value;
@@ -113,6 +118,8 @@ class CommandArgumentMode : public EditorMode {
   }
 
   const Options options_;
+  // TODO(easy, 2023-10-14): Turn the buffers into gc::Ptr, return them in
+  // `Expand`.
   const std::vector<language::gc::Root<OpenBuffer>> buffers_;
   std::wstring argument_string_;
 };

@@ -155,6 +155,11 @@ class HelpCommand : public Command {
     return output.snapshot();
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   static void StartSection(std::wstring section, MutableLineSequence& buffer) {
     buffer.push_back(std::move(section));

@@ -119,6 +119,11 @@ class UndoCommand : public Command {
         });
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
   const std::optional<Direction> direction_;
@@ -175,6 +180,11 @@ class GotoPreviousPositionCommand : public Command {
     editor_state_.ResetStructure();
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
 };
@@ -199,6 +209,11 @@ class MoveForwards : public Command {
 
   void ProcessInput(wint_t c) override { Move(c, editor_state_, direction_); }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
   static void Move(int, EditorState& editor_state, Direction direction) {
     if (direction == Direction::kBackwards) {
       editor_state.set_direction(ReverseDirection(editor_state.direction()));
@@ -221,9 +236,16 @@ class LineDown : public Command {
   LineDown(EditorState& editor_state) : editor_state_(editor_state) {}
   std::wstring Description() const override { return L"moves down one line"; }
   std::wstring Category() const override { return L"Navigate"; }
+
   void ProcessInput(wint_t c) override {
     Move(c, editor_state_, editor_state_.structure());
   }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
   static void Move(int c, EditorState& editor_state, Structure structure) {
     // TODO: Move to Structure.
     if (structure == Structure::kChar) {
@@ -282,9 +304,16 @@ class LineUp : public Command {
   LineUp(EditorState& editor_state) : editor_state_(editor_state) {}
   std::wstring Description() const override { return L"moves up one line"; }
   std::wstring Category() const override { return L"Navigate"; }
+
   void ProcessInput(wint_t c) override {
     Move(c, editor_state_, editor_state_.structure());
   }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
   static void Move(int c, EditorState& editor_state, Structure structure) {
     editor_state.set_direction(ReverseDirection(editor_state.direction()));
     LineDown::Move(c, editor_state, structure);
@@ -308,6 +337,11 @@ class EnterInsertModeCommand : public Command {
       editor_state_.set_modifiers(modifiers_.value());
     }
     EnterInsertMode(InsertModeOptions{.editor_state = editor_state_});
+  }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
   }
 
  private:
@@ -339,6 +373,11 @@ class InsertionModifierCommand : public Command {
     }
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
 };
@@ -355,6 +394,11 @@ class ReverseDirectionCommand : public Command {
 
   void ProcessInput(wint_t) override {
     editor_state_.set_direction(ReverseDirection(editor_state_.direction()));
+  }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
   }
 
  private:
@@ -385,6 +429,11 @@ class SetStructureCommand : public Command {
     }
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
   Structure structure_;
@@ -411,6 +460,11 @@ class SetStrengthCommand : public Command {
     editor_state_.set_modifiers(modifiers);
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
 };
@@ -430,6 +484,11 @@ class NumberMode : public Command {
           editor_state.set_repetitions(number);
         }));
     editor_state_.ProcessInput(c);
+  }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
   }
 
  private:
@@ -499,6 +558,11 @@ class ActivateLink : public Command {
         [] {});
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
 };
@@ -524,6 +588,11 @@ class ResetStateCommand : public Command {
     editor_state_.set_modifiers(Modifiers());
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
 };
@@ -536,6 +605,11 @@ class HardRedrawCommand : public Command {
 
   void ProcessInput(wint_t) override {
     editor_state_.set_screen_needs_hard_redraw(true);
+  }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
   }
 
  private:

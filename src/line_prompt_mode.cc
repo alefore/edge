@@ -1073,6 +1073,11 @@ class LinePromptCommand : public Command {
     }
   }
 
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
+      const override {
+    return {};
+  }
+
  private:
   EditorState& editor_state_;
   const std::wstring description_;
