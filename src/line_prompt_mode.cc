@@ -122,18 +122,23 @@ GetSyntheticFeatures(
   VLOG(5) << "Generating features from input: " << input.size();
   for (const auto& [name, value] : input) {
     if (name == L"name") {
-      ValueOrError<Path> value_path = Path::FromString(value);
-      Path* path = std::get_if<Path>(&value_path);
-      if (path == nullptr) continue;
-      std::visit(overload{IgnoreErrors{},
-                          [&](Path directory) {
-                            if (directory != Path::LocalDirectory())
-                              directories.insert(directory);
-                          }},
-                 path->Dirname());
-      VisitOptional(
-          [&](std::wstring extension) { extensions.insert(extension); }, [] {},
-          path->extension());
+      std::visit(
+          overload{IgnoreErrors{},
+                   [&](const Path& path) {
+                     std::visit(
+                         overload{IgnoreErrors{},
+                                  [&](Path directory) {
+                                    if (directory != Path::LocalDirectory())
+                                      directories.insert(directory);
+                                  }},
+                         path.Dirname());
+                     VisitOptional(
+                         [&](std::wstring extension) {
+                           extensions.insert(extension);
+                         },
+                         [] {}, path.extension());
+                   }},
+          Path::FromString(value));
     }
   }
 

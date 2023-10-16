@@ -8,6 +8,8 @@
 #include <optional>
 #include <variant>
 
+#include "src/language/overload.h"
+
 namespace afc::language {
 
 // Captures a pointer to an object that we may uniquely own (and thus it's safe
@@ -22,11 +24,13 @@ inline PtrVariant<T> MakePtrVariant(T value) {
 }
 
 template <typename T>
-const T* AddressOf(const PtrVariant<T>& p) {
-  if (auto u = std::get_if<std::unique_ptr<T>>(&p); u != nullptr) {
-    return u->get();
-  }
-  return std::get<std::shared_ptr<const T>>(p).get();
+const T* AddressOf(const PtrVariant<T>& p_variant) {
+  return std::visit(
+      overload{
+          [](const std::unique_ptr<T>& p) -> const T* { return p.get(); },
+          [](const std::shared_ptr<const T>& p) { return p.get(); },
+      },
+      p_variant);
 }
 
 template <typename T>
