@@ -1,15 +1,19 @@
 #include "src/insert_history.h"
 
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/search_handler.h"
 
+using afc::language::Error;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineSequence;
+
 namespace afc::editor {
-using language::NonNull;
-using language::ValueOrError;
-using language::lazy_string::NewLazyString;
-using language::text::LineColumn;
-using language::text::LineSequence;
 
 using ::operator<<;
 
@@ -25,16 +29,15 @@ namespace {
 bool IsMatch(EditorState& editor,
              const InsertHistory::SearchOptions& search_options,
              const LineSequence& candidate) {
-  // TODO(trivial, 2023-10-12): This could use std::visit for additional safety.
-  ValueOrError<std::vector<LineColumn>> matches = SearchHandler(
-      editor.modifiers().direction,
-      afc::editor::SearchOptions{.search_query = search_options.query,
-                                 .required_positions = 1,
-                                 .case_sensitive = false},
-      candidate);
-  std::vector<LineColumn>* matches_vector =
-      std::get_if<std::vector<LineColumn>>(&matches);
-  return matches_vector != nullptr && !matches_vector->empty();
+  return std::visit(
+      overload{[](std::vector<LineColumn> matches) { return !matches.empty(); },
+               [](Error) { return false; }},
+      SearchHandler(
+          editor.modifiers().direction,
+          afc::editor::SearchOptions{.search_query = search_options.query,
+                                     .required_positions = 1,
+                                     .case_sensitive = false},
+          candidate));
 }
 }  // namespace
 
