@@ -6,29 +6,37 @@
 #include <memory>
 
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/substring.h"
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
+
+using afc::concurrent::VersionPropertyKey;
+using afc::concurrent::VersionPropertyReceiver;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::FindFirstColumnWithPredicate;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::Substring;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 
 namespace afc::editor {
 namespace gc = language::gc;
 namespace error = language::error;
-
-using concurrent::VersionPropertyKey;
-using concurrent::VersionPropertyReceiver;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::Error;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::overload;
-using language::VisitPointer;
-using language::lazy_string::EmptyString;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
 
 using ::operator<<;
 
@@ -272,16 +280,39 @@ void Status::Reset() {
 
 void Status::Bell() {
   ValidatePreconditions();
-  // TODO(easy, 2023-09-11): Avoid call to ToString.
-  std::wstring text = data_->text->ToString();
-  if (!all_of(text.begin(), text.end(), [](const wchar_t& c) {
-        return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' || c == L'𝄞';
-      })) {
-    text = L" 𝄞";
-  } else if (text.size() >= 40) {
-    text = L"…" + text.substr(text.size() - 40, text.size());
+  static const ColumnNumberDelta kMaxLength(40);
+
+  static const std::vector<wchar_t> notes = {L'🎵', L'🎶'};
+
+  LineBuilder output;
+  if (FindFirstColumnWithPredicate(
+          data_->text->contents().value(), [&](ColumnNumber, const wchar_t& c) {
+            return c != L'🎼' && c != L'…' && c != L' ' &&
+                   std::find(notes.begin(), notes.end(), c) == notes.end();
+          }) != std::nullopt) {
+    output.AppendString(NewLazyString(L"🎼"));
+  } else {
+    LineBuilder previous = LineBuilder(std::move(data_->text.value()));
+    if (previous.contents()->size() > kMaxLength) {
+      previous.DeleteCharacters(ColumnNumber(),
+                                previous.contents()->size() - kMaxLength);
+      output.AppendString(NewLazyString(L"…"));
+    }
+    output.Append(std::move(previous));
   }
-  text += +L" " + std::wstring(text.back() == L'♪' ? L"♫" : L"♪");
+
+  static const std::vector<LineModifier> colors = {
+      LineModifier::kRed,  LineModifier::kGreen,  LineModifier::kBlue,
+      LineModifier::kCyan, LineModifier::kYellow, LineModifier::kMagenta,
+      LineModifier::kWhite};
+  static const std::vector<LineModifier> effects = {
+      LineModifier::kBold, LineModifier::kItalic, LineModifier::kReverse};
+  output.AppendString(
+      Append(NewLazyString(L" "),
+             NewLazyString(std::wstring(1ul, notes.at(rand() % notes.size())))),
+      LineModifierSet{colors.at(rand() % colors.size()),
+                      effects.at(rand() % effects.size())});
+  data_->text = MakeNonNullShared<Line>(std::move(output).Build());
 }
 
 NonNull<std::shared_ptr<Line>> Status::text() const {
