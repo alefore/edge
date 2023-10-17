@@ -18,6 +18,7 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::Success;
 using language::ToByteString;
+using language::ValueOrError;
 
 namespace gc = language::gc;
 
@@ -70,6 +71,16 @@ void AddMethod(const wstring& name, gc::Pool& pool,
   string_type->AddField(name, NewCallback(pool, callback).ptr());
 }
 
+ValueOrError<struct tm> LocalTime(const time_t* time_input) {
+  struct tm output;
+  if (localtime_r(time_input, &output) == nullptr) {
+    int localtime_error = errno;
+    return Error(L"localtime_r failure:" +
+                 FromByteString(strerror(localtime_error)));
+  }
+  return output;
+}
+
 void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> time_type =
       ObjectType::New(pool, VMTypeMapper<Time>::object_type_name);
@@ -83,48 +94,39 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                         return std::to_wstring(t.tv_sec) + L"." + decimal;
                       }))
           .ptr());
-  // TODO: Correctly handle errors (abort evaluation).
   time_type.ptr()->AddField(
       L"AddDays",
       vm::NewCallback(pool, PurityType::kPure,
-                      std::function<Time(Time, int)>([](Time input, int days) {
-                        struct tm t;
-                        // TODO: Don't ignore return value.
-                        localtime_r(&(input.tv_sec), &t);
+                      [](Time input, int days) -> futures::ValueOrError<Time> {
+                        FUTURES_ASSIGN_OR_RETURN(struct tm t,
+                                                 LocalTime(&input.tv_sec));
                         t.tm_mday += days;
-                        return Time{.tv_sec = mktime(&t),
-                                    .tv_nsec = input.tv_nsec};
-                      }))
+                        return futures::Past(Time{.tv_sec = mktime(&t),
+                                                  .tv_nsec = input.tv_nsec});
+                      })
           .ptr());
   time_type.ptr()->AddField(
       L"format",
-      Value::NewFunction(
-          pool, PurityType::kPure, types::String{},
-          {time_type.ptr()->type(), types::String{}},
-          [](std::vector<gc::Root<Value>> args,
-             Trampoline& trampoline) -> futures::ValueOrError<gc::Root<Value>> {
-            CHECK_EQ(args.size(), 2ul);
-            Time input = VMTypeMapper<Time>::get(args[0].ptr().value());
-            struct tm t;
-            localtime_r(&(input.tv_sec), &t);
+      vm::NewCallback(
+          pool, PurityType::kPure,
+          [](Time input,
+             std::wstring format_str) -> futures::ValueOrError<std::wstring> {
+            FUTURES_ASSIGN_OR_RETURN(struct tm t, LocalTime(&input.tv_sec));
             char buffer[2048];
             if (strftime(buffer, sizeof(buffer),
-                         ToByteString(args[1].ptr()->get_string()).c_str(),
-                         &t) == 0) {
+                         ToByteString(format_str).c_str(), &t) == 0) {
               return futures::Past(Error(L"strftime error"));
             }
-            return futures::Past(Success(
-                Value::NewString(trampoline.pool(), FromByteString(buffer))));
+            return futures::Past(FromByteString(buffer));
           })
           .ptr());
   time_type.ptr()->AddField(
       L"year", vm::NewCallback(pool, PurityType::kPure,
-                               std::function<int(Time)>([](Time input) {
-                                 struct tm t;
-                                 // TODO: Don't ignore return value.
-                                 localtime_r(&(input.tv_sec), &t);
-                                 return t.tm_year;
-                               }))
+                               [](Time input) -> futures::ValueOrError<int> {
+                                 FUTURES_ASSIGN_OR_RETURN(
+                                     struct tm t, LocalTime(&input.tv_sec));
+                                 return futures::Past(t.tm_year);
+                               })
                    .ptr());
   environment.Define(L"Now", vm::NewCallback(pool, PurityType::kUnknown, []() {
                        Time output;
