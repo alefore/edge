@@ -128,7 +128,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                                  return futures::Past(t.tm_year);
                                })
                    .ptr());
-  environment.Define(L"Now", vm::NewCallback(pool, PurityType::kUnknown, []() {
+  environment.Define(L"Now", vm::NewCallback(pool, PurityType::kReader, []() {
                        Time output;
                        CHECK_NE(clock_gettime(0, &output), -1);
                        return output;
