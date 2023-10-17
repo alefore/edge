@@ -135,27 +135,19 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                      }));
   environment.Define(
       L"ParseTime",
-      vm::Value::NewFunction(
-          pool, PurityType::kPure, time_type.ptr()->type(),
-          {types::String{}, types::String{}},
-          [](std::vector<gc::Root<Value>> args,
-             Trampoline& trampoline) -> futures::ValueOrError<gc::Root<Value>> {
-            CHECK_EQ(args.size(), 2ul);
-            std::wstring value = args[0].ptr()->get_string();
-            std::wstring format = args[1].ptr()->get_string();
+      vm::NewCallback(
+          pool, PurityType::kPure,
+          [](std::wstring value,
+             std::wstring format) -> futures::ValueOrError<Time> {
             struct tm t = {};
             if (strptime(ToByteString(value).c_str(),
-                         ToByteString(format).c_str(), &t) == nullptr) {
+                         ToByteString(format).c_str(), &t) == nullptr)
               return futures::Past(Error(L"strptime error: value: " + value +
                                          L", format: " + format));
-            }
-            time_t output = mktime(&t);
-            if (output == -1) {
-              return futures::Past(Error(L"mktime error: value: " + value +
-                                         L", format: " + format));
-            }
-            return futures::Past(Success(VMTypeMapper<Time>::New(
-                trampoline.pool(), Time{.tv_sec = output, .tv_nsec = 0})));
+            if (time_t output = mktime(&t); output != -1)
+              return futures::Past(Time{.tv_sec = output, .tv_nsec = 0});
+            return futures::Past(Error(L"mktime error: value: " + value +
+                                       L", format: " + format));
           }));
 
   gc::Root<ObjectType> duration_type =
