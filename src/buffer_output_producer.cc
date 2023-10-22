@@ -227,22 +227,23 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                Widget::OutputProducerOptions::MainCursorDisplay
                    main_cursor_display,
                WithHash<std::shared_ptr<const Line>> line_contents_with_hash,
-               BufferContentsViewLayout::Line screen_line, bool atomic_lines,
-               bool multiple_cursors, LineColumn position,
+               BufferContentsViewLayout::Line screen_line_inner,
+               bool atomic_lines, bool multiple_cursors, LineColumn position,
                EditorMode::CursorMode cursor_mode) {
               LineWithCursor::ViewOptions options{
                   .line = *line_contents_with_hash.value,
-                  .initial_column = screen_line.range.begin().column,
+                  .initial_column = screen_line_inner.range.begin().column,
                   .width = size_columns,
                   .input_width =
-                      screen_line.range.begin().line ==
-                              screen_line.range.end().line
-                          ? screen_line.range.end().column -
-                                screen_line.range.begin().column
+                      screen_line_inner.range.begin().line ==
+                              screen_line_inner.range.end().line
+                          ? screen_line_inner.range.end().column -
+                                screen_line_inner.range.begin().column
                           : std::numeric_limits<ColumnNumberDelta>::max()};
               if (!atomic_lines) {
-                options.inactive_cursor_columns = screen_line.current_cursors;
-                if (position.line == screen_line.range.begin().line &&
+                options.inactive_cursor_columns =
+                    screen_line_inner.current_cursors;
+                if (position.line == screen_line_inner.range.begin().line &&
                     options.inactive_cursor_columns.erase(position.column)) {
                   options.active_cursor_column = position.column;
                 }
