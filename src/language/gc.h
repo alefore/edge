@@ -44,16 +44,15 @@
 //
 // DEFINING MANAGED TYPES
 //
-// There are two requirements on a type `T` for managed objects:
-//
-// 1. An "expand callback" function must be defined, which receives a `T`
-//    instance `t` and returns a vector with an `ObjectMetadata` instance for
-//    each managed object directly reachable from `t`. For example (here `Foo`
-//    would be another managed type):
+// An "expand callback" function must be defined for every type `T` for which
+// objects will be managed. This function should receive a `T` instance `t` and
+// return a vector with an `ObjectMetadata` instance for each managed object
+// directly reachable from `t`. For example (here `Foo` would be another managed
+// type):
 //
 //    class T {
 //     public:
-//      std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand() const {
+//      std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> MyExpand() const {
 //        std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output;
 //        for (auto& foo : dependencies_)
 //          output.push_back(foo.object_metadata());
@@ -67,14 +66,8 @@
 //    };
 //
 //    std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(const T& t) {
-//      return t.Expand();
+//      return t.MyExpandExpand();
 //    }
-//
-// 2. When a new reference is added, we must call `Protect` in it. This is
-//    needed in order to support incremental collection (i.e., allow a
-//    long-running collection to be interrupted and resumed). In the example
-//    above, we'd do this whenever we insert items into `dependencies_`. See
-//    the notes on `Ptr::Protect`.
 //
 // CREATING MANAGED INSTANCES
 //
@@ -302,8 +295,7 @@ class Pool {
 
     // Normally is absent. If a `Collect` operation is interrupted, set to a
     // list to which `AddToEdenExpandList` will add objects (so that when the
-    // collection is resumed, those expansions happen). See
-    // `ObjectMetadata::Protect`.
+    // collection is resumed, those expansions happen). See `Ptr::Protect`.
     std::optional<ObjectExpandVector> expansion_schedule = std::nullopt;
 
     // Incremented each time a call to `Collect` stops without finishing, and
