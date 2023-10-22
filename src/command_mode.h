@@ -3,11 +3,13 @@
 
 #include <memory>
 
+#include "src/language/gc.h"
 #include "src/map_mode.h"
 
 namespace afc::editor {
 class EditorState;
-std::unique_ptr<MapModeCommands> NewCommandMode(EditorState& editor_state);
+language::NonNull<std::unique_ptr<MapModeCommands>> NewCommandMode(
+    EditorState& editor_state);
 }  // namespace afc::editor
 
 #endif
