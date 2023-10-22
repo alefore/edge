@@ -98,6 +98,13 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
     return Error(path.read() + L": Connecting to server: open failed: " +
                  FromByteString(strerror(errno)));
   }
+  auto fd_deleter_callback = [](int* value) {
+    close(*value);
+    delete value;
+  };
+  std::unique_ptr<int, decltype(fd_deleter_callback)> fd_deleter(
+      new int(fd), fd_deleter_callback);
+
   ASSIGN_OR_RETURN(
       Path private_fifo,
       AugmentErrors(L"Unable to create fifo for communication with server",
@@ -113,7 +120,7 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
     return Error(path.read() + L": write failed: " +
                  FromByteString(strerror(errno)));
   }
-  close(fd);
+  fd_deleter = nullptr;
 
   LOG(INFO) << "Opening private fifo: " << private_fifo.read();
   int private_fd = open(ToByteString(private_fifo.read()).c_str(), O_RDWR);
