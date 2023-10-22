@@ -774,7 +774,6 @@ class OperationMode : public EditorMode {
     return {};
   }
 
- private:
   void ShowStatus() {
     LineBuilder output;
     AppendStatus(state_.top_command(), output);
@@ -789,6 +788,7 @@ class OperationMode : public EditorMode {
 
   void PushCommand(Command command) { state_.Push(std::move(command)); }
 
+ private:
   KeyCommandsMapSequence GetGlobalKeyCommandsMap() {
     KeyCommandsMapSequence cmap;
 
