@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "src/language/overload.h"
+#include "src/language/safe_types.h"
 
 namespace afc::language {
 
@@ -16,21 +17,41 @@ namespace afc::language {
 // to modify) or may share with other owners (and thus retain only const
 // access).
 template <typename T>
+using NonNullSharedOr = std::variant<NonNull<std::shared_ptr<const T>>, T>;
+
+template <typename T>
+NonNull<std::shared_ptr<const T>> ToShared(NonNullSharedOr<T> obj) {
+  return std::visit(
+      overload{
+          [](T value) { return MakeNonNullShared<const T>(std::move(value)); },
+          [](NonNull<std::shared_ptr<const T>> ptr) { return ptr; }},
+      std::move(obj));
+}
+
+template <typename T>
+inline T ToObject(NonNullSharedOr<T> p) {
+  return std::visit(overload{[](T object) { return object; },
+                             [](const NonNull<std::shared_ptr<const T>>& s) {
+                               return s->Copy();
+                             }},
+                    std::move(p));
+}
+
+template <typename T>
+inline const T* AddressOf(const NonNullSharedOr<T>& p) {
+  return std::visit(overload{[](const T& object) { return &object; },
+                             [](const NonNull<std::shared_ptr<const T>>& s) {
+                               return &s.value();
+                             }},
+                    p);
+}
+
+template <typename T>
 using PtrVariant = std::variant<std::unique_ptr<T>, std::shared_ptr<const T>>;
 
 template <typename T>
 inline PtrVariant<T> MakePtrVariant(T value) {
   return std::make_unique<T>(std::move(value));
-}
-
-template <typename T>
-const T* AddressOf(const PtrVariant<T>& p_variant) {
-  return std::visit(
-      overload{
-          [](const std::unique_ptr<T>& p) -> const T* { return p.get(); },
-          [](const std::shared_ptr<const T>& p) { return p.get(); },
-      },
-      p_variant);
 }
 
 template <typename T>
@@ -73,8 +94,8 @@ class VectorBlock {
     return VectorBlock(ConstructorAccessTag(), values_);
   }
 
-  std::shared_ptr<const VectorBlock> Share() && {
-    return std::make_shared<VectorBlock>(std::move(*this));
+  NonNull<std::shared_ptr<const VectorBlock>> Share() && {
+    return MakeNonNullShared<VectorBlock>(std::move(*this));
   }
 
   static VectorBlock Leaf(T&& value) {
@@ -172,9 +193,9 @@ class ConstTree {
   using ValueType = typename Block::ValueType;
   using Ptr = std::shared_ptr<const ConstTree>;
 
-  ConstTree(ConstructorAccessTag, std::shared_ptr<const Block> block,
+  ConstTree(ConstructorAccessTag, NonNullSharedOr<Block> block,
             PtrVariant<ConstTree> left, PtrVariant<ConstTree> right)
-      : block_(std::move(block)),
+      : block_(ToShared(std::move(block))),
         left_(ToSharedConst(std::move(left))),
         right_(ToSharedConst(std::move(right))),
         depth_(1 + std::max(Depth(left_), Depth(right_))),
@@ -193,7 +214,9 @@ class ConstTree {
     return ConstTree(ConstructorAccessTag(), block_, left_, right_);
   }
 
-  Ptr Share() && { return std::make_shared<ConstTree>(std::move(*this)); }
+  NonNull<Ptr> Share() && {
+    return MakeNonNullShared<ConstTree>(std::move(*this));
+  }
 
   static ConstTree Leaf(ValueType element) {
     return ConstTree(
@@ -204,7 +227,7 @@ class ConstTree {
   static Ptr Append(const Ptr& a, const Ptr& b) {
     if (a == nullptr) return b;
     if (b == nullptr) return a;
-    return Append(*a, *b).Share();
+    return Append(*a, *b).Share().get_shared();
   }
 
   // Efficient construction, which runs in linear time.
@@ -213,29 +236,32 @@ class ConstTree {
   static Ptr FromRange(Iterator begin, Iterator end) {
     if (begin == end) return nullptr;
     Iterator middle = begin + std::distance(begin, end) / 2;
-    return FixBlocks(
-               MakePtrVariant(Block::Leaf(std::forward<ValueType>(*middle))),
-               FromRange(begin, middle), FromRange(middle + 1, end))
-        .Share();
+    return FixBlocks(Block::Leaf(std::forward<ValueType>(*middle)),
+                     FromRange(begin, middle), FromRange(middle + 1, end))
+        .Share()
+        .get_shared();
   }
 
+  // TODO(easy, 2023-10-23): This could return NonNull.
   static Ptr PushBack(const Ptr& a, ValueType element) {
-    return FixBlocks(MakePtrVariant(Block::Leaf(std::move(element))), a,
-                     nullptr)
-        .Share();
+    return FixBlocks(Block::Leaf(std::move(element)), a, nullptr)
+        .Share()
+        .get_shared();
   }
 
+  // TODO(easy, 2023-10-23): This could return NonNull.
   static Ptr Insert(const Ptr& tree, size_t index, ValueType element) {
     CHECK_LE(index, Size(tree));
     return (tree == nullptr ? Leaf(std::move(element))
                             : tree->Insert(index, std::move(element)))
-        .Share();
+        .Share()
+        .get_shared();
   }
 
   static Ptr Erase(const Ptr& tree, size_t index) {
     CHECK_LE(index, Size(tree));
     if (Size(tree) == 1) return nullptr;
-    return tree->Erase(index).Share();
+    return tree->Erase(index).Share().get_shared();
   }
 
   Ptr Replace(size_t index, ValueType element) const {
@@ -285,7 +311,7 @@ class ConstTree {
     if (len == Size(a)) return a;
     if (len == 0) return nullptr;
     CHECK(a != nullptr);
-    return a->Prefix(len).Share();
+    return a->Prefix(len).Share().get_shared();
   }
 
   ConstTree Prefix(size_t len) const {
@@ -299,8 +325,9 @@ class ConstTree {
       return Rebalance(block_->Prefix(len).Share(), left_,
                        std::unique_ptr<ConstTree>());
     len -= block_->size();
-    return Rebalance(block_, left_,
-                     len == 0 ? nullptr : right_->Prefix(len).Share());
+    return Rebalance(
+        block_, left_,
+        len == 0 ? nullptr : right_->Prefix(len).Share().get_shared());
   }
 
   // Returns a tree skipping the first len elements (i.e., from element `len`
@@ -308,17 +335,17 @@ class ConstTree {
   static Ptr Suffix(const Ptr& a, size_t len) {
     if (len >= Size(a)) return nullptr;
     CHECK(a != nullptr);
-    return a->Suffix(len).Share();
+    return a->Suffix(len).Share().get_shared();
   }
 
   ConstTree Suffix(size_t len) const {
     auto size_left = Size(left_);
     if (len < size_left)
-      return FixBlocks(block_, left_->Suffix(len).Share(), right_);
+      return FixBlocks(block_, left_->Suffix(len).Share().get_shared(), right_);
     len -= size_left;
     if (len == 0) return FixBlocks(block_, nullptr, right_);
     if (len < block_->size())
-      return FixBlocks(block_->Suffix(len).Share(), nullptr, right_);
+      return FixBlocks(block_->Suffix(len), nullptr, right_);
     len -= block_->size();
     return right_->Suffix(len);
   }
@@ -347,22 +374,24 @@ class ConstTree {
   static bool Every(const Ptr& tree, const Predicate& predicate) {
     if (tree == nullptr) return true;
     return Every(tree->left_, predicate) &&
-           Block::Every(tree->block_, predicate) &&
+           Block::Every(tree->block_.get_shared(), predicate) &&
            Every(tree->right_, predicate);
   }
 
   inline ConstTree Insert(size_t index, ValueType element) const {
     size_t size_left = Size(left_);
     if (index < size_left)
-      return Rebalance(block_, left_->Insert(index, std::move(element)).Share(),
-                       right_);
+      return Rebalance(
+          block_, left_->Insert(index, std::move(element)).Share().get_shared(),
+          right_);
 
     index -= size_left;
     if (index > block_->size()) {
       index -= block_->size();
       CHECK(right_ != nullptr);
-      return Rebalance(block_, left_,
-                       right_->Insert(index, std::move(element)).Share());
+      return Rebalance(
+          block_, left_,
+          right_->Insert(index, std::move(element)).Share().get_shared());
     }
 
     CHECK_LE(index, block_->size());
@@ -382,7 +411,7 @@ class ConstTree {
     }
 
     if (block_->size() > 1) {
-      return FixBlocks(MakePtrVariant(block_->Erase(index)), left_, right_);
+      return FixBlocks(block_->Erase(index), left_, right_);
     }
 
     CHECK(left_ != nullptr);
@@ -391,7 +420,8 @@ class ConstTree {
   }
 
   static ConstTree Append(const ConstTree& a, const ConstTree& b) {
-    return FixBlocks(a.LastBlock(), a.MinusLastBlock(), ConstTree(b).Share());
+    return FixBlocks(a.LastBlock(), a.MinusLastBlock(),
+                     ConstTree(b).Share().get_shared());
   }
 
   size_t size() const { return size_; }
@@ -403,24 +433,28 @@ class ConstTree {
   }
 
  private:
-  const std::shared_ptr<const Block>& LastBlock() const {
+  const NonNull<std::shared_ptr<const Block>>& LastBlock() const {
     return right_ == nullptr ? block_ : right_->LastBlock();
   }
 
-  const std::shared_ptr<const Block>& FirstBlock() const {
+  const NonNull<std::shared_ptr<const Block>>& FirstBlock() const {
     return left_ == nullptr ? block_ : left_->FirstBlock();
   }
 
   Ptr MinusLastBlock() const {
-    return right_ == nullptr ? left_
-                             : std::make_shared<ConstTree>(Rebalance(
-                                   block_, left_, right_->MinusLastBlock()));
+    return right_ == nullptr
+               ? left_
+               : Rebalance(block_, left_, right_->MinusLastBlock())
+                     .Share()
+                     .get_shared();
   }
 
   Ptr MinusFirstBlock() const {
-    return left_ == nullptr ? right_
-                            : std::make_shared<ConstTree>(Rebalance(
-                                  block_, left_->MinusFirstBlock(), right_));
+    return left_ == nullptr
+               ? right_
+               : Rebalance(block_, left_->MinusFirstBlock(), right_)
+                     .Share()
+                     .get_shared();
   }
 
   Ptr RotateRight() const {
@@ -436,38 +470,39 @@ class ConstTree {
 
   static ConstTree MaybeSplitBlock(Block block, Ptr left, Ptr right) {
     if (block.size() <= MaxBlockSize) {
-      return FixBlocks(std::move(block).Share(), left, right);
+      return FixBlocks(std::move(block), left, right);
     }
     CHECK_LT(block.size(), 2 * MaxBlockSize);
     std::pair<Block, Block> blocks = Block::Split(std::move(block));
     CHECK_LE(blocks.first.size(), MaxBlockSize);
     CHECK_LE(blocks.second.size(), MaxBlockSize);
     return Rebalance(
-        std::move(blocks.second).Share(),
-        Rebalance(std::move(blocks.first).Share(), left, nullptr).Share(),
+        std::move(blocks.second),
+        Rebalance(std::move(blocks.first), left, nullptr).Share().get_shared(),
         right);
   }
 
-  static ConstTree FixBlocks(PtrVariant<Block> block, Ptr left, Ptr right) {
+  static ConstTree FixBlocks(NonNullSharedOr<Block> block, Ptr left,
+                             Ptr right) {
     if (left != nullptr) {
-      if (const std::shared_ptr<const Block>& last_block_left =
+      if (const NonNull<std::shared_ptr<const Block>>& last_block_left =
               left->LastBlock();
           last_block_left->size() < MaxBlockSize / 2) {
-        return MaybeSplitBlock(Block::Append(last_block_left->Copy(),
-                                             ToUniqueValue(std::move(block))),
-                               left->MinusLastBlock(), right);
+        return MaybeSplitBlock(
+            Block::Append(last_block_left->Copy(), ToObject(std::move(block))),
+            left->MinusLastBlock(), right);
       }
     }
     if (right != nullptr && AddressOf(block)->size() < MaxBlockSize / 2)
-      return MaybeSplitBlock(Block::Append(ToUniqueValue(std::move(block)),
+      return MaybeSplitBlock(Block::Append(ToObject(std::move(block)),
                                            right->FirstBlock()->Copy()),
                              left, right->MinusFirstBlock());
 
     VLOG(6) << "Creating without fixing blocks.";
-    return Rebalance(ToSharedConst(std::move(block)), left, right);
+    return Rebalance(std::move(block), left, right);
   }
 
-  static ConstTree Rebalance(std::shared_ptr<const Block> block, Ptr left,
+  static ConstTree Rebalance(NonNullSharedOr<Block> block, Ptr left,
                              Ptr right) {
     ValidateHalfFullInvariant(left.get(), true);
     ValidateHalfFullInvariant(right.get(), true);
@@ -475,20 +510,23 @@ class ConstTree {
       if (Depth(right->left_) > Depth(right->right_)) {
         right = right->RotateRight();
       }
-      return ConstTree(ConstructorAccessTag(), right->block_,
-                       MakePtrVariant(Rebalance(block, left, right->left_)),
-                       right->right_);
+      return ConstTree(
+          ConstructorAccessTag(), right->block_,
+          Rebalance(std::move(block), left, right->left_).Share().get_shared(),
+          right->right_);
     } else if (Depth(left) > Depth(right) + 1) {
       if (Depth(left->right_) > Depth(left->left_)) {
         left = left->RotateLeft();
       }
       return ConstTree(ConstructorAccessTag(), left->block_, left->left_,
-                       MakePtrVariant(Rebalance(block, left->right_, right)));
+                       Rebalance(std::move(block), left->right_, right)
+                           .Share()
+                           .get_shared());
     }
     return ConstTree(ConstructorAccessTag(), std::move(block), left, right);
   }
 
-  static Ptr New(std::shared_ptr<const Block> block, Ptr left, Ptr right) {
+  static Ptr New(NonNullSharedOr<Block> block, Ptr left, Ptr right) {
     return std::make_shared<ConstTree>(ConstructorAccessTag{}, std::move(block),
                                        std::move(left), std::move(right));
   }
@@ -507,7 +545,7 @@ class ConstTree {
   // Every block in left_, right_ and block_ excluding the very last block
   // (either the last block in `right_` or, if `right_` is nullptr, `block_`)
   // must be at least half full.
-  const std::shared_ptr<const Block> block_;
+  const NonNull<std::shared_ptr<const Block>> block_;
   const Ptr left_;
   const Ptr right_;
 
