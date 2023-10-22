@@ -397,12 +397,15 @@ class Ptr {
 
   template <typename U>
   Ptr(const Ptr<U>& other)
-      : value_(other.value_), object_metadata_(other.object_metadata_) {}
+      : value_(other.value_), object_metadata_(other.object_metadata_) {
+    Protect();
+  }
 
   template <typename U>
   Ptr<T>& operator=(const Ptr<U>& other) {
     value_ = other.value_;
     object_metadata_ = other.object_metadata_;
+    Protect();
     return *this;
   }
 
@@ -410,6 +413,7 @@ class Ptr {
   Ptr<T>& operator=(Ptr<U>&& other) {
     value_ = std::move(other.value_);
     object_metadata_ = std::move(other.object_metadata_);
+    Protect();
     return *this;
   }
 
@@ -428,21 +432,21 @@ class Ptr {
     return object_metadata_;
   }
 
-  // When an object C0 (that implements an `Expand` function) receives and
-  // stores a Ptr<> P instance, it must call `Protect` on it. This will ensure
-  // that if a collection is ongoing, P is "protected": gets scheduled to be
+ private:
+  // When we create a new Ptr<> P instance or assign it into an existing
+  // instance, we call `Protect` in it automatically. This ensures that if a
+  // collection is ongoing, the instance is "protected": it gets scheduled to be
   // expanded.
   //
   // If we didn't do this, there could be races where the ownership of P could
-  // be transfered from a yet-to-be-expanded container C1 to an already-expanded
-  // container C0, which would allow P to be incorrectly dropped (when C1 gets
-  // expanded, P is no longer reached).
+  // be transfered from a yet-to-be-expanded container (or root) C to an
+  // already-expanded container (or root), which would allow P to be incorrectly
+  // dropped (when C gets expanded, P is no longer reached).
   void Protect() const {
     CHECK(value_.lock() != nullptr);
     return pool().AddToEdenExpandList(object_metadata_);
   }
 
- private:
   friend Pool;
 
   template <typename U>

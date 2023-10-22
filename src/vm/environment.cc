@@ -106,7 +106,6 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
   parent.ptr()->data_.lock([&](Data& data) {
     InsertOrDie(data.namespaces, {name, namespace_env.ptr()});
   });
-  namespace_env.ptr().Protect();
   return namespace_env;
 }
 
@@ -195,7 +194,6 @@ void Environment::CaseInsensitiveLookup(
 }
 
 void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
-  value.ptr().Protect();
   Type type = value.ptr()->type;
   data_.lock([&](Data& data) {
     data.table[symbol].insert_or_assign(type, value.ptr());
@@ -203,7 +201,6 @@ void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
 }
 
 void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
-  value.ptr().Protect();
   data_.lock([&](Data& data) {
     if (auto it = data.table.find(symbol); it != data.table.end()) {
       it->second.insert_or_assign(value.ptr()->type, value.ptr());
