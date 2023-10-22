@@ -9,6 +9,12 @@ struct is_void : std::false_type {};
 template <>
 struct is_void<void> : std::true_type {};
 
+template <typename T>
+struct IsGcPtr : std::false_type {};
+
+template <typename T>
+struct IsGcPtr<Ptr<T>> : std::true_type {};
+
 template <typename Func, typename... BoundArgs>
 class BindFrontWithWeakPtrImpl {
  public:
@@ -19,6 +25,12 @@ class BindFrontWithWeakPtrImpl {
   auto operator()(Args&&... args) {
     return invoke(std::index_sequence_for<BoundArgs...>{},
                   std::forward<Args>(args)...);
+  }
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
+    std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
+    ExpandHelper<0>(output, bound_args_);
+    return output;
   }
 
  private:
@@ -73,6 +85,18 @@ class BindFrontWithWeakPtrImpl {
     template <typename...>
     inline constexpr static bool always_false_v = false;
   };
+
+  template <size_t index, typename... Args>
+  static void ExpandHelper(
+      std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>& output,
+      const std::tuple<Args...>& tup) {
+    if constexpr (index < sizeof...(Args)) {
+      if constexpr (IsGcPtr<
+                        std::decay_t<decltype(std::get<index>(tup))>>::value)
+        output.push_back(std::get<index>(tup).object_metadata());
+      ExpandHelper<index + 1>(output, tup);
+    }
+  }
 
   Func func_;
   std::tuple<BoundArgs...> bound_args_;
