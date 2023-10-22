@@ -146,11 +146,8 @@ void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
     exit(0);
   }
 
-  for (int fd = sysconf(_SC_OPEN_MAX); fd >= 0; fd--) {
-    if (surviving_fds.find(FileDescriptor(fd)) == surviving_fds.end()) {
-      close(fd);
-    }
-  }
+  for (int fd = 0; fd < sysconf(_SC_OPEN_MAX); ++fd)
+    if (!surviving_fds.contains(FileDescriptor(fd))) close(fd);
 }
 
 futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
