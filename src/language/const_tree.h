@@ -46,35 +46,6 @@ inline const T* AddressOf(const NonNullSharedOr<T>& p) {
                     p);
 }
 
-template <typename T>
-using PtrVariant = std::variant<std::unique_ptr<T>, std::shared_ptr<const T>>;
-
-template <typename T>
-inline PtrVariant<T> MakePtrVariant(T value) {
-  return std::make_unique<T>(std::move(value));
-}
-
-template <typename T>
-inline std::unique_ptr<T> ToUnique(PtrVariant<T> p) {
-  return std::visit(
-      overload{[](std::unique_ptr<T> u) { return u; },
-               [](std::shared_ptr<const T> s) {
-                 return s == nullptr ? nullptr : std::make_unique<T>(s->Copy());
-               }},
-      std::move(p));
-}
-
-template <typename T>
-inline T ToUniqueValue(PtrVariant<T> p) {
-  return std::move(*ToUnique(std::move(p)));
-}
-
-template <typename T>
-inline std::shared_ptr<const T> ToSharedConst(PtrVariant<T> p) {
-  return std::visit([](auto v) -> std::shared_ptr<const T> { return v; },
-                    std::move(p));
-}
-
 template <typename T, size_t ExpectedSize>
 class VectorBlock {
   struct ConstructorAccessTag {};
@@ -193,11 +164,11 @@ class ConstTree {
   using ValueType = typename Block::ValueType;
   using Ptr = std::shared_ptr<const ConstTree>;
 
-  ConstTree(ConstructorAccessTag, NonNullSharedOr<Block> block,
-            PtrVariant<ConstTree> left, PtrVariant<ConstTree> right)
+  ConstTree(ConstructorAccessTag, NonNullSharedOr<Block> block, Ptr left,
+            Ptr right)
       : block_(ToShared(std::move(block))),
-        left_(ToSharedConst(std::move(left))),
-        right_(ToSharedConst(std::move(right))),
+        left_(std::move(left)),
+        right_(std::move(right)),
         depth_(1 + std::max(Depth(left_), Depth(right_))),
         size_(block_->size() + Size(left_) + Size(right_)) {
 #if 0
