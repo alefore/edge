@@ -35,13 +35,12 @@ const T* AddressOf(const PtrVariant<T>& p_variant) {
 
 template <typename T>
 inline std::unique_ptr<T> ToUnique(PtrVariant<T> p) {
-  if (auto u = std::get_if<std::unique_ptr<T>>(&p); u != nullptr) {
-    return std::move(*u);
-  }
-  if (auto shared_const = std::get<std::shared_ptr<const T>>(p);
-      shared_const != nullptr)
-    return std::make_unique<T>(shared_const->Copy());
-  return nullptr;
+  return std::visit(
+      overload{[](std::unique_ptr<T> u) { return u; },
+               [](std::shared_ptr<const T> s) {
+                 return s == nullptr ? nullptr : std::make_unique<T>(s->Copy());
+               }},
+      std::move(p));
 }
 
 template <typename T>
