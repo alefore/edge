@@ -18,13 +18,14 @@ class Observable {
   enum class State { kExpired, kAlive };
   using Observer = std::function<State()>;
 
-  virtual void Add(Observer observer) = 0;
+  // Why const? Because adding an observer doesn't modify the observable object.
+  virtual void Add(Observer observer) const = 0;
 };
 
 // This class is thread-safe.
 class Observers : public Observable {
  public:
-  void Add(Observer observer) override;
+  void Add(Observer observer) const override;
 
   // Notify is fully reentrant.
   //
@@ -38,7 +39,7 @@ class Observers : public Observable {
   void Notify();
 
   // Returns a future that gets notificed the next time that `Notify` is called.
-  futures::Value<EmptyValue> NewFuture();
+  futures::Value<EmptyValue> NewFuture() const;
 
   template <typename P, typename Callable>
   static Observer LockingObserver(std::weak_ptr<P> data, Callable callable) {
@@ -63,7 +64,9 @@ class Observers : public Observable {
   // `Add` only adds to `new_observers_`, and it is the job of `Notify` to merge
   // those back into `observers_`. We do this so that observers can call `Add`
   // without deadlocking. We never require both locks to be held concurrently.
-  concurrent::Protected<std::vector<Observer>> new_observers_;
+  //
+  // This is mutable so that `Add` can be const.
+  mutable concurrent::Protected<std::vector<Observer>> new_observers_;
 
   // This allow us to make Notify reentrant.
   enum class NotifyState {
@@ -98,10 +101,7 @@ class ObservableValue : public Observable {
   // Adds a callback that will be updated whenever the value changes.
   //
   // We will only notify the observers after `Get` returns a value.
-  //
-  // TODO(easy, 2023-08-18): This should probably be const. That requires us to
-  // reevaluate the const semantics of the superclass.
-  void Add(Observers::Observer observer) override {
+  void Add(Observers::Observer observer) const override {
     if (value_.has_value()) observer();
     observers_.Add(std::move(observer));
   }

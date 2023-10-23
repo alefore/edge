@@ -3,7 +3,7 @@
 #include "src/tests/tests.h"
 
 namespace afc::language {
-void Observers::Add(Observers::Observer observer) {
+void Observers::Add(Observers::Observer observer) const {
   new_observers_.lock()->push_back(std::move(observer));
 }
 
@@ -63,7 +63,7 @@ void Observers::Notify() {
   }
 }
 
-futures::Value<EmptyValue> Observers::NewFuture() {
+futures::Value<EmptyValue> Observers::NewFuture() const {
   futures::Future<EmptyValue> output;
   Add(Observers::Once(
       [consumer = std::move(output.consumer)] { consumer(EmptyValue()); }));
