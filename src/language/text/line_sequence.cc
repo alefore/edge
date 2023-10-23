@@ -30,9 +30,11 @@ using ::operator<<;
   CHECK(!inputs.empty());
   Lines::Ptr output = nullptr;
   for (const std::wstring& input : inputs) {
-    output = Lines::PushBack(output, MakeNonNullShared<Line>(input));
+    output =
+        Lines::PushBack(output, MakeNonNullShared<Line>(input)).get_shared();
   }
-  return LineSequence(std::move(output));
+  // This is safe because we've validated that inputs isn't empty.
+  return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
 }
 
 /* static */ LineSequence LineSequence::WithLine(
@@ -42,7 +44,7 @@ using ::operator<<;
 
 LineSequence LineSequence::ViewRange(Range range) const {
   CHECK_LE(range.end().line, EndLine());
-  Lines::Ptr output = lines_;
+  Lines::Ptr output = lines_.get_shared();
 
   output = Lines::Suffix(Lines::Prefix(output, range.end().line.read() + 1),
                          range.begin().line.read());
@@ -50,9 +52,11 @@ LineSequence LineSequence::ViewRange(Range range) const {
   if (range.end().column < output->Get(output->size() - 1)->EndColumn()) {
     LineBuilder replacement(output->Get(output->size() - 1).value());
     replacement.DeleteSuffix(range.end().column);
-    output = output->Replace(
-        output->size() - 1,
-        MakeNonNullShared<Line>(std::move(replacement).Build()));
+    output =
+        output
+            ->Replace(output->size() - 1,
+                      MakeNonNullShared<Line>(std::move(replacement).Build()))
+            .get_shared();
   }
 
   if (!range.begin().column.IsZero()) {
@@ -60,11 +64,19 @@ LineSequence LineSequence::ViewRange(Range range) const {
     replacement.DeleteCharacters(
         ColumnNumber(0),
         std::min(output->Get(0)->EndColumn(), range.begin().column).ToDelta());
-    output = output->Replace(
-        0, MakeNonNullShared<Line>(std::move(replacement).Build()));
+    output = output
+                 ->Replace(
+                     0, MakeNonNullShared<Line>(std::move(replacement).Build()))
+                 .get_shared();
   }
 
-  return LineSequence(std::move(output));
+  return VisitPointer(
+      output,
+      [](NonNull<Lines::Ptr> lines) { return LineSequence(std::move(lines)); },
+      [] {
+        return LineSequence(
+            Lines::PushBack(nullptr, NonNull<std::shared_ptr<Line>>()));
+      });
 }
 
 namespace {
@@ -199,7 +211,7 @@ NonNull<std::shared_ptr<lazy_string::LazyString>> LineSequence::ToLazyString()
 }
 
 LineNumberDelta LineSequence::size() const {
-  return LineNumberDelta(Lines::Size(lines_));
+  return LineNumberDelta(lines_->size());
 }
 
 bool LineSequence::empty() const { return size().IsZero(); }
@@ -230,12 +242,10 @@ const NonNull<std::shared_ptr<const Line>>& LineSequence::at(
 }
 
 NonNull<std::shared_ptr<const Line>> LineSequence::back() const {
-  CHECK(lines_ != nullptr);
   return at(EndLine());
 }
 
 NonNull<std::shared_ptr<const Line>> LineSequence::front() const {
-  CHECK(lines_ != nullptr);
   return at(LineNumber(0));
 }
 
@@ -247,7 +257,7 @@ bool LineSequence::ForEachLine(
   CHECK_GE(length, LineNumberDelta());
   CHECK_LE((start + length).ToDelta(), size());
   return Lines::Every(
-      Lines::Suffix(Lines::Prefix(lines_, (start + length).read()),
+      Lines::Suffix(Lines::Prefix(lines_.get_shared(), (start + length).read()),
                     start.read()),
       [&](const NonNull<std::shared_ptr<const Line>>& line) {
         return callback(start++, line);

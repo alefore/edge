@@ -79,9 +79,9 @@ class LineSequence {
  private:
   friend class MutableLineSequence;
   friend class SortedLineSequence;
-  LineSequence(Lines::Ptr lines) : lines_(lines) {}
+  LineSequence(NonNull<Lines::Ptr> lines) : lines_(lines) {}
 
-  Lines::Ptr lines_ = Lines::PushBack(nullptr, {});
+  NonNull<Lines::Ptr> lines_ = Lines::PushBack(nullptr, {});
 };
 }  // namespace afc::language::text
 #endif  // __AFC_LANGUAGE_TEXT_LINE_SEQUENCE_H__

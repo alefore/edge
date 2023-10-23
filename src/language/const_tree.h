@@ -196,9 +196,14 @@ class ConstTree {
   }
 
   static Ptr Append(const Ptr& a, const Ptr& b) {
-    if (a == nullptr) return b;
+    return VisitPointer(
+        a, [&](NonNull<Ptr> a_n) { return Append(a_n, b).get_shared(); },
+        [&] { return b; });
+  }
+
+  static NonNull<Ptr> Append(const NonNull<Ptr>& a, const Ptr& b) {
     if (b == nullptr) return a;
-    return Append(*a, *b).Share().get_shared();
+    return Append(a.value(), *b).Share();
   }
 
   // Efficient construction, which runs in linear time.
@@ -213,20 +218,15 @@ class ConstTree {
         .get_shared();
   }
 
-  // TODO(easy, 2023-10-23): This could return NonNull.
-  static Ptr PushBack(const Ptr& a, ValueType element) {
-    return FixBlocks(Block::Leaf(std::move(element)), a, nullptr)
-        .Share()
-        .get_shared();
+  static NonNull<Ptr> PushBack(const Ptr& a, ValueType element) {
+    return FixBlocks(Block::Leaf(std::move(element)), a, nullptr).Share();
   }
 
-  // TODO(easy, 2023-10-23): This could return NonNull.
-  static Ptr Insert(const Ptr& tree, size_t index, ValueType element) {
+  static NonNull<Ptr> Insert(const Ptr& tree, size_t index, ValueType element) {
     CHECK_LE(index, Size(tree));
     return (tree == nullptr ? Leaf(std::move(element))
                             : tree->Insert(index, std::move(element)))
-        .Share()
-        .get_shared();
+        .Share();
   }
 
   static Ptr Erase(const Ptr& tree, size_t index) {
@@ -235,19 +235,26 @@ class ConstTree {
     return tree->Erase(index).Share().get_shared();
   }
 
-  Ptr Replace(size_t index, ValueType element) const {
+  NonNull<Ptr> Replace(size_t index, ValueType element) const {
     VLOG(6) << "Replace: " << index;
     auto size_left = Size(left_);
     if (index < size_left)
-      return New(block_, left_->Replace(index, std::move(element)), right_);
+      return ConstTree(ConstructorAccessTag{}, block_,
+                       left_->Replace(index, std::move(element)).get_shared(),
+                       right_)
+          .Share();
     index -= size_left;
 
     if (index < block_->size())
-      return New(block_->Replace(index, std::move(element)).Share(), left_,
-                 right_);
+      return ConstTree(ConstructorAccessTag{},
+                       block_->Replace(index, std::move(element)).Share(),
+                       left_, right_)
+          .Share();
     index -= block_->size();
 
-    return New(block_, left_, right_->Replace(index, std::move(element)));
+    return ConstTree(ConstructorAccessTag{}, block_, left_,
+                     right_->Replace(index, std::move(element)).get_shared())
+        .Share();
   }
 
   static inline size_t Size(const Ptr& tree) {

@@ -58,7 +58,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
       language::text::LineColumn position) const;
 
   language::text::LineNumberDelta size() const {
-    return language::text::LineNumberDelta(Lines::Size(lines_));
+    return language::text::LineNumberDelta(lines_->size());
   }
 
   // The last valid line (which can be fed to `at`).
@@ -76,12 +76,10 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   }
 
   language::NonNull<std::shared_ptr<const language::text::Line>> back() const {
-    CHECK(lines_ != nullptr);
     return at(EndLine());
   }
 
   language::NonNull<std::shared_ptr<const language::text::Line>> front() const {
-    CHECK(lines_ != nullptr);
     return at(language::text::LineNumber(0));
   }
 
@@ -122,18 +120,24 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
     std::vector<language::NonNull<std::shared_ptr<const language::text::Line>>>
         lines;
     Lines::Every(
-        lines_,
+        lines_.get_shared(),
         [&lines](language::NonNull<std::shared_ptr<const language::text::Line>>
                      line) {
           lines.push_back(line);
           return true;
         });
+    CHECK(!lines.empty());  // This is is implied by lines_ being NonNull.
+
     std::sort(lines.begin() + start.read(),
               lines.begin() + (start + length).read(), compare);
-    lines_ = nullptr;
+    Lines::Ptr new_lines = nullptr;
     for (auto& line : lines) {
-      lines_ = Lines::PushBack(std::move(lines_), std::move(line));
+      new_lines =
+          Lines::PushBack(std::move(new_lines), std::move(line)).get_shared();
     }
+    // This call to Unsafe is safe: we asserted above that lines won't be empty,
+    // therefore new_lines won't be empty.
+    lines_ = NonNull<Lines::Ptr>::Unsafe(std::move(new_lines));
     observer_->Sorted();
   }
 
@@ -207,9 +211,6 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
     static infrastructure::Tracker tracker(
         L"MutableLineSequence::TransformLine");
     auto tracker_call = tracker.Call();
-    if (lines_ == nullptr) {
-      lines_ = Lines::PushBack(nullptr, {});
-    }
     CHECK_LE(line_number, EndLine());
     language::text::LineBuilder options(at(line_number).value());
     callback(options);
@@ -218,7 +219,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
                  std::move(options).Build()));
   }
 
-  Lines::Ptr lines_ = Lines::PushBack(nullptr, {});
+  NonNull<Lines::Ptr> lines_ = Lines::PushBack(nullptr, {});
 
   // TODO(2023-09-09, easy): Add const qualifier? This should be immutable. But
   // that is challenging because it disables move construction... which would be

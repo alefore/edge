@@ -26,7 +26,8 @@ std::vector<size_t> RandomIndices(size_t output_size, size_t elements) {
 IntTree::Ptr GetTree(int size) {
   IntTree::Ptr tree;
   for (int i = 0; i < size; ++i) {
-    tree = IntTree::Insert(tree, random() % (i + 1), kNumberToInsert);
+    tree =
+        IntTree::Insert(tree, random() % (i + 1), kNumberToInsert).get_shared();
   }
   return tree;
 }
@@ -35,7 +36,7 @@ bool registration_add =
     tests::RegisterBenchmark(L"ConstTree::PushBack", [](int elements) {
       auto tree = GetTree(elements);
       auto start = Now();
-      tree = IntTree::PushBack(tree, 0);
+      tree = IntTree::PushBack(tree, 0).get_shared();
       auto end = Now();
       CHECK_EQ(IntTree::Size(tree), static_cast<size_t>(elements) + 1);
       return SecondsBetween(start, end);
@@ -75,8 +76,10 @@ bool registration_tree_insert =
       auto indices = RandomIndices(kRuns, elements);
       auto start = Now();
       for (auto& index : indices) {
-        CHECK_EQ(IntTree::Size(IntTree::Insert(tree, index, kNumberToInsert)),
-                 static_cast<size_t>(elements) + 1);
+        CHECK_EQ(
+            IntTree::Size(
+                IntTree::Insert(tree, index, kNumberToInsert).get_shared()),
+            static_cast<size_t>(elements) + 1);
       }
       auto end = Now();
       return SecondsBetween(start, end) / kRuns;
@@ -214,7 +217,7 @@ const bool const_tree_tests_registration = tests::Register(
         while (IntTree::Size(tree) < 1e3) {
           size_t position = random() % (IntTree::Size(tree) + 1);
           int number = random();
-          tree = IntTree::Insert(tree, position, number);
+          tree = IntTree::Insert(tree, position, number).get_shared();
           v.insert(v.begin() + position, number);
         }
         CHECK(IsEqual(v, tree));

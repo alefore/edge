@@ -48,8 +48,8 @@ const LineSequence& SortedLineSequence::lines() const { return lines_; }
 language::text::LineNumber SortedLineSequence::upper_bound(
     const language::NonNull<std::shared_ptr<const language::text::Line>>& key)
     const {
-  return language::text::LineNumber(
-      LineSequence::Lines::UpperBound(lines_.lines_, key, compare_));
+  return language::text::LineNumber(LineSequence::Lines::UpperBound(
+      lines_.lines_.get_shared(), key, compare_));
 }
 
 SortedLineSequence SortedLineSequence::FilterLines(

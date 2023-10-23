@@ -34,7 +34,7 @@ AppendImpl::Tree::Ptr TreeFrom(NonNull<std::shared_ptr<LazyString>> a) {
   }
   AppendImpl::Tree::Ptr output;
   ForEachColumn(a.value(), [&output](ColumnNumber, wchar_t c) {
-    output = AppendImpl::Tree::PushBack(output, c);
+    output = AppendImpl::Tree::PushBack(output, c).get_shared();
   });
   return output;
 }

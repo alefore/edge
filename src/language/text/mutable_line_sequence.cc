@@ -319,8 +319,8 @@ void MutableLineSequence::insert(
     LineNumber position_line, const LineSequence& source,
     const std::optional<LineModifierSet>& optional_modifiers) {
   CHECK_LE(position_line, EndLine());
-  auto prefix = Lines::Prefix(lines_, position_line.read());
-  auto suffix = Lines::Suffix(lines_, position_line.read());
+  auto prefix = Lines::Prefix(lines_.get_shared(), position_line.read());
+  auto suffix = Lines::Suffix(lines_.get_shared(), position_line.read());
   VisitOptional(
       [&prefix, &source](LineModifierSet modifiers) {
         source.ForEach([&](NonNull<std::shared_ptr<const Line>> line) {
@@ -328,20 +328,27 @@ void MutableLineSequence::insert(
                   << " modifiers: " << modifiers.size();
           LineBuilder builder(line.value());
           builder.SetAllModifiers(modifiers);
-          prefix = Lines::PushBack(
-              prefix, MakeNonNullShared<Line>(std::move(builder).Build()));
+          prefix =
+              Lines::PushBack(
+                  prefix, MakeNonNullShared<Line>(std::move(builder).Build()))
+                  .get_shared();
         });
       },
-      [&] { prefix = Lines::Append(prefix, source.lines_); },
+      [&] { prefix = Lines::Append(prefix, source.lines_.get_shared()); },
       optional_modifiers);
-  lines_ = Lines::Append(prefix, suffix);
+  lines_ = VisitPointer(
+      Lines::Append(prefix, suffix),
+      [](NonNull<Lines::Ptr> value) { return value; },
+      [] {
+        return Lines::PushBack(nullptr, NonNull<std::shared_ptr<Line>>());
+      });
   observer_->LinesInserted(position_line, source.size());
 }
 
 bool MutableLineSequence::EveryLine(
     const std::function<bool(LineNumber, const Line&)>& callback) const {
   LineNumber line_number;
-  return Lines::Every(lines_,
+  return Lines::Every(lines_.get_shared(),
                       [&](const NonNull<std::shared_ptr<const Line>>& line) {
                         return callback(line_number++, line.value());
                       });
@@ -364,13 +371,13 @@ void MutableLineSequence::insert_line(LineNumber line_position,
                                       NonNull<std::shared_ptr<const Line>> line,
                                       ObserverBehavior observer_behavior) {
   LOG(INFO) << "Inserting line at position: " << line_position;
-  size_t original_size = Lines::Size(lines_);
-  auto prefix = Lines::Prefix(lines_, line_position.read());
+  size_t original_size = lines_->size();
+  auto prefix = Lines::Prefix(lines_.get_shared(), line_position.read());
   CHECK_EQ(Lines::Size(prefix), line_position.read());
-  auto suffix = Lines::Suffix(lines_, line_position.read());
-  CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.read());
+  auto suffix = Lines::Suffix(lines_.get_shared(), line_position.read());
+  CHECK_EQ(Lines::Size(suffix), lines_->size() - line_position.read());
   lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
-  CHECK_EQ(Lines::Size(lines_), original_size + 1);
+  CHECK_EQ(lines_->size(), original_size + 1);
   switch (observer_behavior) {
     case ObserverBehavior::kHide:
       break;
@@ -463,12 +470,14 @@ void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
   CHECK_LT(first, last);
   CHECK_LE(last, LineNumber(0) + size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
-  lines_ = Lines::Append(Lines::Prefix(lines_, first.read()),
-                         Lines::Suffix(lines_, last.read()));
 
-  if (lines_ == nullptr) {
-    lines_ = Lines::PushBack(nullptr, {});
-  }
+  lines_ = VisitPointer(
+      Lines::Append(Lines::Prefix(lines_.get_shared(), first.read()),
+                    Lines::Suffix(lines_.get_shared(), last.read())),
+      [](NonNull<Lines::Ptr> value) { return value; },
+      [] {
+        return Lines::PushBack(nullptr, NonNull<std::shared_ptr<Line>>());
+      });
 
   if (observer_behavior == ObserverBehavior::kHide) {
     return;
@@ -567,7 +576,7 @@ const bool push_back_wstring_tests_registration = tests::Register(
 void MutableLineSequence::push_back(NonNull<std::shared_ptr<const Line>> line,
                                     ObserverBehavior observer_behavior) {
   LineNumber position = EndLine();
-  lines_ = Lines::PushBack(std::move(lines_), line);
+  lines_ = Lines::PushBack(lines_.get_shared(), line);
   switch (observer_behavior) {
     case ObserverBehavior::kHide:
       break;
