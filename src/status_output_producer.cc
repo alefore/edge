@@ -157,7 +157,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     int failed = 0;
     for (const auto& entry : *options.buffer->editor().buffers()) {
       OpenBuffer& buffer = entry.second.ptr().value();
-      if (buffer.child_pid() != -1) {
+      if (buffer.child_pid().has_value()) {
         running++;
       } else if (buffer.child_exit_status().has_value()) {
         int status = buffer.child_exit_status().value();

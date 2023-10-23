@@ -366,7 +366,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                       : LineNumberOutputWidth(buffer.lines_size())),
       .begin = input.view_start,
       .margin_lines =
-          ((buffer.child_pid() == -1 && buffer.fd() != nullptr) ||
+          ((buffer.child_pid() == std::nullopt && buffer.fd() != nullptr) ||
                    buffer.Read(buffer_variables::pts)
                ? LineNumberDelta()
                : std::min(
@@ -458,7 +458,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
         // being read.
         if (buffer.ptr()->lines_size() >=
                 buffer.ptr()->position().line.ToDelta() &&
-            (buffer.ptr()->child_pid() != -1 ||
+            (buffer.ptr()->child_pid().has_value() ||
              buffer.ptr()->fd() == nullptr)) {
           buffer.ptr()->Set(buffer_variables::view_start, output.view_start);
         }

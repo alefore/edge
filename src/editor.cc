@@ -46,6 +46,7 @@ using afc::infrastructure::AddSeconds;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
+using afc::infrastructure::UnixSignal;
 using afc::language::EmptyValue;
 using afc::language::EraseOrDie;
 using afc::language::Error;

@@ -7,21 +7,22 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/tests/tests.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::ProcessId;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::ToByteString;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+
 namespace afc::editor {
 namespace {
-using infrastructure::FileDescriptor;
-using language::EmptyValue;
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::ToByteString;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::NewLazyString;
-using language::text::LineColumn;
-using language::text::LineNumber;
-
-namespace gc = language::gc;
-
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
  public:
@@ -169,7 +170,7 @@ bool tests_registration = tests::Register(
 
         OpenBuffer& buffer = buffer_root.ptr().value();
         buffer.SetInputFiles(FileDescriptor(pipefd_out[1]), FileDescriptor(-1),
-                             false, 0);
+                             false, std::optional<ProcessId>());
         Paste(buffer.editor()).ProcessInput('x');
 
         char data[1024];

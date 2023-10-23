@@ -41,6 +41,7 @@ using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
+using afc::infrastructure::ProcessId;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -163,13 +164,13 @@ futures::Value<PossibleError> GenerateContents(
     exit(EX_OSERR);
   }
 
-  pid_t child_pid = fork();
-  if (child_pid == -1) {
+  ProcessId child_pid = ProcessId(fork());
+  if (child_pid == ProcessId(-1)) {
     Error error(L"fork failed: " + FromByteString(strerror(errno)));
     target.status().Set(error);
     return futures::Past(error);
   }
-  if (child_pid == 0) {
+  if (child_pid == ProcessId(0)) {
     LOG(INFO) << "I am the children. Life is beautiful!";
 
     close(pipefd_out[parent_fd]);
@@ -287,7 +288,7 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
   time(&now);
 
   std::map<std::wstring, std::wstring> output;
-  if (buffer.child_pid() != -1) {
+  if (buffer.child_pid().has_value()) {
     output.insert({L" …", L""});
   } else if (buffer.child_exit_status().has_value()) {
     if (!WIFEXITED(buffer.child_exit_status().value())) {
@@ -303,14 +304,15 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
   }
 
   if (now > data.time_start && data.time_start > 0) {
-    time_t end = (buffer.child_pid() != -1 || data.time_end < data.time_start)
-                     ? now
-                     : data.time_end;
+    time_t end =
+        (buffer.child_pid().has_value() || data.time_end < data.time_start)
+            ? now
+            : data.time_end;
     output[L"⏲ "] = DurationToString(end - data.time_start);
   }
 
   auto update = buffer.last_progress_update();
-  if (buffer.child_pid() != -1 && update.tv_sec != 0) {
+  if (buffer.child_pid().has_value() && update.tv_sec != 0) {
     auto error_input = buffer.fd_error();
     double lines_read_rate =
         (buffer.fd_error() == nullptr ? 0

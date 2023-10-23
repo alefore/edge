@@ -1,5 +1,7 @@
 #include "src/infrastructure/file_system_driver.h"
 
+#include <csignal>
+
 #include "src/language/wstring.h"
 
 namespace afc::infrastructure {
@@ -84,6 +86,12 @@ futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
         SyscallReturnValue(L"Mkdir",
                            mkdir(ToByteString(path.read()).c_str(), mode)));
   });
+}
+
+PossibleError FileSystemDriver::Kill(ProcessId pid, UnixSignal sig) {
+  if (kill(pid.read(), sig.read()) == -1)
+    Error(L"Kill: " + FromByteString(strerror(errno)));
+  return Success();
 }
 
 }  // namespace afc::infrastructure

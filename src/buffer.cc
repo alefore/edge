@@ -79,7 +79,9 @@ using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
+using afc::infrastructure::ProcessId;
 using afc::infrastructure::Tracker;
+using afc::infrastructure::UnixSignal;
 using afc::infrastructure::UpdateIfMillisecondsHavePassed;
 using afc::infrastructure::screen::CursorsSet;
 using afc::infrastructure::screen::CursorsTracker;
@@ -389,9 +391,9 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor.modifiers().strength > Modifiers::Strength::kNormal) {
     return Success();
   }
-  if (child_pid_ != -1 && !Read(buffer_variables::term_on_close)) {
-    return Error(L"Running subprocess (pid: " + std::to_wstring(child_pid_) +
-                 L")");
+  if (child_pid_.has_value() && !Read(buffer_variables::term_on_close)) {
+    return Error(L"Running subprocess (pid: " +
+                 std::to_wstring(child_pid_->read()) + L")");
   }
   return Success();
 }
@@ -414,7 +416,7 @@ OpenBuffer::PrepareToClose() {
                 .Transform([this](EmptyValue)
                                -> futures::ValueOrError<PrepareToCloseOutput> {
                   LOG(INFO) << name() << ": State persisted.";
-                  if (child_pid_ != -1) {
+                  if (child_pid_.has_value()) {
                     if (Read(buffer_variables::term_on_close)) {
                       if (on_exit_handler_ != nullptr) {
                         return futures::Past(
@@ -422,13 +424,14 @@ OpenBuffer::PrepareToClose() {
                       }
                       LOG(INFO) << "Sending termination and preparing handler: "
                                 << Read(buffer_variables::name);
-                      kill(child_pid_, SIGTERM);
+                      file_system_driver().Kill(child_pid_.value(),
+                                                UnixSignal(SIGTERM));
                       auto future =
                           futures::Future<ValueOrError<PrepareToCloseOutput>>();
                       on_exit_handler_ =
                           [this,
                            consumer = std::move(future.consumer)]() mutable {
-                            CHECK_EQ(child_pid_, -1);
+                            CHECK(!child_pid_.has_value());
                             LOG(INFO) << "Subprocess terminated: "
                                       << Read(buffer_variables::name);
                             PrepareToClose().SetConsumer(std::move(consumer));
@@ -604,16 +607,17 @@ void OpenBuffer::EndOfFile() {
   UpdateLastAction();
   CHECK(fd_ == nullptr);
   CHECK(fd_error_ == nullptr);
-  if (child_pid_ != -1) {
+  if (child_pid_.has_value()) {
     int exit_status;
-    if (waitpid(child_pid_, &exit_status, 0) == -1) {
+    // TODO(trivial, 2023-10-23): Define function in file_system_driver.
+    if (waitpid(child_pid()->read(), &exit_status, 0) == -1) {
       status_.Set(Error(L"waitpid failed: " + FromByteString(strerror(errno))));
       return;
     }
     child_exit_status_ = exit_status;
     clock_gettime(0, &time_last_exit_);
 
-    child_pid_ = -1;
+    child_pid_ = std::nullopt;
     if (on_exit_handler_) {
       on_exit_handler_();
       on_exit_handler_ = nullptr;
@@ -889,9 +893,10 @@ void OpenBuffer::AppendLines(
 void OpenBuffer::Reload() {
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
 
-  if (child_pid_ != -1) {
+  if (child_pid_.has_value()) {
     LOG(INFO) << "Sending SIGTERM.";
-    kill(-child_pid_, SIGTERM);
+    file_system_driver().Kill(ProcessId(-child_pid_->read()),
+                              UnixSignal(SIGTERM));
     Set(buffer_variables::reload_after_exit, true);
     return;
   }
@@ -1750,14 +1755,14 @@ const struct timespec OpenBuffer::time_last_exit() const {
 void OpenBuffer::PushSignal(UnixSignal signal) {
   switch (signal.read()) {
     case SIGINT:
-      if (terminal_ == nullptr ? child_pid_ == -1 : fd_ == nullptr) {
+      if (terminal_ == nullptr ? child_pid_ == std::nullopt : fd_ == nullptr) {
         status_.InsertError(Error(L"No subprocess found."));
       } else if (terminal_ == nullptr) {
         status_.SetInformationText(MakeNonNullShared<Line>(
             LineBuilder(Append(NewLazyString(L"SIGINT >> pid:"),
-                               NewLazyString(to_wstring(child_pid_))))
+                               NewLazyString(to_wstring(child_pid_->read()))))
                 .Build()));
-        kill(child_pid_, signal.read());
+        file_system_driver().Kill(child_pid_.value(), signal);
       } else {
         string sequence(1, 0x03);
         (void)write(fd_->fd().read(), sequence.c_str(), sequence.size());
@@ -1852,13 +1857,14 @@ void OpenBuffer::InsertLines(
 
 void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
                                FileDescriptor input_error_fd,
-                               bool fd_is_terminal, pid_t child_pid) {
+                               bool fd_is_terminal,
+                               std::optional<ProcessId> child_pid) {
   if (Read(buffer_variables::clear_on_reload)) {
     ClearContents(MutableLineSequence::ObserverBehavior::kHide);
     SetDiskState(DiskState::kCurrent);
   }
 
-  CHECK_EQ(child_pid_, -1);
+  CHECK(child_pid_ == std::nullopt);
   terminal_ = fd_is_terminal ? std::move(NewTerminal().get_unique()) : nullptr;
 
   auto new_reader = [this](FileDescriptor fd, LineModifierSet modifiers)
@@ -1906,6 +1912,10 @@ const FileDescriptorReader* OpenBuffer::fd() const { return fd_.get(); }
 
 const FileDescriptorReader* OpenBuffer::fd_error() const {
   return fd_error_.get();
+}
+
+std::optional<infrastructure::ProcessId> OpenBuffer::child_pid() const {
+  return child_pid_;
 }
 
 LineNumber OpenBuffer::current_position_line() const { return position().line; }
@@ -2179,7 +2189,7 @@ bool OpenBuffer::dirty() const {
           (!Read(buffer_variables::path).empty() ||
            !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
-         child_pid_ != -1 ||
+         child_pid_.has_value() ||
          (child_exit_status_.has_value() &&
           (!WIFEXITED(child_exit_status_.value()) ||
            WEXITSTATUS(child_exit_status_.value()) != 0));
@@ -2239,8 +2249,8 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     output.insert({L"📌", L""});
   }
 
-  if (child_pid_ != -1) {
-    output.insert({L"🟡", std::to_wstring(child_pid_)});
+  if (child_pid_.has_value()) {
+    output.insert({L"🟡", std::to_wstring(child_pid_->read())});
   } else if (!child_exit_status_.has_value()) {
     // Nothing.
   } else if (WIFEXITED(child_exit_status_.value())) {

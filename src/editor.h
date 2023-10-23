@@ -21,6 +21,7 @@
 #include "src/editor_mode.h"
 #include "src/editor_variables.h"
 #include "src/infrastructure/audio.h"
+#include "src/infrastructure/file_system_driver.h"
 #include "src/insert_history.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -36,8 +37,6 @@ namespace afc::vm {
 class Environment;
 }
 namespace afc::editor {
-
-GHOST_TYPE(UnixSignal, int);
 
 class Buffercontents;
 enum class CommandArgumentModeApplyMode;
@@ -191,7 +190,7 @@ class EditorState {
 
   infrastructure::Path expand_path(infrastructure::Path path) const;
 
-  void PushSignal(UnixSignal signal);
+  void PushSignal(infrastructure::UnixSignal signal);
   void ProcessSignals();
   void StartHandlingInterrupts() { handling_interrupts_ = true; }
   bool handling_interrupts() const { return handling_interrupts_; }
@@ -264,7 +263,7 @@ class EditorState {
   // actually using Edge (e.g. modifies a buffer), we start consuming it.
   bool handling_interrupts_ = false;
 
-  std::vector<UnixSignal> pending_signals_;
+  std::vector<infrastructure::UnixSignal> pending_signals_;
 
   Modifiers modifiers_;
   LineMarks line_marks_;

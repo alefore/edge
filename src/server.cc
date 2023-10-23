@@ -28,28 +28,24 @@ extern "C" {
 #include "src/vm/escape.h"
 #include "src/vm/vm.h"
 
-namespace afc {
-namespace editor {
+namespace gc = afc::language::gc;
 
-using infrastructure::FileDescriptor;
-using infrastructure::FileSystemDriver;
-using infrastructure::Path;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::NonNull;
-using language::PossibleError;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using language::lazy_string::NewLazyString;
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::FileSystemDriver;
+using afc::infrastructure::Path;
+using afc::infrastructure::ProcessId;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::NewLazyString;
+using afc::vm::EscapedString;
 
-namespace gc = language::gc;
-
-using namespace afc::vm;
-
-struct Environment;
-
+namespace afc::editor {
 namespace {
 ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
   while (true) {
@@ -110,7 +106,7 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
       AugmentErrors(L"Unable to create fifo for communication with server",
                     CreateFifo({})));
   LOG(INFO) << "Fifo created: " << private_fifo.read();
-  string command =
+  std::string command =
       "editor.ConnectTo(" +
       ToByteString(EscapedString::FromString(NewLazyString(private_fifo.read()))
                        .CppRepresentation()) +
@@ -158,7 +154,7 @@ void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
 }
 
 futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
-  wstring address_str = target.Read(buffer_variables::path);
+  std::wstring address_str = target.Read(buffer_variables::path);
   FUTURES_ASSIGN_OR_RETURN(Path path, Path::FromString(address_str));
 
   LOG(INFO) << L"Server starts: " << path;
@@ -171,7 +167,8 @@ futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
                  })
       .Transform([target = target.NewRoot()](FileDescriptor fd) {
         LOG(INFO) << "Server received connection: " << fd;
-        target.ptr()->SetInputFiles(fd, FileDescriptor(-1), false, -1);
+        target.ptr()->SetInputFiles(fd, FileDescriptor(-1), false,
+                                    std::optional<ProcessId>());
         return Success();
       });
 }
@@ -218,6 +215,4 @@ gc::Root<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
   buffer.Reload();
   return buffer_root;
 }
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

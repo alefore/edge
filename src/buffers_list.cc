@@ -301,7 +301,7 @@ LineModifierSet GetNumberModifiers(const BuffersListOptions& options,
     }
   } else if (filter_result == FilterResult::kExcluded) {
     output.insert(LineModifier::kDim);
-  } else if (buffer.child_pid() != -1) {
+  } else if (buffer.child_pid().has_value()) {
     output.insert(LineModifier::kYellow);
   } else if (buffer.child_exit_status().has_value()) {
     auto status = buffer.child_exit_status().value();

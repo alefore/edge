@@ -44,7 +44,6 @@ namespace afc {
 namespace editor {
 class ParseTree;
 class TreeParser;
-class UnixSignal;
 class BufferDisplayData;
 class MapMode;
 class MapModeCommands;
@@ -444,16 +443,17 @@ class OpenBuffer {
 
   void SetInputFiles(infrastructure::FileDescriptor input_fd,
                      infrastructure::FileDescriptor input_fd_error,
-                     bool fd_is_terminal, pid_t child_pid);
+                     bool fd_is_terminal,
+                     std::optional<infrastructure::ProcessId> child_pid);
 
   const FileDescriptorReader* fd() const;
   const FileDescriptorReader* fd_error() const;
 
-  pid_t child_pid() const { return child_pid_; }
+  std::optional<infrastructure::ProcessId> child_pid() const;
   std::optional<int> child_exit_status() const { return child_exit_status_; }
   const struct timespec time_last_exit() const;
 
-  void PushSignal(UnixSignal signal);
+  void PushSignal(infrastructure::UnixSignal signal);
 
   infrastructure::FileSystemDriver& file_system_driver() const;
 
@@ -602,8 +602,7 @@ class OpenBuffer {
   };
   ReloadState reload_state_ = ReloadState::kDone;
 
-  // 0 means "no child process"
-  pid_t child_pid_ = -1;
+  std::optional<infrastructure::ProcessId> child_pid_ = std::nullopt;
   std::optional<int> child_exit_status_;
   struct timespec time_last_exit_;
   // Optional function to execute when a sub-process exits.

@@ -47,6 +47,7 @@ using afc::infrastructure::MillisecondsBetween;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::Tracker;
+using afc::infrastructure::UnixSignal;
 using afc::infrastructure::screen::Screen;
 using afc::language::Error;
 using afc::language::FromByteString;

@@ -38,37 +38,39 @@ extern "C" {
 #include "src/vm/callbacks.h"
 #include "src/vm/value.h"
 
-namespace afc::editor {
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::VisitPointer;
-using language::lazy_string::NewLazyString;
-namespace {
-using concurrent::ThreadPoolWithWorkQueue;
-using concurrent::WorkQueue;
-using infrastructure::FileDescriptor;
-using infrastructure::FileSystemDriver;
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::IfObj;
-using language::IgnoreErrors;
-using language::overload;
-using language::PossibleError;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using language::lazy_string::ColumnNumber;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineSequence;
-using language::text::MutableLineSequence;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::concurrent::ThreadPoolWithWorkQueue;
+using afc::concurrent::WorkQueue;
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::FileSystemDriver;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::infrastructure::ProcessId;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::IfObj;
+using afc::language::IgnoreErrors;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
+
+namespace afc::editor {
+namespace {
 
 futures::Value<PossibleError> GenerateContents(
     NonNull<std::shared_ptr<struct stat>> stat_buffer,
@@ -94,7 +96,8 @@ futures::Value<PossibleError> GenerateContents(
         if (!S_ISDIR(stat_buffer->st_mode)) {
           return file_system_driver->Open(path, O_RDONLY | O_NONBLOCK, 0)
               .Transform([&target](FileDescriptor fd) {
-                target.SetInputFiles(fd, FileDescriptor(-1), false, -1);
+                target.SetInputFiles(fd, FileDescriptor(-1), false,
+                                     std::optional<ProcessId>());
                 return Success();
               });
         }

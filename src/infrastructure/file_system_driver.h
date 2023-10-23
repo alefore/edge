@@ -15,6 +15,12 @@ extern "C" {
 namespace afc::infrastructure {
 
 GHOST_TYPE(FileDescriptor, int);
+GHOST_TYPE(UnixSignal, int);
+
+// Why define a GHOST_TYPE for `pid_t`, which is already a "specific" type?
+// Because pid_t is just a `using` or `typedef` alias, so incorrect usage isn't
+// detected by the compiler.
+GHOST_TYPE(ProcessId, pid_t);
 
 // Class used to interact with the file system. All operations are performed
 // asynchronously in a thread pool.
@@ -31,6 +37,7 @@ class FileSystemDriver {
   futures::Value<language::PossibleError> Rename(Path oldpath,
                                                  Path newpath) const;
   futures::Value<language::PossibleError> Mkdir(Path path, mode_t mode) const;
+  language::PossibleError Kill(ProcessId, UnixSignal);
 
  private:
   concurrent::ThreadPoolWithWorkQueue& thread_pool_;
