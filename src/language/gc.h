@@ -193,6 +193,9 @@ class ObjectMetadata {
   concurrent::Protected<Data> data_;
 };
 
+template <typename T>
+struct ExpandHelper {};
+
 // All the objects managed must be allocated within a given pool. Objects in a
 // given pool may only reference objects in the same pool.
 class Pool {
@@ -219,12 +222,9 @@ class Pool {
   template <typename T>
   Root<T> NewRoot(language::NonNull<std::unique_ptr<T>> value_unique) {
     language::NonNull<std::shared_ptr<T>> value = std::move(value_unique);
-    return Ptr<T>(
-               std::weak_ptr<T>(value.get_shared()), NewObjectMetadata([value] {
-                 std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>
-                 Expand(const T&);
-                 return Expand(value.value());
-               }))
+    return Ptr<T>(std::weak_ptr<T>(value.get_shared()),
+                  NewObjectMetadata(
+                      [value] { return ExpandHelper<T>()(value.value()); }))
         .ToRoot();
   }
 

@@ -128,5 +128,12 @@ class Value {
 std::ostream& operator<<(std::ostream& os, const Value& value);
 
 }  // namespace afc::vm
+namespace afc::language::gc {
+template <>
+struct ExpandHelper<afc::vm::Value> {
+  std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
+      const afc::vm::Value& value) const;
+};
+}  // namespace afc::language::gc
 
 #endif  // __AFC_VM_PUBLIC_VALUE_H__

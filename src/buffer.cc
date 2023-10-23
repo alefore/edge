@@ -2662,9 +2662,12 @@ gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor) {
 
 }  // namespace afc::editor
 namespace afc::language::gc {
-std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
-    const editor::OpenBuffer& buffer) {
-  return std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>(
-      {buffer.environment().object_metadata()});
-}
+template <>
+struct ExpandHelper<editor::OpenBuffer> {
+  std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
+      const editor::OpenBuffer& buffer) const {
+    return std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>(
+        {buffer.environment().object_metadata()});
+  }
+};
 }  // namespace afc::language::gc

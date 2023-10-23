@@ -296,8 +296,8 @@ const Environment* Environment::FindNamespace(
 }
 }  // namespace afc::vm
 namespace afc::language::gc {
-std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
-    const afc::vm::Environment& environment) {
-  return environment.Expand();
+std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> ExpandHelper<
+    afc::vm::Environment>::operator()(const afc::vm::Environment& e) const {
+  return e.Expand();
 }
 }  // namespace afc::language::gc

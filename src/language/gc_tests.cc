@@ -16,11 +16,15 @@ struct Node {
 };
 }  // namespace
 
-std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(const Node& node) {
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output;
-  for (auto& child : node.children) output.push_back(child.object_metadata());
-  return output;
-}
+template <>
+struct ExpandHelper<Node> {
+  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
+      const Node& node) const {
+    std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output;
+    for (auto& child : node.children) output.push_back(child.object_metadata());
+    return output;
+  }
+};
 
 namespace {
 Root<Node> MakeLoop(Pool& pool, int size) {

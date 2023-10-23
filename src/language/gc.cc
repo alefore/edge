@@ -508,14 +508,18 @@ struct Node {
 }  // namespace
 
 namespace gc {
-std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(const Node& node) {
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output;
-  for (auto& child : node.children) {
-    output.push_back(child.object_metadata());
+template <>
+struct ExpandHelper<Node> {
+  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
+      const Node& node) {
+    std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output;
+    for (auto& child : node.children) {
+      output.push_back(child.object_metadata());
+    }
+    VLOG(5) << "Generated expansion of node " << &node << ": " << output.size();
+    return output;
   }
-  VLOG(5) << "Generated expansion of node " << &node << ": " << output.size();
-  return output;
-}
+};
 }  // namespace gc
 
 namespace {

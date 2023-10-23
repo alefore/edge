@@ -271,13 +271,16 @@ bool value_gc_tests_registration = tests::Register(
 }
 }  // namespace afc::vm
 namespace afc::language::gc {
-std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
-    const afc::vm::LockedDependencies& dependencies) {
-  return dependencies.dependencies;
-}
+template <>
+struct ExpandHelper<afc::vm::LockedDependencies> {
+  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
+      const afc::vm::LockedDependencies& dependencies) const {
+    return dependencies.dependencies;
+  }
+};
 
-std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> Expand(
-    const afc::vm::Value& value) {
+std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>
+ExpandHelper<afc::vm::Value>::operator()(const afc::vm::Value& value) const {
   return value.expand();
 }
 }  // namespace afc::language::gc
