@@ -19,6 +19,16 @@ struct BagOptions {
 // This class is thread-safe.
 template <typename T>
 class Bag {
+  // Not const to allow move operations.
+  BagOptions options_;
+
+  // Why does `shards_` wrap values in NonNull<std::unique_ptr<>>? That allows
+  // us to support moves without invalidating Bag::iteartor instances. The
+  // iterators need to reference the containing shard in a way that survives
+  // moves (of the corresponding Bag).
+  std::vector<language::NonNull<std::unique_ptr<Protected<std::list<T>>>>>
+      shards_;
+
  public:
   Bag(BagOptions options)
       : options_(std::move(options)), shards_(options_.shards) {
@@ -30,7 +40,7 @@ class Bag {
 
   struct iterator {
     typename std::list<T>::iterator it;
-    size_t shard;
+    language::NonNull<Protected<std::list<T>>*> shard;
   };
 
   size_t size() const {
@@ -43,13 +53,11 @@ class Bag {
 
   iterator Add(T t) {
     size_t shard = rand() % shards_.size();
-    return iterator{
-        .it = shards_[shard].lock(
-            [&](language::NonNull<std::unique_ptr<std::list<T>>>& l) {
-              l->push_back(std::move(t));
-              return std::prev(l->end());
-            }),
-        .shard = shard};
+    return iterator{.it = shards_[shard]->lock([&](std::list<T>& l) {
+                      l.push_back(std::move(t));
+                      return std::prev(l.end());
+                    }),
+                    .shard = shards_[shard].get()};
   }
 
   template <class Predicate>
@@ -58,12 +66,9 @@ class Bag {
                  [&predicate](std::list<T>& s) { s.remove_if(predicate); });
   }
 
-  void erase(iterator position) {
-    CHECK_LT(position.shard, shards_.size());
-    shards_[position.shard].lock(
-        [&](language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
-          shard->erase(position.it);
-        });
+  static void erase(iterator position) {
+    position.shard->lock(
+        [&](std::list<T>& shard) { shard.erase(position.it); });
   }
 
   template <typename Callable>
@@ -71,10 +76,16 @@ class Bag {
     CHECK_EQ(options_.shards, shards_.size());
     for (size_t i = 0; i < options_.shards; i++)
       operation.Add([&shard = shards_[i], callable] {
-        shard.lock(
-            [callable](language::NonNull<std::unique_ptr<std::list<T>>>& s) {
-              callable(s.value());
-            });
+        shard->lock([callable](std::list<T>& s) { callable(s); });
+      });
+  }
+
+  template <typename Callable>
+  void ForEachShard(const Operation& operation, Callable callable) const {
+    CHECK_EQ(options_.shards, shards_.size());
+    for (size_t i = 0; i < options_.shards; i++)
+      operation.Add([&shard = shards_[i], callable] {
+        shard->lock([callable](const std::list<T>& s) { callable(s); });
       });
   }
 
@@ -87,36 +98,25 @@ class Bag {
 
   template <typename Callable>
   void ForEachSerial(Callable callable) {
-    ForEachShardSerial(
-        [&callable](language::NonNull<std::unique_ptr<std::list<T>>>& s) {
-          for (auto& t : s.value()) callable(t);
-        });
+    ForEachShardSerial([&callable](std::list<T>& s) {
+      for (auto& t : s) callable(t);
+    });
   }
 
  private:
   template <typename Callable>
   void ForEachShardSerial(Callable callable) {
     CHECK_EQ(options_.shards, shards_.size());
-    for (size_t i = 0; i < options_.shards; i++) shards_[i].lock(callable);
+    for (size_t i = 0; i < options_.shards; i++) shards_[i]->lock(callable);
   }
 
   template <typename Callable>
   void ForEachShardSerial(Callable callable) const {
     CHECK_EQ(options_.shards, shards_.size());
     for (size_t i = 0; i < options_.shards; i++)
-      shards_[i].lock(
-          [callable](
-              const language::NonNull<std::unique_ptr<std::list<T>>>& shard) {
-            callable(shard.value());
-          });
+      shards_[i]->lock(
+          [callable](const std::list<T>& shard) { callable(shard); });
   }
-
-  // Not const to allow move operations.
-  BagOptions options_;
-  // These is a vector of NonNull<std::unique_ptr<>> to be able to support moves
-  // that don't invalidate iterators.
-  std::vector<Protected<language::NonNull<std::unique_ptr<std::list<T>>>>>
-      shards_;
 };
 }  // namespace afc::concurrent
 #endif

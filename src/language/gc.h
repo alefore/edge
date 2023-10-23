@@ -61,7 +61,7 @@
 //
 //     private:
 //      // The dependencies of this instance. This example assumes that `Foo`
-//      // instances may themselves contain references back to this T.
+//      // instances may themselves contain references back to this `T`.
 //      std::vector<Ptr<Foo>> dependencies_;
 //    };
 //
@@ -184,12 +184,10 @@ class ObjectMetadata {
     ExpandState expand_state = ExpandState::kUnreached;
   };
 
-  // `container_bag_` and `container_bag_iterator_` are used to eagerly remove
-  // this object from the corresponding bag during its deletion. That means that
-  // `container_bag_` must only be deleted after all objects stored in it have
-  // been deleted.
-  concurrent::Bag<std::weak_ptr<ObjectMetadata>>* container_bag_ = nullptr;
-  concurrent::Bag<std::weak_ptr<ObjectMetadata>>::iterator
+  // `container_bag_iterator_` is used to eagerly remove this object from the
+  // corresponding bag during its deletion. That means that the corresponding
+  // bag must only be deleted after all objects stored in it have been deleted.
+  std::optional<concurrent::Bag<std::weak_ptr<ObjectMetadata>>::iterator>
       container_bag_iterator_;
 
   concurrent::Protected<Data> data_;
@@ -275,8 +273,7 @@ class Pool {
 
   RootRegistration AddRoot(std::weak_ptr<ObjectMetadata> object_metadata);
 
-  using ObjectMetadataBag = language::NonNull<
-      std::unique_ptr<concurrent::Bag<std::weak_ptr<ObjectMetadata>>>>;
+  using ObjectMetadataBag = concurrent::Bag<std::weak_ptr<ObjectMetadata>>;
   using ObjectExpandVector =
       std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>;
 
@@ -287,8 +284,6 @@ class Pool {
 
     bool IsEmpty() const;
 
-    // `object_metadata` and `roots` are unique_ptr to allow us to move them
-    // into `data_` preserving all iterators.
     ObjectMetadataBag object_metadata;
 
     ObjectMetadataBag roots;
