@@ -102,10 +102,10 @@ class VectorBlock {
   }
 
   static VectorBlock Append(VectorBlock a, VectorBlock b) {
-    std::vector<T> values = std::move(a.values_);
-    values.insert(values.end(), std::make_move_iterator(b.values_.begin()),
-                  std::make_move_iterator(b.values_.end()));
-    return VectorBlock(ConstructorAccessTag(), std::move(values));
+    a.values_.insert(a.values_.end(),
+                     std::make_move_iterator(b.values_.begin()),
+                     std::make_move_iterator(b.values_.end()));
+    return a;
   }
 
   VectorBlock Prefix(size_t len) const {
