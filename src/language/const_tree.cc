@@ -177,7 +177,8 @@ bool registration_erase =
       auto tree = GetTree(elements);
       auto start = Now();
       for (auto& index : indices) {
-        CHECK_EQ(IntTree::Size(IntTree::Erase(tree, index)),
+        CHECK_EQ(IntTree::Size(IntTree::Erase(
+                     NonNull<IntTree::Ptr>::Unsafe(tree), index)),
                  static_cast<size_t>(elements - 1));
       }
       auto end = Now();
@@ -231,8 +232,8 @@ const bool const_tree_tests_registration = tests::Register(
 
         tree_copy = tree;
         while (tree_copy != nullptr) {
-          tree_copy =
-              IntTree::Erase(tree_copy, random() % (IntTree::Size(tree_copy)));
+          tree_copy = IntTree::Erase(NonNull<IntTree::Ptr>::Unsafe(tree_copy),
+                                     random() % (IntTree::Size(tree_copy)));
           CHECK(IsEqual(v, tree));
         }
       }}});

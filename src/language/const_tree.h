@@ -229,9 +229,9 @@ class ConstTree {
         .Share();
   }
 
-  static Ptr Erase(const Ptr& tree, size_t index) {
-    CHECK_LE(index, Size(tree));
-    if (Size(tree) == 1) return nullptr;
+  static Ptr Erase(const NonNull<Ptr>& tree, size_t index) {
+    CHECK_LT(index, tree->size());
+    if (tree->size() == 1) return nullptr;
     return tree->Erase(index).Share().get_shared();
   }
 
@@ -380,12 +380,14 @@ class ConstTree {
   inline ConstTree Erase(size_t index) const {
     auto size_left = Size(left_);
     if (index < size_left)
-      return FixBlocks(block_, Erase(left_, index), right_);
+      return FixBlocks(block_, Erase(NonNull<Ptr>::Unsafe(left_), index),
+                       right_);
     index -= size_left;
 
     if (index >= block_->size()) {
       index -= block_->size();
-      return Rebalance(block_, left_, Erase(right_, index));
+      return Rebalance(block_, left_,
+                       Erase(NonNull<Ptr>::Unsafe(right_), index));
     }
 
     if (block_->size() > 1) {
