@@ -1,6 +1,14 @@
 #ifndef __AFC_LANGUAGE_GC_UTIL_H__
 #define __AFC_LANGUAGE_GC_UTIL_H__
 
+#include <memory>
+#include <optional>
+#include <tuple>
+#include <vector>
+
+#include "src/language/gc.h"
+#include "src/language/safe_types.h"
+
 namespace afc::language::gc {
 
 template <typename T>
