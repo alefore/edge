@@ -21,10 +21,6 @@ class EditorMode {
       language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const = 0;
 };
-
-std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-Expand(const EditorMode& t);
-
 }  // namespace afc::editor
 
 #endif

@@ -102,12 +102,5 @@ const types::ObjectName VMTypeMapper<language::NonNull<
     std::shared_ptr<std::set<std::wstring>>>>::object_type_name;
 
 }  // namespace afc::vm
-namespace afc::language::gc {
-template <>
-struct ExpandHelper<afc::vm::Environment> {
-  std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
-      const afc::vm::Environment& environment) const;
-};
-}  // namespace afc::language::gc
 
 #endif

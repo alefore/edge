@@ -193,7 +193,7 @@ class ObjectMetadata {
   concurrent::Protected<Data> data_;
 };
 
-template <typename T>
+template <typename T, typename Enable = void>
 struct ExpandHelper {};
 
 // All the objects managed must be allocated within a given pool. Objects in a
@@ -544,5 +544,29 @@ template <typename T>
 bool operator<(const Root<T>& a, const Root<T>& b) {
   return &a.ptr().value() < &b.ptr().value();
 }
+
+// Convenience declarations for Expand methods /////////////////////////////////
+
+template <typename T>
+using ExpandMethodType = decltype(std::declval<const T&>().Expand());
+
+template <typename T, typename = void>
+struct HasExpandMethod : std::false_type {};
+
+template <typename T>
+struct HasExpandMethod<
+    T, std::enable_if_t<std::is_same_v<
+           decltype(std::declval<const T&>().Expand()),
+           std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>>>>
+    : std::true_type {};
+
+template <typename T>
+struct ExpandHelper<T, std::enable_if_t<HasExpandMethod<T>::value>> {
+  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
+      const T& object) {
+    return object.Expand();
+  }
+};
+
 };  // namespace afc::language::gc
 #endif

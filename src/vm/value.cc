@@ -142,13 +142,17 @@ const std::wstring& Value::get_symbol() const {
 
 struct LockedDependencies {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies;
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
+    return dependencies;
+  }
 };
 
 Value::Callback Value::LockCallback() {
   CHECK(IsFunction());
   gc::Root<LockedDependencies> dependencies =
       pool_.NewRoot(MakeNonNullUnique<LockedDependencies>(
-          LockedDependencies{.dependencies = expand()}));
+          LockedDependencies{.dependencies = Expand()}));
   Callback callback = std::get<Callback>(value_);
   CHECK(callback != nullptr);
   return [callback, dependencies](std::vector<gc::Root<Value>> args,
@@ -184,7 +188,7 @@ ValueOrError<double> Value::ToDouble() const {
 }
 
 std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
-Value::expand() const {
+Value::Expand() const {
   return expand_callback == nullptr
              ? std::vector<language::NonNull<
                    std::shared_ptr<language::gc::ObjectMetadata>>>()
@@ -270,17 +274,3 @@ bool value_gc_tests_registration = tests::Register(
       }}});
 }
 }  // namespace afc::vm
-namespace afc::language::gc {
-template <>
-struct ExpandHelper<afc::vm::LockedDependencies> {
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
-      const afc::vm::LockedDependencies& dependencies) const {
-    return dependencies.dependencies;
-  }
-};
-
-std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>
-ExpandHelper<afc::vm::Value>::operator()(const afc::vm::Value& value) const {
-  return value.expand();
-}
-}  // namespace afc::language::gc

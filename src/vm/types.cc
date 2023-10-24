@@ -228,12 +228,3 @@ void ObjectType::ForEachField(
 }
 
 }  // namespace afc::vm
-namespace afc::language::gc {
-template <>
-struct ExpandHelper<afc::vm::ObjectType> {
-  std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
-      const afc::vm::ObjectType& t) const {
-    return t.Expand();
-  }
-};
-}  // namespace afc::language::gc
