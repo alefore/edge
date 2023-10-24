@@ -252,9 +252,14 @@ using std::to_wstring;
     BufferName(L"- future paste buffer");
 
 /* static */ gc::Root<OpenBuffer> OpenBuffer::New(Options options) {
+  language::NonNull<std::shared_ptr<MapModeCommands>> default_commands =
+      options.editor.default_commands()->NewChild();
+  language::NonNull<std::shared_ptr<EditorMode>> mode =
+      MakeNonNullUnique<MapMode>(default_commands);
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
-          ConstructorAccessTag(), std::move(options)));
+          ConstructorAccessTag(), std::move(options),
+          std::move(default_commands), std::move(mode)));
   output.ptr()->Initialize(output.ptr());
   return output;
 }
@@ -344,7 +349,10 @@ class OpenBufferMutableLineSequenceObserver
   gc::WeakPtr<OpenBuffer> buffer_;
 };
 
-OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
+OpenBuffer::OpenBuffer(
+    ConstructorAccessTag, Options options,
+    language::NonNull<std::shared_ptr<MapModeCommands>> default_commands,
+    language::NonNull<std::shared_ptr<EditorMode>> mode)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -366,8 +374,8 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options)
                        .ptr()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
-      default_commands_(options_.editor.default_commands()->NewChild()),
-      mode_(MakeNonNullUnique<MapMode>(default_commands_)),
+      default_commands_(std::move(default_commands)),
+      mode_(std::move(mode)),
       status_(options_.editor.audio_player()),
       file_system_driver_(editor().thread_pool()) {
   work_queue_->OnSchedule().Add(std::bind_front(

@@ -106,7 +106,10 @@ class OpenBuffer {
   };
 
   static language::gc::Root<OpenBuffer> New(Options options);
-  OpenBuffer(ConstructorAccessTag, Options options);
+  OpenBuffer(
+      ConstructorAccessTag, Options options,
+      language::NonNull<std::shared_ptr<MapModeCommands>> default_commands,
+      language::NonNull<std::shared_ptr<EditorMode>> mode);
   ~OpenBuffer();
 
   EditorState& editor() const;
