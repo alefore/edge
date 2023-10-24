@@ -2,10 +2,13 @@
 
 #include <glog/logging.h>
 
+#include "src/language/container.h"
 #include "src/language/hash.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
+
+using afc::language::GetValueOrDie;
 
 namespace std {
 template <>
@@ -157,32 +160,31 @@ std::wstring TypesToString(const std::unordered_set<Type>& types) {
 
 std::wstring ToString(const Type& type) {
   return std::visit(
-      overload{[](const types::Void&) -> std::wstring { return L"void"; },
-               [](const types::Bool&) -> std::wstring { return L"bool"; },
-               [](const types::Number&) -> std::wstring { return L"number"; },
-               [](const types::String&) -> std::wstring { return L"string"; },
-               [](const types::Symbol&) -> std::wstring { return L"symbol"; },
-               [](const types::ObjectName& object) -> std::wstring {
-                 return object.read();
-               },
-               [](const types::Function& function_type) -> std::wstring {
-                 const std::unordered_map<PurityType, std::wstring>
-                     function_purity_types = {
-                         {PurityType::kPure, L"function"},
-                         {PurityType::kReader, L"Function"},
-                         {PurityType::kUnknown, L"FUNCTION"}};
-                 wstring output =
-                     function_purity_types.find(function_type.function_purity)
-                         ->second +
-                     L"<" + ToString(function_type.output.get()) + L"(";
-                 wstring separator = L"";
-                 for (const Type& input : function_type.inputs) {
-                   output += separator + ToString(input);
-                   separator = L", ";
-                 }
-                 output += L")>";
-                 return output;
-               }},
+      overload{
+          [](const types::Void&) -> std::wstring { return L"void"; },
+          [](const types::Bool&) -> std::wstring { return L"bool"; },
+          [](const types::Number&) -> std::wstring { return L"number"; },
+          [](const types::String&) -> std::wstring { return L"string"; },
+          [](const types::Symbol&) -> std::wstring { return L"symbol"; },
+          [](const types::ObjectName& object) -> std::wstring {
+            return object.read();
+          },
+          [](const types::Function& function_type) -> std::wstring {
+            const std::unordered_map<PurityType, std::wstring>
+                function_purity_types = {{PurityType::kPure, L"function"},
+                                         {PurityType::kReader, L"Function"},
+                                         {PurityType::kUnknown, L"FUNCTION"}};
+            wstring output = GetValueOrDie(function_purity_types,
+                                           function_type.function_purity) +
+                             L"<" + ToString(function_type.output.get()) + L"(";
+            wstring separator = L"";
+            for (const Type& input : function_type.inputs) {
+              output += separator + ToString(input);
+              separator = L", ";
+            }
+            output += L")>";
+            return output;
+          }},
       type);
 }
 
