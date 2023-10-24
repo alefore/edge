@@ -10,6 +10,7 @@
 
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
+#include "src/language/gc_util.h"
 #include "src/math/numbers.h"
 #include "src/vm/types.h"
 
@@ -100,7 +101,8 @@ class Value {
     return get_user_value<T>(std::get<types::ObjectName>(type));
   }
 
-  Callback LockCallback();
+  language::gc::Root<language::gc::ValueWithFixedDependencies<Callback>>
+  LockCallback();
 
   // This is similar to `get_double`, but can deal with type conversion from
   // integer.

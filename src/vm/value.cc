@@ -6,6 +6,15 @@
 #include "src/tests/tests.h"
 #include "src/vm/escape.h"
 
+namespace gc = afc::language::gc;
+
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::NewLazyString;
 using afc::math::numbers::Number;
 using afc::math::numbers::ToDouble;
 using afc::math::numbers::ToString;
@@ -13,15 +22,6 @@ using afc::math::numbers::ToString;
 size_t constexpr kDefaultPrecision = 5ul;
 
 namespace afc::vm {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ValueOrError;
-using language::lazy_string::NewLazyString;
-
-namespace gc = language::gc;
 
 /* static */ language::gc::Root<Value> Value::New(language::gc::Pool& pool,
                                                   const Type& type) {
@@ -140,25 +140,19 @@ const std::wstring& Value::get_symbol() const {
   return std::get<Symbol>(value_).symbol_value;
 }
 
-struct LockedDependencies {
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies;
-
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    return dependencies;
-  }
-};
-
-Value::Callback Value::LockCallback() {
+gc::Root<gc::ValueWithFixedDependencies<Value::Callback>>
+Value::LockCallback() {
   CHECK(IsFunction());
-  gc::Root<LockedDependencies> dependencies =
-      pool_.NewRoot(MakeNonNullUnique<LockedDependencies>(
-          LockedDependencies{.dependencies = Expand()}));
-  Callback callback = std::get<Callback>(value_);
-  CHECK(callback != nullptr);
-  return [callback, dependencies](std::vector<gc::Root<Value>> args,
-                                  Trampoline& trampoline) {
-    return callback(std::move(args), trampoline);
-  };
+  return pool_.NewRoot(
+      MakeNonNullUnique<gc::ValueWithFixedDependencies<Value::Callback>>(
+          gc::ValueWithFixedDependencies<Value::Callback>{
+              .value =
+                  [callback = std::get<Callback>(value_)](
+                      std::vector<gc::Root<Value>> args,
+                      Trampoline& trampoline) {
+                    return callback(std::move(args), trampoline);
+                  },
+              .dependencies = Expand()}));
 }
 
 ValueOrError<double> Value::ToDouble() const {
@@ -230,45 +224,46 @@ bool value_gc_tests_registration = tests::Register(
         std::shared_ptr<bool> nested = std::make_shared<bool>();
         std::weak_ptr<bool> nested_weak = nested;
 
-        Value::Callback callback = [&] {
-          gc::Root<Value> parent = [&] {
-            gc::Root<Value> child = Value::NewFunction(
-                pool, PurityType::kPure, types::Void{}, {},
-                [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
-                  return futures::Past(Value::NewVoid(pool));
-                },
-                [nested] {
-                  return std::vector<
-                      NonNull<std::shared_ptr<gc::ObjectMetadata>>>();
-                });
-            return Value::NewFunction(
-                pool, PurityType::kPure, types::Void{}, {},
-                [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
-                                          Trampoline&) {
-                  return futures::Past(Error(L"Some error."));
-                },
-                [child_frame = child.ptr().object_metadata()] {
-                  return std::vector<
-                      NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
-                      {child_frame});
-                });
-          }();
+        std::optional<gc::Root<gc::ValueWithFixedDependencies<Value::Callback>>>
+            callback = [&] {
+              gc::Root<Value> parent = [&] {
+                gc::Root<Value> child = Value::NewFunction(
+                    pool, PurityType::kPure, types::Void{}, {},
+                    [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
+                      return futures::Past(Value::NewVoid(pool));
+                    },
+                    [nested] {
+                      return std::vector<
+                          NonNull<std::shared_ptr<gc::ObjectMetadata>>>();
+                    });
+                return Value::NewFunction(
+                    pool, PurityType::kPure, types::Void{}, {},
+                    [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
+                                              Trampoline&) {
+                      return futures::Past(Error(L"Some error."));
+                    },
+                    [child_frame = child.ptr().object_metadata()] {
+                      return std::vector<
+                          NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
+                          {child_frame});
+                    });
+              }();
 
-          nested = nullptr;
-          CHECK(nested_weak.lock() != nullptr);
+              nested = nullptr;
+              CHECK(nested_weak.lock() != nullptr);
 
-          pool.FullCollect();
-          CHECK(nested_weak.lock() != nullptr);
+              pool.FullCollect();
+              CHECK(nested_weak.lock() != nullptr);
 
-          return parent.ptr()->LockCallback();
-        }();
+              return parent.ptr()->LockCallback();
+            }();
 
         CHECK(nested_weak.lock() != nullptr);
         pool.FullCollect();
 
         CHECK(nested_weak.lock() != nullptr);
 
-        callback = nullptr;
+        callback = std::nullopt;
         pool.FullCollect();
         CHECK(nested_weak.lock() == nullptr);
       }}});

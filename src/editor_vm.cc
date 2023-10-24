@@ -225,7 +225,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                   args.push_back(
                       VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
                           trampoline.pool(), buffer.NewRoot()));
-                  return callback(std::move(args), trampoline)
+                  return callback.ptr()
+                      ->value(std::move(args), trampoline)
                       .Transform([](gc::Root<vm::Value>) { return Success(); })
                       .ConsumeErrors([output](Error error) {
                         output.value() = error;
@@ -266,7 +267,8 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
                       args.push_back(
                           VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
                               trampoline.pool(), buffer.NewRoot()));
-                      return callback(std::move(args), trampoline)
+                      return callback.ptr()
+                          ->value(std::move(args), trampoline)
                           .Transform(
                               [](gc::Root<vm::Value>) { return Success(); })
                           // TODO(easy): Don't ConsumeErrors; change

@@ -194,7 +194,8 @@ void DefineSortLinesByKey(
               Trampoline& trampoline;
               gc::Root<OpenBuffer> buffer;
               PossibleError possible_error = Success();
-              vm::Value::Callback callback;
+              gc::Root<gc::ValueWithFixedDependencies<vm::Value::Callback>>
+                  callback;
               std::unordered_map<std::wstring, KeyType> keys = {};
             };
 
@@ -224,8 +225,8 @@ void DefineSortLinesByKey(
             return futures::ForEach(
                        inputs.get_shared(),
                        [data, get_key](LineNumber line_number) {
-                         return data
-                             ->callback(
+                         return data->callback.ptr()
+                             ->value(
                                  {vm::Value::NewNumber(
                                      data->trampoline.pool(),
                                      numbers::FromSizeT(line_number.read()))},

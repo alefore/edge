@@ -115,5 +115,16 @@ auto BindFrontWithWeakPtr(Func&& func, Args&&... args) {
   return BindFrontWithWeakPtrImpl<Func, Args...>(std::forward<Func>(func),
                                                  std::forward<Args>(args)...);
 }
+
+template <typename Value>
+struct ValueWithFixedDependencies {
+  Value value;
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies;
+
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
+    return dependencies;
+  }
+};
 }  // namespace afc::language::gc
 #endif  // __AFC_LANGUAGE_GC_UTIL_H__

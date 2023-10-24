@@ -205,7 +205,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                         call_args.push_back(
                             VMTypeMapper<typename Container::value_type>::New(
                                 trampoline.pool(), current_value));
-                        return callback(std::move(call_args), trampoline);
+                        return callback.ptr()->value(std::move(call_args),
+                                                     trampoline);
                       })
                       .Transform([output_container, current_value](
                                      gc::Root<Value> callback_output) {
@@ -255,7 +256,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                         call_args.push_back(
                             VMTypeMapper<typename Container::value_type>::New(
                                 trampoline.pool(), current_value));
-                        return callback(std::move(call_args), trampoline);
+                        return callback.ptr()->value(std::move(call_args),
+                                                     trampoline);
                       })
                       .Transform([](gc::Root<Value>) {
                         return futures::Past(afc::language::Success());

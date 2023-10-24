@@ -133,12 +133,13 @@ class FunctionCall : public Expression {
           std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
           args_types,
       NonNull<std::shared_ptr<std::vector<gc::Root<Value>>>> values,
-      Value::Callback callback) {
+      gc::Root<gc::ValueWithFixedDependencies<Value::Callback>> callback) {
     DVLOG(5) << "Evaluating function parameters, args: " << values->size()
              << " of " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      return callback(std::move(values.value()), trampoline)
+      return callback.ptr()
+          ->value(std::move(values.value()), trampoline)
           .Transform([](gc::Root<Value> return_value) {
             DVLOG(5) << "Function call consumer gets value: "
                      << return_value.ptr().value();
@@ -289,44 +290,44 @@ std::unique_ptr<Expression> NewMethodLookup(
             futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
                 Trampoline& trampoline, const Type& type) override {
               return trampoline.Bounce(obj_expr_, obj_expr_->Types()[0])
-                  .Transform(
-                      [type, external_types = external_types_,
-                       delegates = delegates_,
-                       &pool = trampoline.pool()](EvaluationOutput output)
-                          -> ValueOrError<EvaluationOutput> {
-                        switch (output.type) {
-                          case EvaluationOutput::OutputType::kReturn:
-                            return Success(std::move(output));
-                          case EvaluationOutput::OutputType::kContinue:
-                            for (auto& delegate : delegates)
-                              if (GetImplicitPromotion(
-                                      RemoveObjectFirstArgument(delegate->type),
-                                      type) != nullptr) {
-                                const types::Function& function_type =
-                                    std::get<types::Function>(type);
-                                return Success(
-                                    EvaluationOutput::New(Value::NewFunction(
-                                        pool, function_type.function_purity,
-                                        function_type.output.get(),
-                                        function_type.inputs,
-                                        [obj = std::move(output.value),
-                                         callback = delegate->LockCallback()](
-                                            std::vector<gc::Root<Value>> args,
-                                            Trampoline& trampoline_inner) {
-                                          args.emplace(args.begin(), obj);
-                                          return callback(std::move(args),
-                                                          trampoline_inner);
-                                        })));
-                              }
-                            LOG(FATAL)
-                                << "Unable to find proper delegate with type: "
-                                << type << ", candidates: "
-                                << TypesToString(external_types.value());
-                        }
-                        language::Error error(L"Unhandled OutputType case.");
-                        LOG(FATAL) << error;
-                        return error;
-                      });
+                  .Transform([type, external_types = external_types_,
+                              delegates = delegates_,
+                              &pool =
+                                  trampoline.pool()](EvaluationOutput output)
+                                 -> ValueOrError<EvaluationOutput> {
+                    switch (output.type) {
+                      case EvaluationOutput::OutputType::kReturn:
+                        return Success(std::move(output));
+                      case EvaluationOutput::OutputType::kContinue:
+                        for (auto& delegate : delegates)
+                          if (GetImplicitPromotion(
+                                  RemoveObjectFirstArgument(delegate->type),
+                                  type) != nullptr) {
+                            const types::Function& function_type =
+                                std::get<types::Function>(type);
+                            return Success(
+                                EvaluationOutput::New(Value::NewFunction(
+                                    pool, function_type.function_purity,
+                                    function_type.output.get(),
+                                    function_type.inputs,
+                                    [obj = std::move(output.value),
+                                     callback = delegate->LockCallback()](
+                                        std::vector<gc::Root<Value>> args,
+                                        Trampoline& trampoline_inner) {
+                                      args.emplace(args.begin(), obj);
+                                      return callback.ptr()->value(
+                                          std::move(args), trampoline_inner);
+                                    })));
+                          }
+                        LOG(FATAL)
+                            << "Unable to find proper delegate with type: "
+                            << type << ", candidates: "
+                            << TypesToString(external_types.value());
+                    }
+                    language::Error error(L"Unhandled OutputType case.");
+                    LOG(FATAL) << error;
+                    return error;
+                  });
             }
 
            private:

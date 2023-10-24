@@ -69,7 +69,7 @@ const bool tests_registration = tests::Register(
                    .environment = NewDefaultEnvironment(pool),
                    .yield_callback = nullptr});
                futures::ValueOrError<gc::Root<Value>> output =
-                   promoted_function.ptr()->LockCallback()(
+                   promoted_function.ptr()->LockCallback().ptr()->value(
                        {Value::NewString(pool, L"alejo"),
                         Value::NewBool(pool, true)},
                        trampoline);
