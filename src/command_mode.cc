@@ -382,6 +382,7 @@ class InsertionModifierCommand : public Command {
   EditorState& editor_state_;
 };
 
+// TODO(trivial, 2023-10-18): This is dead code, I think. Nuke it.
 class ReverseDirectionCommand : public Command {
  public:
   ReverseDirectionCommand(EditorState& editor_state)
