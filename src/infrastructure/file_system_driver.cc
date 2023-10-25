@@ -2,6 +2,10 @@
 
 #include <csignal>
 
+extern "C" {
+#include <sys/wait.h>
+}
+
 #include "src/language/wstring.h"
 
 namespace afc::infrastructure {
@@ -92,6 +96,16 @@ PossibleError FileSystemDriver::Kill(ProcessId pid, UnixSignal sig) {
   if (kill(pid.read(), sig.read()) == -1)
     Error(L"Kill: " + FromByteString(strerror(errno)));
   return Success();
+}
+
+futures::ValueOrError<FileSystemDriver::WaitPidOutput>
+FileSystemDriver::WaitPid(ProcessId pid, int options) {
+  return thread_pool_.Run([pid, options]() -> ValueOrError<WaitPidOutput> {
+    int wstatus;
+    if (waitpid(pid.read(), &wstatus, options) == -1)
+      return Error(L"Waitpid: " + FromByteString(strerror(errno)));
+    return WaitPidOutput{.pid = pid, .wstatus = wstatus};
+  });
 }
 
 }  // namespace afc::infrastructure

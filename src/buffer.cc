@@ -67,11 +67,12 @@ extern "C" {
 #include "src/vm/value.h"
 #include "src/vm/vm.h"
 
-using afc::language::text::SortedLineSequence;
 namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
+
 using afc::concurrent::WorkQueue;
 using afc::futures::IterationControlCommand;
+using afc::futures::OnError;
 using afc::infrastructure::AbsolutePath;
 using afc::infrastructure::AddSeconds;
 using afc::infrastructure::FileDescriptor;
@@ -107,6 +108,7 @@ using afc::language::ShellEscape;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::WeakPtrLockingObserver;
 using afc::language::lazy_string::ColumnNumber;
@@ -125,6 +127,7 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::MutableLineSequenceObserver;
 using afc::language::text::Range;
+using afc::language::text::SortedLineSequence;
 
 namespace afc::editor {
 namespace {
@@ -603,50 +606,62 @@ void OpenBuffer::AppendEmptyLine() {
   contents_.push_back(NonNull<std::shared_ptr<Line>>());
 }
 
-void OpenBuffer::EndOfFile() {
+futures::Value<language::PossibleError> OpenBuffer::EndOfFile() {
   UpdateLastAction();
   CHECK(fd_ == nullptr);
   CHECK(fd_error_ == nullptr);
-  if (child_pid_.has_value()) {
-    int exit_status;
-    // TODO(trivial, 2023-10-23): Define function in file_system_driver.
-    if (waitpid(child_pid()->read(), &exit_status, 0) == -1) {
-      status_.Set(Error(L"waitpid failed: " + FromByteString(strerror(errno))));
-      return;
+  futures::Value<PossibleError> value = VisitOptional(
+      [&](ProcessId child_pid) -> futures::Value<PossibleError> {
+        return OnError(file_system_driver_.WaitPid(child_pid, 0),
+                       [&](Error error) -> futures::ValueOrError<
+                                            FileSystemDriver::WaitPidOutput> {
+                         return futures::Past(error);
+                       })
+            .Transform([this, root = NewRoot()](
+                           FileSystemDriver::WaitPidOutput waitpid_output) {
+              child_exit_status_ = waitpid_output.wstatus;
+              clock_gettime(0, &time_last_exit_);
+
+              child_pid_ = std::nullopt;
+              if (on_exit_handler_) {
+                on_exit_handler_();
+                on_exit_handler_ = nullptr;
+              }
+              return futures::Past(Success());
+            });
+      },
+      []() -> futures::Value<PossibleError> {
+        return futures::Past(Success());
+      },
+      child_pid_);
+
+  return std::move(value).Transform([this, root = NewRoot()](EmptyValue) {
+    // We can remove expired marks now. We know that the set of fresh marks is
+    // now complete.
+    editor().line_marks().RemoveExpiredMarksFromSource(name());
+
+    end_of_file_observers_.Notify();
+    contents_observer_->Notify(false);
+
+    if (Read(buffer_variables::reload_after_exit)) {
+      Set(buffer_variables::reload_after_exit,
+          Read(buffer_variables::default_reload_after_exit));
+      Reload();
     }
-    child_exit_status_ = exit_status;
-    clock_gettime(0, &time_last_exit_);
-
-    child_pid_ = std::nullopt;
-    if (on_exit_handler_) {
-      on_exit_handler_();
-      on_exit_handler_ = nullptr;
+    if (Read(buffer_variables::close_after_clean_exit) &&
+        child_exit_status_.has_value() &&
+        WIFEXITED(child_exit_status_.value()) &&
+        WEXITSTATUS(child_exit_status_.value()) == 0) {
+      editor().CloseBuffer(*this);
     }
-  }
 
-  // We can remove expired marks now. We know that the set of fresh marks is now
-  // complete.
-  editor().line_marks().RemoveExpiredMarksFromSource(name());
-
-  end_of_file_observers_.Notify();
-  contents_observer_->Notify(false);
-
-  if (Read(buffer_variables::reload_after_exit)) {
-    Set(buffer_variables::reload_after_exit,
-        Read(buffer_variables::default_reload_after_exit));
-    Reload();
-  }
-  if (Read(buffer_variables::close_after_clean_exit) &&
-      child_exit_status_.has_value() && WIFEXITED(child_exit_status_.value()) &&
-      WEXITSTATUS(child_exit_status_.value()) == 0) {
-    editor().CloseBuffer(*this);
-  }
-
-  std::optional<gc::Root<OpenBuffer>> current_buffer =
-      editor().current_buffer();
-  if (current_buffer.has_value() && name() == BufferName::BuffersList()) {
-    current_buffer->ptr()->Reload();
-  }
+    std::optional<gc::Root<OpenBuffer>> current_buffer =
+        editor().current_buffer();
+    if (current_buffer.has_value() && name() == BufferName::BuffersList()) {
+      current_buffer->ptr()->Reload();
+    }
+    return Success();
+  });
 }
 
 void OpenBuffer::SendEndOfFileToProcess() {

@@ -169,7 +169,7 @@ class OpenBuffer {
   void Reload();
   // Signal that EndOfFile was received (in the input that the editor is reading
   // from fd_).
-  void EndOfFile();
+  futures::Value<language::PossibleError> EndOfFile();
 
   // If the buffer has a child process, sends EndOfFile to it.
   void SendEndOfFileToProcess();

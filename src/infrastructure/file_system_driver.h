@@ -39,6 +39,12 @@ class FileSystemDriver {
   futures::Value<language::PossibleError> Mkdir(Path path, mode_t mode) const;
   language::PossibleError Kill(ProcessId, UnixSignal);
 
+  struct WaitPidOutput {
+    ProcessId pid;
+    int wstatus;
+  };
+  futures::ValueOrError<WaitPidOutput> WaitPid(ProcessId pid, int options);
+
  private:
   concurrent::ThreadPoolWithWorkQueue& thread_pool_;
 };
