@@ -63,6 +63,8 @@ class CppCommand : public Command {
 
   void ProcessInput(wint_t) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
+    // TODO(trivial, 2023-10-26): Use the original environment in which the
+    // expression was compiled, rather than editor_state_'s.
     Evaluate(expression_, editor_state_.gc_pool(), editor_state_.environment(),
              [work_queue =
                   editor_state_.work_queue()](std::function<void()> callback) {
