@@ -47,8 +47,7 @@ class MapModeCommands {
   friend class MapMode;
 
   struct Frame {
-    std::map<std::wstring, language::NonNull<std::unique_ptr<Command>>>
-        commands;
+    std::map<std::wstring, language::gc::Root<Command>> commands;
 
     // The key is the name of a variable. The set contains all commands
     // associated with that variable.

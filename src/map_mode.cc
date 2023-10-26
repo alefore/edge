@@ -85,7 +85,8 @@ MapModeCommands::Coallesce() const {
   for (const auto& frame : frames_) {
     for (const auto& it : frame->commands) {
       if (already_seen.insert(it.first).second) {
-        output[it.second->Category()].insert({it.first, it.second.get()});
+        output[it.second.ptr()->Category()].insert(
+            {it.first, NonNull<Command*>::AddressOf(it.second.ptr().value())});
       }
     }
   }
@@ -95,7 +96,8 @@ MapModeCommands::Coallesce() const {
 void MapModeCommands::Add(std::wstring name,
                           NonNull<std::unique_ptr<Command>> value) {
   CHECK(!frames_.empty());
-  frames_.front()->commands.insert({name, std::move(value)});
+  frames_.front()->commands.insert(
+      {name, editor_state_.gc_pool().NewRoot(std::move(value))});
 }
 
 void MapModeCommands::Add(std::wstring name, std::wstring description,
@@ -136,10 +138,10 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 MapModeCommands::Expand() const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
   for (const NonNull<std::shared_ptr<Frame>>& frame : frames_)
-    for (const NonNull<std::unique_ptr<Command>>& command :
+    for (const gc::Root<Command>& command :
          frame->commands | std::views::values) {
       std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> local =
-          command->Expand();
+          command.ptr()->Expand();
       output.insert(output.end(), local.begin(), local.end());
     }
   return output;
@@ -159,7 +161,7 @@ void MapMode::ProcessInput(wint_t c) {
                    it->first.begin())) {
       if (current_input_ == it->first) {
         current_input_ = L"";
-        it->second->ProcessInput(c);
+        it->second.ptr()->ProcessInput(c);
         return;
       }
       reset_input = false;
