@@ -61,14 +61,20 @@ NonNull<std::unique_ptr<Command>> MakeCommandFromFunction(
 }
 }  // namespace
 
-MapModeCommands::MapModeCommands(EditorState& editor_state)
+/* static */
+gc::Root<MapModeCommands> MapModeCommands::New(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<MapModeCommands>(ConstructorAccessTag(), editor_state));
+}
+
+MapModeCommands::MapModeCommands(ConstructorAccessTag,
+                                 EditorState& editor_state)
     : editor_state_(editor_state), frames_(1) {
   Add(L"?", NewHelpCommand(editor_state_, *this, L"command mode"));
 }
 
 gc::Root<MapModeCommands> MapModeCommands::NewChild() {
-  auto output = editor_state_.gc_pool().NewRoot(
-      MakeNonNullUnique<MapModeCommands>(editor_state_));
+  auto output = MapModeCommands::New(editor_state_);
   output.ptr()->frames_ = frames_;
   output.ptr()->frames_.push_front({});
 

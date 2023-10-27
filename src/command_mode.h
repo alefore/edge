@@ -8,7 +8,7 @@
 
 namespace afc::editor {
 class EditorState;
-language::NonNull<std::unique_ptr<MapModeCommands>> NewCommandMode(
+language::NonNull<std::shared_ptr<MapModeCommands>> NewCommandMode(
     EditorState& editor_state);
 }  // namespace afc::editor
 

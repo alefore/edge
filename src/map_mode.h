@@ -22,6 +22,8 @@ class MapMode;
 class EditorState;
 
 class MapModeCommands {
+  struct ConstructorAccessTag {};
+
   struct Frame {
     std::map<std::wstring, language::gc::Root<Command>> commands;
 
@@ -35,8 +37,9 @@ class MapModeCommands {
   std::list<language::NonNull<std::shared_ptr<Frame>>> frames_;
 
  public:
-  // TODO(trivial, 2023-10-27): Make this constructor explicit.
-  MapModeCommands(EditorState& editor_state);
+  static language::gc::Root<MapModeCommands> New(EditorState& editor_state);
+
+  MapModeCommands(ConstructorAccessTag, EditorState& editor_state);
   language::gc::Root<MapModeCommands> NewChild();
 
   // Flattens the set of commands (in the entire list), grouped by category (as

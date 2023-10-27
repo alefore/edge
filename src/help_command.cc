@@ -322,8 +322,10 @@ const bool buffer_registration = tests::Register(
              [] {
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
                auto buffer = NewBufferForTests(editor.value());
-               MapModeCommands commands(buffer.ptr()->editor());
-               HelpCommand::GenerateContents(commands, buffer.ptr().value());
+               gc::Root<MapModeCommands> commands =
+                   MapModeCommands::New(buffer.ptr()->editor());
+               HelpCommand::GenerateContents(commands.ptr().value(),
+                                             buffer.ptr().value());
              }},
     });
 }  // namespace

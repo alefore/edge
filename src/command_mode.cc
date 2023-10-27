@@ -725,9 +725,11 @@ void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
 }
 }  // namespace
 
-NonNull<std::unique_ptr<MapModeCommands>> NewCommandMode(
+NonNull<std::shared_ptr<MapModeCommands>> NewCommandMode(
     EditorState& editor_state) {
-  auto commands = MakeNonNullUnique<MapModeCommands>(editor_state);
+  gc::Root<MapModeCommands> commands_root = MapModeCommands::New(editor_state);
+  NonNull<MapModeCommands*> commands =
+      NonNull<MapModeCommands*>::AddressOf(commands_root.ptr().value());
   commands->Add(L"aq", NewQuitCommand(editor_state, 0));
   commands->Add(L"aQ", NewQuitCommand(editor_state, 1));
   commands->Add(L"av", NewSetVariableCommand(editor_state));
@@ -898,15 +900,15 @@ NonNull<std::unique_ptr<MapModeCommands>> NewCommandMode(
   commands->Add(L"\t", NewFindCompletionCommand(editor_state));
 
   RegisterVariableKeys(editor_state, editor_variables::BoolStruct(),
-                       VariableLocation::kEditor, commands.value());
+                       VariableLocation::kEditor, commands_root.ptr().value());
   RegisterVariableKeys(editor_state, editor_variables::IntStruct(),
-                       VariableLocation::kEditor, commands.value());
+                       VariableLocation::kEditor, commands_root.ptr().value());
   RegisterVariableKeys(editor_state, buffer_variables::BoolStruct(),
-                       VariableLocation::kBuffer, commands.value());
+                       VariableLocation::kBuffer, commands_root.ptr().value());
   RegisterVariableKeys(editor_state, buffer_variables::StringStruct(),
-                       VariableLocation::kBuffer, commands.value());
+                       VariableLocation::kBuffer, commands_root.ptr().value());
   RegisterVariableKeys(editor_state, buffer_variables::IntStruct(),
-                       VariableLocation::kBuffer, commands.value());
+                       VariableLocation::kBuffer, commands_root.ptr().value());
 
   commands->Add({Terminal::ESCAPE},
                 MakeNonNullUnique<ResetStateCommand>(editor_state));
@@ -948,7 +950,10 @@ NonNull<std::unique_ptr<MapModeCommands>> NewCommandMode(
           editor_state,
           {operation::CommandReachPage{
               .repetitions = operation::CommandArgumentRepetitions(-1)}}));
-  return commands;
+  // TODO(2023-10-27, P1): Get rid of this hack, just return a gc::Root.
+  return NonNull<std::shared_ptr<MapModeCommands>>::Unsafe(
+      std::shared_ptr<MapModeCommands>(commands.get(),
+                                       [commands_root](MapModeCommands*) {}));
 }
 
 }  // namespace afc::editor
