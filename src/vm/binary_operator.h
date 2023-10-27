@@ -62,12 +62,13 @@ class BinaryOperator : public Expression {
 std::unique_ptr<Expression> NewBinaryExpression(
     Compilation* compilation, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b,
-    std::function<language::ValueOrError<wstring>(wstring, wstring)>
+    std::function<language::ValueOrError<std::wstring>(std::wstring,
+                                                       std::wstring)>
         str_operator,
     std::function<language::ValueOrError<math::numbers::Number>(
         math::numbers::Number, math::numbers::Number)>
         number_operator,
-    std::function<language::ValueOrError<wstring>(wstring, int)>
+    std::function<language::ValueOrError<std::wstring>(std::wstring, int)>
         str_int_operator);
 
 }  // namespace vm

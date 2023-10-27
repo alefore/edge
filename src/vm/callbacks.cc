@@ -14,7 +14,7 @@ const Type VMTypeMapper<Number>::vmtype = types::Number{};
 const Type VMTypeMapper<int>::vmtype = types::Number{};
 const Type VMTypeMapper<size_t>::vmtype = types::Number{};
 const Type VMTypeMapper<double>::vmtype = types::Number{};
-const Type VMTypeMapper<wstring>::vmtype = types::String{};
+const Type VMTypeMapper<std::wstring>::vmtype = types::String{};
 
 namespace {
 bool tests_extract_first_error = tests::Register(

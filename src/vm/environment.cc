@@ -57,7 +57,7 @@ const ObjectType* Environment::LookupObjectType(const types::ObjectName& name) {
   return nullptr;
 }
 
-const Type* Environment::LookupType(const wstring& symbol) {
+const Type* Environment::LookupType(const std::wstring& symbol) {
   if (symbol == L"void") {
     static Type output = types::Void{};
     return &output;
@@ -94,6 +94,7 @@ Environment::Environment(ConstructorAccessTag,
                          gc::Ptr<Environment> parent_environment)
     : parent_environment_(std::move(parent_environment)) {}
 
+// TODO(trivial, 2023-10-27): No need to pass Pool.
 /* static */ gc::Root<Environment> Environment::NewNamespace(
     gc::Pool& pool, gc::Root<Environment> parent, std::wstring name) {
   // TODO(thread-safety, 2023-10-13): There's actually a race condition here.
@@ -151,8 +152,8 @@ void Environment::DefineType(gc::Ptr<ObjectType> value) {
 }
 
 std::optional<gc::Root<Value>> Environment::Lookup(
-    gc::Pool& pool, const Namespace& symbol_namespace, const wstring& symbol,
-    Type expected_type) {
+    gc::Pool& pool, const Namespace& symbol_namespace,
+    const std::wstring& symbol, Type expected_type) {
   std::vector<gc::Root<Value>> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (gc::Root<Value>& value : values) {
@@ -166,7 +167,7 @@ std::optional<gc::Root<Value>> Environment::Lookup(
 }
 
 void Environment::PolyLookup(const Namespace& symbol_namespace,
-                             const wstring& symbol,
+                             const std::wstring& symbol,
                              std::vector<gc::Root<Value>>* output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
@@ -184,7 +185,7 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
 }
 
 void Environment::CaseInsensitiveLookup(
-    const Namespace& symbol_namespace, const wstring& symbol,
+    const Namespace& symbol_namespace, const std::wstring& symbol,
     std::vector<gc::Root<Value>>* output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
@@ -205,14 +206,14 @@ void Environment::CaseInsensitiveLookup(
   }
 }
 
-void Environment::Define(const wstring& symbol, gc::Root<Value> value) {
+void Environment::Define(const std::wstring& symbol, gc::Root<Value> value) {
   Type type = value.ptr()->type;
   data_.lock([&](Data& data) {
     data.table[symbol].insert_or_assign(type, value.ptr());
   });
 }
 
-void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
+void Environment::Assign(const std::wstring& symbol, gc::Root<Value> value) {
   data_.lock([&](Data& data) {
     if (auto it = data.table.find(symbol); it != data.table.end()) {
       it->second.insert_or_assign(value.ptr()->type, value.ptr());
@@ -229,7 +230,7 @@ void Environment::Assign(const wstring& symbol, gc::Root<Value> value) {
   });
 }
 
-void Environment::Remove(const wstring& symbol, Type type) {
+void Environment::Remove(const std::wstring& symbol, Type type) {
   data_.lock([&](Data& data) {
     if (auto it = data.table.find(symbol); it != data.table.end())
       it->second.erase(type);
@@ -248,7 +249,8 @@ void Environment::ForEachType(
 }
 
 void Environment::ForEach(
-    std::function<void(const wstring&, const gc::Ptr<Value>&)> callback) const {
+    std::function<void(const std::wstring&, const gc::Ptr<Value>&)> callback)
+    const {
   if (parent_environment_.has_value()) {
     (*parent_environment_)->ForEach(callback);
   }

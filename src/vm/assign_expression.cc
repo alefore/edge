@@ -24,7 +24,7 @@ class AssignExpression : public Expression {
  public:
   enum class AssignmentType { kDefine, kAssign };
 
-  AssignExpression(AssignmentType assignment_type, wstring symbol,
+  AssignExpression(AssignmentType assignment_type, std::wstring symbol,
                    NonNull<std::shared_ptr<Expression>> value)
       : assignment_type_(assignment_type),
         symbol_(std::move(symbol)),
@@ -68,7 +68,7 @@ class AssignExpression : public Expression {
 
  private:
   const AssignmentType assignment_type_;
-  const wstring symbol_;
+  const std::wstring symbol_;
   const NonNull<std::shared_ptr<Expression>> value_;
 };
 }  // namespace

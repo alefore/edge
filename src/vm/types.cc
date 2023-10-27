@@ -144,9 +144,9 @@ std::ostream& operator<<(std::ostream& os, const Type& type) {
   return os;
 }
 
-wstring TypesToString(const std::vector<Type>& types) {
-  wstring output;
-  wstring separator = L"";
+std::wstring TypesToString(const std::vector<Type>& types) {
+  std::wstring output;
+  std::wstring separator = L"";
   for (auto& t : types) {
     output += separator + L"\"" + ToString(t) + L"\"";
     separator = L", ";
@@ -160,31 +160,32 @@ std::wstring TypesToString(const std::unordered_set<Type>& types) {
 
 std::wstring ToString(const Type& type) {
   return std::visit(
-      overload{
-          [](const types::Void&) -> std::wstring { return L"void"; },
-          [](const types::Bool&) -> std::wstring { return L"bool"; },
-          [](const types::Number&) -> std::wstring { return L"number"; },
-          [](const types::String&) -> std::wstring { return L"string"; },
-          [](const types::Symbol&) -> std::wstring { return L"symbol"; },
-          [](const types::ObjectName& object) -> std::wstring {
-            return object.read();
-          },
-          [](const types::Function& function_type) -> std::wstring {
-            const std::unordered_map<PurityType, std::wstring>
-                function_purity_types = {{PurityType::kPure, L"function"},
-                                         {PurityType::kReader, L"Function"},
-                                         {PurityType::kUnknown, L"FUNCTION"}};
-            wstring output = GetValueOrDie(function_purity_types,
-                                           function_type.function_purity) +
-                             L"<" + ToString(function_type.output.get()) + L"(";
-            wstring separator = L"";
-            for (const Type& input : function_type.inputs) {
-              output += separator + ToString(input);
-              separator = L", ";
-            }
-            output += L")>";
-            return output;
-          }},
+      overload{[](const types::Void&) -> std::wstring { return L"void"; },
+               [](const types::Bool&) -> std::wstring { return L"bool"; },
+               [](const types::Number&) -> std::wstring { return L"number"; },
+               [](const types::String&) -> std::wstring { return L"string"; },
+               [](const types::Symbol&) -> std::wstring { return L"symbol"; },
+               [](const types::ObjectName& object) -> std::wstring {
+                 return object.read();
+               },
+               [](const types::Function& function_type) -> std::wstring {
+                 const std::unordered_map<PurityType, std::wstring>
+                     function_purity_types = {
+                         {PurityType::kPure, L"function"},
+                         {PurityType::kReader, L"Function"},
+                         {PurityType::kUnknown, L"FUNCTION"}};
+                 std::wstring output =
+                     GetValueOrDie(function_purity_types,
+                                   function_type.function_purity) +
+                     L"<" + ToString(function_type.output.get()) + L"(";
+                 std::wstring separator = L"";
+                 for (const Type& input : function_type.inputs) {
+                   output += separator + ToString(input);
+                   separator = L", ";
+                 }
+                 output += L")>";
+                 return output;
+               }},
       type);
 }
 
@@ -202,12 +203,12 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
 
 ObjectType::ObjectType(const Type& type, ConstructorAccessKey) : type_(type) {}
 
-void ObjectType::AddField(const wstring& name, gc::Ptr<Value> field) {
+void ObjectType::AddField(const std::wstring& name, gc::Ptr<Value> field) {
   fields_.insert({name, std::move(field)});
 }
 
 std::vector<NonNull<Value*>> ObjectType::LookupField(
-    const wstring& name) const {
+    const std::wstring& name) const {
   std::vector<NonNull<Value*>> output;
   auto range = fields_.equal_range(name);
 
@@ -218,12 +219,12 @@ std::vector<NonNull<Value*>> ObjectType::LookupField(
 }
 
 void ObjectType::ForEachField(
-    std::function<void(const wstring&, Value&)> callback) {
+    std::function<void(const std::wstring&, Value&)> callback) {
   for (auto& it : fields_) callback(it.first, it.second.value());
 }
 
 void ObjectType::ForEachField(
-    std::function<void(const wstring&, const Value&)> callback) const {
+    std::function<void(const std::wstring&, const Value&)> callback) const {
   for (const auto& it : fields_) callback(it.first, it.second.value());
 }
 

@@ -16,7 +16,7 @@ struct UserFunction {
   static std::unique_ptr<UserFunction> New(
       Compilation& compilation, std::wstring return_type,
       std::optional<std::wstring> name,
-      std::unique_ptr<std::vector<std::pair<Type, wstring>>> args);
+      std::unique_ptr<std::vector<std::pair<Type, std::wstring>>> args);
 
   language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
   BuildExpression(Compilation& compilation,

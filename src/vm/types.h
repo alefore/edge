@@ -15,11 +15,6 @@
 
 namespace afc::vm {
 
-using std::map;
-using std::unique_ptr;
-using std::vector;
-using std::wstring;
-
 class ObjectType;
 
 enum class PurityType {
@@ -100,8 +95,8 @@ types::ObjectName NameForType(Type variant_type);
 
 std::wstring ToString(const Type&);
 
-wstring TypesToString(const std::vector<Type>& types);
-wstring TypesToString(const std::unordered_set<Type>& types);
+std::wstring TypesToString(const std::vector<Type>& types);
+std::wstring TypesToString(const std::unordered_set<Type>& types);
 
 std::ostream& operator<<(std::ostream& os, const Type& value);
 
@@ -120,13 +115,14 @@ class ObjectType {
   const Type& type() const { return type_; }
   std::wstring ToString() const { return vm::ToString(type_); }
 
-  void AddField(const wstring& name, language::gc::Ptr<Value> field);
+  void AddField(const std::wstring& name, language::gc::Ptr<Value> field);
 
-  std::vector<language::NonNull<Value*>> LookupField(const wstring& name) const;
+  std::vector<language::NonNull<Value*>> LookupField(
+      const std::wstring& name) const;
 
-  void ForEachField(std::function<void(const wstring&, Value&)> callback);
+  void ForEachField(std::function<void(const std::wstring&, Value&)> callback);
   void ForEachField(
-      std::function<void(const wstring&, const Value&)> callback) const;
+      std::function<void(const std::wstring&, const Value&)> callback) const;
 
   std::vector<afc::language::NonNull<
       std::shared_ptr<afc::language::gc::ObjectMetadata>>>

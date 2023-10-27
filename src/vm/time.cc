@@ -65,8 +65,8 @@ const vm::types::ObjectName VMTypeMapper<Duration>::object_type_name =
     vm::types::ObjectName(L"Duration");
 
 template <typename ReturnType, typename... Args>
-void AddMethod(const wstring& name, gc::Pool& pool,
-               std::function<ReturnType(wstring, Args...)> callback,
+void AddMethod(const std::wstring& name, gc::Pool& pool,
+               std::function<ReturnType(std::wstring, Args...)> callback,
                ObjectType* string_type) {
   string_type->AddField(name, NewCallback(pool, callback).ptr());
 }
@@ -87,7 +87,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   time_type.ptr()->AddField(
       L"tostring",
       vm::NewCallback(pool, PurityType::kPure,
-                      std::function<wstring(Time)>([](Time t) {
+                      std::function<std::wstring(Time)>([](Time t) {
                         std::wstring decimal = std::to_wstring(t.tv_nsec);
                         if (decimal.length() < 9)
                           decimal.insert(0, 9 - decimal.length(), L'0');

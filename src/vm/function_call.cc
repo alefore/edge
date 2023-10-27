@@ -209,7 +209,7 @@ std::unique_ptr<Expression> NewFunctionCall(
 
 std::unique_ptr<Expression> NewMethodLookup(
     Compilation* compilation, std::unique_ptr<Expression> object_ptr,
-    wstring method_name) {
+    std::wstring method_name) {
   return VisitPointer(
       std::move(object_ptr),
       [&compilation, &method_name](NonNull<std::unique_ptr<Expression>> object)

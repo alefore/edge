@@ -28,7 +28,7 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   gc::Root<ObjectType> bool_type = ObjectType::New(pool, types::Bool{});
   bool_type.ptr()->AddField(
       L"tostring", NewCallback(pool, PurityType::kPure,
-                               std::function<wstring(bool)>([](bool v) {
+                               std::function<std::wstring(bool)>([](bool v) {
                                  return v ? L"true" : L"false";
                                }))
                        .ptr());

@@ -120,7 +120,7 @@ class LambdaExpression : public Expression {
 std::unique_ptr<UserFunction> UserFunction::New(
     Compilation& compilation, std::wstring return_type,
     std::optional<std::wstring> name,
-    std::unique_ptr<std::vector<std::pair<Type, wstring>>> args) {
+    std::unique_ptr<std::vector<std::pair<Type, std::wstring>>> args) {
   if (args == nullptr) {
     return nullptr;
   }
@@ -133,7 +133,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
   }
 
   types::Function function_type{.output = *return_type_def};
-  for (std::pair<Type, wstring> arg : *args) {
+  for (std::pair<Type, std::wstring> arg : *args) {
     function_type.inputs.push_back(arg.first);
   }
 
@@ -141,7 +141,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
       UserFunction{.name = std::nullopt,
                    .type = std::move(function_type),
                    .argument_names = {}});
-  for (std::pair<Type, wstring> arg : *args) {
+  for (std::pair<Type, std::wstring> arg : *args) {
     output->argument_names->push_back(arg.second);
   }
 
@@ -151,7 +151,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
         name.value(), Value::New(compilation.pool, output->type));
   }
   compilation.environment = Environment::New(compilation.environment.ptr());
-  for (const std::pair<Type, wstring>& arg : *args) {
+  for (const std::pair<Type, std::wstring>& arg : *args) {
     compilation.environment.ptr()->Define(
         arg.second, Value::New(compilation.pool, arg.first));
   }

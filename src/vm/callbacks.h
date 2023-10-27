@@ -98,10 +98,12 @@ struct VMTypeMapper<math::numbers::Number> {
 };
 
 template <>
-struct VMTypeMapper<wstring> {
-  static const wstring& get(const Value& value) { return value.get_string(); }
+struct VMTypeMapper<std::wstring> {
+  static const std::wstring& get(const Value& value) {
+    return value.get_string();
+  }
   static language::gc::Root<Value> New(language::gc::Pool& pool,
-                                       const wstring& value) {
+                                       const std::wstring& value) {
     return Value::NewString(pool, value);
   }
   static const Type vmtype;
@@ -320,7 +322,7 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
       }(),
       std::move(type_arguments),
       [callback = std::move(callback), &pool](
-          vector<language::gc::Root<Value>> args, Trampoline&) {
+          std::vector<language::gc::Root<Value>> args, Trampoline&) {
         return RunCallback(
             pool, callback, std::move(args),
             std::make_index_sequence<
