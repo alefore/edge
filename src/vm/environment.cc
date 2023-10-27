@@ -97,15 +97,15 @@ Environment::Environment(ConstructorAccessTag,
     : parent_environment_(std::move(parent_environment)) {}
 
 /* static */ gc::Root<Environment> Environment::NewNamespace(
-    gc::Root<Environment> parent, std::wstring name) {
+    gc::Ptr<Environment> parent, std::wstring name) {
   // TODO(thread-safety, 2023-10-13): There's actually a race condition here.
   // Multiple concurrent calls could trigger failures.
   if (std::optional<gc::Root<Environment>> previous =
-          LookupNamespace(parent.ptr(), Namespace({name}));
+          LookupNamespace(parent, Namespace({name}));
       previous.has_value()) {
     return *previous;
   }
-  if (auto parent_value = parent.ptr()->data_.lock(
+  if (auto parent_value = parent->data_.lock(
           [&name](Data& parent_data) -> std::optional<gc::Root<Environment>> {
             if (auto result = parent_data.namespaces.find(name);
                 result != parent_data.namespaces.end()) {
@@ -116,8 +116,8 @@ Environment::Environment(ConstructorAccessTag,
       parent_value.has_value())
     return parent_value.value();
 
-  gc::Root<Environment> namespace_env = Environment::New(parent.ptr());
-  parent.ptr()->data_.lock([&](Data& data) {
+  gc::Root<Environment> namespace_env = Environment::New(parent);
+  parent->data_.lock([&](Data& data) {
     InsertOrDie(data.namespaces, {name, namespace_env.ptr()});
   });
   return namespace_env;

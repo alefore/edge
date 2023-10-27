@@ -150,7 +150,7 @@ class ObjectMetadata {
 
  private:
   // Adds `shared_this` to `bag` and updates `container_bag_` and
-  // `container_bag_iterator_`.
+  // `container_bag_registration_`.
   //
   // Customers (Pool) must synchronize access to this (which typically happens
   // by virtue of having synchronized the class that holds `bag`).
@@ -184,11 +184,11 @@ class ObjectMetadata {
     ExpandState expand_state = ExpandState::kUnreached;
   };
 
-  // `container_bag_iterator_` is used to eagerly remove this object from the
-  // corresponding bag during its deletion. That means that the corresponding
-  // bag must only be deleted after all objects stored in it have been deleted.
-  std::optional<concurrent::Bag<std::weak_ptr<ObjectMetadata>>::iterator>
-      container_bag_iterator_;
+  // `container_bag_registration_` is used to eagerly remove this object from
+  // the corresponding bag during its deletion. The corresponding bag must only
+  // be deleted after all objects stored in it have been deleted.
+  std::optional<concurrent::Bag<std::weak_ptr<ObjectMetadata>>::Registration>
+      container_bag_registration_;
 
   concurrent::Protected<Data> data_;
 };

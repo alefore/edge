@@ -46,22 +46,21 @@ ObjectMetadata::ObjectMetadata(ConstructorAccessKey, Pool& pool,
     : pool_(pool), data_(Data{.expand_callback = std::move(expand_callback)}) {}
 
 ObjectMetadata::~ObjectMetadata() {
-  if (container_bag_iterator_.has_value())
-    VisitOptional(
-        ObjectMetadataBag::erase, [] {}, container_bag_iterator_);
+  if (container_bag_registration_.has_value())
+    container_bag_registration_->Erase();
 }
 
 /* static */
 void ObjectMetadata::AddToBag(
     NonNull<std::shared_ptr<ObjectMetadata>> shared_this,
     Bag<std::weak_ptr<ObjectMetadata>>& bag) {
-  CHECK(!shared_this->container_bag_iterator_.has_value());
-  shared_this->container_bag_iterator_ = bag.Add(shared_this.get_shared());
+  CHECK(!shared_this->container_bag_registration_.has_value());
+  shared_this->container_bag_registration_ = bag.Add(shared_this.get_shared());
 }
 
 void ObjectMetadata::Orphan() {
-  CHECK(container_bag_iterator_.has_value());
-  container_bag_iterator_ = std::nullopt;
+  CHECK(container_bag_registration_.has_value());
+  container_bag_registration_ = std::nullopt;
 }
 
 Pool& ObjectMetadata::pool() const { return pool_; }
@@ -420,12 +419,12 @@ Pool::RootRegistration Pool::AddRoot(
   bool* ptr = new bool(false);
   VLOG(10) << "Adding root: " << object_metadata.lock() << " at " << ptr;
   std::function<void(bool*)> deletor = eden_.lock([&](Eden& eden) {
-    return [&roots_list = eden.roots,
-            it = eden.roots.Add(object_metadata)](bool* value) {
-      delete value;
-      VLOG(10) << "Erasing root: " << value;
-      ObjectMetadataBag::erase(it);
-    };
+    return
+        [registration = eden.roots.Add(object_metadata)](bool* value) mutable {
+          delete value;
+          VLOG(10) << "Erasing root: " << value;
+          registration.Erase();
+        };
   });
   if (root_backtrace_.has_value()) {
     static const size_t kBufferSize = 128;
@@ -440,8 +439,8 @@ Pool::RootRegistration Pool::AddRoot(
     auto backtrace_iterator =
         root_backtrace_->Add(Backtrace(strings, std::free));
     deletor = [deletor = std::move(deletor), backtrace_iterator,
-               &container = root_backtrace_.value()](bool* value) {
-      concurrent::Bag<Backtrace>::erase(backtrace_iterator);
+               &container = root_backtrace_.value()](bool* value) mutable {
+      backtrace_iterator.Erase();
       deletor(value);
     };
   }

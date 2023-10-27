@@ -23,8 +23,8 @@ class Bag {
   BagOptions options_;
 
   // Why does `shards_` wrap values in NonNull<std::unique_ptr<>>? That allows
-  // us to support moves without invalidating Bag::iteartor instances. The
-  // iterators need to reference the containing shard in a way that survives
+  // us to support moves without invalidating Bag::Registration instances. The
+  // Registration need to reference the containing shard in a way that survives
   // moves (of the corresponding Bag).
   std::vector<language::NonNull<std::unique_ptr<Protected<std::list<T>>>>>
       shards_;
@@ -38,9 +38,24 @@ class Bag {
   Bag(Bag&&) = default;
   Bag& operator=(Bag&&) = default;
 
-  struct iterator {
-    typename std::list<T>::iterator it;
-    language::NonNull<Protected<std::list<T>>*> shard;
+  // When an object is added to a bag, we return a `Regitration` instance. It
+  // can be used to remove the object from the bag. The customer doesn't need to
+  // remember which bag corresponds to each registration.
+  class Registration {
+    language::NonNull<Protected<std::list<T>>*> shard_;
+    typename std::list<T>::iterator it_;
+
+   public:
+    Registration(language::NonNull<Protected<std::list<T>>*> shard, T t)
+        : shard_(shard), it_(shard_->lock([&](std::list<T>& l) {
+            l.push_back(std::move(t));
+            return std::prev(l.end());
+          })) {}
+
+    // Precondition: the bag used to create `this` must still exist.
+    void Erase() {
+      shard_->lock([&](std::list<T>& shard) { shard.erase(it_); });
+    }
   };
 
   size_t size() const {
@@ -51,24 +66,14 @@ class Bag {
 
   bool empty() const { return size() == 0; }
 
-  iterator Add(T t) {
-    size_t shard = rand() % shards_.size();
-    return iterator{.it = shards_[shard]->lock([&](std::list<T>& l) {
-                      l.push_back(std::move(t));
-                      return std::prev(l.end());
-                    }),
-                    .shard = shards_[shard].get()};
+  Registration Add(T t) {
+    return Registration(shards_[rand() % shards_.size()].get(), std::move(t));
   }
 
   template <class Predicate>
   void remove_if(const Operation& operation, Predicate predicate) {
     ForEachShard(operation,
                  [&predicate](std::list<T>& s) { s.remove_if(predicate); });
-  }
-
-  static void erase(iterator position) {
-    position.shard->lock(
-        [&](std::list<T>& shard) { shard.erase(position.it); });
   }
 
   template <typename Callable>

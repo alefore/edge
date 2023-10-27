@@ -37,14 +37,14 @@ const bool tests_registration = tests::Register(
          .callback =
              [] {
                Bag<size_t> bag(BagOptions{.shards = 10});
-               std::optional<Bag<size_t>::iterator> iterator;
+               std::optional<Bag<size_t>::Registration> iterator;
                for (size_t i = 0; i < 1000; i++)
                  if (i == 257)
                    iterator = bag.Add(i);
                  else
                    bag.Add(i);
 
-               bag.erase(*iterator);
+               iterator->Erase();
 
                std::set<size_t> values_expected;
                for (size_t i = 0; i < 1000; i++)
@@ -52,6 +52,7 @@ const bool tests_registration = tests::Register(
 
                std::set<size_t> values_serial;
                bag.ForEachSerial([&](size_t v) { values_serial.insert(v); });
+               CHECK(values_serial == values_expected);
              }},
         {.name = L"RemoveIf",
          .callback =
@@ -78,17 +79,17 @@ const bool tests_registration = tests::Register(
                CHECK_EQ(bag.size(), 5ul);
 
                Bag<size_t> bag_old = NumbersBag(0, 4);
-               Bag<size_t>::iterator it_4 = bag_old.Add(4);
-               Bag<size_t>::iterator it_5 = bag_old.Add(5);
-               Bag<size_t>::iterator it_6 = bag_old.Add(6);
+               Bag<size_t>::Registration it_4 = bag_old.Add(4);
+               Bag<size_t>::Registration it_5 = bag_old.Add(5);
+               Bag<size_t>::Registration it_6 = bag_old.Add(6);
                CHECK_EQ(bag_old.size(), 7ul);
 
                bag = std::move(bag_old);
                CHECK_EQ(bag.size(), 7ul);
 
-               bag.erase(it_4);
-               bag.erase(it_5);
-               bag.erase(it_6);
+               it_4.Erase();
+               it_5.Erase();
+               it_6.Erase();
                CHECK_EQ(bag.size(), 4ul);
                CHECK(BagToSet(bag) == BagToSet(NumbersBag(0, 4)));
              }},
