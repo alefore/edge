@@ -180,9 +180,8 @@ bool tests_registration = tests::Register(
       }}});
 }  // namespace
 
-language::NonNull<std::unique_ptr<Command>> NewPasteCommand(
-    EditorState& editor_state) {
-  return MakeNonNullUnique<Paste>(editor_state);
+gc::Root<Command> NewPasteCommand(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(MakeNonNullUnique<Paste>(editor_state));
 }
 
 }  // namespace afc::editor

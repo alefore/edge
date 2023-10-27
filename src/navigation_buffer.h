@@ -3,12 +3,12 @@
 
 #include <memory>
 
-#include "src/language/safe_types.h"
+#include "src/language/gc.h"
 
 namespace afc::editor {
 class Command;
 class EditorState;
-language::NonNull<std::unique_ptr<Command>> NewNavigationBufferCommand(
+language::gc::Root<Command> NewNavigationBufferCommand(
     EditorState& editor_state);
 }  // namespace afc::editor
 

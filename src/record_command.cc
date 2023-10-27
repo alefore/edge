@@ -65,8 +65,9 @@ class RecordCommand : public Command {
   EditorState& editor_state_;
 };
 
-NonNull<std::unique_ptr<Command>> NewRecordCommand(EditorState& editor_state) {
-  return MakeNonNullUnique<RecordCommand>(editor_state);
+gc::Root<Command> NewRecordCommand(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<RecordCommand>(editor_state));
 }
 
 }  // namespace afc::editor

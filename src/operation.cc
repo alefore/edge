@@ -1126,7 +1126,7 @@ bool CommandArgumentRepetitions::PopValue() {
   return entry.additive_default + entry.additive + entry.multiplicative;
 }
 
-NonNull<std::unique_ptr<afc::editor::Command>> NewTopLevelCommand(
+gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring, std::wstring description, TopCommand top_command,
     EditorState& editor_state, std::vector<Command> commands) {
   return NewSetModeCommand({.editor_state = editor_state,

@@ -9,6 +9,7 @@
 
 #include "src/command.h"
 #include "src/futures/futures.h"
+#include "src/language/gc.h"
 #include "src/language/safe_types.h"
 #include "src/modifiers.h"
 #include "src/transformation/stack.h"
@@ -96,7 +97,7 @@ using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
                              CommandReachPage, CommandReachQuery,
                              CommandReachBisect, CommandSetShell>;
 
-language::NonNull<std::unique_ptr<afc::editor::Command>> NewTopLevelCommand(
+language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,
     EditorState& editor_state, std::vector<Command> commands);
 

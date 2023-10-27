@@ -8,6 +8,8 @@
 #include "src/editor.h"
 #include "src/editor_mode.h"
 
+namespace gc = afc::language::gc;
+
 namespace afc::editor {
 using language::MakeNonNullUnique;
 using language::NonNull;
@@ -33,9 +35,9 @@ class SetModeCommand : public Command {
 };
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewSetModeCommand(
-    SetModeCommandOptions options) {
-  return MakeNonNullUnique<SetModeCommand>(std::move(options));
+gc::Root<Command> NewSetModeCommand(SetModeCommandOptions options) {
+  return options.editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<SetModeCommand>(std::move(options)));
 }
 
 }  // namespace afc::editor

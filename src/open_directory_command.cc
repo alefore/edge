@@ -56,9 +56,9 @@ class OpenDirectoryCommand : public Command {
 
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewOpenDirectoryCommand(
-    EditorState& editor_state) {
-  return MakeNonNullUnique<OpenDirectoryCommand>(editor_state);
+gc::Root<Command> NewOpenDirectoryCommand(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<OpenDirectoryCommand>(editor_state));
 }
 
 }  // namespace afc::editor

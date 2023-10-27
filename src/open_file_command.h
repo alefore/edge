@@ -3,13 +3,12 @@
 
 #include <memory>
 
-#include "src/language/safe_types.h"
+#include "src/language/gc.h"
 
 namespace afc::editor {
 class EditorState;
 class Command;
-language::NonNull<std::unique_ptr<Command>> NewOpenFileCommand(
-    EditorState& editor);
+language::gc::Root<Command> NewOpenFileCommand(EditorState& editor);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_OPEN_FILE_COMMAND_H__

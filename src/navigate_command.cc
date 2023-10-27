@@ -18,6 +18,8 @@
 #include "src/transformation/stack.h"
 #include "src/transformation/type.h"
 
+namespace gc = afc::language::gc;
+
 namespace afc::editor {
 using infrastructure::screen::LineModifier;
 using language::MakeNonNullShared;
@@ -306,30 +308,29 @@ NavigateState InitialState(EditorState& editor_state) {
 }
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewNavigateCommand(
-    EditorState& editor_state) {
-  return NewSetModeCommand(
-      {.editor_state = editor_state,
-       .description = L"activates navigate mode.",
-       .category = L"Navigate",
-       .factory = [&editor_state] {
-         CommandArgumentMode<NavigateState>::Options options{
-             .editor_state = editor_state,
-             .initial_value = InitialState(editor_state),
-             .char_consumer = CharConsumer,
-             .status_factory = BuildStatus};
-         SetOptionsForBufferTransformation<NavigateState>(
-             [](NavigateState state) -> transformation::Variant {
-               return MakeNonNullUnique<NavigateTransformation>(
-                   std::move(state));
-             },
-             [](const NavigateState&) {
-               return std::optional<Modifiers::CursorsAffected>();
-             },
-             options);
-         return std::make_unique<CommandArgumentMode<NavigateState>>(
-             std::move(options));
-       }});
+gc::Root<Command> NewNavigateCommand(EditorState& editor_state) {
+  return NewSetModeCommand(SetModeCommandOptions{
+      .editor_state = editor_state,
+      .description = L"activates navigate mode.",
+      .category = L"Navigate",
+      .factory = [&editor_state] {
+        CommandArgumentMode<NavigateState>::Options options{
+            .editor_state = editor_state,
+            .initial_value = InitialState(editor_state),
+            .char_consumer = CharConsumer,
+            .status_factory = BuildStatus};
+        SetOptionsForBufferTransformation<NavigateState>(
+            [](NavigateState state) -> transformation::Variant {
+              return MakeNonNullUnique<NavigateTransformation>(
+                  std::move(state));
+            },
+            [](const NavigateState&) {
+              return std::optional<Modifiers::CursorsAffected>();
+            },
+            options);
+        return std::make_unique<CommandArgumentMode<NavigateState>>(
+            std::move(options));
+      }});
 }
 
 }  // namespace afc::editor

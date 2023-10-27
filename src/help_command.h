@@ -12,7 +12,7 @@
 
 namespace afc::editor {
 
-language::NonNull<std::unique_ptr<Command>> NewHelpCommand(
+language::gc::Root<Command> NewHelpCommand(
     EditorState& editor_state, const MapModeCommands& commands,
     const std::wstring& mode_description);
 

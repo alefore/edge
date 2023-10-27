@@ -9,6 +9,7 @@
 #include "src/buffers_list.h"
 #include "src/command.h"
 #include "src/futures/futures.h"
+#include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/widget_list.h"
 
@@ -49,8 +50,7 @@ struct ForkCommandOptions {
       ExistingBufferBehavior::kReuse;
 };
 
-language::NonNull<std::unique_ptr<Command>> NewForkCommand(
-    EditorState& editor_state);
+language::gc::Root<Command> NewForkCommand(EditorState& editor_state);
 
 class OpenBuffer;
 

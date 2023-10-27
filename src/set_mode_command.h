@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-#include "src/language/safe_types.h"
+#include "src/language/gc.h"
 
 namespace afc::editor {
 class EditorState;
@@ -18,8 +18,7 @@ struct SetModeCommandOptions {
   std::function<std::unique_ptr<EditorMode>()> factory;
 };
 
-language::NonNull<std::unique_ptr<Command>> NewSetModeCommand(
-    SetModeCommandOptions options);
+language::gc::Root<Command> NewSetModeCommand(SetModeCommandOptions options);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_SET_MODE_COMMAND_H__

@@ -248,7 +248,7 @@ const bool get_initial_prompt_value_tests_registration = tests::Register(
     });
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewOpenFileCommand(EditorState& editor) {
+gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
   return NewLinePromptCommand(editor, L"loads a file", [&editor]() {
     auto source_buffers = editor.active_buffers();
     return PromptOptions{

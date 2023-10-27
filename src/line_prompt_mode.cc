@@ -1227,11 +1227,11 @@ void Prompt(PromptOptions options) {
       });
 }
 
-NonNull<std::unique_ptr<Command>> NewLinePromptCommand(
+gc::Root<Command> NewLinePromptCommand(
     EditorState& editor_state, std::wstring description,
     std::function<PromptOptions()> options_supplier) {
-  return MakeNonNullUnique<LinePromptCommand>(
-      editor_state, std::move(description), std::move(options_supplier));
+  return editor_state.gc_pool().NewRoot(MakeNonNullUnique<LinePromptCommand>(
+      editor_state, std::move(description), std::move(options_supplier)));
 }
 
 }  // namespace afc::editor

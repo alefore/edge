@@ -462,8 +462,8 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
             buffer->ptr()->environment().value(), search_namespaces));
 }
 
-NonNull<std::unique_ptr<Command>> NewRunCppCommand(EditorState& editor_state,
-                                                   CppCommandMode mode) {
+gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
+                                   CppCommandMode mode) {
   std::wstring description;
   switch (mode) {
     case CppCommandMode::kLiteral:

@@ -3,13 +3,12 @@
 
 #include <memory>
 
-#include "src/language/safe_types.h"
+#include "src/language/gc.h"
 
 namespace afc::editor {
 class EditorState;
 class Command;
-language::NonNull<std::unique_ptr<Command>> NewPasteCommand(
-    EditorState& editor_state);
+language::gc::Root<Command> NewPasteCommand(EditorState& editor_state);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_PASTE_H__

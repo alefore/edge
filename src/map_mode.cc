@@ -54,10 +54,10 @@ class CommandFromFunction : public Command {
 };
 
 template <typename Callback>
-NonNull<std::unique_ptr<Command>> MakeCommandFromFunction(
-    Callback callback, std::wstring description) {
-  return MakeNonNullUnique<CommandFromFunction<Callback>>(
-      std::move(callback), std::move(description));
+gc::Root<Command> MakeCommandFromFunction(gc::Pool& pool, Callback callback,
+                                          std::wstring description) {
+  return pool.NewRoot(MakeNonNullUnique<CommandFromFunction<Callback>>(
+      std::move(callback), std::move(description)));
 }
 }  // namespace
 
@@ -100,12 +100,9 @@ MapModeCommands::Coallesce() const {
   return output;
 }
 
-// TODO(trivial, 2023-10-27): Receive `value` as a gc::Root or gc::Ptr.
-void MapModeCommands::Add(std::wstring name,
-                          NonNull<std::unique_ptr<Command>> value) {
+void MapModeCommands::Add(std::wstring name, gc::Root<Command> value) {
   CHECK(!frames_.empty());
-  frames_.front()->commands.insert(
-      {name, editor_state_.gc_pool().NewRoot(std::move(value)).ptr()});
+  frames_.front()->commands.insert({name, value.ptr()});
 }
 
 void MapModeCommands::Add(std::wstring name, std::wstring description,
@@ -117,6 +114,7 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
 
   Add(name,
       MakeCommandFromFunction(
+          editor_state_.gc_pool(),
           BindFrontWithWeakPtr(
               [&editor_state = editor_state_](
                   const gc::Root<vm::Environment> environment_locked,
@@ -139,7 +137,8 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
 void MapModeCommands::Add(std::wstring name, std::function<void()> callback,
                           std::wstring description) {
   Add(name,
-      MakeCommandFromFunction(std::move(callback), std::move(description)));
+      MakeCommandFromFunction(editor_state_.gc_pool(), std::move(callback),
+                              std::move(description)));
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>

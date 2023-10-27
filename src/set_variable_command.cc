@@ -226,8 +226,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
   return futures::Past(EmptyValue());
 }
 
-NonNull<std::unique_ptr<Command>> NewSetVariableCommand(
-    EditorState& editor_state) {
+gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
   static Predictor variables_predictor = VariablesPredictor();
   return NewLinePromptCommand(
       editor_state, L"assigns to a variable", [&editor_state] {

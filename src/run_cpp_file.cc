@@ -131,9 +131,9 @@ class RunCppFileCommand : public Command {
 };
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewRunCppFileCommand(
-    EditorState& editor_state) {
-  return MakeNonNullUnique<RunCppFileCommand>(editor_state);
+gc::Root<Command> NewRunCppFileCommand(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<RunCppFileCommand>(editor_state));
 }
 
 }  // namespace afc::editor

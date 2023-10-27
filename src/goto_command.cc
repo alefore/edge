@@ -227,8 +227,9 @@ futures::Value<CompositeTransformation::Output> GotoTransformation::Apply(
       position.has_value() ? Output::SetPosition(position.value()) : Output());
 }
 
-NonNull<std::unique_ptr<Command>> NewGotoCommand(EditorState& editor_state) {
-  return MakeNonNullUnique<GotoCommand>(editor_state, 0);
+gc::Root<Command> NewGotoCommand(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<GotoCommand>(editor_state, 0));
 }
 
 }  // namespace afc::editor

@@ -675,8 +675,9 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   return buffer;
 }
 
-NonNull<std::unique_ptr<Command>> NewForkCommand(EditorState& editor_state) {
-  return MakeNonNullUnique<ForkEditorCommand>(editor_state);
+gc::Root<Command> NewForkCommand(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<ForkEditorCommand>(editor_state));
 }
 
 futures::Value<EmptyValue> RunCommandHandler(

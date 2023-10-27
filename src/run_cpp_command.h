@@ -37,8 +37,8 @@ futures::ValueOrError<language::gc::Root<vm::Value>> RunCppCommandShell(
         command,
     EditorState& editor_state);
 
-language::NonNull<std::unique_ptr<Command>> NewRunCppCommand(
-    EditorState& editor_state, CppCommandMode mode);
+language::gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
+                                             CppCommandMode mode);
 
 }  // namespace editor
 }  // namespace afc

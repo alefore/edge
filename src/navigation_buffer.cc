@@ -207,9 +207,9 @@ class NavigationBufferCommand : public Command {
 };
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewNavigationBufferCommand(
-    EditorState& editor_state) {
-  return MakeNonNullUnique<NavigationBufferCommand>(editor_state);
+gc::Root<Command> NewNavigationBufferCommand(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<NavigationBufferCommand>(editor_state));
 }
 
 }  // namespace afc::editor

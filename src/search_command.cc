@@ -414,8 +414,9 @@ class SearchCommand : public Command {
 };
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewSearchCommand(EditorState& editor_state) {
-  return MakeNonNullUnique<SearchCommand>(editor_state);
+gc::Root<Command> NewSearchCommand(EditorState& editor_state) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<SearchCommand>(editor_state));
 }
 
 }  // namespace afc::editor

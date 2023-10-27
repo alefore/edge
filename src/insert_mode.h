@@ -14,8 +14,7 @@ class EditorState;
 class OpenBuffer;
 class Command;
 
-language::NonNull<std::unique_ptr<Command>> NewFindCompletionCommand(
-    EditorState& editor_state);
+language::gc::Root<Command> NewFindCompletionCommand(EditorState& editor_state);
 
 class ScrollBehavior {
  public:

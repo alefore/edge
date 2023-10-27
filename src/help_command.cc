@@ -330,11 +330,11 @@ const bool buffer_registration = tests::Register(
     });
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewHelpCommand(
-    EditorState& editor_state, const MapModeCommands& commands,
-    const std::wstring& mode_description) {
-  return MakeNonNullUnique<HelpCommand>(editor_state, commands,
-                                        mode_description);
+gc::Root<Command> NewHelpCommand(EditorState& editor_state,
+                                 const MapModeCommands& commands,
+                                 const std::wstring& mode_description) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<HelpCommand>(editor_state, commands, mode_description));
 }
 
 }  // namespace afc::editor

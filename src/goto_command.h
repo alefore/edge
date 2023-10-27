@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "src/language/safe_types.h"
+#include "src/language/gc.h"
 #include "src/transformation/composite.h"
 
 namespace afc::editor {
@@ -20,8 +20,7 @@ class GotoTransformation : public CompositeTransformation {
   const int calls_;
 };
 
-language::NonNull<std::unique_ptr<Command>> NewGotoCommand(
-    EditorState& editor_state);
+language::gc::Root<Command> NewGotoCommand(EditorState& editor_state);
 
 }  // namespace afc::editor
 

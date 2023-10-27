@@ -357,7 +357,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   editor_type.ptr()->AddField(
       L"PromptAndOpenFile",
       vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
-        NewOpenFileCommand(editor_arg)->ProcessInput(0);
+        NewOpenFileCommand(editor_arg).ptr()->ProcessInput(0);
       }).ptr());
 
   editor_type.ptr()->AddField(

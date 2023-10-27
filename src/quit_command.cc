@@ -48,9 +48,10 @@ class QuitCommand : public Command {
 
 }  // namespace
 
-NonNull<std::unique_ptr<Command>> NewQuitCommand(EditorState& editor_state,
-                                                 int exit_value) {
-  return MakeNonNullUnique<QuitCommand>(editor_state, exit_value);
+language::gc::Root<Command> NewQuitCommand(EditorState& editor_state,
+                                           int exit_value) {
+  return editor_state.gc_pool().NewRoot(
+      MakeNonNullUnique<QuitCommand>(editor_state, exit_value));
 }
 
 }  // namespace afc::editor

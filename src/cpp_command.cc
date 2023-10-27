@@ -89,13 +89,13 @@ class CppCommand : public Command {
 
 }  // namespace
 
-ValueOrError<NonNull<std::unique_ptr<Command>>> NewCppCommand(
+ValueOrError<gc::Root<Command>> NewCppCommand(
     EditorState& editor_state, gc::Root<afc::vm::Environment> environment,
     wstring code) {
   ASSIGN_OR_RETURN(
       NonNull<std::unique_ptr<vm::Expression>> result,
       vm::CompileString(code, editor_state.gc_pool(), std::move(environment)));
-  return NonNull<std::unique_ptr<Command>>(MakeNonNullUnique<CppCommand>(
+  return editor_state.gc_pool().NewRoot(MakeNonNullUnique<CppCommand>(
       editor_state, std::move(result), std::move(code)));
 }
 
