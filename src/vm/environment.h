@@ -53,8 +53,7 @@ class Environment {
 
   // Creates or returns an existing namespace inside parent with a given name.
   static language::gc::Root<Environment> NewNamespace(
-      language::gc::Pool& pool, language::gc::Root<Environment> parent,
-      std::wstring name);
+      language::gc::Root<Environment> parent, std::wstring name);
   static std::optional<language::gc::Root<Environment>> LookupNamespace(
       language::gc::Root<Environment> source, const Namespace& name);
 

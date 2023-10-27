@@ -94,9 +94,8 @@ Environment::Environment(ConstructorAccessTag,
                          gc::Ptr<Environment> parent_environment)
     : parent_environment_(std::move(parent_environment)) {}
 
-// TODO(trivial, 2023-10-27): No need to pass Pool.
 /* static */ gc::Root<Environment> Environment::NewNamespace(
-    gc::Pool& pool, gc::Root<Environment> parent, std::wstring name) {
+    gc::Root<Environment> parent, std::wstring name) {
   // TODO(thread-safety, 2023-10-13): There's actually a race condition here.
   // Multiple concurrent calls could trigger failures.
   if (std::optional<gc::Root<Environment>> previous =

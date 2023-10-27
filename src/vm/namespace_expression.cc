@@ -59,8 +59,8 @@ class NamespaceExpression : public Expression {
 void StartNamespaceDeclaration(Compilation& compilation,
                                const std::wstring& name) {
   compilation.current_namespace.push_back(name);
-  compilation.environment = Environment::NewNamespace(
-      compilation.pool, std::move(compilation.environment), name);
+  compilation.environment =
+      Environment::NewNamespace(std::move(compilation.environment), name);
 }
 
 std::unique_ptr<Expression> NewNamespaceExpression(
