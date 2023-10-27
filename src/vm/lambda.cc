@@ -85,8 +85,8 @@ class LambdaExpression : public Expression {
             std::vector<gc::Root<Value>> args, Trampoline& trampoline) {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
-          gc::Root<Environment> environment = trampoline.pool().NewRoot(
-              MakeNonNullUnique<Environment>(parent_environment));
+          gc::Root<Environment> environment =
+              Environment::New(trampoline.pool(), parent_environment);
           for (size_t i = 0; i < args.size(); i++) {
             environment.ptr()->Define(argument_names->at(i),
                                       std::move(args.at(i)));
@@ -150,8 +150,8 @@ std::unique_ptr<UserFunction> UserFunction::New(
     compilation.environment.ptr()->Define(
         name.value(), Value::New(compilation.pool, output->type));
   }
-  compilation.environment = compilation.pool.NewRoot(
-      MakeNonNullUnique<Environment>(compilation.environment.ptr()));
+  compilation.environment =
+      Environment::New(compilation.pool, compilation.environment.ptr());
   for (const std::pair<Type, wstring>& arg : *args) {
     compilation.environment.ptr()->Define(
         arg.second, Value::New(compilation.pool, arg.first));
@@ -164,7 +164,7 @@ gc::Root<Environment> GetOrCreateParentEnvironment(Compilation& compilation) {
           compilation.environment.ptr()->parent_environment();
       parent_environment.has_value())
     return parent_environment->ToRoot();
-  return compilation.pool.NewRoot(MakeNonNullUnique<Environment>());
+  return Environment::New(compilation.pool);
 }
 
 ValueOrError<gc::Root<Value>> UserFunction::BuildValue(

@@ -217,11 +217,11 @@ bool tests_parse_registration = tests::Register(
             NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
             gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
             gc::Pool pool({});
-            vm::Environment environment;
-            ValueOrError<ParsedCommand> output =
-                Parse(pool, EmptyString(), environment, EmptyString(),
-                      std::unordered_set<vm::Type>({vm::types::String{}}),
-                      SearchNamespaces(buffer.ptr().value()));
+            gc::Root<vm::Environment> environment = vm::Environment::New(pool);
+            ValueOrError<ParsedCommand> output = Parse(
+                pool, EmptyString(), environment.ptr().value(), EmptyString(),
+                std::unordered_set<vm::Type>({vm::types::String{}}),
+                SearchNamespaces(buffer.ptr().value()));
             CHECK_EQ(std::get<Error>(output), Error(L""));
           }},
      {.name = L"NonEmptyCommandNoMatch",
@@ -230,9 +230,10 @@ bool tests_parse_registration = tests::Register(
             NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
             gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
             gc::Pool pool({});
-            vm::Environment environment;
+            gc::Root<vm::Environment> environment = vm::Environment::New(pool);
             ValueOrError<ParsedCommand> output =
-                Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
+                Parse(pool, NewLazyString(L"foo"), environment.ptr().value(),
+                      EmptyString(),
                       std::unordered_set<vm::Type>({vm::types::String{}}),
                       SearchNamespaces(buffer.ptr().value()));
             Error error = std::get<Error>(output);
@@ -245,12 +246,12 @@ bool tests_parse_registration = tests::Register(
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         gc::Pool pool({});
-        vm::Environment environment;
-        environment.Define(L"foo", vm::Value::NewString(pool, L"bar"));
-        ValueOrError<ParsedCommand> output =
-            Parse(pool, NewLazyString(L"foo"), environment, EmptyString(),
-                  std::unordered_set<vm::Type>({vm::types::String{}}),
-                  SearchNamespaces(buffer.ptr().value()));
+        gc::Root<vm::Environment> environment = vm::Environment::New(pool);
+        environment.ptr()->Define(L"foo", vm::Value::NewString(pool, L"bar"));
+        ValueOrError<ParsedCommand> output = Parse(
+            pool, NewLazyString(L"foo"), environment.ptr().value(),
+            EmptyString(), std::unordered_set<vm::Type>({vm::types::String{}}),
+            SearchNamespaces(buffer.ptr().value()));
         CHECK(std::holds_alternative<Error>(output));
       }}});
 }

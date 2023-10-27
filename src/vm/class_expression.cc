@@ -33,8 +33,8 @@ struct Instance {
 void StartClassDeclaration(Compilation& compilation,
                            const types::ObjectName& name) {
   compilation.current_class.push_back(name);
-  compilation.environment = compilation.pool.NewRoot<Environment>(
-      MakeNonNullUnique<Environment>(compilation.environment.ptr()));
+  compilation.environment =
+      Environment::New(compilation.pool, compilation.environment.ptr());
 }
 
 namespace {
@@ -116,9 +116,8 @@ PossibleError FinishClassDeclaration(
       pool, PurityType::kPure, class_type, {},
       [constructor_expression, class_environment, class_type](
           std::vector<gc::Root<Value>>, Trampoline& trampoline) {
-        gc::Root<Environment> instance_environment =
-            trampoline.pool().NewRoot(MakeNonNullUnique<Environment>(
-                class_environment.ptr()->parent_environment()));
+        gc::Root<Environment> instance_environment = Environment::New(
+            trampoline.pool(), class_environment.ptr()->parent_environment());
         auto original_environment = trampoline.environment();
         trampoline.SetEnvironment(instance_environment);
         return trampoline.Bounce(constructor_expression, types::Void{})

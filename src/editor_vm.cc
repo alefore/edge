@@ -125,8 +125,7 @@ void RegisterVariableFields(
 gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   gc::Pool& pool = editor.gc_pool();
   gc::Root<Environment> environment =
-      pool.NewRoot(MakeNonNullUnique<Environment>(
-          afc::vm::NewDefaultEnvironment(pool).ptr()));
+      Environment::New(pool, afc::vm::NewDefaultEnvironment(pool).ptr());
   Environment& value = environment.ptr().value();
   value.Define(L"terminal_backspace",
                vm::Value::NewString(pool, {Terminal::BACKSPACE}));

@@ -76,9 +76,22 @@ const Type* Environment::LookupType(const wstring& symbol) {
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 
-Environment::Environment() = default;
+/* static */ language::gc::Root<Environment> Environment::New(
+    language::gc::Pool& pool) {
+  return pool.NewRoot(MakeNonNullUnique<Environment>(ConstructorAccessTag()));
+}
 
-Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
+/* static */ language::gc::Root<Environment> Environment::New(
+    language::gc::Pool& pool,
+    std::optional<language::gc::Ptr<Environment>> parent_environment) {
+  return pool.NewRoot(MakeNonNullUnique<Environment>(
+      ConstructorAccessTag(), std::move(parent_environment)));
+}
+
+Environment::Environment(ConstructorAccessTag) {}
+
+Environment::Environment(ConstructorAccessTag,
+                         std::optional<gc::Ptr<Environment>> parent_environment)
     : parent_environment_(std::move(parent_environment)) {}
 
 /* static */ gc::Root<Environment> Environment::NewNamespace(
@@ -101,8 +114,7 @@ Environment::Environment(std::optional<gc::Ptr<Environment>> parent_environment)
       parent_value.has_value())
     return parent_value.value();
 
-  gc::Root<Environment> namespace_env =
-      pool.NewRoot(MakeNonNullUnique<Environment>(parent.ptr()));
+  gc::Root<Environment> namespace_env = Environment::New(pool, parent.ptr());
   parent.ptr()->data_.lock([&](Data& data) {
     InsertOrDie(data.namespaces, {name, namespace_env.ptr()});
   });

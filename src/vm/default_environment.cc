@@ -20,8 +20,7 @@ using afc::math::numbers::Number;
 namespace afc::vm {
 language::gc::Root<Environment> NewDefaultEnvironment(
     language::gc::Pool& pool) {
-  gc::Root<Environment> environment =
-      pool.NewRoot(MakeNonNullUnique<Environment>());
+  gc::Root<Environment> environment = Environment::New(pool);
   Environment& environment_value = environment.ptr().value();
   RegisterStringType(pool, environment_value);
   RegisterNumberFunctions(pool, environment_value);

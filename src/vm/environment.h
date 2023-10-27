@@ -25,9 +25,32 @@ class ObjectName;
 GHOST_TYPE_CONTAINER(Namespace, std::vector<std::wstring>)
 
 class Environment {
+  struct ConstructorAccessTag {};
+
+  struct Data {
+    std::map<std::wstring, std::unordered_map<Type, language::gc::Ptr<Value>>>
+        table;
+
+    std::map<std::wstring, language::gc::Ptr<Environment>> namespaces;
+  };
+
+  std::map<types::ObjectName, language::gc::Ptr<ObjectType>> object_types_;
+
+  concurrent::Protected<Data> data_;
+
+  // TODO: Consider whether the parent environment should itself be const?
+  const std::optional<language::gc::Ptr<Environment>> parent_environment_ =
+      std::nullopt;
+
  public:
-  Environment();
+  static language::gc::Root<Environment> New(language::gc::Pool& pool);
+  static language::gc::Root<Environment> New(
+      language::gc::Pool& pool,
+      std::optional<language::gc::Ptr<Environment>> parent_environment);
+
+  explicit Environment(ConstructorAccessTag);
   explicit Environment(
+      ConstructorAccessTag,
       std::optional<language::gc::Ptr<Environment>> parent_environment);
 
   // Creates or returns an existing namespace inside parent with a given name.
@@ -76,21 +99,6 @@ class Environment {
 
  private:
   const Environment* FindNamespace(const Namespace& namespace_name) const;
-
-  struct Data {
-    std::map<std::wstring, std::unordered_map<Type, language::gc::Ptr<Value>>>
-        table;
-
-    std::map<std::wstring, language::gc::Ptr<Environment>> namespaces;
-  };
-
-  std::map<types::ObjectName, language::gc::Ptr<ObjectType>> object_types_;
-
-  concurrent::Protected<Data> data_;
-
-  // TODO: Consider whether the parent environment should itself be const?
-  const std::optional<language::gc::Ptr<Environment>> parent_environment_ =
-      std::nullopt;
 };
 
 template <>

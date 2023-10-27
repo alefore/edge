@@ -369,7 +369,7 @@ futures::ValueOrError<gc::Root<Value>> Call(
       NewFunctionCall(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
           std::move(args_expr)),
-      pool, pool.NewRoot(MakeNonNullUnique<Environment>()), yield_callback);
+      pool, Environment::New(pool), yield_callback);
 }
 
 }  // namespace afc::vm
