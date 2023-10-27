@@ -258,7 +258,7 @@ using std::to_wstring;
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
   gc::Root<OpenBuffer> output = options.editor.gc_pool().NewRoot(
       MakeNonNullUnique<OpenBuffer>(ConstructorAccessTag(), std::move(options),
-                                    std::move(default_commands), mode.ptr()));
+                                    default_commands.ptr(), mode.ptr()));
   output.ptr()->Initialize(output.ptr());
   return output;
 }
@@ -349,7 +349,7 @@ class OpenBufferMutableLineSequenceObserver
 };
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
-                       gc::Root<MapModeCommands> default_commands,
+                       gc::Ptr<MapModeCommands> default_commands,
                        gc::Ptr<EditorMode> mode)
     : options_(std::move(options)),
       transformation_adapter_(
@@ -1118,12 +1118,12 @@ LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }
 EditorMode& OpenBuffer::mode() const { return mode_.value(); }
 
 gc::Root<EditorMode> OpenBuffer::ResetMode() {
-  gc::Root<EditorMode> copy = std::move(mode_).ToRoot();
-  mode_ = MapMode::New(editor().gc_pool(), default_commands_.ptr()).ptr();
+  gc::Root<EditorMode> copy = mode_.ToRoot();
+  mode_ = MapMode::New(editor().gc_pool(), default_commands_).ptr();
   return copy;
 }
 
-gc::Root<MapModeCommands> OpenBuffer::default_commands() {
+gc::Ptr<MapModeCommands> OpenBuffer::default_commands() {
   return default_commands_;
 }
 
@@ -2566,6 +2566,12 @@ language::gc::Root<const OpenBuffer> OpenBuffer::NewRoot() const {
   return language::gc::Root<const OpenBuffer>(ptr_this_->ToRoot());
 }
 
+std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+OpenBuffer::Expand() const {
+  return {environment().object_metadata(), default_commands_.object_metadata(),
+          mode_.object_metadata()};
+}
+
 const std::multimap<LineColumn, LineMarks::Mark>& OpenBuffer::GetLineMarks()
     const {
   return editor().line_marks().GetMarksForTargetBuffer(name());
@@ -2681,13 +2687,3 @@ gc::Root<OpenBuffer> NewBufferForTests(EditorState& editor) {
 }
 
 }  // namespace afc::editor
-namespace afc::language::gc {
-template <>
-struct ExpandHelper<editor::OpenBuffer> {
-  std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
-      const editor::OpenBuffer& buffer) const {
-    return std::vector<language::NonNull<std::shared_ptr<ObjectMetadata>>>(
-        {buffer.environment().object_metadata()});
-  }
-};
-}  // namespace afc::language::gc

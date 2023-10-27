@@ -531,7 +531,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
             gc::Root<OpenBuffer> buffer =
                 vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
                     args[0].ptr().value());
-            buffer.ptr()->default_commands().ptr()->Add(
+            buffer.ptr()->default_commands()->Add(
                 args[1].ptr()->get_string(), args[2].ptr()->get_string(),
                 std::move(args[3]), buffer.ptr()->environment());
             return vm::Value::NewVoid(pool);
@@ -545,7 +545,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           [](gc::Root<OpenBuffer> buffer, std::wstring keys,
              std::wstring path) {
             LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
-            buffer.ptr()->default_commands().ptr()->Add(
+            buffer.ptr()->default_commands()->Add(
                 keys,
                 [buffer, path]() {
                   std::wstring resolved_path;
