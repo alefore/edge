@@ -110,7 +110,7 @@ void MapModeCommands::Add(std::wstring name,
 
 void MapModeCommands::Add(std::wstring name, std::wstring description,
                           gc::Root<Value> value,
-                          gc::Root<vm::Environment> environment) {
+                          gc::Ptr<vm::Environment> environment) {
   const auto& value_type = std::get<vm::types::Function>(value.ptr()->type);
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
   CHECK(value_type.inputs.empty()) << "Definition has inputs: " << name;
@@ -130,7 +130,7 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
                           WorkQueue::Callback{.callback = std::move(callback)});
                     });
               },
-              environment.ptr().ToWeakPtr(),
+              environment.ToWeakPtr(),
               NonNull<std::shared_ptr<vm::Expression>>(NewFunctionCall(
                   NewConstantExpression(std::move(value)), {}))),
           description));

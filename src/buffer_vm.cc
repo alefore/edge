@@ -533,7 +533,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                     args[0].ptr().value());
             buffer.ptr()->default_commands().ptr()->Add(
                 args[1].ptr()->get_string(), args[2].ptr()->get_string(),
-                std::move(args[3]), buffer.ptr()->environment().ToRoot());
+                std::move(args[3]), buffer.ptr()->environment());
             return vm::Value::NewVoid(pool);
           })
           .ptr());
