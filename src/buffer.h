@@ -484,7 +484,6 @@ class OpenBuffer {
   const language::text::LineColumn position() const;
   void set_position(const language::text::LineColumn& position);
 
-  // Can return nullptr.
   enum class RemoteURLBehavior { kIgnore, kLaunchBrowser };
   futures::ValueOrError<std::optional<language::gc::Root<OpenBuffer>>>
   OpenBufferForCurrentPosition(RemoteURLBehavior remote_url_behavior);
