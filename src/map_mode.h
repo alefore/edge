@@ -48,7 +48,7 @@ class MapModeCommands {
   Coallesce() const;
 
   // Adds an entry mapping a given string to a given command.
-  void Add(std::wstring name, language::gc::Root<Command> value);
+  void Add(std::wstring name, language::gc::Ptr<Command> value);
   void Add(std::wstring name, std::wstring description,
            language::gc::Root<vm::Value> value,
            language::gc::Ptr<vm::Environment> environment);

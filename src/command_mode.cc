@@ -650,7 +650,7 @@ void ToggleVariable(EditorState& editor_state,
                                    << error;
                       },
                       [&](gc::Root<Command> value) {
-                        map_mode.Add(L"v" + variable->key(), std::move(value));
+                        map_mode.Add(L"v" + variable->key(), value.ptr());
                       }},
              NewCppCommand(editor_state, editor_state.environment(), command));
 }
@@ -675,7 +675,8 @@ void ToggleVariable(EditorState& editor_state,
   map_mode.Add(L"v" + variable->key(),
                ValueOrDie(NewCppCommand(editor_state,
                                         editor_state.environment(), command),
-                          L"ToggleVariable<std::wstring> Definition"));
+                          L"ToggleVariable<std::wstring> Definition")
+                   .ptr());
 }
 
 void ToggleVariable(EditorState& editor_state,
@@ -706,7 +707,8 @@ void ToggleVariable(EditorState& editor_state,
   map_mode.Add(L"v" + variable->key(),
                ValueOrDie(NewCppCommand(editor_state,
                                         editor_state.environment(), command),
-                          L"ToggleVariable<int> definition"));
+                          L"ToggleVariable<int> definition")
+                   .ptr());
 }
 
 template <typename T>
@@ -728,14 +730,16 @@ void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
 gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   gc::Root<MapModeCommands> commands_root = MapModeCommands::New(editor_state);
   MapModeCommands& commands = commands_root.ptr().value();
-  commands.Add(L"aq", NewQuitCommand(editor_state, 0));
-  commands.Add(L"aQ", NewQuitCommand(editor_state, 1));
-  commands.Add(L"av", NewSetVariableCommand(editor_state));
-  commands.Add(L"ac", NewRunCppFileCommand(editor_state));
-  commands.Add(L"aC", NewRunCppCommand(editor_state, CppCommandMode::kLiteral));
-  commands.Add(L":", NewRunCppCommand(editor_state, CppCommandMode::kShell));
-  commands.Add(L"a.", NewOpenDirectoryCommand(editor_state));
-  commands.Add(L"ao", NewOpenFileCommand(editor_state));
+  commands.Add(L"aq", NewQuitCommand(editor_state, 0).ptr());
+  commands.Add(L"aQ", NewQuitCommand(editor_state, 1).ptr());
+  commands.Add(L"av", NewSetVariableCommand(editor_state).ptr());
+  commands.Add(L"ac", NewRunCppFileCommand(editor_state).ptr());
+  commands.Add(L"aC",
+               NewRunCppCommand(editor_state, CppCommandMode::kLiteral).ptr());
+  commands.Add(L":",
+               NewRunCppCommand(editor_state, CppCommandMode::kShell).ptr());
+  commands.Add(L"a.", NewOpenDirectoryCommand(editor_state).ptr());
+  commands.Add(L"ao", NewOpenFileCommand(editor_state).ptr());
   commands.Add(
       L"aF",
       NewLinePromptCommand(
@@ -747,60 +751,76 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 .history_file = HistoryFileCommands(),
                 .handler = std::bind_front(RunMultipleCommandsHandler,
                                            std::ref(editor_state))};
-          }));
+          })
+          .ptr());
 
-  commands.Add(L"af", NewForkCommand(editor_state));
+  commands.Add(L"af", NewForkCommand(editor_state).ptr());
 
-  commands.Add(L"N", NewNavigationBufferCommand(editor_state));
-  commands.Add(L"i", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<EnterInsertModeCommand>(
-                             editor_state, std::nullopt)));
-  commands.Add(L"I",
-               editor_state.gc_pool().NewRoot(
-                   MakeNonNullUnique<EnterInsertModeCommand>(editor_state, [] {
-                     Modifiers output;
-                     output.insertion = Modifiers::ModifyMode::kOverwrite;
-                     return output;
-                   }())));
+  commands.Add(L"N", NewNavigationBufferCommand(editor_state).ptr());
+  commands.Add(L"i", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<EnterInsertModeCommand>(
+                             editor_state, std::nullopt))
+                         .ptr());
+  commands.Add(L"I", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<EnterInsertModeCommand>(
+                             editor_state,
+                             [] {
+                               Modifiers output;
+                               output.insertion =
+                                   Modifiers::ModifyMode::kOverwrite;
+                               return output;
+                             }()))
+                         .ptr());
 
   commands.Add(L"f", operation::NewTopLevelCommand(
                          L"find",
                          L"reaches the next occurrence of a specific "
                          L"character in the current line",
                          operation::TopCommand(), editor_state,
-                         {operation::CommandReachQuery{}}));
+                         {operation::CommandReachQuery{}})
+                         .ptr());
   commands.Add(L"r", operation::NewTopLevelCommand(
                          L"reach", L"starts a new reach command",
-                         operation::TopCommand(), editor_state, {}));
+                         operation::TopCommand(), editor_state, {})
+                         .ptr());
 
-  commands.Add(L"R",
-               editor_state.gc_pool().NewRoot(
-                   MakeNonNullUnique<InsertionModifierCommand>(editor_state)));
+  commands.Add(
+      L"R",
+      editor_state.gc_pool()
+          .NewRoot(MakeNonNullUnique<InsertionModifierCommand>(editor_state))
+          .ptr());
 
-  commands.Add(L"/", NewSearchCommand(editor_state));
-  commands.Add(L"g", NewGotoCommand(editor_state));
+  commands.Add(L"/", NewSearchCommand(editor_state).ptr());
+  commands.Add(L"g", NewGotoCommand(editor_state).ptr());
 
-  commands.Add(L"W", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kSymbol)));
-  commands.Add(L"w", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kWord)));
-  commands.Add(L"E", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kPage)));
-  commands.Add(L"c", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kCursor)));
-  commands.Add(L"B", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kBuffer)));
-  commands.Add(L"!", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kMark)));
-  commands.Add(L"t", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kTree)));
+  commands.Add(L"W", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                             editor_state, Structure::kSymbol))
+                         .ptr());
+  commands.Add(L"w", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                             editor_state, Structure::kWord))
+                         .ptr());
+  commands.Add(L"E", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                             editor_state, Structure::kPage))
+                         .ptr());
+  commands.Add(L"c", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                             editor_state, Structure::kCursor))
+                         .ptr());
+  commands.Add(L"B", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                             editor_state, Structure::kBuffer))
+                         .ptr());
+  commands.Add(L"!", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                             editor_state, Structure::kMark))
+                         .ptr());
+  commands.Add(L"t", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                             editor_state, Structure::kTree))
+                         .ptr());
 
   commands.Add(
       L"e", operation::NewTopLevelCommand(
@@ -810,35 +830,44 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                         PostTransformationBehavior::kDeleteRegion},
                 editor_state,
                 {operation::CommandReach{
-                    .repetitions = operation::CommandArgumentRepetitions(1)}}));
-  commands.Add(L"p", NewPasteCommand(editor_state));
+                    .repetitions = operation::CommandArgumentRepetitions(1)}})
+                .ptr());
+  commands.Add(L"p", NewPasteCommand(editor_state).ptr());
 
-  commands.Add(L"u",
-               editor_state.gc_pool().NewRoot(
-                   MakeNonNullUnique<UndoCommand>(editor_state, std::nullopt)));
-  commands.Add(L"U",
-               editor_state.gc_pool().NewRoot(MakeNonNullUnique<UndoCommand>(
-                   editor_state, Direction::kBackwards)));
-  commands.Add(L"\n", editor_state.gc_pool().NewRoot(
-                          MakeNonNullUnique<ActivateLink>(editor_state)));
+  commands.Add(L"u", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<UndoCommand>(editor_state,
+                                                                 std::nullopt))
+                         .ptr());
+  commands.Add(L"U", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<UndoCommand>(
+                             editor_state, Direction::kBackwards))
+                         .ptr());
+  commands.Add(L"\n",
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<ActivateLink>(editor_state))
+                   .ptr());
 
   commands.Add(
-      L"b", editor_state.gc_pool().NewRoot(
-                MakeNonNullUnique<GotoPreviousPositionCommand>(editor_state)));
-  commands.Add(L"n", NewNavigateCommand(editor_state));
+      L"b",
+      editor_state.gc_pool()
+          .NewRoot(MakeNonNullUnique<GotoPreviousPositionCommand>(editor_state))
+          .ptr());
+  commands.Add(L"n", NewNavigateCommand(editor_state).ptr());
 
   commands.Add(
       L"j", operation::NewTopLevelCommand(
                 L"down", L"moves down one line", operation::TopCommand(),
                 editor_state,
                 {operation::CommandReachLine{
-                    .repetitions = operation::CommandArgumentRepetitions(1)}}));
+                    .repetitions = operation::CommandArgumentRepetitions(1)}})
+                .ptr());
   commands.Add(
       L"k",
       operation::NewTopLevelCommand(
           L"up", L"moves up one line", operation::TopCommand(), editor_state,
           {operation::CommandReachLine{
-              .repetitions = operation::CommandArgumentRepetitions(-1)}}));
+              .repetitions = operation::CommandArgumentRepetitions(-1)}})
+          .ptr());
 
   // commands.Add(L"j", std::make_unique<LineDown>());
   // commands.Add(L"k", std::make_unique<LineUp>());
@@ -849,14 +878,15 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 L"right", L"moves right one position", operation::TopCommand(),
                 editor_state,
                 {operation::CommandReach{
-                    .repetitions = operation::CommandArgumentRepetitions(1)}}));
+                    .repetitions = operation::CommandArgumentRepetitions(1)}})
+                .ptr());
   commands.Add(
-      L"h",
-      operation::NewTopLevelCommand(
-          L"left", L"moves left one position", operation::TopCommand(),
-          editor_state,
-          {operation::CommandReach{
-              .repetitions = operation::CommandArgumentRepetitions(-1)}}));
+      L"h", operation::NewTopLevelCommand(
+                L"left", L"moves left one position", operation::TopCommand(),
+                editor_state,
+                {operation::CommandReach{
+                    .repetitions = operation::CommandArgumentRepetitions(-1)}})
+                .ptr());
 
   commands.Add(
       L"H", operation::NewTopLevelCommand(
@@ -864,7 +894,8 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                 operation::TopCommand(), editor_state,
                 {operation::CommandReachBegin{
                     .structure = Structure::kChar,
-                    .repetitions = operation::CommandArgumentRepetitions(1)}}));
+                    .repetitions = operation::CommandArgumentRepetitions(1)}})
+                .ptr());
   commands.Add(L"L",
                operation::NewTopLevelCommand(
                    L"end", L"moves to the end of the current line",
@@ -872,14 +903,16 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                    {operation::CommandReachBegin{
                        .structure = Structure::kChar,
                        .repetitions = operation::CommandArgumentRepetitions(1),
-                       .direction = Direction::kBackwards}}));
+                       .direction = Direction::kBackwards}})
+                   .ptr());
   commands.Add(
       L"K", operation::NewTopLevelCommand(
                 L"file-home", L"moves to the beginning of the current file",
                 operation::TopCommand(), editor_state,
                 {operation::CommandReachBegin{
                     .structure = Structure::kLine,
-                    .repetitions = operation::CommandArgumentRepetitions(1)}}));
+                    .repetitions = operation::CommandArgumentRepetitions(1)}})
+                .ptr());
   commands.Add(L"J",
                operation::NewTopLevelCommand(
                    L"file-end", L"moves to the end of the current file",
@@ -887,7 +920,8 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                    {operation::CommandReachBegin{
                        .structure = Structure::kLine,
                        .repetitions = operation::CommandArgumentRepetitions(1),
-                       .direction = Direction::kBackwards}}));
+                       .direction = Direction::kBackwards}})
+                   .ptr());
   commands.Add(
       L"~", operation::NewTopLevelCommand(
                 L"switch-case", L"Switches the case of the current character.",
@@ -896,7 +930,8 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                         PostTransformationBehavior::kCapitalsSwitch},
                 editor_state,
                 {operation::CommandReach{
-                    .repetitions = operation::CommandArgumentRepetitions(1)}}));
+                    .repetitions = operation::CommandArgumentRepetitions(1)}})
+                .ptr());
 
   commands.Add(
       L"%",
@@ -905,10 +940,11 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           operation::TopCommand{}, editor_state,
           {operation::CommandReach{
               .structure = Structure::kTree,
-              .repetitions = operation::CommandArgumentRepetitions(1)}}));
+              .repetitions = operation::CommandArgumentRepetitions(1)}})
+          .ptr());
 
-  commands.Add(L"sr", NewRecordCommand(editor_state));
-  commands.Add(L"\t", NewFindCompletionCommand(editor_state));
+  commands.Add(L"sr", NewRecordCommand(editor_state).ptr());
+  commands.Add(L"\t", NewFindCompletionCommand(editor_state).ptr());
 
   RegisterVariableKeys(editor_state, editor_variables::BoolStruct(),
                        VariableLocation::kEditor, commands_root.ptr().value());
@@ -922,61 +958,83 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                        VariableLocation::kBuffer, commands_root.ptr().value());
 
   commands.Add({Terminal::ESCAPE},
-               editor_state.gc_pool().NewRoot(
-                   MakeNonNullUnique<ResetStateCommand>(editor_state)));
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<ResetStateCommand>(editor_state))
+                   .ptr());
 
   commands.Add({Terminal::CTRL_L},
-               editor_state.gc_pool().NewRoot(
-                   MakeNonNullUnique<HardRedrawCommand>(editor_state)));
-  commands.Add(L"*", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<SetStrengthCommand>(editor_state)));
-  commands.Add(L"0", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"1", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"2", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"3", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"4", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"5", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"6", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"7", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"8", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
-  commands.Add(L"9", editor_state.gc_pool().NewRoot(
-                         MakeNonNullUnique<NumberMode>(editor_state)));
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<HardRedrawCommand>(editor_state))
+                   .ptr());
+  commands.Add(L"*",
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<SetStrengthCommand>(editor_state))
+                   .ptr());
+  commands.Add(L"0", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"1", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"2", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"3", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"4", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"5", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"6", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"7", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"8", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
+  commands.Add(L"9", editor_state.gc_pool()
+                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                         .ptr());
 
   commands.Add({Terminal::DOWN_ARROW},
-               editor_state.gc_pool().NewRoot(
-                   MakeNonNullUnique<LineDown>(editor_state)));
-  commands.Add(
-      {Terminal::UP_ARROW},
-      editor_state.gc_pool().NewRoot(MakeNonNullUnique<LineUp>(editor_state)));
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<LineDown>(editor_state))
+                   .ptr());
+  commands.Add({Terminal::UP_ARROW},
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<LineUp>(editor_state))
+                   .ptr());
   commands.Add({Terminal::LEFT_ARROW},
-               editor_state.gc_pool().NewRoot(MakeNonNullUnique<MoveForwards>(
-                   editor_state, Direction::kBackwards)));
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<MoveForwards>(
+                       editor_state, Direction::kBackwards))
+                   .ptr());
   commands.Add({Terminal::RIGHT_ARROW},
-               editor_state.gc_pool().NewRoot(MakeNonNullUnique<MoveForwards>(
-                   editor_state, Direction::kForwards)));
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<MoveForwards>(
+                       editor_state, Direction::kForwards))
+                   .ptr());
   commands.Add(
       {Terminal::PAGE_DOWN},
       operation::NewTopLevelCommand(
           L"page_down", L"moves down one page", operation::TopCommand(),
           editor_state,
           {operation::CommandReachPage{
-              .repetitions = operation::CommandArgumentRepetitions(1)}}));
+              .repetitions = operation::CommandArgumentRepetitions(1)}})
+          .ptr());
   commands.Add(
       {Terminal::PAGE_UP},
       operation::NewTopLevelCommand(
           L"page_up", L"moves up one page", operation::TopCommand(),
           editor_state,
           {operation::CommandReachPage{
-              .repetitions = operation::CommandArgumentRepetitions(-1)}}));
+              .repetitions = operation::CommandArgumentRepetitions(-1)}})
+          .ptr());
   return commands_root;
 }
 

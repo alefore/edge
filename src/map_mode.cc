@@ -63,15 +63,17 @@ gc::Root<Command> MakeCommandFromFunction(gc::Pool& pool, Callback callback,
 
 /* static */
 gc::Root<MapModeCommands> MapModeCommands::New(EditorState& editor_state) {
-  return editor_state.gc_pool().NewRoot(
+  gc::Root<MapModeCommands> output = editor_state.gc_pool().NewRoot(
       MakeNonNullUnique<MapModeCommands>(ConstructorAccessTag(), editor_state));
+  output.ptr()->Add(
+      L"?", NewHelpCommand(editor_state, output.ptr().value(), L"command mode")
+                .ptr());
+  return output;
 }
 
 MapModeCommands::MapModeCommands(ConstructorAccessTag,
                                  EditorState& editor_state)
-    : editor_state_(editor_state), frames_(1) {
-  Add(L"?", NewHelpCommand(editor_state_, *this, L"command mode"));
-}
+    : editor_state_(editor_state), frames_(1) {}
 
 gc::Root<MapModeCommands> MapModeCommands::NewChild() {
   gc::Root<MapModeCommands> output = MapModeCommands::New(editor_state_);
@@ -80,8 +82,9 @@ gc::Root<MapModeCommands> MapModeCommands::NewChild() {
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
-  output.ptr()->Add(L"?", NewHelpCommand(editor_state_, output.ptr().value(),
-                                         L"command mode"));
+  output.ptr()->Add(
+      L"?", NewHelpCommand(editor_state_, output.ptr().value(), L"command mode")
+                .ptr());
   return output;
 }
 
@@ -100,9 +103,9 @@ MapModeCommands::Coallesce() const {
   return output;
 }
 
-void MapModeCommands::Add(std::wstring name, gc::Root<Command> value) {
+void MapModeCommands::Add(std::wstring name, gc::Ptr<Command> value) {
   CHECK(!frames_.empty());
-  frames_.front()->commands.insert({name, value.ptr()});
+  frames_.front()->commands.insert({name, std::move(value)});
 }
 
 void MapModeCommands::Add(std::wstring name, std::wstring description,
@@ -131,14 +134,15 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
               environment.ToWeakPtr(),
               NonNull<std::shared_ptr<vm::Expression>>(NewFunctionCall(
                   NewConstantExpression(std::move(value)), {}))),
-          description));
+          description)
+          .ptr());
 }
 
 void MapModeCommands::Add(std::wstring name, std::function<void()> callback,
                           std::wstring description) {
-  Add(name,
-      MakeCommandFromFunction(editor_state_.gc_pool(), std::move(callback),
-                              std::move(description)));
+  Add(name, MakeCommandFromFunction(editor_state_.gc_pool(),
+                                    std::move(callback), std::move(description))
+                .ptr());
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
