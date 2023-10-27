@@ -161,8 +161,7 @@ statement(A) ::= nesting_lbracket statement_list(L) nesting_rbracket. {
 
 nesting_lbracket ::= LBRACKET. {
   LOG(INFO) << "Nesting.";
-  compilation->environment = 
-      Environment::New(compilation->pool, compilation->environment.ptr());
+  compilation->environment = Environment::New(compilation->environment.ptr());
 }
 
 nesting_rbracket ::= RBRACKET. {

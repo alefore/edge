@@ -9,18 +9,19 @@
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
 
+namespace gc = afc::language::gc;
+
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitOptional;
+using afc::language::VisitPointer;
+
 namespace afc::vm {
-using language::Error;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::PossibleError;
-using language::Success;
-using language::ValueOrError;
-using language::VisitPointer;
-
-namespace gc = language::gc;
-
 struct Instance {
   static gc::Root<Environment> Read(const Type& class_type,
                                     const gc::Root<Value>& obj) {
@@ -33,8 +34,7 @@ struct Instance {
 void StartClassDeclaration(Compilation& compilation,
                            const types::ObjectName& name) {
   compilation.current_class.push_back(name);
-  compilation.environment =
-      Environment::New(compilation.pool, compilation.environment.ptr());
+  compilation.environment = Environment::New(compilation.environment.ptr());
 }
 
 namespace {
@@ -114,10 +114,14 @@ PossibleError FinishClassDeclaration(
   auto purity = constructor_expression->purity();
   gc::Root<Value> constructor = Value::NewFunction(
       pool, PurityType::kPure, class_type, {},
-      [constructor_expression, class_environment, class_type](
+      [&pool, constructor_expression, class_environment, class_type](
           std::vector<gc::Root<Value>>, Trampoline& trampoline) {
-        gc::Root<Environment> instance_environment = Environment::New(
-            trampoline.pool(), class_environment.ptr()->parent_environment());
+        gc::Root<Environment> instance_environment = VisitOptional(
+            [](gc::Ptr<vm::Environment> parent) {
+              return Environment::New(std::move(parent));
+            },
+            [&pool] { return Environment::New(pool); },
+            class_environment.ptr()->parent_environment());
         auto original_environment = trampoline.environment();
         trampoline.SetEnvironment(instance_environment);
         return trampoline.Bounce(constructor_expression, types::Void{})

@@ -365,9 +365,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
       line_column_variables_(
           buffer_variables::LineColumnStruct()->NewInstance()),
-      environment_(Environment::New(options_.editor.gc_pool(),
-                                    options_.editor.environment().ptr())
-                       .ptr()),
+      environment_(Environment::New(options_.editor.environment().ptr()).ptr()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       default_commands_(std::move(default_commands)),
@@ -1192,8 +1190,7 @@ void OpenBuffer::AppendToLastLine(Line line) {
 ValueOrError<
     std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
 OpenBuffer::CompileString(const std::wstring& code) const {
-  gc::Root<Environment> sub_environment =
-      Environment::New(editor().gc_pool(), environment_);
+  gc::Root<Environment> sub_environment = Environment::New(environment_);
   ASSIGN_OR_RETURN(
       NonNull<std::unique_ptr<Expression>> expression,
       afc::vm::CompileString(code, editor().gc_pool(), sub_environment));

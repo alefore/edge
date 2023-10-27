@@ -45,13 +45,11 @@ class Environment {
  public:
   static language::gc::Root<Environment> New(language::gc::Pool& pool);
   static language::gc::Root<Environment> New(
-      language::gc::Pool& pool,
-      std::optional<language::gc::Ptr<Environment>> parent_environment);
+      language::gc::Ptr<Environment> parent_environment);
 
   explicit Environment(ConstructorAccessTag);
-  explicit Environment(
-      ConstructorAccessTag,
-      std::optional<language::gc::Ptr<Environment>> parent_environment);
+  explicit Environment(ConstructorAccessTag,
+                       language::gc::Ptr<Environment> parent_environment);
 
   // Creates or returns an existing namespace inside parent with a given name.
   static language::gc::Root<Environment> NewNamespace(

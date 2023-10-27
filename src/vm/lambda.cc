@@ -86,7 +86,7 @@ class LambdaExpression : public Expression {
           CHECK_EQ(args.size(), argument_names->size())
               << "Invalid number of arguments for function.";
           gc::Root<Environment> environment =
-              Environment::New(trampoline.pool(), parent_environment);
+              Environment::New(parent_environment);
           for (size_t i = 0; i < args.size(); i++) {
             environment.ptr()->Define(argument_names->at(i),
                                       std::move(args.at(i)));
@@ -150,8 +150,7 @@ std::unique_ptr<UserFunction> UserFunction::New(
     compilation.environment.ptr()->Define(
         name.value(), Value::New(compilation.pool, output->type));
   }
-  compilation.environment =
-      Environment::New(compilation.pool, compilation.environment.ptr());
+  compilation.environment = Environment::New(compilation.environment.ptr());
   for (const std::pair<Type, wstring>& arg : *args) {
     compilation.environment.ptr()->Define(
         arg.second, Value::New(compilation.pool, arg.first));
