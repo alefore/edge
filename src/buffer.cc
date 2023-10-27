@@ -312,12 +312,15 @@ class OpenBufferMutableLineSequenceObserver
   void Notify(bool update_disk_state = true) {
     std::optional<gc::Root<OpenBuffer>> root_this = buffer_.Lock();
     if (!root_this.has_value()) return;
-    root_this->ptr()->work_queue_->Schedule(
-        WorkQueue::Callback{.callback = gc::BindFrontWithWeakPtr(
-                                [](gc::Root<OpenBuffer> buffer) {
-                                  buffer.ptr()->MaybeStartUpdatingSyntaxTrees();
-                                },
-                                buffer_)});
+    root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
+        .callback = gc::LockCallback(
+            gc::BindFront(
+                root_this->ptr()->editor().gc_pool(),
+                [](gc::Root<OpenBuffer> buffer) {
+                  buffer.ptr()->MaybeStartUpdatingSyntaxTrees();
+                },
+                buffer_)
+                .ptr())});
     if (update_disk_state) {
       root_this->ptr()->SetDiskState(OpenBuffer::DiskState::kStale);
       if (root_this->ptr()->Read(buffer_variables::persist_state)) {
@@ -328,11 +331,14 @@ class OpenBufferMutableLineSequenceObserver
             flush_backup_time.tv_sec += 30;
             root_this->ptr()->work_queue_->Schedule(WorkQueue::Callback{
                 .time = flush_backup_time,
-                .callback = gc::BindFrontWithWeakPtr(
-                    [](gc::Root<OpenBuffer> locked_root_this) {
-                      locked_root_this.ptr()->UpdateBackup();
-                    },
-                    root_this->ptr().ToWeakPtr())});
+                .callback = gc::LockCallback(
+                    gc::BindFront(
+                        root_this->ptr()->editor().gc_pool(),
+                        [](gc::Root<OpenBuffer> locked_root_this) {
+                          locked_root_this.ptr()->UpdateBackup();
+                        },
+                        root_this->ptr().ToWeakPtr())
+                        .ptr())});
           } break;
 
           case OpenBuffer::DiskState::kStale:
@@ -2619,9 +2625,9 @@ void OpenBuffer::UpdateLastAction() {
   last_action_ = now;
   if (double idle_seconds = Read(buffer_variables::close_after_idle_seconds);
       idle_seconds >= 0.0) {
-    work_queue_->Schedule(WorkQueue::Callback{
-        .time = AddSeconds(Now(), idle_seconds),
-        .callback = gc::BindFrontWithWeakPtr(
+    auto callback =
+        gc::BindFront(
+            editor().gc_pool(),
             [last_action = last_action_](gc::Root<OpenBuffer> buffer_root) {
               OpenBuffer& buffer = buffer_root.ptr().value();
               if (buffer.last_action_ != last_action) return;
@@ -2629,7 +2635,22 @@ void OpenBuffer::UpdateLastAction() {
               LOG(INFO) << "close_after_idle_seconds: Closing.";
               buffer.editor().CloseBuffer(buffer);
             },
-            ptr_this_->ToWeakPtr())});
+            ptr_this_->ToWeakPtr())
+            .ptr();
+    work_queue_->Schedule(WorkQueue::Callback{
+        .time = AddSeconds(Now(), idle_seconds),
+        .callback = gc::LockCallback(
+            gc::BindFront(
+                editor().gc_pool(),
+                [last_action = last_action_](gc::Root<OpenBuffer> buffer_root) {
+                  OpenBuffer& buffer = buffer_root.ptr().value();
+                  if (buffer.last_action_ != last_action) return;
+                  buffer.last_action_ = Now();
+                  LOG(INFO) << "close_after_idle_seconds: Closing.";
+                  buffer.editor().CloseBuffer(buffer);
+                },
+                ptr_this_->ToWeakPtr())
+                .ptr())});
   }
 }
 void OpenBuffer::OnCursorMove() {

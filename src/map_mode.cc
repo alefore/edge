@@ -11,6 +11,7 @@
 #include "src/help_command.h"
 #include "src/language/gc_util.h"
 #include "src/language/safe_types.h"
+#include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/function_call.h"
 #include "src/vm/types.h"
@@ -32,7 +33,7 @@ namespace {
 template <typename Callback>
 class CommandFromFunction : public Command {
  public:
-  CommandFromFunction(Callback callback, std::wstring description)
+  CommandFromFunction(gc::Root<Callback> callback, std::wstring description)
       : callback_(std::move(callback)), description_(std::move(description)) {}
 
   std::wstring Description() const override { return description_; }
@@ -40,21 +41,21 @@ class CommandFromFunction : public Command {
     return L"C++ Functions (Extensions)";
   }
 
-  void ProcessInput(wint_t) override { callback_(); }
+  void ProcessInput(wint_t) override { callback_.ptr().value()(); }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    // TODO(easy, 2023-10-14): Return a value from callback_.
-    return {};
+    return {/*callback_.object_metadata()*/};
   }
 
  private:
-  Callback callback_;
+  gc::Root<Callback> callback_;
   const std::wstring description_;
 };
 
 template <typename Callback>
-gc::Root<Command> MakeCommandFromFunction(gc::Pool& pool, Callback callback,
+gc::Root<Command> MakeCommandFromFunction(gc::Pool& pool,
+                                          gc::Root<Callback> callback,
                                           std::wstring description) {
   return pool.NewRoot(MakeNonNullUnique<CommandFromFunction<Callback>>(
       std::move(callback), std::move(description)));
@@ -114,14 +115,17 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
   const auto& value_type = std::get<vm::types::Function>(value.ptr()->type);
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
   CHECK(value_type.inputs.empty()) << "Definition has inputs: " << name;
+  CHECK(&value.ptr().value() != nullptr);
 
   Add(name, MakeCommandFromFunction(
                 editor_state_.gc_pool(),
-                BindFrontWithWeakPtr(
+                gc::BindFront(
+                    editor_state_.gc_pool(),
                     [&editor_state = editor_state_](
                         const gc::Root<vm::Environment> environment_locked,
                         gc::Ptr<vm::Value> value_nested) {
                       LOG(INFO) << "Evaluating expression from Value...";
+                      CHECK(&value_nested.value() != nullptr);
                       NonNull<std::shared_ptr<vm::Expression>> expression =
                           NewFunctionCall(
                               NewConstantExpression(value_nested.ToRoot()), {});
@@ -140,8 +144,10 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
 
 void MapModeCommands::Add(std::wstring name, std::function<void()> callback,
                           std::wstring description) {
-  Add(name, MakeCommandFromFunction(editor_state_.gc_pool(),
-                                    std::move(callback), std::move(description))
+  Add(name, MakeCommandFromFunction(
+                editor_state_.gc_pool(),
+                gc::BindFront(editor_state_.gc_pool(), std::move(callback)),
+                std::move(description))
                 .ptr());
 }
 
@@ -195,4 +201,26 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> MapMode::Expand()
   return {commands_.object_metadata()};
 }
 
+namespace {
+const bool map_mode_commands_tests_registration = tests::Register(
+    L"MapModeCommands",
+    {
+        {.name = L"Add",
+         .callback =
+             [] {
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
+               bool executed = false;
+               editor->default_commands().ptr()->Add(
+                   L"X", L"Activates something.",
+                   vm::NewCallback(editor->gc_pool(), vm::PurityType::kUnknown,
+                                   [&executed]() { executed = true; }),
+                   editor->environment().ptr());
+               CHECK(!executed);
+               // editor->gc_pool().FullCollect();
+               editor->ProcessInput(L'X');
+               CHECK(executed);
+             }},
+    });
+}
 }  // namespace afc::editor

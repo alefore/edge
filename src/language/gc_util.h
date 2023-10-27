@@ -24,9 +24,22 @@ template <typename T>
 struct IsGcPtr<Ptr<T>> : std::true_type {};
 
 template <typename Func, typename... BoundArgs>
-class BindFrontWithWeakPtrImpl {
+class BindFrontImpl {
+  struct ConstructorAccessTag {};
+
+  Func func_;
+  std::tuple<std::decay_t<BoundArgs>...> bound_args_;
+
  public:
-  BindFrontWithWeakPtrImpl(Func&& func, BoundArgs&&... args)
+  static gc::Root<BindFrontImpl<Func, BoundArgs...>> New(Pool& pool,
+                                                         Func&& func,
+                                                         BoundArgs&&... args) {
+    return pool.NewRoot(MakeNonNullUnique<BindFrontImpl>(
+        ConstructorAccessTag(), std::forward<Func>(func),
+        std::forward<BoundArgs>(args)...));
+  }
+
+  BindFrontImpl(ConstructorAccessTag, Func&& func, BoundArgs&&... args)
       : func_(std::move(func)), bound_args_(std::forward<BoundArgs>(args)...) {}
 
   template <typename... Args>
@@ -37,7 +50,7 @@ class BindFrontWithWeakPtrImpl {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
     std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
-    ExpandHelper<0>(output, bound_args_);
+    PtrExpandHelper<0>(output, bound_args_);
     return output;
   }
 
@@ -95,25 +108,27 @@ class BindFrontWithWeakPtrImpl {
   };
 
   template <size_t index, typename... Args>
-  static void ExpandHelper(
+  static void PtrExpandHelper(
       std::vector<NonNull<std::shared_ptr<ObjectMetadata>>>& output,
       const std::tuple<Args...>& tup) {
     if constexpr (index < sizeof...(Args)) {
       if constexpr (IsGcPtr<
                         std::decay_t<decltype(std::get<index>(tup))>>::value)
         output.push_back(std::get<index>(tup).object_metadata());
-      ExpandHelper<index + 1>(output, tup);
+      PtrExpandHelper<index + 1>(output, tup);
     }
   }
-
-  Func func_;
-  std::tuple<BoundArgs...> bound_args_;
 };
 
 template <typename Func, typename... Args>
-auto BindFrontWithWeakPtr(Func&& func, Args&&... args) {
-  return BindFrontWithWeakPtrImpl<Func, Args...>(std::forward<Func>(func),
-                                                 std::forward<Args>(args)...);
+auto BindFront(Pool& pool, Func&& func, Args&&... args) {
+  return BindFrontImpl<Func, Args...>::New(pool, std::forward<Func>(func),
+                                           std::forward<Args>(args)...);
+}
+
+template <typename Callback>
+auto LockCallback(gc::Ptr<Callback> callback) {
+  return [root = callback.ToRoot()] { root.ptr().value()(); };
 }
 
 template <typename Value>
