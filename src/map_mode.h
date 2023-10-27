@@ -23,8 +23,9 @@ class EditorState;
 
 class MapModeCommands {
  public:
+  // TODO(trivial, 2023-10-27): Make this constructor explicit.
   MapModeCommands(EditorState& editor_state);
-  language::NonNull<std::unique_ptr<MapModeCommands>> NewChild();
+  language::gc::Root<MapModeCommands> NewChild();
 
   // Flattens the set of commands (in the entire list), grouped by category (as
   // the key of the outer map).
@@ -61,7 +62,8 @@ class MapModeCommands {
 
 class MapMode : public EditorMode {
  public:
-  MapMode(language::NonNull<std::shared_ptr<MapModeCommands>> commands);
+  // TODO(trivial, 2023-10-27): Make this constructor explicit.
+  MapMode(language::gc::Root<MapModeCommands> commands);
 
   void ProcessInput(wint_t c) override;
   CursorMode cursor_mode() const override;
@@ -71,7 +73,7 @@ class MapMode : public EditorMode {
 
  private:
   std::wstring current_input_;
-  const language::NonNull<std::shared_ptr<MapModeCommands>> commands_;
+  const language::gc::Root<MapModeCommands> commands_;
 };
 
 }  // namespace afc::editor

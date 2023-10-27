@@ -252,7 +252,7 @@ using std::to_wstring;
     BufferName(L"- future paste buffer");
 
 /* static */ gc::Root<OpenBuffer> OpenBuffer::New(Options options) {
-  language::NonNull<std::shared_ptr<MapModeCommands>> default_commands =
+  gc::Root<MapModeCommands> default_commands =
       options.editor.default_commands()->NewChild();
   language::NonNull<std::shared_ptr<EditorMode>> mode =
       MakeNonNullUnique<MapMode>(default_commands);
@@ -349,10 +349,9 @@ class OpenBufferMutableLineSequenceObserver
   gc::WeakPtr<OpenBuffer> buffer_;
 };
 
-OpenBuffer::OpenBuffer(
-    ConstructorAccessTag, Options options,
-    language::NonNull<std::shared_ptr<MapModeCommands>> default_commands,
-    language::NonNull<std::shared_ptr<EditorMode>> mode)
+OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
+                       gc::Root<MapModeCommands> default_commands,
+                       NonNull<std::shared_ptr<EditorMode>> mode)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -1125,8 +1124,7 @@ NonNull<std::shared_ptr<EditorMode>> OpenBuffer::ResetMode() {
   return copy;
 }
 
-language::NonNull<std::shared_ptr<MapModeCommands>>
-OpenBuffer::default_commands() {
+gc::Root<MapModeCommands> OpenBuffer::default_commands() {
   return default_commands_;
 }
 

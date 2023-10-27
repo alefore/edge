@@ -66,15 +66,16 @@ MapModeCommands::MapModeCommands(EditorState& editor_state)
   Add(L"?", NewHelpCommand(editor_state_, *this, L"command mode"));
 }
 
-NonNull<std::unique_ptr<MapModeCommands>> MapModeCommands::NewChild() {
-  auto output = MakeNonNullUnique<MapModeCommands>(editor_state_);
-  output->frames_ = frames_;
-  output->frames_.push_front({});
+gc::Root<MapModeCommands> MapModeCommands::NewChild() {
+  auto output = editor_state_.gc_pool().NewRoot(
+      MakeNonNullUnique<MapModeCommands>(editor_state_));
+  output.ptr()->frames_ = frames_;
+  output.ptr()->frames_.push_front({});
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
-  output->Add(L"?",
-              NewHelpCommand(editor_state_, output.value(), L"command mode"));
+  output.ptr()->Add(L"?", NewHelpCommand(editor_state_, output.ptr().value(),
+                                         L"command mode"));
   return output;
 }
 
@@ -147,14 +148,14 @@ MapModeCommands::Expand() const {
   return output;
 }
 
-MapMode::MapMode(NonNull<std::shared_ptr<MapModeCommands>> commands)
+MapMode::MapMode(gc::Root<MapModeCommands> commands)
     : commands_(std::move(commands)) {}
 
 void MapMode::ProcessInput(wint_t c) {
   current_input_.push_back(c);
 
   bool reset_input = true;
-  for (const auto& frame : commands_->frames_) {
+  for (const auto& frame : commands_.ptr()->frames_) {
     auto it = frame->commands.lower_bound(current_input_);
     if (it != frame->commands.end() &&
         std::equal(current_input_.begin(), current_input_.end(),
@@ -179,7 +180,10 @@ MapMode::CursorMode MapMode::cursor_mode() const {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> MapMode::Expand()
     const {
-  return commands_->Expand();
+  // This isn't currently necessary (since commands_ is a Root), but we might as
+  // well do it, in anticipation for the moment when commands_ becomes just a
+  // Ptr.
+  return {commands_.ptr().object_metadata()};
 }
 
 }  // namespace afc::editor

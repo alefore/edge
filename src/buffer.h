@@ -106,10 +106,9 @@ class OpenBuffer {
   };
 
   static language::gc::Root<OpenBuffer> New(Options options);
-  OpenBuffer(
-      ConstructorAccessTag, Options options,
-      language::NonNull<std::shared_ptr<MapModeCommands>> default_commands,
-      language::NonNull<std::shared_ptr<EditorMode>> mode);
+  OpenBuffer(ConstructorAccessTag, Options options,
+             language::gc::Root<MapModeCommands> default_commands,
+             language::NonNull<std::shared_ptr<EditorMode>> mode);
   ~OpenBuffer();
 
   EditorState& editor() const;
@@ -205,7 +204,7 @@ class OpenBuffer {
   EditorMode& mode() const;
   language::NonNull<std::shared_ptr<EditorMode>> ResetMode();
 
-  language::NonNull<std::shared_ptr<MapModeCommands>> default_commands();
+  language::gc::Root<MapModeCommands> default_commands();
 
   // Erases all lines in range [first, last).
   void EraseLines(language::text::LineNumber first,
@@ -656,7 +655,7 @@ class OpenBuffer {
 
   size_t tree_depth_ = 0;
 
-  const language::NonNull<std::shared_ptr<MapModeCommands>> default_commands_;
+  const language::gc::Root<MapModeCommands> default_commands_;
   language::NonNull<std::shared_ptr<EditorMode>> mode_;
 
   // The time when the buffer was last selected as active.
