@@ -22,6 +22,18 @@ class MapMode;
 class EditorState;
 
 class MapModeCommands {
+  struct Frame {
+    std::map<std::wstring, language::gc::Root<Command>> commands;
+
+    // The key is the name of a variable. The set contains all commands
+    // associated with that variable.
+    std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
+        variable_commands;
+  };
+
+  EditorState& editor_state_;
+  std::list<language::NonNull<std::shared_ptr<Frame>>> frames_;
+
  public:
   // TODO(trivial, 2023-10-27): Make this constructor explicit.
   MapModeCommands(EditorState& editor_state);
@@ -46,18 +58,6 @@ class MapModeCommands {
 
  private:
   friend class MapMode;
-
-  struct Frame {
-    std::map<std::wstring, language::gc::Root<Command>> commands;
-
-    // The key is the name of a variable. The set contains all commands
-    // associated with that variable.
-    std::unordered_map<std::wstring, std::unordered_set<std::wstring>>
-        variable_commands;
-  };
-
-  EditorState& editor_state_;
-  std::list<language::NonNull<std::shared_ptr<Frame>>> frames_;
 };
 
 class MapMode : public EditorMode {
