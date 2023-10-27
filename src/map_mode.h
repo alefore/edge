@@ -64,13 +64,14 @@ class MapMode : public EditorMode {
   struct ConstructorAccessTag {};
 
   std::wstring current_input_;
-  const language::gc::Root<MapModeCommands> commands_;
+  const language::gc::Ptr<MapModeCommands> commands_;
 
  public:
   static language::gc::Root<MapMode> New(
       language::gc::Pool& pool, language::gc::Root<MapModeCommands> commands);
 
-  MapMode(ConstructorAccessTag, language::gc::Root<MapModeCommands> commands);
+  MapMode(ConstructorAccessTag,
+          const language::gc::Root<MapModeCommands>& commands);
 
   void ProcessInput(wint_t c) override;
   CursorMode cursor_mode() const override;

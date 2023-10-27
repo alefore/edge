@@ -151,17 +151,18 @@ MapModeCommands::Expand() const {
 language::gc::Root<MapMode> MapMode::New(
     language::gc::Pool& pool, language::gc::Root<MapModeCommands> commands) {
   return pool.NewRoot(
-      MakeNonNullUnique<MapMode>(ConstructorAccessTag(), std::move(commands)));
+      MakeNonNullUnique<MapMode>(ConstructorAccessTag(), commands));
 }
 
-MapMode::MapMode(ConstructorAccessTag, gc::Root<MapModeCommands> commands)
-    : commands_(std::move(commands)) {}
+MapMode::MapMode(ConstructorAccessTag,
+                 const gc::Root<MapModeCommands>& commands)
+    : commands_(commands.ptr()) {}
 
 void MapMode::ProcessInput(wint_t c) {
   current_input_.push_back(c);
 
   bool reset_input = true;
-  for (const auto& frame : commands_.ptr()->frames_) {
+  for (const auto& frame : commands_->frames_) {
     auto it = frame->commands.lower_bound(current_input_);
     if (it != frame->commands.end() &&
         std::equal(current_input_.begin(), current_input_.end(),
@@ -186,10 +187,7 @@ MapMode::CursorMode MapMode::cursor_mode() const {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> MapMode::Expand()
     const {
-  // This isn't currently necessary (since commands_ is a Root), but we might as
-  // well do it, in anticipation for the moment when commands_ becomes just a
-  // Ptr.
-  return {commands_.ptr().object_metadata()};
+  return {commands_.object_metadata()};
 }
 
 }  // namespace afc::editor
