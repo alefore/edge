@@ -25,7 +25,7 @@ class MapModeCommands {
   struct ConstructorAccessTag {};
 
   struct Frame {
-    std::map<std::wstring, language::gc::Root<Command>> commands;
+    std::map<std::wstring, language::gc::Ptr<Command>> commands;
 
     // The key is the name of a variable. The set contains all commands
     // associated with that variable.

@@ -74,7 +74,7 @@ MapModeCommands::MapModeCommands(ConstructorAccessTag,
 }
 
 gc::Root<MapModeCommands> MapModeCommands::NewChild() {
-  auto output = MapModeCommands::New(editor_state_);
+  gc::Root<MapModeCommands> output = MapModeCommands::New(editor_state_);
   output.ptr()->frames_ = frames_;
   output.ptr()->frames_.push_front({});
 
@@ -92,19 +92,20 @@ MapModeCommands::Coallesce() const {
   for (const auto& frame : frames_) {
     for (const auto& it : frame->commands) {
       if (already_seen.insert(it.first).second) {
-        output[it.second.ptr()->Category()].insert(
-            {it.first, NonNull<Command*>::AddressOf(it.second.ptr().value())});
+        output[it.second->Category()].insert(
+            {it.first, NonNull<Command*>::AddressOf(it.second.value())});
       }
     }
   }
   return output;
 }
 
+// TODO(trivial, 2023-10-27): Receive `value` as a gc::Root or gc::Ptr.
 void MapModeCommands::Add(std::wstring name,
                           NonNull<std::unique_ptr<Command>> value) {
   CHECK(!frames_.empty());
   frames_.front()->commands.insert(
-      {name, editor_state_.gc_pool().NewRoot(std::move(value))});
+      {name, editor_state_.gc_pool().NewRoot(std::move(value)).ptr()});
 }
 
 void MapModeCommands::Add(std::wstring name, std::wstring description,
@@ -145,12 +146,8 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 MapModeCommands::Expand() const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
   for (const NonNull<std::shared_ptr<Frame>>& frame : frames_)
-    for (const gc::Root<Command>& command :
-         frame->commands | std::views::values) {
-      std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> local =
-          command.ptr()->Expand();
-      output.insert(output.end(), local.begin(), local.end());
-    }
+    for (const gc::Ptr<Command>& command : frame->commands | std::views::values)
+      output.push_back(command.object_metadata());
   return output;
 }
 
@@ -175,7 +172,7 @@ void MapMode::ProcessInput(wint_t c) {
                    it->first.begin())) {
       if (current_input_ == it->first) {
         current_input_ = L"";
-        it->second.ptr()->ProcessInput(c);
+        it->second->ProcessInput(c);
         return;
       }
       reset_input = false;
