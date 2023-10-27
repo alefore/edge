@@ -73,8 +73,7 @@ class MapMode : public EditorMode {
   static language::gc::Root<MapMode> New(
       language::gc::Pool& pool, language::gc::Root<MapModeCommands> commands);
 
-  MapMode(ConstructorAccessTag,
-          const language::gc::Root<MapModeCommands>& commands);
+  MapMode(ConstructorAccessTag, language::gc::Ptr<MapModeCommands> commands);
 
   void ProcessInput(wint_t c) override;
   CursorMode cursor_mode() const override;

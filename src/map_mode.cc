@@ -154,12 +154,11 @@ MapModeCommands::Expand() const {
 language::gc::Root<MapMode> MapMode::New(
     language::gc::Pool& pool, language::gc::Root<MapModeCommands> commands) {
   return pool.NewRoot(
-      MakeNonNullUnique<MapMode>(ConstructorAccessTag(), commands));
+      MakeNonNullUnique<MapMode>(ConstructorAccessTag(), commands.ptr()));
 }
 
-MapMode::MapMode(ConstructorAccessTag,
-                 const gc::Root<MapModeCommands>& commands)
-    : commands_(commands.ptr()) {}
+MapMode::MapMode(ConstructorAccessTag, gc::Ptr<MapModeCommands> commands)
+    : commands_(std::move(commands)) {}
 
 void MapMode::ProcessInput(wint_t c) {
   current_input_.push_back(c);
