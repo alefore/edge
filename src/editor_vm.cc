@@ -430,7 +430,7 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
             CHECK_EQ(args.size(), 4u);
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
-            editor_arg.default_commands()->Add(
+            editor_arg.default_commands().ptr()->Add(
                 args[1].ptr()->get_string(), args[2].ptr()->get_string(),
                 std::move(args[3]), editor_arg.environment());
             return vm::Value::NewVoid(pool);

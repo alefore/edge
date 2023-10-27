@@ -725,9 +725,9 @@ void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
 }
 }  // namespace
 
-NonNull<std::shared_ptr<MapModeCommands>> NewCommandMode(
-    EditorState& editor_state) {
+gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   gc::Root<MapModeCommands> commands_root = MapModeCommands::New(editor_state);
+  // TODO(trivial, 2023-10-27): Don't use NonNull, just take a reference.
   NonNull<MapModeCommands*> commands =
       NonNull<MapModeCommands*>::AddressOf(commands_root.ptr().value());
   commands->Add(L"aq", NewQuitCommand(editor_state, 0));
@@ -950,10 +950,7 @@ NonNull<std::shared_ptr<MapModeCommands>> NewCommandMode(
           editor_state,
           {operation::CommandReachPage{
               .repetitions = operation::CommandArgumentRepetitions(-1)}}));
-  // TODO(2023-10-27, P1): Get rid of this hack, just return a gc::Root.
-  return NonNull<std::shared_ptr<MapModeCommands>>::Unsafe(
-      std::shared_ptr<MapModeCommands>(commands.get(),
-                                       [commands_root](MapModeCommands*) {}));
+  return commands_root;
 }
 
 }  // namespace afc::editor

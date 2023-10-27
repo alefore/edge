@@ -156,7 +156,7 @@ class EditorState {
   const LineMarks& line_marks() const { return line_marks_; }
   LineMarks& line_marks() { return line_marks_; }
 
-  language::NonNull<std::shared_ptr<MapModeCommands>> default_commands() const {
+  const language::gc::Root<MapModeCommands>& default_commands() const {
     return default_commands_;
   }
 
@@ -250,7 +250,7 @@ class EditorState {
   const language::gc::Root<vm::Environment> environment_;
 
   // Should only be directly used when the editor has no buffer.
-  language::NonNull<std::shared_ptr<MapModeCommands>> default_commands_;
+  language::gc::Root<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> keyboard_redirect_;
 
   // Used to honor command line argument frames_per_second. Holds the earliest
