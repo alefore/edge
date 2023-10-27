@@ -382,30 +382,6 @@ class InsertionModifierCommand : public Command {
   EditorState& editor_state_;
 };
 
-// TODO(trivial, 2023-10-18): This is dead code, I think. Nuke it.
-class ReverseDirectionCommand : public Command {
- public:
-  ReverseDirectionCommand(EditorState& editor_state)
-      : editor_state_(editor_state) {}
-
-  std::wstring Description() const override {
-    return L"reverses the direction of the next command";
-  }
-  std::wstring Category() const override { return L"Modifiers"; }
-
-  void ProcessInput(wint_t) override {
-    editor_state_.set_direction(ReverseDirection(editor_state_.direction()));
-  }
-
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
-      const override {
-    return {};
-  }
-
- private:
-  EditorState& editor_state_;
-};
-
 class SetStructureCommand : public Command {
  public:
   SetStructureCommand(EditorState& editor_state, Structure structure)
