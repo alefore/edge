@@ -33,7 +33,7 @@ class NamespaceExpression : public Expression {
     language::gc::Root<Environment> original_environment =
         trampoline.environment();
     std::optional<language::gc::Root<Environment>> namespace_environment =
-        Environment::LookupNamespace(original_environment, namespace_);
+        Environment::LookupNamespace(original_environment.ptr(), namespace_);
     CHECK(namespace_environment.has_value());
     trampoline.SetEnvironment(*namespace_environment);
 

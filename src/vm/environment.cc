@@ -7,6 +7,7 @@
 #include <set>
 
 #include "src/language/container.h"
+#include "src/language/safe_types.h"
 #include "src/math/numbers.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/expression.h"
@@ -20,6 +21,7 @@ using afc::language::InsertOrDie;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::PossibleError;
+using afc::language::VisitOptional;
 using afc::math::numbers::Number;
 using afc::math::numbers::ToString;
 
@@ -99,7 +101,7 @@ Environment::Environment(ConstructorAccessTag,
   // TODO(thread-safety, 2023-10-13): There's actually a race condition here.
   // Multiple concurrent calls could trigger failures.
   if (std::optional<gc::Root<Environment>> previous =
-          LookupNamespace(parent, Namespace({name}));
+          LookupNamespace(parent.ptr(), Namespace({name}));
       previous.has_value()) {
     return *previous;
   }
@@ -122,8 +124,8 @@ Environment::Environment(ConstructorAccessTag,
 }
 
 /* static */ std::optional<gc::Root<Environment>> Environment::LookupNamespace(
-    gc::Root<Environment> source, const Namespace& name) {
-  std::optional<gc::Ptr<Environment>> output = {source.ptr()};
+    gc::Ptr<Environment> source, const Namespace& name) {
+  std::optional<gc::Ptr<Environment>> output = {source};
   for (auto& n : name) {
     output = output.value()->data_.lock(
         [&](Data& data) -> std::optional<gc::Ptr<Environment>> {
@@ -138,12 +140,12 @@ Environment::Environment(ConstructorAccessTag,
   if (output.has_value()) {
     return output->ToRoot();
   }
-  if (std::optional<gc::Ptr<Environment>> parent_environment =
-          source.ptr()->parent_environment();
-      parent_environment.has_value()) {
-    return LookupNamespace(parent_environment->ToRoot(), name);
-  }
-  return std::nullopt;
+  return VisitOptional(
+      [&name](gc::Ptr<Environment> parent_environment) {
+        return LookupNamespace(parent_environment, name);
+      },
+      [] { return std::optional<gc::Root<Environment>>(); },
+      source->parent_environment());
 }
 
 void Environment::DefineType(gc::Ptr<ObjectType> value) {

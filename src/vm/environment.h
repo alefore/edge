@@ -55,7 +55,7 @@ class Environment {
   static language::gc::Root<Environment> NewNamespace(
       language::gc::Root<Environment> parent, std::wstring name);
   static std::optional<language::gc::Root<Environment>> LookupNamespace(
-      language::gc::Root<Environment> source, const Namespace& name);
+      language::gc::Ptr<Environment> source, const Namespace& name);
 
   // TODO: Implement proper garbage collection for the environment and get rid
   // of this method.
