@@ -115,27 +115,27 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
   CHECK(value_type.inputs.empty()) << "Definition has inputs: " << name;
 
-  Add(name,
-      MakeCommandFromFunction(
-          editor_state_.gc_pool(),
-          BindFrontWithWeakPtr(
-              [&editor_state = editor_state_](
-                  const gc::Root<vm::Environment> environment_locked,
-                  const NonNull<std::shared_ptr<vm::Expression>>& expression) {
-                LOG(INFO) << "Evaluating expression from Value...";
-                Evaluate(
-                    std::move(expression), environment_locked.pool(),
-                    environment_locked,
-                    [&editor_state](std::function<void()> callback) {
-                      editor_state.work_queue()->Schedule(
-                          WorkQueue::Callback{.callback = std::move(callback)});
-                    });
-              },
-              environment.ToWeakPtr(),
-              NonNull<std::shared_ptr<vm::Expression>>(NewFunctionCall(
-                  NewConstantExpression(std::move(value)), {}))),
-          description)
-          .ptr());
+  Add(name, MakeCommandFromFunction(
+                editor_state_.gc_pool(),
+                BindFrontWithWeakPtr(
+                    [&editor_state = editor_state_](
+                        const gc::Root<vm::Environment> environment_locked,
+                        gc::Ptr<vm::Value> value_nested) {
+                      LOG(INFO) << "Evaluating expression from Value...";
+                      NonNull<std::shared_ptr<vm::Expression>> expression =
+                          NewFunctionCall(
+                              NewConstantExpression(value_nested.ToRoot()), {});
+                      Evaluate(std::move(expression), environment_locked.pool(),
+                               environment_locked,
+                               [&editor_state](std::function<void()> callback) {
+                                 editor_state.work_queue()->Schedule(
+                                     WorkQueue::Callback{
+                                         .callback = std::move(callback)});
+                               });
+                    },
+                    environment.ToWeakPtr(), value.ptr()),
+                description)
+                .ptr());
 }
 
 void MapModeCommands::Add(std::wstring name, std::function<void()> callback,
