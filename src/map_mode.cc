@@ -152,9 +152,9 @@ MapModeCommands::Expand() const {
 }
 
 language::gc::Root<MapMode> MapMode::New(
-    language::gc::Pool& pool, language::gc::Root<MapModeCommands> commands) {
+    language::gc::Pool& pool, language::gc::Ptr<MapModeCommands> commands) {
   return pool.NewRoot(
-      MakeNonNullUnique<MapMode>(ConstructorAccessTag(), commands.ptr()));
+      MakeNonNullUnique<MapMode>(ConstructorAccessTag(), std::move(commands)));
 }
 
 MapMode::MapMode(ConstructorAccessTag, gc::Ptr<MapModeCommands> commands)

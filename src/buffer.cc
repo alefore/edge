@@ -254,7 +254,8 @@ using std::to_wstring;
 /* static */ gc::Root<OpenBuffer> OpenBuffer::New(Options options) {
   gc::Root<MapModeCommands> default_commands =
       options.editor.default_commands().ptr()->NewChild();
-  gc::Root mode = MapMode::New(options.editor.gc_pool(), default_commands);
+  gc::Root mode =
+      MapMode::New(options.editor.gc_pool(), default_commands.ptr());
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options),
@@ -1122,7 +1123,7 @@ gc::Root<EditorMode> OpenBuffer::ResetMode() {
   // TODO(P1, 2023-10-27): Sucks that we need this casting. Improve gc to be
   // able to cast more directly.
   mode_ = gc::Ptr<EditorMode>(
-              MapMode::New(editor().gc_pool(), default_commands_).ptr())
+              MapMode::New(editor().gc_pool(), default_commands_.ptr()).ptr())
               .ToRoot();
   return copy;
 }

@@ -71,7 +71,7 @@ class MapMode : public EditorMode {
 
  public:
   static language::gc::Root<MapMode> New(
-      language::gc::Pool& pool, language::gc::Root<MapModeCommands> commands);
+      language::gc::Pool& pool, language::gc::Ptr<MapModeCommands> commands);
 
   MapMode(ConstructorAccessTag, language::gc::Ptr<MapModeCommands> commands);
 
