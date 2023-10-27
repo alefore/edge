@@ -108,7 +108,7 @@ class OpenBuffer {
   static language::gc::Root<OpenBuffer> New(Options options);
   OpenBuffer(ConstructorAccessTag, Options options,
              language::gc::Root<MapModeCommands> default_commands,
-             language::gc::Root<EditorMode> mode);
+             language::gc::Ptr<EditorMode> mode);
   ~OpenBuffer();
 
   EditorState& editor() const;
@@ -656,7 +656,7 @@ class OpenBuffer {
   size_t tree_depth_ = 0;
 
   const language::gc::Root<MapModeCommands> default_commands_;
-  language::gc::Root<EditorMode> mode_;
+  language::gc::Ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.
   struct timespec last_visit_ = {};

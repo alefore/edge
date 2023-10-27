@@ -256,10 +256,9 @@ using std::to_wstring;
       options.editor.default_commands().ptr()->NewChild();
   gc::Root mode =
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
-  gc::Root<OpenBuffer> output =
-      options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
-          ConstructorAccessTag(), std::move(options),
-          std::move(default_commands), std::move(mode)));
+  gc::Root<OpenBuffer> output = options.editor.gc_pool().NewRoot(
+      MakeNonNullUnique<OpenBuffer>(ConstructorAccessTag(), std::move(options),
+                                    std::move(default_commands), mode.ptr()));
   output.ptr()->Initialize(output.ptr());
   return output;
 }
@@ -351,7 +350,7 @@ class OpenBufferMutableLineSequenceObserver
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Root<MapModeCommands> default_commands,
-                       gc::Root<EditorMode> mode)
+                       gc::Ptr<EditorMode> mode)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -1116,15 +1115,11 @@ LineNumberDelta OpenBuffer::lines_size() const { return contents_.size(); }
 
 LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }
 
-EditorMode& OpenBuffer::mode() const { return mode_.ptr().value(); }
+EditorMode& OpenBuffer::mode() const { return mode_.value(); }
 
 gc::Root<EditorMode> OpenBuffer::ResetMode() {
-  gc::Root<EditorMode> copy = std::move(mode_);
-  // TODO(P1, 2023-10-27): Sucks that we need this casting. Improve gc to be
-  // able to cast more directly.
-  mode_ = gc::Ptr<EditorMode>(
-              MapMode::New(editor().gc_pool(), default_commands_.ptr()).ptr())
-              .ToRoot();
+  gc::Root<EditorMode> copy = std::move(mode_).ToRoot();
+  mode_ = MapMode::New(editor().gc_pool(), default_commands_.ptr()).ptr();
   return copy;
 }
 
