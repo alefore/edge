@@ -254,8 +254,7 @@ using std::to_wstring;
 /* static */ gc::Root<OpenBuffer> OpenBuffer::New(Options options) {
   gc::Root<MapModeCommands> default_commands =
       options.editor.default_commands()->NewChild();
-  language::NonNull<std::shared_ptr<EditorMode>> mode =
-      MakeNonNullUnique<MapMode>(default_commands);
+  gc::Root mode = MapMode::New(options.editor.gc_pool(), default_commands);
   gc::Root<OpenBuffer> output =
       options.editor.gc_pool().NewRoot(MakeNonNullUnique<OpenBuffer>(
           ConstructorAccessTag(), std::move(options),
@@ -351,7 +350,7 @@ class OpenBufferMutableLineSequenceObserver
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Root<MapModeCommands> default_commands,
-                       NonNull<std::shared_ptr<EditorMode>> mode)
+                       gc::Root<EditorMode> mode)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -1116,11 +1115,15 @@ LineNumberDelta OpenBuffer::lines_size() const { return contents_.size(); }
 
 LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }
 
-EditorMode& OpenBuffer::mode() const { return mode_.value(); }
+EditorMode& OpenBuffer::mode() const { return mode_.ptr().value(); }
 
-NonNull<std::shared_ptr<EditorMode>> OpenBuffer::ResetMode() {
-  NonNull<std::shared_ptr<EditorMode>> copy = std::move(mode_);
-  mode_ = MakeNonNullShared<MapMode>(default_commands_);
+gc::Root<EditorMode> OpenBuffer::ResetMode() {
+  gc::Root<EditorMode> copy = std::move(mode_);
+  // TODO(P1, 2023-10-27): Sucks that we need this casting. Improve gc to be
+  // able to cast more directly.
+  mode_ = gc::Ptr<EditorMode>(
+              MapMode::New(editor().gc_pool(), default_commands_).ptr())
+              .ToRoot();
   return copy;
 }
 

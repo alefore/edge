@@ -61,19 +61,22 @@ class MapModeCommands {
 };
 
 class MapMode : public EditorMode {
+  struct ConstructorAccessTag {};
+
+  std::wstring current_input_;
+  const language::gc::Root<MapModeCommands> commands_;
+
  public:
-  // TODO(trivial, 2023-10-27): Make this constructor explicit.
-  MapMode(language::gc::Root<MapModeCommands> commands);
+  static language::gc::Root<MapMode> New(
+      language::gc::Pool& pool, language::gc::Root<MapModeCommands> commands);
+
+  MapMode(ConstructorAccessTag, language::gc::Root<MapModeCommands> commands);
 
   void ProcessInput(wint_t c) override;
   CursorMode cursor_mode() const override;
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const override;
-
- private:
-  std::wstring current_input_;
-  const language::gc::Root<MapModeCommands> commands_;
 };
 
 }  // namespace afc::editor
