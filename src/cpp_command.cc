@@ -51,21 +51,20 @@ class CppCommand : public Command {
  public:
   CppCommand(EditorState& editor_state,
              NonNull<std::unique_ptr<afc::vm::Expression>> expression,
-             wstring code)
+             wstring code, gc::Ptr<vm::Environment> environment)
       : editor_state_(editor_state),
         expression_(std::move(expression)),
         code_(std::move(code)),
         description_(GetDescriptionString(code_)),
-        category_(GetCategoryString(code_)) {}
+        category_(GetCategoryString(code_)),
+        environment_(std::move(environment)) {}
 
   std::wstring Description() const override { return description_; }
   std::wstring Category() const override { return category_; }
 
   void ProcessInput(wint_t) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
-    // TODO(trivial, 2023-10-26): Use the original environment in which the
-    // expression was compiled, rather than editor_state_'s.
-    Evaluate(expression_, editor_state_.gc_pool(), editor_state_.environment(),
+    Evaluate(expression_, editor_state_.gc_pool(), environment_.ToRoot(),
              [work_queue =
                   editor_state_.work_queue()](std::function<void()> callback) {
                work_queue->Schedule(
@@ -75,8 +74,7 @@ class CppCommand : public Command {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    // TODO(expansion, 2023-10-14, gc): Return this from Expression?
-    return {};
+    return {environment_.object_metadata()};
   }
 
  private:
@@ -85,6 +83,7 @@ class CppCommand : public Command {
   const wstring code_;
   const wstring description_;
   const wstring category_;
+  const gc::Ptr<vm::Environment> environment_;
 };
 
 }  // namespace
@@ -94,9 +93,9 @@ ValueOrError<gc::Root<Command>> NewCppCommand(
     wstring code) {
   ASSIGN_OR_RETURN(
       NonNull<std::unique_ptr<vm::Expression>> result,
-      vm::CompileString(code, editor_state.gc_pool(), std::move(environment)));
+      vm::CompileString(code, editor_state.gc_pool(), environment));
   return editor_state.gc_pool().NewRoot(MakeNonNullUnique<CppCommand>(
-      editor_state, std::move(result), std::move(code)));
+      editor_state, std::move(result), std::move(code), environment.ptr()));
 }
 
 }  // namespace afc::editor
