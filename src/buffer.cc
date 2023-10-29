@@ -253,7 +253,7 @@ using std::to_wstring;
 /* static */ gc::Root<OpenBuffer> OpenBuffer::New(Options options) {
   gc::Root<MapModeCommands> default_commands =
       options.editor.default_commands().ptr()->NewChild();
-  gc::Root mode =
+  gc::Root<MapMode> mode =
       MapMode::New(options.editor.gc_pool(), default_commands.ptr());
   gc::Root<OpenBuffer> output = options.editor.gc_pool().NewRoot(
       MakeNonNullUnique<OpenBuffer>(ConstructorAccessTag(), std::move(options),
