@@ -48,5 +48,12 @@ Container::mapped_type PopValueOrDie(Container& container,
   container.erase(it);
   return output;
 }
+
+template <typename Predicate, typename Value>
+void EraseIf(std::vector<Value>& container, Predicate predicate) {
+  container.erase(
+      std::remove_if(container.begin(), container.end(), std::move(predicate)),
+      container.end());
+}
 }  // namespace afc::language
 #endif

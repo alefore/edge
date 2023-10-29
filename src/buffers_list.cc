@@ -9,6 +9,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/padding.h"
@@ -26,6 +27,7 @@ using afc::infrastructure::PathComponent;
 using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
+using afc::language::EraseIf;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
@@ -711,14 +713,9 @@ std::vector<gc::Root<OpenBuffer>> BuffersList::GetAllBuffers() const {
 }
 
 void BuffersList::RemoveBuffer(const OpenBuffer& buffer) {
-  if (auto it = std::find_if(buffers_.begin(), buffers_.end(),
-                             [&buffer](gc::Root<OpenBuffer>& candidate) {
-                               return &candidate.ptr().value() == &buffer;
-                             });
-      it != buffers_.end()) {
-    LOG(INFO) << "BuffersList: Removing buffer: " << buffer.name();
-    buffers_.erase(it);
-  }
+  EraseIf(buffers_, [&buffer](const gc::Root<OpenBuffer>& candidate) {
+    return &candidate.ptr().value() == &buffer;
+  });
   Update();
 }
 
