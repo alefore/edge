@@ -71,6 +71,12 @@ cc_library(
 )
 
 cc_library(
+    name = "tokenize",
+    srcs = ["tokenize.cc"],
+    hdrs = ["tokenize.h"],
+)
+
+cc_library(
     name = "trim",
     srcs = ["trim.cc"],
     hdrs = ["trim.h"],

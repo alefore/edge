@@ -50,7 +50,6 @@ extern "C" {
 #include "src/seek.h"
 #include "src/server.h"
 #include "src/status.h"
-#include "src/tokenize.h"
 #include "src/transformation.h"
 #include "src/transformation/cursors.h"
 #include "src/transformation/delete.h"

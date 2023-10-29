@@ -7,9 +7,8 @@
 
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/language/text/line_column.h"
 
-namespace afc::editor {
+namespace afc::language::lazy_string {
 struct Token {
   std::wstring value = L"";
   language::lazy_string::ColumnNumber begin;
@@ -50,6 +49,6 @@ std::vector<Token> ExtendTokensToEndOfString(
 std::optional<std::vector<Token>> FindFilterPositions(
     const std::vector<Token>& filter, std::vector<Token> substrings);
 
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string
 
 #endif  // __AFC_EDITOR_TOKENIZE_H__

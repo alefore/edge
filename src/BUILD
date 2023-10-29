@@ -731,12 +731,6 @@ cc_library(
 )
 
 cc_library(
-    name = "tokenize",
-    srcs = ["tokenize.cc"],
-    hdrs = ["tokenize.h"],
-)
-
-cc_library(
     name = "transformation",
     srcs = ["transformation.cc"],
     hdrs = ["transformation.h"],

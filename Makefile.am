@@ -148,6 +148,9 @@ src/language/lazy_string/padding.cc \
 src/language/lazy_string/padding.h \
 src/language/lazy_string/substring.cc \
 src/language/lazy_string/substring.h \
+src/language/lazy_string/tokenize.cc \
+src/language/lazy_string/tokenize.h \
+src/language/lazy_string/tokenize_test.cc \
 src/language/lazy_string/trim.cc \
 src/language/lazy_string/trim.h \
 src/language/observers.h \
@@ -274,9 +277,6 @@ src/tests/fuzz_testable.h \
 src/tests/fuzz_testable.cc \
 src/tests/tests.cc \
 src/tests/tests.h \
-src/tokenize.cc \
-src/tokenize.h \
-src/tokenize_test.cc \
 src/transformation/bisect.cc \
 src/transformation/bisect.h \
 src/transformation/composite.cc \

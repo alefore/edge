@@ -1,8 +1,8 @@
 #include "src/set_buffer_mode.h"
 
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/search_handler.h"
-#include "src/tokenize.h"
 
 namespace gc = afc::language::gc;
 
@@ -15,6 +15,7 @@ using afc::language::Success;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::LineColumn;
 
 namespace afc::editor {

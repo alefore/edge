@@ -9,8 +9,8 @@
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/predictor.h"
-#include "src/tokenize.h"
 
 namespace afc::editor {
 
@@ -22,7 +22,7 @@ HistoryFile HistoryFileCommands();
 struct TokenAndModifiers {
   // The portion to colorize. The `value` field is ignored; instead, the
   // corresponding portion from the value in `prompt` will be used.
-  Token token;
+  language::lazy_string::Token token;
   // Set of modifiers to apply.
   infrastructure::screen::LineModifierSet modifiers;
 };

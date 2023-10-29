@@ -21,13 +21,13 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/math/naive_bayes.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
-#include "src/tokenize.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
@@ -67,6 +67,8 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::Token;
+using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;

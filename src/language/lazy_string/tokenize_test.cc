@@ -1,4 +1,4 @@
-#include "src/tokenize.h"
+#include "src/language/lazy_string/tokenize.h"
 
 #include <glog/logging.h>
 

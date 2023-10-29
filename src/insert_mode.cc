@@ -28,12 +28,12 @@ extern "C" {
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
 #include "src/tests/tests.h"
-#include "src/tokenize.h"
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
@@ -48,42 +48,43 @@ extern "C" {
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
+namespace gc = afc::language::gc;
+
+using afc::concurrent::WorkQueue;
+using afc::futures::DeleteNotification;
+using afc::infrastructure::AddSeconds;
+using afc::infrastructure::Now;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::VisitOptionalCallback;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::Token;
+using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
+using afc::language::text::OutgoingLink;
+using afc::language::text::Range;
+using afc::vm::Type;
+using afc::vm::VMTypeMapper;
+
 namespace afc::editor {
-using concurrent::WorkQueue;
-using futures::DeleteNotification;
-using infrastructure::AddSeconds;
-using infrastructure::Now;
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::VisitOptionalCallback;
-using language::VisitPointer;
-using language::lazy_string::Append;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::MutableLineSequence;
-using language::text::OutgoingLink;
-using language::text::Range;
-
-using vm::Type;
-using vm::VMTypeMapper;
-
-namespace gc = language::gc;
-
 using ::operator<<;
 
 namespace {

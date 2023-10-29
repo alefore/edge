@@ -4,8 +4,8 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/tests/tests.h"
-#include "src/tokenize.h"
 
 using afc::infrastructure::Path;
 using afc::language::Error;
@@ -14,6 +14,8 @@ using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::Token;
+using afc::language::lazy_string::TokenizeBySpaces;
 
 namespace afc::editor {
 
@@ -94,8 +96,9 @@ std::vector<URL> GetLocalFileURLsWithExtensions(
   return std::visit(
       overload{[&](Error) { return output; },
                [&](Path path) {
-                 auto extensions = TokenizeBySpaces(file_context_extensions);
-                 for (auto& extension_token : extensions) {
+                 std::vector<Token> extensions =
+                     TokenizeBySpaces(file_context_extensions);
+                 for (const Token& extension_token : extensions) {
                    CHECK(!extension_token.value.empty());
                    output.push_back(URL::FromPath(
                        Path::WithExtension(path, extension_token.value)));

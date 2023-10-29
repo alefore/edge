@@ -1,4 +1,4 @@
-#include "src/tokenize.h"
+#include "src/language/lazy_string/tokenize.h"
 
 #include <glog/logging.h>
 
@@ -7,7 +7,7 @@
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
+namespace afc::language::lazy_string {
 using ::operator<<;
 
 using language::NonNull;
@@ -180,4 +180,4 @@ std::optional<std::vector<Token>> FindFilterPositions(
   return output;
 }
 
-}  // namespace afc::editor
+}  // namespace afc::language::lazy_string
