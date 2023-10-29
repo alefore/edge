@@ -1032,8 +1032,19 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 };
 
 class LinePromptCommand : public Command {
+  struct ConstructorAccessTag {};
+
  public:
-  LinePromptCommand(EditorState& editor_state, std::wstring description,
+  static gc::Root<LinePromptCommand> New(
+      EditorState& editor_state, std::wstring description,
+      std::function<PromptOptions()> options_supplier) {
+    return editor_state.gc_pool().NewRoot(MakeNonNullUnique<LinePromptCommand>(
+        ConstructorAccessTag(), editor_state, std::move(description),
+        std::move(options_supplier)));
+  }
+
+  LinePromptCommand(ConstructorAccessTag, EditorState& editor_state,
+                    std::wstring description,
                     std::function<PromptOptions()> options_supplier)
       : editor_state_(editor_state),
         description_(std::move(description)),
@@ -1218,8 +1229,8 @@ void Prompt(PromptOptions options) {
 gc::Root<Command> NewLinePromptCommand(
     EditorState& editor_state, std::wstring description,
     std::function<PromptOptions()> options_supplier) {
-  return editor_state.gc_pool().NewRoot(MakeNonNullUnique<LinePromptCommand>(
-      editor_state, std::move(description), std::move(options_supplier)));
+  return LinePromptCommand::New(editor_state, std::move(description),
+                                std::move(options_supplier));
 }
 
 }  // namespace afc::editor
