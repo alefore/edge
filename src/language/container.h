@@ -1,6 +1,9 @@
 #ifndef __AFC_LANGUAGE_CONTAINERS__
 #define __AFC_LANGUAGE_CONTAINERS__
 
+#include <list>
+#include <vector>
+
 namespace afc::language {
 template <typename Container>
 void EraseOrDie(Container& container, const typename Container::key_type& key) {
