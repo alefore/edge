@@ -17,21 +17,22 @@
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 
+namespace gc = afc::language::gc;
+
+using afc::futures::DeleteNotification;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::VisitOptional;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+
 namespace afc::editor {
-namespace gc = language::gc;
-
-using futures::DeleteNotification;
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::lazy_string::Append;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-
 namespace {
 
 std::wstring TrimWhitespace(const std::wstring& in) {
@@ -249,11 +250,19 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                              .progress_channel =
                                  std::move(progress_channel).get_unique(),
                              .abort_value = std::move(abort_value)})
-                  .Transform([line](std::optional<PredictResults> results) {
-                    return ColorizePromptOptions{
-                        .context = results.has_value()
-                                       ? results->predictions_buffer
-                                       : std::optional<gc::Root<OpenBuffer>>()};
+                  .Transform([](std::optional<PredictResults>
+                                    results_optional) {
+                    return VisitOptional(
+                        [](PredictResults results) {
+                          return ColorizePromptOptions{
+                              .context = ColorizePromptOptions::ContextBuffer{
+                                  std::move(results.predictions_buffer)}};
+                        },
+                        [] {
+                          return ColorizePromptOptions{
+                              .context = ColorizePromptOptions::ContextClear{}};
+                        },
+                        std::move(results_optional));
                   });
             },
             .handler = std::bind_front(SetVariableCommandHandler,

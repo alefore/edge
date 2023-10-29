@@ -30,10 +30,17 @@ struct TokenAndModifiers {
 struct ColorizePromptOptions {
   std::vector<TokenAndModifiers> tokens = {};
 
-  // If present, sets the context buffer for the prompt. Can be `nullptr` (which
-  // will clear any previously set context).
-  std::optional<std::optional<language::gc::Root<OpenBuffer>>> context =
-      std::nullopt;
+  // Leaves the context unmodified;
+  struct ContextUnmodified {};
+  // Clears the context (if it was set to a specific buffer).
+  struct ContextClear {};
+  // Sets the context to a specific buffer.
+  struct ContextBuffer {
+    language::gc::Root<OpenBuffer> buffer;
+  };
+
+  std::variant<ContextUnmodified, ContextClear, ContextBuffer> context =
+      ContextUnmodified{};
 };
 
 struct PromptOptions {

@@ -520,7 +520,8 @@ class ForkEditorCommand : public Command {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(
           Error(L"Unable to compile (type mismatch)."));
-      return futures::Past(ColorizePromptOptions{.context = std::nullopt});
+      return futures::Past(ColorizePromptOptions{
+          .context = ColorizePromptOptions::ContextClear()});
     }
     return prompt_state.original_buffer.ptr()
         ->EvaluateExpression(
@@ -535,7 +536,8 @@ class ForkEditorCommand : public Command {
 
           if (base_command.empty()) {
             prompt_state.base_command = std::nullopt;
-            return ColorizePromptOptions{.context = std::nullopt};
+            return ColorizePromptOptions{
+                .context = ColorizePromptOptions::ContextClear()};
           }
 
           prompt_state.base_command = base_command;
@@ -543,12 +545,14 @@ class ForkEditorCommand : public Command {
           options.command = base_command;
           options.name = BufferName(L"- help: " + base_command);
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
-          auto help_buffer_root = ForkCommand(editor, options);
+          gc::Root<OpenBuffer> help_buffer_root = ForkCommand(editor, options);
           OpenBuffer& help_buffer = help_buffer_root.ptr().value();
           help_buffer.Set(buffer_variables::follow_end_of_file, false);
           help_buffer.Set(buffer_variables::show_in_buffers_list, false);
           help_buffer.set_position({});
-          return ColorizePromptOptions{.context = help_buffer_root};
+          return ColorizePromptOptions{.context =
+                                           ColorizePromptOptions::ContextBuffer{
+                                               .buffer = help_buffer_root}};
         })
         .ConsumeErrors(
             [](Error) { return futures::Past(ColorizePromptOptions{}); });

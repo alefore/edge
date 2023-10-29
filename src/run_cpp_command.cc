@@ -370,38 +370,41 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                                     std::move(progress_channel).get_unique(),
                                 .abort_value = std::move(abort_value)})
       .Transform([output](std::optional<PredictResults> results) {
-        if (results.has_value()) output->context = results->predictions_buffer;
+        if (results.has_value())
+          output->context = ColorizePromptOptions::ContextBuffer{
+              .buffer = results->predictions_buffer};
         return futures::Past(EmptyValue());
       })
       .Transform([&editor, search_namespaces, line, output, buffer,
                   &environment](EmptyValue) -> futures::Value<EmptyValue> {
         return std::visit(
-            overload{[&](Error error) {
-                       VLOG(4) << "Parse preview error: " << error;
-                       return futures::Past(EmptyValue());
-                     },
-                     [&](ParsedCommand command) -> futures::Value<EmptyValue> {
-                       VLOG(4) << "Successfully parsed Preview command: "
-                               << command.tokens[0].value
-                               << ", buffer: " << buffer->ptr()->name();
-                       return Execute(buffer->ptr().value(), std::move(command))
-                           .Transform([buffer, output](
-                                          gc::Root<vm::Value> value) mutable {
-                             VLOG(3)
-                                 << "Successfully executed Preview command: "
-                                 << value.ptr().value();
-                             if (value.ptr()->type ==
-                                 vm::GetVMType<
-                                     gc::Root<editor::OpenBuffer>>::vmtype()) {
-                               output->context =
-                                   BufferMapper::get(value.ptr().value());
-                             }
-                             return futures::Past(Success());
-                           })
-                           .ConsumeErrors([](Error) {
-                             return futures::Past(EmptyValue());
-                           });
-                     }},
+            overload{
+                [&](Error error) {
+                  VLOG(4) << "Parse preview error: " << error;
+                  return futures::Past(EmptyValue());
+                },
+                [&](ParsedCommand command) -> futures::Value<EmptyValue> {
+                  VLOG(4) << "Successfully parsed Preview command: "
+                          << command.tokens[0].value
+                          << ", buffer: " << buffer->ptr()->name();
+                  return Execute(buffer->ptr().value(), std::move(command))
+                      .Transform([buffer,
+                                  output](gc::Root<vm::Value> value) mutable {
+                        VLOG(3) << "Successfully executed Preview command: "
+                                << value.ptr().value();
+                        if (value.ptr()->type ==
+                            vm::GetVMType<
+                                gc::Root<editor::OpenBuffer>>::vmtype()) {
+                          output->context =
+                              ColorizePromptOptions::ContextBuffer{
+                                  .buffer =
+                                      BufferMapper::get(value.ptr().value())};
+                        }
+                        return futures::Past(Success());
+                      })
+                      .ConsumeErrors(
+                          [](Error) { return futures::Past(EmptyValue()); });
+                }},
             buffer.has_value()
                 ? Parse(editor.gc_pool(), line, environment,
                         NewLazyString(L"Preview"),

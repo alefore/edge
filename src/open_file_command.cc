@@ -15,6 +15,7 @@ extern "C" {
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
+#include "src/language/safe_types.h"
 #include "src/line_prompt_mode.h"
 #include "src/tests/tests.h"
 
@@ -33,6 +34,7 @@ using afc::language::overload;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -95,7 +97,13 @@ ColorizePromptOptions DrawPath(
     NonNull<std::shared_ptr<LazyString>> line, PredictResults results,
     std::optional<gc::Root<OpenBuffer>> context_buffer) {
   ColorizePromptOptions output;
-  output.context = context_buffer;
+  VisitOptional(
+      [&](gc::Root<OpenBuffer> buffer) {
+        output.context =
+            ColorizePromptOptions::ContextBuffer{.buffer = std::move(buffer)};
+      },
+      [&] { output.context = ColorizePromptOptions::ContextClear{}; },
+      context_buffer);
 
   ForEachColumn(line.value(), [&](ColumnNumber column, wchar_t c) {
     LineModifierSet modifiers;

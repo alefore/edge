@@ -783,9 +783,14 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     prompt_buffer_.ptr()->AppendRawLine(
         ColorizeLine(line->contents(), std::move(options.tokens)));
     prompt_buffer_.ptr()->EraseLines(LineNumber(0), LineNumber(1));
-    if (options.context.has_value()) {
-      status().set_context(options.context.value());
-    }
+    std::visit(overload{[](ColorizePromptOptions::ContextUnmodified) {},
+                        [&](ColorizePromptOptions::ContextClear) {
+                          status().set_context(std::nullopt);
+                        },
+                        [&](const ColorizePromptOptions::ContextBuffer& value) {
+                          status().set_context(value.buffer);
+                        }},
+               options.context);
   }
 
   const PromptOptions options_;
