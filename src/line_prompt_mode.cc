@@ -4,6 +4,7 @@
 
 #include <limits>
 #include <memory>
+#include <ranges>
 #include <string>
 
 #include "src/buffer.h"
@@ -83,14 +84,11 @@ std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
 GetCurrentFeatures(EditorState& editor) {
   std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
       output;
-  for (std::pair<BufferName, gc::Root<OpenBuffer>> entry : *editor.buffers()) {
-    OpenBuffer& buffer = entry.second.ptr().value();
-    if (buffer.Read(buffer_variables::show_in_buffers_list) &&
-        editor.buffer_tree().GetBufferIndex(buffer).has_value()) {
+  for (gc::Root<OpenBuffer>& buffer : *editor.buffers() | std::views::values)
+    if (buffer.ptr()->Read(buffer_variables::show_in_buffers_list) &&
+        editor.buffer_tree().GetBufferIndex(buffer.ptr().value()).has_value())
       output.insert(
-          {L"name", NewLazyString(buffer.Read(buffer_variables::name))});
-    }
-  }
+          {L"name", NewLazyString(buffer.ptr()->Read(buffer_variables::name))});
   editor.ForEachActiveBuffer([&output](OpenBuffer& buffer) {
     output.insert(
         {L"active", NewLazyString(buffer.Read(buffer_variables::name))});
