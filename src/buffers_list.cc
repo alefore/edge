@@ -18,32 +18,33 @@
 #include "src/widget.h"
 #include "src/widget_list.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::GetElapsedSecondsSince;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+
 namespace afc::editor {
-using infrastructure::GetElapsedSecondsSince;
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::Error;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-
-namespace gc = language::gc;
-
 namespace {
 struct ProcessedPathComponent {
   PathComponent path_component;
@@ -428,10 +429,9 @@ const bool remove_common_prefixes_tests_registration =
 
 enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
 
-LineBuilder GetBufferContents(const OpenBuffer& buffer,
+LineBuilder GetBufferContents(const LineSequence& contents,
                               ColumnNumberDelta columns) {
-  NonNull<std::shared_ptr<const Line>> line =
-      buffer.contents().at(LineNumber(0));
+  NonNull<std::shared_ptr<const Line>> line = contents.at(LineNumber(0));
   LineBuilder output;
   if ((line->EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
     ColumnNumberDelta padding = (columns - line->EndColumn().ToDelta()) / 2;
@@ -447,7 +447,7 @@ LineBuilder GetBufferContents(const OpenBuffer& buffer,
 }
 
 LineBuilder GetBufferVisibleString(
-    ColumnNumberDelta columns, const OpenBuffer& buffer,
+    ColumnNumberDelta columns, std::wstring name, const LineSequence& contents,
     LineModifierSet modifiers, SelectionState selection_state,
     const std::list<ProcessedPathComponent>& components) {
   LineBuilder output;
@@ -474,7 +474,6 @@ LineBuilder GetBufferVisibleString(
       break;
   }
 
-  std::wstring name = buffer.Read(buffer_variables::name);
   std::replace(name.begin(), name.end(), L'\n', L' ');
   if (components.empty()) {
     NonNull<std::shared_ptr<LazyString>> output_name =
@@ -512,7 +511,7 @@ LineBuilder GetBufferVisibleString(
   }
   if (columns > output.EndColumn().ToDelta())
     output.Append(
-        GetBufferContents(buffer, columns - output.EndColumn().ToDelta()));
+        GetBufferContents(contents, columns - output.EndColumn().ToDelta()));
 
   return output;
 }
@@ -650,7 +649,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                         : SelectionState::kIdle;
             }
             line_options_output.Append(GetBufferVisibleString(
-                columns_per_buffer, buffer,
+                columns_per_buffer, buffer.Read(buffer_variables::name),
+                buffer.contents().snapshot(),
                 buffer.dirty() ? LineModifierSet{LineModifier::kItalic}
                                : LineModifierSet{},
                 selection_state, path_components[index + j]));
