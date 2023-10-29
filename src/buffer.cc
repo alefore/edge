@@ -1740,10 +1740,8 @@ language::NonNull<std::shared_ptr<const language::text::Line>>
 OpenBuffer::CurrentLine() const {
   LineNumber line = AdjustLineColumn(position()).line;
   CHECK_LE(line, contents().EndLine());
-  std::shared_ptr<const language::text::Line> shared_output = LineAt(line);
-  CHECK(shared_output != nullptr);
   return language::NonNull<std::shared_ptr<const language::text::Line>>::Unsafe(
-      std::move(shared_output));
+      LineAt(line));
 }
 
 std::shared_ptr<const Line> OpenBuffer::CurrentLineOrNull() const {
