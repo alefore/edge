@@ -55,5 +55,13 @@ void EraseIf(std::vector<Value>& container, Predicate predicate) {
       std::remove_if(container.begin(), container.end(), std::move(predicate)),
       container.end());
 }
+
+// Prefer `EraseIf` over direct calls to the container's remove_if method. That
+// allows us to mostly avoid `remove_if`, which, despite its name, in the case
+// of vectors doesn't actually remove any elements, just reorders them.
+template <typename Predicate, typename Value>
+void EraseIf(std::list<Value>& container, Predicate predicate) {
+  container.remove_if(std::move(predicate));
+}
 }  // namespace afc::language
 #endif

@@ -39,7 +39,7 @@ size_t SumContainedSizes(const std::list<ObjectMetadataBag>& container) {
 void PushAndClean(std::list<ObjectMetadataBag>& container,
                   ObjectMetadataBag item) {
   container.push_back(std::move(item));
-  container.remove_if([](const ObjectMetadataBag& l) { return l.empty(); });
+  EraseIf(container, [](const ObjectMetadataBag& l) { return l.empty(); });
 }
 }  // namespace
 
@@ -376,8 +376,8 @@ void Pool::RemoveUnreachable(const Operation& parallel_operation,
                                                      ObjectMetadata>>& shard) {
       std::vector<ObjectMetadata::ExpandCallback>
           local_expired_objects_callbacks;
-      shard.remove_if([&local_expired_objects_callbacks](
-                          const std::weak_ptr<ObjectMetadata>& obj_weak) {
+      EraseIf(shard, [&local_expired_objects_callbacks](
+                         const std::weak_ptr<ObjectMetadata>& obj_weak) {
         return VisitPointer(
             obj_weak,
             [&](NonNull<std::shared_ptr<ObjectMetadata>> obj) -> bool {

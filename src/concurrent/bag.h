@@ -10,6 +10,7 @@
 #include "src/concurrent/operation.h"
 #include "src/concurrent/protected.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/container.h"
 
 namespace afc::concurrent {
 struct BagOptions {
@@ -72,8 +73,9 @@ class Bag {
 
   template <class Predicate>
   void remove_if(const Operation& operation, Predicate predicate) {
-    ForEachShard(operation,
-                 [&predicate](std::list<T>& s) { s.remove_if(predicate); });
+    ForEachShard(operation, [&predicate](std::list<T>& s) {
+      language::EraseIf(s, predicate);
+    });
   }
 
   template <typename Callable>
