@@ -1034,6 +1034,10 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 class LinePromptCommand : public Command {
   struct ConstructorAccessTag {};
 
+  EditorState& editor_state_;
+  const std::wstring description_;
+  const std::function<PromptOptions()> options_supplier_;
+
  public:
   static gc::Root<LinePromptCommand> New(
       EditorState& editor_state, std::wstring description,
@@ -1076,11 +1080,6 @@ class LinePromptCommand : public Command {
       const override {
     return {};
   }
-
- private:
-  EditorState& editor_state_;
-  const std::wstring description_;
-  const std::function<PromptOptions()> options_supplier_;
 };
 
 }  // namespace
