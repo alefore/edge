@@ -5,14 +5,17 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/tests/tests.h"
+#include "src/tokenize.h"
+
+using afc::infrastructure::Path;
+using afc::language::Error;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
 
 namespace afc::editor {
-using infrastructure::Path;
-using language::Error;
-using language::NonNull;
-using language::ValueOrError;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
 
 /* static */
 URL URL::FromPath(Path path) { return URL(L"file:" + path.read()); }
@@ -83,5 +86,22 @@ const bool get_local_file_path_tests_registration = tests::Register(
 
 NonNull<std::shared_ptr<LazyString>> URL::ToString() const {
   return NewLazyString(value_);
+}
+
+std::vector<URL> GetLocalFileURLsWithExtensions(
+    LazyString& file_context_extensions, const URL& url) {
+  std::vector<URL> output = {url};
+  return std::visit(
+      overload{[&](Error) { return output; },
+               [&](Path path) {
+                 auto extensions = TokenizeBySpaces(file_context_extensions);
+                 for (auto& extension_token : extensions) {
+                   CHECK(!extension_token.value.empty());
+                   output.push_back(URL::FromPath(
+                       Path::WithExtension(path, extension_token.value)));
+                 }
+                 return output;
+               }},
+      url.GetLocalFilePath());
 }
 }  // namespace afc::editor

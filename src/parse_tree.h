@@ -7,10 +7,13 @@
 #include <unordered_set>
 
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
+#include "src/url.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/environment.h"
 
@@ -143,6 +146,10 @@ language::NonNull<std::unique_ptr<TreeParser>> NewLineTreeParser(
 
 void RegisterParseTreeFunctions(language::gc::Pool& pool,
                                 vm::Environment& environment);
+
+// Returns the URL that can be extracted from the current tree.
+language::ValueOrError<URL> FindLinkTarget(
+    const ParseTree& tree, const language::text::LineSequence& contents);
 }  // namespace afc::editor
 namespace afc::vm {
 template <>

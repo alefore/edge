@@ -1963,42 +1963,6 @@ void OpenBuffer::set_position(const LineColumn& position) {
 }
 
 namespace {
-std::vector<URL> GetURLsWithExtensionsForContext(const OpenBuffer& buffer,
-                                                 const URL& original_url) {
-  std::vector<URL> output = {original_url};
-  return std::visit(
-      overload{[&](Error) { return output; },
-               [&](Path path) {
-                 auto extensions = TokenizeBySpaces(
-                     NewLazyString(
-                         buffer.Read(buffer_variables::file_context_extensions))
-                         .value());
-                 for (auto& extension_token : extensions) {
-                   CHECK(!extension_token.value.empty());
-                   output.push_back(URL::FromPath(
-                       Path::WithExtension(path, extension_token.value)));
-                 }
-                 return output;
-               }},
-      original_url.GetLocalFilePath());
-}
-
-ValueOrError<URL> FindLinkTarget(const OpenBuffer& buffer,
-                                 const ParseTree& tree) {
-  if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
-      tree.properties().end()) {
-    // TODO(2023-09-10, easy): Change URL to use LazyString and avoid call to
-    // ToString here.
-    return URL(buffer.contents().snapshot().ViewRange(tree.range()).ToString());
-  }
-  for (const auto& child : tree.children()) {
-    if (ValueOrError<URL> output = FindLinkTarget(buffer, child);
-        std::holds_alternative<URL>(output))
-      return output;
-  }
-  return Error(L"Unable to find link.");
-}
-
 std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   auto adjusted_position = buffer.AdjustLineColumn(buffer.position());
   std::optional<URL> initial_url;
@@ -2008,7 +1972,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   for (const ParseTree* subtree : MapRoute(tree.value(), route)) {
     if (subtree->properties().find(ParseTreeProperty::Link()) !=
         subtree->properties().end()) {
-      if (ValueOrError<URL> target = FindLinkTarget(buffer, *subtree);
+      if (ValueOrError<URL> target =
+              FindLinkTarget(*subtree, buffer.contents().snapshot());
           std::holds_alternative<URL>(target)) {
         initial_url = std::get<URL>(target);
         break;
@@ -2035,8 +2000,10 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
     initial_url = URL::FromPath(ValueOrDie(std::move(path)));
   }
 
-  auto urls_with_extensions =
-      GetURLsWithExtensionsForContext(buffer, *initial_url);
+  std::vector<URL> urls_with_extensions = GetLocalFileURLsWithExtensions(
+      NewLazyString(buffer.Read(buffer_variables::file_context_extensions))
+          .value(),
+      *initial_url);
 
   std::vector<Path> search_paths = {};
   std::visit(overload{IgnoreErrors{},

@@ -11,15 +11,18 @@ extern "C" {
 #include "src/language/hash.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/text/line_column_vm.h"
+#include "src/url.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
 
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::compute_hash;
+using afc::language::Error;
 using afc::language::hash_combine;
 using afc::language::MakeHashableIteratorRange;
 using afc::language::NonNull;
+using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
@@ -420,6 +423,20 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
       pool, environment);
 }
 
+ValueOrError<URL> FindLinkTarget(const ParseTree& tree,
+                                 const LineSequence& contents) {
+  if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
+      tree.properties().end()) {
+    // TODO(2023-09-10, easy): Change URL to use LazyString and avoid call to
+    // ToString here.
+    return URL(contents.ViewRange(tree.range()).ToString());
+  }
+  for (const auto& child : tree.children())
+    if (ValueOrError<URL> output = FindLinkTarget(child, contents);
+        std::holds_alternative<URL>(output))
+      return output;
+  return Error(L"Unable to find link.");
+}
 }  // namespace afc::editor
 namespace afc::vm {
 namespace gc = language::gc;

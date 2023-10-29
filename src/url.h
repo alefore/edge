@@ -32,6 +32,11 @@ class URL {
   ValueType value_;
 };
 
+// If `url` is a local file, returns a vector with variations adding all the
+// extensions from a list of extensions (given as a space-separated list).
+std::vector<URL> GetLocalFileURLsWithExtensions(
+    language::lazy_string::LazyString& file_context_extensions, const URL& url);
+
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_URL_H__
