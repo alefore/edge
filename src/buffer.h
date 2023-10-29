@@ -11,6 +11,7 @@
 
 #include "src/buffer_name.h"
 #include "src/buffer_syntax_parser.h"
+#include "src/buffer_variables.h"
 #include "src/concurrent/work_queue.h"
 #include "src/editor_mode.h"
 #include "src/file_descriptor_reader.h"
@@ -33,6 +34,7 @@
 #include "src/terminal_input_parser.h"
 #include "src/transformation.h"
 #include "src/transformation/input.h"
+#include "src/transformation/noop.h"
 #include "src/transformation/type.h"
 #include "src/undo_state.h"
 #include "src/variables.h"
@@ -612,7 +614,8 @@ class OpenBuffer {
   // Optional function to execute when a sub-process exits.
   std::function<void()> on_exit_handler_;
 
-  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
+  const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_ =
+      concurrent::WorkQueue::New();
 
   infrastructure::screen::CursorsTracker cursors_tracker_;
 
@@ -626,11 +629,16 @@ class OpenBuffer {
   DiskState backup_state_ = DiskState::kCurrent;
   bool reading_from_parser_ = false;
 
-  EdgeStructInstance<bool> bool_variables_;
-  EdgeStructInstance<std::wstring> string_variables_;
-  EdgeStructInstance<int> int_variables_;
-  EdgeStructInstance<double> double_variables_;
-  EdgeStructInstance<language::text::LineColumn> line_column_variables_;
+  EdgeStructInstance<bool> bool_variables_ =
+      buffer_variables::BoolStruct()->NewInstance();
+  EdgeStructInstance<std::wstring> string_variables_ =
+      buffer_variables::StringStruct()->NewInstance();
+  EdgeStructInstance<int> int_variables_ =
+      buffer_variables::IntStruct()->NewInstance();
+  EdgeStructInstance<double> double_variables_ =
+      buffer_variables::DoubleStruct()->NewInstance();
+  EdgeStructInstance<language::text::LineColumn> line_column_variables_ =
+      buffer_variables::LineColumnStruct()->NewInstance();
 
   UndoState undo_state_;
 
@@ -642,9 +650,9 @@ class OpenBuffer {
   // shown.  This does not remove any lines: it merely hides them (by setting
   // the Line::filtered field).
   std::optional<language::gc::Root<vm::Value>> filter_;
-  size_t filter_version_;
+  size_t filter_version_ = 0;
 
-  transformation::Variant last_transformation_;
+  transformation::Variant last_transformation_ = NewNoopTransformation();
 
   // We allow the user to group many transformations in one.  They each get
   // applied immediately, but upon repeating, the whole operation gets repeated.

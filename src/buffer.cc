@@ -359,20 +359,11 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
-      work_queue_(WorkQueue::New()),
       contents_(MakeNonNullShared<DelegatingMutableLineSequenceObserver>(
           std::vector<NonNull<std::shared_ptr<MutableLineSequenceObserver>>>(
               {contents_observer_,
                cursors_tracker_.NewMutableLineSequenceObserver()}))),
-      bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
-      string_variables_(buffer_variables::StringStruct()->NewInstance()),
-      int_variables_(buffer_variables::IntStruct()->NewInstance()),
-      double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
-      line_column_variables_(
-          buffer_variables::LineColumnStruct()->NewInstance()),
       environment_(Environment::New(options_.editor.environment().ptr()).ptr()),
-      filter_version_(0),
-      last_transformation_(NewNoopTransformation()),
       default_commands_(std::move(default_commands)),
       mode_(std::move(mode)),
       status_(options_.editor.audio_player()),
