@@ -11,20 +11,22 @@ extern "C" {
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/container.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
+using afc::concurrent::Bag;
+using afc::concurrent::BagOptions;
+using afc::concurrent::Operation;
+using afc::concurrent::OperationFactory;
+using afc::concurrent::ThreadPool;
+using afc::infrastructure::CountDownTimer;
+using afc::infrastructure::Tracker;
+using afc::language::EraseIf;
+using afc::language::NonNull;
+
 namespace afc::language {
 namespace gc {
-using concurrent::Bag;
-using concurrent::BagOptions;
-using concurrent::Operation;
-using concurrent::OperationFactory;
-using concurrent::ThreadPool;
-using infrastructure::CountDownTimer;
-using infrastructure::Tracker;
-using language::NonNull;
-
 namespace {
 using ObjectMetadataBag = Bag<std::weak_ptr<ObjectMetadata>>;
 
@@ -353,9 +355,7 @@ void Pool::Expand(const Operation& parallel_operation,
         VLOG(10) << "Installing expansion of " << obj.get_shared() << ": "
                  << expansion.size();
 
-        expansion.erase(std::remove_if(expansion.begin(), expansion.end(),
-                                       IsExpandAlreadyScheduled),
-                        expansion.end());
+        EraseIf(expansion, IsExpandAlreadyScheduled);
         if (!expansion.empty()) shard.push_back(std::move(expansion));
       }
     }

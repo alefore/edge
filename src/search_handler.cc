@@ -6,6 +6,7 @@
 
 #include "src/buffer_variables.h"
 #include "src/infrastructure/audio.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
@@ -19,6 +20,7 @@ using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::WorkQueue;
 using afc::language::EmptyValue;
+using afc::language::EraseIf;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
@@ -249,11 +251,8 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
   // Account for the fact that we extended `range_before` past the starting
   // position: ignore matches past the starting position. They should already be
   // in `output` anyway.
-  results_before.erase(
-      std::remove_if(
-          results_before.begin(), results_before.end(),
-          [&](LineColumn result) { return result > starting_position; }),
-      results_before.end());
+  EraseIf(results_before,
+          [&](LineColumn result) { return result > starting_position; });
 
   output.insert(output.end(), results_before.begin(), results_before.end());
   switch (direction) {
