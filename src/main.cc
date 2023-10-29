@@ -3,6 +3,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <ranges>
 #include <sstream>
 #include <string>
 
@@ -450,9 +451,8 @@ int main(int argc, const char** argv) {
     struct pollfd fds[editor_state().buffers()->size() * 2 + 3];
     buffers.reserve(sizeof(fds) / sizeof(fds[0]));
 
-    for (std::pair<BufferName, gc::Root<OpenBuffer>> entry :
-         *editor_state().buffers()) {
-      gc::Root<OpenBuffer>& buffer = entry.second;
+    for (const gc::Root<OpenBuffer>& buffer :
+         *editor_state().buffers() | std::views::values) {
       auto register_reader = [&](const FileDescriptorReader* reader) {
         auto pollfd = reader == nullptr ? std::nullopt : reader->GetPollFd();
         if (pollfd.has_value()) {
