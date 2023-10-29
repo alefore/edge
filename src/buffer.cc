@@ -2625,18 +2625,6 @@ void OpenBuffer::UpdateLastAction() {
   last_action_ = now;
   if (double idle_seconds = Read(buffer_variables::close_after_idle_seconds);
       idle_seconds >= 0.0) {
-    auto callback =
-        gc::BindFront(
-            editor().gc_pool(),
-            [last_action = last_action_](gc::Root<OpenBuffer> buffer_root) {
-              OpenBuffer& buffer = buffer_root.ptr().value();
-              if (buffer.last_action_ != last_action) return;
-              buffer.last_action_ = Now();
-              LOG(INFO) << "close_after_idle_seconds: Closing.";
-              buffer.editor().CloseBuffer(buffer);
-            },
-            ptr_this_->ToWeakPtr())
-            .ptr();
     work_queue_->Schedule(WorkQueue::Callback{
         .time = AddSeconds(Now(), idle_seconds),
         .callback = gc::LockCallback(
