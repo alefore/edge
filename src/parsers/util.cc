@@ -110,7 +110,7 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
                      std::min(LineColumn(i + LineNumberDelta(1)), range.end()));
       data.set_position(std::max(LineColumn(i), range.begin()));
       ParseLine(&data);
-      return *data.parse_results();
+      return data.parse_results();
     });
 
     TRACK_OPERATION(LineOrientedTreeParser_FindChildren_ExecuteActions);
@@ -127,10 +127,10 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
                    std::min(LineColumn(LineNumber(0) + contents.size() +
                                        LineNumberDelta(1)),
                             range.end()));
-    while (data.parse_results()->states_stack.size() > 1) {
+    while (data.parse_results().states_stack.size() > 1) {
       data.PopBack();
     }
-    for (const auto& action : data.parse_results()->actions) {
+    for (const auto& action : data.parse_results().actions) {
       Execute(action, &trees, final_position.line);
     }
   }

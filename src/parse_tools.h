@@ -50,7 +50,7 @@ class ParseData {
 
   Seek& seek() { return seek_; }
 
-  ParseResults* parse_results() { return &parse_results_; }
+  const ParseResults& parse_results() const { return parse_results_; }
 
   language::text::LineColumn position() const { return position_; }
 
