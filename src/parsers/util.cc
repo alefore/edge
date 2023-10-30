@@ -104,7 +104,7 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
 
   range.ForEachLine([&](LineNumber i) {
     size_t hash = GetLineHash(contents.at(i)->contents().value(), states_stack);
-    NonNull<ParseResults*> parse_results = cache_.Get(hash, [&] {
+    NonNull<const ParseResults*> parse_results = cache_.Get(hash, [&] {
       TRACK_OPERATION(LineOrientedTreeParser_FindChildren_Parse);
       ParseData data(contents, std::move(states_stack),
                      std::min(LineColumn(i + LineNumberDelta(1)), range.end()));
@@ -114,6 +114,7 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
     });
 
     TRACK_OPERATION(LineOrientedTreeParser_FindChildren_ExecuteActions);
+    CHECK(!trees.empty());
     for (const auto& action : parse_results->actions)
       Execute(action, &trees, i);
     states_stack = parse_results->states_stack;
