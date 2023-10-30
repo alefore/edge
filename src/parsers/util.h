@@ -31,6 +31,9 @@ class LineOrientedTreeParser : public TreeParser {
   // - The stack of states available when parsing of the line starts.
   //
   // The values are the results of parsing the line.
+  //
+  // Why set the size to 1? Because `FindChildren` will adjust it to be based on
+  // the size of the file.
   LRUCache<size_t, ParseResults> cache_ = LRUCache<size_t, ParseResults>(1);
 };
 }  // namespace afc::editor::parsers
