@@ -188,6 +188,7 @@ src/line_number_output_producer.cc \
 src/line_prompt_mode.cc \
 src/log.cc \
 src/log.h \
+src/lru_cache.cc \
 src/lru_cache.h \
 src/map_mode.cc \
 src/math/decaying_counter.cc \

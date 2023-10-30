@@ -85,8 +85,10 @@ class LRUCache {
   }
 
   static void DeleteExpiredEntries(Data& data) {
-    while (data.access_order.size() >= data.max_size) {
-      VLOG(5) << "Expiring entry with key: " << data.access_order.back().key;
+    while (data.access_order.size() > data.max_size) {
+      VLOG(5) << "Expiring entry with key: " << data.access_order.back().key
+              << " with size " << data.access_order.size() << " and limit "
+              << data.max_size;
       language::EraseOrDie(data.map, data.access_order.back().key);
       data.access_order.pop_back();
     }
