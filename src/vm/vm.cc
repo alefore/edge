@@ -13,6 +13,7 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -49,6 +50,7 @@ using afc::language::ToByteString;
 using afc::language::ToUniquePtr;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
 
 namespace afc {
 namespace vm {
@@ -160,10 +162,11 @@ numbers::Number ConsumeDecimal(const wstring& str, size_t* pos) {
 
 void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
   CHECK(compilation.errors().empty());
+  // TODO(trivial, 2023-10-30): Convert to ColumnNumber.
   size_t pos = 0;
   int token;
   while (compilation.errors().empty() && pos < str.size()) {
-    compilation.SetSourceColumnInLine(pos);
+    compilation.SetSourceColumnInLine(ColumnNumber(pos));
     VLOG(5) << L"Compiling from character: " << std::wstring(1, str.at(pos));
     std::optional<gc::Root<Value>> input;
     switch (str.at(pos)) {

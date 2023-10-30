@@ -12,6 +12,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/overload.h"
+#include "src/language/text/line_column.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
@@ -24,8 +25,7 @@ struct Compilation {
  private:
   struct Source {
     std::optional<infrastructure::Path> path;
-    size_t line = 0;
-    size_t column = 0;
+    language::text::LineColumn line_column = {};
   };
 
   // Stack of files from which we're reading, used for error reports.
@@ -65,7 +65,7 @@ struct Compilation {
   void PushSource(std::optional<infrastructure::Path> path);
   void PopSource();
   void IncrementLine();
-  void SetSourceColumnInLine(size_t column);
+  void SetSourceColumnInLine(language::lazy_string::ColumnNumber column);
   std::optional<infrastructure::Path> current_source_path() const;
 };
 

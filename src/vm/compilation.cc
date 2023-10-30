@@ -1,5 +1,13 @@
 #include "src/vm/compilation.h"
 
+#include "src/language/lazy_string/lazy_string.h"
+
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+
 namespace afc::vm {
 using language::Error;
 namespace gc = language::gc;
@@ -15,8 +23,10 @@ void Compilation::AddError(Error error) {
     Source& source = *it;
     std::wstring location =
         (source.path.has_value() ? (source.path->read() + L":") : L"") +
-        std::to_wstring(source.line + 1) + L":" +
-        std::to_wstring(source.column + 1);
+        std::to_wstring((source.line_column.line + LineNumberDelta(1)).read()) +
+        L":" +
+        std::to_wstring(
+            (source.line_column.column + ColumnNumberDelta(1)).read());
     if (std::next(it) == source_.end())
       prefix += location + L": ";
     else
@@ -40,12 +50,13 @@ void Compilation::PopSource() {
 
 void Compilation::IncrementLine() {
   CHECK(!source_.empty());
-  source_.back().line++;
+  source_.back().line_column =
+      LineColumn(LineNumber(source_.back().line_column.line.next()));
 }
 
-void Compilation::SetSourceColumnInLine(size_t column) {
+void Compilation::SetSourceColumnInLine(ColumnNumber column) {
   CHECK(!source_.empty());
-  source_.back().column = column;
+  source_.back().line_column.column = column;
 }
 
 std::optional<infrastructure::Path> Compilation::current_source_path() const {
