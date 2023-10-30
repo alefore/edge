@@ -128,9 +128,8 @@ struct Range {
 
   template <typename Callback>
   void ForEachLine(Callback callback) {
-    for (LineNumber line = begin_.line; line < end_.line; ++line) {
+    for (LineNumber line = begin_.line; line <= end_.line; ++line)
       callback(line);
-    }
   }
 
   bool IsEmpty() const { return begin_ >= end_; }

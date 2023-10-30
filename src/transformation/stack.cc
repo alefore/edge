@@ -452,8 +452,6 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                 [&cursors](LineNumber line) {
                   cursors.cursors.insert(LineColumn(line));
                 });
-            cursors.cursors.insert(
-                LineColumn(delete_transformation.range->end().line));
             return ApplyBase(cursors, input.NewChild(range.begin()));
           }
         }
