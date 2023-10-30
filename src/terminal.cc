@@ -25,6 +25,7 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::infrastructure::screen::Screen;
 using afc::language::IgnoreErrors;
+using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -201,7 +202,7 @@ void Terminal::WriteLine(Screen& screen, LineNumber line,
     if (hashes_current_lines_[line.read()] == generator.inputs_hash.value()) {
       return;
     }
-    drawer = lines_cache_.Get(generator.inputs_hash.value(), factory);
+    drawer = lines_cache_.Get(generator.inputs_hash.value(), factory).get();
   } else {
     no_hash_drawer = factory();
     drawer = &no_hash_drawer;

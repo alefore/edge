@@ -4,17 +4,19 @@
 #include "src/language/hash.h"
 #include "src/language/lazy_string/functional.h"
 
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
+
 namespace afc::editor::parsers {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::Range;
 
 // TODO(easy, 2023-09-16): Reuse these symbosl in cpp_parse_tree.
 static const LineModifierSet BAD_PARSE_MODIFIERS =
@@ -102,7 +104,7 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
 
   range.ForEachLine([&](LineNumber i) {
     size_t hash = GetLineHash(contents.at(i)->contents().value(), states_stack);
-    auto parse_results = cache_.Get(hash, [&] {
+    NonNull<ParseResults*> parse_results = cache_.Get(hash, [&] {
       TRACK_OPERATION(LineOrientedTreeParser_FindChildren_Parse);
       ParseData data(contents, std::move(states_stack),
                      std::min(LineColumn(i + LineNumberDelta(1)), range.end()));

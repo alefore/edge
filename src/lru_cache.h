@@ -10,6 +10,7 @@
 
 #include "src/concurrent/protected.h"
 #include "src/language/container.h"
+#include "src/language/safe_types.h"
 
 namespace afc::editor {
 
@@ -56,7 +57,7 @@ class LRUCache {
   // Creator shouldn't attempt to use the map; otherwise, deadlocks are likely
   // to occur.
   template <typename Creator>
-  Value* Get(Key key, Creator creator) {
+  language::NonNull<Value*> Get(Key key, Creator creator) {
     return data_.lock([&key, &creator](Data& data) {
       auto [it, inserted] =
           data.map.insert({std::move(key), data.access_order.end()});
@@ -73,7 +74,8 @@ class LRUCache {
       } else {
         VLOG(5) << "Entry is already at front.";
       }
-      return &data.access_order.front().value;
+      return language::NonNull<Value*>::AddressOf(
+          data.access_order.front().value);
     });
   }
 
