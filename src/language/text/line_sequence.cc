@@ -290,7 +290,7 @@ void LineSequence::ForEach(
 
 wint_t LineSequence::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());
-  auto line = at(position.line);
+  NonNull<std::shared_ptr<const Line>> line = at(position.line);
   return position.column >= line->EndColumn() ? L'\n'
                                               : line->get(position.column);
 }
