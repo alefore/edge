@@ -160,7 +160,6 @@ statement(A) ::= nesting_lbracket statement_list(L) nesting_rbracket. {
 }
 
 nesting_lbracket ::= LBRACKET. {
-  LOG(INFO) << "Nesting.";
   compilation->environment = Environment::New(compilation->environment.ptr());
 }
 
@@ -168,7 +167,6 @@ nesting_rbracket ::= RBRACKET. {
   // This is safe: nesting_rbracket always follows a corresponding
   // nesting_lbracket.
   CHECK(compilation->environment.ptr()->parent_environment().has_value());
-  LOG(INFO) << "Restoring.";
   compilation->environment =
       compilation->environment.ptr()->parent_environment()->ToRoot();
 }
