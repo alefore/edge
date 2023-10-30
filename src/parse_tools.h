@@ -66,7 +66,8 @@ class ParseData {
 
   void SetFirstChildModifiers(
       infrastructure::screen::LineModifierSet modifiers) {
-    parse_results_.actions.push_back(ActionSetFirstChildModifiers{modifiers});
+    parse_results_.actions.emplace_back(
+        ActionSetFirstChildModifiers{.modifiers = modifiers});
   }
 
   void PopBack();
