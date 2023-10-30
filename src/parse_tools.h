@@ -10,50 +10,25 @@
 
 namespace afc::editor {
 
-struct Action {
-  static Action Push(language::lazy_string::ColumnNumber column,
-                     infrastructure::screen::LineModifierSet modifiers,
-                     std::unordered_set<ParseTreeProperty> properties) {
-    return Action(PUSH, column, std::move(modifiers), std::move(properties));
-  }
-
-  static Action Pop(language::lazy_string::ColumnNumber column) {
-    return Action(POP, column, {}, {});
-  }
-
-  static Action SetFirstChildModifiers(
-      infrastructure::screen::LineModifierSet modifiers);
-
-  void Execute(std::vector<ParseTree>* trees, language::text::LineNumber line);
-
-  enum ActionType {
-    PUSH,
-    POP,
-
-    // Set the modifiers of the first child of the current tree.
-    SET_FIRST_CHILD_MODIFIERS,
-  };
-
-  ActionType action_type = PUSH;
-
+struct ActionPush {
   language::lazy_string::ColumnNumber column;
-
-  // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
   infrastructure::screen::LineModifierSet modifiers;
-
-  // Used by PUSH.
   std::unordered_set<ParseTreeProperty> properties;
-
- private:
-  Action(ActionType input_action_type,
-         language::lazy_string::ColumnNumber input_column,
-         infrastructure::screen::LineModifierSet input_modifiers,
-         std::unordered_set<ParseTreeProperty> input_properties)
-      : action_type(input_action_type),
-        column(input_column),
-        modifiers(std::move(input_modifiers)),
-        properties(std::move(input_properties)) {}
 };
+
+struct ActionPop {
+  language::lazy_string::ColumnNumber column;
+};
+
+struct ActionSetFirstChildModifiers {
+  infrastructure::screen::LineModifierSet modifiers;
+};
+
+using Action =
+    std::variant<ActionPush, ActionPop, ActionSetFirstChildModifiers>;
+
+void Execute(const Action& action, std::vector<ParseTree>* trees,
+             language::text::LineNumber line);
 
 struct ParseResults {
   std::vector<size_t> states_stack;
@@ -91,7 +66,7 @@ class ParseData {
 
   void SetFirstChildModifiers(
       infrastructure::screen::LineModifierSet modifiers) {
-    parse_results_.actions.push_back(Action::SetFirstChildModifiers(modifiers));
+    parse_results_.actions.push_back(ActionSetFirstChildModifiers{modifiers});
   }
 
   void PopBack();

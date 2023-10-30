@@ -8,46 +8,43 @@ using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::Range;
 
-/* static */ Action Action::SetFirstChildModifiers(LineModifierSet modifiers) {
-  return Action(SET_FIRST_CHILD_MODIFIERS, ColumnNumber(), std::move(modifiers),
-                {});
+void ExecuteBase(const ActionPush& action, std::vector<ParseTree>* trees,
+                 LineNumber line) {
+  trees->emplace_back(
+      Range(LineColumn(line, action.column), LineColumn(line, action.column)));
+  trees->back().set_modifiers(action.modifiers);
+  trees->back().set_properties(action.properties);
+  DVLOG(5) << "Tree: Push: " << trees->back().range();
 }
 
-void Action::Execute(std::vector<ParseTree>* trees, LineNumber line) {
-  switch (action_type) {
-    case PUSH: {
-      trees->emplace_back(
-          Range(LineColumn(line, column), LineColumn(line, column)));
-      trees->back().set_modifiers(modifiers);
-      trees->back().set_properties(properties);
-      DVLOG(5) << "Tree: Push: " << trees->back().range();
-      break;
-    }
+void ExecuteBase(const ActionPop& action, std::vector<ParseTree>* trees,
+                 LineNumber line) {
+  auto child = std::move(trees->back());
+  trees->pop_back();
 
-    case POP: {
-      auto child = std::move(trees->back());
-      trees->pop_back();
+  auto range = child.range();
+  range.set_end(LineColumn(line, action.column));
+  child.set_range(range);
+  DVLOG(5) << "Tree: Pop: " << child.range();
+  CHECK(!trees->empty());
+  trees->back().PushChild(std::move(child));
+}
 
-      auto range = child.range();
-      range.set_end(LineColumn(line, column));
-      child.set_range(range);
-      DVLOG(5) << "Tree: Pop: " << child.range();
-      CHECK(!trees->empty());
-      trees->back().PushChild(std::move(child));
-      break;
-    }
+void ExecuteBase(const ActionSetFirstChildModifiers& action,
+                 std::vector<ParseTree>* trees, LineNumber) {
+  DVLOG(5) << "Tree: SetModifiers: " << trees->back().range();
+  trees->back().MutableChildren(0)->set_modifiers(action.modifiers);
+}
 
-    case SET_FIRST_CHILD_MODIFIERS:
-      DVLOG(5) << "Tree: SetModifiers: " << trees->back().range();
-      trees->back().MutableChildren(0)->set_modifiers(modifiers);
-      break;
-  }
+void Execute(const Action& action, std::vector<ParseTree>* trees,
+             language::text::LineNumber line) {
+  std::visit([&](auto& t) { ExecuteBase(t, trees, line); }, action);
 }
 
 void ParseData::PopBack() {
   CHECK(!parse_results_.states_stack.empty());
   parse_results_.states_stack.pop_back();
-  parse_results_.actions.push_back(Action::Pop(position_.column));
+  parse_results_.actions.push_back(ActionPop{position_.column});
 }
 
 void ParseData::Push(size_t nested_state, ColumnNumberDelta rewind_column,
@@ -57,9 +54,9 @@ void ParseData::Push(size_t nested_state, ColumnNumberDelta rewind_column,
 
   parse_results_.states_stack.push_back(nested_state);
 
-  parse_results_.actions.push_back(
-      Action::Push(position_.column - rewind_column, std::move(modifiers),
-                   std::move(properties)));
+  parse_results_.actions.push_back(ActionPush{position_.column - rewind_column,
+                                              std::move(modifiers),
+                                              std::move(properties)});
 }
 
 void ParseData::PushAndPop(ColumnNumberDelta rewind_column,

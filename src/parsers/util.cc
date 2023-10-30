@@ -114,7 +114,8 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
     });
 
     TRACK_OPERATION(LineOrientedTreeParser_FindChildren_ExecuteActions);
-    for (auto& action : parse_results->actions) action.Execute(&trees, i);
+    for (const auto& action : parse_results->actions)
+      Execute(action, &trees, i);
     states_stack = parse_results->states_stack;
   });
 
@@ -129,8 +130,8 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
     while (data.parse_results()->states_stack.size() > 1) {
       data.PopBack();
     }
-    for (auto& action : data.parse_results()->actions) {
-      action.Execute(&trees, final_position.line);
+    for (const auto& action : data.parse_results()->actions) {
+      Execute(action, &trees, final_position.line);
     }
   }
   CHECK(!trees.empty());
