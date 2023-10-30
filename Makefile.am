@@ -117,6 +117,7 @@ src/insert_history.h \
 src/insert_history_buffer.cc \
 src/insert_history_buffer.h \
 src/insert_mode.cc \
+src/key_commands_map.h \
 src/language/container.h \
 src/language/const_tree.cc \
 src/language/const_tree.h \
