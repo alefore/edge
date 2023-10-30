@@ -7,17 +7,59 @@
 #include "src/tests/tests.h"
 
 namespace afc::futures {
+using language::EmptyValue;
 using language::Error;
 using language::PossibleError;
 using language::Success;
 
-Value<language::ValueOrError<language::EmptyValue>> IgnoreErrors(
+Value<language::ValueOrError<EmptyValue>> IgnoreErrors(
     Value<PossibleError> value) {
-  return std::move(value).Transform(
-      [](const PossibleError&) { return Success(); });
+  Future<PossibleError> output;
+  std::move(value).SetConsumer(
+      [consumer = std::move(output.consumer)](const PossibleError&) {
+        consumer(Success());
+      });
+  return std::move(output.value);
 }
 
 namespace {
+const bool futures_ignore_errors_tests_registration = tests::Register(
+    L"futures::IgnoreErrors",
+    {
+        {.name = L"Success",
+         .callback =
+             [] {
+               bool run = false;
+               IgnoreErrors(futures::Past(Success()))
+                   .Transform([&run](EmptyValue) {
+                     run = true;
+                     return futures::Past(Success());
+                   });
+               CHECK(run);
+             }},
+        {.name = L"Error",
+         .callback =
+             [] {
+               bool run = false;
+               IgnoreErrors(futures::Past(PossibleError(
+                                Error(L"Something bad happened"))))
+                   .Transform([&run](EmptyValue) {
+                     run = true;
+                     return futures::Past(Success());
+                   });
+               CHECK(run);
+             }},
+        {.name = L"SanityCheck",
+         .callback =
+             [] {
+               futures::Past(PossibleError(Error(L"Something bad happened")))
+                   .Transform([](EmptyValue) {
+                     CHECK(false);
+                     return futures::Past(Success());
+                   });
+             }},
+    });
+
 // TODO(easy): Add more tests.
 const bool futures_transform_tests_registration = tests::Register(
     L"TransformTests",
