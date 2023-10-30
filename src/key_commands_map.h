@@ -3,8 +3,12 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
+
+#include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 
 namespace afc::editor::operation {
 class KeyCommandsMap {
@@ -124,14 +128,9 @@ class KeyCommandsMapSequence {
     return sequence_.back();
   }
 
-  std::map<wchar_t, KeyCommandsMap::Category> GetKeys() {
-    std::map<wchar_t, KeyCommandsMap::Category> output;
-    for (const KeyCommandsMap& entry : sequence_) {
-      entry.ExtractKeys(output);
-      if (entry.HasFallback()) break;
-    }
-    return output;
-  }
+  std::map<wchar_t, KeyCommandsMap::Category> GetKeys() const;
+
+  language::text::Line SummaryLine() const;
 };
 }  // namespace afc::editor::operation
 

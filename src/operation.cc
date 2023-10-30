@@ -747,19 +747,8 @@ class OperationMode : public EditorMode {
   }
 
   void AppendStatusForCommandsAvailable(LineBuilder& output) {
-    KeyCommandsMapSequence cmap = GetGlobalKeyCommandsMap();
     output.AppendString(L"    ", std::nullopt);
-
-    std::map<KeyCommandsMap::Category, std::wstring> entries_by_category;
-    for (const std::pair<const wchar_t, KeyCommandsMap::Category>& entry :
-         cmap.GetKeys())
-      if (isprint(entry.first))
-        entries_by_category[entry.second].push_back(entry.first);
-    for (const std::pair<const KeyCommandsMap::Category, std::wstring>&
-             category : entries_by_category) {
-      output.AppendString(L" ", std::nullopt);
-      output.AppendString(category.second, LineModifierSet{LineModifier::kDim});
-    }
+    output.Append(LineBuilder(GetGlobalKeyCommandsMap().SummaryLine()));
   }
 
   KeyCommandsMap ReceiveInputTopCommand(TopCommand top_command) {
