@@ -21,6 +21,30 @@ class Expression;
 class Environment;
 
 struct Compilation {
+ private:
+  struct Source {
+    std::optional<infrastructure::Path> path;
+    size_t line = 0;
+    size_t column = 0;
+  };
+
+  // Stack of files from which we're reading, used for error reports.
+  std::vector<Source> source_;
+
+  std::vector<language::Error> errors_ = {};
+
+ public:
+  size_t numbers_precision = 5;
+
+  language::gc::Pool& pool;
+
+  std::unique_ptr<Expression> expr;
+
+  Namespace current_namespace;
+  std::vector<Type> current_class = {};
+  language::gc::Root<Environment> environment;
+  std::wstring last_token = L"";
+
   Compilation(language::gc::Pool& input_pool,
               language::gc::Root<Environment> input_environment);
 
@@ -38,32 +62,11 @@ struct Compilation {
   const std::vector<language::Error>& errors() const;
   std::vector<language::Error>& errors();
 
-  language::gc::Pool& pool;
-
-  std::unique_ptr<Expression> expr;
-
-  Namespace current_namespace;
-  std::vector<Type> current_class = {};
-  language::gc::Root<Environment> environment;
-  std::wstring last_token = L"";
-
-  struct Source {
-    std::optional<infrastructure::Path> path;
-    size_t line = 0;
-    size_t column = 0;
-  };
-
   void PushSource(std::optional<infrastructure::Path> path);
   void PopSource();
   void IncrementLine();
   void SetSourceColumnInLine(size_t column);
   std::optional<infrastructure::Path> current_source_path() const;
-
- private:
-  // Stack of files from which we're reading, used for error reports.
-  std::vector<Source> source_;
-
-  std::vector<language::Error> errors_ = {};
 };
 
 }  // namespace afc::vm

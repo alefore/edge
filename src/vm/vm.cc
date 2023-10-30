@@ -11,30 +11,30 @@
 #include <string>
 #include <utility>
 
-#include "append_expression.h"
-#include "assign_expression.h"
-#include "binary_operator.h"
-#include "class_expression.h"
-#include "compilation.h"
-#include "expression.h"
-#include "if_expression.h"
-#include "lambda.h"
-#include "logical_expression.h"
-#include "namespace_expression.h"
-#include "negate_expression.h"
-#include "return_expression.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/vm/append_expression.h"
+#include "src/vm/assign_expression.h"
+#include "src/vm/binary_operator.h"
+#include "src/vm/class_expression.h"
+#include "src/vm/compilation.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/environment.h"
+#include "src/vm/expression.h"
 #include "src/vm/function_call.h"
+#include "src/vm/if_expression.h"
+#include "src/vm/lambda.h"
+#include "src/vm/logical_expression.h"
+#include "src/vm/namespace_expression.h"
+#include "src/vm/negate_expression.h"
+#include "src/vm/return_expression.h"
+#include "src/vm/string.h"
 #include "src/vm/value.h"
-#include "string.h"
-#include "variable_lookup.h"
-#include "while_expression.h"
+#include "src/vm/variable_lookup.h"
+#include "src/vm/while_expression.h"
 
 using afc::infrastructure::Path;
 using afc::language::Error;
@@ -62,9 +62,6 @@ extern "C" {
 #include <cassert>
 
 namespace numbers = math::numbers;
-
-// TODO(P1, 2023-09-23): Make this a parameter of the compilation.
-static constexpr size_t kDefaultNumbersPrecision = 5;
 
 #include "src/vm/cpp.c"
 #include "src/vm/cpp.h"
