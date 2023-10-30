@@ -1,13 +1,14 @@
 #include "src/parse_tools.h"
 
-namespace afc::editor {
-using infrastructure::screen::LineModifierSet;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::Range;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::Range;
 
+namespace afc::editor {
+namespace {
 void ExecuteBase(const ActionPush& action, std::vector<ParseTree>* trees,
                  LineNumber line) {
   trees->emplace_back(
@@ -35,6 +36,7 @@ void ExecuteBase(const ActionSetFirstChildModifiers& action,
   DVLOG(5) << "Tree: SetModifiers: " << trees->back().range();
   trees->back().MutableChildren(0)->set_modifiers(action.modifiers);
 }
+}  // namespace
 
 void Execute(const Action& action, std::vector<ParseTree>* trees,
              language::text::LineNumber line) {
