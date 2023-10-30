@@ -20,11 +20,12 @@ void ExecuteBase(const ActionPush& action, std::vector<ParseTree>* trees,
 
 void ExecuteBase(const ActionPop& action, std::vector<ParseTree>* trees,
                  LineNumber line) {
+  CHECK(!trees->empty());
   auto child = std::move(trees->back());
   trees->pop_back();
 
   auto range = child.range();
-  range.set_end(LineColumn(line, action.column));
+  range.set_end(std::max(range.begin(), LineColumn(line, action.column)));
   child.set_range(range);
   DVLOG(5) << "Tree: Pop: " << child.range();
   CHECK(!trees->empty());
@@ -33,6 +34,7 @@ void ExecuteBase(const ActionPop& action, std::vector<ParseTree>* trees,
 
 void ExecuteBase(const ActionSetFirstChildModifiers& action,
                  std::vector<ParseTree>* trees, LineNumber) {
+  CHECK(!trees->empty());
   DVLOG(5) << "Tree: SetModifiers: " << trees->back().range();
   trees->back().MutableChildren(0)->set_modifiers(action.modifiers);
 }
