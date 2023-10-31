@@ -38,7 +38,7 @@ namespace afc::editor::operation {
 }
 
 void KeyCommandsMap::ExtractDescriptions(
-    std::map<Category, std::map<wchar_t, std::wstring>>& output) const {
+    std::map<Category, std::map<wchar_t, Description>>& output) const {
   for (const std::pair<const wchar_t, KeyCommand>& entry : table_)
     if (entry.second.active)
       output[entry.second.category].insert(
@@ -72,19 +72,21 @@ Line KeyCommandsMapSequence::SummaryLine() const {
 
 LineSequence KeyCommandsMapSequence::Help() const {
   MutableLineSequence help_output;
-  std::map<KeyCommandsMap::Category, std::map<wchar_t, std::wstring>>
+  std::map<KeyCommandsMap::Category, std::map<wchar_t, Description>>
       descriptions;
   for (const KeyCommandsMap& entry : sequence_)
     entry.ExtractDescriptions(descriptions);
-  for (const auto& category_entry : descriptions) {
+  for (const std::pair<const KeyCommandsMap::Category,
+                       std::map<wchar_t, Description>>& category_entry :
+       descriptions) {
     LineBuilder category_line;
     category_line.AppendString(
         Append(NewLazyString(KeyCommandsMap::ToString(category_entry.first)),
                NewLazyString(L":")));
-    for (const std::pair<const wchar_t, std::wstring>& entry :
+    for (const std::pair<const wchar_t, Description>& entry :
          category_entry.second) {
       category_line.AppendString(NewLazyString(L" "));
-      category_line.AppendString(NewLazyString(entry.second));
+      category_line.AppendString(NewLazyString(entry.second.read()));
     }
     help_output.push_back(
         MakeNonNullShared<Line>(std::move(category_line).Build()));

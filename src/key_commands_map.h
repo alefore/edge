@@ -12,6 +12,8 @@
 #include "src/language/text/line_sequence.h"
 
 namespace afc::editor::operation {
+GHOST_TYPE(Description, std::wstring);
+
 class KeyCommandsMap {
  public:
   enum class Category {
@@ -25,7 +27,7 @@ class KeyCommandsMap {
 
   struct KeyCommand {
     Category category;
-    std::wstring description = L"";
+    Description description = Description(L"");
     bool active = true;
     std::function<void(wchar_t)> handler;
   };
@@ -110,7 +112,7 @@ class KeyCommandsMap {
   }
 
   void ExtractDescriptions(
-      std::map<Category, std::map<wchar_t, std::wstring>>& output) const;
+      std::map<Category, std::map<wchar_t, Description>>& output) const;
 };
 
 class KeyCommandsMapSequence {
