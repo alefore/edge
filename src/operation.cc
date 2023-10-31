@@ -461,11 +461,13 @@ void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
   cmap.Insert(Terminal::BACKSPACE,
               {.category = KeyCommandsMap::Category::kStringControl,
+               .description = Description(L"PopRepetitions"),
                .active = !output->empty(),
                .handler = [output](wchar_t) { output->PopValue(); }});
   for (int i = 0; i < 10; i++)
     cmap.Insert(L'0' + i,
                 {.category = KeyCommandsMap::Category::kRepetitions,
+                 .description = Description(L"Repetitions"),
                  .handler = [output, i](wchar_t) { output->factor(i); }});
 }
 
@@ -474,6 +476,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
   if (output->structure.value_or(Structure::kChar) == Structure::kChar &&
       !output->repetitions.empty()) {
     cmap.Insert(L'H', {.category = KeyCommandsMap::Category::kNewCommand,
+                       .description = Description(L"🪓👈"),
                        .active = output->repetitions.get_list().back() < 0,
                        .handler =
                            [state](wchar_t) {
@@ -482,6 +485,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                                  .directions = {Direction::kBackwards}});
                            }})
         .Insert(L'L', {.category = KeyCommandsMap::Category::kNewCommand,
+                       .description = Description(L"🪓👉"),
                        .active = output->repetitions.get_list().back() > 0,
                        .handler = [state](wchar_t) {
                          state->Push(CommandReachBisect{
@@ -492,6 +496,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
 
   if (output->structure == Structure::kLine && !output->repetitions.empty()) {
     cmap.Insert(L'K', {.category = KeyCommandsMap::Category::kNewCommand,
+                       .description = Description(L"🪓👆"),
                        .active = output->repetitions.get_list().back() < 0,
                        .handler =
                            [state](wchar_t) {
@@ -500,6 +505,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                                  .directions = {Direction::kBackwards}});
                            }})
         .Insert(L'J', {.category = KeyCommandsMap::Category::kNewCommand,
+                       .description = Description(L"🪓👇"),
                        .active = output->repetitions.get_list().back() > 0,
                        .handler = [state](wchar_t) {
                          state->Push(CommandReachBisect{
