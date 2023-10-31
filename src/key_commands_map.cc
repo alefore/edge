@@ -14,6 +14,8 @@ using afc::language::lazy_string::Append;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
@@ -84,13 +86,16 @@ LineSequence KeyCommandsMapSequence::Help() const {
         Append(NewLazyString(KeyCommandsMap::ToString(category_entry.first)),
                NewLazyString(L":")));
     for (const std::pair<const wchar_t, Description>& entry :
-         category_entry.second) {
-      category_line.AppendString(NewLazyString(L" "));
-      category_line.AppendString(NewLazyString(entry.second.read()));
-    }
+         category_entry.second)
+      if (entry.second != Description(L"")) {
+        category_line.AppendString(NewLazyString(L" "));
+        category_line.AppendString(NewLazyString(entry.second.read()));
+      }
     help_output.push_back(
         MakeNonNullShared<Line>(std::move(category_line).Build()));
   }
+  if (help_output.size() > LineNumberDelta(1))
+    help_output.EraseLines(LineNumber(), LineNumber());
   return help_output.snapshot();
 }
 
