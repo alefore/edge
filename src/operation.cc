@@ -4,6 +4,7 @@
 
 #include "src/buffer_variables.h"
 #include "src/editor.h"
+#include "src/file_link_mode.h"
 #include "src/find_mode.h"
 #include "src/futures/futures.h"
 #include "src/futures/serializer.h"
@@ -42,6 +43,8 @@ using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineSequence;
 
 namespace afc::editor::operation {
 
@@ -656,6 +659,16 @@ class OperationMode : public EditorMode {
     AppendStatusForCommandsAvailable(output);
     editor_state_.status().SetInformationText(
         MakeNonNullShared<Line>(std::move(output).Build()));
+    if (state_.top_command().show_help) {
+      LineSequence help = GetGlobalKeyCommandsMap().Help();
+      OpenAnonymousBuffer(editor_state_)
+          .Transform([&editor_state = editor_state_,
+                      help](gc::Root<OpenBuffer> context) {
+            context.ptr()->InsertInPosition(help, LineColumn(), std::nullopt);
+            editor_state.status().set_context(context);
+            return Success();
+          });
+    }
   }
 
   void PushDefault() { PushCommand(CommandReach()); }
@@ -681,9 +694,11 @@ class OperationMode : public EditorMode {
 
     cmap.PushNew()
         .Insert(L'\n', {.category = KeyCommandsMap::Category::kTop,
+                        .description = L"Apply",
                         .handler = [this](wchar_t) { state_.Commit(); }})
         .Insert(Terminal::BACKSPACE,
                 {.category = KeyCommandsMap::Category::kStringControl,
+                 .description = L"Backspace",
                  .handler = [this](wchar_t) {
                    state_.UndoLast();
                    ShowStatus();
@@ -726,6 +741,7 @@ class OperationMode : public EditorMode {
     cmap.PushNew()
         .Insert(Terminal::ESCAPE,
                 {.category = KeyCommandsMap::Category::kStringControl,
+                 .description = L"Cancel",
                  .handler =
                      [&state = state_](wchar_t) {
                        if (state.top_command().post_transformation_behavior ==
@@ -761,6 +777,7 @@ class OperationMode : public EditorMode {
     KeyCommandsMap cmap;
     cmap.OnHandle([this] { ShowStatus(); });
     cmap.Insert(L'd', {.category = KeyCommandsMap::Category::kTop,
+                       .description = L"Delete",
                        .handler =
                            [top_command, &state = state_](wchar_t) mutable {
                              switch (top_command.post_transformation_behavior) {
@@ -779,7 +796,15 @@ class OperationMode : public EditorMode {
                              }
                              state.set_top_command(top_command);
                            }})
+        .Insert(L'?', {.category = KeyCommandsMap::Category::kTop,
+                       .description = L"Help",
+                       .handler =
+                           [&state = state_, top_command](wchar_t) mutable {
+                             top_command.show_help = true;
+                             state.set_top_command(top_command);
+                           }})
         .Insert(L'~', {.category = KeyCommandsMap::Category::kTop,
+                       .description = L"SwitchCase",
                        .handler =
                            [top_command, &state = state_](wchar_t) mutable {
                              switch (top_command.post_transformation_behavior) {
@@ -795,6 +820,7 @@ class OperationMode : public EditorMode {
                              state.set_top_command(top_command);
                            }})
         .Insert(L'$', {.category = KeyCommandsMap::Category::kTop,
+                       .description = L"Shell",
                        .handler =
                            [top_command, &state = state_](wchar_t) mutable {
                              switch (top_command.post_transformation_behavior) {

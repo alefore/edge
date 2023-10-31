@@ -9,6 +9,7 @@
 
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc::editor::operation {
 class KeyCommandsMap {
@@ -39,6 +40,8 @@ class KeyCommandsMap {
   KeyCommandsMap() = default;
   KeyCommandsMap(const KeyCommandsMap&) = delete;
   KeyCommandsMap(KeyCommandsMap&&) = default;
+
+  static std::wstring ToString(Category category);
 
   KeyCommandsMap& Insert(wchar_t c, KeyCommand command) {
     if (command.active) table_.insert({c, std::move(command)});
@@ -105,6 +108,9 @@ class KeyCommandsMap {
     for (auto& entry : table_)
       output.insert({entry.first, entry.second.category});
   }
+
+  void ExtractDescriptions(
+      std::map<Category, std::map<wchar_t, std::wstring>>& output) const;
 };
 
 class KeyCommandsMapSequence {
@@ -131,6 +137,7 @@ class KeyCommandsMapSequence {
   std::map<wchar_t, KeyCommandsMap::Category> GetKeys() const;
 
   language::text::Line SummaryLine() const;
+  language::text::LineSequence Help() const;
 };
 }  // namespace afc::editor::operation
 

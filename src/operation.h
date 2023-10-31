@@ -22,6 +22,7 @@ enum class ApplicationType { kPreview, kCommit };
 struct TopCommand {
   transformation::Stack::PostTransformationBehavior
       post_transformation_behavior;
+  bool show_help = false;
 };
 
 class CommandArgumentRepetitions {
