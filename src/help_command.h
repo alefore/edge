@@ -12,7 +12,8 @@
 #include "src/language/text/line.h"
 
 namespace afc::editor {
-language::text::Line DescribeSequence(std::wstring input);
+language::text::Line DescribeSequence(const std::wstring& input);
+language::text::Line DescribeSequenceWithQuotes(const std::wstring& input);
 
 language::gc::Root<Command> NewHelpCommand(
     EditorState& editor_state, const MapModeCommands& commands,

@@ -30,9 +30,8 @@ using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
 
-Line DescribeSequence(std::wstring input) {
+Line DescribeSequence(const std::wstring& input) {
   LineBuilder output;
-  output.AppendString(L"`", LineModifierSet{LineModifier::kDim});
   for (auto& c : input) {
     switch (c) {
       case '\t':
@@ -94,6 +93,13 @@ Line DescribeSequence(std::wstring input) {
                             std::nullopt);
     }
   }
+  return std::move(output).Build();
+}
+
+Line DescribeSequenceWithQuotes(const std::wstring& input) {
+  LineBuilder output;
+  output.AppendString(L"`", LineModifierSet{LineModifier::kDim});
+  output.Append(LineBuilder(DescribeSequence(input)));
   output.AppendString(L"`", LineModifierSet{LineModifier::kDim});
   return std::move(output).Build();
 }
@@ -185,7 +191,7 @@ class HelpCommand : public Command {
       for (const auto& [input, command] : category.second) {
         LineBuilder line;
         line.AppendString(L"* ", std::nullopt);
-        line.Append(LineBuilder(DescribeSequence(input)));
+        line.Append(LineBuilder(DescribeSequenceWithQuotes(input)));
         line.AppendString(L" - " + command->Description(), std::nullopt);
         output.push_back(MakeNonNullShared<Line>(std::move(line).Build()));
       }
