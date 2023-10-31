@@ -664,6 +664,7 @@ class OperationMode : public EditorMode {
       OpenAnonymousBuffer(editor_state_)
           .Transform([&editor_state = editor_state_,
                       help](gc::Root<OpenBuffer> context) {
+            context.ptr()->Set(buffer_variables::paste_mode, true);
             context.ptr()->InsertInPosition(help, LineColumn(), std::nullopt);
             editor_state.status().set_context(context);
             return Success();
@@ -800,7 +801,7 @@ class OperationMode : public EditorMode {
                        .description = Description(L"Help"),
                        .handler =
                            [&state = state_, top_command](wchar_t) mutable {
-                             top_command.show_help = true;
+                             top_command.show_help = !top_command.show_help;
                              state.set_top_command(top_command);
                            }})
         .Insert(L'~', {.category = KeyCommandsMap::Category::kTop,
