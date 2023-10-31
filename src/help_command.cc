@@ -14,6 +14,8 @@
 #include "src/tests/tests.h"
 
 namespace afc::editor {
+using infrastructure::screen::LineModifier;
+using infrastructure::screen::LineModifierSet;
 using language::FromByteString;
 using language::MakeNonNullShared;
 using language::MakeNonNullUnique;
@@ -28,69 +30,72 @@ using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
 
-std::wstring DescribeSequence(std::wstring input) {
-  std::wstring output = L"`";
+Line DescribeSequence(std::wstring input) {
+  LineBuilder output;
+  output.AppendString(L"`", LineModifierSet{LineModifier::kDim});
   for (auto& c : input) {
     switch (c) {
       case '\t':
-        output += L"Tab";
+        output.AppendString(L"Tab", std::nullopt);
         break;
       case '\n':
-        output.push_back(L'↩');
+        output.AppendString(std::wstring(1, L'↩'), std::nullopt);
         break;
       case Terminal::ESCAPE:
-        output += L"Esc";
+        output.AppendString(L"Esc", std::nullopt);
         break;
       case Terminal::DOWN_ARROW:
-        output += L"↓";
+        output.AppendString(L"↓", std::nullopt);
         break;
       case Terminal::UP_ARROW:
-        output += L"↑";
+        output.AppendString(L"↑", std::nullopt);
         break;
       case Terminal::LEFT_ARROW:
-        output += L"←";
+        output.AppendString(L"←", std::nullopt);
         break;
       case Terminal::RIGHT_ARROW:
-        output += L"→";
+        output.AppendString(L"→", std::nullopt);
         break;
       case Terminal::BACKSPACE:
-        output += L"← Backspace";
+        output.AppendString(L"← Backspace", std::nullopt);
         break;
       case Terminal::PAGE_DOWN:
-        output += L"PgDn";
+        output.AppendString(L"PgDn", std::nullopt);
         break;
       case Terminal::PAGE_UP:
-        output += L"PgUp";
+        output.AppendString(L"PgUp", std::nullopt);
         break;
       case Terminal::CTRL_A:
-        output += L"^a";
+        output.AppendString(L"^a", std::nullopt);
         break;
       case Terminal::CTRL_D:
-        output += L"^d";
+        output.AppendString(L"^d", std::nullopt);
         break;
       case Terminal::CTRL_E:
-        output += L"^e";
+        output.AppendString(L"^e", std::nullopt);
         break;
       case Terminal::CTRL_K:
-        output += L"^k";
+        output.AppendString(L"^k", std::nullopt);
         break;
       case Terminal::CTRL_L:
-        output += L"^l";
+        output.AppendString(L"^l", std::nullopt);
         break;
       case Terminal::CTRL_U:
-        output += L"^u";
+        output.AppendString(L"^u", std::nullopt);
         break;
       case Terminal::CTRL_V:
-        output += L"^v";
+        output.AppendString(L"^v", std::nullopt);
         break;
       case Terminal::DELETE:
-        output += L"Delete";
+        output.AppendString(L"Delete", std::nullopt);
         break;
       default:
-        output.push_back(static_cast<wchar_t>(c));
+        output.AppendString(std::wstring(1, static_cast<wchar_t>(c)),
+                            std::nullopt);
     }
   }
-  return output + L"`";
+  output.AppendString(L"`", LineModifierSet{LineModifier::kDim});
+  return std::move(output).Build();
 }
 
 namespace {
@@ -178,8 +183,11 @@ class HelpCommand : public Command {
     for (const auto& category : commands.Coallesce()) {
       StartSection(L"### " + category.first, output);
       for (const auto& [input, command] : category.second) {
-        output.push_back(L"* " + DescribeSequence(input) + L" - " +
-                         command->Description());
+        LineBuilder line;
+        line.AppendString(L"* ", std::nullopt);
+        line.Append(LineBuilder(DescribeSequence(input)));
+        line.AppendString(L" - " + command->Description(), std::nullopt);
+        output.push_back(MakeNonNullShared<Line>(std::move(line).Build()));
       }
       output.push_back(L"");
     }

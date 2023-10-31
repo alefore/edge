@@ -95,8 +95,8 @@ LineSequence KeyCommandsMapSequence::Help() const {
                                    LineModifierSet{LineModifier::kCyan});
         category_line.AppendString(NewLazyString(L":"),
                                    LineModifierSet{LineModifier::kDim});
-        category_line.AppendString(
-            NewLazyString(DescribeSequence(std::wstring(1, entry.first))));
+        category_line.Append(
+            LineBuilder(DescribeSequence(std::wstring(1, entry.first))));
       }
     help_output.push_back(
         MakeNonNullShared<Line>(std::move(category_line).Build()));

@@ -9,9 +9,10 @@
 #include "command.h"
 #include "map_mode.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 
 namespace afc::editor {
-std::wstring DescribeSequence(std::wstring input);
+language::text::Line DescribeSequence(std::wstring input);
 
 language::gc::Root<Command> NewHelpCommand(
     EditorState& editor_state, const MapModeCommands& commands,
