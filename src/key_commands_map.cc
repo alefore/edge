@@ -83,6 +83,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
                NewLazyString(L":")));
     for (const std::pair<const wchar_t, std::wstring>& entry :
          category_entry.second) {
+      category_line.AppendString(NewLazyString(L" "));
       category_line.AppendString(NewLazyString(entry.second));
     }
     help_output.push_back(
