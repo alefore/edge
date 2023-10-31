@@ -11,6 +11,7 @@
 #include "src/language/safe_types.h"
 
 namespace afc::editor {
+std::wstring DescribeSequence(std::wstring input);
 
 language::gc::Root<Command> NewHelpCommand(
     EditorState& editor_state, const MapModeCommands& commands,

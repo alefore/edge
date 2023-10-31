@@ -28,7 +28,6 @@ using language::text::MutableLineSequence;
 
 namespace gc = language::gc;
 
-namespace {
 std::wstring DescribeSequence(std::wstring input) {
   std::wstring output = L"`";
   for (auto& c : input) {
@@ -94,6 +93,7 @@ std::wstring DescribeSequence(std::wstring input) {
   return output + L"`";
 }
 
+namespace {
 class HelpCommand : public Command {
  public:
   HelpCommand(EditorState& editor_state, const MapModeCommands& commands,

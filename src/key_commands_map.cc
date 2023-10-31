@@ -1,5 +1,6 @@
 #include "src/key_commands_map.h"
 
+#include "src/help_command.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -83,13 +84,19 @@ LineSequence KeyCommandsMapSequence::Help() const {
        descriptions) {
     LineBuilder category_line;
     category_line.AppendString(
-        Append(NewLazyString(KeyCommandsMap::ToString(category_entry.first)),
-               NewLazyString(L":")));
+        NewLazyString(KeyCommandsMap::ToString(category_entry.first)),
+        LineModifierSet{LineModifier::kBold});
+    category_line.AppendString(NewLazyString(L":"));
     for (const std::pair<const wchar_t, Description>& entry :
          category_entry.second)
       if (entry.second != Description(L"")) {
         category_line.AppendString(NewLazyString(L" "));
-        category_line.AppendString(NewLazyString(entry.second.read()));
+        category_line.AppendString(NewLazyString(entry.second.read()),
+                                   LineModifierSet{LineModifier::kCyan});
+        category_line.AppendString(NewLazyString(L":"),
+                                   LineModifierSet{LineModifier::kDim});
+        category_line.AppendString(
+            NewLazyString(DescribeSequence(std::wstring(1, entry.first))));
       }
     help_output.push_back(
         MakeNonNullShared<Line>(std::move(category_line).Build()));
