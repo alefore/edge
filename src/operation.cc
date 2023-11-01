@@ -89,6 +89,11 @@ Modifiers GetModifiers(std::optional<Structure> structure,
   return GetModifiers(structure, repetitions.get(), direction);
 }
 
+static const Description kClimbDown = Description(L"🧗👇");
+static const Description kClimbUp = Description(L"🧗👆");
+static const Description kPageDown = Description(L"📜👇");
+static const Description kPageUp = Description(L"📜👆");
+
 void AppendStatus(const CommandReach& reach, LineBuilder& output) {
   SerializeCall(
       L"🦀", {StructureToString(reach.structure), reach.repetitions.ToString()},
@@ -103,13 +108,15 @@ void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
 }
 
 void AppendStatus(const CommandReachLine& reach_line, LineBuilder& output) {
-  SerializeCall(reach_line.repetitions.get() >= 0 ? L"🧗👇" : L"🧗👆",
-                {reach_line.repetitions.ToString()}, output);
+  SerializeCall(
+      reach_line.repetitions.get() >= 0 ? kClimbDown.read() : kClimbUp.read(),
+      {reach_line.repetitions.ToString()}, output);
 }
 
 void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
-  SerializeCall(reach_line.repetitions.get() >= 0 ? L"📜👇" : L"📜👆",
-                {reach_line.repetitions.ToString()}, output);
+  SerializeCall(
+      reach_line.repetitions.get() >= 0 ? kPageDown.read() : kPageUp.read(),
+      {reach_line.repetitions.ToString()}, output);
 }
 
 void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
@@ -522,16 +529,20 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
                        State*) {
   if (output->structure == Structure::kLine) {
-    KeyCommandsMap::KeyCommand handler = {
-        .category = KeyCommandsMap::Category::kRepetitions,
-        .handler = [output](wchar_t t) {
-          int delta = t == L'j' ? 1 : -1;
-          if (output->direction == Direction::kBackwards) {
-            delta *= -1;
-          }
-          output->repetitions.sum(delta);
-        }};
-    cmap.Insert(L'j', handler).Insert(L'k', handler);
+    auto handler = [&](Description description) {
+      return KeyCommandsMap::KeyCommand{
+          .category = KeyCommandsMap::Category::kRepetitions,
+          .description = description,
+          .handler = [output](wchar_t t) {
+            int delta = t == L'j' ? 1 : -1;
+            if (output->direction == Direction::kBackwards) {
+              delta *= -1;
+            }
+            output->repetitions.sum(delta);
+          }};
+    };
+    cmap.Insert(L'j', handler(Description(L"👇")));
+    cmap.Insert(L'k', handler(Description(L"👆")));
   }
 
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
@@ -549,6 +560,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                        State* state) {
   cmap.Insert(L'K', {.category = KeyCommandsMap::Category::kNewCommand,
+                     .description = Description(L"🪓👆"),
                      .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() < 0,
                      .handler =
@@ -558,6 +570,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                                .directions = {Direction::kBackwards}});
                          }})
       .Insert(L'J', {.category = KeyCommandsMap::Category::kNewCommand,
+                     .description = Description(L"🪓👇"),
                      .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() > 0,
                      .handler = [state](wchar_t) {
@@ -569,9 +582,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(L'j',
               {.category = KeyCommandsMap::Category::kRepetitions,
+               .description = kClimbDown,
                .handler = [output](wchar_t) { output->repetitions.sum(1); }})
       .Insert(L'k',
               {.category = KeyCommandsMap::Category::kRepetitions,
+               .description = kClimbUp,
                .handler = [output](wchar_t) { output->repetitions.sum(-1); }});
 }
 
@@ -579,9 +594,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(Terminal::PAGE_DOWN,
               {.category = KeyCommandsMap::Category::kNewCommand,
+               .description = kPageDown,
                .handler = [output](wchar_t) { output->repetitions.sum(1); }})
       .Insert(Terminal::PAGE_UP,
               {.category = KeyCommandsMap::Category::kNewCommand,
+               .description = kPageUp,
                .handler = [output](wchar_t) { output->repetitions.sum(-1); }});
 }
 
