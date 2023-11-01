@@ -106,8 +106,9 @@ LineSequence KeyCommandsMapSequence::Help() const {
     help_output.push_back(
         MakeNonNullShared<Line>(std::move(category_line).Build()));
   }
-  if (help_output.size() > LineNumberDelta(1))
-    help_output.EraseLines(LineNumber(), LineNumber());
+  if (help_output.size() > LineNumberDelta(1) &&
+      help_output.snapshot().front()->empty())
+    help_output.EraseLines(LineNumber(), LineNumber(1));
   return help_output.snapshot();
 }
 
