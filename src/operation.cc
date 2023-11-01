@@ -347,11 +347,15 @@ class State {
   futures::Value<gc::Root<OpenBuffer>> GetHelpBuffer() {
     return VisitOptional(
         [](gc::Root<OpenBuffer> buffer) {
+          buffer.ptr()->ClearContents(
+              MutableLineSequence::ObserverBehavior::kHide);
+          buffer.ptr()->Reload();
           return futures::Past(std::move(buffer));
         },
         [this] {
           return OpenAnonymousBuffer(editor_state_)
               .Transform([storage = help_buffer_](gc::Root<OpenBuffer> buffer) {
+                buffer.ptr()->Set(buffer_variables::paste_mode, true);
                 storage.value() = buffer;
                 return futures::Past(buffer);
               });
@@ -738,9 +742,6 @@ class OperationMode : public EditorMode {
       LineSequence help = GetGlobalKeyCommandsMap().Help();
       state_.GetHelpBuffer().Transform(
           [&editor_state = editor_state_, help](gc::Root<OpenBuffer> context) {
-            context.ptr()->Set(buffer_variables::paste_mode, true);
-            context.ptr()->ClearContents(
-                MutableLineSequence::ObserverBehavior::kHide);
             context.ptr()->InsertInPosition(help, LineColumn(), std::nullopt);
             editor_state.status().set_context(context);
             return Success();
