@@ -40,6 +40,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
@@ -47,6 +48,7 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
 
 namespace afc::editor::operation {
 
@@ -342,6 +344,21 @@ class State {
     Update();
   }
 
+  futures::Value<gc::Root<OpenBuffer>> GetHelpBuffer() {
+    return VisitOptional(
+        [](gc::Root<OpenBuffer> buffer) {
+          return futures::Past(std::move(buffer));
+        },
+        [this] {
+          return OpenAnonymousBuffer(editor_state_)
+              .Transform([storage = help_buffer_](gc::Root<OpenBuffer> buffer) {
+                storage.value() = buffer;
+                return futures::Past(buffer);
+              });
+        },
+        help_buffer_.value());
+  }
+
  private:
   futures::Value<EmptyValue> Update(ApplicationType application_type) {
     static Tracker tracker(L"State::Update");
@@ -411,6 +428,17 @@ class State {
   std::vector<Command> commands_ = {};
   std::shared_ptr<UndoCallback> undo_callback_ = std::make_shared<UndoCallback>(
       []() -> futures::Value<EmptyValue> { return Past(EmptyValue()); });
+
+  // If we've needed an anonymous buffer to show help, retains it here.
+  //
+  // The main reason to do this is to avoid flickering while the buffer is shown
+  // (which would otherwise be caused by having to create a new buffer on each
+  // key press).
+  //
+  // std::shared_ptr<> so that it can be captured by the callback in
+  // `GetAnonymousBuffer` and survive if `this` is deleted.
+  NonNull<std::shared_ptr<std::optional<gc::Root<OpenBuffer>>>> help_buffer_ =
+      MakeNonNullShared<std::optional<gc::Root<OpenBuffer>>>();
 };
 
 std::optional<CommandArgumentRepetitions*> GetRepetitions(Command& command) {
@@ -708,10 +736,11 @@ class OperationMode : public EditorMode {
         MakeNonNullShared<Line>(std::move(output).Build()));
     if (state_.top_command().show_help) {
       LineSequence help = GetGlobalKeyCommandsMap().Help();
-      OpenAnonymousBuffer(editor_state_)
-          .Transform([&editor_state = editor_state_,
-                      help](gc::Root<OpenBuffer> context) {
+      state_.GetHelpBuffer().Transform(
+          [&editor_state = editor_state_, help](gc::Root<OpenBuffer> context) {
             context.ptr()->Set(buffer_variables::paste_mode, true);
+            context.ptr()->ClearContents(
+                MutableLineSequence::ObserverBehavior::kHide);
             context.ptr()->InsertInPosition(help, LineColumn(), std::nullopt);
             editor_state.status().set_context(context);
             return Success();
