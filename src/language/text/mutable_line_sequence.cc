@@ -607,6 +607,10 @@ void MutableLineSequence::append_back(
   }
 }
 
+void MutableLineSequence::pop_back() {
+  EraseLines(LineNumber() + size() - LineNumberDelta(1), LineNumber() + size());
+}
+
 LineColumn MutableLineSequence::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(size(), LineNumberDelta(0));
   position.line = std::min(position.line, EndLine());

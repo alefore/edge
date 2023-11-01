@@ -195,6 +195,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
           language::NonNull<std::shared_ptr<const language::text::Line>>>
           lines,
       ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+  void pop_back();
 
   // Returns position, but ensuring that it is in a valid position in the
   // contents — that the line is valid, and that the column fits the length of
