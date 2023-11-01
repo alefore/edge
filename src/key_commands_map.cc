@@ -87,17 +87,22 @@ LineSequence KeyCommandsMapSequence::Help() const {
         NewLazyString(KeyCommandsMap::ToString(category_entry.first)),
         LineModifierSet{LineModifier::kBold});
     category_line.AppendString(NewLazyString(L":"));
+    // We use an inverted map to group commands with identical descriptions.
+    std::map<Description, std::set<wchar_t>> inverted_map;
     for (const std::pair<const wchar_t, Description>& entry :
          category_entry.second)
-      if (entry.second != Description(L"")) {
-        category_line.AppendString(NewLazyString(L" "));
-        category_line.AppendString(NewLazyString(entry.second.read()),
-                                   LineModifierSet{LineModifier::kCyan});
-        category_line.AppendString(NewLazyString(L":"),
-                                   LineModifierSet{LineModifier::kDim});
-        category_line.Append(
-            LineBuilder(DescribeSequence(std::wstring(1, entry.first))));
-      }
+      if (entry.second != Description(L""))
+        inverted_map[entry.second].insert(entry.first);
+    for (const std::pair<const Description, std::set<wchar_t>>& entry :
+         inverted_map) {
+      category_line.AppendString(NewLazyString(L" "));
+      category_line.AppendString(NewLazyString(entry.first.read()),
+                                 LineModifierSet{LineModifier::kCyan});
+      category_line.AppendString(NewLazyString(L":"),
+                                 LineModifierSet{LineModifier::kDim});
+      for (wchar_t c : entry.second)
+        category_line.Append(LineBuilder(DescribeSequence(std::wstring(1, c))));
+    }
     help_output.push_back(
         MakeNonNullShared<Line>(std::move(category_line).Build()));
   }
