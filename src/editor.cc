@@ -528,12 +528,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       new std::set<gc::Root<OpenBuffer>>(),
       [this, exit_value,
        termination_type](std::set<gc::Root<OpenBuffer>>* value) {
-        if (!value->empty()) {
-          LOG(INFO) << "Termination attempt didn't complete successfully. It "
-                       "must mean that a new one has started.";
-          delete value;
-          return;
-        }
+        CHECK(value->empty());
         delete value;
         // Since `PrepareToClose is asynchronous, we must check that they are
         // all ready to be deleted.
