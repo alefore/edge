@@ -77,6 +77,22 @@ If autocomplete of files doesn't find any matches, attempt a case-insensitive ma
 
 For /-based autocomplete, support globbing?
 
+## Process handling
+
+Extend FileSystemDriver to be able to query the set of children of a ProcessId.
+
+If the buffer has a process, display a count of direct and indirect children.
+
+Add a key command that displays the transitive set of children of the current process (if the buffer has a process).
+
+* Start with just a simple list of ProcessIds.
+* Show resources consumed.
+  * Perhaps in Metadata and have it reload periodically?
+* Add key commands to send kill signal.
+
+Add a variable: on attempt to close buffer with a child, allow close if child doesn't have any children of its own.
+* Set it for shells.
+
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:
@@ -126,7 +142,7 @@ Improve "af":
     (another possibility: run a command for each line in buffer (prompt))
   * Switch it to use the "new" enter-applies-command (similar to "d") mode.
 * If the command doesn't match a regular expression (aiming to detect complex
-  shell commands, such as `(for|while|[a-z]+=)`), automatically check in $PATH
+  shell commands, such as `(for|while|=)`), automatically check in $PATH
   whether the first token of the command exists; show it in red if it doesn't.
 
 When running subcommands with aC, actually set variables "ARG0", "ARG1", "ARG2", "ARG3", with words in line...
