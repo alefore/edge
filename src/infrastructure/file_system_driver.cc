@@ -1,21 +1,28 @@
 #include "src/infrastructure/file_system_driver.h"
 
 #include <csignal>
+#include <exception>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 
 extern "C" {
 #include <sys/wait.h>
 }
 
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+
 namespace afc::infrastructure {
-using language::EmptyValue;
-using language::Error;
-using language::FromByteString;
-using language::PossibleError;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
 
 namespace {
 PossibleError SyscallReturnValue(std::wstring description, int return_value) {
@@ -106,6 +113,52 @@ FileSystemDriver::WaitPid(ProcessId pid, int options) {
       return Error(L"Waitpid: " + FromByteString(strerror(errno)));
     return WaitPidOutput{.pid = pid, .wstatus = wstatus};
   });
+}
+
+namespace {
+ValueOrError<std::vector<ProcessId>> ReadChildrenBlocking(ProcessId pid) {
+  std::vector<ProcessId> output;
+  try {
+    std::ifstream infile("/proc/" + std::to_string(pid.read()) + "/task/" +
+                         std::to_string(pid.read()) + "/children");
+    int child_pid_int;
+    while (infile >> child_pid_int) output.push_back(ProcessId(child_pid_int));
+  } catch (const std::exception& e) {
+    return Error(FromByteString(e.what()));
+  }
+  return output;
+}
+}  // namespace
+
+futures::ValueOrError<std::vector<ProcessId>> FileSystemDriver::GetChildren(
+    ProcessId pid) {
+  return thread_pool_.Run(std::bind_front(ReadChildrenBlocking, pid));
+}
+
+futures::ValueOrError<std::map<ProcessId, std::vector<ProcessId>>>
+FileSystemDriver::GetAncestors(ProcessId pid,
+                               std::optional<size_t> ancestors_limit) {
+  using Output = std::map<ProcessId, std::vector<ProcessId>>;
+  return thread_pool_.Run(
+      [pid, ancestors_limit]() -> language::ValueOrError<Output> {
+        Output output;
+        std::vector<ProcessId> inputs = {pid};
+        while (!inputs.empty() && (!ancestors_limit.has_value() ||
+                                   output.size() < ancestors_limit.value())) {
+          ProcessId entry = inputs.back();
+          inputs.pop_back();
+          std::vector<ProcessId>& entry_output = output[entry];
+          CHECK(entry_output.empty());
+          ASSIGN_OR_RETURN(entry_output, ReadChildrenBlocking(entry));
+          for (ProcessId& child : entry_output)
+            // The following check seems pointless but ... there could be race
+            // conditions between our attempt to read the processes table and
+            // ... the processes executing. If it ever happens that we re-visit
+            // a process, we just skip it.
+            if (!output.contains(child)) inputs.push_back(child);
+        }
+        return output;
+      });
 }
 
 }  // namespace afc::infrastructure

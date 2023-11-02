@@ -1,6 +1,9 @@
 #ifndef __AFC_INFRASTRUCTURE_FILE_SYSTEM_DRIVER_H__
 #define __AFC_INFRASTRUCTURE_FILE_SYSTEM_DRIVER_H__
 
+#include <map>
+#include <vector>
+
 extern "C" {
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -25,6 +28,8 @@ GHOST_TYPE(ProcessId, pid_t);
 // Class used to interact with the file system. All operations are performed
 // asynchronously in a thread pool.
 class FileSystemDriver {
+  concurrent::ThreadPoolWithWorkQueue& thread_pool_;
+
  public:
   FileSystemDriver(concurrent::ThreadPoolWithWorkQueue& thread_pool);
 
@@ -45,8 +50,15 @@ class FileSystemDriver {
   };
   futures::ValueOrError<WaitPidOutput> WaitPid(ProcessId pid, int options);
 
- private:
-  concurrent::ThreadPoolWithWorkQueue& thread_pool_;
+  futures::ValueOrError<std::vector<ProcessId>> GetChildren(ProcessId pid);
+
+  // Similar to GetChildren, but recurses on the children to return the
+  // transitive set.
+  //
+  // If `limit` is specified, stops (with success) when this number of ancestors
+  // have been read.
+  futures::ValueOrError<std::map<ProcessId, std::vector<ProcessId>>>
+  GetAncestors(ProcessId pid, std::optional<size_t> ancestors_limit);
 };
 
 }  // namespace afc::infrastructure
