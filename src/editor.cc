@@ -531,13 +531,13 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     std::set<gc::Root<OpenBuffer>> pending_buffers = {};
   };
 
-  auto data = std::make_shared<Data>(
+  auto data = MakeNonNullShared<Data>(
       Data{.termination_type = termination_type, .exit_value = exit_value});
 
   for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
     data->pending_buffers.insert(buffer);
 
-  for (const gc::Root<OpenBuffer>& buffer : data->pending_buffers)
+  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
     buffer.ptr()
         ->PrepareToClose()
         .Transform(
