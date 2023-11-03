@@ -537,7 +537,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
     data->pending_buffers.insert(buffer);
 
-  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
+  for (const gc::Root<OpenBuffer>& buffer : data->pending_buffers)
     buffer.ptr()
         ->PrepareToClose()
         .Transform(
