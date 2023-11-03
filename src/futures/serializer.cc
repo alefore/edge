@@ -1,5 +1,7 @@
 #include "src/futures/serializer.h"
 
+#include <utility>
+
 #include "glog/logging.h"
 #include "src/futures/futures.h"
 #include "src/language/error/value_or_error.h"
@@ -10,9 +12,14 @@ using afc::language::EmptyValue;
 namespace afc::futures {
 void Serializer::Push(Callback callback) {
   futures::Future<language::EmptyValue> new_future;
-  auto last_execution = std::move(last_execution_);
-  last_execution_ = std::move(new_future.value);
-  std::move(last_execution)
+  // Why not just use something like:
+  //
+  //     last_execution_ = std::move(last_execution_).Transform(...)?
+  //
+  // Because `Push` needs to be reentrant. This means we must store the new
+  // future value in `last_execution_` before we allow the consumer to start
+  // running.
+  std::exchange(last_execution_, std::move(new_future.value))
       .SetConsumer(
           [callback = std::move(callback),
            consumer = std::move(new_future.consumer)](language::EmptyValue) {
