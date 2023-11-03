@@ -426,7 +426,7 @@ OpenBuffer::PrepareToClose() {
                       LOG(INFO) << "Sending termination and preparing handler: "
                                 << Read(buffer_variables::name);
                       file_system_driver().Kill(child_pid_.value(),
-                                                UnixSignal(SIGTERM));
+                                                UnixSignal(SIGHUP));
                       auto future =
                           futures::Future<ValueOrError<PrepareToCloseOutput>>();
                       on_exit_handler_ =
@@ -907,9 +907,9 @@ void OpenBuffer::Reload() {
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
 
   if (child_pid_.has_value()) {
-    LOG(INFO) << "Sending SIGTERM.";
+    LOG(INFO) << "Sending SIGHUP.";
     file_system_driver().Kill(ProcessId(-child_pid_->read()),
-                              UnixSignal(SIGTERM));
+                              UnixSignal(SIGHUP));
     Set(buffer_variables::reload_after_exit, true);
     return;
   }
