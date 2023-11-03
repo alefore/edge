@@ -4,6 +4,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <ranges>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -512,9 +513,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
 
     if (!buffers_with_problems.empty()) {
       std::wstring error = L"🖝  Dirty buffers (pre):";
-      for (auto name : buffers_with_problems) {
-        error += L" " + name;
-      }
+      for (auto name : buffers_with_problems) error += L" " + name;
       switch (status_.InsertError(Error(error), 30)) {
         case error::Log::InsertResult::kInserted:
           return;
@@ -524,63 +523,70 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
     }
   }
 
-  std::shared_ptr<std::set<gc::Root<OpenBuffer>>> pending_buffers(
-      new std::set<gc::Root<OpenBuffer>>(),
-      [this, exit_value,
-       termination_type](std::set<gc::Root<OpenBuffer>>* value) {
-        CHECK(value->empty());
-        delete value;
-        // Since `PrepareToClose is asynchronous, we must check that they are
-        // all ready to be deleted.
-        if (termination_type == TerminationType::kIgnoringErrors) {
-          exit_value_ = exit_value;
-          return;
-        }
-        LOG(INFO) << "Checking buffers state for termination.";
-        std::vector<std::wstring> buffers_with_problems;
-        for (auto& it : buffers_) {
-          if (IsError(it.second.ptr()->IsUnableToPrepareToClose()))
-            buffers_with_problems.push_back(
-                it.second.ptr()->Read(buffer_variables::name));
-        }
-        if (!buffers_with_problems.empty()) {
-          std::wstring error = L"🖝  Dirty buffers (post):";
-          for (auto name : buffers_with_problems) {
-            error += L" " + name;
-          }
-          switch (status_.InsertError(Error(error), 5)) {
-            case error::Log::InsertResult::kInserted:
-              return;
-            case error::Log::InsertResult::kAlreadyFound:
-              break;
-          }
-        }
-        LOG(INFO) << "Terminating.";
-        status().SetInformationText(MakeNonNullShared<Line>(
-            L"Exit: All buffers closed, shutting down."));
-        exit_value_ = exit_value;
-      });
+  struct Data {
+    TerminationType termination_type;
+    int exit_value;
+    std::vector<Error> errors = {};
+    std::vector<gc::Root<OpenBuffer>> buffers_with_problems = {};
+    std::set<gc::Root<OpenBuffer>> pending_buffers = {};
+  };
 
-  for (const auto& it : buffers_) {
-    pending_buffers->insert(it.second);
-    it.second.ptr()
+  auto data = std::make_shared<Data>(
+      Data{.termination_type = termination_type, .exit_value = exit_value});
+
+  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
+    data->pending_buffers.insert(buffer);
+
+  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
+    buffer.ptr()
         ->PrepareToClose()
-        .Transform([this, pending_buffers, buffer = it.second](
-                       OpenBuffer::PrepareToCloseOutput output) {
-          if (output.dirty_contents_saved_to_backup) {
-            dirty_buffers_saved_to_backup_.insert(buffer.ptr()->name());
-          }
-          return futures::Past(Success());
+        .Transform(
+            [this, data, buffer](OpenBuffer::PrepareToCloseOutput output) {
+              if (output.dirty_contents_saved_to_backup) {
+                dirty_buffers_saved_to_backup_.insert(buffer.ptr()->name());
+              }
+              return futures::Past(Success());
+            })
+        .ConsumeErrors([data, buffer](Error error) {
+          data->errors.push_back(error);
+          data->buffers_with_problems.push_back(buffer);
+          return futures::Past(EmptyValue());
         })
-        .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); })
-        .Transform([this, pending_buffers, buffer = it.second](EmptyValue) {
-          EraseOrDie(*pending_buffers, buffer);
+        .Transform([this, data, buffer](EmptyValue) {
+          EraseOrDie(data->pending_buffers, buffer);
+
+          if (data->pending_buffers.empty()) {
+            if (data->termination_type == TerminationType::kIgnoringErrors) {
+              exit_value_ = data->exit_value;
+              return futures::Past(EmptyValue());
+            }
+            LOG(INFO) << "Checking buffers state for termination.";
+            if (!data->buffers_with_problems.empty()) {
+              std::wstring error = L"🖝  Dirty buffers (post):";
+              for (const gc::Root<OpenBuffer>& name :
+                   data->buffers_with_problems) {
+                error += L" " + name.ptr()->name().read();
+              }
+              switch (status_.InsertError(Error(error), 5)) {
+                case error::Log::InsertResult::kInserted:
+                  return futures::Past(EmptyValue());
+                case error::Log::InsertResult::kAlreadyFound:
+                  break;
+              }
+            }
+            LOG(INFO) << "Terminating.";
+            status().SetInformationText(MakeNonNullShared<Line>(
+                L"Exit: All buffers closed, shutting down."));
+            exit_value_ = data->exit_value;
+            return futures::Past(EmptyValue());
+          }
 
           // TODO(easy, 2023-09-08): Convert `extra` to LazyString.
           std::wstring extra;
           std::wstring separator = L": ";
           int count = 0;
-          for (auto& pending_buffer : *pending_buffers) {
+          for (const gc::Root<OpenBuffer>& pending_buffer :
+               data->pending_buffers) {
             if (count < 5) {
               extra += separator + pending_buffer.ptr()->name().read();
               separator = L", ";
@@ -591,14 +597,13 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           }
           status().SetInformationText(MakeNonNullShared<Line>(
               LineBuilder(
-                  Append(
-                      NewLazyString(L"Exit: Closing buffers: Remaining: "),
-                      NewLazyString(std::to_wstring(pending_buffers->size())),
-                      NewLazyString(extra)))
+                  Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
+                         NewLazyString(
+                             std::to_wstring(data->pending_buffers.size())),
+                         NewLazyString(extra)))
                   .Build()));
           return futures::Past(EmptyValue());
         });
-  }
 }
 
 void EditorState::ResetModifiers() {
