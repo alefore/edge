@@ -15,6 +15,13 @@
 namespace afc::editor::operation {
 GHOST_TYPE(Description, std::wstring);
 
+// Contains a table of commands. Each command is an association of a chatacter
+// to a "handler" that should be executed when the command is pressed.
+// Additionally, an optional "fallback" function is kept, that should be
+// executed when a command without a handler is pressed.
+//
+// For each command, maintains a bit of metadata: a category and a description.
+// This is used to print help messages about the available commands.
 class KeyCommandsMap {
  public:
   enum class Category {
@@ -35,8 +42,15 @@ class KeyCommandsMap {
 
  private:
   std::unordered_map<wchar_t, KeyCommand> table_;
+  // The fallback function will be executed if a command is received that
+  // doesn't have an entry in either `table_` or `fallback_exclusion_`. This
+  // allows us to exclude some characters from the `fallback_` function.
   std::set<wchar_t> fallback_exclusion_;
+
   std::function<void(wchar_t)> fallback_ = nullptr;
+
+  // Optional function to execute whenever a command's handler or the fallback
+  // function is executed.
   std::function<void()> on_handle_ = nullptr;
 
  public:
