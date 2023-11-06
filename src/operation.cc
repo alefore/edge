@@ -99,6 +99,12 @@ static const Description kPageDown = Description(L"📜👇");
 static const Description kPageUp = Description(L"📜👆");
 static const Description kMoveLeft = Description(L"👈");
 static const Description kMoveRight = Description(L"👉");
+static const Description kHomeLeft = Description(L"🏠👈");
+static const Description kHomeRight = Description(L"🏠👉");
+static const Description kHomeUp = Description(L"🏠👆");
+static const Description kHomeDown = Description(L"🏠👇");
+static const Description kReachQuery = Description(L"🔮");
+static const Description kDescriptionShell = Description(L"🌀");
 
 void AppendStatus(const CommandReach& reach, LineBuilder& output) {
   SerializeCall(
@@ -108,7 +114,10 @@ void AppendStatus(const CommandReach& reach, LineBuilder& output) {
 
 void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
   SerializeCall(
-      reach.direction == Direction::kBackwards ? L"🏠👇" : L"🏠👆",
+      (reach.direction == Direction::kBackwards
+           ? (reach.structure == Structure::kLine ? kHomeUp : kHomeLeft)
+           : (reach.structure == Structure::kLine ? kHomeDown : kHomeRight))
+          .read(),
       {StructureToString(reach.structure), reach.repetitions.ToString()},
       output);
 }
@@ -127,7 +136,8 @@ void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
 
 void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
   SerializeCall(
-      L"🔮", {c.query + std::wstring(3 - std::min(3ul, c.query.size()), L'_')},
+      kReachQuery.read(),
+      {c.query + std::wstring(3 - std::min(3ul, c.query.size()), L'_')},
       output);
 }
 
@@ -147,7 +157,7 @@ void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
 }
 
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
-  SerializeCall(L"🌀", {c.input}, output);
+  SerializeCall(kDescriptionShell.read(), {c.input}, output);
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -806,14 +816,22 @@ class OperationMode : public EditorMode {
            }});
 
     structure_keys
-        .Insert(
-            {L'h', L'l'},
-            {.category = KeyCommandsMap::Category::kNewCommand,
-             .handler =
-                 [this](wchar_t c) {
-                   state_.Push(CommandReach{.structure = Structure::kChar,
-                                            .repetitions = c == L'h' ? -1 : 1});
-                 }})
+        .Insert(L'h',
+                {.category = KeyCommandsMap::Category::kNewCommand,
+                 .description = kMoveLeft,
+                 .handler =
+                     [this](wchar_t) {
+                       state_.Push(CommandReach{.structure = Structure::kChar,
+                                                .repetitions = -1});
+                     }})
+        .Insert(L'l',
+                {.category = KeyCommandsMap::Category::kNewCommand,
+                 .description = kMoveRight,
+                 .handler =
+                     [this](wchar_t) {
+                       state_.Push(CommandReach{.structure = Structure::kChar,
+                                                .repetitions = 1});
+                     }})
         .OnHandle([this] {
           state_.Update();
           ShowStatus();
@@ -853,10 +871,46 @@ class OperationMode : public EditorMode {
 
   KeyCommandsMap ReceiveInputTopCommand(TopCommand top_command) {
     using PTB = transformation::Stack::PostTransformationBehavior;
-    auto push = [&state = state_](Command value) {
+    auto push = [&state = state_](Description description, Command value) {
       return KeyCommandsMap::KeyCommand{
           .category = KeyCommandsMap::Category::kNewCommand,
+          .description = description,
           .handler = [&state, value](wchar_t) { state.Push(value); }};
+    };
+    auto PageHandler = [&](wchar_t c) {
+      return KeyCommandsMap::KeyCommand{
+          .category = KeyCommandsMap::Category::kNewCommand,
+          .description = c == Terminal::PAGE_UP ? kPageUp : kPageDown,
+          .handler = [&state = state_](wchar_t t) {
+            if (CommandReach* reach =
+                    state.empty()
+                        ? nullptr
+                        : std::get_if<CommandReach>(&state.GetLastCommand());
+                reach != nullptr && reach->structure == std::nullopt) {
+              state.UndoLast();
+            }
+            state.Push(CommandReachPage{
+                .repetitions = operation::CommandArgumentRepetitions(
+                    static_cast<int>(t) == Terminal::PAGE_UP ? -1 : 1)});
+          }};
+    };
+    auto MoveHandler = [&](wchar_t c) {
+      return KeyCommandsMap::KeyCommand{
+          .category = KeyCommandsMap::Category::kNewCommand,
+          .description = c == 'h' ? kMoveLeft : kMoveRight,
+          .handler = [&state = state_](wchar_t t) {
+            if (CommandReach* reach =
+                    state.empty()
+                        ? nullptr
+                        : std::get_if<CommandReach>(&state.GetLastCommand());
+                reach != nullptr && reach->structure == std::nullopt &&
+                reach->repetitions.empty()) {
+              state.UndoLast();
+            }
+            state.Push(CommandReachLine{
+                .repetitions =
+                    operation::CommandArgumentRepetitions(t == L'k' ? -1 : 1)});
+          }};
     };
     KeyCommandsMap cmap;
     cmap.OnHandle([this] { ShowStatus(); });
@@ -923,7 +977,7 @@ class OperationMode : public EditorMode {
                              }
                              state.set_top_command(top_command);
                            }})
-        .Insert(L'|', push(CommandSetShell{}))
+        .Insert(L'|', push(kDescriptionShell, CommandSetShell{}))
         .Insert(L'+', {.category = KeyCommandsMap::Category::kTop,
                        .description = Description(L"CursorEveryLine"),
                        .handler =
@@ -939,47 +993,20 @@ class OperationMode : public EditorMode {
                              }
                              state.set_top_command(top_command);
                            }})
-        .Insert(L'f', push(CommandReachQuery{}))
-        .Insert(
-            {Terminal::PAGE_DOWN, Terminal::PAGE_UP},
-            {.category = KeyCommandsMap::Category::kNewCommand,
-             .handler =
-                 [&state = state_](wchar_t t) {
-                   if (CommandReach* reach = state.empty()
-                                                 ? nullptr
-                                                 : std::get_if<CommandReach>(
-                                                       &state.GetLastCommand());
-                       reach != nullptr && reach->structure == std::nullopt) {
-                     state.UndoLast();
-                   }
-                   state.Push(CommandReachPage{
-                       .repetitions = operation::CommandArgumentRepetitions(
-                           static_cast<int>(t) == Terminal::PAGE_UP ? -1 : 1)});
-                 }})
-        .Insert(
-            {L'j', L'k'},
-            {.category = KeyCommandsMap::Category::kNewCommand,
-             .handler =
-                 [&state = state_](wchar_t t) {
-                   if (CommandReach* reach = state.empty()
-                                                 ? nullptr
-                                                 : std::get_if<CommandReach>(
-                                                       &state.GetLastCommand());
-                       reach != nullptr && reach->structure == std::nullopt &&
-                       reach->repetitions.empty()) {
-                     state.UndoLast();
-                   }
-                   state.Push(CommandReachLine{
-                       .repetitions = operation::CommandArgumentRepetitions(
-                           t == L'k' ? -1 : 1)});
-                 }})
-        .Insert(L'H', push(CommandReachBegin{}))
+        .Insert(L'f', push(kReachQuery, CommandReachQuery{}))
+        .Insert(Terminal::PAGE_DOWN, PageHandler(Terminal::PAGE_DOWN))
+        .Insert(Terminal::PAGE_UP, PageHandler(Terminal::PAGE_UP))
+        .Insert(L'j', MoveHandler('j'))
+        .Insert(L'k', MoveHandler('k'))
+        .Insert(L'H', push(kHomeLeft, CommandReachBegin{}))
         .Insert(L'L',
-                push(CommandReachBegin{.direction = Direction::kBackwards}))
-        .Insert(L'K', push(CommandReachBegin{.structure = Structure::kLine}))
-        .Insert(L'J',
-                push(CommandReachBegin{.structure = Structure::kLine,
-                                       .direction = Direction::kBackwards}));
+                push(kHomeRight,
+                     CommandReachBegin{.direction = Direction::kBackwards}))
+        .Insert(L'K',
+                push(kHomeUp, CommandReachBegin{.structure = Structure::kLine}))
+        .Insert(L'J', push(kHomeDown, CommandReachBegin{
+                                          .structure = Structure::kLine,
+                                          .direction = Direction::kBackwards}));
     return cmap;
   }
 

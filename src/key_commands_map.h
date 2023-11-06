@@ -27,7 +27,7 @@ class KeyCommandsMap {
 
   struct KeyCommand {
     Category category;
-    Description description = Description(L"");
+    Description description;
     bool active = true;
     std::function<void(wchar_t)> handler;
   };
