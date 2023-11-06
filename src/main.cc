@@ -241,7 +241,7 @@ NonNull<std::shared_ptr<Line>> GetGreetingMessage() {
       MakeNonNullShared<Line>(L"Welcome to Edge!"),
       MakeNonNullShared<Line>(L"Edge, your favorite text editor."),
       MakeNonNullShared<Line>(
-          L"It looks like you're writing a letter. Would you like help?"),
+          L"📎 It looks like you're writing a letter. Would you like help?"),
       MakeNonNullShared<Line>(L"Edge, a text editor."),
       MakeNonNullShared<Line>(L"All modules are now active."),
       MakeNonNullShared<Line>(L"Booting up Edge. . . . . . . . . . . . . DONE"),
