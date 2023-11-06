@@ -858,7 +858,7 @@ class InsertMode : public EditorMode {
                     LineBuilder(NewLazyString(L" ")).Build())),
             .modifiers = {.insertion = modify_mode}});
 
-    if (model_paths->empty()) {
+    if (model_paths->empty() || buffer.Read(buffer_variables::paste_mode)) {
       VLOG(5) << "No tokens found in buffer_variables::completion_model_paths.";
       return output;
     }
