@@ -93,8 +93,8 @@ Modifiers GetModifiers(std::optional<Structure> structure,
   return GetModifiers(structure, repetitions.get(), direction);
 }
 
-static const Description kClimbDown = Description(L"🧗👇");
-static const Description kClimbUp = Description(L"🧗👆");
+static const Description kMoveDown = Description(L"🧗👇");
+static const Description kMoveUp = Description(L"🧗👆");
 static const Description kPageDown = Description(L"📜👇");
 static const Description kPageUp = Description(L"📜👆");
 static const Description kMoveLeft = Description(L"👈");
@@ -124,7 +124,7 @@ void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
 
 void AppendStatus(const CommandReachLine& reach_line, LineBuilder& output) {
   SerializeCall(
-      reach_line.repetitions.get() >= 0 ? kClimbDown.read() : kClimbUp.read(),
+      reach_line.repetitions.get() >= 0 ? kMoveDown.read() : kMoveUp.read(),
       {reach_line.repetitions.ToString()}, output);
 }
 
@@ -641,11 +641,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
   CheckRepetitionsChar(cmap, &output->repetitions);
   cmap.Insert(L'j',
               {.category = KeyCommandsMap::Category::kRepetitions,
-               .description = kClimbDown,
+               .description = kMoveDown,
                .handler = [output](wchar_t) { output->repetitions.sum(1); }})
       .Insert(L'k',
               {.category = KeyCommandsMap::Category::kRepetitions,
-               .description = kClimbUp,
+               .description = kMoveUp,
                .handler = [output](wchar_t) { output->repetitions.sum(-1); }});
 }
 
@@ -895,9 +895,10 @@ class OperationMode : public EditorMode {
           }};
     };
     auto MoveHandler = [&](wchar_t c) {
+      CHECK(c == L'j' || c == L'k');
       return KeyCommandsMap::KeyCommand{
           .category = KeyCommandsMap::Category::kNewCommand,
-          .description = c == 'h' ? kMoveLeft : kMoveRight,
+          .description = c == L'j' ? kMoveDown : kMoveUp,
           .handler = [&state = state_](wchar_t t) {
             if (CommandReach* reach =
                     state.empty()
