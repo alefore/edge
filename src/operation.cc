@@ -782,24 +782,30 @@ class OperationMode : public EditorMode {
                    ShowStatus();
                  }});
 
-    cmap.PushNew()
-        .Insert(structure_bindings(), KeyCommandsMap::Category::kStructure,
-                [this](Structure structure) {
-                  int last_repetitions = 0;
-                  if (!state_.empty()) {
-                    if (const std::optional<CommandArgumentRepetitions*>
-                            repetitions =
-                                GetRepetitions(state_.GetLastCommand());
-                        repetitions.has_value() && !(*repetitions)->empty()) {
-                      last_repetitions = (*repetitions)->get_list().back();
-                    }
-                  }
-                  state_.Push(CommandReach{
-                      .structure = structure,
-                      .repetitions = last_repetitions < 0
-                                         ? -1
-                                         : (last_repetitions > 0 ? 1 : 0)});
-                })
+    KeyCommandsMap& structure_keys = cmap.PushNew();
+    for (const std::pair<const wchar_t, Structure>& entry :
+         structure_bindings())
+      structure_keys.Insert(
+          entry.first,
+          {.category = KeyCommandsMap::Category::kStructure,
+           .description = Description(StructureToString(entry.second)),
+           .handler = [this, structure = entry.second](wchar_t) {
+             int last_repetitions = 0;
+             if (!state_.empty()) {
+               if (const std::optional<CommandArgumentRepetitions*>
+                       repetitions = GetRepetitions(state_.GetLastCommand());
+                   repetitions.has_value() && !(*repetitions)->empty()) {
+                 last_repetitions = (*repetitions)->get_list().back();
+               }
+             }
+             state_.Push(CommandReach{
+                 .structure = structure,
+                 .repetitions = last_repetitions < 0
+                                    ? -1
+                                    : (last_repetitions > 0 ? 1 : 0)});
+           }});
+
+    structure_keys
         .Insert(
             {L'h', L'l'},
             {.category = KeyCommandsMap::Category::kNewCommand,

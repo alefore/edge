@@ -56,17 +56,6 @@ class KeyCommandsMap {
     return *this;
   }
 
-  template <typename Value, typename Callable>
-  KeyCommandsMap& Insert(const std::unordered_map<wchar_t, Value>& values,
-                         Category category, Callable callback) {
-    for (const auto& entry : values)
-      Insert(entry.first,
-             {.category = category, .handler = [callback, entry](wchar_t) {
-                callback(entry.second);
-              }});
-    return *this;
-  }
-
   KeyCommandsMap& Erase(wchar_t c) {
     table_.erase(c);
     return *this;
