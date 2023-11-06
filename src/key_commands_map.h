@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
@@ -43,7 +44,8 @@ class KeyCommandsMap {
   KeyCommandsMap(const KeyCommandsMap&) = delete;
   KeyCommandsMap(KeyCommandsMap&&) = default;
 
-  static std::wstring ToString(Category category);
+  static language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  ToString(Category category);
 
   KeyCommandsMap& Insert(wchar_t c, KeyCommand command) {
     if (command.active) table_.insert({c, std::move(command)});

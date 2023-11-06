@@ -1,9 +1,12 @@
 #include "src/key_commands_map.h"
 
+#include <ranges>
+
 #include "src/help_command.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/padding.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence.h"
@@ -11,8 +14,12 @@
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
 using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::Padding;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -21,23 +28,24 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
 namespace afc::editor::operation {
-/* static */ std::wstring KeyCommandsMap::ToString(Category category) {
+/* static */ NonNull<std::shared_ptr<LazyString>> KeyCommandsMap::ToString(
+    Category category) {
   switch (category) {
     case KeyCommandsMap::Category::kStringControl:
-      return L"String";
+      return NewLazyString(L"String");
     case KeyCommandsMap::Category::kRepetitions:
-      return L"Repetitions";
+      return NewLazyString(L"Repetitions");
     case KeyCommandsMap::Category::kDirection:
-      return L"Direction";
+      return NewLazyString(L"Direction");
     case KeyCommandsMap::Category::kStructure:
-      return L"Structure";
+      return NewLazyString(L"Structure");
     case KeyCommandsMap::Category::kNewCommand:
-      return L"Command";
+      return NewLazyString(L"Command");
     case KeyCommandsMap::Category::kTop:
-      return L"Top";
+      return NewLazyString(L"Top");
   }
   LOG(FATAL) << "Invalid category.";
-  return L"";
+  return NewLazyString(L"");
 }
 
 void KeyCommandsMap::ExtractDescriptions(
@@ -81,13 +89,23 @@ LineSequence KeyCommandsMapSequence::Help() const {
   std::set<wchar_t> consumed;
   for (const KeyCommandsMap& entry : sequence_)
     entry.ExtractDescriptions(consumed, descriptions);
+
+  ColumnNumberDelta longest_category;
+  for (const KeyCommandsMap::Category& category :
+       descriptions | std::views::keys)
+    longest_category =
+        std::max(longest_category, KeyCommandsMap::ToString(category)->size());
+
   for (const std::pair<const KeyCommandsMap::Category,
                        std::map<wchar_t, Description>>& category_entry :
        descriptions) {
     LineBuilder category_line;
+    NonNull<std::shared_ptr<LazyString>> category_name =
+        KeyCommandsMap::ToString(category_entry.first);
     category_line.AppendString(
-        NewLazyString(KeyCommandsMap::ToString(category_entry.first)),
-        LineModifierSet{LineModifier::kBold});
+        Padding(longest_category - category_name->size(), L' '));
+    category_line.AppendString(category_name,
+                               LineModifierSet{LineModifier::kBold});
     category_line.AppendString(NewLazyString(L":"));
     // We use an inverted map to group commands with identical descriptions.
     std::map<Description, std::set<wchar_t>> inverted_map;
