@@ -41,9 +41,10 @@ namespace afc::editor::operation {
 }
 
 void KeyCommandsMap::ExtractDescriptions(
+    std::set<wchar_t>& consumed,
     std::map<Category, std::map<wchar_t, Description>>& output) const {
   for (const std::pair<const wchar_t, KeyCommand>& entry : table_)
-    if (entry.second.active)
+    if (entry.second.active && consumed.insert(entry.first).second)
       output[entry.second.category].insert(
           {entry.first, entry.second.description});
 }
@@ -77,8 +78,9 @@ LineSequence KeyCommandsMapSequence::Help() const {
   MutableLineSequence help_output;
   std::map<KeyCommandsMap::Category, std::map<wchar_t, Description>>
       descriptions;
+  std::set<wchar_t> consumed;
   for (const KeyCommandsMap& entry : sequence_)
-    entry.ExtractDescriptions(descriptions);
+    entry.ExtractDescriptions(consumed, descriptions);
   for (const std::pair<const KeyCommandsMap::Category,
                        std::map<wchar_t, Description>>& category_entry :
        descriptions) {

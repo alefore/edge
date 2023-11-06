@@ -94,7 +94,10 @@ class KeyCommandsMap {
       output.insert({entry.first, entry.second.category});
   }
 
+  // `consumed` is an input-output parameter containing the list of characters
+  // visited. Entries for previously visited characters will be ignored.
   void ExtractDescriptions(
+      std::set<wchar_t>& consumed,
       std::map<Category, std::map<wchar_t, Description>>& output) const;
 };
 
