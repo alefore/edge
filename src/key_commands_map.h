@@ -50,12 +50,6 @@ class KeyCommandsMap {
     return *this;
   }
 
-  KeyCommandsMap& Insert(std::set<wchar_t> chars, KeyCommand command) {
-    if (command.active)
-      for (wchar_t c : chars) table_.insert({c, command});
-    return *this;
-  }
-
   KeyCommandsMap& Erase(wchar_t c) {
     table_.erase(c);
     return *this;
