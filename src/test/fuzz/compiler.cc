@@ -20,6 +20,7 @@ extern "C" {
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
+#include "src/vm/default_environment.h"
 #include "src/vm/environment.h"
 #include "src/vm/vm.h"
 
@@ -41,6 +42,6 @@ int main(int, char** argv) {
           MakeNonNullShared<afc::concurrent::ThreadPool>(6))});
 
   afc::vm::CompileFile(ValueOrDie(Path::FromString(FromByteString(argv[1]))),
-                       pool, afc::vm::Environment::NewDefault(pool));
+                       pool, afc::vm::NewDefaultEnvironment(pool));
   return 0;
 }

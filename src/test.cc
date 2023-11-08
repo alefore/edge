@@ -82,7 +82,7 @@ void TreeTestsLong() {
     auto l_it = l.begin();
     std::advance(l_it, position);
     l.insert(l_it, i);
-    t = T::Append(T::PushBack(T::Prefix(t, position), i),
+    t = T::Append(T::PushBack(T::Prefix(t, position), i).get_shared(),
                   T::Suffix(t, position));
     CHECK(ToList(t) == l);
   }
@@ -106,26 +106,26 @@ void TreeTestsBasic() {
   T::Ptr t;
   CHECK_EQ(T::Size(t), 0ul);
 
-  t = T::Leaf(10).Share();
+  t = T::Leaf(10).Share().get_shared();
   CHECK_EQ(T::Size(t), 1ul);
   CHECK_EQ(t->Get(0), 10);
 
-  t = T::PushBack(t, 20);
+  t = T::PushBack(t, 20).get_shared();
   CHECK_EQ(t->Get(0), 10);
   CHECK_EQ(t->Get(1), 20);
   CHECK_EQ(T::Size(t), 2ul);
 
-  t = T::PushBack(t, 30);
+  t = T::PushBack(t, 30).get_shared();
   CHECK_EQ(t->Get(0), 10);
   CHECK_EQ(t->Get(2), 30);
   CHECK_EQ(T::Size(t), 3ul);
 
-  t = T::PushBack(t, 40);
+  t = T::PushBack(t, 40).get_shared();
   CHECK_EQ(t->Get(0), 10);
   CHECK_EQ(t->Get(3), 40);
   CHECK_EQ(T::Size(t), 4ul);
 
-  t = T::Append(T::Leaf(5).Share(), t);
+  t = T::Append(T::Leaf(5).Share().get_shared(), t);
   CHECK_EQ(t->Get(0), 5);
   CHECK_EQ(t->Get(1), 10);
   CHECK_EQ(t->Get(2), 20);

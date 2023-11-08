@@ -31,8 +31,7 @@ int main(int, char** argv) {
       .collect_duration_threshold = std::nullopt,
       .operation_factory = std::make_shared<OperationFactory>(
           MakeNonNullShared<ThreadPool>(6))});
-  gc::Root<afc::vm::Environment> environment =
-      pool.NewRoot(MakeNonNullUnique<afc::vm::Environment>());
+  gc::Root<afc::vm::Environment> environment = afc::vm::Environment::New(pool);
   ValueOrError<NonNull<std::shared_ptr<Expression>>> expr =
       ValueOrDie(afc::vm::CompileFile(
           ValueOrDie(Path::FromString(FromByteString("/dev/"
