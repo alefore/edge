@@ -49,7 +49,8 @@ std::optional<language::gc::Ptr<Environment>> Environment::parent_environment()
   return parent_environment_;
 }
 
-const ObjectType* Environment::LookupObjectType(const types::ObjectName& name) {
+const ObjectType* Environment::LookupObjectType(
+    const types::ObjectName& name) const {
   if (auto it = object_types_.find(name); it != object_types_.end()) {
     return &it->second.value();
   }
@@ -59,7 +60,7 @@ const ObjectType* Environment::LookupObjectType(const types::ObjectName& name) {
   return nullptr;
 }
 
-const Type* Environment::LookupType(const std::wstring& symbol) {
+const Type* Environment::LookupType(const std::wstring& symbol) const {
   if (symbol == L"void") {
     static Type output = types::Void{};
     return &output;
@@ -154,7 +155,7 @@ void Environment::DefineType(gc::Ptr<ObjectType> value) {
 
 std::optional<gc::Root<Value>> Environment::Lookup(
     gc::Pool& pool, const Namespace& symbol_namespace,
-    const std::wstring& symbol, Type expected_type) {
+    const std::wstring& symbol, Type expected_type) const {
   std::vector<gc::Root<Value>> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (gc::Root<Value>& value : values) {

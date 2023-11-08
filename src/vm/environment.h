@@ -63,13 +63,13 @@ class Environment {
 
   std::optional<language::gc::Ptr<Environment>> parent_environment() const;
 
-  const ObjectType* LookupObjectType(const types::ObjectName& symbol);
-  const Type* LookupType(const std::wstring& symbol);
+  const ObjectType* LookupObjectType(const types::ObjectName& symbol) const;
+  const Type* LookupType(const std::wstring& symbol) const;
   void DefineType(language::gc::Ptr<ObjectType> value);
 
   std::optional<language::gc::Root<Value>> Lookup(
       language::gc::Pool& pool, const Namespace& symbol_namespace,
-      const std::wstring& symbol, Type expected_type);
+      const std::wstring& symbol, Type expected_type) const;
 
   void PolyLookup(const Namespace& symbol_namespace, const std::wstring& symbol,
                   std::vector<language::gc::Root<Value>>* output) const;
