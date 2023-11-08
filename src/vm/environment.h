@@ -38,7 +38,9 @@ class Environment {
 
   concurrent::Protected<Data> data_;
 
-  // TODO: Consider whether the parent environment should itself be const?
+  // `parent_environment_` can't be const: `Assign` may want to recursively call
+  // `Assign` on the parent (if the symbol we're assigning to is defined in the
+  // parent).
   const std::optional<language::gc::Ptr<Environment>> parent_environment_ =
       std::nullopt;
 
