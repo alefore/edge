@@ -120,10 +120,11 @@ class BindFrontImpl {
   }
 };
 
-template <typename Func, typename... Args>
-auto BindFront(Pool& pool, Func&& func, Args&&... args) {
-  return BindFrontImpl<Func, Args...>::New(pool, std::forward<Func>(func),
-                                           std::forward<Args>(args)...);
+template <typename Func, typename... BoundArgs>
+gc::Root<BindFrontImpl<Func, BoundArgs...>> BindFront(Pool& pool, Func&& func,
+                                                      BoundArgs&&... args) {
+  return BindFrontImpl<Func, BoundArgs...>::New(
+      pool, std::forward<Func>(func), std::forward<BoundArgs>(args)...);
 }
 
 template <typename Callback>
