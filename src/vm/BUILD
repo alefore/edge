@@ -353,6 +353,7 @@ cc_library(
         ":types",
         "//src/futures",
         "//src/language:gc",
+        "//src/language:gc_util",
         "//src/language/lazy_string:char_buffer",
         "//src/math:numbers",
     ],
