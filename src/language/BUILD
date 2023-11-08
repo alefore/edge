@@ -23,6 +23,19 @@ cc_library(
 )
 
 cc_library(
+    name = "gc_util",
+    srcs = ["gc_util.cc"],
+    hdrs = ["gc_util.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":gc",
+        ":safe_types",
+        "//src/futures:delete_notification",
+        "//src/tests",
+    ],
+)
+
+cc_library(
     name = "gc",
     srcs = ["gc.cc"],
     hdrs = ["gc.h"],
