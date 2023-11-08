@@ -133,6 +133,7 @@ src/language/ghost_type_test.cc \
 src/language/gc.cc \
 src/language/gc.h \
 src/language/gc_tests.cc \
+src/language/gc_util.cc \
 src/language/gc_util.h \
 src/language/hash.cc \
 src/language/hash.h \
