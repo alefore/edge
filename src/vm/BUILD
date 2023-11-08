@@ -67,6 +67,7 @@ cc_library(
         ":environment",
         "//src/infrastructure:dirname",
         "//src/language:gc",
+        "//src/language/text:line_column",
     ],
 )
 
@@ -395,6 +396,7 @@ cc_library(
         ":namespace_expression",
         ":negate_expression",
         ":return_expression",
+        ":string",
         ":types",
         ":variable_lookup",
         ":while_expression",
