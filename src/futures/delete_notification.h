@@ -19,6 +19,8 @@ class DeleteNotification {
   static Value Never();
 
   DeleteNotification();
+  DeleteNotification(const DeleteNotification&) = delete;
+  DeleteNotification(DeleteNotification&&) = delete;
 
   ~DeleteNotification();
 
