@@ -227,7 +227,6 @@ void Environment::Assign(const std::wstring& symbol, gc::Root<Value> value) {
              "symbol is undefined (which the caller should have validated as "
              "part of the compilation process).";
       (*parent_environment_)->Assign(symbol, std::move(value));
-      return;
     }
   });
 }
