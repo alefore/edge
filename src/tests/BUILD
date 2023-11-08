@@ -54,7 +54,7 @@ cc_library(
     hdrs = ["tests.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//src/language:containers",
+        "//src/language:container",
         "//src/language:wstring",
     ],
 )
