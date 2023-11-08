@@ -1,4 +1,10 @@
 cc_library(
+    name = "checked_operation",
+    hdrs = ["checked_operation.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "decaying_counter",
     srcs = ["decaying_counter.cc"],
     hdrs = ["decaying_counter.h"],
@@ -26,6 +32,7 @@ cc_library(
     hdrs = ["numbers.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":checked_operation",
         "//src/language:overload",
         "//src/language:safe_types",
         "//src/language:wstring",
