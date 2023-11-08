@@ -483,8 +483,6 @@ Number FromDouble(double value) {
   Number sign = ((bits >> 63) == 0) ? FromInt(1) : FromInt(-1);
   int64_t exponent = ((bits >> 52) & 0x7FFL) - 1023;
   Number mantissa = FromInt((bits & ((1LL << 52) - 1)) | (1LL << 52));
-  VLOG(5) << "Sign: " << ToString(sign, 0) << ", exponent: " << exponent
-          << ", mantissa: " << ToString(mantissa, 0);
   Number numerator, denominator;
 
   // TODO(2023-10-06): Handle subnormal numbers, where exponent is -1023.
