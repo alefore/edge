@@ -13,14 +13,19 @@
 
 namespace afc::language {
 
-// Captures a T instance that we uniquely own (and thus it's safe to modify) or
-// a shared pointer to an instance we may share with other owners (and thus
-// retain only const access).
+// Retains a `T` instance where either:
+//
+// - A given thread retains unique ownership (and thus it's safe to modify).
+//   In this case, the instance is kept directly as a `T`.
+// - Access to the instance is potentially shared with other threads, and thus
+//   we only retain a `NonNull<std::shared_ptr<>>` to a `const` view.
+//
+// `T` is meant to be a thread-compatible type.
 template <typename T>
-using NonNullSharedOr = std::variant<NonNull<std::shared_ptr<const T>>, T>;
+using PrivateOrShared = std::variant<NonNull<std::shared_ptr<const T>>, T>;
 
 template <typename T>
-NonNull<std::shared_ptr<const T>> ToShared(NonNullSharedOr<T> obj) {
+NonNull<std::shared_ptr<const T>> GetSharedView(PrivateOrShared<T> obj) {
   return std::visit(
       overload{
           [](T value) { return MakeNonNullShared<const T>(std::move(value)); },
@@ -29,7 +34,7 @@ NonNull<std::shared_ptr<const T>> ToShared(NonNullSharedOr<T> obj) {
 }
 
 template <typename T>
-inline T ToObject(NonNullSharedOr<T> p) {
+inline T GetPrivateCopy(PrivateOrShared<T> p) {
   return std::visit(overload{[](T object) { return object; },
                              [](const NonNull<std::shared_ptr<const T>>& s) {
                                return s->Copy();
@@ -38,7 +43,7 @@ inline T ToObject(NonNullSharedOr<T> p) {
 }
 
 template <typename T>
-inline const T* AddressOf(const NonNullSharedOr<T>& p) {
+inline const T* AddressOf(const PrivateOrShared<T>& p) {
   return std::visit(overload{[](const T& object) { return &object; },
                              [](const NonNull<std::shared_ptr<const T>>& s) {
                                return &s.value();
@@ -186,9 +191,9 @@ class ConstTree {
   // Internal constructor. Use `Leaf` to construct a new `ConstTree` with a
   // single element, `nullptr` for an empty ConstTree<>, and other methods like
   // `PushBack`, `Insert`, `Append`, etc., to create new trees.
-  ConstTree(ConstructorAccessTag, NonNullSharedOr<Block> block, Ptr left,
+  ConstTree(ConstructorAccessTag, PrivateOrShared<Block> block, Ptr left,
             Ptr right)
-      : block_(ToShared(std::move(block))),
+      : block_(GetSharedView(std::move(block))),
         left_(std::move(left)),
         right_(std::move(right)),
         depth_(1 + std::max(Depth(left_), Depth(right_))),
@@ -212,9 +217,9 @@ class ConstTree {
   }
 
   static ConstTree Leaf(ValueType element) {
-    return ConstTree(
-        ConstructorAccessTag(), Block::Leaf(std::move(element)).Share(),
-        std::unique_ptr<ConstTree>(), std::unique_ptr<ConstTree>());
+    return ConstTree(ConstructorAccessTag(), Block::Leaf(std::move(element)),
+                     std::unique_ptr<ConstTree>(),
+                     std::unique_ptr<ConstTree>());
   }
 
   static Ptr Append(const Ptr& a, const Ptr& b) {
@@ -269,8 +274,8 @@ class ConstTree {
 
     if (index < block_->size())
       return ConstTree(ConstructorAccessTag{},
-                       block_->Replace(index, std::move(element)).Share(),
-                       left_, right_)
+                       block_->Replace(index, std::move(element)), left_,
+                       right_)
           .Share();
     index -= block_->size();
 
@@ -484,19 +489,19 @@ class ConstTree {
         right);
   }
 
-  static ConstTree FixBlocks(NonNullSharedOr<Block> block, Ptr left,
+  static ConstTree FixBlocks(PrivateOrShared<Block> block, Ptr left,
                              Ptr right) {
     if (left != nullptr) {
       if (const NonNull<std::shared_ptr<const Block>>& last_block_left =
               left->LastBlock();
           last_block_left->size() < MaxBlockSize / 2) {
-        return MaybeSplitBlock(
-            Block::Append(last_block_left->Copy(), ToObject(std::move(block))),
-            left->MinusLastBlock(), right);
+        return MaybeSplitBlock(Block::Append(last_block_left->Copy(),
+                                             GetPrivateCopy(std::move(block))),
+                               left->MinusLastBlock(), right);
       }
     }
     if (right != nullptr && AddressOf(block)->size() < MaxBlockSize / 2)
-      return MaybeSplitBlock(Block::Append(ToObject(std::move(block)),
+      return MaybeSplitBlock(Block::Append(GetPrivateCopy(std::move(block)),
                                            right->FirstBlock()->Copy()),
                              left, right->MinusFirstBlock());
 
@@ -504,7 +509,7 @@ class ConstTree {
     return Rebalance(std::move(block), left, right);
   }
 
-  static ConstTree Rebalance(NonNullSharedOr<Block> block, Ptr left,
+  static ConstTree Rebalance(PrivateOrShared<Block> block, Ptr left,
                              Ptr right) {
     ValidateHalfFullInvariant(left.get(), true);
     ValidateHalfFullInvariant(right.get(), true);
@@ -528,7 +533,7 @@ class ConstTree {
     return ConstTree(ConstructorAccessTag(), std::move(block), left, right);
   }
 
-  static Ptr New(NonNullSharedOr<Block> block, Ptr left, Ptr right) {
+  static Ptr New(PrivateOrShared<Block> block, Ptr left, Ptr right) {
     return std::make_shared<ConstTree>(ConstructorAccessTag{}, std::move(block),
                                        std::move(left), std::move(right));
   }
