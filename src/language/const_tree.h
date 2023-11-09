@@ -13,9 +13,9 @@
 
 namespace afc::language {
 
-// Captures a pointer to an object that we may uniquely own (and thus it's safe
-// to modify) or may share with other owners (and thus retain only const
-// access).
+// Captures a T instance that we uniquely own (and thus it's safe to modify) or
+// a shared pointer to an instance we may share with other owners (and thus
+// retain only const access).
 template <typename T>
 using NonNullSharedOr = std::variant<NonNull<std::shared_ptr<const T>>, T>;
 
@@ -46,9 +46,13 @@ inline const T* AddressOf(const NonNullSharedOr<T>& p) {
                     p);
 }
 
+// Wraps an std::vector<T> and defines methods that allow it to be used as a
+// leaf of a ConstTree.
 template <typename T, size_t ExpectedSize>
 class VectorBlock {
   struct ConstructorAccessTag {};
+
+  std::vector<T> values_;
 
  public:
   using ValueType = T;
@@ -149,12 +153,14 @@ class VectorBlock {
     values_copy[index] = std::move(new_value);
     return VectorBlock(ConstructorAccessTag(), std::move(values_copy));
   }
-
-  std::vector<T> values_;
 };
 
 // An immutable tree supporting fast `Prefix` (get initial sequence), `Suffix`,
 // and `Append` operations.
+//
+// Each tree instance (down to the leafs) contains a "block": a container of
+// up to MaxBlockSize elements. Typically `Block` will be `VectorBlock`, but one
+// can also use `ConstTree<>` recursively for the `Block`.
 template <typename Block, size_t MaxBlockSize = 256,
           bool ExpensiveValidation = false>
 class ConstTree {
@@ -164,6 +170,22 @@ class ConstTree {
   using ValueType = typename Block::ValueType;
   using Ptr = std::shared_ptr<const ConstTree>;
 
+ private:
+  // Every block in left_, right_ and block_ excluding the very last block
+  // (either the last block in `right_` or, if `right_` is nullptr, `block_`)
+  // must be at least half full (i.e., must contain at least `MaxBlockSize / 2`
+  // elements).
+  const NonNull<std::shared_ptr<const Block>> block_;
+  const Ptr left_;
+  const Ptr right_;
+
+  const size_t depth_;
+  const size_t size_;
+
+ public:
+  // Internal constructor. Use `Leaf` to construct a new `ConstTree` with a
+  // single element, `nullptr` for an empty ConstTree<>, and other methods like
+  // `PushBack`, `Insert`, `Append`, etc., to create new trees.
   ConstTree(ConstructorAccessTag, NonNullSharedOr<Block> block, Ptr left,
             Ptr right)
       : block_(ToShared(std::move(block))),
@@ -521,16 +543,6 @@ class ConstTree {
       ValidateHalfFullInvariant(t->right_.get(), exclude_last);
     }
   }
-
-  // Every block in left_, right_ and block_ excluding the very last block
-  // (either the last block in `right_` or, if `right_` is nullptr, `block_`)
-  // must be at least half full.
-  const NonNull<std::shared_ptr<const Block>> block_;
-  const Ptr left_;
-  const Ptr right_;
-
-  const size_t depth_;
-  const size_t size_;
 };
 }  // namespace afc::language
 
