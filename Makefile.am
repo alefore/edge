@@ -346,6 +346,8 @@ src/vm/class_expression.cc \
 src/vm/class_expression.h \
 src/vm/compilation.h \
 src/vm/compilation.cc \
+src/vm/file_system.cc \
+src/vm/file_system.h \
 src/vm/filter_similar_names.cc \
 src/vm/filter_similar_names.h \
 src/vm/if_expression.cc \
