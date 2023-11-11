@@ -1,3 +1,6 @@
+#ifndef __AFC_EDITOR_EDITOR_VM_H__
+#define __AFC_EDITOR_EDITOR_VM_H__
+
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
@@ -20,3 +23,4 @@ struct VMTypeMapper<afc::editor::EditorState> {
   static const types::ObjectName object_type_name;
 };
 }  // namespace afc::vm
+#endif  // __AFC_EDITOR_EDITOR_VM_H__
