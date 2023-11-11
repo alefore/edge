@@ -620,7 +620,7 @@ void ToggleVariable(EditorState& editor_state,
                 L"\"); editor.set_repetitions(1);";
       break;
   }
-  LOG(INFO) << "Command: " << command;
+  VLOG(5) << "Command: " << command;
   std::visit(overload{[](Error error) {
                         LOG(FATAL) << "Internal error in ToggleVariable code: "
                                    << error;
@@ -647,7 +647,7 @@ void ToggleVariable(EditorState& editor_state,
       CHECK(false) << "Not implemented.";
       break;
   }
-  LOG(INFO) << "Command: " << command;
+  VLOG(5) << "Command: " << command;
   map_mode.Add(L"v" + variable->key(),
                ValueOrDie(NewCppCommand(editor_state,
                                         editor_state.environment(), command),
@@ -679,7 +679,7 @@ void ToggleVariable(EditorState& editor_state,
                 L"().tostring());editor.set_repetitions(1);\n";
       break;
   }
-  LOG(INFO) << "Command: " << command;
+  VLOG(5) << "Command: " << command;
   map_mode.Add(L"v" + variable->key(),
                ValueOrDie(NewCppCommand(editor_state,
                                         editor_state.environment(), command),
