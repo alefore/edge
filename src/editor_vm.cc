@@ -122,8 +122,7 @@ void RegisterVariableFields(
 }
 }  // namespace
 
-gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
-  gc::Pool& pool = editor.gc_pool();
+gc::Root<Environment> BuildEditorEnvironment(language::gc::Pool& pool) {
   gc::Root<Environment> environment =
       Environment::New(afc::vm::NewDefaultEnvironment(pool).ptr());
   Environment& value = environment.ptr().value();
@@ -454,12 +453,6 @@ gc::Root<Environment> BuildEditorEnvironment(EditorState& editor) {
   RegisterBufferMethod(pool, editor_type.ptr().value(),
                        L"RepeatLastTransformation", vm::PurityTypeWriter,
                        &OpenBuffer::RepeatLastTransformation);
-
-  value.Define(L"editor",
-               vm::Value::NewObject(
-                   pool, VMTypeMapper<editor::EditorState>::object_type_name,
-                   NonNull<std::shared_ptr<EditorState>>::Unsafe(
-                       std::shared_ptr<EditorState>(&editor, [](void*) {}))));
 
   value.DefineType(editor_type.ptr());
 

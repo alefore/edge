@@ -178,7 +178,17 @@ EditorState::EditorState(CommandLineValues args,
         return output;
       }(args.config_paths)),
       frames_per_second_(args.frames_per_second),
-      environment_(BuildEditorEnvironment(*this)),
+      environment_([&] {
+        gc::Root<vm::Environment> output = BuildEditorEnvironment(gc_pool_);
+        output.ptr()->Define(
+            L"editor",
+            vm::Value::NewObject(
+                gc_pool_,
+                vm::VMTypeMapper<editor::EditorState>::object_type_name,
+                NonNull<std::shared_ptr<EditorState>>::Unsafe(
+                    std::shared_ptr<EditorState>(this, [](void*) {}))));
+        return output;
+      }()),
       default_commands_(NewCommandMode(*this)),
       pipe_to_communicate_internal_events_([] {
         int output[2];

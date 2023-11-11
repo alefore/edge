@@ -6,9 +6,9 @@ class Environment;
 }  // namespace afc::vm
 namespace afc::editor {
 class EditorState;
-// Builds the environment for a given editor instance. The editor instance may
-// not be fully constructed; we will at most call EditorState::gc_pool.
-language::gc::Root<vm::Environment> BuildEditorEnvironment(EditorState& editor);
+// Builds the environment for a given editor.
+language::gc::Root<vm::Environment> BuildEditorEnvironment(
+    language::gc::Pool& pool);
 }  // namespace afc::editor
 namespace afc::vm {
 template <>
