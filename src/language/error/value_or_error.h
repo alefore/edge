@@ -77,6 +77,11 @@ ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
 #define CONCAT_IMPL(x, y) x##y
 #define CONCAT(x, y) CONCAT_IMPL(x, y)
 
+#define RETURN_IF_ERROR(expr)                                                  \
+  if (auto CONCAT(return_if_error_result, __LINE__) = expr;                    \
+      std::holds_alternative<Error>(CONCAT(return_if_error_result, __LINE__))) \
+  return std::get<Error>(CONCAT(return_if_error_result, __LINE__))
+
 #define DECLARE_OR_RETURN(variable, expr)                           \
   decltype(auto) CONCAT(tmp_result_, __LINE__) = expr;              \
   if (std::holds_alternative<Error>(CONCAT(tmp_result_, __LINE__))) \
