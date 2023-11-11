@@ -27,6 +27,8 @@ using afc::math::numbers::ToString;
 
 namespace afc::vm {
 
+using ::operator<<;
+
 template <>
 const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<std::vector<int>>>>::object_type_name =
@@ -263,9 +265,11 @@ void Environment::ForEachNonRecursive(
     const {
   data_.lock([&](const Data& data) {
     for (const auto& symbol_entry : data.table) {
-      for (const std::pair<const Type, gc::Ptr<Value>>& type_entry :
-           symbol_entry.second) {
-        callback(symbol_entry.first, type_entry.second);
+      for (const gc::Ptr<Value>& value :
+           symbol_entry.second | std::views::values) {
+        VLOG(5) << "ForEachNonRecursive: Running callback on: "
+                << symbol_entry.first;
+        callback(symbol_entry.first, value);
       }
     }
   });
