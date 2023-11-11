@@ -39,6 +39,14 @@ template <class T>
 struct VMTypeMapper {};
 
 template <>
+struct VMTypeMapper<language::EmptyValue> {
+  static language::gc::Root<Value> New(language::gc::Pool& pool,
+                                       language::EmptyValue) {
+    return Value::NewVoid(pool);
+  }
+};
+
+template <>
 struct VMTypeMapper<void> {
   static language::gc::Root<Value> New(language::gc::Pool& pool) {
     return Value::NewVoid(pool);
@@ -258,9 +266,26 @@ futures::ValueOrError<language::gc::Root<Value>> RunCallback(
     std::apply(callback, processed_args_tuple);
     return futures::Past(language::Success(Value::NewVoid(pool)));
   } else if constexpr (!futures::is_future<typename ft::ReturnType>::value) {
-    return futures::Past(
-        language::Success(VMTypeMapper<typename ft::ReturnType>::New(
-            pool, std::apply(callback, processed_args_tuple))));
+    if constexpr (language::IsValueOrError<typename ft::ReturnType>::value) {
+      using SuccessType = std::decay<decltype(std::get<0>(
+          std::declval<typename ft::ReturnType>()))>::type;
+      return std::visit(
+          language::overload{
+              [&](language::Error error)
+                  -> futures::ValueOrError<language::gc::Root<vm::Value>> {
+                return futures::Past(error);
+              },
+              [&](SuccessType value)
+                  -> futures::ValueOrError<language::gc::Root<vm::Value>> {
+                return futures::Past(
+                    VMTypeMapper<SuccessType>::New(pool, std::move(value)));
+              }},
+          std::apply(callback, processed_args_tuple));
+    } else {
+      return futures::Past(
+          language::Success(VMTypeMapper<typename ft::ReturnType>::New(
+              pool, std::apply(callback, processed_args_tuple))));
+    }
   } else if constexpr (language::IsValueOrError<
                            typename ft::ReturnType::type>::value) {
     using NestedType = typename std::remove_reference<decltype(std::get<0>(
@@ -303,7 +328,19 @@ language::gc::Root<Value> NewCallback(language::gc::Pool& pool,
           return types::Void();
         } else if constexpr (!futures::is_future<
                                  typename ft::ReturnType>::value) {
-          return GetVMType<typename ft::ReturnType>::vmtype();
+          if constexpr (language::IsValueOrError<
+                            typename ft::ReturnType>::value) {
+            using SuccessType = std::decay<decltype(std::get<0>(
+                std::declval<typename ft::ReturnType>()))>::type;
+            if constexpr (std::is_same<SuccessType,
+                                       language::EmptyValue>::value) {
+              return types::Void();
+            } else {
+              return GetVMType<SuccessType>::vmtype();
+            }
+          } else {
+            return GetVMType<typename ft::ReturnType>::vmtype();
+          }
         } else if constexpr (std::is_same<typename ft::ReturnType::type,
                                           language::PossibleError>::value) {
           return types::Void{};
