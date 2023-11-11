@@ -25,6 +25,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
@@ -45,6 +46,7 @@ using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
 using afc::infrastructure::AddSeconds;
 using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::UnixSignal;
@@ -179,7 +181,9 @@ EditorState::EditorState(CommandLineValues args,
       }(args.config_paths)),
       frames_per_second_(args.frames_per_second),
       environment_([&] {
-        gc::Root<vm::Environment> output = BuildEditorEnvironment(gc_pool_);
+        gc::Root<vm::Environment> output = BuildEditorEnvironment(
+            gc_pool_,
+            MakeNonNullUnique<FileSystemDriver>(thread_pool_.value()));
         output.ptr()->Define(
             L"editor",
             vm::Value::NewObject(

@@ -21,13 +21,30 @@
 #include "src/transformation/vm.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/default_environment.h"
+#include "src/vm/file_system.h"
 
+using afc::infrastructure::FileSystemDriver;
+using afc::infrastructure::Path;
+using afc::language::EmptyValue;
+using afc::language::Error;
 using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::math::numbers::Number;
 using afc::math::numbers::ToInt;
+using afc::vm::Environment;
+using afc::vm::GetVMType;
+using afc::vm::ObjectType;
+using afc::vm::PurityType;
+using afc::vm::Trampoline;
+using afc::vm::VMTypeMapper;
 
 namespace afc::vm {
 /* static */ editor::EditorState& VMTypeMapper<editor::EditorState>::get(
@@ -41,21 +58,6 @@ namespace afc::vm {
 }  // namespace afc::vm
 
 namespace afc::editor {
-using infrastructure::Path;
-using language::EmptyValue;
-using language::Error;
-using language::MakeNonNullUnique;
-using language::overload;
-using language::PossibleError;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-using vm::Environment;
-using vm::GetVMType;
-using vm::ObjectType;
-using vm::PurityType;
-using vm::Trampoline;
-using vm::VMTypeMapper;
 
 namespace gc = language::gc;
 namespace {
@@ -122,7 +124,9 @@ void RegisterVariableFields(
 }
 }  // namespace
 
-gc::Root<Environment> BuildEditorEnvironment(language::gc::Pool& pool) {
+gc::Root<Environment> BuildEditorEnvironment(
+    language::gc::Pool& pool,
+    NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver) {
   gc::Root<Environment> environment =
       Environment::New(afc::vm::NewDefaultEnvironment(pool).ptr());
   Environment& value = environment.ptr().value();
@@ -466,6 +470,8 @@ gc::Root<Environment> BuildEditorEnvironment(language::gc::Pool& pool) {
   language::text::LineColumnRegister(pool, value);
   language::text::LineColumnDeltaRegister(pool, value);
   language::text::RangeRegister(pool, value);
+  vm::RegisterFileSystemFunctions(pool, std::move(file_system_driver),
+                                  environment.ptr().value());
   return environment;
 }
 }  // namespace afc::editor
