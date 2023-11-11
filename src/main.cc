@@ -232,7 +232,15 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
     for (FileDescriptor fd : surviving_fds) {
       close(fd.read());
     }
+    if (!surviving_fds.empty()) {
+      LOG(INFO) << "Closing file descriptors.";
+      FileDescriptor dev_null = FileDescriptor(open("/dev/null", O_WRONLY));
+      CHECK_NE(dev_null, FileDescriptor(-1));
+      for (FileDescriptor fd : surviving_fds) dup2(dev_null.read(), fd.read());
+      close(dev_null.read());
+    }
   }
+  LOG(INFO) << "Server address: " << server_address;
   return server_address;
 }
 
