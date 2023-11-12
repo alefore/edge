@@ -81,7 +81,11 @@ namespace gc = language::gc;
 namespace error = language::error;
 
 // Executes pending work from all buffers.
-void EditorState::ExecutePendingWork() { work_queue_->Execute(); }
+void EditorState::ExecutePendingWork() {
+  VLOG(5) << "Executing pending work.";
+  TRACK_OPERATION(EditorState_ExecutePendingWork);
+  work_queue_->Execute();
+}
 
 std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
   std::optional<struct timespec> output;
@@ -965,6 +969,19 @@ bool EditorState::handling_stop_signals() const {
   for (auto& buffer : active_buffers())
     if (buffer.ptr()->Read(buffer_variables::pts)) return true;
   return false;
+}
+
+void EditorState::ExecutionIteration(
+    infrastructure::execution::IterationHandler& handler) {
+  // We execute pending work before updating screens, since we expect that the
+  // pending work updates may have visible effects.
+  ExecutePendingWork();
+
+  for (const gc::Root<OpenBuffer>& buffer : *buffers() | std::views::values)
+    buffer.ptr()->AddExecutionHandlers(handler);
+
+  handler.AddHandler(fd_to_detect_internal_events(), POLLIN | POLLPRI,
+                     [&](int) { ResetInternalEventNotifications(); });
 }
 
 }  // namespace afc::editor

@@ -21,6 +21,7 @@
 #include "src/editor_mode.h"
 #include "src/editor_variables.h"
 #include "src/infrastructure/audio.h"
+#include "src/infrastructure/execution.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/insert_history.h"
 #include "src/language/ghost_type.h"
@@ -199,6 +200,8 @@ class EditorState {
   infrastructure::FileDescriptor fd_to_detect_internal_events() const {
     return pipe_to_communicate_internal_events_.first;
   }
+
+  void ExecutionIteration(infrastructure::execution::IterationHandler& handler);
 
   InsertHistory& insert_history() { return insert_history_; }
 

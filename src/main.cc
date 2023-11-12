@@ -461,22 +461,11 @@ int main(int argc, const char** argv) {
               },
           .on_iteration =
               [&](afc::infrastructure::execution::IterationHandler& handler) {
-                // We execute pending work before updating screens, since we
-                // expect that the pending work updates may have visible
-                // effects.
-                VLOG(5) << "Executing pending work.";
-                {
-                  TRACK_OPERATION(Main_ExecutePendingWork);
-                  editor_state().ExecutePendingWork();
-                }
+                editor_state().ExecutionIteration(handler);
 
                 VLOG(5) << "Updating screens.";
                 RedrawScreens(args, remote_server_fd, &last_screen_size,
                               &terminal, screen_curses.get());
-
-                for (const gc::Root<OpenBuffer>& buffer :
-                     *editor_state().buffers() | std::views::values)
-                  buffer.ptr()->AddExecutionHandlers(handler);
 
                 if (screen_curses != nullptr)
                   handler.AddHandler(
@@ -512,12 +501,6 @@ int main(int argc, const char** argv) {
                           }
                         }
                       });
-
-                handler.AddHandler(
-                    editor_state().fd_to_detect_internal_events(),
-                    POLLIN | POLLPRI, [](int) {
-                      editor_state().ResetInternalEventNotifications();
-                    });
               }})
       .Run();
 
