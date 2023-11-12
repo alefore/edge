@@ -1923,6 +1923,31 @@ const FileDescriptorReader* OpenBuffer::fd_error() const {
   return fd_error_.get();
 }
 
+void OpenBuffer::AddExecutionHandlers(
+    infrastructure::execution::IterationHandler& handler) {
+  auto register_reader = [&](const FileDescriptorReader* reader,
+                             std::function<void(int)> callback) {
+    VisitOptional(
+        [&](struct pollfd pollfd) {
+          handler.AddHandler(FileDescriptor(pollfd.fd), pollfd.events,
+                             std::move(callback));
+        },
+        [] {}, reader == nullptr ? std::nullopt : reader->GetPollFd());
+  };
+  register_reader(fd(), [buffer = NewRoot()](int) {
+    LOG(INFO) << "Reading (normal): "
+              << buffer.ptr()->Read(buffer_variables::name);
+    TRACK_OPERATION(Main_ReadData);
+    buffer.ptr()->ReadData();
+  });
+  register_reader(fd_error(), [buffer = NewRoot()](int) {
+    LOG(INFO) << "Reading (error): "
+              << buffer.ptr()->Read(buffer_variables::name);
+    TRACK_OPERATION(Main_ReadErrorData);
+    buffer.ptr()->ReadErrorData();
+  });
+}
+
 std::optional<infrastructure::ProcessId> OpenBuffer::child_pid() const {
   return child_pid_;
 }

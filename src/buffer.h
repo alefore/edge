@@ -17,6 +17,7 @@
 #include "src/file_descriptor_reader.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/execution.h"
 #include "src/infrastructure/screen/cursors.h"
 #include "src/infrastructure/screen/visual_overlay.h"
 #include "src/language/ghost_type.h"
@@ -455,6 +456,9 @@ class OpenBuffer {
 
   const FileDescriptorReader* fd() const;
   const FileDescriptorReader* fd_error() const;
+
+  void AddExecutionHandlers(
+      infrastructure::execution::IterationHandler& handler);
 
   std::optional<infrastructure::ProcessId> child_pid() const;
   std::optional<int> child_exit_status() const { return child_exit_status_; }

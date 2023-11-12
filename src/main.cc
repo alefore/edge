@@ -475,33 +475,8 @@ int main(int argc, const char** argv) {
                               &terminal, screen_curses.get());
 
                 for (const gc::Root<OpenBuffer>& buffer :
-                     *editor_state().buffers() | std::views::values) {
-                  auto register_reader =
-                      [&](const FileDescriptorReader* reader,
-                          std::function<void(int)> callback) {
-                        VisitOptional(
-                            [&](struct pollfd pollfd) {
-                              handler.AddHandler(FileDescriptor(pollfd.fd),
-                                                 pollfd.events,
-                                                 std::move(callback));
-                            },
-                            [] {},
-                            reader == nullptr ? std::nullopt
-                                              : reader->GetPollFd());
-                      };
-                  register_reader(buffer.ptr()->fd(), [buffer](int) {
-                    LOG(INFO) << "Reading (normal): "
-                              << buffer.ptr()->Read(buffer_variables::name);
-                    TRACK_OPERATION(Main_ReadData);
-                    buffer.ptr()->ReadData();
-                  });
-                  register_reader(buffer.ptr()->fd_error(), [buffer](int) {
-                    LOG(INFO) << "Reading (error): "
-                              << buffer.ptr()->Read(buffer_variables::name);
-                    TRACK_OPERATION(Main_ReadErrorData);
-                    buffer.ptr()->ReadErrorData();
-                  });
-                }
+                     *editor_state().buffers() | std::views::values)
+                  buffer.ptr()->AddExecutionHandlers(handler);
 
                 if (screen_curses != nullptr)
                   handler.AddHandler(
