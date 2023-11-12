@@ -107,15 +107,6 @@ ThreadPoolWithWorkQueue& EditorState::thread_pool() {
   return thread_pool_.value();
 }
 
-void EditorState::ResetInternalEventNotifications() {
-  char buffer[4096];
-  VLOG(5) << "Internal events detected.";
-  while (read(fd_to_detect_internal_events().read(), buffer, sizeof(buffer)) >
-         0)
-    continue;
-  has_internal_events_.lock([](bool& value) { value = false; });
-}
-
 void EditorState::NotifyInternalEvent() {
   VLOG(5) << "Internal event notification!";
   if (!has_internal_events_.lock([](bool& value) {
@@ -980,8 +971,15 @@ void EditorState::ExecutionIteration(
   for (const gc::Root<OpenBuffer>& buffer : *buffers() | std::views::values)
     buffer.ptr()->AddExecutionHandlers(handler);
 
-  handler.AddHandler(fd_to_detect_internal_events(), POLLIN | POLLPRI,
-                     [&](int) { ResetInternalEventNotifications(); });
+  handler.AddHandler(
+      pipe_to_communicate_internal_events_.first, POLLIN | POLLPRI, [&](int) {
+        char buffer[4096];
+        VLOG(5) << "Internal events detected.";
+        while (read(pipe_to_communicate_internal_events_.first.read(), buffer,
+                    sizeof(buffer)) > 0)
+          continue;
+        has_internal_events_.lock([](bool& value) { value = false; });
+      });
 }
 
 }  // namespace afc::editor

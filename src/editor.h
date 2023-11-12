@@ -197,10 +197,6 @@ class EditorState {
   bool handling_interrupts() const { return handling_interrupts_; }
   bool handling_stop_signals() const;
 
-  infrastructure::FileDescriptor fd_to_detect_internal_events() const {
-    return pipe_to_communicate_internal_events_.first;
-  }
-
   void ExecutionIteration(infrastructure::execution::IterationHandler& handler);
 
   InsertHistory& insert_history() { return insert_history_; }
@@ -224,8 +220,6 @@ class EditorState {
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>>& work_queue()
       const;
   concurrent::ThreadPoolWithWorkQueue& thread_pool();
-
-  void ResetInternalEventNotifications();
 
  private:
   void NotifyInternalEvent();
