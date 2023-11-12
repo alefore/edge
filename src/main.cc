@@ -23,6 +23,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/infrastructure/audio.h"
 #include "src/infrastructure/command_line.h"
+#include "src/infrastructure/execution.h"
 #include "src/infrastructure/screen/screen.h"
 #include "src/infrastructure/time.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -49,6 +50,8 @@ using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::Tracker;
 using afc::infrastructure::UnixSignal;
+using afc::infrastructure::execution::ExecutionEnvironment;
+using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::infrastructure::screen::Screen;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -58,6 +61,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
@@ -438,139 +442,109 @@ int main(int argc, const char** argv) {
   editor_state().status().SetInformationText(GetGreetingMessage());
 
   LOG(INFO) << "Main loop starting.";
-  while (!editor_state().exit_value().has_value()) {
-    // We execute pending work before updating screens, since we expect that the
-    // pending work updates may have visible effects.
-    VLOG(5) << "Executing pending work.";
-    {
-      static Tracker tracker(L"Main::ExecutePendingWork");
-      auto call = tracker.Call();
-      editor_state().ExecutePendingWork();
-    }
+  ExecutionEnvironment(
+      ExecutionEnvironmentOptions{
+          .stop_check = [] { return editor_state().exit_value().has_value(); },
+          .get_next_alarm =
+              [] { return editor_state().WorkQueueNextExecution(); },
+          .on_signals =
+              [&] {
+                LOG(INFO) << "Received signals.";
+                if (!args.client.has_value()) {
+                  // We schedule a redraw in case the signal was SIGWINCH (the
+                  // screen size has changed). Ideally we'd only do that for
+                  // that signal, to avoid spurious refreshes, but... who cares.
+                  editor_state().set_screen_needs_hard_redraw(true);
 
-    VLOG(5) << "Updating screens.";
-    RedrawScreens(args, remote_server_fd, &last_screen_size, &terminal,
-                  screen_curses.get());
+                  editor_state().ProcessSignals();
+                }
+              },
+          .on_iteration =
+              [&](afc::infrastructure::execution::IterationHandler& handler) {
+                // We execute pending work before updating screens, since we
+                // expect that the pending work updates may have visible
+                // effects.
+                VLOG(5) << "Executing pending work.";
+                {
+                  TRACK_OPERATION(Main_ExecutePendingWork);
+                  editor_state().ExecutePendingWork();
+                }
 
-    std::vector<std::optional<gc::Root<OpenBuffer>>> buffers;
+                VLOG(5) << "Updating screens.";
+                RedrawScreens(args, remote_server_fd, &last_screen_size,
+                              &terminal, screen_curses.get());
 
-    // The file descriptor at position i will be either fd or fd_error of
-    // buffers[i]. The exception to this is fd 0 (at the end).
-    struct pollfd fds[editor_state().buffers()->size() * 2 + 3];
-    buffers.reserve(sizeof(fds) / sizeof(fds[0]));
+                for (const gc::Root<OpenBuffer>& buffer :
+                     *editor_state().buffers() | std::views::values) {
+                  auto register_reader =
+                      [&](const FileDescriptorReader* reader,
+                          std::function<void(int)> callback) {
+                        VisitOptional(
+                            [&](struct pollfd pollfd) {
+                              handler.AddHandler(FileDescriptor(pollfd.fd),
+                                                 pollfd.events,
+                                                 std::move(callback));
+                            },
+                            [] {},
+                            reader == nullptr ? std::nullopt
+                                              : reader->GetPollFd());
+                      };
+                  register_reader(buffer.ptr()->fd(), [buffer](int) {
+                    LOG(INFO) << "Reading (normal): "
+                              << buffer.ptr()->Read(buffer_variables::name);
+                    TRACK_OPERATION(Main_ReadData);
+                    buffer.ptr()->ReadData();
+                  });
+                  register_reader(buffer.ptr()->fd_error(), [buffer](int) {
+                    LOG(INFO) << "Reading (error): "
+                              << buffer.ptr()->Read(buffer_variables::name);
+                    TRACK_OPERATION(Main_ReadErrorData);
+                    buffer.ptr()->ReadErrorData();
+                  });
+                }
 
-    for (const gc::Root<OpenBuffer>& buffer :
-         *editor_state().buffers() | std::views::values) {
-      auto register_reader = [&](const FileDescriptorReader* reader) {
-        auto pollfd = reader == nullptr ? std::nullopt : reader->GetPollFd();
-        if (pollfd.has_value()) {
-          fds[buffers.size()] = pollfd.value();
-          buffers.push_back(buffer);
-        }
-      };
-      register_reader(buffer.ptr()->fd());
-      register_reader(buffer.ptr()->fd_error());
-    }
+                if (screen_curses != nullptr)
+                  handler.AddHandler(
+                      FileDescriptor(0), POLLIN | POLLPRI | POLLERR,
+                      [&](int received_events) {
+                        if (received_events & POLLHUP) {
+                          LOG(INFO) << "POLLHUP enabled in fd 0. "
+                                       "AttemptTermination(0).";
+                          editor_state().Terminate(
+                              EditorState::TerminationType::kIgnoringErrors, 0);
+                        } else {
+                          CHECK(screen_curses != nullptr);
+                          std::vector<wint_t> input;
+                          input.reserve(10);
+                          {
+                            wint_t c;
+                            while (input.size() < 1024 &&
+                                   (c = ReadChar(&mbstate)) !=
+                                       static_cast<wint_t>(-1)) {
+                              input.push_back(c);
+                            }
+                          }
+                          for (auto& c : input) {
+                            static Tracker tracker(L"Main::ProcessInput");
+                            auto call = tracker.Call();
+                            if (remote_server_fd.has_value()) {
+                              SendCommandsToParent(
+                                  remote_server_fd.value(),
+                                  "ProcessInput(" + std::to_string(c) + ");\n");
+                            } else {
+                              editor_state().ProcessInput(c);
+                            }
+                          }
+                        }
+                      });
 
-    if (screen_curses != nullptr) {
-      fds[buffers.size()].fd = 0;
-      fds[buffers.size()].events = POLLIN | POLLPRI | POLLERR;
-      buffers.push_back(std::nullopt);
-    }
-
-    fds[buffers.size()].fd =
-        editor_state().fd_to_detect_internal_events().read();
-    fds[buffers.size()].events = POLLIN | POLLPRI;
-    buffers.push_back(std::nullopt);
-
-    auto now = Now();
-    auto next_execution = editor_state().WorkQueueNextExecution();
-    int timeout_ms = next_execution.has_value()
-                         ? static_cast<int>(ceil(std::min(
-                               std::max(0.0, MillisecondsBetween(
-                                                 now, next_execution.value())),
-                               1000.0)))
-                         : 1000;
-    VLOG(5) << "Timeout: " << timeout_ms << " has value "
-            << (next_execution.has_value() ? "yes" : "no");
-    if (poll(fds, buffers.size(), timeout_ms) == -1) {
-      CHECK_EQ(errno, EINTR) << "poll failed: " << strerror(errno);
-
-      LOG(INFO) << "Received signals.";
-      if (!args.client.has_value()) {
-        // We schedule a redraw in case the signal was SIGWINCH (the screen
-        // size has changed). Ideally we'd only do that for that signal, to
-        // avoid spurious refreshes, but... who cares.
-        editor_state().set_screen_needs_hard_redraw(true);
-
-        editor_state().ProcessSignals();
-      }
-
-      continue;
-    }
-
-    for (size_t i = 0; i < buffers.size(); i++) {
-      if (!(fds[i].revents & (POLLIN | POLLPRI | POLLHUP))) {
-        continue;
-      }
-      if (fds[i].fd == 0) {
-        if (fds[i].revents & POLLHUP) {
-          LOG(INFO) << "POLLHUP enabled in fd 0. AttemptTermination(0).";
-          editor_state().Terminate(
-              EditorState::TerminationType::kIgnoringErrors, 0);
-        } else {
-          CHECK(screen_curses != nullptr);
-          std::vector<wint_t> input;
-          input.reserve(10);
-          {
-            wint_t c;
-            while (input.size() < 1024 &&
-                   (c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
-              input.push_back(c);
-            }
-          }
-          for (auto& c : input) {
-            static Tracker tracker(L"Main::ProcessInput");
-            auto call = tracker.Call();
-            if (remote_server_fd.has_value()) {
-              SendCommandsToParent(
-                  remote_server_fd.value(),
-                  "ProcessInput(" + std::to_string(c) + ");\n");
-            } else {
-              editor_state().ProcessInput(c);
-            }
-          }
-        }
-        continue;
-      }
-
-      if (FileDescriptor(fds[i].fd) ==
-          editor_state().fd_to_detect_internal_events()) {
-        editor_state().ResetInternalEventNotifications();
-        continue;
-      }
-
-      CHECK_LE(i, buffers.size());
-      CHECK(buffers[i]);
-      OpenBuffer& buffer = buffers[i]->ptr().value();
-      if (buffer.fd() != nullptr &&
-          FileDescriptor(fds[i].fd) == buffer.fd()->fd()) {
-        LOG(INFO) << "Reading (normal): "
-                  << buffer.Read(buffer_variables::name);
-        static Tracker tracker(L"Main::ReadData");
-        auto call = tracker.Call();
-        buffer.ReadData();
-      } else if (buffer.fd_error() != nullptr &&
-                 FileDescriptor(fds[i].fd) == buffer.fd_error()->fd()) {
-        LOG(INFO) << "Reading (error): " << buffer.Read(buffer_variables::name);
-        static Tracker tracker(L"Main::ReadErrorData");
-        auto call = tracker.Call();
-        buffer.ReadErrorData();
-      } else {
-        LOG(FATAL) << "Invalid file descriptor.";
-      }
-    }
-  }
+                handler.AddHandler(
+                    editor_state().fd_to_detect_internal_events(),
+                    POLLIN | POLLPRI, [](int) {
+                      editor_state().ResetInternalEventNotifications();
+                    });
+              }})
+      .Run();
 
   int output = editor_state().exit_value().value();
   std::shared_ptr<LazyString> exit_notice = editor_state().GetExitNotice();
