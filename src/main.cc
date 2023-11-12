@@ -56,6 +56,7 @@ using afc::infrastructure::screen::Screen;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
+using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::overload;
@@ -185,36 +186,6 @@ std::wstring CommandsToRun(CommandLineValues args) {
   return commands_to_run;
 }
 
-void SendCommandsToParent(FileDescriptor fd,
-                          const std::string commands_to_run) {
-  // We write the command to a temporary file and then instruct the server to
-  // load the file. Otherwise, if the command is too long, it may not fit in the
-  // size limit that the reader uses.
-  CHECK_NE(fd, FileDescriptor(-1));
-  using std::cerr;
-  size_t pos = 0;
-  char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
-  int tmp_fd = mkstemp(path);
-  while (pos < commands_to_run.size()) {
-    VLOG(5) << commands_to_run.substr(pos);
-    int bytes_written = write(tmp_fd, commands_to_run.c_str() + pos,
-                              commands_to_run.size() - pos);
-    if (bytes_written == -1) {
-      cerr << "write: " << strerror(errno);
-      exit(1);
-    }
-    pos += bytes_written;
-  }
-  close(tmp_fd);
-  std::string command = "#include \"" + std::string(path) + "\"\n";
-  free(path);
-  if (write(fd.read(), command.c_str(), command.size()) !=
-      static_cast<int>(command.size())) {
-    cerr << "write: " << strerror(errno);
-    exit(1);
-  }
-}
-
 Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
   LOG(INFO) << "Starting server.";
 
@@ -298,11 +269,11 @@ void RedrawScreens(const CommandLineValues& args,
       if (last_screen_size->has_value() &&
           screen_size != last_screen_size->value()) {
         LOG(INFO) << "Sending screen size update to server.";
-        SendCommandsToParent(
+        CHECK(!IsError(SyncSendCommandsToServer(
             remote_server_fd.value(),
             "screen.set_size(" + std::to_string(screen_size.column.read()) +
                 "," + std::to_string(screen_size.line.read()) + ");" +
-                "editor.set_screen_needs_hard_redraw(true);\n");
+                "editor.set_screen_needs_hard_redraw(true);\n")));
         *last_screen_size = screen_size;
       }
     }
@@ -413,14 +384,18 @@ int main(int argc, const char** argv) {
     }
 
     LOG(INFO) << "Sending commands.";
-    FileDescriptor self_fd =
-        remote_server_fd.has_value()
-            ? remote_server_fd.value()
-            : ValueOrDie(args.server && args.server_path.has_value()
-                             ? SyncConnectToServer(args.server_path.value())
-                             : SyncConnectToParentServer());
-    CHECK_NE(self_fd, FileDescriptor(-1));
-    SendCommandsToParent(self_fd, ToByteString(commands_to_run));
+    if (remote_server_fd.has_value()) {
+      CHECK_NE(remote_server_fd.value(), FileDescriptor(-1));
+      CHECK(!IsError(SyncSendCommandsToServer(remote_server_fd.value(),
+                                              ToByteString(commands_to_run))));
+    } else {
+      BufferName name =
+          editor_state().GetUnusedBufferName(L"- initial-commands");
+      gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
+          OpenBuffer::Options{.editor = editor_state(), .name = name});
+      buffer_root.ptr()->EvaluateString(commands_to_run);
+      editor_state().buffers()->insert_or_assign(name, std::move(buffer_root));
+    }
   }
 
   LOG(INFO) << "Creating terminal.";
@@ -492,9 +467,10 @@ int main(int argc, const char** argv) {
                             static Tracker tracker(L"Main::ProcessInput");
                             auto call = tracker.Call();
                             if (remote_server_fd.has_value()) {
-                              SendCommandsToParent(
+                              CHECK(!IsError(SyncSendCommandsToServer(
                                   remote_server_fd.value(),
-                                  "ProcessInput(" + std::to_string(c) + ");\n");
+                                  "ProcessInput(" + std::to_string(c) +
+                                      ");\n")));
                             } else {
                               editor_state().ProcessInput(c);
                             }

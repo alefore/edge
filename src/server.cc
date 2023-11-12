@@ -25,6 +25,7 @@ extern "C" {
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
+#include "src/tests/tests.h"
 #include "src/vm/escape.h"
 #include "src/vm/vm.h"
 
@@ -34,6 +35,8 @@ using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
 using afc::infrastructure::ProcessId;
+using afc::infrastructure::execution::ExecutionEnvironment;
+using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
@@ -41,7 +44,9 @@ using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ToByteString;
+using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::vm::EscapedString;
 
@@ -69,7 +74,65 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
     }
   }
 }
+
+// Sends an `editor.ConnectTo(input_path)` command to the server in `server_fd`.
+PossibleError SendPathToServer(FileDescriptor server_fd,
+                               const Path& input_path) {
+  LOG(INFO) << "Sending path to server: " << input_path;
+  std::string command =
+      "editor.ConnectTo(" +
+      ToByteString(EscapedString::FromString(NewLazyString(input_path.read()))
+                       .CppRepresentation()) +
+      ");\n";
+  LOG(INFO) << "Sending connection command: " << command;
+  if (write(server_fd.read(), command.c_str(), command.size()) == -1) {
+    return Error(input_path.read() + L": write failed: " +
+                 FromByteString(strerror(errno)));
+  }
+  return Success();
+}
 }  // namespace
+
+PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
+                                       std::string commands_to_run) {
+  // We write the command to a temporary file and then instruct the server to
+  // load the file. Otherwise, if the command is too long, it may not fit in the
+  // size limit that the reader uses.
+  CHECK_NE(server_fd, FileDescriptor(-1));
+  size_t pos = 0;
+  char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
+  int tmp_fd = mkstemp(path);
+  NonNull<std::shared_ptr<LazyString>> path_str =
+      NewLazyString(FromByteString(path));
+  free(path);
+
+  commands_to_run =
+      commands_to_run + "\n;Unlink(" +
+      ToByteString(
+          vm::EscapedString::FromString(path_str).CppRepresentation()) +
+      ");\n";
+  LOG(INFO) << "Sending commands to fd: " << server_fd << " through path "
+            << path_str->ToString() << ": " << commands_to_run;
+  while (pos < commands_to_run.size()) {
+    VLOG(5) << commands_to_run.substr(pos);
+    int bytes_written = write(tmp_fd, commands_to_run.c_str() + pos,
+                              commands_to_run.size() - pos);
+    if (bytes_written == -1)
+      return Error(L"write: " + FromByteString(strerror(errno)));
+    pos += bytes_written;
+  }
+  // TODO(trivial, P2, 2023-11-10): Check return value of `close`.
+  close(tmp_fd);
+  DECLARE_OR_RETURN(Path input_path, Path::FromString(path_str));
+  std::string command =
+      "#include \"" + ToByteString(path_str->ToString()) + "\"\n";
+  if (write(server_fd.read(), command.c_str(), command.size()) !=
+      static_cast<int>(command.size())) {
+    std::cerr << "write: " << strerror(errno);
+    exit(1);
+  }
+  return Success();
+}
 
 ValueOrError<FileDescriptor> SyncConnectToParentServer() {
   static const std::string variable = "EDGE_PARENT_ADDRESS";
@@ -89,8 +152,8 @@ ValueOrError<FileDescriptor> SyncConnectToParentServer() {
 
 ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   LOG(INFO) << "Connecting to server: " << path.read();
-  int fd = open(ToByteString(path.read()).c_str(), O_WRONLY);
-  if (fd == -1) {
+  int server_fd = open(ToByteString(path.read()).c_str(), O_WRONLY);
+  if (server_fd == -1) {
     return Error(path.read() + L": Connecting to server: open failed: " +
                  FromByteString(strerror(errno)));
   }
@@ -99,23 +162,13 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
     delete value;
   };
   std::unique_ptr<int, decltype(fd_deleter_callback)> fd_deleter(
-      new int(fd), fd_deleter_callback);
+      new int(server_fd), fd_deleter_callback);
 
   ASSIGN_OR_RETURN(
       Path private_fifo,
       AugmentErrors(L"Unable to create fifo for communication with server",
                     CreateFifo({})));
-  LOG(INFO) << "Fifo created: " << private_fifo.read();
-  std::string command =
-      "editor.ConnectTo(" +
-      ToByteString(EscapedString::FromString(NewLazyString(private_fifo.read()))
-                       .CppRepresentation()) +
-      ");\n";
-  LOG(INFO) << "Sending connection command: " << command;
-  if (write(fd, command.c_str(), command.size()) == -1) {
-    return Error(path.read() + L": write failed: " +
-                 FromByteString(strerror(errno)));
-  }
+  RETURN_IF_ERROR(SendPathToServer(FileDescriptor(server_fd), private_fifo));
   fd_deleter = nullptr;
 
   LOG(INFO) << "Opening private fifo: " << private_fifo.read();
@@ -214,5 +267,42 @@ gc::Root<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
                                            buffer_root.ptr().ToRoot());
   buffer.Reload();
   return buffer_root;
+}
+
+namespace {
+bool server_tests_registration = tests::Register(
+    L"Server",
+    {{.name = L"StartServer", .callback = [] {
+        language::NonNull<std::unique_ptr<EditorState>> editor =
+            EditorForTests();
+        CHECK_EQ(editor->buffers()->size(), 0ul);
+        infrastructure::Path server_address =
+            ValueOrDie(StartServer(editor.value(), std::nullopt));
+        CHECK_EQ(editor->buffers()->size(), 1ul);
+        CHECK(!editor->exit_value().has_value());
+        size_t iteration = 0;
+        ExecutionEnvironment(
+            ExecutionEnvironmentOptions{
+                .stop_check = [&] { return editor->exit_value().has_value(); },
+                .get_next_alarm =
+                    [&] { return editor->WorkQueueNextExecution(); },
+                .on_signals = [] {},
+                .on_iteration =
+                    [&](afc::infrastructure::execution::IterationHandler&
+                            handler) {
+                      LOG(INFO) << "Iteration: " << iteration;
+                      editor->ExecutionIteration(handler);
+                      if (iteration == 10) {
+                        FileDescriptor client_fd =
+                            ValueOrDie(SyncConnectToServer(server_address));
+                        CHECK(!IsError(SyncSendCommandsToServer(
+                            client_fd, "editor.set_exit_value(567);")));
+                      }
+                      iteration++;
+                    }})
+            .Run();
+        CHECK(editor->exit_value().has_value());
+        CHECK_GT(iteration, 10);
+      }}});
 }
 }  // namespace afc::editor

@@ -16,6 +16,8 @@ void Daemonize(
     const std::unordered_set<infrastructure::FileDescriptor>& surviving_fd);
 
 // These methods block. You may want to call them in a background thread.
+language::PossibleError SyncSendCommandsToServer(
+    infrastructure::FileDescriptor server_fd, std::string commands_to_run);
 language::ValueOrError<infrastructure::FileDescriptor> SyncConnectToServer(
     const infrastructure::Path& address);
 language::ValueOrError<infrastructure::FileDescriptor>
