@@ -141,6 +141,7 @@ class HelpCommand : public Command {
 
   static LineSequence GenerateContents(const MapModeCommands& commands,
                                        const OpenBuffer& buffer) {
+    LOG(INFO) << "Generating help contents.";
     MutableLineSequence output;
     output.AppendToLine(LineNumber(), Line(L"# Edge - Help"));
     output.push_back(L"");
@@ -173,6 +174,7 @@ class HelpCommand : public Command {
 
  private:
   static void StartSection(std::wstring section, MutableLineSequence& buffer) {
+    VLOG(2) << "Section: " << section;
     buffer.push_back(std::move(section));
     buffer.push_back(L"");
   }
