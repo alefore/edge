@@ -301,8 +301,9 @@ bool server_tests_registration = tests::Register(
                       iteration++;
                     }})
             .Run();
-        CHECK(editor->exit_value().has_value());
         CHECK_GT(iteration, 10);
+        CHECK(editor->exit_value().has_value());
+        CHECK_EQ(editor->exit_value().value(), 567);
       }}});
 }
 }  // namespace afc::editor
