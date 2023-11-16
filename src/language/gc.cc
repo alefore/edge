@@ -19,6 +19,7 @@ using afc::concurrent::Bag;
 using afc::concurrent::BagOptions;
 using afc::concurrent::Operation;
 using afc::concurrent::OperationFactory;
+using afc::concurrent::Protected;
 using afc::concurrent::ThreadPool;
 using afc::infrastructure::CountDownTimer;
 using afc::infrastructure::Tracker;
@@ -694,31 +695,40 @@ bool tests_registration = tests::Register(
               CHECK_EQ(stats.end_total, 5ul);
             }
           }},
-     {.name = L"BreakLoopHalfway",
+     {.name = L"BreakLoopHalfway", .callback = [] {
+        gc::Pool pool({});
+        gc::Root<Node> root = MakeLoop(pool, 7);
+        {
+          gc::Ptr<Node> split = root.ptr();
+          for (int i = 0; i < 4; i++) split = split->children[0];
+          auto notification =
+              split->children[0]->delete_notification.listenable_value();
+          CHECK(!notification.has_value());
+          CHECK_EQ(pool.count_objects(), 7ul);
+          split->children.clear();
+          CHECK_EQ(pool.count_objects(), 5ul);
+          CHECK(notification.has_value());
+        }
+        CHECK_EQ(pool.count_objects(), 5ul);
+        CHECK(!root.ptr()->delete_notification.listenable_value().has_value());
+        Pool::FullCollectStats stats = pool.FullCollect();
+        pool.BlockUntilDone();
+        CHECK_EQ(stats.begin_total, 5ul);
+        CHECK_EQ(stats.roots, 1ul);
+        CHECK_EQ(stats.end_total, 5ul);
+      }}});
+
+bool weak_ptr_tests_registration = tests::Register(
+    L"GC::WeakPtr",
+    {{.name = L"WeakPtrInitialization",
       .callback =
           [] {
             gc::Pool pool({});
-            gc::Root<Node> root = MakeLoop(pool, 7);
-            {
-              gc::Ptr<Node> split = root.ptr();
-              for (int i = 0; i < 4; i++) split = split->children[0];
-              auto notification =
-                  split->children[0]->delete_notification.listenable_value();
-              CHECK(!notification.has_value());
-              CHECK_EQ(pool.count_objects(), 7ul);
-              split->children.clear();
-              CHECK_EQ(pool.count_objects(), 5ul);
-              CHECK(notification.has_value());
-            }
-            CHECK_EQ(pool.count_objects(), 5ul);
-            CHECK(!root.ptr()
-                       ->delete_notification.listenable_value()
-                       .has_value());
-            Pool::FullCollectStats stats = pool.FullCollect();
-            pool.BlockUntilDone();
-            CHECK_EQ(stats.begin_total, 5ul);
-            CHECK_EQ(stats.roots, 1ul);
-            CHECK_EQ(stats.end_total, 5ul);
+            std::optional<gc::Root<Node>> root = MakeLoop(pool, 0);
+            gc::WeakPtr<Node> weak_ptr = root->ptr().ToWeakPtr();
+            CHECK(weak_ptr.Lock().has_value());
+            CHECK_EQ(&weak_ptr.Lock().value().ptr().value(),
+                     &root->ptr().value());
           }},
      {.name = L"WeakPtrNoRefs",
       .callback =
@@ -897,6 +907,117 @@ bool full_vs_light_collect_tests_registration = tests::Register(
                CHECK_EQ(pool.count_objects(), 4010ul);
                pool.Collect();
                CHECK_EQ(pool.count_objects(), 2000ul);
+             }},
+    });
+
+bool concurrency_tests = tests::Register(
+    L"GC::Concurrency",
+    {
+        {.name = L"CollectWithAssignment",
+         .callback =
+             [] {
+               gc::Pool pool({});
+               Node* last_value = nullptr;
+               gc::Root<Node> root = pool.NewRoot(MakeNonNullUnique<Node>());
+               Protected<bool> stop_collection(false);
+               Protected<size_t> collection_iterations(0);
+
+               // Thread for continuous collection.
+               std::thread collection_thread([&] {
+                 while (!*stop_collection.lock()) {
+                   pool.Collect();
+                   (*collection_iterations.lock())++;
+                   pool.NewRoot(MakeNonNullUnique<Node>());
+                 }
+               });
+
+               // Thread for assignment.
+               std::thread assignment_thread([&] {
+                 size_t roots_created = 0;
+                 while (*collection_iterations.lock() < 10 ||
+                        roots_created < 5) {
+                   root = pool.NewRoot(MakeNonNullUnique<Node>());
+                   last_value = &root.ptr().value();
+                   roots_created++;
+                 }
+               });
+
+               assignment_thread.join();  // Wait for assignment to complete.
+               *stop_collection.lock() = true;
+               collection_thread.join();  // Wait for collection to stop.
+
+               CHECK_EQ(&root.ptr().value(), last_value);
+             }},
+        {.name = L"CollectWithThreadSafeRefCounting",
+         .callback =
+             [] {
+               gc::Pool pool({});
+               std::atomic<bool> stop_collection(false);
+               const gc::Root<Node> root =
+                   pool.NewRoot(MakeNonNullUnique<Node>());
+               const gc::Ptr<Node> ptr = root.ptr();
+               Node* const value = &ptr.value();
+
+               // Thread for continuous collection.
+               std::thread collection_thread([&] {
+                 while (!stop_collection) pool.Collect();
+               });
+
+               // Multiple threads for reference counting.
+               const int num_threads = 10;
+               std::vector<std::thread> threads;
+               for (int i = 0; i < num_threads; ++i)
+                 threads.emplace_back([&ptr, value] {
+                   for (int j = 0; j < 1000; ++j) {
+                     gc::Ptr<Node> temp_ptr = ptr;
+                     CHECK(&temp_ptr.value() == value);
+                   }
+                 });
+
+               for (auto& t : threads) t.join();
+               stop_collection = true;    // Signal to stop collection.
+               collection_thread.join();  // Wait for collection to stop.
+
+               CHECK(&ptr.value() == value);
+             }},
+        {.name = L"ContinuousCollectWithConcurrentCreation",
+         .callback =
+             [] {
+               gc::Pool pool({});
+               std::atomic<bool> stop_collection(false);
+               std::atomic<bool> creation_done(false);
+               const gc::Root<Node> root =
+                   pool.NewRoot(MakeNonNullUnique<Node>());
+               const gc::Ptr<Node> ptr = root.ptr();
+               Node* const value = &ptr.value();
+
+               // Thread for continuous collection.
+               std::thread collection_thread([&] {
+                 while (!stop_collection) {
+                   LOG(INFO) << "Starting collection.";
+                   pool.Collect();
+                 }
+                 LOG(INFO) << "Collection thread stopping.";
+               });
+
+               // Thread for object creation.
+               std::thread creation_thread([&] {
+                 for (int i = 0; i < 10; ++i) {
+                   std::vector<gc::Root<Node>> roots;
+                   for (int j = 0; j < 10; ++j) {
+                     LOG(INFO) << "Iteration " << i << ", roots: " << j;
+                     roots.push_back(MakeLoop(pool, 10));
+                   }
+                 }
+                 LOG(INFO) << "Creation done.";
+                 creation_done = true;
+               });
+
+               creation_thread.join();    // Wait for creation to complete.
+               stop_collection = true;    // Signal to stop collection.
+               collection_thread.join();  // Wait for collection to stop.
+
+               CHECK(&ptr.value() == value);
              }},
     });
 
