@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <ranges>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -1424,26 +1425,25 @@ void OpenBuffer::PopActiveCursors() {
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
-  const std::multimap<LineColumn, LineMarks::Mark>& marks = GetLineMarks();
   // To avoid repetitions, insert them first into a set.
-  std::set<LineColumn> cursors;
-  for (auto& [line_column, mark] : marks) {
-    cursors.insert(line_column);
-  }
-
-  if (cursors.empty()) {
-    const std::multimap<LineColumn, LineMarks::ExpiredMark>& expired_marks =
-        GetExpiredLineMarks();
-    for (auto& [line_column, expired_mark] : expired_marks) {
-      cursors.insert(line_column);
-    }
-    if (cursors.empty()) {
-      status_.InsertError(Error(L"Buffer has no marks!"));
-      return;
-    }
-  }
-
-  set_active_cursors(std::vector<LineColumn>(cursors.begin(), cursors.end()));
+  const std::set<LineColumn> cursors = std::invoke([&]()
+                                                       -> std::set<LineColumn> {
+    if (const std::multimap<LineColumn, LineMarks::Mark>& marks =
+            GetLineMarks();
+        !marks.empty())
+      return {std::views::keys(marks).begin(), std::views::keys(marks).end()};
+    else if (const std::multimap<LineColumn, LineMarks::ExpiredMark>&
+                 expired_marks = GetExpiredLineMarks();
+             !expired_marks.empty())
+      return {std::views::keys(expired_marks).begin(),
+              std::views::keys(expired_marks).end()};
+    else
+      return {};
+  });
+  if (cursors.empty())
+    status_.InsertError(Error(L"Buffer has no marks!"));
+  else
+    set_active_cursors(std::vector<LineColumn>(cursors.begin(), cursors.end()));
 }
 
 void OpenBuffer::set_current_cursor(LineColumn new_value) {
