@@ -134,82 +134,85 @@ namespace afc::editor {
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
-NonNull<std::shared_ptr<const Line>> UpdateLineMetadata(
-    OpenBuffer& buffer, NonNull<std::shared_ptr<const Line>> line) {
-  static Tracker tracker(L"OpenBuffer::UpdateLineMetadata");
-  auto tracker_call = tracker.Call();
+std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
+    OpenBuffer& buffer,
+    std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
+  if (buffer.Read(buffer_variables::vm_lines_evaluation)) return lines;
 
-  if (line->metadata() != nullptr || line->empty() ||
-      buffer.Read(buffer_variables::vm_lines_evaluation))
-    return line;
+  TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
+  for (NonNull<std::shared_ptr<const Line>>& line : lines)
+    if (line->metadata() == nullptr && !line->empty())
+      std::visit(
+          overload{
+              [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
+                            language::gc::Root<vm::Environment>>
+                      compilation_result) {
+                futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>>
+                    metadata_value(
+                        futures::Future<NonNull<std::shared_ptr<LazyString>>>()
+                            .value);
 
-  return std::visit(
-      overload{
-          [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
-                        language::gc::Root<vm::Environment>>
-                  compilation_result) {
-            futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>>
-                metadata_value(
-                    futures::Future<NonNull<std::shared_ptr<LazyString>>>()
-                        .value);
-
-            std::wstring description =
-                L"C++: " + vm::TypesToString(compilation_result.first->Types());
-            switch (compilation_result.first->purity()) {
-              case vm::PurityType::kPure:
-              case vm::PurityType::kReader: {
-                description += L" ...";
-                if (compilation_result.first->Types() ==
-                    std::vector<vm::Type>({vm::types::Void{}})) {
-                  LineBuilder line_builder(line.value());
-                  line_builder.SetMetadata(std::nullopt);
-                  return MakeNonNullShared<const Line>(
-                      std::move(line_builder).Build());
+                std::wstring description =
+                    L"C++: " +
+                    vm::TypesToString(compilation_result.first->Types());
+                switch (compilation_result.first->purity()) {
+                  case vm::PurityType::kPure:
+                  case vm::PurityType::kReader: {
+                    description += L" ...";
+                    if (compilation_result.first->Types() ==
+                        std::vector<vm::Type>({vm::types::Void{}})) {
+                      LineBuilder line_builder(std::move(line.value()));
+                      line_builder.SetMetadata(std::nullopt);
+                      line = MakeNonNullShared<const Line>(
+                          std::move(line_builder).Build());
+                    }
+                    NonNull<std::shared_ptr<vm::Expression>> expr =
+                        std::move(compilation_result.first);
+                    metadata_value = buffer.work_queue()->Wait(Now()).Transform(
+                        [buffer = buffer.NewRoot(), expr = std::move(expr),
+                         sub_environment =
+                             std::move(compilation_result.second)](EmptyValue) {
+                          return buffer.ptr()
+                              ->EvaluateExpression(expr, sub_environment)
+                              .Transform([](gc::Root<vm::Value> value) {
+                                std::ostringstream oss;
+                                oss << value.ptr().value();
+                                return Success(
+                                    NonNull<std::shared_ptr<LazyString>>(
+                                        NewLazyString(
+                                            FromByteString(oss.str()))));
+                              })
+                              .ConsumeErrors([](Error error) {
+                                return futures::Past(
+                                    NonNull<std::shared_ptr<LazyString>>(
+                                        NewLazyString(
+                                            L"E: " + std::move(error.read()))));
+                              });
+                        });
+                  } break;
+                  case vm::PurityType::kUnknown:
+                    break;
                 }
-                NonNull<std::shared_ptr<vm::Expression>> expr =
-                    std::move(compilation_result.first);
-                metadata_value = buffer.work_queue()->Wait(Now()).Transform(
-                    [buffer = buffer.NewRoot(), expr = std::move(expr),
-                     sub_environment =
-                         std::move(compilation_result.second)](EmptyValue) {
-                      return buffer.ptr()
-                          ->EvaluateExpression(expr, sub_environment)
-                          .Transform([](gc::Root<vm::Value> value) {
-                            std::ostringstream oss;
-                            oss << value.ptr().value();
-                            return Success(NonNull<std::shared_ptr<LazyString>>(
-                                NewLazyString(FromByteString(oss.str()))));
-                          })
-                          .ConsumeErrors([](Error error) {
-                            return futures::Past(
-                                NonNull<std::shared_ptr<LazyString>>(
-                                    NewLazyString(L"E: " +
-                                                  std::move(error.read()))));
-                          });
-                    });
-              } break;
-              case vm::PurityType::kUnknown:
-                break;
-            }
 
-            LineBuilder line_builder(line.value());
-            line_builder.SetMetadata(language::text::LineMetadataEntry{
-                .initial_value = NewLazyString(description),
-                .value = std::move(metadata_value)});
+                LineBuilder line_builder(std::move(line.value()));
+                line_builder.SetMetadata(language::text::LineMetadataEntry{
+                    .initial_value = NewLazyString(description),
+                    .value = std::move(metadata_value)});
 
-            return MakeNonNullShared<const Line>(
-                std::move(line_builder).Build());
-          },
-          [&](Error) { return line; }},
-      buffer.CompileString(line->contents()->ToString()));
+                line = MakeNonNullShared<const Line>(
+                    std::move(line_builder).Build());
+              },
+              IgnoreErrors{}},
+          buffer.CompileString(line->contents()->ToString()));
+  return lines;
 }
 
 // We receive `contents` explicitly since `buffer` only gives us const access.
 void SetMutableLineSequenceLineMetadata(OpenBuffer& buffer,
                                         MutableLineSequence& contents,
                                         LineNumber position) {
-  contents.set_line(position,
-                    UpdateLineMetadata(buffer, buffer.contents().at(position)));
+  contents.set_line(position, UpdateLineMetadata(
+                                  buffer, {buffer.contents().at(position)})[0]);
 }
 
 // next_scheduled_execution holds the smallest time at which we know we have
@@ -870,10 +873,8 @@ void OpenBuffer::AppendLines(
   if (lines_added.IsZero()) return;
 
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
-  for (NonNull<std::shared_ptr<const Line>>& line : lines) {
-    line = UpdateLineMetadata(*this, std::move(line));
-  }
-  contents_.append_back(std::move(lines), observer_behavior);
+  contents_.append_back(UpdateLineMetadata(*this, std::move(lines)),
+                        observer_behavior);
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
@@ -1130,7 +1131,7 @@ void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
 void OpenBuffer::InsertLine(LineNumber line_position,
                             NonNull<std::shared_ptr<Line>> line) {
   contents_.insert_line(line_position,
-                        UpdateLineMetadata(*this, std::move(line)));
+                        UpdateLineMetadata(*this, {std::move(line)})[0]);
 }
 
 void OpenBuffer::AppendLine(NonNull<std::shared_ptr<LazyString>> str) {
@@ -1164,8 +1165,8 @@ void OpenBuffer::AppendRawLine(
     NonNull<std::shared_ptr<Line>> line,
     MutableLineSequence::ObserverBehavior observer_behavior) {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(UpdateLineMetadata(*this, std::move(line)),
-                      observer_behavior);
+  contents_.append_back(UpdateLineMetadata(*this, {std::move(line)}),
+                        observer_behavior);
 }
 
 void OpenBuffer::AppendToLastLine(NonNull<std::shared_ptr<LazyString>> str) {
