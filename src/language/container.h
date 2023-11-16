@@ -2,6 +2,8 @@
 #define __AFC_LANGUAGE_CONTAINERS__
 
 #include <list>
+#include <ranges>
+#include <set>
 #include <vector>
 
 namespace afc::language {
@@ -65,6 +67,13 @@ void EraseIf(std::vector<Value>& container, Predicate predicate) {
 template <typename Predicate, typename Value>
 void EraseIf(std::list<Value>& container, Predicate predicate) {
   container.remove_if(std::move(predicate));
+}
+
+template <typename Container>
+std::set<typename Container::key_type> GetSetWithKeys(
+    const Container& container) {
+  return std::set<typename Container::key_type>(
+      std::views::keys(container).begin(), std::views::keys(container).end());
 }
 }  // namespace afc::language
 #endif
