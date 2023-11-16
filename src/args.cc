@@ -254,12 +254,13 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                    L"value, not all changes will be displaed.")
           .Set(&CommandLineValues::frames_per_second),
 
-      Handler<CommandLineValues>(
-          {L"p"},
-          L"Enable advanced resolution for initial local paths: local paths "
-          L"given on the command line (in the invocation to Edge) will be "
-          L"looked up based on search paths (rather than simply attempting to "
-          L"open them as relative paths to the current working directory).")
+      Handler<CommandLineValues>({L"p"},
+                                 L"Apply search paths to initial local paths.")
+          .SetHelp(
+              L"Apply search paths  initial local paths: local paths given on "
+              L"the command line (in the invocation to Edge) will be looked up "
+              L"based on search paths (rather than simply attempting to open "
+              L"them as relative paths to the current working directory).")
           .Set(&CommandLineValues::initial_path_resolution_behavior,
                CommandLineValues::LocalPathResolutionBehavior::kAdvanced)};
   return handlers;
