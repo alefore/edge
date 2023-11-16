@@ -22,7 +22,8 @@ namespace afc::editor {
 namespace {
 bool server_tests_registration = tests::Register(
     L"Args", std::invoke([]() -> std::vector<tests::Test> {
-      auto add_test = [](std::wstring name, CommandLineValues args,
+      auto add_test = [](std::wstring name,
+                         std::function<CommandLineValues()> args,
                          std::function<bool(EditorState&)> stop) {
         return tests::Test{
             .name = name, .callback = [name, args, stop] {
@@ -51,7 +52,7 @@ bool server_tests_registration = tests::Register(
                                   SyncConnectToServer(server_address));
                               CHECK(!IsError(SyncSendCommandsToServer(
                                   client_fd,
-                                  ToByteString(CommandsToRun(args)))));
+                                  ToByteString(CommandsToRun(args())))));
                             }
                             iteration++;
                             CHECK_LT(iteration, 1000ul);
@@ -62,17 +63,20 @@ bool server_tests_registration = tests::Register(
       auto has_buffer = [](const BufferName& name, const EditorState& editor) {
         return editor.buffers()->contains(name);
       };
-      return {add_test(L"DefaultArguments", CommandLineValues(),
-                       std::bind_front(has_buffer, BufferName(L"💻shell"))),
-              add_test(L"File", std::invoke([] {
-                         CommandLineValues output;
-                         output.naked_arguments = {L"/foo/bar", L"/tmp"};
-                         return output;
-                       }),
-                       [has_buffer](EditorState& editor) {
-                         return has_buffer(BufferName(L"/foo/bar"), editor) &&
-                                has_buffer(BufferName(L"/tmp"), editor);
-                       })};
+      return {add_test(
+                  L"DefaultArguments", [] { return CommandLineValues(); },
+                  std::bind_front(has_buffer, BufferName(L"💻shell"))),
+              add_test(
+                  L"File",
+                  [] {
+                    CommandLineValues output;
+                    output.naked_arguments = {L"/foo/bar", L"/tmp"};
+                    return output;
+                  },
+                  [has_buffer](EditorState& editor) {
+                    return has_buffer(BufferName(L"/foo/bar"), editor) &&
+                           has_buffer(BufferName(L"/tmp"), editor);
+                  })};
     }));
 }
 }  // namespace afc::editor
