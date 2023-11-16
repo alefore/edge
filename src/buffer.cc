@@ -95,6 +95,7 @@ using afc::infrastructure::screen::VisualOverlayPriority;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
+using afc::language::GetSetWithKeys;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
@@ -1426,20 +1427,18 @@ void OpenBuffer::PopActiveCursors() {
 
 void OpenBuffer::SetActiveCursorsToMarks() {
   // To avoid repetitions, insert them first into a set.
-  const std::set<LineColumn> cursors = std::invoke([&]()
-                                                       -> std::set<LineColumn> {
-    if (const std::multimap<LineColumn, LineMarks::Mark>& marks =
-            GetLineMarks();
-        !marks.empty())
-      return {std::views::keys(marks).begin(), std::views::keys(marks).end()};
-    else if (const std::multimap<LineColumn, LineMarks::ExpiredMark>&
-                 expired_marks = GetExpiredLineMarks();
-             !expired_marks.empty())
-      return {std::views::keys(expired_marks).begin(),
-              std::views::keys(expired_marks).end()};
-    else
-      return {};
-  });
+  const std::set<LineColumn> cursors =
+      std::invoke([&]() -> std::set<LineColumn> {
+        if (const std::set<LineColumn> marks = GetSetWithKeys(GetLineMarks());
+            !marks.empty())
+          return marks;
+        else if (const std::set<LineColumn> expired_marks =
+                     GetSetWithKeys(GetExpiredLineMarks());
+                 !expired_marks.empty())
+          return expired_marks;
+        else
+          return {};
+      });
   if (cursors.empty())
     status_.InsertError(Error(L"Buffer has no marks!"));
   else
