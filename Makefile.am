@@ -12,6 +12,7 @@ src/vm/cpp.y
 COMMON_SOURCES = \
 src/args.cc \
 src/args.h \
+src/args_tests.cc \
 src/buffer.cc \
 src/buffer.h \
 src/buffer_contents_util.cc \

@@ -74,6 +74,8 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&
 CommandLineArgs();
 
+std::wstring CommandsToRun(CommandLineValues args);
+
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_SRC_ARGS_H__
