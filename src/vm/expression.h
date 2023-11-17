@@ -15,7 +15,7 @@
 
 namespace afc::vm {
 class Environment;
-class EvaluationOutput;
+struct EvaluationOutput;
 class Expression;
 
 class Trampoline {
