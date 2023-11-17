@@ -137,7 +137,7 @@ int main(int, char** argv) {
         int times = NextRandom() % 5;
         VLOG(5) << "Command: i BACKSPACES: " << times;
         SendInput(&editor_state, "i");
-        for (int i = 0; i < times; i++) {
+        for (int j = 0; j < times; j++) {
           editor_state.ProcessInput(Terminal::BACKSPACE);
         }
         VLOG(5) << "Escape.";
