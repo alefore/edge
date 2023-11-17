@@ -864,21 +864,24 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   commands.Add(VectorExtendedChar(L"n"),
                NewNavigateCommand(editor_state).ptr());
 
-  commands.Add(
-      VectorExtendedChar(L"j"),
-      operation::NewTopLevelCommand(
-          L"down", L"moves down one line", operation::TopCommand(),
-          editor_state,
-          {operation::CommandReachLine{
-              .repetitions = operation::CommandArgumentRepetitions(1)}})
-          .ptr());
-  commands.Add(
-      VectorExtendedChar(L"k"),
-      operation::NewTopLevelCommand(
-          L"up", L"moves up one line", operation::TopCommand(), editor_state,
-          {operation::CommandReachLine{
-              .repetitions = operation::CommandArgumentRepetitions(-1)}})
-          .ptr());
+  for (ExtendedChar x :
+       std::vector<ExtendedChar>({L'j', ControlChar::kDownArrow}))
+    commands.Add(
+        {x}, operation::NewTopLevelCommand(
+                 L"down", L"moves down one line", operation::TopCommand(),
+                 editor_state,
+                 {operation::CommandReachLine{
+                     .repetitions = operation::CommandArgumentRepetitions(1)}})
+                 .ptr());
+  for (ExtendedChar x :
+       std::vector<ExtendedChar>({L'k', ControlChar::kUpArrow}))
+    commands.Add(
+        {x},
+        operation::NewTopLevelCommand(
+            L"up", L"moves up one line", operation::TopCommand(), editor_state,
+            {operation::CommandReachLine{
+                .repetitions = operation::CommandArgumentRepetitions(-1)}})
+            .ptr());
 
   // commands.Add(VectorExtendedChar(L"j"), std::make_unique<LineDown>());
   // commands.Add(VectorExtendedChar(L"k"), std::make_unique<LineUp>());
@@ -886,23 +889,24 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   // std::make_unique<MoveForwards>(Direction::kForwards));
   // commands.Add(VectorExtendedChar(L"h"),
   // std::make_unique<MoveForwards>(Direction::kBackwards));
-  commands.Add(
-      VectorExtendedChar(L"l"),
-      operation::NewTopLevelCommand(
-          L"right", L"moves right one position", operation::TopCommand(),
-          editor_state,
-          {operation::CommandReach{
-              .repetitions = operation::CommandArgumentRepetitions(1)}})
-          .ptr());
-  commands.Add(
-      VectorExtendedChar(L"h"),
-      operation::NewTopLevelCommand(
-          L"left", L"moves left one position", operation::TopCommand(),
-          editor_state,
-          {operation::CommandReach{
-              .repetitions = operation::CommandArgumentRepetitions(-1)}})
-          .ptr());
-
+  for (ExtendedChar x :
+       std::vector<ExtendedChar>({L'l', ControlChar::kRightArrow}))
+    commands.Add(
+        {x}, operation::NewTopLevelCommand(
+                 L"right", L"moves right one position", operation::TopCommand(),
+                 editor_state,
+                 {operation::CommandReach{
+                     .repetitions = operation::CommandArgumentRepetitions(1)}})
+                 .ptr());
+  for (ExtendedChar x :
+       std::vector<ExtendedChar>({L'h', ControlChar::kLeftArrow}))
+    commands.Add(
+        {x}, operation::NewTopLevelCommand(
+                 L"left", L"moves left one position", operation::TopCommand(),
+                 editor_state,
+                 {operation::CommandReach{
+                     .repetitions = operation::CommandArgumentRepetitions(-1)}})
+                 .ptr());
   commands.Add(
       VectorExtendedChar(L"H"),
       operation::NewTopLevelCommand(
@@ -1030,24 +1034,6 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                    .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
                    .ptr());
 
-  commands.Add({ControlChar::kDownArrow},
-               editor_state.gc_pool()
-                   .NewRoot(MakeNonNullUnique<LineDown>(editor_state))
-                   .ptr());
-  commands.Add({ControlChar::kUpArrow},
-               editor_state.gc_pool()
-                   .NewRoot(MakeNonNullUnique<LineUp>(editor_state))
-                   .ptr());
-  commands.Add({ControlChar::kLeftArrow},
-               editor_state.gc_pool()
-                   .NewRoot(MakeNonNullUnique<MoveForwards>(
-                       editor_state, Direction::kBackwards))
-                   .ptr());
-  commands.Add({ControlChar::kRightArrow},
-               editor_state.gc_pool()
-                   .NewRoot(MakeNonNullUnique<MoveForwards>(
-                       editor_state, Direction::kForwards))
-                   .ptr());
   commands.Add(
       {ControlChar::kPageDown},
       operation::NewTopLevelCommand(
