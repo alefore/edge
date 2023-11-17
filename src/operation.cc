@@ -801,8 +801,6 @@ class OperationMode : public EditorMode {
     }
   }
 
-  void PushDefault() { PushCommand(CommandReach()); }
-
   void PushCommand(Command command) { state_.Push(std::move(command)); }
 
  private:
@@ -813,7 +811,7 @@ class OperationMode : public EditorMode {
       std::visit(
           [&](auto& t) {
             GetKeyCommandsMap(cmap.PushNew().OnHandle([this] {
-              if (state_.empty()) PushDefault();
+              if (state_.empty()) PushCommand(CommandReach{});
               state_.Update();
               ShowStatus();
             }),
@@ -1201,22 +1199,18 @@ bool CommandArgumentRepetitions::PopValue() {
   return entry.additive_default + entry.additive + entry.multiplicative;
 }
 
-gc::Root<afc::editor::Command> NewTopLevelCommand(
-    std::wstring, std::wstring description, TopCommand top_command,
-    EditorState& editor_state, std::vector<Command> commands) {
+gc::Root<afc::editor::Command> NewTopLevelCommand(std::wstring,
+                                                  std::wstring description,
+                                                  TopCommand top_command,
+                                                  EditorState& editor_state,
+                                                  Command command) {
   return NewSetModeCommand({.editor_state = editor_state,
                             .description = description,
                             .category = L"Edit",
-                            .factory = [top_command, &editor_state, commands] {
+                            .factory = [top_command, &editor_state, command] {
                               auto output = std::make_unique<OperationMode>(
                                   top_command, editor_state);
-                              if (commands.empty()) {
-                                output->PushDefault();
-                              } else {
-                                for (auto& c : commands) {
-                                  output->PushCommand(c);
-                                }
-                              }
+                              output->PushCommand(command);
                               output->ShowStatus();
                               return output;
                             }});

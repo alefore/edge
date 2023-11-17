@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -100,7 +101,7 @@ using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, std::wstring description, TopCommand top_command,
-    EditorState& editor_state, std::vector<Command> commands);
+    EditorState& editor_state, Command command);
 
 }  // namespace operation
 }  // namespace afc::editor
