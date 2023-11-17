@@ -226,8 +226,8 @@ struct UnwrapValueOrErrorType {
   using type = T;
 };
 
-template <typename T, typename ErrorType>
-struct UnwrapValueOrErrorType<std::variant<T, ErrorType>> {
+template <typename T>
+struct UnwrapValueOrErrorType<std::variant<T, language::Error>> {
   using type = std::conditional_t<std::is_reference_v<T>, T, T&>;
 };
 
