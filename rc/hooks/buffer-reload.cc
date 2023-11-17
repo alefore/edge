@@ -106,7 +106,8 @@ if (path == "") {
   if (base_command != "") {
     if (base_command == "bash" || base_command == "python" ||
         base_command == "python3" || base_command == "watch" ||
-        base_command == "sh" || base_command == "gdb") {
+        base_command == "sh" || base_command == "gdb" ||
+        base_command == "fish") {
       // These are interactive commands, that get a full pts.
       buffer.set_pts(true);
       buffer.set_follow_end_of_file(true);
