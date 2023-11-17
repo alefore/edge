@@ -221,6 +221,10 @@ class EditorState {
   concurrent::ThreadPoolWithWorkQueue& thread_pool();
 
  private:
+  futures::Value<language::EmptyValue> ProcessInput(
+      std::shared_ptr<std::vector<infrastructure::ExtendedChar>> input,
+      size_t start_index);
+
   void NotifyInternalEvent();
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
