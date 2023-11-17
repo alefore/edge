@@ -19,6 +19,7 @@ using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
 using afc::futures::IterationControlCommand;
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
@@ -204,7 +205,7 @@ class SearchCommand : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     if (GetStructureSearchQuery(editor_state_.structure()) ==
         StructureSearchQuery::kRegion) {
       editor_state_

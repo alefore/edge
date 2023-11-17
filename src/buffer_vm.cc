@@ -5,6 +5,7 @@
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/dirname_vm.h"
+#include "src/infrastructure/extended_char_vm.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/append.h"
@@ -20,9 +21,11 @@
 namespace gc = afc::language::gc;
 namespace numbers = afc::math::numbers;
 
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
 using afc::infrastructure::Tracker;
+using afc::infrastructure::VectorExtendedChar;
 using afc::infrastructure::screen::CursorsSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
@@ -532,8 +535,9 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                 vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
                     args[0].ptr().value());
             buffer.ptr()->default_commands()->Add(
-                args[1].ptr()->get_string(), args[2].ptr()->get_string(),
-                std::move(args[3]), buffer.ptr()->environment());
+                VectorExtendedChar(args[1].ptr()->get_string()),
+                args[2].ptr()->get_string(), std::move(args[3]),
+                buffer.ptr()->environment());
             return vm::Value::NewVoid(pool);
           })
           .ptr());
@@ -542,11 +546,12 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       L"AddBindingToFile",
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
-          [](gc::Root<OpenBuffer> buffer, std::wstring keys,
+          [](gc::Root<OpenBuffer> buffer,
+             NonNull<std::shared_ptr<std::vector<ExtendedChar>>> keys,
              std::wstring path) {
-            LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
+            LOG(INFO) << "AddBindingToFile: " << path;
             buffer.ptr()->default_commands()->Add(
-                keys,
+                keys.value(),
                 [buffer, path]() {
                   std::wstring resolved_path;
                   ResolvePathOptions<EmptyValue>::New(

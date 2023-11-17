@@ -37,6 +37,7 @@ extern "C" {
 #include "src/vm/value.h"
 
 using afc::futures::DeleteNotification;
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
@@ -422,7 +423,7 @@ class ForkEditorCommand : public Command {
   }
   std::wstring Category() const override { return L"Buffers"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     gc::Pool& pool = editor_state_.gc_pool();
     if (editor_state_.structure() == Structure::kChar) {
       std::optional<gc::Root<OpenBuffer>> original_buffer =

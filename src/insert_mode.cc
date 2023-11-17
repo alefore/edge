@@ -53,6 +53,8 @@ namespace gc = afc::language::gc;
 using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
 using afc::infrastructure::AddSeconds;
+using afc::infrastructure::ControlChar;
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
@@ -63,6 +65,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::ToByteString;
 using afc::language::VisitOptionalCallback;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
@@ -292,7 +295,7 @@ class FindCompletionCommand : public Command {
   }
   std::wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     // TODO(multiple_buffers): Honor.
     VisitPointer(
         editor_state_.current_buffer(),
@@ -353,28 +356,220 @@ class InsertMode : public EditorMode {
     CHECK(!options_.buffers.value().empty());
   }
 
-  void ProcessInput(wint_t c) override {
+  void ProcessInput(ExtendedChar c) override {
     bool old_literal = status_expiration_for_literal_ != nullptr;
     status_expiration_for_literal_ = nullptr;
 
     CHECK(options_.buffers.has_value());
     auto future = futures::Past(futures::IterationControlCommand::kContinue);
-    switch (static_cast<int>(c)) {
+    std::visit(
+        overload{
+            [&](wchar_t regular_c) { ProcessRegular(regular_c, old_literal); },
+            [&](ControlChar control_c) {
+              switch (control_c) {
+                case ControlChar::kEscape:
+                  ResetScrollBehavior();
+                  StartNewInsertion();
+
+                  ForEachActiveBuffer(
+                      buffers_, old_literal ? std::wstring{27} : L"",
+                      [options = options_, old_literal](OpenBuffer& buffer) {
+                        if (buffer.fd() != nullptr) {
+                          if (old_literal) {
+                            buffer.status().SetInformationText(
+                                MakeNonNullShared<Line>(L"ESC"));
+                          } else {
+                            buffer.status().Reset();
+                          }
+                          return futures::Past(EmptyValue());
+                        }
+                        buffer.MaybeAdjustPositionCol();
+                        gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
+                        // TODO(easy): Honor `old_literal`.
+                        return buffer
+                            .ApplyToCursors(
+                                NewDeleteSuffixSuperfluousCharacters())
+                            .Transform([options, buffer_root](EmptyValue) {
+                              buffer_root.ptr()->PopTransformationStack();
+                              auto repetitions =
+                                  options.editor_state.repetitions().value_or(
+                                      1);
+                              if (repetitions > 0) {
+                                options.editor_state.set_repetitions(
+                                    repetitions - 1);
+                              }
+                              return buffer_root.ptr()
+                                  ->RepeatLastTransformation();
+                            })
+                            .Transform([options, buffer_root](EmptyValue) {
+                              buffer_root.ptr()->PopTransformationStack();
+                              options.editor_state.PushCurrentPosition();
+                              buffer_root.ptr()->status().Reset();
+                              return EmptyValue();
+                            });
+                      })
+                      .Transform([options = options_, old_literal](EmptyValue) {
+                        if (old_literal) return EmptyValue();
+                        options.editor_state.status().Reset();
+                        CHECK(options.escape_handler != nullptr);
+                        options.escape_handler();  // Probably deletes us.
+                        options.editor_state.ResetRepetitions();
+                        options.editor_state.ResetInsertionModifier();
+                        options.editor_state.set_keyboard_redirect(nullptr);
+                        return EmptyValue();
+                      });
+                  return;
+
+                  // TODO(P1, 2023-11-17): Handle PageUp better.
+                case ControlChar::kUpArrow:
+                case ControlChar::kPageUp:
+                  ApplyScrollBehavior({27, '[', 'A'}, &ScrollBehavior::Up);
+                  return;
+
+                  // TODO(P1, 2023-11-17): Handle PageDown better.
+                case ControlChar::kDownArrow:
+                case ControlChar::kPageDown:
+                  ApplyScrollBehavior({27, '[', 'B'}, &ScrollBehavior::Down);
+                  return;
+
+                case ControlChar::kLeftArrow:
+                  ApplyScrollBehavior({27, '[', 'D'}, &ScrollBehavior::Left);
+                  return;
+
+                case ControlChar::kRightArrow:
+                  ApplyScrollBehavior({27, '[', 'C'}, &ScrollBehavior::Right);
+                  return;
+
+                case ControlChar::kCtrlA:
+                  ApplyScrollBehavior({1}, &ScrollBehavior::Begin);
+                  return;
+
+                case ControlChar::kCtrlE:
+                  ApplyScrollBehavior({5}, &ScrollBehavior::End);
+                  return;
+
+                case ControlChar::kCtrlL:
+                  WriteLineBuffer(buffers_, {0x0c});
+                  return;
+
+                case ControlChar::kCtrlD:
+                  HandleDelete({4}, Direction::kForwards);
+                  return;
+
+                case ControlChar::kDelete:
+                  HandleDelete({27, '[', 51, 126}, Direction::kForwards);
+                  return;
+
+                case ControlChar::kBackspace:
+                  HandleDelete({127}, Direction::kBackwards);
+                  return;
+
+                case ControlChar::kCtrlU: {
+                  ResetScrollBehavior();
+                  StartNewInsertion();
+                  // TODO: Find a way to set `copy_to_paste_buffer` in the
+                  // transformation.
+                  std::optional<gc::Root<vm::Value>> callback =
+                      options_.editor_state.environment().ptr()->Lookup(
+                          options_.editor_state.gc_pool(), vm::Namespace(),
+                          L"HandleKeyboardControlU",
+                          vm::types::Function{
+                              .output = vm::Type{vm::types::Void{}},
+                              .inputs = {vm::GetVMType<
+                                  gc::Root<OpenBuffer>>::vmtype()}});
+                  if (!callback.has_value()) {
+                    LOG(WARNING)
+                        << "Didn't find HandleKeyboardControlU function.";
+                    return;
+                  }
+                  ForEachActiveBuffer(
+                      buffers_, {21},
+                      [options = options_, callback](OpenBuffer& buffer) {
+                        NonNull<std::unique_ptr<vm::Expression>> expression =
+                            vm::NewFunctionCall(
+                                vm::NewConstantExpression(callback.value()),
+                                {vm::NewConstantExpression(
+                                    {VMTypeMapper<gc::Root<OpenBuffer>>::New(
+                                        buffer.editor().gc_pool(),
+                                        buffer.NewRoot())})});
+                        if (expression->Types().empty()) {
+                          buffer.status().InsertError(
+                              Error(L"Unable to compile (type mismatch)."));
+                          return futures::Past(EmptyValue());
+                        }
+                        return buffer
+                            .EvaluateExpression(std::move(expression),
+                                                buffer.environment().ToRoot())
+                            .ConsumeErrors([&pool = buffer.editor().gc_pool()](
+                                               Error) {
+                              return futures::Past(vm::Value::NewVoid(pool));
+                            })
+                            .Transform(ModifyHandler<gc::Root<vm::Value>>(
+                                options.modify_handler, buffer));
+                      });
+                  return;
+                }
+
+                case ControlChar::kCtrlV:
+                  if (old_literal) {
+                    DLOG(INFO) << "Inserting literal CTRL_V";
+                    WriteLineBuffer(buffers_, {22});
+                    ProcessRegular(wchar_t(22), true);
+                  } else {
+                    DLOG(INFO) << "Set literal.";
+                    status_expiration_for_literal_ =
+                        options_.editor_state.status()
+                            .SetExpiringInformationText(
+                                MakeNonNullShared<Line>(Line(L"<literal>")));
+                    return;
+                  }
+                  break;
+
+                case ControlChar::kCtrlK: {
+                  ResetScrollBehavior();
+                  StartNewInsertion();
+
+                  ForEachActiveBuffer(
+                      buffers_, {0x0b},
+                      [options = options_](OpenBuffer& buffer) {
+                        return buffer
+                            .ApplyToCursors(transformation::Delete{
+                                .modifiers =
+                                    {.structure = Structure::kLine,
+                                     .paste_buffer_behavior = Modifiers::
+                                         PasteBufferBehavior::kDoNothing,
+                                     .boundary_begin =
+                                         Modifiers::CURRENT_POSITION,
+                                     .boundary_end = Modifiers::LIMIT_CURRENT},
+                                .initiator =
+                                    transformation::Delete::Initiator::kUser})
+                            .Transform(ModifyHandler<EmptyValue>(
+                                options.modify_handler, buffer));
+                      });
+                  return;
+                }
+              }
+            }},
+        c);
+  }
+
+  void ProcessRegular(wchar_t regular_c, bool old_literal) {
+    switch (regular_c) {
       case '\t':
         ResetScrollBehavior();
         if (!old_literal) {
           bool started_completion = false;
           ForEachActiveBuffer(
-              buffers_, "",
+              buffers_, L"",
               [options = options_, &started_completion](OpenBuffer& buffer) {
                 if (buffer.fd() == nullptr && options.start_completion(buffer))
                   started_completion = true;
                 return futures::Past(EmptyValue());
               });
           if (started_completion) {
-            // Whatever was being typed, was probably just for completion
-            // purposes; we might as well not let it be added to the history (so
-            // as to not pollute it).
+            // Whatever was being typed, was probably just for
+            // completion purposes; we might as well not let it be
+            // added to the history (so as to not pollute it).
             current_insertion_->DeleteToLineEnd(LineColumn());
             return;
           }
@@ -382,181 +577,17 @@ class InsertMode : public EditorMode {
 
         LOG(INFO) << "Inserting TAB (old_literal: " << old_literal << ")";
         break;
-
-      case Terminal::ESCAPE:
-        ResetScrollBehavior();
-        StartNewInsertion();
-
-        ForEachActiveBuffer(
-            buffers_, old_literal ? std::string{27} : "",
-            [options = options_, old_literal](OpenBuffer& buffer) {
-              if (buffer.fd() != nullptr) {
-                if (old_literal) {
-                  buffer.status().SetInformationText(
-                      MakeNonNullShared<Line>(L"ESC"));
-                } else {
-                  buffer.status().Reset();
-                }
-                return futures::Past(EmptyValue());
-              }
-              buffer.MaybeAdjustPositionCol();
-              gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
-              // TODO(easy): Honor `old_literal`.
-              return buffer
-                  .ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
-                  .Transform([options, buffer_root](EmptyValue) {
-                    buffer_root.ptr()->PopTransformationStack();
-                    auto repetitions =
-                        options.editor_state.repetitions().value_or(1);
-                    if (repetitions > 0) {
-                      options.editor_state.set_repetitions(repetitions - 1);
-                    }
-                    return buffer_root.ptr()->RepeatLastTransformation();
-                  })
-                  .Transform([options, buffer_root](EmptyValue) {
-                    buffer_root.ptr()->PopTransformationStack();
-                    options.editor_state.PushCurrentPosition();
-                    buffer_root.ptr()->status().Reset();
-                    return EmptyValue();
-                  });
-            })
-            .Transform([options = options_, old_literal](EmptyValue) {
-              if (old_literal) return EmptyValue();
-              options.editor_state.status().Reset();
-              CHECK(options.escape_handler != nullptr);
-              options.escape_handler();  // Probably deletes us.
-              options.editor_state.ResetRepetitions();
-              options.editor_state.ResetInsertionModifier();
-              options.editor_state.set_keyboard_redirect(nullptr);
-              return EmptyValue();
-            });
-        return;
-
-      case Terminal::UP_ARROW:
-        ApplyScrollBehavior({27, '[', 'A'}, &ScrollBehavior::Up);
-        return;
-
-      case Terminal::DOWN_ARROW:
-        ApplyScrollBehavior({27, '[', 'B'}, &ScrollBehavior::Down);
-        return;
-
-      case Terminal::LEFT_ARROW:
-        ApplyScrollBehavior({27, '[', 'D'}, &ScrollBehavior::Left);
-        return;
-
-      case Terminal::RIGHT_ARROW:
-        ApplyScrollBehavior({27, '[', 'C'}, &ScrollBehavior::Right);
-        return;
-
-      case Terminal::CTRL_A:
-        ApplyScrollBehavior({1}, &ScrollBehavior::Begin);
-        return;
-
-      case Terminal::CTRL_E:
-        ApplyScrollBehavior({5}, &ScrollBehavior::End);
-        return;
-
-      case Terminal::CTRL_L:
-        WriteLineBuffer(buffers_, {0x0c});
-        return;
-
-      case Terminal::CTRL_D:
-        HandleDelete({4}, Direction::kForwards);
-        return;
-
-      case Terminal::DELETE:
-        HandleDelete({27, '[', 51, 126}, Direction::kForwards);
-        return;
-
-      case Terminal::BACKSPACE:
-        HandleDelete({127}, Direction::kBackwards);
-        return;
-
       case '\n':
         ResetScrollBehavior();
 
-        // TODO(2022-05-22): Not sure StartNewInsertion is the best to do here;
-        // would be better to leave a \n in the insertion?
+        // TODO(2022-05-22): Not sure StartNewInsertion is the best to
+        // do here; would be better to leave a \n in the insertion?
         StartNewInsertion();
 
         ForEachActiveBuffer(buffers_, {'\n'}, [&](OpenBuffer& buffer) {
           return options_.new_line_handler(buffer);
         });
         return;
-
-      case Terminal::CTRL_U: {
-        ResetScrollBehavior();
-        StartNewInsertion();
-        // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
-        std::optional<gc::Root<vm::Value>> callback =
-            options_.editor_state.environment().ptr()->Lookup(
-                options_.editor_state.gc_pool(), vm::Namespace(),
-                L"HandleKeyboardControlU",
-                vm::types::Function{
-                    .output = vm::Type{vm::types::Void{}},
-                    .inputs = {vm::GetVMType<gc::Root<OpenBuffer>>::vmtype()}});
-        if (!callback.has_value()) {
-          LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
-          return;
-        }
-        ForEachActiveBuffer(
-            buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
-              NonNull<std::unique_ptr<vm::Expression>> expression =
-                  vm::NewFunctionCall(
-                      vm::NewConstantExpression(callback.value()),
-                      {vm::NewConstantExpression(
-                          {VMTypeMapper<gc::Root<OpenBuffer>>::New(
-                              buffer.editor().gc_pool(), buffer.NewRoot())})});
-              if (expression->Types().empty()) {
-                buffer.status().InsertError(
-                    Error(L"Unable to compile (type mismatch)."));
-                return futures::Past(EmptyValue());
-              }
-              return buffer
-                  .EvaluateExpression(std::move(expression),
-                                      buffer.environment().ToRoot())
-                  .ConsumeErrors([&pool = buffer.editor().gc_pool()](Error) {
-                    return futures::Past(vm::Value::NewVoid(pool));
-                  })
-                  .Transform(ModifyHandler<gc::Root<vm::Value>>(
-                      options.modify_handler, buffer));
-            });
-        return;
-      }
-
-      case Terminal::CTRL_V:
-        if (old_literal) {
-          DLOG(INFO) << "Inserting literal CTRL_V";
-          WriteLineBuffer(buffers_, {22});
-        } else {
-          DLOG(INFO) << "Set literal.";
-          status_expiration_for_literal_ =
-              options_.editor_state.status().SetExpiringInformationText(
-                  MakeNonNullShared<Line>(Line(L"<literal>")));
-          return;
-        }
-        break;
-
-      case Terminal::CTRL_K: {
-        ResetScrollBehavior();
-        StartNewInsertion();
-
-        ForEachActiveBuffer(
-            buffers_, {0x0b}, [options = options_](OpenBuffer& buffer) {
-              return buffer
-                  .ApplyToCursors(transformation::Delete{
-                      .modifiers =
-                          {.structure = Structure::kLine,
-                           .paste_buffer_behavior =
-                               Modifiers::PasteBufferBehavior::kDoNothing,
-                           .boundary_begin = Modifiers::CURRENT_POSITION,
-                           .boundary_end = Modifiers::LIMIT_CURRENT},
-                      .initiator = transformation::Delete::Initiator::kUser})
-                  .Transform(ModifyHandler<EmptyValue>(options.modify_handler,
-                                                       buffer));
-            });
-        return;
-      }
 
       case ' ':
         ResetScrollBehavior();
@@ -571,16 +602,17 @@ class InsertMode : public EditorMode {
             });
         return;
     }
+
     ResetScrollBehavior();
 
     // TODO: Apply TransformKeyboardText for buffers with fd?
     ForEachActiveBuffer(
-        buffers_, {static_cast<char>(c)},
-        [c, options = options_,
+        buffers_, {regular_c},
+        [regular_c, options = options_,
          completion_model_supplier =
              completion_model_supplier_](OpenBuffer& buffer) {
           gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
-          return buffer.TransformKeyboardText(std::wstring(1, c))
+          return buffer.TransformKeyboardText(std::wstring(1, regular_c))
               .Transform([options, buffer_root](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
@@ -618,7 +650,7 @@ class InsertMode : public EditorMode {
                   ModifyHandler<EmptyValue>(options.modify_handler, buffer));
         });
     current_insertion_->AppendToLine(current_insertion_->EndLine(),
-                                     Line(std::wstring(1, c)));
+                                     Line(std::wstring(1, regular_c)));
   }
 
   CursorMode cursor_mode() const override {
@@ -642,7 +674,7 @@ class InsertMode : public EditorMode {
   // every buffer without an fd.
   static futures::Value<EmptyValue> ForEachActiveBuffer(
       NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers,
-      std::string line_buffer,
+      std::wstring line_buffer,
       std::function<futures::Value<EmptyValue>(OpenBuffer&)> callable) {
     return WriteLineBuffer(buffers, line_buffer)
         .Transform([buffers, callable](EmptyValue) {
@@ -667,7 +699,7 @@ class InsertMode : public EditorMode {
     current_insertion_ = NewInsertion(options_.editor_state);
   }
 
-  void HandleDelete(std::string line_buffer, Direction direction) {
+  void HandleDelete(std::wstring line_buffer, Direction direction) {
     ResetScrollBehavior();
     ForEachActiveBuffer(
         buffers_, line_buffer,
@@ -712,7 +744,7 @@ class InsertMode : public EditorMode {
     }
   }
 
-  void ApplyScrollBehavior(std::string line_buffer,
+  void ApplyScrollBehavior(std::wstring line_buffer,
                            void (ScrollBehavior::*method)(OpenBuffer&)) {
     current_insertion_ = NewInsertion(options_.editor_state);
     GetScrollBehavior().AddListener(
@@ -762,7 +794,7 @@ class InsertMode : public EditorMode {
 
   static futures::Value<EmptyValue> WriteLineBuffer(
       NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers,
-      std::string line_buffer) {
+      std::wstring line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
     return futures::ForEach(
                buffers.get_shared(),
@@ -770,8 +802,9 @@ class InsertMode : public EditorMode {
                     std::move(line_buffer)](gc::Root<OpenBuffer>& buffer_root) {
                  OpenBuffer& buffer = buffer_root.ptr().value();
                  if (auto fd = buffer.fd(); fd != nullptr) {
-                   if (write(fd->fd().read(), line_buffer.c_str(),
-                             line_buffer.size()) == -1) {
+                   std::string bytes = ToByteString(line_buffer);
+                   if (write(fd->fd().read(), bytes.c_str(), bytes.size()) ==
+                       -1) {
                      buffer.status().InsertError(Error(
                          L"Write failed: " + FromByteString(strerror(errno))));
                    } else {
@@ -935,8 +968,8 @@ class InsertMode : public EditorMode {
 
   const InsertModeOptions options_;
 
-  // Copy of the contents of options_.buffers. shared_ptr to make it easy for it
-  // to be captured efficiently.
+  // Copy of the contents of options_.buffers. shared_ptr to make it easy for
+  // it to be captured efficiently.
   //
   // TODO(trivial, 2023-10-14): Turn them into `ptr` and just add them in
   // `Expand`.
@@ -946,8 +979,8 @@ class InsertMode : public EditorMode {
       futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>>
       scroll_behavior_;
 
-  // If nullptr, next key should be interpreted directly. If non-null, next key
-  // should be inserted literally.
+  // If nullptr, next key should be interpreted directly. If non-null, next
+  // key should be inserted literally.
   std::unique_ptr<StatusExpirationControl,
                   std::function<void(StatusExpirationControl*)>>
       status_expiration_for_literal_ = nullptr;

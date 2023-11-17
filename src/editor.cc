@@ -45,6 +45,7 @@ using afc::concurrent::ThreadPool;
 using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
 using afc::infrastructure::AddSeconds;
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Now;
@@ -693,10 +694,10 @@ void EditorState::set_default_insertion_modifier(
 }
 
 futures::Value<EmptyValue> EditorState::ProcessInputString(
-    const std::string& input) {
+    const std::vector<ExtendedChar>& input) {
   return futures::ForEachWithCopy(
              input.begin(), input.end(),
-             [this](int c) {
+             [this](ExtendedChar c) {
                return ProcessInput(c).Transform([](EmptyValue) {
                  return futures::IterationControlCommand::kContinue;
                });
@@ -704,7 +705,7 @@ futures::Value<EmptyValue> EditorState::ProcessInputString(
       .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
 }
 
-futures::Value<EmptyValue> EditorState::ProcessInput(int c) {
+futures::Value<EmptyValue> EditorState::ProcessInput(ExtendedChar c) {
   if (auto handler = keyboard_redirect().get(); handler != nullptr) {
     handler->ProcessInput(c);
     return futures::Past(EmptyValue());

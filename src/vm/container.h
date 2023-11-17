@@ -4,14 +4,14 @@
 // module:
 //
 //     template <>
-//     const VMTypeObjectTypeName
+//     const types::ObjectName
 //     VMTypeMapper<NonNull<std::shared_ptr<std::vector<MyType>>>>
 //         ::object_type_name =
-//         VMTypeObjectTypeName(L"VectorMyType");
+//         types::ObjectName(L"VectorMyType");
 //
 // Then initialize it in an environment:
 //
-//     ExportContainerType<std::vector<MyType>>(&environment);
+//     vm::container::Export<std::vector<MyType>>(pool, environment);
 
 #ifndef __AFC_VM_PUBLIC_VECTOR_H__
 #define __AFC_VM_PUBLIC_VECTOR_H__
@@ -169,7 +169,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                                 decltype(value)>::value) {
                 if (language::IsError(value))
                   return futures::Past(std::get<language::Error>(value));
-                T::SetAtIndex(v, index, ValueOrDie(std::move(value)));
+                T::SetAtIndex(v, index, language::ValueOrDie(std::move(value)));
               } else {
                 T::SetAtIndex(v, index, value);
               }

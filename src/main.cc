@@ -44,6 +44,8 @@ namespace {
 
 using namespace afc::editor;
 namespace audio = afc::infrastructure::audio;
+
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::MillisecondsBetween;
 using afc::infrastructure::Now;
@@ -371,24 +373,26 @@ int main(int argc, const char** argv) {
                               EditorState::TerminationType::kIgnoringErrors, 0);
                         } else {
                           CHECK(screen_curses != nullptr);
-                          std::vector<wint_t> input;
+                          std::vector<ExtendedChar> input;
                           input.reserve(10);
                           {
-                            wint_t c;
+                            std::optional<ExtendedChar> c;
                             while (input.size() < 1024 &&
-                                   (c = ReadChar(&mbstate)) !=
-                                       static_cast<wint_t>(-1)) {
-                              input.push_back(c);
+                                   (c = ReadChar(&mbstate)) != std::nullopt) {
+                              input.push_back(c.value());
                             }
                           }
-                          for (auto& c : input) {
+                          for (const ExtendedChar& c : input) {
                             static Tracker tracker(L"Main::ProcessInput");
                             auto call = tracker.Call();
                             if (remote_server_fd.has_value()) {
-                              CHECK(!IsError(SyncSendCommandsToServer(
-                                  remote_server_fd.value(),
-                                  "ProcessInput(" + std::to_string(c) +
-                                      ");\n")));
+                              if (const wchar_t* regular_c =
+                                      std::get_if<wchar_t>(&c);
+                                  regular_c != nullptr)
+                                CHECK(!IsError(SyncSendCommandsToServer(
+                                    remote_server_fd.value(),
+                                    "ProcessInput(" +
+                                        std::to_string(*regular_c) + ");\n")));
                             } else {
                               editor_state().ProcessInput(c);
                             }

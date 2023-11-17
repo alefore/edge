@@ -5,6 +5,7 @@
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/dirname_vm.h"
+#include "src/infrastructure/extended_char_vm.h"
 #include "src/insert_history_buffer.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -23,8 +24,11 @@
 #include "src/vm/default_environment.h"
 #include "src/vm/file_system.h"
 
+using afc::infrastructure::ControlChar;
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
+using afc::infrastructure::VectorExtendedChar;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
@@ -130,18 +134,32 @@ gc::Root<Environment> BuildEditorEnvironment(
   gc::Root<Environment> environment =
       Environment::New(afc::vm::NewDefaultEnvironment(pool).ptr());
   Environment& value = environment.ptr().value();
-  value.Define(L"terminal_backspace",
-               vm::Value::NewString(pool, {Terminal::BACKSPACE}));
-  value.Define(L"terminal_control_a",
-               vm::Value::NewString(pool, {Terminal::CTRL_A}));
-  value.Define(L"terminal_control_e",
-               vm::Value::NewString(pool, {Terminal::CTRL_E}));
-  value.Define(L"terminal_control_d",
-               vm::Value::NewString(pool, {Terminal::CTRL_D}));
-  value.Define(L"terminal_control_k",
-               vm::Value::NewString(pool, {Terminal::CTRL_K}));
-  value.Define(L"terminal_control_u",
-               vm::Value::NewString(pool, {Terminal::CTRL_U}));
+  using V = std::vector<ExtendedChar>;
+  using VS = NonNull<std::shared_ptr<V>>;
+  value.Define(
+      L"terminal_backspace",
+      vm::Value::NewObject(pool, VMTypeMapper<VS>::object_type_name,
+                           MakeNonNullShared<V>(V{ControlChar::kBackspace})));
+  value.Define(
+      L"terminal_control_a",
+      vm::Value::NewObject(pool, VMTypeMapper<VS>::object_type_name,
+                           MakeNonNullShared<V>(V{ControlChar::kCtrlA})));
+  value.Define(
+      L"terminal_control_e",
+      vm::Value::NewObject(pool, VMTypeMapper<VS>::object_type_name,
+                           MakeNonNullShared<V>(V{ControlChar::kCtrlE})));
+  value.Define(
+      L"terminal_control_d",
+      vm::Value::NewObject(pool, VMTypeMapper<VS>::object_type_name,
+                           MakeNonNullShared<V>(V{ControlChar::kCtrlD})));
+  value.Define(
+      L"terminal_control_k",
+      vm::Value::NewObject(pool, VMTypeMapper<VS>::object_type_name,
+                           MakeNonNullShared<V>(V{ControlChar::kCtrlK})));
+  value.Define(
+      L"terminal_control_u",
+      vm::Value::NewObject(pool, VMTypeMapper<VS>::object_type_name,
+                           MakeNonNullShared<V>(V{ControlChar::kCtrlU})));
 
   gc::Root<ObjectType> editor_type = ObjectType::New(
       pool, VMTypeMapper<editor::EditorState>::object_type_name);
@@ -421,6 +439,27 @@ gc::Root<Environment> BuildEditorEnvironment(
       vm::NewCallback(pool, PurityType::kUnknown, ShowInsertHistoryBuffer)
           .ptr());
 
+  // Version of AddBinding that receives a VectorExtendedChar.
+  editor_type.ptr()->AddField(
+      L"AddBinding",
+      vm::Value::NewFunction(
+          pool, PurityType::kUnknown, vm::types::Void{},
+          {GetVMType<EditorState>::vmtype(), VMTypeMapper<VS>::object_type_name,
+           vm::types::String{},
+           vm::types::Function{.output = vm::Type{vm::types::Void{}}}},
+          [&pool](std::vector<gc::Root<vm::Value>> args) {
+            CHECK_EQ(args.size(), 4u);
+            EditorState& editor_arg =
+                VMTypeMapper<EditorState>::get(args[0].ptr().value());
+            editor_arg.default_commands().ptr()->Add(
+                VMTypeMapper<VS>::get(args[1].ptr().value()).value(),
+                args[2].ptr()->get_string(), std::move(args[3]),
+                editor_arg.environment().ptr());
+            return vm::Value::NewVoid(pool);
+          })
+          .ptr());
+
+  // Version of AddBinding that receives a String.
   editor_type.ptr()->AddField(
       L"AddBinding",
       vm::Value::NewFunction(
@@ -433,8 +472,9 @@ gc::Root<Environment> BuildEditorEnvironment(
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             editor_arg.default_commands().ptr()->Add(
-                args[1].ptr()->get_string(), args[2].ptr()->get_string(),
-                std::move(args[3]), editor_arg.environment().ptr());
+                VectorExtendedChar(args[1].ptr()->get_string()),
+                args[2].ptr()->get_string(), std::move(args[3]),
+                editor_arg.environment().ptr());
             return vm::Value::NewVoid(pool);
           })
           .ptr());

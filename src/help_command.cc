@@ -13,90 +13,101 @@
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::ControlChar;
+using afc::infrastructure::ExtendedChar;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
+
 namespace afc::editor {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineSequence;
-using language::text::MutableLineSequence;
-
-namespace gc = language::gc;
-
-Line DescribeSequence(const std::wstring& input) {
+Line DescribeSequence(const std::vector<ExtendedChar>& input) {
   LineBuilder output;
-  for (auto& c : input) {
-    switch (c) {
-      case '\t':
-        output.AppendString(L"Tab", std::nullopt);
-        break;
-      case '\n':
-        output.AppendString(std::wstring(1, L'↩'), std::nullopt);
-        break;
-      case Terminal::ESCAPE:
-        output.AppendString(L"Esc", std::nullopt);
-        break;
-      case Terminal::DOWN_ARROW:
-        output.AppendString(L"↓", std::nullopt);
-        break;
-      case Terminal::UP_ARROW:
-        output.AppendString(L"↑", std::nullopt);
-        break;
-      case Terminal::LEFT_ARROW:
-        output.AppendString(L"←", std::nullopt);
-        break;
-      case Terminal::RIGHT_ARROW:
-        output.AppendString(L"→", std::nullopt);
-        break;
-      case Terminal::BACKSPACE:
-        output.AppendString(L"← Backspace", std::nullopt);
-        break;
-      case Terminal::PAGE_DOWN:
-        output.AppendString(L"PgDn", std::nullopt);
-        break;
-      case Terminal::PAGE_UP:
-        output.AppendString(L"PgUp", std::nullopt);
-        break;
-      case Terminal::CTRL_A:
-        output.AppendString(L"^a", std::nullopt);
-        break;
-      case Terminal::CTRL_D:
-        output.AppendString(L"^d", std::nullopt);
-        break;
-      case Terminal::CTRL_E:
-        output.AppendString(L"^e", std::nullopt);
-        break;
-      case Terminal::CTRL_K:
-        output.AppendString(L"^k", std::nullopt);
-        break;
-      case Terminal::CTRL_L:
-        output.AppendString(L"^l", std::nullopt);
-        break;
-      case Terminal::CTRL_U:
-        output.AppendString(L"^u", std::nullopt);
-        break;
-      case Terminal::CTRL_V:
-        output.AppendString(L"^v", std::nullopt);
-        break;
-      case Terminal::DELETE:
-        output.AppendString(L"Delete", std::nullopt);
-        break;
-      default:
-        output.AppendString(std::wstring(1, static_cast<wchar_t>(c)),
-                            std::nullopt);
-    }
-  }
+  for (const ExtendedChar& c : input)
+    std::visit(overload{[&](wchar_t regular_c) {
+                          switch (regular_c) {
+                            case '\t':
+                              output.AppendString(L"Tab", std::nullopt);
+                              break;
+                            case '\n':
+                              output.AppendString(std::wstring(1, L'↩'),
+                                                  std::nullopt);
+                              break;
+                            default:
+                              output.AppendString(std::wstring(1, regular_c),
+                                                  std::nullopt);
+                          }
+                        },
+                        [&](ControlChar control) {
+                          switch (control) {
+                            case ControlChar::kEscape:
+                              output.AppendString(L"Esc", std::nullopt);
+                              break;
+                            case ControlChar::kDownArrow:
+                              output.AppendString(L"↓", std::nullopt);
+                              break;
+                            case ControlChar::kUpArrow:
+                              output.AppendString(L"↑", std::nullopt);
+                              break;
+                            case ControlChar::kLeftArrow:
+                              output.AppendString(L"←", std::nullopt);
+                              break;
+                            case ControlChar::kRightArrow:
+                              output.AppendString(L"→", std::nullopt);
+                              break;
+                            case ControlChar::kBackspace:
+                              output.AppendString(L"← Backspace", std::nullopt);
+                              break;
+                            case ControlChar::kPageDown:
+                              output.AppendString(L"PgDn", std::nullopt);
+                              break;
+                            case ControlChar::kPageUp:
+                              output.AppendString(L"PgUp", std::nullopt);
+                              break;
+                            case ControlChar::kCtrlA:
+                              output.AppendString(L"^a", std::nullopt);
+                              break;
+                            case ControlChar::kCtrlD:
+                              output.AppendString(L"^d", std::nullopt);
+                              break;
+                            case ControlChar::kCtrlE:
+                              output.AppendString(L"^e", std::nullopt);
+                              break;
+                            case ControlChar::kCtrlK:
+                              output.AppendString(L"^k", std::nullopt);
+                              break;
+                            case ControlChar::kCtrlL:
+                              output.AppendString(L"^l", std::nullopt);
+                              break;
+                            case ControlChar::kCtrlU:
+                              output.AppendString(L"^u", std::nullopt);
+                              break;
+                            case ControlChar::kCtrlV:
+                              output.AppendString(L"^v", std::nullopt);
+                              break;
+                            case ControlChar::kDelete:
+                              output.AppendString(L"Delete", std::nullopt);
+                              break;
+                          }
+                        }},
+               c);
   return std::move(output).Build();
 }
 
-Line DescribeSequenceWithQuotes(const std::wstring& input) {
+Line DescribeSequenceWithQuotes(
+    const std::vector<infrastructure::ExtendedChar>& input) {
   LineBuilder output;
   output.AppendString(L"`", LineModifierSet{LineModifier::kDim});
   output.Append(LineBuilder(DescribeSequence(input)));
@@ -116,7 +127,7 @@ class HelpCommand : public Command {
   std::wstring Description() const override { return L"Shows documentation."; }
   std::wstring Category() const override { return L"Editor"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     auto original_buffer = editor_state_.current_buffer();
     const BufferName name(L"- help: " + mode_description_);
 

@@ -11,15 +11,17 @@ extern "C" {
 #include "src/infrastructure/dirname.h"
 #include "src/language/wstring.h"
 
-namespace afc::editor {
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::ValueOrError;
-using language::VisitPointer;
-namespace {
-using infrastructure::Path;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::infrastructure::ExtendedChar;
+using afc::infrastructure::Path;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+
+namespace afc::editor {
+namespace {
 
 class OpenDirectoryCommand : public Command {
  public:
@@ -31,7 +33,7 @@ class OpenDirectoryCommand : public Command {
   }
   std::wstring Category() const override { return L"Buffers"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     OpenOrCreateFile(OpenFileOptions{
         .editor_state = editor_state_,
         .path = OptionalFrom(VisitPointer(

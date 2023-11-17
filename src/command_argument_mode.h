@@ -33,7 +33,7 @@ class CommandArgumentMode : public EditorMode {
     EditorState& editor_state;
     Argument initial_value = Argument();
 
-    std::function<bool(wint_t, Argument&)> char_consumer;
+    std::function<bool(infrastructure::ExtendedChar, Argument&)> char_consumer;
 
     // Returns the string to show in the status.
     //
@@ -55,37 +55,39 @@ class CommandArgumentMode : public EditorMode {
     Transform(CommandArgumentModeApplyMode::kPreview, BuildArgument());
   }
 
-  void ProcessInput(wint_t c) override {
+  void ProcessInput(infrastructure::ExtendedChar c) override {
     options_.undo().Transform([this, c](language::EmptyValue) {
-      // TODO: Get rid of this cast, ugh.
-      switch (static_cast<int>(c)) {
-        case Terminal::BACKSPACE:
-          if (!argument_string_.empty()) {
-            argument_string_.pop_back();
-          }
-          return Transform(CommandArgumentModeApplyMode::kPreview,
-                           BuildArgument());
-        default:
-          auto argument = BuildArgument();
-          if (ApplyChar(c, argument)) {
-            argument_string_.push_back(c);
-            return Transform(CommandArgumentModeApplyMode::kPreview, argument);
-          }
-          return (static_cast<int>(c) == Terminal::ESCAPE
-                      ? futures::Past(language::EmptyValue())
-                      : Transform(CommandArgumentModeApplyMode::kFinal,
-                                  argument))
-              .Transform([&editor_state = options_.editor_state,
-                          c](language::EmptyValue) {
+      if (c == infrastructure::ExtendedChar(
+                   infrastructure::ControlChar::kBackspace)) {
+        if (!argument_string_.empty()) {
+          argument_string_.pop_back();
+        }
+        return Transform(CommandArgumentModeApplyMode::kPreview,
+                         BuildArgument());
+      }
+      auto argument = BuildArgument();
+      if (ApplyChar(c, argument)) {
+        std::visit(language::overload{[this](wchar_t regular_c) {
+                                        argument_string_.push_back(regular_c);
+                                      },
+                                      [](infrastructure::ControlChar) {}},
+                   c);
+        return Transform(CommandArgumentModeApplyMode::kPreview, argument);
+      }
+      return (c == infrastructure::ExtendedChar(
+                       infrastructure::ControlChar::kEscape)
+                  ? futures::Past(language::EmptyValue())
+                  : Transform(CommandArgumentModeApplyMode::kFinal, argument))
+          .Transform(
+              [&editor_state = options_.editor_state, c](language::EmptyValue) {
                 editor_state.status().Reset();
                 auto& editor_state_copy = editor_state;
                 editor_state.set_keyboard_redirect(nullptr);
-                if (c != L'\n') {
+                if (c != infrastructure::ExtendedChar(L'\n')) {
                   editor_state_copy.ProcessInput(c);
                 }
                 return language::EmptyValue();
               });
-      }
     });
   }
 
@@ -105,7 +107,7 @@ class CommandArgumentMode : public EditorMode {
     return argument;
   }
 
-  bool ApplyChar(wint_t c, Argument& argument) {
+  bool ApplyChar(infrastructure::ExtendedChar c, Argument& argument) {
     return options_.char_consumer(c, argument);
   }
 

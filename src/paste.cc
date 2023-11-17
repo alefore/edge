@@ -9,6 +9,7 @@
 
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::ProcessId;
 using afc::language::EmptyValue;
@@ -33,7 +34,7 @@ class Paste : public Command {
   }
   std::wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     auto it = editor_state_.buffers()->find(BufferName::PasteBuffer());
     if (it == editor_state_.buffers()->end()) {
       LOG(INFO) << "Attempted to paste without a paste buffer.";

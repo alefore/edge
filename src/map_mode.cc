@@ -18,17 +18,21 @@
 #include "src/vm/value.h"
 #include "src/vm/vm.h"
 
+namespace gc = afc::language::gc;
+
+using afc::concurrent::WorkQueue;
+using afc::infrastructure::ControlChar;
+using afc::infrastructure::ExtendedChar;
+using afc::infrastructure::VectorExtendedChar;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::VisitPointer;
+using afc::vm::Expression;
+using afc::vm::Type;
+using afc::vm::Value;
+
 namespace afc::editor {
-using concurrent::WorkQueue;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::VisitPointer;
-using vm::Expression;
-using vm::Type;
-using vm::Value;
-
-namespace gc = language::gc;
-
 namespace {
 template <typename Callback>
 class CommandFromFunction : public Command {
@@ -44,7 +48,7 @@ class CommandFromFunction : public Command {
     return L"C++ Functions (Extensions)";
   }
 
-  void ProcessInput(wint_t) override { callback_.value()(); }
+  void ProcessInput(ExtendedChar) override { callback_.value()(); }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
@@ -66,8 +70,9 @@ gc::Root<MapModeCommands> MapModeCommands::New(EditorState& editor_state) {
   gc::Root<MapModeCommands> output = editor_state.gc_pool().NewRoot(
       MakeNonNullUnique<MapModeCommands>(ConstructorAccessTag(), editor_state));
   output.ptr()->Add(
-      L"?", NewHelpCommand(editor_state, output.ptr().value(), L"command mode")
-                .ptr());
+      VectorExtendedChar(L"?"),
+      NewHelpCommand(editor_state, output.ptr().value(), L"command mode")
+          .ptr());
   return output;
 }
 
@@ -83,15 +88,18 @@ gc::Root<MapModeCommands> MapModeCommands::NewChild() {
   // Override the parent's help command, so that bindings added to the child are
   // visible.
   output.ptr()->Add(
-      L"?", NewHelpCommand(editor_state_, output.ptr().value(), L"command mode")
-                .ptr());
+      VectorExtendedChar(L"?"),
+      NewHelpCommand(editor_state_, output.ptr().value(), L"command mode")
+          .ptr());
   return output;
 }
 
-std::map<std::wstring, std::map<std::wstring, NonNull<Command*>>>
+std::map<std::wstring, std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
 MapModeCommands::Coallesce() const {
-  std::map<std::wstring, std::map<std::wstring, NonNull<Command*>>> output;
-  std::set<std::wstring> already_seen;  // Avoid showing unreachable commands.
+  std::map<std::wstring, std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
+      output;
+  // Avoid showing unreachable commands.
+  std::set<std::vector<ExtendedChar>> already_seen;
   for (const auto& frame : frames_) {
     for (const auto& it : frame->commands) {
       if (already_seen.insert(it.first).second) {
@@ -103,17 +111,18 @@ MapModeCommands::Coallesce() const {
   return output;
 }
 
-void MapModeCommands::Add(std::wstring name, gc::Ptr<Command> value) {
+void MapModeCommands::Add(std::vector<ExtendedChar> name,
+                          gc::Ptr<Command> value) {
   CHECK(!frames_.empty());
   frames_.front()->commands.insert({name, std::move(value)});
 }
 
-void MapModeCommands::Add(std::wstring name, std::wstring description,
-                          gc::Root<Value> value,
+void MapModeCommands::Add(std::vector<ExtendedChar> name,
+                          std::wstring description, gc::Root<Value> value,
                           gc::Ptr<vm::Environment> environment) {
   const auto& value_type = std::get<vm::types::Function>(value.ptr()->type);
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
-  CHECK(value_type.inputs.empty()) << "Definition has inputs: " << name;
+  CHECK(value_type.inputs.empty()) << "Definition has multiple inputs.";
   Add(name, MakeCommandFromFunction(
                 editor_state_.gc_pool(),
                 gc::BindFront(
@@ -139,7 +148,8 @@ void MapModeCommands::Add(std::wstring name, std::wstring description,
                 .ptr());
 }
 
-void MapModeCommands::Add(std::wstring name, std::function<void()> callback,
+void MapModeCommands::Add(std::vector<ExtendedChar> name,
+                          std::function<void()> callback,
                           std::wstring description) {
   Add(name,
       MakeCommandFromFunction(
@@ -167,9 +177,8 @@ language::gc::Root<MapMode> MapMode::New(
 MapMode::MapMode(ConstructorAccessTag, gc::Ptr<MapModeCommands> commands)
     : commands_(std::move(commands)) {}
 
-void MapMode::ProcessInput(wint_t c) {
+void MapMode::ProcessInput(ExtendedChar c) {
   current_input_.push_back(c);
-
   bool reset_input = true;
   for (const auto& frame : commands_->frames_) {
     auto it = frame->commands.lower_bound(current_input_);
@@ -177,7 +186,7 @@ void MapMode::ProcessInput(wint_t c) {
         std::equal(current_input_.begin(), current_input_.end(),
                    it->first.begin())) {
       if (current_input_ == it->first) {
-        current_input_ = L"";
+        current_input_.clear();
         it->second->ProcessInput(c);
         return;
       }
@@ -185,9 +194,7 @@ void MapMode::ProcessInput(wint_t c) {
     }
   }
 
-  if (reset_input) {
-    current_input_ = L"";
-  }
+  if (reset_input) current_input_.clear();
 }
 
 MapMode::CursorMode MapMode::cursor_mode() const {
@@ -203,20 +210,42 @@ namespace {
 const bool map_mode_commands_tests_registration = tests::Register(
     L"MapModeCommands",
     {
-        {.name = L"Add",
+        {.name = L"AddNormal",
          .callback =
              [] {
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                bool executed = false;
                editor->default_commands().ptr()->Add(
-                   L"X", L"Activates something.",
+                   VectorExtendedChar(L"X"), L"Activates something.",
                    vm::NewCallback(editor->gc_pool(), vm::PurityType::kUnknown,
                                    [&executed]() { executed = true; }),
                    editor->environment().ptr());
                CHECK(!executed);
                // editor->gc_pool().FullCollect();
                editor->ProcessInput(L'X');
+               CHECK(executed);
+             }},
+        {.name = L"AddControl",
+         .callback =
+             [] {
+               NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+               gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
+               bool executed = false;
+               LOG(INFO) << "Adding handler.";
+               editor->default_commands().ptr()->Add(
+                   {ExtendedChar(L'A'), ExtendedChar(ControlChar::kPageDown)},
+                   L"Activates something.",
+                   vm::NewCallback(editor->gc_pool(), vm::PurityType::kUnknown,
+                                   [&executed]() {
+                                     LOG(INFO) << "Executed!";
+                                     executed = true;
+                                   }),
+                   editor->environment().ptr());
+               CHECK(!executed);
+               LOG(INFO) << "Feeding.";
+               editor->ProcessInput(L'A');
+               editor->ProcessInput(ControlChar::kPageDown);
                CHECK(executed);
              }},
     });

@@ -18,17 +18,19 @@
 
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::ExtendedChar;
+using afc::infrastructure::Tracker;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::Range;
+
 namespace afc::editor {
-using infrastructure::Tracker;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::Range;
 
 namespace {
 // Arguments:
@@ -162,8 +164,8 @@ class GotoCommand : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t c) override {
-    if (c != 'g') {
+  void ProcessInput(ExtendedChar c) override {
+    if (c != ExtendedChar('g')) {
       auto old_mode = editor_state_.set_keyboard_redirect(nullptr);
       editor_state_.ProcessInput(c);
       return;

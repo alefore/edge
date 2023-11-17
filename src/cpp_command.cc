@@ -7,16 +7,19 @@
 #include "src/command.h"
 #include "src/concurrent/work_queue.h"
 #include "src/editor.h"
+#include "src/infrastructure/extended_char.h"
 #include "src/language/wstring.h"
 #include "src/vm/vm.h"
 
-namespace afc::editor {
-using concurrent::WorkQueue;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::ValueOrError;
-namespace gc = language::gc;
+namespace gc = afc::language::gc;
+using afc::concurrent::WorkQueue;
+using afc::infrastructure::ExtendedChar;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::ValueOrError;
 
+namespace afc::editor {
+// TODO(trivial, 2023-11-17): Get rid of this `using` declaration.
 using std::wstring;
 
 namespace {
@@ -62,7 +65,7 @@ class CppCommand : public Command {
   std::wstring Description() const override { return description_; }
   std::wstring Category() const override { return category_; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
     Evaluate(expression_, editor_state_.gc_pool(), environment_.ToRoot(),
              [work_queue =

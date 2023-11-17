@@ -12,6 +12,7 @@
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/tests/tests.h"
 
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
@@ -50,17 +51,17 @@ namespace afc::editor::operation {
 }
 
 void KeyCommandsMap::ExtractDescriptions(
-    std::set<wchar_t>& consumed,
-    std::map<Category, std::map<wchar_t, Description>>& output) const {
-  for (const std::pair<const wchar_t, KeyCommand>& entry : table_)
+    std::set<ExtendedChar>& consumed,
+    std::map<Category, std::map<ExtendedChar, Description>>& output) const {
+  for (const std::pair<const ExtendedChar, KeyCommand>& entry : table_)
     if (entry.second.active && consumed.insert(entry.first).second)
       output[entry.second.category].insert(
           {entry.first, entry.second.description});
 }
 
-std::map<wchar_t, KeyCommandsMap::Category> KeyCommandsMapSequence::GetKeys()
-    const {
-  std::map<wchar_t, KeyCommandsMap::Category> output;
+std::map<ExtendedChar, KeyCommandsMap::Category>
+KeyCommandsMapSequence::GetKeys() const {
+  std::map<ExtendedChar, KeyCommandsMap::Category> output;
   for (const KeyCommandsMap& entry : sequence_) {
     entry.ExtractKeys(output);
     if (entry.HasFallback()) break;
@@ -71,10 +72,11 @@ std::map<wchar_t, KeyCommandsMap::Category> KeyCommandsMapSequence::GetKeys()
 Line KeyCommandsMapSequence::SummaryLine() const {
   LineBuilder output;
   std::map<KeyCommandsMap::Category, std::wstring> entries_by_category;
-  for (const std::pair<const wchar_t, KeyCommandsMap::Category>& entry :
+  for (const std::pair<const ExtendedChar, KeyCommandsMap::Category>& entry :
        GetKeys())
-    if (isprint(entry.first))
-      entries_by_category[entry.second].push_back(entry.first);
+    if (const wchar_t* regular_c = std::get_if<wchar_t>(&entry.first);
+        regular_c != nullptr && isprint(*regular_c))
+      entries_by_category[entry.second].push_back(*regular_c);
   for (const std::pair<const KeyCommandsMap::Category, std::wstring>& category :
        entries_by_category) {
     output.AppendString(L" ", std::nullopt);
@@ -85,9 +87,9 @@ Line KeyCommandsMapSequence::SummaryLine() const {
 
 LineSequence KeyCommandsMapSequence::Help() const {
   MutableLineSequence help_output;
-  std::map<KeyCommandsMap::Category, std::map<wchar_t, Description>>
+  std::map<KeyCommandsMap::Category, std::map<ExtendedChar, Description>>
       descriptions;
-  std::set<wchar_t> consumed;
+  std::set<ExtendedChar> consumed;
   for (const KeyCommandsMap& entry : sequence_)
     entry.ExtractDescriptions(consumed, descriptions);
 
@@ -98,7 +100,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
         std::max(longest_category, KeyCommandsMap::ToString(category)->size());
 
   for (const std::pair<const KeyCommandsMap::Category,
-                       std::map<wchar_t, Description>>& category_entry :
+                       std::map<ExtendedChar, Description>>& category_entry :
        descriptions) {
     LineBuilder category_line;
     NonNull<std::shared_ptr<LazyString>> category_name =
@@ -109,20 +111,20 @@ LineSequence KeyCommandsMapSequence::Help() const {
                                LineModifierSet{LineModifier::kBold});
     category_line.AppendString(NewLazyString(L":"));
     // We use an inverted map to group commands with identical descriptions.
-    std::map<Description, std::set<wchar_t>> inverted_map;
-    for (const std::pair<const wchar_t, Description>& entry :
+    std::map<Description, std::set<ExtendedChar>> inverted_map;
+    for (const std::pair<const ExtendedChar, Description>& entry :
          category_entry.second)
       if (entry.second != Description(L""))
         inverted_map[entry.second].insert(entry.first);
-    for (const std::pair<const Description, std::set<wchar_t>>& entry :
+    for (const std::pair<const Description, std::set<ExtendedChar>>& entry :
          inverted_map) {
       category_line.AppendString(NewLazyString(L" "));
       category_line.AppendString(NewLazyString(entry.first.read()),
                                  LineModifierSet{LineModifier::kCyan});
       category_line.AppendString(NewLazyString(L":"),
                                  LineModifierSet{LineModifier::kDim});
-      for (wchar_t c : entry.second)
-        category_line.Append(LineBuilder(DescribeSequence(std::wstring(1, c))));
+      for (ExtendedChar c : entry.second)
+        category_line.Append(LineBuilder(DescribeSequence({c})));
     }
     help_output.push_back(
         MakeNonNullShared<Line>(std::move(category_line).Build()));
@@ -146,7 +148,7 @@ const bool key_commands_map_tests_registration = tests::Register(
             map.Insert(L'a',
                        {.category = KeyCommandsMap::Category::kStringControl,
                         .description = Description(L"Test"),
-                        .handler = [&executed](wchar_t) {
+                        .handler = [&executed](ExtendedChar) {
                           CHECK(!executed);
                           executed = true;
                         }});
@@ -158,10 +160,11 @@ const bool key_commands_map_tests_registration = tests::Register(
           [] {
             KeyCommandsMap map;
             bool executed = false;
-            map.Insert(L'b',
-                       {.category = KeyCommandsMap::Category::kStringControl,
-                        .description = Description(L"Test"),
-                        .handler = [&executed](wchar_t) { executed = true; }});
+            map.Insert(
+                L'b',
+                {.category = KeyCommandsMap::Category::kStringControl,
+                 .description = Description(L"Test"),
+                 .handler = [&executed](ExtendedChar) { executed = true; }});
             map.Erase(L'b');
             CHECK(!map.Execute(L'b'));
             CHECK(!executed);
@@ -171,7 +174,7 @@ const bool key_commands_map_tests_registration = tests::Register(
           [] {
             KeyCommandsMap map;
             bool fallback_executed = false;
-            map.SetFallback({}, [&fallback_executed](wchar_t) {
+            map.SetFallback({}, [&fallback_executed](ExtendedChar) {
               CHECK(!fallback_executed);
               fallback_executed = true;
             });
@@ -183,8 +186,8 @@ const bool key_commands_map_tests_registration = tests::Register(
           [] {
             KeyCommandsMap map;
             bool fallback_executed = false;
-            std::set<wchar_t> exclude = {L'y'};
-            map.SetFallback(exclude, [&fallback_executed](wchar_t) {
+            std::set<ExtendedChar> exclude = {L'y'};
+            map.SetFallback(exclude, [&fallback_executed](ExtendedChar) {
               fallback_executed = true;
             });
             CHECK(!map.Execute(L'y'));
@@ -197,10 +200,11 @@ const bool key_commands_map_tests_registration = tests::Register(
       .callback =
           [] {
             KeyCommandsMap map;
-            map.Insert(L'c',
-                       {.category = KeyCommandsMap::Category::kDirection,
-                        .description = Description(L"Test callback"),
-                        .handler = [](wchar_t) { /* Handler code here */ }});
+            map.Insert(
+                L'c',
+                {.category = KeyCommandsMap::Category::kDirection,
+                 .description = Description(L"Test callback"),
+                 .handler = [](ExtendedChar) { /* Handler code here */ }});
             CHECK(map.FindCallbackOrNull(L'c') != nullptr);
           }},
      {.name = L"OnHandleExecution",
@@ -209,10 +213,11 @@ const bool key_commands_map_tests_registration = tests::Register(
             size_t on_handle_executions = 0;
             KeyCommandsMap map;
             map.OnHandle([&on_handle_executions] { on_handle_executions++; })
-                .Insert(L'd',
-                        {.category = KeyCommandsMap::Category::kStructure,
-                         .description = Description(L"OnHandle test"),
-                         .handler = [](wchar_t) { /* Handler code here */ }});
+                .Insert(
+                    L'd',
+                    {.category = KeyCommandsMap::Category::kStructure,
+                     .description = Description(L"OnHandle test"),
+                     .handler = [](ExtendedChar) { /* Handler code here */ }});
             for (size_t i = 0; i < 5; i++) {
               CHECK_EQ(on_handle_executions, i);
               map.Execute(L'd');
@@ -233,8 +238,9 @@ const bool key_commands_map_tests_registration = tests::Register(
           [] {
             size_t on_handle_executions = 0;
             KeyCommandsMap map;
-            std::set<wchar_t> exclude = {L'f'};
-            map.SetFallback(exclude, [](wchar_t) { /* Fallback handler */ })
+            std::set<ExtendedChar> exclude = {L'f'};
+            map.SetFallback(exclude,
+                            [](ExtendedChar) { /* Fallback handler */ })
                 .OnHandle([&on_handle_executions] { on_handle_executions++; });
             map.Execute(L'f');  // Try executing an excluded command.
             CHECK_EQ(on_handle_executions, 0ul);
@@ -244,7 +250,7 @@ const bool key_commands_map_tests_registration = tests::Register(
           [] {
             size_t on_handle_executions = 0;
             KeyCommandsMap map;
-            map.SetFallback({}, [](wchar_t) { /* Fallback handler */ })
+            map.SetFallback({}, [](ExtendedChar) { /* Fallback handler */ })
                 .OnHandle([&on_handle_executions] { on_handle_executions++; });
             map.Execute(L'g');  // Trigger fallback execution.
             CHECK_EQ(on_handle_executions, 1ul);
@@ -258,15 +264,17 @@ const bool key_commands_map_tests_registration = tests::Register(
             map.Insert(L'0',
                        {.category = KeyCommandsMap::Category::kStringControl,
                         .description = Description(L"Execute0"),
-                        .handler = [&](wchar_t) { execution_count[0]++; }})
-                .Insert(L'1',
-                        {.category = KeyCommandsMap::Category::kRepetitions,
-                         .description = Description(L"Execute1"),
-                         .handler = [&](wchar_t) { execution_count[1]++; }})
-                .Insert(L'2',
-                        {.category = KeyCommandsMap::Category::kDirection,
-                         .description = Description(L"Execute2"),
-                         .handler = [&](wchar_t) { execution_count[2]++; }});
+                        .handler = [&](ExtendedChar) { execution_count[0]++; }})
+                .Insert(
+                    L'1',
+                    {.category = KeyCommandsMap::Category::kRepetitions,
+                     .description = Description(L"Execute1"),
+                     .handler = [&](ExtendedChar) { execution_count[1]++; }})
+                .Insert(L'2', {.category = KeyCommandsMap::Category::kDirection,
+                               .description = Description(L"Execute2"),
+                               .handler = [&](ExtendedChar) {
+                                 execution_count[2]++;
+                               }});
 
             map.Execute(L'0');
             CHECK_EQ(execution_count[0], 1ul);
@@ -290,21 +298,21 @@ const bool key_commands_map_tests_registration = tests::Register(
         map.Insert(L'0', {.category = KeyCommandsMap::Category::kStringControl,
                           .description = Description(L"Handler for '0'"),
                           .handler =
-                              [&executions](wchar_t c) {
-                                CHECK(c == L'0');
+                              [&executions](ExtendedChar c) {
+                                CHECK(c == ExtendedChar(L'0'));
                                 executions++;
                               }})
             .Insert(L'1', {.category = KeyCommandsMap::Category::kRepetitions,
                            .description = Description(L"Handler for '1'"),
                            .handler =
-                               [&executions](wchar_t c) {
-                                 CHECK(c == L'1');
+                               [&executions](ExtendedChar c) {
+                                 CHECK(c == ExtendedChar(L'1'));
                                  executions++;
                                }})
             .Insert(L'2', {.category = KeyCommandsMap::Category::kDirection,
                            .description = Description(L"Handler for '2'"),
-                           .handler = [&executions](wchar_t c) {
-                             CHECK(c == L'2');
+                           .handler = [&executions](ExtendedChar c) {
+                             CHECK(c == ExtendedChar(L'2'));
                              executions++;
                            }});
 

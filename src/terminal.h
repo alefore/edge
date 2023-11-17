@@ -17,23 +17,6 @@ namespace editor {
 // Rename to something like "EditorStateDrawer" or such.
 class Terminal {
  public:
-  static constexpr int ESCAPE = -2;
-  static constexpr int DOWN_ARROW = -3;
-  static constexpr int UP_ARROW = -4;
-  static constexpr int LEFT_ARROW = -5;
-  static constexpr int RIGHT_ARROW = -6;
-  static constexpr int BACKSPACE = -7;
-  static constexpr int PAGE_DOWN = -8;
-  static constexpr int PAGE_UP = -9;
-  static constexpr int CTRL_L = -10;
-  static constexpr int CTRL_V = -11;
-  static constexpr int CTRL_U = -12;
-  static constexpr int CTRL_K = -13;
-  static constexpr int CTRL_D = -14;
-  static constexpr int CTRL_A = -15;
-  static constexpr int CTRL_E = -16;
-  static constexpr int DELETE = -17;
-
   Terminal();
 
   // Reads the widgets' state from editor_state and writes it to screen.

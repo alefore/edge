@@ -6,13 +6,14 @@
 #include "src/editor.h"
 #include "src/language/safe_types.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::ExtendedChar;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::VisitPointer;
+
 namespace afc::editor {
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::VisitPointer;
-
-namespace gc = language::gc;
-
 namespace {
 class QuitCommand : public Command {
  public:
@@ -24,7 +25,7 @@ class QuitCommand : public Command {
   }
   std::wstring Category() const override { return L"Editor"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     LOG(INFO) << "Triggering termination with value: " << exit_value_;
     editor_state_.Terminate(
         editor_state_.modifiers().strength <= Modifiers::Strength::kNormal

@@ -4,22 +4,25 @@ extern "C" {
 #include <ncursesw/curses.h>
 }
 
+#include "src/infrastructure/extended_char.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/terminal.h"
 
-namespace afc::editor {
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::Screen;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumberDelta;
+using afc::infrastructure::ControlChar;
+using afc::infrastructure::ExtendedChar;
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::Screen;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumberDelta;
 
+namespace afc::editor {
 namespace {
 class ScreenCurses : public Screen {
  public:
@@ -139,12 +142,12 @@ class ScreenCurses : public Screen {
 };
 }  // namespace
 
-wint_t ReadChar(std::mbstate_t* mbstate) {
+std::optional<ExtendedChar> ReadChar(std::mbstate_t* mbstate) {
   while (true) {
     int c = getch();
     DVLOG(5) << "Read: " << c << "\n";
     if (c == -1) {
-      return c;
+      return std::nullopt;
     } else if (c == KEY_RESIZE) {
       return KEY_RESIZE;
     }
@@ -169,35 +172,35 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
     }
     switch (output) {
       case 127:
-        return Terminal::BACKSPACE;
+        return ControlChar::kBackspace;
 
       case 1:
-        return Terminal::CTRL_A;
+        return ControlChar::kCtrlA;
 
       case 4:
-        return Terminal::CTRL_D;
+        return ControlChar::kCtrlD;
 
       case 5:
-        return Terminal::CTRL_E;
+        return ControlChar::kCtrlE;
 
       case 0x0b:
-        return Terminal::CTRL_K;
+        return ControlChar::kCtrlK;
 
       case 0x0c:
-        return Terminal::CTRL_L;
+        return ControlChar::kCtrlL;
 
       case 21:
-        return Terminal::CTRL_U;
+        return ControlChar::kCtrlU;
 
       case 22:
-        return Terminal::CTRL_V;
+        return ControlChar::kCtrlV;
 
       case 27: {
         int next = getch();
         // cerr << "Read next: " << next << "\n";
         switch (next) {
           case -1:
-            return Terminal::ESCAPE;
+            return ControlChar::kEscape;
 
           case '[': {
             int next2 = getch();
@@ -205,21 +208,21 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
             switch (next2) {
               case 51:
                 getch();
-                return Terminal::DELETE;
+                return ControlChar::kDelete;
               case 53:
                 getch();
-                return Terminal::PAGE_UP;
+                return ControlChar::kPageUp;
               case 54:
                 getch();
-                return Terminal::PAGE_DOWN;
+                return ControlChar::kPageDown;
               case 'A':
-                return Terminal::UP_ARROW;
+                return ControlChar::kUpArrow;
               case 'B':
-                return Terminal::DOWN_ARROW;
+                return ControlChar::kDownArrow;
               case 'C':
-                return Terminal::RIGHT_ARROW;
+                return ControlChar::kRightArrow;
               case 'D':
-                return Terminal::LEFT_ARROW;
+                return ControlChar::kLeftArrow;
             }
           }
             return -1;
@@ -227,7 +230,7 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
         // cerr << "Unget: " << next << "\n";
         ungetch(next);
       }
-        return Terminal::ESCAPE;
+        return ControlChar::kEscape;
       default:
         return output;
     }

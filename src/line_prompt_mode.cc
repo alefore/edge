@@ -38,6 +38,7 @@
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
+
 using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::VersionPropertyReceiver;
@@ -46,6 +47,7 @@ using afc::futures::DeleteNotification;
 using afc::futures::JoinValues;
 using afc::futures::ListenableValue;
 using afc::infrastructure::AddSeconds;
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
@@ -1062,7 +1064,7 @@ class LinePromptCommand : public Command {
   std::wstring Description() const override { return description_; }
   std::wstring Category() const override { return L"Prompt"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     auto buffer = editor_state_.current_buffer();
     if (!buffer.has_value()) return;
     auto options = options_supplier_();

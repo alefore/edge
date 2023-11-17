@@ -102,6 +102,10 @@ src/infrastructure/dirname_vm.cc \
 src/infrastructure/dirname_vm.h \
 src/infrastructure/execution.cc \
 src/infrastructure/execution.h \
+src/infrastructure/extended_char.cc \
+src/infrastructure/extended_char.h \
+src/infrastructure/extended_char_vm.cc \
+src/infrastructure/extended_char_vm.h \
 src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
 src/infrastructure/time.cc \

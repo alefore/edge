@@ -13,6 +13,7 @@
 
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileSystemDriver;
 using afc::language::EmptyValue;
 using afc::language::Error;
@@ -98,7 +99,7 @@ class RunCppFileCommand : public Command {
   }
   std::wstring Category() const override { return L"Extensions"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     if (!editor_state_.has_current_buffer()) {
       return;
     }

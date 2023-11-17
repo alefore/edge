@@ -16,18 +16,20 @@ extern "C" {
 #include "src/buffer.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/infrastructure/extended_char.h"
 #include "src/language/lazy_string/char_buffer.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::ExtendedChar;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+
 namespace afc::editor {
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::VisitPointer;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-
-namespace gc = language::gc;
-
 class RecordCommand : public Command {
  public:
   RecordCommand(EditorState& editor_state) : editor_state_(editor_state) {}
@@ -37,7 +39,7 @@ class RecordCommand : public Command {
   }
   std::wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     VisitPointer(
         editor_state_.current_buffer(),
         [](gc::Root<OpenBuffer> buffer_root) {

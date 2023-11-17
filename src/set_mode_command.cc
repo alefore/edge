@@ -10,9 +10,11 @@
 
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::ExtendedChar;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+
 namespace afc::editor {
-using language::MakeNonNullUnique;
-using language::NonNull;
 namespace {
 class SetModeCommand : public Command {
  public:
@@ -21,7 +23,7 @@ class SetModeCommand : public Command {
 
   std::wstring Category() const override { return options_.category; }
   std::wstring Description() const override { return options_.description; }
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     options_.editor_state.set_keyboard_redirect(options_.factory());
   }
 

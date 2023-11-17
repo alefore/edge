@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "src/infrastructure/extended_char.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
@@ -37,17 +38,17 @@ class KeyCommandsMap {
     Category category;
     Description description;
     bool active = true;
-    std::function<void(wchar_t)> handler;
+    std::function<void(infrastructure::ExtendedChar)> handler;
   };
 
  private:
-  std::unordered_map<wchar_t, KeyCommand> table_;
+  std::unordered_map<infrastructure::ExtendedChar, KeyCommand> table_;
   // The fallback function will be executed if a command is received that
   // doesn't have an entry in either `table_` or `fallback_exclusion_`. This
   // allows us to exclude some characters from the `fallback_` function.
-  std::set<wchar_t> fallback_exclusion_;
+  std::set<infrastructure::ExtendedChar> fallback_exclusion_;
 
-  std::function<void(wchar_t)> fallback_ = nullptr;
+  std::function<void(infrastructure::ExtendedChar)> fallback_ = nullptr;
 
   // Optional function to execute whenever a command's handler or the fallback
   // function is executed.
@@ -61,18 +62,19 @@ class KeyCommandsMap {
   static language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
   ToString(Category category);
 
-  KeyCommandsMap& Insert(wchar_t c, KeyCommand command) {
+  KeyCommandsMap& Insert(infrastructure::ExtendedChar c, KeyCommand command) {
     if (command.active) table_.insert({c, std::move(command)});
     return *this;
   }
 
-  KeyCommandsMap& Erase(wchar_t c) {
+  KeyCommandsMap& Erase(infrastructure::ExtendedChar c) {
     table_.erase(c);
     return *this;
   }
 
-  KeyCommandsMap& SetFallback(std::set<wchar_t> exclude,
-                              std::function<void(wchar_t)> callback) {
+  KeyCommandsMap& SetFallback(
+      std::set<infrastructure::ExtendedChar> exclude,
+      std::function<void(infrastructure::ExtendedChar)> callback) {
     CHECK(fallback_ == nullptr);
     CHECK(callback != nullptr);
     fallback_exclusion_ = std::move(exclude);
@@ -86,7 +88,8 @@ class KeyCommandsMap {
     return *this;
   }
 
-  std::function<void(wchar_t)> FindCallbackOrNull(wchar_t c) const {
+  std::function<void(infrastructure::ExtendedChar)> FindCallbackOrNull(
+      infrastructure::ExtendedChar c) const {
     if (auto it = table_.find(c); it != table_.end()) return it->second.handler;
     if (HasFallback() &&
         fallback_exclusion_.find(c) == fallback_exclusion_.end())
@@ -96,7 +99,7 @@ class KeyCommandsMap {
 
   bool HasFallback() const { return fallback_ != nullptr; }
 
-  bool Execute(wchar_t c) const {
+  bool Execute(infrastructure::ExtendedChar c) const {
     if (auto callback = FindCallbackOrNull(c); callback != nullptr) {
       callback(c);
       if (on_handle_ != nullptr) on_handle_();
@@ -105,7 +108,8 @@ class KeyCommandsMap {
     return false;
   }
 
-  void ExtractKeys(std::map<wchar_t, Category>& output) const {
+  void ExtractKeys(
+      std::map<infrastructure::ExtendedChar, Category>& output) const {
     for (auto& entry : table_)
       output.insert({entry.first, entry.second.category});
   }
@@ -113,15 +117,16 @@ class KeyCommandsMap {
   // `consumed` is an input-output parameter containing the list of characters
   // visited. Entries for previously visited characters will be ignored.
   void ExtractDescriptions(
-      std::set<wchar_t>& consumed,
-      std::map<Category, std::map<wchar_t, Description>>& output) const;
+      std::set<infrastructure::ExtendedChar>& consumed,
+      std::map<Category, std::map<infrastructure::ExtendedChar, Description>>&
+          output) const;
 };
 
 class KeyCommandsMapSequence {
   std::vector<KeyCommandsMap> sequence_;
 
  public:
-  bool Execute(wchar_t c) const {
+  bool Execute(infrastructure::ExtendedChar c) const {
     for (const auto& cmap : sequence_) {
       if (cmap.Execute(c)) return true;
     }
@@ -138,7 +143,8 @@ class KeyCommandsMapSequence {
     return sequence_.back();
   }
 
-  std::map<wchar_t, KeyCommandsMap::Category> GetKeys() const;
+  std::map<infrastructure::ExtendedChar, KeyCommandsMap::Category> GetKeys()
+      const;
 
   language::text::Line SummaryLine() const;
   language::text::LineSequence Help() const;

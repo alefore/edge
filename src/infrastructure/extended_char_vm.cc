@@ -1,0 +1,42 @@
+#include "src/infrastructure/extended_char_vm.h"
+
+#include <vector>
+
+#include "src/infrastructure/extended_char.h"
+#include "src/vm/callbacks.h"
+#include "src/vm/container.h"
+#include "src/vm/types.h"
+
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+
+namespace afc::vm {
+const types::ObjectName
+    VMTypeMapper<infrastructure::ExtendedChar>::object_type_name =
+        types::ObjectName(L"ExtendedChar");
+
+language::gc::Root<Value> VMTypeMapper<infrastructure::ExtendedChar>::New(
+    language::gc::Pool& pool, infrastructure::ExtendedChar value) {
+  return Value::NewObject(
+      pool, object_type_name,
+      MakeNonNullShared<infrastructure::ExtendedChar>(value));
+}
+
+afc::infrastructure::ExtendedChar
+VMTypeMapper<infrastructure::ExtendedChar>::get(Value& value) {
+  return value.get_user_value<infrastructure::ExtendedChar>(object_type_name)
+      .value();
+}
+
+template <>
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
+    std::vector<infrastructure::ExtendedChar>>>>::object_type_name =
+    types::ObjectName(L"VectorExtendedChar");
+
+}  // namespace afc::vm
+namespace afc::infrastructure {
+void RegisterVectorExtendedChar(language::gc::Pool& pool,
+                                vm::Environment& environment) {
+  vm::container::Export<std::vector<ExtendedChar>>(pool, environment);
+}
+}  // namespace afc::infrastructure

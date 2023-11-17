@@ -17,6 +17,7 @@
 
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Path;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
@@ -156,7 +157,7 @@ class NavigationBufferCommand : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     std::optional<gc::Root<OpenBuffer>> source = editor_state_.current_buffer();
     if (!source.has_value()) {
       editor_state_.status().InsertError(

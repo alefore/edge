@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/infrastructure/extended_char.h"
 #include "src/language/gc.h"
 
 namespace afc::editor {
@@ -12,7 +13,7 @@ namespace afc::editor {
 class EditorMode {
  public:
   virtual ~EditorMode() {}
-  virtual void ProcessInput(wint_t c) = 0;
+  virtual void ProcessInput(infrastructure::ExtendedChar c) = 0;
 
   enum class CursorMode { kDefault, kInserting, kOverwriting };
   virtual CursorMode cursor_mode() const = 0;

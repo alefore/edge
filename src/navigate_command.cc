@@ -20,16 +20,20 @@
 
 namespace gc = afc::language::gc;
 
+using afc::infrastructure::ControlChar;
+using afc::infrastructure::ExtendedChar;
+using afc::infrastructure::screen::LineModifier;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+
 namespace afc::editor {
-using infrastructure::screen::LineModifier;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineColumn;
-using language::text::LineNumber;
 
 namespace {
 // TODO(easy, 2022-06-05): Template this by type?
@@ -86,32 +90,40 @@ struct NavigateState {
   std::vector<NavigateOperation> operations;
 };
 
-bool CharConsumer(wint_t c, NavigateState state) {
-  switch (c) {
-    case 'l':
-      state.operations.push_back({NavigateOperation::Type::kForward});
-      return true;
+bool CharConsumer(ExtendedChar input, NavigateState state) {
+  return std::visit(
+      overload{[](ControlChar) { return false; },
+               [&](wchar_t c) {
+                 switch (c) {
+                   case 'l':
+                     state.operations.push_back(
+                         {NavigateOperation::Type::kForward});
+                     return true;
 
-    case 'h':
-      state.operations.push_back({NavigateOperation::Type::kBackward});
-      return true;
+                   case 'h':
+                     state.operations.push_back(
+                         {NavigateOperation::Type::kBackward});
+                     return true;
 
-    case L'1':
-    case L'2':
-    case L'3':
-    case L'4':
-    case L'5':
-    case L'6':
-    case L'7':
-    case L'8':
-    case L'9':
-      state.operations.push_back(
-          {.type = NavigateOperation::Type::kNumber, .number = c - L'1'});
-      return true;
+                   case L'1':
+                   case L'2':
+                   case L'3':
+                   case L'4':
+                   case L'5':
+                   case L'6':
+                   case L'7':
+                   case L'8':
+                   case L'9':
+                     state.operations.push_back(
+                         {.type = NavigateOperation::Type::kNumber,
+                          .number = static_cast<size_t>(c) - L'1'});
+                     return true;
 
-    default:
-      return false;
-  }
+                   default:
+                     return false;
+                 }
+               }},
+      input);
 }
 
 SearchRange GetRange(const NavigateState& navigate_state,

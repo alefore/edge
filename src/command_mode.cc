@@ -23,6 +23,7 @@
 #include "src/find_mode.h"
 #include "src/goto_command.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/extended_char.h"
 #include "src/infrastructure/time.h"
 #include "src/insert_mode.h"
 #include "src/language/lazy_string/append.h"
@@ -62,11 +63,15 @@
 #include "src/transformation/type.h"
 
 namespace gc = afc::language::gc;
+
 using afc::concurrent::WorkQueue;
 using afc::infrastructure::AddSeconds;
+using afc::infrastructure::ControlChar;
+using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
+using afc::infrastructure::VectorExtendedChar;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
@@ -103,7 +108,7 @@ class UndoCommand : public Command {
 
   std::wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     if (direction_.has_value()) {
       editor_state_.set_direction(direction_.value());
     }
@@ -139,7 +144,7 @@ class GotoPreviousPositionCommand : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     if (!editor_state_.HasPositionsInStack()) {
       LOG(INFO) << "Editor doesn't have positions in stack.";
       return;
@@ -207,14 +212,17 @@ class MoveForwards : public Command {
 
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t c) override { Move(c, editor_state_, direction_); }
+  void ProcessInput(ExtendedChar c) override {
+    Move(c, editor_state_, direction_);
+  }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
     return {};
   }
 
-  static void Move(int, EditorState& editor_state, Direction direction) {
+  static void Move(ExtendedChar, EditorState& editor_state,
+                   Direction direction) {
     if (direction == Direction::kBackwards) {
       editor_state.set_direction(ReverseDirection(editor_state.direction()));
     }
@@ -237,7 +245,7 @@ class LineDown : public Command {
   std::wstring Description() const override { return L"moves down one line"; }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t c) override {
+  void ProcessInput(ExtendedChar c) override {
     Move(c, editor_state_, editor_state_.structure());
   }
 
@@ -246,7 +254,8 @@ class LineDown : public Command {
     return {};
   }
 
-  static void Move(int c, EditorState& editor_state, Structure structure) {
+  static void Move(ExtendedChar c, EditorState& editor_state,
+                   Structure structure) {
     // TODO: Move to Structure.
     if (structure == Structure::kChar) {
       editor_state.set_structure(Structure::kLine);
@@ -305,7 +314,7 @@ class LineUp : public Command {
   std::wstring Description() const override { return L"moves up one line"; }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t c) override {
+  void ProcessInput(ExtendedChar c) override {
     Move(c, editor_state_, editor_state_.structure());
   }
 
@@ -314,7 +323,10 @@ class LineUp : public Command {
     return {};
   }
 
-  static void Move(int c, EditorState& editor_state, Structure structure) {
+  // TODO(2023-11-17, trivial, P1): Remove the `ExtendedChar` parameter from all
+  // the move functions.
+  static void Move(ExtendedChar c, EditorState& editor_state,
+                   Structure structure) {
     editor_state.set_direction(ReverseDirection(editor_state.direction()));
     LineDown::Move(c, editor_state, structure);
   }
@@ -332,7 +344,7 @@ class EnterInsertModeCommand : public Command {
   std::wstring Description() const override { return L"enters insert mode"; }
   std::wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     if (modifiers_.has_value()) {
       editor_state_.set_modifiers(modifiers_.value());
     }
@@ -359,7 +371,7 @@ class InsertionModifierCommand : public Command {
   }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     if (editor_state_.insertion_modifier() == Modifiers::ModifyMode::kShift) {
       editor_state_.set_insertion_modifier(Modifiers::ModifyMode::kOverwrite);
     } else if (editor_state_.default_insertion_modifier() ==
@@ -394,7 +406,7 @@ class SetStructureCommand : public Command {
   }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     if (editor_state_.structure() != structure_) {
       editor_state_.set_structure(structure_);
       editor_state_.set_sticky_structure(false);
@@ -424,7 +436,7 @@ class SetStrengthCommand : public Command {
   std::wstring Description() const override { return L"Toggles the strength."; }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     Modifiers modifiers(editor_state_.modifiers());
     switch (modifiers.strength) {
       case Modifiers::Strength::kNormal:
@@ -455,7 +467,7 @@ class NumberMode : public Command {
   std::wstring Description() const override { return description_; }
   std::wstring Category() const override { return L"Modifiers"; }
 
-  void ProcessInput(wint_t c) override {
+  void ProcessInput(ExtendedChar c) override {
     editor_state_.set_keyboard_redirect(NewRepeatMode(
         editor_state_, [&editor_state = editor_state_](int number) {
           editor_state.set_repetitions(number);
@@ -481,7 +493,7 @@ class ActivateLink : public Command {
   }
   std::wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     VisitPointer(
         editor_state_.current_buffer(),
         [&](gc::Root<OpenBuffer> buffer) {
@@ -552,7 +564,7 @@ class ResetStateCommand : public Command {
   }
   std::wstring Category() const override { return L"Editor"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     editor_state_.status().Reset();
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
       buffer.work_queue()->DeleteLater(
@@ -580,7 +592,7 @@ class HardRedrawCommand : public Command {
   std::wstring Description() const override { return L"Redraws the screen"; }
   std::wstring Category() const override { return L"View"; }
 
-  void ProcessInput(wint_t) override {
+  void ProcessInput(ExtendedChar) override {
     editor_state_.set_screen_needs_hard_redraw(true);
   }
 
@@ -626,7 +638,8 @@ void ToggleVariable(EditorState& editor_state,
                                    << error;
                       },
                       [&](gc::Root<Command> value) {
-                        map_mode.Add(L"v" + variable->key(), value.ptr());
+                        map_mode.Add(VectorExtendedChar(L"v" + variable->key()),
+                                     value.ptr());
                       }},
              NewCppCommand(editor_state, editor_state.environment(), command));
 }
@@ -648,7 +661,7 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   VLOG(5) << "Command: " << command;
-  map_mode.Add(L"v" + variable->key(),
+  map_mode.Add(VectorExtendedChar(L"v" + variable->key()),
                ValueOrDie(NewCppCommand(editor_state,
                                         editor_state.environment(), command),
                           L"ToggleVariable<std::wstring> Definition")
@@ -680,7 +693,7 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   VLOG(5) << "Command: " << command;
-  map_mode.Add(L"v" + variable->key(),
+  map_mode.Add(VectorExtendedChar(L"v" + variable->key()),
                ValueOrDie(NewCppCommand(editor_state,
                                         editor_state.environment(), command),
                           L"ToggleVariable<int> definition")
@@ -706,18 +719,24 @@ void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
 gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   gc::Root<MapModeCommands> commands_root = MapModeCommands::New(editor_state);
   MapModeCommands& commands = commands_root.ptr().value();
-  commands.Add(L"aq", NewQuitCommand(editor_state, 0).ptr());
-  commands.Add(L"aQ", NewQuitCommand(editor_state, 1).ptr());
-  commands.Add(L"av", NewSetVariableCommand(editor_state).ptr());
-  commands.Add(L"ac", NewRunCppFileCommand(editor_state).ptr());
-  commands.Add(L"aC",
+  commands.Add(VectorExtendedChar(L"aq"),
+               NewQuitCommand(editor_state, 0).ptr());
+  commands.Add(VectorExtendedChar(L"aQ"),
+               NewQuitCommand(editor_state, 1).ptr());
+  commands.Add(VectorExtendedChar(L"av"),
+               NewSetVariableCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"ac"),
+               NewRunCppFileCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"aC"),
                NewRunCppCommand(editor_state, CppCommandMode::kLiteral).ptr());
-  commands.Add(L":",
+  commands.Add(VectorExtendedChar(L":"),
                NewRunCppCommand(editor_state, CppCommandMode::kShell).ptr());
-  commands.Add(L"a.", NewOpenDirectoryCommand(editor_state).ptr());
-  commands.Add(L"ao", NewOpenFileCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"a."),
+               NewOpenDirectoryCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"ao"),
+               NewOpenFileCommand(editor_state).ptr());
   commands.Add(
-      L"aF",
+      VectorExtendedChar(L"aF"),
       NewLinePromptCommand(
           editor_state, L"forks a command for each line in the current buffer",
           [&editor_state] {
@@ -730,149 +749,170 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           })
           .ptr());
 
-  commands.Add(L"af", NewForkCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"af"), NewForkCommand(editor_state).ptr());
 
-  commands.Add(L"N", NewNavigationBufferCommand(editor_state).ptr());
-  commands.Add(L"i", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<EnterInsertModeCommand>(
-                             editor_state, std::nullopt))
-                         .ptr());
-  commands.Add(L"I", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<EnterInsertModeCommand>(
-                             editor_state,
-                             [] {
-                               Modifiers output;
-                               output.insertion =
-                                   Modifiers::ModifyMode::kOverwrite;
-                               return output;
-                             }()))
-                         .ptr());
+  commands.Add(VectorExtendedChar(L"N"),
+               NewNavigationBufferCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"i"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<EnterInsertModeCommand>(
+                       editor_state, std::nullopt))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"I"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<EnterInsertModeCommand>(
+                       editor_state,
+                       [] {
+                         Modifiers output;
+                         output.insertion = Modifiers::ModifyMode::kOverwrite;
+                         return output;
+                       }()))
+                   .ptr());
 
-  commands.Add(L"f", operation::NewTopLevelCommand(
-                         L"find",
-                         L"reaches the next occurrence of a specific "
-                         L"character in the current line",
-                         operation::TopCommand(), editor_state,
-                         {operation::CommandReachQuery{}})
-                         .ptr());
-  commands.Add(L"r", operation::NewTopLevelCommand(
-                         L"reach", L"starts a new reach command",
-                         operation::TopCommand(), editor_state, {})
-                         .ptr());
+  commands.Add(VectorExtendedChar(L"f"),
+               operation::NewTopLevelCommand(
+                   L"find",
+                   L"reaches the next occurrence of a specific "
+                   L"character in the current line",
+                   operation::TopCommand(), editor_state,
+                   {operation::CommandReachQuery{}})
+                   .ptr());
+  commands.Add(
+      VectorExtendedChar(L"r"),
+      operation::NewTopLevelCommand(L"reach", L"starts a new reach command",
+                                    operation::TopCommand(), editor_state, {})
+          .ptr());
 
   commands.Add(
-      L"R",
+      VectorExtendedChar(L"R"),
       editor_state.gc_pool()
           .NewRoot(MakeNonNullUnique<InsertionModifierCommand>(editor_state))
           .ptr());
 
-  commands.Add(L"/", NewSearchCommand(editor_state).ptr());
-  commands.Add(L"g", NewGotoCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"/"), NewSearchCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"g"), NewGotoCommand(editor_state).ptr());
 
-  commands.Add(L"W", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kSymbol))
-                         .ptr());
-  commands.Add(L"w", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kWord))
-                         .ptr());
-  commands.Add(L"E", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kPage))
-                         .ptr());
-  commands.Add(L"c", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kCursor))
-                         .ptr());
-  commands.Add(L"B", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kBuffer))
-                         .ptr());
-  commands.Add(L"!", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kMark))
-                         .ptr());
-  commands.Add(L"t", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<SetStructureCommand>(
-                             editor_state, Structure::kTree))
-                         .ptr());
+  commands.Add(VectorExtendedChar(L"W"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                       editor_state, Structure::kSymbol))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"w"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                       editor_state, Structure::kWord))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"E"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                       editor_state, Structure::kPage))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"c"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                       editor_state, Structure::kCursor))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"B"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                       editor_state, Structure::kBuffer))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"!"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                       editor_state, Structure::kMark))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"t"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<SetStructureCommand>(
+                       editor_state, Structure::kTree))
+                   .ptr());
 
   commands.Add(
-      L"e", operation::NewTopLevelCommand(
-                L"delete", L"starts a new delete command",
-                operation::TopCommand{
-                    .post_transformation_behavior = transformation::Stack::
-                        PostTransformationBehavior::kDeleteRegion},
-                editor_state,
-                {operation::CommandReach{
-                    .repetitions = operation::CommandArgumentRepetitions(1)}})
-                .ptr());
-  commands.Add(L"p", NewPasteCommand(editor_state).ptr());
+      VectorExtendedChar(L"e"),
+      operation::NewTopLevelCommand(
+          L"delete", L"starts a new delete command",
+          operation::TopCommand{
+              .post_transformation_behavior = transformation::Stack::
+                  PostTransformationBehavior::kDeleteRegion},
+          editor_state,
+          {operation::CommandReach{
+              .repetitions = operation::CommandArgumentRepetitions(1)}})
+          .ptr());
+  commands.Add(VectorExtendedChar(L"p"), NewPasteCommand(editor_state).ptr());
 
-  commands.Add(L"u", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<UndoCommand>(editor_state,
-                                                                 std::nullopt))
-                         .ptr());
-  commands.Add(L"U", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<UndoCommand>(
-                             editor_state, Direction::kBackwards))
-                         .ptr());
-  commands.Add(L"\n",
+  commands.Add(
+      VectorExtendedChar(L"u"),
+      editor_state.gc_pool()
+          .NewRoot(MakeNonNullUnique<UndoCommand>(editor_state, std::nullopt))
+          .ptr());
+  commands.Add(VectorExtendedChar(L"U"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<UndoCommand>(
+                       editor_state, Direction::kBackwards))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"\n"),
                editor_state.gc_pool()
                    .NewRoot(MakeNonNullUnique<ActivateLink>(editor_state))
                    .ptr());
 
   commands.Add(
-      L"b",
+      VectorExtendedChar(L"b"),
       editor_state.gc_pool()
           .NewRoot(MakeNonNullUnique<GotoPreviousPositionCommand>(editor_state))
           .ptr());
-  commands.Add(L"n", NewNavigateCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"n"),
+               NewNavigateCommand(editor_state).ptr());
 
   commands.Add(
-      L"j", operation::NewTopLevelCommand(
-                L"down", L"moves down one line", operation::TopCommand(),
-                editor_state,
-                {operation::CommandReachLine{
-                    .repetitions = operation::CommandArgumentRepetitions(1)}})
-                .ptr());
+      VectorExtendedChar(L"j"),
+      operation::NewTopLevelCommand(
+          L"down", L"moves down one line", operation::TopCommand(),
+          editor_state,
+          {operation::CommandReachLine{
+              .repetitions = operation::CommandArgumentRepetitions(1)}})
+          .ptr());
   commands.Add(
-      L"k",
+      VectorExtendedChar(L"k"),
       operation::NewTopLevelCommand(
           L"up", L"moves up one line", operation::TopCommand(), editor_state,
           {operation::CommandReachLine{
               .repetitions = operation::CommandArgumentRepetitions(-1)}})
           .ptr());
 
-  // commands.Add(L"j", std::make_unique<LineDown>());
-  // commands.Add(L"k", std::make_unique<LineUp>());
-  // commands.Add(L"l", std::make_unique<MoveForwards>(Direction::kForwards));
-  // commands.Add(L"h", std::make_unique<MoveForwards>(Direction::kBackwards));
+  // commands.Add(VectorExtendedChar(L"j"), std::make_unique<LineDown>());
+  // commands.Add(VectorExtendedChar(L"k"), std::make_unique<LineUp>());
+  // commands.Add(VectorExtendedChar(L"l"),
+  // std::make_unique<MoveForwards>(Direction::kForwards));
+  // commands.Add(VectorExtendedChar(L"h"),
+  // std::make_unique<MoveForwards>(Direction::kBackwards));
   commands.Add(
-      L"l", operation::NewTopLevelCommand(
-                L"right", L"moves right one position", operation::TopCommand(),
-                editor_state,
-                {operation::CommandReach{
-                    .repetitions = operation::CommandArgumentRepetitions(1)}})
-                .ptr());
+      VectorExtendedChar(L"l"),
+      operation::NewTopLevelCommand(
+          L"right", L"moves right one position", operation::TopCommand(),
+          editor_state,
+          {operation::CommandReach{
+              .repetitions = operation::CommandArgumentRepetitions(1)}})
+          .ptr());
   commands.Add(
-      L"h", operation::NewTopLevelCommand(
-                L"left", L"moves left one position", operation::TopCommand(),
-                editor_state,
-                {operation::CommandReach{
-                    .repetitions = operation::CommandArgumentRepetitions(-1)}})
-                .ptr());
+      VectorExtendedChar(L"h"),
+      operation::NewTopLevelCommand(
+          L"left", L"moves left one position", operation::TopCommand(),
+          editor_state,
+          {operation::CommandReach{
+              .repetitions = operation::CommandArgumentRepetitions(-1)}})
+          .ptr());
 
   commands.Add(
-      L"H", operation::NewTopLevelCommand(
-                L"home", L"moves to the beginning of the current line",
-                operation::TopCommand(), editor_state,
-                {operation::CommandReachBegin{
-                    .structure = Structure::kChar,
-                    .repetitions = operation::CommandArgumentRepetitions(1)}})
-                .ptr());
-  commands.Add(L"L",
+      VectorExtendedChar(L"H"),
+      operation::NewTopLevelCommand(
+          L"home", L"moves to the beginning of the current line",
+          operation::TopCommand(), editor_state,
+          {operation::CommandReachBegin{
+              .structure = Structure::kChar,
+              .repetitions = operation::CommandArgumentRepetitions(1)}})
+          .ptr());
+  commands.Add(VectorExtendedChar(L"L"),
                operation::NewTopLevelCommand(
                    L"end", L"moves to the end of the current line",
                    operation::TopCommand(), editor_state,
@@ -882,14 +922,15 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                        .direction = Direction::kBackwards}})
                    .ptr());
   commands.Add(
-      L"K", operation::NewTopLevelCommand(
-                L"file-home", L"moves to the beginning of the current file",
-                operation::TopCommand(), editor_state,
-                {operation::CommandReachBegin{
-                    .structure = Structure::kLine,
-                    .repetitions = operation::CommandArgumentRepetitions(1)}})
-                .ptr());
-  commands.Add(L"J",
+      VectorExtendedChar(L"K"),
+      operation::NewTopLevelCommand(
+          L"file-home", L"moves to the beginning of the current file",
+          operation::TopCommand(), editor_state,
+          {operation::CommandReachBegin{
+              .structure = Structure::kLine,
+              .repetitions = operation::CommandArgumentRepetitions(1)}})
+          .ptr());
+  commands.Add(VectorExtendedChar(L"J"),
                operation::NewTopLevelCommand(
                    L"file-end", L"moves to the end of the current file",
                    operation::TopCommand(), editor_state,
@@ -899,18 +940,19 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                        .direction = Direction::kBackwards}})
                    .ptr());
   commands.Add(
-      L"~", operation::NewTopLevelCommand(
-                L"switch-case", L"Switches the case of the current character.",
-                operation::TopCommand{
-                    .post_transformation_behavior = transformation::Stack::
-                        PostTransformationBehavior::kCapitalsSwitch},
-                editor_state,
-                {operation::CommandReach{
-                    .repetitions = operation::CommandArgumentRepetitions(1)}})
-                .ptr());
+      VectorExtendedChar(L"~"),
+      operation::NewTopLevelCommand(
+          L"switch-case", L"Switches the case of the current character.",
+          operation::TopCommand{
+              .post_transformation_behavior = transformation::Stack::
+                  PostTransformationBehavior::kCapitalsSwitch},
+          editor_state,
+          {operation::CommandReach{
+              .repetitions = operation::CommandArgumentRepetitions(1)}})
+          .ptr());
 
   commands.Add(
-      L"%",
+      VectorExtendedChar(L"%"),
       operation::NewTopLevelCommand(
           L"tree-navigate", L"moves past the next token in the syntax tree",
           operation::TopCommand{}, editor_state,
@@ -919,8 +961,9 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
               .repetitions = operation::CommandArgumentRepetitions(1)}})
           .ptr());
 
-  commands.Add(L"sr", NewRecordCommand(editor_state).ptr());
-  commands.Add(L"\t", NewFindCompletionCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"sr"), NewRecordCommand(editor_state).ptr());
+  commands.Add(VectorExtendedChar(L"\t"),
+               NewFindCompletionCommand(editor_state).ptr());
 
   RegisterVariableKeys(editor_state, editor_variables::BoolStruct(),
                        VariableLocation::kEditor, commands_root.ptr().value());
@@ -933,70 +976,80 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
   RegisterVariableKeys(editor_state, buffer_variables::IntStruct(),
                        VariableLocation::kBuffer, commands_root.ptr().value());
 
-  commands.Add({Terminal::ESCAPE},
+  commands.Add({ControlChar::kEscape},
                editor_state.gc_pool()
                    .NewRoot(MakeNonNullUnique<ResetStateCommand>(editor_state))
                    .ptr());
 
-  commands.Add({Terminal::CTRL_L},
+  commands.Add({ControlChar::kCtrlL},
                editor_state.gc_pool()
                    .NewRoot(MakeNonNullUnique<HardRedrawCommand>(editor_state))
                    .ptr());
-  commands.Add(L"*",
+  commands.Add(VectorExtendedChar(L"*"),
                editor_state.gc_pool()
                    .NewRoot(MakeNonNullUnique<SetStrengthCommand>(editor_state))
                    .ptr());
-  commands.Add(L"0", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"1", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"2", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"3", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"4", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"5", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"6", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"7", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"8", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
-  commands.Add(L"9", editor_state.gc_pool()
-                         .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
-                         .ptr());
+  commands.Add(VectorExtendedChar(L"0"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"1"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"2"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"3"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"4"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"5"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"6"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"7"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"8"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
+  commands.Add(VectorExtendedChar(L"9"),
+               editor_state.gc_pool()
+                   .NewRoot(MakeNonNullUnique<NumberMode>(editor_state))
+                   .ptr());
 
-  commands.Add({Terminal::DOWN_ARROW},
+  commands.Add({ControlChar::kDownArrow},
                editor_state.gc_pool()
                    .NewRoot(MakeNonNullUnique<LineDown>(editor_state))
                    .ptr());
-  commands.Add({Terminal::UP_ARROW},
+  commands.Add({ControlChar::kUpArrow},
                editor_state.gc_pool()
                    .NewRoot(MakeNonNullUnique<LineUp>(editor_state))
                    .ptr());
-  commands.Add({Terminal::LEFT_ARROW},
+  commands.Add({ControlChar::kLeftArrow},
                editor_state.gc_pool()
                    .NewRoot(MakeNonNullUnique<MoveForwards>(
                        editor_state, Direction::kBackwards))
                    .ptr());
-  commands.Add({Terminal::RIGHT_ARROW},
+  commands.Add({ControlChar::kRightArrow},
                editor_state.gc_pool()
                    .NewRoot(MakeNonNullUnique<MoveForwards>(
                        editor_state, Direction::kForwards))
                    .ptr());
   commands.Add(
-      {Terminal::PAGE_DOWN},
+      {ControlChar::kPageDown},
       operation::NewTopLevelCommand(
           L"page_down", L"moves down one page", operation::TopCommand(),
           editor_state,
@@ -1004,7 +1057,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
               .repetitions = operation::CommandArgumentRepetitions(1)}})
           .ptr());
   commands.Add(
-      {Terminal::PAGE_UP},
+      {ControlChar::kPageUp},
       operation::NewTopLevelCommand(
           L"page_up", L"moves up one page", operation::TopCommand(),
           editor_state,

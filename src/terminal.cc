@@ -37,21 +37,6 @@ using afc::language::text::LineNumber;
 namespace afc {
 namespace editor {
 
-constexpr int Terminal::DOWN_ARROW;
-constexpr int Terminal::UP_ARROW;
-constexpr int Terminal::LEFT_ARROW;
-constexpr int Terminal::RIGHT_ARROW;
-constexpr int Terminal::BACKSPACE;
-constexpr int Terminal::PAGE_UP;
-constexpr int Terminal::PAGE_DOWN;
-constexpr int Terminal::ESCAPE;
-constexpr int Terminal::CTRL_A;
-constexpr int Terminal::CTRL_D;
-constexpr int Terminal::CTRL_E;
-constexpr int Terminal::CTRL_L;
-constexpr int Terminal::CTRL_U;
-constexpr int Terminal::CTRL_K;
-
 Terminal::Terminal() : lines_cache_(1024) {}
 
 namespace {
