@@ -693,40 +693,41 @@ void EditorState::set_default_insertion_modifier(
   modifiers_.default_insertion = default_insertion_modifier;
 }
 
-futures::Value<EmptyValue> EditorState::ProcessInputString(
+futures::Value<EmptyValue> EditorState::ProcessInput(
     const std::vector<ExtendedChar>& input) {
   return futures::ForEachWithCopy(
              input.begin(), input.end(),
              [this](ExtendedChar c) {
-               return ProcessInput(c).Transform([](EmptyValue) {
-                 return futures::IterationControlCommand::kContinue;
-               });
+               if (auto handler = keyboard_redirect().get();
+                   handler != nullptr) {
+                 handler->ProcessInput(c);
+                 return futures::Past(
+                     futures::IterationControlCommand::kContinue);
+               }
+
+               if (has_current_buffer()) {
+                 current_buffer()->ptr()->mode().ProcessInput(c);
+                 return futures::Past(
+                     futures::IterationControlCommand::kContinue);
+               }
+
+               return OpenAnonymousBuffer(*this).Transform(
+                   [this, c](gc::Root<OpenBuffer> buffer) {
+                     if (!has_current_buffer()) {
+                       buffer_tree_.AddBuffer(
+                           buffer, BuffersList::AddBufferType::kOnlyList);
+                       set_current_buffer(buffer,
+                                          CommandArgumentModeApplyMode::kFinal);
+                       CHECK(has_current_buffer());
+                       CHECK(&current_buffer().value().ptr().value() ==
+                             &buffer.ptr().value());
+                     }
+                     buffer.ptr()->mode().ProcessInput(c);
+                     return futures::Past(
+                         futures::IterationControlCommand::kContinue);
+                   });
              })
       .Transform([](futures::IterationControlCommand) { return EmptyValue(); });
-}
-
-futures::Value<EmptyValue> EditorState::ProcessInput(ExtendedChar c) {
-  if (auto handler = keyboard_redirect().get(); handler != nullptr) {
-    handler->ProcessInput(c);
-    return futures::Past(EmptyValue());
-  }
-
-  if (has_current_buffer()) {
-    current_buffer()->ptr()->mode().ProcessInput(c);
-    return futures::Past(EmptyValue());
-  }
-
-  return OpenAnonymousBuffer(*this).Transform([this,
-                                               c](gc::Root<OpenBuffer> buffer) {
-    if (!has_current_buffer()) {
-      buffer_tree_.AddBuffer(buffer, BuffersList::AddBufferType::kOnlyList);
-      set_current_buffer(buffer, CommandArgumentModeApplyMode::kFinal);
-      CHECK(has_current_buffer());
-      CHECK(&current_buffer().value().ptr().value() == &buffer.ptr().value());
-    }
-    buffer.ptr()->mode().ProcessInput(c);
-    return EmptyValue();
-  });
 }
 
 void EditorState::MoveBufferForwards(size_t times) {

@@ -915,7 +915,7 @@ class OperationMode : public EditorMode {
         .SetFallback({}, [&state = state_,
                           &editor_state = editor_state_](ExtendedChar c) {
           state.Commit();
-          editor_state.ProcessInput(c);
+          editor_state.ProcessInput({c});
         });
     return cmap;
   }

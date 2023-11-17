@@ -33,7 +33,7 @@ class RepeatMode : public EditorMode {
       consumer_(result_);
       auto old_mode_to_keep_this_alive =
           editor_state_.set_keyboard_redirect(nullptr);
-      editor_state_.ProcessInput(input);
+      editor_state_.ProcessInput({input});
     }
   }
 

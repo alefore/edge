@@ -84,7 +84,7 @@ class CommandArgumentMode : public EditorMode {
                 auto& editor_state_copy = editor_state;
                 editor_state.set_keyboard_redirect(nullptr);
                 if (c != infrastructure::ExtendedChar(L'\n')) {
-                  editor_state_copy.ProcessInput(c);
+                  editor_state_copy.ProcessInput({c});
                 }
                 return language::EmptyValue();
               });

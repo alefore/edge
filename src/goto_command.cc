@@ -167,7 +167,7 @@ class GotoCommand : public Command {
   void ProcessInput(ExtendedChar c) override {
     if (c != ExtendedChar('g')) {
       auto old_mode = editor_state_.set_keyboard_redirect(nullptr);
-      editor_state_.ProcessInput(c);
+      editor_state_.ProcessInput({c});
       return;
     }
     auto structure = editor_state_.structure();

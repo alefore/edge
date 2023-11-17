@@ -150,10 +150,8 @@ class EditorState {
   void set_default_insertion_modifier(
       Modifiers::ModifyMode default_insertion_modifier);
 
-  futures::Value<language::EmptyValue> ProcessInputString(
-      const std::vector<infrastructure::ExtendedChar>& input);
   futures::Value<language::EmptyValue> ProcessInput(
-      infrastructure::ExtendedChar c);
+      const std::vector<infrastructure::ExtendedChar>& input);
 
   const LineMarks& line_marks() const { return line_marks_; }
   LineMarks& line_marks() { return line_marks_; }

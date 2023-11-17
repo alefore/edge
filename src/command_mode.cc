@@ -331,7 +331,7 @@ class NumberMode : public Command {
         editor_state_, [&editor_state = editor_state_](int number) {
           editor_state.set_repetitions(number);
         }));
-    editor_state_.ProcessInput(c);
+    editor_state_.ProcessInput({c});
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()

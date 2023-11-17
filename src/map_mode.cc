@@ -223,7 +223,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                    editor->environment().ptr());
                CHECK(!executed);
                // editor->gc_pool().FullCollect();
-               editor->ProcessInput(L'X');
+               editor->ProcessInput({L'X'});
                CHECK(executed);
              }},
         {.name = L"AddControl",
@@ -244,8 +244,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                    editor->environment().ptr());
                CHECK(!executed);
                LOG(INFO) << "Feeding.";
-               editor->ProcessInput(L'A');
-               editor->ProcessInput(ControlChar::kPageDown);
+               editor->ProcessInput({L'A', ControlChar::kPageDown});
                CHECK(executed);
              }},
     });

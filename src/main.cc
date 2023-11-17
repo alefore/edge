@@ -394,7 +394,7 @@ int main(int argc, const char** argv) {
                                     "ProcessInput(" +
                                         std::to_string(*regular_c) + ");\n")));
                             } else {
-                              editor_state().ProcessInput(c);
+                              editor_state().ProcessInput({c});
                             }
                           }
                         }

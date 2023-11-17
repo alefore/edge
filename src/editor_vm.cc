@@ -305,7 +305,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       L"ProcessInput", vm::NewCallback(pool, PurityType::kUnknown,
                                        [](EditorState& editor_arg, int c) {
-                                         editor_arg.ProcessInput(c);
+                                         editor_arg.ProcessInput({c});
                                        })
                            .ptr());
 
