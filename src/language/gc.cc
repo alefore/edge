@@ -422,8 +422,8 @@ Pool::RootRegistration Pool::AddRoot(
   std::function<void(bool*)> deletor = eden_.lock([&](Eden& eden) {
     return
         [registration = eden.roots.Add(object_metadata)](bool* value) mutable {
-          delete value;
           VLOG(10) << "Erasing root: " << value;
+          delete value;
           registration.Erase();
         };
   });
