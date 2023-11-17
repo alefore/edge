@@ -516,9 +516,17 @@ void CheckIncrementsChar(KeyCommandsMap& cmap,
   cmap.Insert(L'h', {.category = KeyCommandsMap::Category::kRepetitions,
                      .description = kMoveLeft,
                      .handler = [output](ExtendedChar) { output->sum(-1); }})
+      .Insert(ControlChar::kLeftArrow,
+              {.category = KeyCommandsMap::Category::kRepetitions,
+               .description = kMoveLeft,
+               .handler = [output](ExtendedChar) { output->sum(-1); }})
       .Insert(L'l', {.category = KeyCommandsMap::Category::kRepetitions,
                      .description = kMoveRight,
-                     .handler = [output](ExtendedChar) { output->sum(1); }});
+                     .handler = [output](ExtendedChar) { output->sum(1); }})
+      .Insert(ControlChar::kRightArrow,
+              {.category = KeyCommandsMap::Category::kRepetitions,
+               .description = kMoveRight,
+               .handler = [output](ExtendedChar) { output->sum(1); }});
 }
 
 void CheckRepetitionsChar(KeyCommandsMap& cmap,
@@ -596,15 +604,20 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
           .category = KeyCommandsMap::Category::kRepetitions,
           .description = description,
           .handler = [output](ExtendedChar t) {
-            int delta = t == ExtendedChar(L'j') ? 1 : -1;
+            int delta = (t == ExtendedChar(L'j') ||
+                         t == ExtendedChar(ControlChar::kDownArrow))
+                            ? 1
+                            : -1;
             if (output->direction == Direction::kBackwards) {
               delta *= -1;
             }
             output->repetitions.sum(delta);
           }};
     };
-    cmap.Insert(L'j', handler(Description(L"👇")));
-    cmap.Insert(L'k', handler(Description(L"👆")));
+    cmap.Insert(L'j', handler(Description(L"👇")))
+        .Insert(ControlChar::kDownArrow, handler(Description(L"👇")))
+        .Insert(L'k', handler(Description(L"👆")))
+        .Insert(ControlChar::kUpArrow, handler(Description(L"👆")));
   }
 
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
@@ -647,11 +660,21 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
           {.category = KeyCommandsMap::Category::kRepetitions,
            .description = kMoveDown,
            .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
-      .Insert(L'k', {.category = KeyCommandsMap::Category::kRepetitions,
-                     .description = kMoveUp,
-                     .handler = [output](ExtendedChar) {
-                       output->repetitions.sum(-1);
-                     }});
+      .Insert(
+          ControlChar::kDownArrow,
+          {.category = KeyCommandsMap::Category::kRepetitions,
+           .description = kMoveDown,
+           .handler = [output](ExtendedChar) { output->repetitions.sum(1); }})
+      .Insert(
+          L'k',
+          {.category = KeyCommandsMap::Category::kRepetitions,
+           .description = kMoveUp,
+           .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }})
+      .Insert(
+          ControlChar::kUpArrow,
+          {.category = KeyCommandsMap::Category::kRepetitions,
+           .description = kMoveUp,
+           .handler = [output](ExtendedChar) { output->repetitions.sum(-1); }});
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
@@ -843,7 +866,23 @@ class OperationMode : public EditorMode {
                        state_.Push(CommandReach{.structure = Structure::kChar,
                                                 .repetitions = -1});
                      }})
+        .Insert(ControlChar::kLeftArrow,
+                {.category = KeyCommandsMap::Category::kNewCommand,
+                 .description = kMoveLeft,
+                 .handler =
+                     [this](ExtendedChar) {
+                       state_.Push(CommandReach{.structure = Structure::kChar,
+                                                .repetitions = -1});
+                     }})
         .Insert(L'l',
+                {.category = KeyCommandsMap::Category::kNewCommand,
+                 .description = kMoveRight,
+                 .handler =
+                     [this](ExtendedChar) {
+                       state_.Push(CommandReach{.structure = Structure::kChar,
+                                                .repetitions = 1});
+                     }})
+        .Insert(ControlChar::kRightArrow,
                 {.category = KeyCommandsMap::Category::kNewCommand,
                  .description = kMoveRight,
                  .handler =
@@ -913,11 +952,16 @@ class OperationMode : public EditorMode {
                     c == ControlChar::kPageUp ? -1 : 1)});
           }};
     };
-    auto MoveHandler = [&](wchar_t c) {
-      CHECK(c == L'j' || c == L'k');
+    auto MoveHandler = [&](ExtendedChar c) {
+      CHECK(c == ExtendedChar(L'j') || c == ExtendedChar(L'k') ||
+            c == ExtendedChar(ControlChar::kDownArrow) ||
+            c == ExtendedChar(ControlChar::kUpArrow));
       return KeyCommandsMap::KeyCommand{
           .category = KeyCommandsMap::Category::kNewCommand,
-          .description = c == L'j' ? kMoveDown : kMoveUp,
+          .description = (c == ExtendedChar(L'j') ||
+                          c == ExtendedChar(ControlChar::kDownArrow))
+                             ? kMoveDown
+                             : kMoveUp,
           .handler = [&state = state_, c](ExtendedChar) {
             if (CommandReach* reach =
                     state.empty()
@@ -928,8 +972,11 @@ class OperationMode : public EditorMode {
               state.UndoLast();
             }
             state.Push(CommandReachLine{
-                .repetitions =
-                    operation::CommandArgumentRepetitions(c == L'k' ? -1 : 1)});
+                .repetitions = operation::CommandArgumentRepetitions(
+                    c == ExtendedChar(L'k') ||
+                            c == ExtendedChar(ControlChar::kUpArrow)
+                        ? -1
+                        : 1)});
           }};
     };
     KeyCommandsMap cmap;
@@ -1023,6 +1070,8 @@ class OperationMode : public EditorMode {
         .Insert(ControlChar::kPageUp, PageHandler(ControlChar::kPageUp))
         .Insert(L'j', MoveHandler('j'))
         .Insert(L'k', MoveHandler('k'))
+        .Insert(ControlChar::kDownArrow, MoveHandler(ControlChar::kDownArrow))
+        .Insert(ControlChar::kUpArrow, MoveHandler(ControlChar::kUpArrow))
         .Insert(L'H', push(kHomeLeft, CommandReachBegin{}))
         .Insert(L'L',
                 push(kHomeRight,
