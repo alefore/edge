@@ -366,6 +366,7 @@ class InsertMode : public EditorMode {
         overload{
             [&](wchar_t regular_c) { ProcessRegular(regular_c, old_literal); },
             [&](ControlChar control_c) {
+              TRACK_OPERATION(InsertMode_ProcessInput_ControlChar);
               switch (control_c) {
                 case ControlChar::kEscape:
                   ResetScrollBehavior();
@@ -554,6 +555,7 @@ class InsertMode : public EditorMode {
   }
 
   void ProcessRegular(wchar_t regular_c, bool old_literal) {
+    TRACK_OPERATION(InsertMode_ProcessInput_Regular);
     switch (regular_c) {
       case '\t':
         ResetScrollBehavior();
