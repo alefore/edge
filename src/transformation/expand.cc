@@ -89,7 +89,9 @@ class PredictorTransformation : public CompositeTransformation {
  public:
   PredictorTransformation(Predictor predictor,
                           NonNull<std::shared_ptr<LazyString>> text)
-      : predictor_(std::move(predictor)), text_(std::move(text)) {}
+      : predictor_(std::move(predictor)), text_(std::move(text)) {
+    CHECK_GT(text_->size(), ColumnNumberDelta());
+  }
 
   std::wstring Serialize() const override {
     return L"PredictorTransformation();";
@@ -358,43 +360,49 @@ class ExpandTransformation : public CompositeTransformation {
                             }},
                    Path::FromString(symbol));
       } break;
-      case '/': {
-        auto path = GetToken(input, buffer_variables::path_characters);
-        output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
-        transformation_future = futures::Past(
-            std::make_unique<PredictorTransformation>(FilePredictor, path));
-      } break;
-      case ' ': {
-        auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
-        futures::Value<Predictor> predictor_future =
-            futures::Past(SyntaxBasedPredictor);
-        if (ValueOrError<Path> path = Path::FromString(
-                input.buffer.Read(buffer_variables::dictionary));
-            !IsError(path)) {
-          predictor_future =
-              OpenFileIfFound(
-                  OpenFileOptions{
-                      .editor_state = input.buffer.editor(),
-                      .path = ValueOrDie(std::move(path)),
-                      .insertion_type = BuffersList::AddBufferType::kIgnore,
-                      .use_search_paths = false})
-                  .Transform([](gc::Root<OpenBuffer> dictionary) {
-                    return Success(ComposePredictors(
-                        DictionaryPredictor(std::move(dictionary)),
-                        SyntaxBasedPredictor));
-                  })
-                  .ConsumeErrors([](Error) -> futures::Value<Predictor> {
-                    return futures::Past(SyntaxBasedPredictor);
+      case '/':
+        if (NonNull<std::shared_ptr<LazyString>> path =
+                GetToken(input, buffer_variables::path_characters);
+            !path->size().IsZero()) {
+          output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
+          transformation_future = futures::Past(
+              std::make_unique<PredictorTransformation>(FilePredictor, path));
+        }
+        break;
+      case ' ':
+        if (NonNull<std::shared_ptr<LazyString>> symbol =
+                GetToken(input, buffer_variables::symbol_characters);
+            !symbol->size().IsZero()) {
+          output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
+          futures::Value<Predictor> predictor_future =
+              futures::Past(SyntaxBasedPredictor);
+          if (ValueOrError<Path> path = Path::FromString(
+                  input.buffer.Read(buffer_variables::dictionary));
+              !IsError(path)) {
+            predictor_future =
+                OpenFileIfFound(
+                    OpenFileOptions{
+                        .editor_state = input.buffer.editor(),
+                        .path = ValueOrDie(std::move(path)),
+                        .insertion_type = BuffersList::AddBufferType::kIgnore,
+                        .use_search_paths = false})
+                    .Transform([](gc::Root<OpenBuffer> dictionary) {
+                      return Success(ComposePredictors(
+                          DictionaryPredictor(std::move(dictionary)),
+                          SyntaxBasedPredictor));
+                    })
+                    .ConsumeErrors([](Error) -> futures::Value<Predictor> {
+                      return futures::Past(SyntaxBasedPredictor);
+                    });
+          }
+          transformation_future =
+              std::move(predictor_future)
+                  .Transform([symbol](Predictor predictor) {
+                    return std::make_unique<PredictorTransformation>(predictor,
+                                                                     symbol);
                   });
         }
-        transformation_future =
-            std::move(predictor_future)
-                .Transform([symbol](Predictor predictor) {
-                  return std::make_unique<PredictorTransformation>(predictor,
-                                                                   symbol);
-                });
-      } break;
+        break;
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
         output->Push(DeleteLastCharacters(
