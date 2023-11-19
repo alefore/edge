@@ -257,8 +257,13 @@ futures::Value<PossibleError> SaveContentsToFile(
                return futures::Past(Success(value));
              })
       .Transform([path, &file_system_driver, tmp_path](struct stat stat_value) {
-        return file_system_driver.Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
-                                       stat_value.st_mode);
+        return OnError(
+            file_system_driver.Open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC,
+                                    stat_value.st_mode),
+            [tmp_path](Error error) {
+              LOG(INFO) << tmp_path << ": Error opening file: " << error;
+              return futures::Past(error);
+            });
       })
       .Transform([&thread_pool, path, contents = std::move(contents), tmp_path,
                   &file_system_driver](FileDescriptor fd) {
