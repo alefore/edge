@@ -1098,12 +1098,18 @@ HistoryFile HistoryFileCommands() { return HistoryFile(L"commands"); }
 void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
                       NonNull<std::shared_ptr<LazyString>> input) {
   if (input->size().IsZero()) return;
-  GetHistoryBuffer(editor, history_file)
-      .Transform([history_line = BuildHistoryLine(editor, input)](
-                     gc::Root<OpenBuffer> history) {
-        history.ptr()->AppendLine(history_line);
-        return Success();
-      });
+  switch (editor.args().prompt_history_behavior) {
+    case CommandLineValues::PromptHistoryBehavior::kAppendValues:
+      GetHistoryBuffer(editor, history_file)
+          .Transform([history_line = BuildHistoryLine(editor, input)](
+                         gc::Root<OpenBuffer> history) {
+            history.ptr()->AppendLine(history_line);
+            return Success();
+          });
+      return;
+    case CommandLineValues::PromptHistoryBehavior::kReadOnly:
+      break;
+  }
 }
 
 InsertModeOptions PromptState::insert_mode_options() {

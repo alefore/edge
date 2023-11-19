@@ -262,7 +262,18 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"based on search paths (rather than simply attempting to open "
               L"them as relative paths to the current working directory).")
           .Set(&CommandLineValues::initial_path_resolution_behavior,
-               CommandLineValues::LocalPathResolutionBehavior::kAdvanced)};
+               CommandLineValues::LocalPathResolutionBehavior::kAdvanced),
+
+      Handler<CommandLineValues>({L"prompt_history_read_only"},
+                                 L"Don't append new entries to prompt history.")
+          .SetHelp(
+              L"By default, Edge appends new values given to prompts (e.g., "
+              L"the open file or execute command prompts) to corresponding "
+              L"files in the Edge runtime path (e.g., ~/.edge or $EDGE_PATH). "
+              L"If this flag is given, that functionality is disabled (but "
+              L"Edge will still attempt to read prompt history files).")
+          .Set(&CommandLineValues::prompt_history_behavior,
+               CommandLineValues::PromptHistoryBehavior::kReadOnly)};
   return handlers;
 }
 
