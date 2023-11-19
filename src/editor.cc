@@ -152,7 +152,8 @@ class BuffersListAdapter : public BuffersList::CustomerAdapter {
 
 EditorState::EditorState(CommandLineValues args,
                          infrastructure::audio::Player& audio_player)
-    : work_queue_(WorkQueue::New()),
+    : args_(std::move(args)),
+      work_queue_(WorkQueue::New()),
       thread_pool_(MakeNonNullShared<ThreadPoolWithWorkQueue>(
           MakeNonNullShared<ThreadPool>(32), work_queue_)),
       gc_pool_(gc::Pool::Options{
@@ -165,7 +166,6 @@ EditorState::EditorState(CommandLineValues args,
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
-      home_directory_(args.home_directory),
       edge_path_([](std::vector<std::wstring> paths) {
         std::vector<Path> output;
         for (std::wstring& candidate : paths) {
@@ -174,8 +174,7 @@ EditorState::EditorState(CommandLineValues args,
                      Path::FromString(candidate));
         }
         return output;
-      }(args.config_paths)),
-      frames_per_second_(args.frames_per_second),
+      }(args_.config_paths)),
       environment_([&] {
         gc::Root<vm::Environment> output = BuildEditorEnvironment(
             gc_pool_,
@@ -265,6 +264,8 @@ EditorState::~EditorState() {
   gc_pool_.FullCollect();
   gc_pool_.BlockUntilDone();
 }
+
+const CommandLineValues& EditorState::args() { return args_; }
 
 const bool& EditorState::Read(const EdgeVariable<bool>* variable) const {
   return bool_variables_.Get(variable);
@@ -789,7 +790,7 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
     work_queue_->Wait(next_screen_update_);
     return {};
   }
-  next_screen_update_ = AddSeconds(now, 1.0 / frames_per_second_);
+  next_screen_update_ = AddSeconds(now, 1.0 / args_.frames_per_second);
   ScreenState output = screen_state_;
   screen_state_ = ScreenState();
   return output;
@@ -930,6 +931,10 @@ bool EditorState::MovePositionsStack(Direction direction) {
 
 Status& EditorState::status() { return status_; }
 const Status& EditorState::status() const { return status_; }
+
+const infrastructure::Path& EditorState::home_directory() const {
+  return args_.home_directory;
+}
 
 Path EditorState::expand_path(Path path) const {
   return Path::ExpandHomeDirectory(home_directory(), path);

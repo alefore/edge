@@ -43,6 +43,8 @@ class Buffercontents;
 enum class CommandArgumentModeApplyMode;
 
 class EditorState {
+  const CommandLineValues args_;
+
  public:
   struct ScreenState {
     bool needs_hard_redraw = false;
@@ -51,6 +53,8 @@ class EditorState {
   EditorState(CommandLineValues args,
               infrastructure::audio::Player& audio_player);
   ~EditorState();
+
+  const CommandLineValues& args();
 
   const bool& Read(const EdgeVariable<bool>* variable) const;
   void Set(const EdgeVariable<bool>* variable, bool value);
@@ -179,7 +183,7 @@ class EditorState {
   Status& status();
   const Status& status() const;
 
-  const infrastructure::Path& home_directory() const { return home_directory_; }
+  const infrastructure::Path& home_directory() const;
   const std::vector<infrastructure::Path>& edge_path() const {
     return edge_path_;
   }
@@ -242,10 +246,7 @@ class EditorState {
   std::optional<int> exit_value_;
   std::set<BufferName> dirty_buffers_saved_to_backup_;
 
-  const infrastructure::Path home_directory_;
   const std::vector<infrastructure::Path> edge_path_;
-
-  double frames_per_second_;
 
   const language::gc::Root<vm::Environment> environment_;
 
