@@ -273,7 +273,19 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"If this flag is given, that functionality is disabled (but "
               L"Edge will still attempt to read prompt history files).")
           .Set(&CommandLineValues::prompt_history_behavior,
-               CommandLineValues::PromptHistoryBehavior::kReadOnly)};
+               CommandLineValues::HistoryFileBehavior::kReadOnly),
+
+      Handler<CommandLineValues>(
+          {L"positions_history_read_only"},
+          L"Don't append new entries to positions history.")
+          .SetHelp(
+              L"By default, Edge keeps track of positions you've visited in "
+              L"`$EDGE_PATH/positions`. If this flag is given, that "
+              L"functionality "
+              L"is disabled (but Edge may still attempt to read previous "
+              L"state).")
+          .Set(&CommandLineValues::positions_history_behavior,
+               CommandLineValues::HistoryFileBehavior::kReadOnly)};
   return handlers;
 }
 

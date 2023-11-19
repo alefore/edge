@@ -70,9 +70,10 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   LocalPathResolutionBehavior initial_path_resolution_behavior =
       LocalPathResolutionBehavior::kSimple;
 
-  enum class PromptHistoryBehavior { kAppendValues, kReadOnly };
-  PromptHistoryBehavior prompt_history_behavior =
-      PromptHistoryBehavior::kAppendValues;
+  enum class HistoryFileBehavior { kUpdate, kReadOnly };
+  HistoryFileBehavior prompt_history_behavior = HistoryFileBehavior::kUpdate;
+
+  HistoryFileBehavior positions_history_behavior = HistoryFileBehavior::kUpdate;
 };
 
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&

@@ -816,51 +816,58 @@ void EditorState::PushCurrentPosition() {
 }
 
 void EditorState::PushPosition(LineColumn position) {
-  auto buffer = current_buffer();
-  if (!buffer.has_value() ||
-      !buffer->ptr()->Read(buffer_variables::push_positions_to_history)) {
-    return;
-  }
-  auto buffer_it = buffers_.find(PositionsBufferName());
-  futures::Value<gc::Root<OpenBuffer>> future_positions_buffer =
-      buffer_it != buffers_.end()
-          ? futures::Past(buffer_it->second)
-          // Insert a new entry into the list of buffers.
-          : OpenOrCreateFile(
-                OpenFileOptions{
-                    .editor_state = *this,
-                    .name = PositionsBufferName(),
-                    .path = edge_path().empty()
-                                ? std::optional<Path>()
-                                : Path::Join(edge_path().front(),
-                                             ValueOrDie(Path::FromString(
-                                                 L"positions"))),
-                    .insertion_type = BuffersList::AddBufferType::kIgnore})
-                .Transform([](gc::Root<OpenBuffer> buffer_root) {
-                  OpenBuffer& output = buffer_root.ptr().value();
-                  output.Set(buffer_variables::save_on_close, true);
-                  output.Set(buffer_variables::trigger_reload_on_buffer_write,
-                             false);
-                  output.Set(buffer_variables::show_in_buffers_list, false);
-                  output.Set(buffer_variables::vm_lines_evaluation, false);
-                  return buffer_root;
-                });
+  switch (args_.positions_history_behavior) {
+    case CommandLineValues::HistoryFileBehavior::kReadOnly:
+      break;
 
-  std::move(future_positions_buffer)
-      .Transform([line_to_insert = MakeNonNullShared<Line>(
-                      position.ToString() + L" " +
-                      buffer->ptr()->Read(buffer_variables::name))](
-                     gc::Root<OpenBuffer> positions_buffer_root) {
-        OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
-        positions_buffer.CheckPosition();
-        CHECK_LE(positions_buffer.position().line,
-                 LineNumber(0) + positions_buffer.contents().size());
-        positions_buffer.InsertLine(positions_buffer.current_position_line(),
-                                    line_to_insert);
-        CHECK_LE(positions_buffer.position().line,
-                 LineNumber(0) + positions_buffer.contents().size());
-        return Success();
-      });
+    case CommandLineValues::HistoryFileBehavior::kUpdate:
+      auto buffer = current_buffer();
+      if (!buffer.has_value() ||
+          !buffer->ptr()->Read(buffer_variables::push_positions_to_history)) {
+        return;
+      }
+      auto buffer_it = buffers_.find(PositionsBufferName());
+      futures::Value<gc::Root<OpenBuffer>> future_positions_buffer =
+          buffer_it != buffers_.end()
+              ? futures::Past(buffer_it->second)
+              // Insert a new entry into the list of buffers.
+              : OpenOrCreateFile(
+                    OpenFileOptions{
+                        .editor_state = *this,
+                        .name = PositionsBufferName(),
+                        .path = edge_path().empty()
+                                    ? std::optional<Path>()
+                                    : Path::Join(edge_path().front(),
+                                                 ValueOrDie(Path::FromString(
+                                                     L"positions"))),
+                        .insertion_type = BuffersList::AddBufferType::kIgnore})
+                    .Transform([](gc::Root<OpenBuffer> buffer_root) {
+                      OpenBuffer& output = buffer_root.ptr().value();
+                      output.Set(buffer_variables::save_on_close, true);
+                      output.Set(
+                          buffer_variables::trigger_reload_on_buffer_write,
+                          false);
+                      output.Set(buffer_variables::show_in_buffers_list, false);
+                      output.Set(buffer_variables::vm_lines_evaluation, false);
+                      return buffer_root;
+                    });
+
+      std::move(future_positions_buffer)
+          .Transform([line_to_insert = MakeNonNullShared<Line>(
+                          position.ToString() + L" " +
+                          buffer->ptr()->Read(buffer_variables::name))](
+                         gc::Root<OpenBuffer> positions_buffer_root) {
+            OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
+            positions_buffer.CheckPosition();
+            CHECK_LE(positions_buffer.position().line,
+                     LineNumber(0) + positions_buffer.contents().size());
+            positions_buffer.InsertLine(
+                positions_buffer.current_position_line(), line_to_insert);
+            CHECK_LE(positions_buffer.position().line,
+                     LineNumber(0) + positions_buffer.contents().size());
+            return Success();
+          });
+  }
 }
 
 static BufferPosition PositionFromLine(const std::wstring& line) {

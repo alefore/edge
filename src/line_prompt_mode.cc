@@ -1099,7 +1099,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
                       NonNull<std::shared_ptr<LazyString>> input) {
   if (input->size().IsZero()) return;
   switch (editor.args().prompt_history_behavior) {
-    case CommandLineValues::PromptHistoryBehavior::kAppendValues:
+    case CommandLineValues::HistoryFileBehavior::kUpdate:
       GetHistoryBuffer(editor, history_file)
           .Transform([history_line = BuildHistoryLine(editor, input)](
                          gc::Root<OpenBuffer> history) {
@@ -1107,7 +1107,7 @@ void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
             return Success();
           });
       return;
-    case CommandLineValues::PromptHistoryBehavior::kReadOnly:
+    case CommandLineValues::HistoryFileBehavior::kReadOnly:
       break;
   }
 }
