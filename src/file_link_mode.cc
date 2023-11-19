@@ -216,6 +216,7 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
     ThreadPoolWithWorkQueue& thread_pool, Path path, FileDescriptor fd,
     LineSequence contents) {
   return thread_pool.Run([contents, path, fd]() {
+    LOG(INFO) << path << ": SaveContentsToOpenFile: writing contents: " << path;
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
     std::optional<PossibleError> error;
     contents.EveryLine([&](LineNumber position,
