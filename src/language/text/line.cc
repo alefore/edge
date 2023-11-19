@@ -114,6 +114,10 @@ ColumnNumber LineBuilder::EndColumn() const {
   return ColumnNumber(0) + contents()->size();
 }
 
+language::lazy_string::ColumnNumberDelta LineBuilder::size() const {
+  return contents()->size();
+}
+
 void LineBuilder::SetCharacter(ColumnNumber column, int c,
                                const LineModifierSet& c_modifiers) {
   ValidateInvariants();
