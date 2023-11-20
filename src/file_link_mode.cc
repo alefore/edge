@@ -213,10 +213,11 @@ futures::Value<PossibleError> Save(
 }
 
 futures::Value<PossibleError> SaveContentsToOpenFile(
-    ThreadPoolWithWorkQueue& thread_pool, Path path, FileDescriptor fd,
-    LineSequence contents) {
-  return thread_pool.Run([contents, path, fd]() {
-    LOG(INFO) << path << ": SaveContentsToOpenFile: writing contents: " << path;
+    ThreadPoolWithWorkQueue& thread_pool, Path original_path, Path path,
+    FileDescriptor fd, LineSequence contents) {
+  return thread_pool.Run([contents, original_path, path, fd]() {
+    LOG(INFO) << original_path
+              << ": SaveContentsToOpenFile: writing contents: " << path;
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
     std::optional<PossibleError> error;
     contents.EveryLine([&](LineNumber position,
@@ -269,12 +270,12 @@ futures::Value<PossibleError> SaveContentsToFile(
       .Transform([&thread_pool, path, contents = std::move(contents), tmp_path,
                   &file_system_driver](FileDescriptor fd) {
         CHECK_NE(fd.read(), -1);
-        return OnError(
-                   SaveContentsToOpenFile(thread_pool, tmp_path, fd, contents),
-                   [&file_system_driver, fd](Error error) {
-                     file_system_driver.Close(fd);
-                     return futures::Past(error);
-                   })
+        return OnError(SaveContentsToOpenFile(thread_pool, path, tmp_path, fd,
+                                              contents),
+                       [&file_system_driver, fd](Error error) {
+                         file_system_driver.Close(fd);
+                         return futures::Past(error);
+                       })
             .Transform([&file_system_driver, fd](EmptyValue) {
               return file_system_driver.Close(fd);
             })
