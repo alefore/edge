@@ -86,14 +86,22 @@ void Run(std::vector<std::wstring> tests_filter) {
     if (printed_group_name) std::cerr << std::endl;
   }
   if (!tests_filter_set.empty()) CHECK_EQ(executions, tests_filter_set.size());
+  size_t failures_count = 0;
   if (!failures.empty()) {
     std::cerr << "# Failures" << std::endl << std::endl;
     for (auto& [group, tests] : failures) {
       std::cerr << "* " << group << std::endl;
-      for (auto& test : tests) std::cerr << "  * " << test << std::endl;
+      for (auto& test : tests) {
+        std::cerr << "  * " << test << std::endl;
+        failures_count++;
+      }
     }
     std::cerr << std::endl;
   }
+
+  std::cerr << "# Test results" << std::endl << std::endl;
+  std::cerr << "Tests executed: " << executions << std::endl;
+  std::cerr << "Tests failures: " << failures_count << std::endl;
   CHECK_EQ(failures.size(), 0ul);
 }
 
