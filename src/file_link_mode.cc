@@ -225,13 +225,18 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
       std::string str = (position == LineNumber(0) ? "" : "\n") +
                         ToByteString(line->ToString());
       if (write(fd.read(), str.c_str(), str.size()) == -1) {
-        error = Error(path.read() + L": write failed: " +
-                      std::to_wstring(fd.read()) + L": " +
-                      FromByteString(strerror(errno)));
+        Error write_error(path.read() + L": write failed: " +
+                          std::to_wstring(fd.read()) + L": " +
+                          FromByteString(strerror(errno)));
+        LOG(INFO) << original_path
+                  << ": SaveContentsToOpenFile: Error: " << write_error;
+        error = std::move(write_error);
         return false;
       }
       return true;
     });
+    LOG(INFO) << original_path
+              << ": SaveContentsToOpenFile: Writing done: " << path;
     return error.value_or(Success());
   });
 }
