@@ -29,6 +29,8 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EraseIf;
 using afc::language::Error;
+using afc::language::IgnoreErrors;
+using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -39,6 +41,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::Padding;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumnDelta;
@@ -112,7 +115,7 @@ std::list<ProcessedPathComponent> GetOutputComponentsForTesting(
 }
 
 const bool get_output_components_tests_registration = tests::Register(
-    L"GetOutputComponentsTests",
+    L"GetOutputComponents",
     {{.name = L"SingleFits",
       .callback =
           [] {
@@ -449,10 +452,10 @@ LineBuilder GetBufferContents(const LineSequence& contents,
 }
 
 LineBuilder GetBufferVisibleString(
-    ColumnNumberDelta columns, std::wstring name, const LineSequence& contents,
-    LineModifierSet modifiers, SelectionState selection_state,
+    const ColumnNumberDelta columns, std::wstring name,
+    const LineSequence& contents, LineModifierSet modifiers,
+    SelectionState selection_state,
     const std::list<ProcessedPathComponent>& components) {
-  LineBuilder output;
   std::optional<LineModifierSet> modifiers_override;
 
   LineModifierSet dim = modifiers;
@@ -476,8 +479,9 @@ LineBuilder GetBufferVisibleString(
       break;
   }
 
-  std::replace(name.begin(), name.end(), L'\n', L' ');
+  LineBuilder output;
   if (components.empty()) {
+    std::replace(name.begin(), name.end(), L'\n', L' ');
     NonNull<std::shared_ptr<LazyString>> output_name =
         NewLazyString(std::move(name));
     if (output_name->size() > ColumnNumberDelta(2) &&
@@ -489,34 +493,60 @@ LineBuilder GetBufferVisibleString(
     output.AppendString(SubstringWithRangeChecks(std::move(output_name),
                                                  ColumnNumber(0), columns),
                         modifiers);
+    CHECK_LE(output.size(), columns);
   } else {
     std::wstring separator;
     for (auto it = components.begin(); it != components.end(); ++it) {
+      CHECK_LE(output.size(), columns);
       output.AppendString(separator, dim);
-      columns -= ColumnNumberDelta(separator.size());
       separator = it->complete ? L"/" : L"…";
       if (it != std::prev(components.end())) {
         output.AppendString(NewLazyString(it->path_component.ToString()),
                             modifiers);
+        CHECK_LE(output.size(), columns);
         continue;
       }
 
-      PathComponent base = OptionalFrom(it->path_component.remove_extension())
-                               .value_or(it->path_component);
-      std::optional<std::wstring> extension = it->path_component.extension();
-      output.AppendString(base.ToString(), bold);
-      if (extension.has_value()) {
+      std::visit(overload{IgnoreErrors{},
+                          [&](const PathComponent& path_without_extension) {
+                            output.AppendString(
+                                path_without_extension.ToString(), bold);
+                          }},
+                 it->path_component.remove_extension());
+      if (std::optional<std::wstring> extension =
+              it->path_component.extension();
+          extension.has_value()) {
         output.AppendString(L".", dim);
         output.AppendString(extension.value(), bold);
       }
+      CHECK_LE(output.size(), columns);
     }
   }
   if (columns > output.EndColumn().ToDelta())
     output.Append(
         GetBufferContents(contents, columns - output.EndColumn().ToDelta()));
 
+  CHECK_LE(output.size(), columns);
   return output;
 }
+
+// GLOG_alsologtostderr=y ./edge --tests=run
+// --tests_filter=GetBufferVisibleString.LongExtension
+const bool get_buffer_visible_string_tests_registration = tests::Register(
+    L"GetBufferVisibleString",
+    std::vector<tests::Test>{
+        {.name = L"LongExtension", .callback = [] {
+           GetBufferVisibleString(
+               ColumnNumberDelta(48), L"name_irrelevant", LineSequence(),
+               LineModifierSet{}, SelectionState::kIdle,
+               ValueOrDie(GetOutputComponents(
+                   ValueOrDie(
+                       ValueOrDie(
+                           Path::FromString(
+                               L"edge-clang/edge/src/args.cc/.edge_state"))
+                           .DirectorySplit()),
+                   ColumnNumberDelta(48))));
+         }}});
 
 ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
     const OpenBuffer& buffer) {
@@ -534,8 +564,14 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
   static Tracker tracker(L"BuffersList::ProduceBuffersList");
   auto call = tracker.Call();
 
-  const ColumnNumberDelta prefix_width = ColumnNumberDelta(
-      std::max(2ul, std::to_wstring(options->buffers.size()).size()) + 2);
+  // We reserve space for the largest number, and extra space for the `progress`
+  // character, and an extra space at the end.
+  static const ColumnNumberDelta kProgressWidth = ColumnNumberDelta(1);
+  static const ColumnNumberDelta kTailSpaceWidth = ColumnNumberDelta(1);
+  const ColumnNumberDelta prefix_width =
+      ColumnNumberDelta(
+          std::max(2ul, std::to_wstring(options->buffers.size()).size())) +
+      kProgressWidth + kTailSpaceWidth;
 
   const ColumnNumberDelta columns_per_buffer =
       (options->size.column -
@@ -551,7 +587,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
           OptionalFrom(GetPathComponentsForBuffer(buffer.ptr().value()))
               .value_or(std::list<PathComponent>()));
     std::vector<std::list<ProcessedPathComponent>> output;
-    for (const auto& path : RemoveCommonPrefixes(paths)) {
+    for (const std::list<PathComponent>& path : RemoveCommonPrefixes(paths)) {
       output.push_back(
           path.empty()
               ? std::list<ProcessedPathComponent>({})
@@ -585,9 +621,10 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                j++) {
             const OpenBuffer& buffer =
                 options->buffers.at(index + j).ptr().value();
-            auto number_prefix = std::to_wstring(index + j + 1);
+            auto number_prefix = NewLazyString(std::to_wstring(index + j + 1));
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer + prefix_width) * j;
+            CHECK_GE(start.ToDelta(), line_options_output.contents()->size());
             line_options_output.AppendString(
                 Padding(
                     start.ToDelta() - line_options_output.contents()->size(),
@@ -605,13 +642,17 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             LineModifierSet number_modifiers =
                 GetNumberModifiers(options.value(), buffer, filter_result);
 
-            start += prefix_width - ColumnNumberDelta(number_prefix.size() + 2);
             line_options_output.AppendString(
-                Append(Padding(start.ToDelta() -
-                                   line_options_output.contents()->size(),
-                               L' '),
-                       NewLazyString(number_prefix)),
+                Padding(prefix_width - number_prefix->size() - kProgressWidth -
+                            kTailSpaceWidth,
+                        L' '),
                 number_modifiers);
+            line_options_output.AppendString(std::move(number_prefix),
+                                             number_modifiers);
+
+            CHECK_EQ(line_options_output.contents()->size(),
+                     (columns_per_buffer + prefix_width) * j + prefix_width -
+                         kProgressWidth - kTailSpaceWidth);
 
             std::wstring progress;
             LineModifierSet progress_modifier;
@@ -630,13 +671,18 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             }
             // If we ever make ProgressString return more than a single
             // character, we'll have to adjust this.
-            CHECK_LE(progress.size(), 1ul);
+            CHECK_EQ(progress.size(), 1ul);
 
             line_options_output.AppendString(
                 NewLazyString(progress),
                 filter_result == FilterResult::kExcluded
                     ? LineModifierSet{LineModifier::kDim}
                     : progress_modifier);
+
+            CHECK_EQ(line_options_output.contents()->size(),
+                     (columns_per_buffer + prefix_width) * j + prefix_width -
+                         kTailSpaceWidth);
+
             SelectionState selection_state;
             switch (filter_result) {
               case FilterResult::kExcluded:
@@ -650,12 +696,18 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                         ? SelectionState::kReceivingInput
                         : SelectionState::kIdle;
             }
-            line_options_output.Append(GetBufferVisibleString(
+            LineBuilder visible_string = GetBufferVisibleString(
                 columns_per_buffer, buffer.Read(buffer_variables::name),
                 buffer.contents().snapshot(),
                 buffer.dirty() ? LineModifierSet{LineModifier::kItalic}
                                : LineModifierSet{},
-                selection_state, path_components[index + j]));
+                selection_state, path_components[j]);
+            CHECK_LE(visible_string.size(), columns_per_buffer);
+            line_options_output.Append(std::move(visible_string));
+
+            CHECK_LE(line_options_output.contents()->size(),
+                     (columns_per_buffer + prefix_width) * (j + 1) -
+                         kTailSpaceWidth);
           }
           return LineWithCursor{.line = MakeNonNullShared<Line>(
                                     std::move(line_options_output).Build())};
