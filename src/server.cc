@@ -301,7 +301,7 @@ bool server_tests_registration = tests::Register(
                       iteration++;
                     }})
             .Run();
-        CHECK_GT(iteration, 10);
+        CHECK_GT(iteration, 10ul);
         CHECK(editor->exit_value().has_value());
         CHECK_EQ(editor->exit_value().value(), 567);
       }}});
