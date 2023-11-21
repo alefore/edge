@@ -6,12 +6,8 @@
 namespace afc::math::numbers {
 template <typename A, typename B>
 language::ValueOrError<A> CheckedAdd(A a, B b) {
-  static_assert(std::is_integral<A>::value,
-                "CheckedAdd supports only integral types.");
-  static_assert(std::is_integral<B>::value,
-                "CheckedAdd supports only integral types.");
-  if (b >= 0 ? std::numeric_limits<A>::max() - b < a
-             : std::numeric_limits<A>::min() - b > a)
+  if (b >= B() ? std::numeric_limits<A>::max() - b < a
+               : std::numeric_limits<A>::min() - b > a)
     return language::Error(
         L"Overflow: the resulting number can't be represented.");
   return a + b;
