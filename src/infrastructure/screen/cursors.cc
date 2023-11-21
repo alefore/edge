@@ -9,21 +9,27 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/overload.h"
 #include "src/language/text/mutable_line_sequence_observer.h"
 #include "src/language/wstring.h"
+#include "src/math/checked_operation.h"
+
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::MutableLineSequenceObserver;
+using afc::language::text::Range;
+using afc::math::numbers::CheckedAdd;
 
 namespace afc::infrastructure::screen {
-using language::EmptyValue;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::MutableLineSequenceObserver;
-using language::text::Range;
 
 using ::operator<<;
 
@@ -143,12 +149,10 @@ Number TransformValue(Number input, Delta delta, Number clamp, bool is_end) {
     return input;
   }
 
-  // TODO(P1, 2023-10-10, Trivial): Use checked math!
-  if (delta > Delta(0) && std::numeric_limits<Number>::max() - delta <= input) {
-    return std::numeric_limits<Number>::max();
-  }
-
-  return input + delta;
+  return std::visit(
+      overload{[](Error) { return std::numeric_limits<Number>::max(); },
+               [](Number output) { return output; }},
+      CheckedAdd(input, delta));
 }
 
 struct CursorsTracker::Transformation {
