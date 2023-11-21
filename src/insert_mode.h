@@ -19,6 +19,8 @@ language::gc::Root<Command> NewFindCompletionCommand(EditorState& editor_state);
 class ScrollBehavior {
  public:
   virtual ~ScrollBehavior() = default;
+  virtual void PageUp(OpenBuffer& buffer) = 0;
+  virtual void PageDown(OpenBuffer& buffer) = 0;
   virtual void Up(OpenBuffer& buffer) = 0;
   virtual void Down(OpenBuffer& buffer) = 0;
   virtual void Left(OpenBuffer& buffer) = 0;
@@ -30,6 +32,8 @@ class ScrollBehavior {
 class DefaultScrollBehavior : public ScrollBehavior {
  public:
   DefaultScrollBehavior() = default;
+  void PageUp(OpenBuffer& buffer) override;
+  void PageDown(OpenBuffer& buffer) override;
   void Up(OpenBuffer& buffer) override;
   void Down(OpenBuffer& buffer) override;
   void Left(OpenBuffer& buffer) override;

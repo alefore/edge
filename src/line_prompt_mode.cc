@@ -920,6 +920,14 @@ class HistoryScrollBehavior : public ScrollBehavior {
           prompt_state_->IsGone());
   }
 
+  void PageUp(OpenBuffer& buffer) override {
+    ScrollHistory(buffer, LineNumberDelta(-1));
+  }
+
+  void PageDown(OpenBuffer& buffer) override {
+    ScrollHistory(buffer, LineNumberDelta(+1));
+  }
+
   void Up(OpenBuffer& buffer) override {
     ScrollHistory(buffer, LineNumberDelta(-1));
   }
@@ -945,7 +953,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(OpenBuffer& buffer, LineNumberDelta delta) const {
     if (prompt_state_->IsGone()) return;
-    if (delta == LineNumberDelta(+1) && !filtered_history_.has_value()) {
+    if (delta > LineNumberDelta() && !filtered_history_.has_value()) {
       ReplaceContents(buffer, LineSequence());
       return;
     }

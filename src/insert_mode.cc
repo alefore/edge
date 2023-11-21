@@ -421,15 +421,21 @@ class InsertMode : public EditorMode {
                       });
                   return;
 
-                  // TODO(P1, 2023-11-17): Handle PageUp better.
-                case ControlChar::kUpArrow:
                 case ControlChar::kPageUp:
+                  ApplyScrollBehavior({27, '[', '5', '~'},
+                                      &ScrollBehavior::PageUp);
+                  return;
+
+                case ControlChar::kPageDown:
+                  ApplyScrollBehavior({27, '[', '6', '~'},
+                                      &ScrollBehavior::PageDown);
+                  return;
+
+                case ControlChar::kUpArrow:
                   ApplyScrollBehavior({27, '[', 'A'}, &ScrollBehavior::Up);
                   return;
 
-                  // TODO(P1, 2023-11-17): Handle PageDown better.
                 case ControlChar::kDownArrow:
-                case ControlChar::kPageDown:
                   ApplyScrollBehavior({27, '[', 'B'}, &ScrollBehavior::Down);
                   return;
 
@@ -1031,6 +1037,17 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   }
 }
 }  // namespace
+
+void DefaultScrollBehavior::PageUp(OpenBuffer& buffer) {
+  buffer.ApplyToCursors(transformation::ModifiersAndComposite{
+      {.structure = Structure::kPage, .direction = Direction::kBackwards},
+      NewMoveTransformation()});
+}
+
+void DefaultScrollBehavior::PageDown(OpenBuffer& buffer) {
+  buffer.ApplyToCursors(transformation::ModifiersAndComposite{
+      {.structure = Structure::kPage}, NewMoveTransformation()});
+}
 
 void DefaultScrollBehavior::Up(OpenBuffer& buffer) {
   buffer.ApplyToCursors(transformation::ModifiersAndComposite{
