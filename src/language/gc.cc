@@ -32,9 +32,9 @@ namespace {
 using ObjectMetadataBag = Bag<std::weak_ptr<ObjectMetadata>>;
 
 size_t SumContainedSizes(const std::list<ObjectMetadataBag>& container) {
-  size_t output = 0;
-  for (const ObjectMetadataBag& item : container) output += item.size();
-  return output;
+  return Fold([](const ObjectMetadataBag& item,
+                 size_t size) { return item.size() + size; },
+              0, container);
 }
 
 void PushAndClean(std::list<ObjectMetadataBag>& container,
