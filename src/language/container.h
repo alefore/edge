@@ -75,5 +75,13 @@ std::set<typename Container::key_type> GetSetWithKeys(
   return std::set<typename Container::key_type>(
       std::views::keys(container).begin(), std::views::keys(container).end());
 }
+
+template <typename Container, typename Callable, typename Value>
+Value Fold(Callable aggregate, Value identity, const Container& container) {
+  Value output = std::move(identity);
+  for (const auto& value : container) output = aggregate(value, output);
+  return output;
+}
+
 }  // namespace afc::language
 #endif
