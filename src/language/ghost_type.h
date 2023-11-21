@@ -121,7 +121,7 @@
     GHOST_TYPE_CONSTRUCTOR(ClassName, VariableType, value);              \
     GHOST_TYPE_DEFAULT_CONSTRUCTORS(ClassName)                           \
     GHOST_TYPE_EQ(ClassName, value);                                     \
-    GHOST_TYPE_ORDER(ClassName, value)                                   \
+    GHOST_TYPE_ORDER(ClassName, value);                                  \
                                                                          \
     const auto& read() const { return value; }                           \
                                                                          \
@@ -497,6 +497,10 @@
     template <typename T = decltype(ClassName::value)> \
     static ClassName max() {                           \
       return ClassName(std::numeric_limits<T>::max()); \
+    };                                                 \
+    template <typename T = decltype(ClassName::value)> \
+    static ClassName min() {                           \
+      return ClassName(std::numeric_limits<T>::min()); \
     };                                                 \
   };
 
