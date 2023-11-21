@@ -765,7 +765,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                   buffer.contents().snapshot(),
                   buffer.dirty() ? LineModifierSet{LineModifier::kItalic}
                                  : LineModifierSet{},
-                  selection_state, path_components[j]);
+                  selection_state, path_components[index + j]);
               CHECK_LE(visible_string.size(), columns_width[j]);
               line_options_output.Append(std::move(visible_string));
               CHECK_LE(line_options_output.contents()->size(),
