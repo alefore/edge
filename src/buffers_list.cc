@@ -20,6 +20,7 @@
 #include "src/widget_list.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::infrastructure::GetElapsedSecondsSince;
 using afc::infrastructure::Path;
@@ -355,14 +356,18 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
                  }},
         Path::FromString(c)));
   }
-  std::vector<std::wstring> output;
-  for (auto& components : RemoveCommonPrefixes(transformed)) {
-    std::optional<Path> path;
-    for (auto& c : components)
-      path = path.has_value() ? Path::Join(*path, c) : c;
-    output.push_back(path.has_value() ? path->read() : L"");
-  }
-  return output;
+  return container::Map(
+      RemoveCommonPrefixes(transformed),
+      [](std::list<PathComponent> components) {
+        return components.empty()
+                   ? L""
+                   : Fold(
+                         [](PathComponent c, std::optional<Path> p) {
+                           return p.has_value() ? Path::Join(*p, c) : c;
+                         },
+                         std::optional<Path>(), components)
+                         ->read();
+      });
 }
 
 const bool remove_common_prefixes_tests_registration =
@@ -593,17 +598,14 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
       kProgressWidth;
 
   // Contains one element for each entry in options.buffers.
-  const std::vector<std::list<PathComponent>> path_components = [&] {
-    std::vector<std::list<PathComponent>> output;
-    for (const gc::Root<OpenBuffer>& buffer : options->buffers)
-      output.push_back(
-          OptionalFrom(GetPathComponentsForBuffer(buffer.ptr().value()))
-              .value_or(std::list<PathComponent>()));
-    CHECK_EQ(output.size(), options->buffers.size());
-    output = RemoveCommonPrefixes(std::move(output));
-    CHECK_EQ(output.size(), options->buffers.size());
-    return output;
-  }();
+  const std::vector<std::list<PathComponent>> path_components =
+      RemoveCommonPrefixes(container::Map(
+          options->buffers, [](const gc::Root<OpenBuffer>& buffer) {
+            return OptionalFrom(
+                       GetPathComponentsForBuffer(buffer.ptr().value()))
+                .value_or(std::list<PathComponent>());
+          }));
+  CHECK_EQ(path_components.size(), options->buffers.size());
 
   VLOG(1) << "BuffersList created. Buffers per line: "
           << options->buffers_per_line << ", prefix width: " << prefix_width
