@@ -125,6 +125,7 @@ class LineBuilder {
           input_contents);
 
   LineBuilder(LineBuilder&&) = default;
+  LineBuilder& operator=(LineBuilder&&) = default;
 
   // Use the explicit `Copy` method below.
   LineBuilder(const LineBuilder&) = delete;
