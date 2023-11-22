@@ -95,15 +95,11 @@ ValueOrError<LineBuilder> GetOutputComponents(
     ColumnNumberDelta separator_size =
         output_items.empty() ? ColumnNumberDelta(0) : ColumnNumberDelta(1);
 
-    if (!reserved.IsZero()) {
+    if (output_items.empty() && ColumnNumberDelta(path_full.size()) > columns) {
+      TryUnreserve(ColumnNumberDelta(path_full.size()) - columns);
+      CHECK_LE(columns, ColumnNumberDelta(path_full.size()));
+    } else
       TryUnreserve(ColumnNumberDelta(1));
-      if (output_items.empty() &&
-          ColumnNumberDelta(path_full.size()) > columns) {
-        TryUnreserve(ColumnNumberDelta(path_full.size()) - columns);
-        CHECK_LE(columns, ColumnNumberDelta(path_full.size()));
-      }
-    }
-
     TryUnreserve(separator_size);
 
     if (reserved == ColumnNumberDelta(1)) {
@@ -114,7 +110,6 @@ ValueOrError<LineBuilder> GetOutputComponents(
     bool fits = ColumnNumberDelta(path_full.size()) + separator_size <= columns;
     if (columns == separator_size) {
       Add(NewLazyString(L"…"), dim);
-      continue;
     } else {
       ASSIGN_OR_RETURN(
           PathComponent path,
@@ -126,12 +121,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
                                (columns + separator_size).read())
                          : path_full.ToString().substr(
                                0, (columns - separator_size).read())));
-      if (!separator_size.IsZero()) {
-        if (columns > ColumnNumberDelta(1)) {
-          Add(NewLazyString(path.ToString()), modifiers);
-          Add(fits ? NewLazyString(L"/") : NewLazyString(L"…"), dim);
-        }
-      } else {
+      if (separator_size.IsZero())
         std::visit(
             overload{
                 [&](Error) { Add(NewLazyString(path.ToString()), modifiers); },
@@ -146,6 +136,9 @@ ValueOrError<LineBuilder> GetOutputComponents(
                   }
                 }},
             path.remove_extension());
+      else if (columns > ColumnNumberDelta(1)) {
+        Add(NewLazyString(path.ToString()), modifiers);
+        Add(fits ? NewLazyString(L"/") : NewLazyString(L"…"), dim);
       }
     }
     output_items.push_front(std::move(current_output));
@@ -249,7 +242,7 @@ const bool get_output_components_tests_registration = tests::Register(
           [] {
             CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                 ColumnNumberDelta(7)) ==
-                  L"cuervo");
+                  L"…cuervo");
           }},
      {.name = L"MultipleTrimSmallSpill", .callback = [] {
         CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
