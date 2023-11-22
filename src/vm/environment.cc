@@ -290,10 +290,8 @@ Environment::Expand() const {
          data.namespaces | std::views::values)
       output.push_back(namespace_environment.object_metadata());
   });
-  for (const std::pair<const types::ObjectName, gc::Ptr<ObjectType>>& entry :
-       object_types_) {
-    output.push_back(entry.second.object_metadata());
-  }
+  for (const gc::Ptr<ObjectType>& entry : object_types_ | std::views::values)
+    output.push_back(entry.object_metadata());
   return output;
 }
 
