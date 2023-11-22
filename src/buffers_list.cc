@@ -41,6 +41,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Padding;
@@ -53,67 +54,124 @@ using afc::language::text::LineSequence;
 
 namespace afc::editor {
 namespace {
-struct ProcessedPathComponent {
-  PathComponent path_component;
-  bool complete = true;
-
-  bool operator==(const ProcessedPathComponent& other) const {
-    return path_component == other.path_component && complete == other.complete;
-  }
-};
-
-ValueOrError<std::list<ProcessedPathComponent>> GetOutputComponents(
-    const std::list<PathComponent>& components,
-    ColumnNumberDelta columns_per_buffer) {
+ValueOrError<LineBuilder> GetOutputComponents(
+    const std::list<PathComponent>& components, ColumnNumberDelta columns,
+    const LineModifierSet& modifiers, const LineModifierSet& bold,
+    const LineModifierSet& dim) {
   if (components.empty()) return Error(L"Empty components");
 
-  static const std::wstring kSlash = L"/";
-  static const ColumnNumberDelta kSlashSize(kSlash.size());
-  std::list<ProcessedPathComponent> output;
+  std::list<LineBuilder> output_items;
 
-  ColumnNumberDelta consumed;
-  int components_processed = 0;
-  for (auto it = components.rbegin();
-       it != components.rend() &&
-       (output.empty() || consumed + kSlashSize < columns_per_buffer);
-       ++it, ++components_processed) {
-    const size_t initial_size = it->size();
-    ColumnNumberDelta columns_allowed =
-        columns_per_buffer - consumed -
-        (output.empty() ? ColumnNumberDelta() : kSlashSize);
-    if (!output.empty() && std::next(it) != components.rend() &&
-        columns_allowed > ColumnNumberDelta(2)) {
-      columns_allowed = std::max(
-          ColumnNumberDelta(1),
-          columns_allowed - (ColumnNumberDelta(1) + kSlashSize) *
-                                (components.size() - components_processed - 1));
+  // We try to reserve at least one character for each path and for each
+  // separator.
+  ColumnNumberDelta reserved =
+      std::min(ColumnNumberDelta(components.size()) +
+                   ColumnNumberDelta(1) * (components.size() - 1),
+               columns);
+  columns -= reserved;
+  auto TryUnreserve = [&columns, &reserved](ColumnNumberDelta desired) {
+    CHECK_GE(desired, ColumnNumberDelta(0));
+    if (desired < reserved) {
+      reserved -= desired;
+      columns += desired;
+    } else {
+      columns += reserved;
+      reserved = ColumnNumberDelta();
     }
-    ASSIGN_OR_RETURN(
-        PathComponent next,
-        ColumnNumberDelta(it->size()) <= columns_allowed
-            ? *it
-            : PathComponent::FromString(
-                  output.empty()
-                      ? it->ToString().substr(it->size() -
-                                              columns_allowed.read())
-                      : it->ToString().substr(0, columns_allowed.read())));
-    consumed +=
-        ColumnNumberDelta(next.size() + (output.empty() ? 0 : kSlash.size()));
-    CHECK_LE(consumed, columns_per_buffer);
-    bool complete = next.size() == initial_size;
-    output.push_front(
-        {.path_component = std::move(next), .complete = complete});
+    CHECK_GE(reserved, ColumnNumberDelta(0));
+  };
+
+  for (const PathComponent& path_full : components | std::views::reverse) {
+    if (columns.IsZero() && reserved.IsZero()) break;
+    LineBuilder current_output;
+    auto Add = [&current_output, &columns](
+                   NonNull<std::shared_ptr<LazyString>> s,
+                   const LineModifierSet& m) {
+      CHECK_LE(s->size(), columns);
+      current_output.AppendString(s, m);
+      columns -= s->size();
+    };
+
+    ColumnNumberDelta separator_size =
+        output_items.empty() ? ColumnNumberDelta(0) : ColumnNumberDelta(1);
+
+    if (!reserved.IsZero()) {
+      TryUnreserve(ColumnNumberDelta(1));
+      if (output_items.empty() &&
+          ColumnNumberDelta(path_full.size()) > columns) {
+        TryUnreserve(ColumnNumberDelta(path_full.size()) - columns);
+        CHECK_LE(columns, ColumnNumberDelta(path_full.size()));
+      }
+    }
+
+    TryUnreserve(separator_size);
+
+    if (reserved == ColumnNumberDelta(1)) {
+      VLOG(5) << "Early use of last reserved character. No point saving it.";
+      TryUnreserve(reserved);
+    }
+
+    bool fits = ColumnNumberDelta(path_full.size()) + separator_size <= columns;
+    if (columns == separator_size) {
+      Add(NewLazyString(L"…"), dim);
+      continue;
+    } else {
+      ASSIGN_OR_RETURN(
+          PathComponent path,
+          fits ? path_full
+               : PathComponent::FromString(
+                     output_items.empty()
+                         ? path_full.ToString().substr(
+                               path_full.size() -
+                               (columns + separator_size).read())
+                         : path_full.ToString().substr(
+                               0, (columns - separator_size).read())));
+      if (!separator_size.IsZero()) {
+        if (columns > ColumnNumberDelta(1)) {
+          Add(NewLazyString(path.ToString()), modifiers);
+          Add(fits ? NewLazyString(L"/") : NewLazyString(L"…"), dim);
+        }
+      } else {
+        std::visit(
+            overload{
+                [&](Error) { Add(NewLazyString(path.ToString()), modifiers); },
+                [&](const PathComponent& path_without_extension) {
+                  if (std::optional<std::wstring> extension = path.extension();
+                      extension.has_value()) {
+                    Add(NewLazyString(path_without_extension.ToString()), bold);
+                    Add(NewLazyString(L"."), dim);
+                    Add(NewLazyString(extension.value()), bold);
+                  } else {
+                    Add(NewLazyString(path.ToString()), modifiers);
+                  }
+                }},
+            path.remove_extension());
+      }
+    }
+    output_items.push_front(std::move(current_output));
   }
 
+  LineBuilder output = Fold(
+      [](LineBuilder a, LineBuilder b) -> LineBuilder {
+        b.Append(std::move(a));
+        return b;
+      },
+      LineBuilder(), std::move(output_items));
   return output;
 }
 
-std::list<ProcessedPathComponent> GetOutputComponentsForTesting(
-    std::wstring path, ColumnNumberDelta columns_per_buffer) {
-  ValueOrError<std::list<PathComponent>> components =
-      ValueOrDie(Path::FromString(path)).DirectorySplit();
-  return ValueOrDie(
-      GetOutputComponents(std::get<0>(components), columns_per_buffer));
+std::wstring GetOutputComponentsForTesting(std::wstring path,
+                                           ColumnNumberDelta columns) {
+  std::wstring output =
+      ValueOrDie(
+          GetOutputComponents(
+              ValueOrDie(ValueOrDie(Path::FromString(path)).DirectorySplit()),
+              columns, LineModifierSet{}, LineModifierSet{}, LineModifierSet{}))
+          .Build()
+          .contents()
+          ->ToString();
+  LOG(INFO) << "GetOutputComponentsForTesting: " << path << " -> " << output;
+  return output;
 }
 
 const bool get_output_components_tests_registration = tests::Register(
@@ -121,73 +179,41 @@ const bool get_output_components_tests_registration = tests::Register(
     {{.name = L"SingleFits",
       .callback =
           [] {
-            CHECK(
-                GetOutputComponentsForTesting(L"foo", ColumnNumberDelta(80)) ==
-                std::list<ProcessedPathComponent>(
-                    {{.path_component =
-                          ValueOrDie(PathComponent::FromString(L"foo"))}}));
+            CHECK(GetOutputComponentsForTesting(
+                      L"foo", ColumnNumberDelta(80)) == L"foo");
           }},
      {.name = L"SingleTrim",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro",
-                                                ColumnNumberDelta(7)) ==
-                  std::list<ProcessedPathComponent>(
-                      {{.path_component =
-                            ValueOrDie(PathComponent::FromString(L"ejandro")),
-                        .complete = false}}));
+            CHECK(GetOutputComponentsForTesting(
+                      L"alejandro", ColumnNumberDelta(8)) == L"lejandro");
           }},
      {.name = L"SingleFitsExactly",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro",
-                                                ColumnNumberDelta(9)) ==
-                  std::list<ProcessedPathComponent>(
-                      {{.path_component = ValueOrDie(
-                            PathComponent::FromString(L"alejandro"))}}));
+            CHECK(GetOutputComponentsForTesting(
+                      L"alejandro", ColumnNumberDelta(9)) == L"alejandro");
           }},
      {.name = L"MultipleFits",
       .callback =
           [] {
             CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                 ColumnNumberDelta(80)) ==
-                  std::list<ProcessedPathComponent>({
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"alejandro"))},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"forero"))},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"cuervo"))},
-                  }));
+                  L"alejandro/forero/cuervo");
           }},
      {.name = L"MultipleFitsExactly",
       .callback =
           [] {
             CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                 ColumnNumberDelta(23)) ==
-                  std::list<ProcessedPathComponent>({
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"alejandro"))},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"forero"))},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"cuervo"))},
-                  }));
+                  L"alejandro/forero/cuervo");
           }},
      {.name = L"MultipleTrimFirst",
       .callback =
           [] {
             CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                 ColumnNumberDelta(22)) ==
-                  std::list<ProcessedPathComponent>({
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"alejandr")),
-                       .complete = false},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"forero"))},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"cuervo"))},
-                  }));
+                  L"alejandr…forero/cuervo");
           }},
      {.name = L"MultipleTrimSignificant",
       .callback =
@@ -195,71 +221,40 @@ const bool get_output_components_tests_registration = tests::Register(
             CHECK(GetOutputComponentsForTesting(
                       L"alejandro/forero/cuervo",
                       ColumnNumberDelta((1 + 1) + (1 + 1) + 6)) ==
-                  std::list<ProcessedPathComponent>({
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"a")),
-                       .complete = false},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"f")),
-                       .complete = false},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"cuervo"))},
-                  }));
+                  L"a…f…cuervo");
           }},
      {.name = L"MultipleTrimSpill",
       .callback =
           [] {
             CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                 ColumnNumberDelta(2 + 1 + 6)) ==
-                  std::list<ProcessedPathComponent>({
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"fo")),
-                       .complete = false},
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"cuervo"))},
-                  }));
+                  L"fo…cuervo");
           }},
      {.name = L"MultipleTrimToFirst",
       .callback =
           [] {
             CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                 ColumnNumberDelta(5)) ==
-                  std::list<ProcessedPathComponent>({
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"uervo")),
-                       .complete = false},
-                  }));
+                  L"uervo");
           }},
      {.name = L"MultipleTrimExact",
       .callback =
           [] {
             CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                 ColumnNumberDelta(6)) ==
-                  std::list<ProcessedPathComponent>({
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"cuervo"))},
-                  }));
+                  L"cuervo");
           }},
      {.name = L"MultipleTrimUnusedSpill",
       .callback =
           [] {
             CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                 ColumnNumberDelta(7)) ==
-                  std::list<ProcessedPathComponent>({
-                      {.path_component =
-                           ValueOrDie(PathComponent::FromString(L"cuervo"))},
-                  }));
+                  L"cuervo");
           }},
      {.name = L"MultipleTrimSmallSpill", .callback = [] {
-        CHECK(
-            GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                          ColumnNumberDelta(8)) ==
-            std::list<ProcessedPathComponent>({
-                {.path_component = ValueOrDie(PathComponent::FromString(L"f")),
-                 .complete = false},
-                {.path_component =
-                     ValueOrDie(PathComponent::FromString(L"cuervo"))},
-            }));
+        CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                            ColumnNumberDelta(8)) ==
+              L"f…cuervo");
       }}});
 
 // Converts the `std::vector` of `BuffersList::filter_` to an
@@ -484,54 +479,27 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
 
   LineBuilder output;
   std::visit(
-      overload{
-          [&](Error) {
-            std::replace(name.begin(), name.end(), L'\n', L' ');
-            NonNull<std::shared_ptr<LazyString>> output_name =
-                NewLazyString(std::move(name));
-            if (output_name->size() > ColumnNumberDelta(2) &&
-                output_name->get(ColumnNumber(0)) == L'$' &&
-                output_name->get(ColumnNumber(1)) == L' ') {
-              output_name = TrimLeft(
-                  Substring(std::move(output_name), ColumnNumber(1)), L" ");
-            }
-            output.AppendString(
-                SubstringWithRangeChecks(std::move(output_name),
-                                         ColumnNumber(0), columns),
-                modifiers);
-            CHECK_LE(output.size(), columns);
-          },
-          [&](std::list<ProcessedPathComponent> processed_components) {
-            std::wstring separator;
-            for (auto it = processed_components.begin();
-                 it != processed_components.end(); ++it) {
-              CHECK_LE(output.size(), columns);
-              output.AppendString(separator, dim);
-              separator = it->complete ? L"/" : L"…";
-              if (it != std::prev(processed_components.end())) {
-                output.AppendString(
-                    NewLazyString(it->path_component.ToString()), modifiers);
-                CHECK_LE(output.size(), columns);
-                continue;
-              }
-
-              std::visit(
-                  overload{IgnoreErrors{},
-                           [&](const PathComponent& path_without_extension) {
-                             output.AppendString(
-                                 path_without_extension.ToString(), bold);
-                           }},
-                  it->path_component.remove_extension());
-              if (std::optional<std::wstring> extension =
-                      it->path_component.extension();
-                  extension.has_value()) {
-                output.AppendString(L".", dim);
-                output.AppendString(extension.value(), bold);
-              }
-              CHECK_LE(output.size(), columns);
-            }
-          }},
-      GetOutputComponents(components, columns));
+      overload{[&](Error) {
+                 std::replace(name.begin(), name.end(), L'\n', L' ');
+                 NonNull<std::shared_ptr<LazyString>> output_name =
+                     NewLazyString(std::move(name));
+                 if (output_name->size() > ColumnNumberDelta(2) &&
+                     output_name->get(ColumnNumber(0)) == L'$' &&
+                     output_name->get(ColumnNumber(1)) == L' ') {
+                   output_name = TrimLeft(
+                       Substring(std::move(output_name), ColumnNumber(1)),
+                       L" ");
+                 }
+                 output.AppendString(
+                     SubstringWithRangeChecks(std::move(output_name),
+                                              ColumnNumber(0), columns),
+                     modifiers);
+                 CHECK_LE(output.size(), columns);
+               },
+               [&output](LineBuilder processed_components) {
+                 output.Append(std::move(processed_components));
+               }},
+      GetOutputComponents(components, columns, modifiers, bold, dim));
 
   if (columns > output.EndColumn().ToDelta())
     output.Append(
@@ -578,6 +546,7 @@ ValueOrError<std::vector<ColumnNumberDelta>> DivideLine(
 
   std::vector<ColumnNumberDelta> output(
       columns, (total_length - total_padding) / columns);
+  CHECK_GE(output.size(), 0ul);
   ColumnNumberDelta remaining_characters =
       total_length - output[0] * columns - total_padding;
   CHECK_GE(remaining_characters, ColumnNumberDelta());
