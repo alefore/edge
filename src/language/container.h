@@ -77,9 +77,11 @@ std::set<typename Container::key_type> GetSetWithKeys(
 }
 
 template <typename Container, typename Callable, typename Value>
-Value Fold(Callable aggregate, Value identity, const Container& container) {
+Value Fold(Callable aggregate, Value identity, Container&& container) {
   Value output = std::move(identity);
-  for (const auto& value : container) output = aggregate(value, output);
+  for (auto&& value : container)
+    output = aggregate(std::move(value), std::move(output));
+
   return output;
 }
 
