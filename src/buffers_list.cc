@@ -62,24 +62,13 @@ ValueOrError<LineBuilder> GetOutputComponents(
 
   std::list<LineBuilder> output_items;
 
-  // We try to reserve at least one character for each path and for each
-  // separator.
-  ColumnNumberDelta reserved =
-      std::min(ColumnNumberDelta(components.size()) +
-                   ColumnNumberDelta(1) * (components.size() - 1),
-               columns);
+  // We try to reserve at least one character for each path (except the last)
+  // and for each separator. But we give the last character priority.
+  ColumnNumberDelta reserved = std::min(
+      ColumnNumberDelta(components.size() - 1) +
+          ColumnNumberDelta(1) * (components.size() - 1),
+      columns - std::min(columns, ColumnNumberDelta(components.back().size())));
   columns -= reserved;
-  auto TryUnreserve = [&columns, &reserved](ColumnNumberDelta desired) {
-    CHECK_GE(desired, ColumnNumberDelta(0));
-    if (desired < reserved) {
-      reserved -= desired;
-      columns += desired;
-    } else {
-      columns += reserved;
-      reserved = ColumnNumberDelta();
-    }
-    CHECK_GE(reserved, ColumnNumberDelta(0));
-  };
 
   for (const PathComponent& path_full : components | std::views::reverse) {
     if (columns.IsZero() && reserved.IsZero()) break;
@@ -95,33 +84,36 @@ ValueOrError<LineBuilder> GetOutputComponents(
     ColumnNumberDelta separator_size =
         output_items.empty() ? ColumnNumberDelta(0) : ColumnNumberDelta(1);
 
-    if (output_items.empty() && ColumnNumberDelta(path_full.size()) > columns) {
-      TryUnreserve(ColumnNumberDelta(path_full.size()) - columns);
-      CHECK_LE(columns, ColumnNumberDelta(path_full.size()));
-    } else
-      TryUnreserve(ColumnNumberDelta(1));
-    TryUnreserve(separator_size);
-
-    if (reserved == ColumnNumberDelta(1)) {
-      VLOG(5) << "Early use of last reserved character. No point saving it.";
-      TryUnreserve(reserved);
+    if (!output_items.empty()) {
+      ColumnNumberDelta desired = ColumnNumberDelta(1) + separator_size;
+      // The reason we add `ColumnNumberDelta(1)` is that leaving just 1
+      // character in `reserved` is pointless. If there's only 1 character, we
+      // might as well use it now.
+      if (desired + ColumnNumberDelta(1) >= reserved) {
+        columns += reserved;
+        reserved = ColumnNumberDelta();
+      } else {
+        reserved -= desired;
+        columns += desired;
+      }
+      CHECK_GE(reserved, ColumnNumberDelta(0));
     }
 
-    bool fits = ColumnNumberDelta(path_full.size()) + separator_size <= columns;
-    if (columns == separator_size) {
+    if (columns == ColumnNumberDelta(1)) {
       Add(NewLazyString(L"…"), dim);
     } else {
       ASSIGN_OR_RETURN(
           PathComponent path,
-          fits ? path_full
-               : PathComponent::FromString(
-                     output_items.empty()
-                         ? path_full.ToString().substr(
-                               path_full.size() -
-                               (columns + separator_size).read())
-                         : path_full.ToString().substr(
-                               0, (columns - separator_size).read())));
-      if (separator_size.IsZero())
+          ColumnNumberDelta(path_full.size()) + separator_size <= columns
+              ? path_full
+              : PathComponent::FromString(
+                    output_items.empty()
+                        ? path_full.ToString().substr(
+                              path_full.size() -
+                              (columns + separator_size).read())
+                        : path_full.ToString().substr(
+                              0, (columns - separator_size).read())));
+      if (output_items.empty())
         std::visit(
             overload{
                 [&](Error) { Add(NewLazyString(path.ToString()), modifiers); },
@@ -138,7 +130,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
             path.remove_extension());
       else if (columns > ColumnNumberDelta(1)) {
         Add(NewLazyString(path.ToString()), modifiers);
-        Add(fits ? NewLazyString(L"/") : NewLazyString(L"…"), dim);
+        Add(path == path_full ? NewLazyString(L"/") : NewLazyString(L"…"), dim);
       }
     }
     output_items.push_front(std::move(current_output));
