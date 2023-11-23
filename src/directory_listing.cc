@@ -174,21 +174,23 @@ NonNull<std::shared_ptr<const Line>> ShowLine(EditorState& editor,
   return MakeNonNullShared<Line>(std::move(line_options).Build());
 }
 
-void ShowFiles(EditorState& editor, std::wstring name,
-               std::vector<dirent> entries, MutableLineSequence& builder) {
-  if (entries.empty()) return;
+LineSequence ShowFiles(EditorState& editor, std::wstring name,
+                       std::vector<dirent> entries) {
+  if (entries.empty()) return LineSequence();
   std::sort(entries.begin(), entries.end(),
             [](const dirent& a, const dirent& b) {
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  builder.push_back(MakeNonNullShared<Line>(
+  MutableLineSequence output;
+  output.push_back(MakeNonNullShared<Line>(
       LineBuilder(NewLazyString(L"## " + name + L" (" +
                                 std::to_wstring(entries.size()) + L")"))
           .Build()));
-  builder.append_back(container::Map(
+  output.append_back(container::Map(
       std::move(entries), std::bind_front(ShowLine, std::ref(editor))));
-  builder.push_back(L"");
+  output.push_back(L"");
+  return output.snapshot();
 }
 }  // namespace
 
@@ -211,11 +213,17 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
 
         TRACK_OPERATION(GenerateDirectoryListing_BuildingMarkdown);
         MutableLineSequence builder;
-        ShowFiles(editor, L"🗁  Directories", std::move(results.directories),
-                  builder);
-        ShowFiles(editor, L"🗀  Files", std::move(results.regular_files),
-                  builder);
-        ShowFiles(editor, L"🗐  Noise", std::move(results.noise), builder);
+        builder.insert(builder.EndLine(),
+                       ShowFiles(editor, L"🗁  Directories",
+                                 std::move(results.directories)),
+                       {});
+        builder.insert(
+            builder.EndLine(),
+            ShowFiles(editor, L"🗀  Files", std::move(results.regular_files)),
+            {});
+        builder.insert(
+            builder.EndLine(),
+            ShowFiles(editor, L"🗐  Noise", std::move(results.noise)), {});
         return Success(builder.snapshot());
       })
       .Transform([&output, path](LineSequence contents) {
