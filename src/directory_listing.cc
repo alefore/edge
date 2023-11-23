@@ -15,6 +15,7 @@
 #include "src/vm/function_call.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::infrastructure::OpenDir;
 using afc::infrastructure::Path;
@@ -138,8 +139,8 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
 }
 #endif
 
-NonNull<std::shared_ptr<Line>> ShowLine(EditorState& editor,
-                                        const dirent& entry) {
+NonNull<std::shared_ptr<const Line>> ShowLine(EditorState& editor,
+                                              const dirent& entry) {
   enum class SizeBehavior { kShow, kSkip };
 
   struct FileType {
@@ -185,7 +186,8 @@ void ShowFiles(EditorState& editor, std::wstring name,
       LineBuilder(NewLazyString(L"## " + name + L" (" +
                                 std::to_wstring(entries.size()) + L")"))
           .Build()));
-  for (auto& entry : entries) builder.push_back(ShowLine(editor, entry));
+  builder.append_back(container::Map(
+      std::move(entries), std::bind_front(ShowLine, std::ref(editor))));
   builder.push_back(L"");
 }
 }  // namespace
