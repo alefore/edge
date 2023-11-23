@@ -158,6 +158,9 @@ class LineBuilder {
   void AppendString(
       std::wstring contents,
       std::optional<afc::infrastructure::screen::LineModifierSet> modifier);
+
+  // This function has linear complexity on the number of modifiers in `line`
+  // and logarithmic on the length of `line` and `this`.
   void Append(LineBuilder line);
 
   void SetExplicitDeleteObserver(std::function<void()> observer) {
