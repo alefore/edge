@@ -586,12 +586,17 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             }
             LOG(INFO) << "Checking buffers state for termination.";
             if (!data->buffers_with_problems.empty()) {
-              std::wstring error = L"🖝  Dirty buffers (post):";
-              for (const gc::Root<OpenBuffer>& name :
-                   data->buffers_with_problems) {
-                error += L" " + name.ptr()->name().read();
-              }
-              switch (status_.InsertError(Error(error), 5)) {
+              switch (status_.InsertError(
+                  Error(Append(NewLazyString(L"🖝  Dirty buffers (post):"),
+                               Concatenate(container::Map(
+                                   data->buffers_with_problems,
+                                   [](const gc::Root<OpenBuffer>& b)
+                                       -> NonNull<std::shared_ptr<LazyString>> {
+                                     return NewLazyString(
+                                         L" " + b.ptr()->name().read());
+                                   })))
+                            ->ToString()),
+                  5)) {
                 case error::Log::InsertResult::kInserted:
                   return futures::Past(EmptyValue());
                 case error::Log::InsertResult::kAlreadyFound:
