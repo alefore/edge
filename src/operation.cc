@@ -1142,7 +1142,7 @@ std::wstring CommandArgumentRepetitions::ToString() const {
 }
 
 int CommandArgumentRepetitions::get() const {
-  return container::Fold([](int a, int b) { return a + b; }, 0, get_list());
+  return container::Sum(get_list());
 }
 
 std::list<int> CommandArgumentRepetitions::get_list() const {

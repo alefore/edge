@@ -535,9 +535,8 @@ std::ostream& operator<<(std::ostream& os, const BoxWithPosition& b) {
 
 template <typename Container>
 LineNumberDelta SumSizes(const Container& container) {
-  return container::Fold(
-      [](auto value, LineNumberDelta output) { return value.size + output; },
-      LineNumberDelta(), container);
+  return container::Sum(
+      container::Map([](auto value) { return value.size; }, container));
 }
 
 std::list<Box> Squash(std::list<Box> inputs, LineNumberDelta screen_size) {

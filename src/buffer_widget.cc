@@ -18,6 +18,7 @@
 #include "src/frame_output_producer.h"
 #include "src/horizontal_center_output_producer.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/padding.h"
 #include "src/language/wstring.h"
@@ -27,26 +28,28 @@
 #include "src/tests/tests.h"
 #include "src/widget.h"
 
+namespace container = afc::language::container;
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::Padding;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::Range;
+
 namespace afc::editor {
 namespace {
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::Padding;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::Range;
-
-namespace gc = language::gc;
 
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
@@ -256,9 +259,9 @@ const bool merge_sections_tests_registration = tests::Register(
      }});
 
 LineNumberDelta SumSectionsLines(const std::set<Range> sections) {
-  LineNumberDelta output;
-  for (auto& range : sections) output += range.end().line - range.begin().line;
-  return output;
+  return container::Sum(container::Map(
+      [](const Range& range) { return range.end().line - range.begin().line; },
+      sections));
 }
 
 std::set<Range> ExpandSections(LineNumber end_line,
