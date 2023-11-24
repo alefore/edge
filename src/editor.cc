@@ -41,6 +41,7 @@ extern "C" {
 #include "src/vm/value.h"
 #include "src/widget_list.h"
 
+namespace container = afc::language::container;
 using afc::concurrent::ThreadPool;
 using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
@@ -543,10 +544,11 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   };
 
   auto data = MakeNonNullShared<Data>(
-      Data{.termination_type = termination_type, .exit_value = exit_value});
-
-  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
-    data->pending_buffers.insert(buffer);
+      Data{.termination_type = termination_type,
+           .exit_value = exit_value,
+           .pending_buffers = container::Map(
+               buffers_ | std::views::values, [](auto t) { return t; },
+               std::set<gc::Root<OpenBuffer>>())});
 
   for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
     buffer.ptr()
@@ -970,9 +972,9 @@ void EditorState::ProcessSignals() {
 }
 
 bool EditorState::handling_stop_signals() const {
-  for (auto& buffer : active_buffers())
-    if (buffer.ptr()->Read(buffer_variables::pts)) return true;
-  return false;
+  return std::ranges::any_of(active_buffers(), [](auto& buffer) {
+    return buffer.ptr()->Read(buffer_variables::pts);
+  });
 }
 
 void EditorState::ExecutionIteration(
