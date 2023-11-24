@@ -26,6 +26,7 @@ extern "C" {
 #include "src/infrastructure/execution.h"
 #include "src/infrastructure/screen/screen.h"
 #include "src/infrastructure/time.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
@@ -199,12 +200,12 @@ void RedrawScreens(const CommandLineValues& args,
     }
   }
   VLOG(5) << "Updating remote screens.";
-  for (auto& buffer : *editor_state().buffers()) {
+  for (OpenBuffer& buffer :
+       RootValueView(*editor_state().buffers() | std::views::values)) {
     static const afc::vm::Namespace kEmptyNamespace;
     std::optional<gc::Root<afc::vm::Value>> value =
-        buffer.second.ptr()->environment()->Lookup(editor_state().gc_pool(),
-                                                   kEmptyNamespace, L"screen",
-                                                   GetScreenVmType());
+        buffer.environment()->Lookup(editor_state().gc_pool(), kEmptyNamespace,
+                                     L"screen", GetScreenVmType());
     if (!value.has_value() ||
         value.value().ptr()->type != afc::vm::Type{GetScreenVmType()}) {
       continue;
@@ -215,7 +216,7 @@ void RedrawScreens(const CommandLineValues& args,
     if (&buffer_screen.value() == screen_curses) {
       continue;
     }
-    LOG(INFO) << "Remote screen for buffer: " << buffer.first;
+    LOG(INFO) << "Remote screen for buffer: " << buffer.name();
     terminal->Display(editor_state(), buffer_screen.value(),
                       screen_state.value());
   }
