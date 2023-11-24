@@ -36,17 +36,15 @@ std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
       {Color(L"yellow"), LineModifier::kYellow},
       {Color(L"magenta"), LineModifier::kMagenta},
       {Color(L"white"), LineModifier::kWhite}};
-  std::vector<Color> color_values;
-  for (auto& entry : modifiers) color_values.push_back(entry.first);
+  static const std::vector<Color> color_values =
+      container::Map(modifiers, [](auto p) { return p.first; });
   std::vector<InputKey> spec = {path, path, path};
   std::vector<Color> flag = flags::GenerateFlags(
       spec, color_values,
       {{path, InputValue(buffer.Read(buffer_variables::path))}});
   CHECK_EQ(flag.size(), spec.size());
-  std::vector<LineModifier> output;
-  output.reserve(flag.size());
-  for (auto& color : flag) output.push_back(GetValueOrDie(modifiers, color));
-  return output;
+  return container::Map(
+      flag, [](Color color) { return GetValueOrDie(modifiers, color); });
 }
 
 LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
