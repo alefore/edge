@@ -346,16 +346,17 @@ std::vector<std::list<PathComponent>> RemoveCommonPrefixes(
 
 std::vector<std::wstring> RemoveCommonPrefixesForTesting(
     std::vector<std::wstring> input) {
-  std::vector<std::list<PathComponent>> transformed;
-  for (const std::wstring& c : input) {
-    transformed.push_back(std::visit(
-        overload{[](Error) { return std::list<PathComponent>(); },
-                 [](Path path) {
-                   return ValueOrDie(path.DirectorySplit(),
-                                     L"RemoveCommonPrefixesForTesting");
-                 }},
-        Path::FromString(c)));
-  }
+  std::vector<std::list<PathComponent>> transformed =
+      container::Map(input, [](const std::wstring& c) {
+        return std::visit(
+            overload{[](Error) { return std::list<PathComponent>(); },
+                     [](Path path) {
+                       return ValueOrDie(path.DirectorySplit(),
+                                         L"RemoveCommonPrefixesForTesting");
+                     }},
+            Path::FromString(c));
+      });
+
   return container::Map(
       RemoveCommonPrefixes(transformed),
       [](std::list<PathComponent> components) {
@@ -959,17 +960,16 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
             << ", from: " << buffers_.size()
             << " buffers with lines: " << layout.lines;
 
-    std::set<NonNull<const OpenBuffer*>> active_buffers;
-    for (gc::Root<OpenBuffer>& b : customer_->active_buffers()) {
-      active_buffers.insert(
-          NonNull<const OpenBuffer*>::AddressOf(b.ptr().value()));
-    }
-
     output = ProduceBuffersList(
         MakeNonNullShared<BuffersListOptions>(BuffersListOptions{
             .buffers = buffers_,
             .active_buffer = active_buffer(),
-            .active_buffers = std::move(active_buffers),
+            .active_buffers = container::Map(
+                customer_->active_buffers(),
+                [](gc::Root<OpenBuffer> b) {
+                  return NonNull<const OpenBuffer*>::AddressOf(b.ptr().value());
+                },
+                std::set<NonNull<const OpenBuffer*>>()),
             .buffers_per_line = layout.buffers_per_line,
             .size = LineColumnDelta(layout.lines, options.size.column),
             .filter = OptimizeFilter(filter_)}));
