@@ -20,9 +20,9 @@ template <>
 struct ExpandHelper<Node> {
   std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
       const Node& node) const {
-    return container::Map(node.children, [](const auto& child) {
-      return child.object_metadata();
-    });
+    return container::Map(
+        [](const auto& child) { return child.object_metadata(); },
+        node.children);
   }
 };
 

@@ -831,20 +831,20 @@ class InsertMode : public EditorMode {
   static NonNull<std::shared_ptr<std::vector<Path>>> CompletionModelPaths(
       const OpenBuffer& buffer) {
     return MakeNonNullShared<std::vector<Path>>(container::Map(
-        container::Filter(container::Map(
-            TokenizeBySpaces(
-                NewLazyString(
-                    buffer.Read(buffer_variables::completion_model_paths))
-                    .value()),
-            [](Token path_str) {
-              return OptionalFrom(Path::FromString(path_str.value));
-            })),
         [](Path path) {
           VLOG(5) << "Loading model: " << path;
           return Path::Join(
               ValueOrDie(PathComponent::FromString(L"completion_models")),
               std::move(path));
-        }));
+        },
+        container::Filter(container::Map(
+            [](Token path_str) {
+              return OptionalFrom(Path::FromString(path_str.value));
+            },
+            TokenizeBySpaces(
+                NewLazyString(
+                    buffer.Read(buffer_variables::completion_model_paths))
+                    .value())))));
   }
 
   static Range GetTokenRange(OpenBuffer& buffer) {

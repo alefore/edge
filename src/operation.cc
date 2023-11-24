@@ -148,7 +148,6 @@ void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
   wchar_t backwards = c.structure == Structure::kLine ? L'👆' : L'👈';
   wchar_t forwards = c.structure == Structure::kLine ? L'👇' : L'👉';
   std::wstring directions = container::Map(
-      c.directions,
       [&](Direction direction) {
         switch (direction) {
           case Direction::kForwards:
@@ -159,7 +158,7 @@ void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
         LOG(FATAL) << "Invalid direction.";
         return L' ';
       },
-      std::wstring());
+      c.directions, std::wstring());
   SerializeCall(L"🪓", {StructureToString(c.structure), directions}, output);
 }
 
@@ -214,14 +213,13 @@ transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReach reach) {
   return container::Map(
-      reach.repetitions.get_list(),
       [&](int repetitions) {
         return transformation::ModifiersAndComposite{
             .modifiers = GetModifiers(reach.structure, repetitions,
                                       Direction::kForwards),
             .transformation = NewMoveTransformation(operation_scope)};
       },
-      transformation::Stack());
+      reach.repetitions.get_list(), transformation::Stack());
 }
 
 transformation::ModifiersAndComposite GetTransformation(
@@ -237,28 +235,26 @@ transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReachLine reach_line) {
   return container::Map(
-      reach_line.repetitions.get_list(),
       [&](int repetitions) {
         return transformation::ModifiersAndComposite{
             .modifiers = GetModifiers(Structure::kLine, repetitions,
                                       Direction::kForwards),
             .transformation = NewMoveTransformation(operation_scope)};
       },
-      transformation::Stack());
+      reach_line.repetitions.get_list(), transformation::Stack());
 }
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReachPage reach_page) {
   return container::Map(
-      reach_page.repetitions.get_list(),
       [&](int repetitions) {
         return transformation::ModifiersAndComposite{
             .modifiers = GetModifiers(Structure::kPage, repetitions,
                                       Direction::kForwards),
             .transformation = NewMoveTransformation(operation_scope)};
       },
-      transformation::Stack());
+      reach_page.repetitions.get_list(), transformation::Stack());
 }
 
 transformation::Stack GetTransformation(
@@ -1151,7 +1147,7 @@ int CommandArgumentRepetitions::get() const {
 
 std::list<int> CommandArgumentRepetitions::get_list() const {
   return container::Filter([](int c) { return c != 0; },
-                           container::Map(entries_, Flatten, std::list<int>()));
+                           container::Map(Flatten, entries_, std::list<int>()));
 }
 
 void CommandArgumentRepetitions::sum(int value) {

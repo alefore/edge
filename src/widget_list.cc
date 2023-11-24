@@ -71,7 +71,7 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
   if (options.size.line.IsZero()) return LineWithCursor::Generator::Vector{};
 
   std::vector<LineNumberDelta> lines_per_child = container::Map(
-      children_, [](auto& child) { return child->MinimumLines(); });
+      [](auto& child) { return child->MinimumLines(); }, children_);
 
   LineNumberDelta lines_given = std::accumulate(
       lines_per_child.begin(), lines_per_child.end(), LineNumberDelta(0));

@@ -187,9 +187,8 @@ LineSequence ShowFiles(EditorState& editor, std::wstring name,
           LineBuilder(NewLazyString(L"## " + name + L" (" +
                                     std::to_wstring(entries.size()) + L")"))
               .Build()));
-  output = container::Map(std::move(entries),
-                          std::bind_front(ShowLine, std::ref(editor)),
-                          std::move(output));
+  output = container::Map(std::bind_front(ShowLine, std::ref(editor)),
+                          std::move(entries), std::move(output));
   output.push_back(L"");
   return output.snapshot();
 }

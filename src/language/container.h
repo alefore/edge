@@ -115,7 +115,7 @@ concept ConstOrLValueRef = std::is_const_v<std::remove_reference_t<T>> ||
 
 template <typename InputContainer, typename Callable, typename Container>
   requires NonConstRef<InputContainer>
-auto Map(InputContainer&& input, Callable callable, Container output) {
+auto Map(Callable callable, InputContainer&& input, Container output) {
   if constexpr (HasReserveMethod<Container>::value)
     output.reserve(output.size() + input.size());
   for (auto&& value : input)
@@ -128,7 +128,7 @@ auto Map(InputContainer&& input, Callable callable, Container output) {
 
 template <typename InputContainer, typename Callable, typename Container>
   requires ConstOrLValueRef<InputContainer>
-auto Map(InputContainer&& input, Callable callable, Container output) {
+auto Map(Callable callable, InputContainer&& input, Container output) {
   if constexpr (HasReserveMethod<Container>::value)
     output.reserve(output.size() + input.size());
   for (const auto& value : input)
@@ -141,15 +141,15 @@ auto Map(InputContainer&& input, Callable callable, Container output) {
 
 template <typename InputContainer, typename Callable>
   requires NonConstRef<InputContainer>
-auto Map(InputContainer&& input, Callable callable) {
-  return Map(std::forward<InputContainer>(input), std::move(callable),
+auto Map(Callable callable, InputContainer&& input) {
+  return Map(std::move(callable), std::forward<InputContainer>(input),
              std::vector<decltype(callable(*input.begin()))>());
 }
 
 template <typename InputContainer, typename Callable>
   requires ConstOrLValueRef<InputContainer>
-auto Map(InputContainer&& input, Callable callable) {
-  return Map(input, std::move(callable),
+auto Map(Callable callable, InputContainer&& input) {
+  return Map(std::move(callable), input,
              std::vector<decltype(callable(*input.begin()))>());
 }
 
@@ -163,9 +163,9 @@ Container Filter(Callable callable, Container output) {
 // copy of the container removing all std::nullopt entries.
 template <typename Container>
 auto Filter(Container container) {
-  return Map(Filter([](const auto& item) { return item.has_value(); },
-                    std::move(container)),
-             [](auto t) { return t.value(); });
+  return Map([](auto t) { return t.value(); },
+             Filter([](const auto& item) { return item.has_value(); },
+                    std::move(container)));
 }
 }  // namespace container
 }  // namespace afc::language

@@ -193,8 +193,8 @@ std::wstring ToString(const Type& type) {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
     const {
-  return container::Map(fields_,
-                        [](auto& p) { return p.second.object_metadata(); });
+  return container::Map([](auto& p) { return p.second.object_metadata(); },
+                        fields_);
 }
 
 /* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {

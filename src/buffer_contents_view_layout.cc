@@ -222,12 +222,11 @@ std::vector<BufferContentsViewLayout::Line> PrependLines(
     });
   }
   std::vector<BufferContentsViewLayout::Line> lines_to_insert = container::Map(
-      line_breaks,
       [&](const ColumnRange& r) {
         return GetScreenLine(options.contents, options.active_position, cursors,
                              line, r);
       },
-      std::vector<BufferContentsViewLayout::Line>());
+      line_breaks, std::vector<BufferContentsViewLayout::Line>());
   auto insert_start = lines_to_insert.begin();
   if (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
     insert_start += lines_to_insert.size() - lines_desired.read();

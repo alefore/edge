@@ -37,28 +37,30 @@ std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
       {Color(L"magenta"), LineModifier::kMagenta},
       {Color(L"white"), LineModifier::kWhite}};
   static const std::vector<Color> color_values =
-      container::Map(modifiers, [](auto p) { return p.first; });
+      container::Map([](auto p) { return p.first; }, modifiers);
   std::vector<InputKey> spec = {path, path, path};
   std::vector<Color> flag = flags::GenerateFlags(
       spec, color_values,
       {{path, InputValue(buffer.Read(buffer_variables::path))}});
   CHECK_EQ(flag.size(), spec.size());
   return container::Map(
-      flag, [](Color color) { return GetValueOrDie(modifiers, color); });
+      [](Color color) { return GetValueOrDie(modifiers, color); }, flag);
 }
 
 LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
   return LineWithCursor::Generator::Vector{
-      .lines = container::Map(GetBufferFlag(buffer), [](auto modifier) {
-        return LineWithCursor::Generator::New(CaptureAndHash(
-            [](LineModifier m) {
-              LineBuilder options;
-              options.AppendString(Padding(ColumnNumberDelta(80), L'█'),
-                                   LineModifierSet{m});
-              return LineWithCursor{
-                  .line = MakeNonNullShared<Line>(std::move(options).Build())};
-            },
-            modifier));
-      })};
+      .lines = container::Map(
+          [](auto modifier) {
+            return LineWithCursor::Generator::New(CaptureAndHash(
+                [](LineModifier m) {
+                  LineBuilder options;
+                  options.AppendString(Padding(ColumnNumberDelta(80), L'█'),
+                                       LineModifierSet{m});
+                  return LineWithCursor{.line = MakeNonNullShared<Line>(
+                                            std::move(options).Build())};
+                },
+                modifier));
+          },
+          GetBufferFlag(buffer))};
 }
 }  // namespace afc::editor

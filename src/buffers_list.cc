@@ -346,17 +346,6 @@ std::vector<std::list<PathComponent>> RemoveCommonPrefixes(
 std::vector<std::wstring> RemoveCommonPrefixesForTesting(
     std::vector<std::wstring> input) {
   return container::Map(
-      RemoveCommonPrefixes(container::Map(
-          input,
-          [](const std::wstring& c) {
-            return std::visit(
-                overload{[](Error) { return std::list<PathComponent>(); },
-                         [](Path path) {
-                           return ValueOrDie(path.DirectorySplit(),
-                                             L"RemoveCommonPrefixesForTesting");
-                         }},
-                Path::FromString(c));
-          })),
       [](std::list<PathComponent> components) {
         return components.empty()
                    ? L""
@@ -366,7 +355,18 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
                          },
                          std::optional<Path>(), components)
                          ->read();
-      });
+      },
+      RemoveCommonPrefixes(container::Map(
+          [](const std::wstring& c) {
+            return std::visit(
+                overload{[](Error) { return std::list<PathComponent>(); },
+                         [](Path path) {
+                           return ValueOrDie(path.DirectorySplit(),
+                                             L"RemoveCommonPrefixesForTesting");
+                         }},
+                Path::FromString(c));
+          },
+          input)));
 }
 
 const bool remove_common_prefixes_tests_registration =
@@ -599,11 +599,12 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
   // Contains one element for each entry in options.buffers.
   const std::vector<std::list<PathComponent>> path_components =
       RemoveCommonPrefixes(container::Map(
-          options->buffers, [](const gc::Root<OpenBuffer>& buffer) {
+          [](const gc::Root<OpenBuffer>& buffer) {
             return OptionalFrom(
                        GetPathComponentsForBuffer(buffer.ptr().value()))
                 .value_or(std::list<PathComponent>());
-          }));
+          },
+          options->buffers));
   CHECK_EQ(path_components.size(), options->buffers.size());
 
   VLOG(1) << "BuffersList created. Buffers per line: "
@@ -963,10 +964,10 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
             .buffers = buffers_,
             .active_buffer = active_buffer(),
             .active_buffers = container::Map(
-                customer_->active_buffers(),
                 [](gc::Root<OpenBuffer> b) {
                   return NonNull<const OpenBuffer*>::AddressOf(b.ptr().value());
                 },
+                customer_->active_buffers(),
                 std::set<NonNull<const OpenBuffer*>>()),
             .buffers_per_line = layout.buffers_per_line,
             .size = LineColumnDelta(layout.lines, options.size.column),

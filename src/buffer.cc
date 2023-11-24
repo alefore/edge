@@ -543,7 +543,6 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 
         contents->push_back(L"// String variables");
         contents->append_back(language::container::Map(
-            buffer_variables::StringStruct()->variables(),
             [this](const auto& variable) {
               return MakeNonNullShared<const Line>(
                   Line(L"buffer.set_" + variable.first + L"(" +
@@ -551,38 +550,39 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                            NewLazyString(Read(&variable.second.value())))
                            .CppRepresentation() +
                        L");"));
-            }));
+            },
+            buffer_variables::StringStruct()->variables()));
         contents->push_back(L"");
 
         contents->push_back(L"// Int variables");
         contents->append_back(language::container::Map(
-            buffer_variables::IntStruct()->variables(),
             [this](const auto& variable) {
               return MakeNonNullShared<const Line>(Line(
                   L"buffer.set_" + variable.first + L"(" +
                   std::to_wstring(Read(&variable.second.value())) + L");"));
-            }));
+            },
+            buffer_variables::IntStruct()->variables()));
         contents->push_back(L"");
 
         contents->push_back(L"// Bool variables");
         contents->append_back(language::container::Map(
-            buffer_variables::IntStruct()->variables(),
             [this](const auto& variable) {
               return MakeNonNullShared<const Line>(
                   Line(L"buffer.set_" + variable.first + L"(" +
                        (Read(&variable.second.value()) ? L"true" : L"false") +
                        L");"));
-            }));
+            },
+            buffer_variables::IntStruct()->variables()));
         contents->push_back(L"");
 
         contents->push_back(L"// LineColumn variables");
         contents->append_back(language::container::Map(
-            buffer_variables::LineColumnStruct()->variables(),
             [this](const auto& variable) {
               return MakeNonNullShared<const Line>(
                   L"buffer.set_" + variable.first + L"(" +
                   Read(&variable.second.value()).ToCppString() + L");");
-            }));
+            },
+            buffer_variables::LineColumnStruct()->variables()));
         contents->push_back(L"");
 
         return futures::OnError(
