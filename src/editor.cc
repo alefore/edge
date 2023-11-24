@@ -515,20 +515,21 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           .Build()));
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
-    std::vector<std::wstring> buffers_with_problems;
-    for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
-      std::visit(overload{[](EmptyValue) {},
-                          [&](Error error) {
-                            buffers_with_problems.push_back(
-                                buffer.ptr()->Read(buffer_variables::name));
-                            buffer.ptr()->status().Set(
-                                AugmentError(L"Unable to close", error));
-                          }},
-                 buffer.ptr()->IsUnableToPrepareToClose());
+    auto buffers_with_problems = container::Filter(
+        [](const NonNull<OpenBuffer*> buffer) {
+          return IsError(buffer->status().LogErrors(AugmentErrors(
+              L"Unable to close", buffer->IsUnableToPrepareToClose())));
+        },
+        container::Map(buffers_ | std::views::values,
+                       [](const gc::Root<OpenBuffer>& buffer) {
+                         return NonNull<OpenBuffer*>::AddressOf(
+                             buffer.ptr().value());
+                       }));
 
     if (!buffers_with_problems.empty()) {
       std::wstring error = L"🖝  Dirty buffers (pre):";
-      for (auto name : buffers_with_problems) error += L" " + name;
+      for (const NonNull<OpenBuffer*>& buffer : buffers_with_problems)
+        error += L" " + buffer->Read(buffer_variables::name);
       switch (status_.InsertError(Error(error), 30)) {
         case error::Log::InsertResult::kInserted:
           return;
