@@ -24,6 +24,7 @@ extern "C" {
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
 #include "src/infrastructure/time.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
@@ -49,6 +50,7 @@ extern "C" {
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
@@ -828,23 +830,21 @@ class InsertMode : public EditorMode {
 
   static NonNull<std::shared_ptr<std::vector<Path>>> CompletionModelPaths(
       const OpenBuffer& buffer) {
-    auto output = MakeNonNullShared<std::vector<Path>>();
-    if (std::vector<Token> paths = TokenizeBySpaces(
-            NewLazyString(buffer.Read(buffer_variables::completion_model_paths))
-                .value());
-        !paths.empty()) {
-      for (const Token& path_str : paths)
-        std::visit(overload{[&output](Path path) {
-                              VLOG(5) << "Loading model: " << path;
-                              output->push_back(Path::Join(
-                                  ValueOrDie(PathComponent::FromString(
-                                      L"completion_models")),
-                                  std::move(path)));
-                            },
-                            language::IgnoreErrors{}},
-                   Path::FromString(path_str.value));
-    }
-    return output;
+    return MakeNonNullShared<std::vector<Path>>(container::Map(
+        container::Filter(container::Map(
+            TokenizeBySpaces(
+                NewLazyString(
+                    buffer.Read(buffer_variables::completion_model_paths))
+                    .value()),
+            [](Token path_str) {
+              return OptionalFrom(Path::FromString(path_str.value));
+            })),
+        [](Path path) {
+          VLOG(5) << "Loading model: " << path;
+          return Path::Join(
+              ValueOrDie(PathComponent::FromString(L"completion_models")),
+              std::move(path));
+        }));
   }
 
   static Range GetTokenRange(OpenBuffer& buffer) {
