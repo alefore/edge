@@ -383,10 +383,10 @@ int main(int argc, const char** argv) {
                               input.push_back(c.value());
                             }
                           }
-                          for (const ExtendedChar& c : input) {
-                            static Tracker tracker(L"Main::ProcessInput");
-                            auto call = tracker.Call();
-                            if (remote_server_fd.has_value()) {
+                          if (remote_server_fd.has_value())
+                            for (const ExtendedChar& c : input) {
+                              static Tracker tracker(L"Main::ProcessInput");
+                              auto call = tracker.Call();
                               if (const wchar_t* regular_c =
                                       std::get_if<wchar_t>(&c);
                                   regular_c != nullptr)
@@ -394,10 +394,9 @@ int main(int argc, const char** argv) {
                                     remote_server_fd.value(),
                                     "ProcessInput(" +
                                         std::to_string(*regular_c) + ");\n")));
-                            } else {
-                              editor_state().ProcessInput({c});
                             }
-                          }
+                          else
+                            editor_state().ProcessInput(std::move(input));
                         }
                       });
               }})
