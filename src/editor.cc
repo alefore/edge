@@ -527,10 +527,17 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                        }));
 
     if (!buffers_with_problems.empty()) {
-      std::wstring error = L"🖝  Dirty buffers (pre):";
-      for (const NonNull<OpenBuffer*>& buffer : buffers_with_problems)
-        error += L" " + buffer->Read(buffer_variables::name);
-      switch (status_.InsertError(Error(error), 30)) {
+      switch (status_.InsertError(
+          Error(Append(NewLazyString(L"🖝  Dirty buffers (pre):"),
+                       Concatenate(container::Map(
+                           buffers_with_problems,
+                           [](const NonNull<OpenBuffer*>& buffer)
+                               -> NonNull<std::shared_ptr<LazyString>> {
+                             return NewLazyString(
+                                 L" " + buffer->Read(buffer_variables::name));
+                           })))
+                    ->ToString()),
+          30)) {
         case error::Log::InsertResult::kInserted:
           return;
         case error::Log::InsertResult::kAlreadyFound:
