@@ -145,17 +145,21 @@ void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
 }
 
 void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
-  std::wstring directions;
   wchar_t backwards = c.structure == Structure::kLine ? L'👆' : L'👈';
   wchar_t forwards = c.structure == Structure::kLine ? L'👇' : L'👉';
-  for (Direction direction : c.directions) switch (direction) {
-      case Direction::kForwards:
-        directions.push_back(forwards);
-        break;
-      case Direction::kBackwards:
-        directions.push_back(backwards);
-        break;
-    }
+  std::wstring directions = container::Map(
+      c.directions,
+      [&](Direction direction) {
+        switch (direction) {
+          case Direction::kForwards:
+            return forwards;
+          case Direction::kBackwards:
+            return backwards;
+        }
+        LOG(FATAL) << "Invalid direction.";
+        return L' ';
+      },
+      std::wstring());
   SerializeCall(L"🪓", {StructureToString(c.structure), directions}, output);
 }
 
