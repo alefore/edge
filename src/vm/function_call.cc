@@ -15,21 +15,22 @@
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
+namespace container = afc::language::container;
+namespace gc = afc::language::gc;
+
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+
 namespace afc::vm {
 namespace {
-using language::EmptyValue;
-using language::Error;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::PossibleError;
-using language::Success;
-using language::ValueOrError;
-using language::VisitPointer;
-
-namespace gc = language::gc;
-
 using ::operator<<;
 
 PossibleError CheckFunctionArguments(
@@ -363,12 +364,11 @@ futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(std::function<void()>)> yield_callback) {
   CHECK(std::holds_alternative<types::Function>(func.type));
-  std::vector<NonNull<std::shared_ptr<Expression>>> args_expr;
-  for (auto& a : args) args_expr.push_back(NewConstantExpression(std::move(a)));
   return Evaluate(
       NewFunctionCall(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
-          std::move(args_expr)),
+          container::Map(args, NewConstantExpression,
+                         std::vector<NonNull<std::shared_ptr<Expression>>>())),
       pool, Environment::New(pool), yield_callback);
 }
 
