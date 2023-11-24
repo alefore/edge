@@ -1,9 +1,11 @@
 #include "src/set_buffer_mode.h"
 
+#include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/search_handler.h"
 
+namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using afc::concurrent::ChannelLast;
@@ -431,14 +433,12 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
             break;
 
           case CommandArgumentModeApplyMode::kPreview:
-            if (state.indices.size() != buffers_list.BuffersCount()) {
-              std::vector<gc::WeakPtr<OpenBuffer>> filter;
-              filter.reserve(state.indices.size());
-              for (const auto& i : state.indices) {
-                filter.push_back(buffers_list.GetBuffer(i).ptr().ToWeakPtr());
-              }
-              editor.buffer_tree().set_filter(std::move(filter));
-            }
+            if (state.indices.size() != buffers_list.BuffersCount())
+              editor.buffer_tree().set_filter(container::Map(
+                  [&](size_t i) {
+                    return buffers_list.GetBuffer(i).ptr().ToWeakPtr();
+                  },
+                  state.indices));
             break;
         }
         return EmptyValue();
