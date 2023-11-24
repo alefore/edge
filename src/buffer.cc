@@ -69,6 +69,7 @@ extern "C" {
 
 namespace gc = afc::language::gc;
 namespace audio = afc::infrastructure::audio;
+namespace container = afc::language::container;
 
 using afc::concurrent::WorkQueue;
 using afc::futures::IterationControlCommand;
@@ -541,41 +542,47 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
         contents->push_back(L"");
 
         contents->push_back(L"// String variables");
-        for (const auto& variable :
-             buffer_variables::StringStruct()->variables()) {
-          contents->push_back(L"buffer.set_" + variable.first + L"(" +
-                              EscapedString::FromString(
-                                  NewLazyString(Read(&variable.second.value())))
-                                  .CppRepresentation() +
-                              L");");
-        }
+        contents->append_back(language::container::Map(
+            buffer_variables::StringStruct()->variables(),
+            [this](const auto& variable) {
+              return MakeNonNullShared<const Line>(
+                  Line(L"buffer.set_" + variable.first + L"(" +
+                       EscapedString::FromString(
+                           NewLazyString(Read(&variable.second.value())))
+                           .CppRepresentation() +
+                       L");"));
+            }));
         contents->push_back(L"");
 
         contents->push_back(L"// Int variables");
-        for (const auto& variable :
-             buffer_variables::IntStruct()->variables()) {
-          contents->push_back(L"buffer.set_" + variable.first + L"(" +
-                              std::to_wstring(Read(&variable.second.value())) +
-                              L");");
-        }
+        contents->append_back(language::container::Map(
+            buffer_variables::IntStruct()->variables(),
+            [this](const auto& variable) {
+              return MakeNonNullShared<const Line>(Line(
+                  L"buffer.set_" + variable.first + L"(" +
+                  std::to_wstring(Read(&variable.second.value())) + L");"));
+            }));
         contents->push_back(L"");
 
         contents->push_back(L"// Bool variables");
-        for (const auto& variable :
-             buffer_variables::BoolStruct()->variables()) {
-          contents->push_back(
-              L"buffer.set_" + variable.first + L"(" +
-              (Read(&variable.second.value()) ? L"true" : L"false") + L");");
-        }
+        contents->append_back(language::container::Map(
+            buffer_variables::IntStruct()->variables(),
+            [this](const auto& variable) {
+              return MakeNonNullShared<const Line>(
+                  Line(L"buffer.set_" + variable.first + L"(" +
+                       (Read(&variable.second.value()) ? L"true" : L"false") +
+                       L");"));
+            }));
         contents->push_back(L"");
 
         contents->push_back(L"// LineColumn variables");
-        for (const auto& variable :
-             buffer_variables::LineColumnStruct()->variables()) {
-          contents->push_back(L"buffer.set_" + variable.first + L"(" +
-                              Read(&variable.second.value()).ToCppString() +
-                              L");");
-        }
+        contents->append_back(language::container::Map(
+            buffer_variables::LineColumnStruct()->variables(),
+            [this](const auto& variable) {
+              return MakeNonNullShared<const Line>(
+                  L"buffer.set_" + variable.first + L"(" +
+                  Read(&variable.second.value()).ToCppString() + L");");
+            }));
         contents->push_back(L"");
 
         return futures::OnError(
