@@ -11,12 +11,14 @@
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
 #include "src/columns_vector.h"
+#include "src/language/container.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/line_output.h"
 #include "src/tests/tests.h"
 #include "src/widget.h"
 
+namespace container = afc::language::container;
 namespace afc::editor {
 namespace {
 using infrastructure::screen::CursorsSet;
@@ -219,11 +221,12 @@ std::vector<BufferContentsViewLayout::Line> PrependLines(
              r.begin >= output.front().range.begin().column;
     });
   }
-  std::vector<BufferContentsViewLayout::Line> lines_to_insert;
-  for (auto& r : line_breaks) {
-    lines_to_insert.push_back(GetScreenLine(
-        options.contents, options.active_position, cursors, line, r));
-  }
+  std::vector<BufferContentsViewLayout::Line> lines_to_insert = container::Map(
+      std::vector(line_breaks.begin(), line_breaks.end()),
+      [&](const ColumnRange& r) {
+        return GetScreenLine(options.contents, options.active_position, cursors,
+                             line, r);
+      });
   auto insert_start = lines_to_insert.begin();
   if (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
     insert_start += lines_to_insert.size() - lines_desired.read();
