@@ -86,12 +86,17 @@ Value Fold(Callable aggregate, Value identity, Container&& container) {
 }
 
 namespace container {
-template <typename Value, typename Callable>
-auto Map(std::vector<Value>&& input, Callable callable) {
-  std::vector<decltype(callable(std::declval<Value>()))> output;
+template <typename InputContainer, typename Callable, typename Container>
+auto Map(InputContainer&& input, Callable callable, Container output) {
   output.reserve(input.size());
   for (auto&& value : input) output.push_back(callable(std::move(value)));
   return output;
+}
+
+template <typename InputContainer, typename Callable>
+auto Map(InputContainer&& input, Callable callable) {
+  return Map(std::forward<InputContainer>(input), std::move(callable),
+             std::vector<decltype(callable(*input.begin()))>());
 }
 
 template <typename Value, typename Callable>
