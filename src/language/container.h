@@ -103,7 +103,18 @@ struct HasInsertMethod<T, std::void_t<decltype(std::declval<T>().insert(
                               *std::declval<T>().begin()))>> : std::true_type {
 };
 
+// Concept for an rvalue (non-const reference)
+template <typename T>
+concept NonConstRef = !std::is_const_v<std::remove_reference_t<T>> &&
+                      std::is_rvalue_reference_v<T&&>;
+
+// Concept for an lvalue or const reference
+template <typename T>
+concept ConstOrLValueRef = std::is_const_v<std::remove_reference_t<T>> ||
+                           !std::is_rvalue_reference_v<T&&>;
+
 template <typename InputContainer, typename Callable, typename Container>
+  requires NonConstRef<InputContainer>
 auto Map(InputContainer&& input, Callable callable, Container output) {
   if constexpr (HasReserveMethod<Container>::value)
     output.reserve(output.size() + input.size());
@@ -115,18 +126,31 @@ auto Map(InputContainer&& input, Callable callable, Container output) {
   return output;
 }
 
+template <typename InputContainer, typename Callable, typename Container>
+  requires ConstOrLValueRef<InputContainer>
+auto Map(InputContainer&& input, Callable callable, Container output) {
+  if constexpr (HasReserveMethod<Container>::value)
+    output.reserve(output.size() + input.size());
+  for (const auto& value : input)
+    if constexpr (HasInsertMethod<Container>::value)
+      output.insert(callable(value));
+    else
+      output.push_back(callable(value));
+  return output;
+}
+
 template <typename InputContainer, typename Callable>
+  requires NonConstRef<InputContainer>
 auto Map(InputContainer&& input, Callable callable) {
   return Map(std::forward<InputContainer>(input), std::move(callable),
              std::vector<decltype(callable(*input.begin()))>());
 }
 
-template <typename Value, typename Callable>
-auto Map(const std::vector<Value>& input, Callable callable) {
-  std::vector<decltype(callable(std::declval<Value>()))> output;
-  output.reserve(input.size());
-  for (const auto& value : input) output.push_back(callable(value));
-  return output;
+template <typename InputContainer, typename Callable>
+  requires ConstOrLValueRef<InputContainer>
+auto Map(InputContainer&& input, Callable callable) {
+  return Map(input, std::move(callable),
+             std::vector<decltype(callable(*input.begin()))>());
 }
 }  // namespace container
 }  // namespace afc::language
