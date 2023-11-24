@@ -113,6 +113,18 @@ template <typename T>
 concept ConstOrLValueRef = std::is_const_v<std::remove_reference_t<T>> ||
                            !std::is_rvalue_reference_v<T&&>;
 
+template <typename Callable, typename Container>
+Container Filter(Callable callable, Container output) {
+  EraseIf(output, [callable](auto& t) { return !callable(t); });
+  return output;
+}
+
+template <typename Container>
+Container Filter(Container container) {
+  return Filter(std::move(container),
+                [](const auto& item) { return item.has_value(); });
+}
+
 template <typename InputContainer, typename Callable, typename Container>
   requires NonConstRef<InputContainer>
 auto Map(InputContainer&& input, Callable callable, Container output) {
