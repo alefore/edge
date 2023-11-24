@@ -168,15 +168,11 @@ EditorState::EditorState(CommandLineValues args,
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
-      edge_path_([](std::vector<std::wstring> paths) {
-        std::vector<Path> output;
-        for (std::wstring& candidate : paths) {
-          std::visit(overload{IgnoreErrors{},
-                              [&](Path path) { output.push_back(path); }},
-                     Path::FromString(candidate));
-        }
-        return output;
-      }(args_.config_paths)),
+      edge_path_(container::Filter(
+          container::Map(args_.config_paths,
+                         [](std::wstring s) -> std::optional<Path> {
+                           return OptionalFrom(Path::FromString(s));
+                         }))),
       environment_([&] {
         gc::Root<vm::Environment> output = BuildEditorEnvironment(
             gc_pool_,
