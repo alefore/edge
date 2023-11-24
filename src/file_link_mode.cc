@@ -191,9 +191,11 @@ futures::Value<PossibleError> Save(
                   }
                   if (buffer.ptr()->Read(
                           buffer_variables::trigger_reload_on_buffer_write)) {
-                    for (std::pair<BufferName, gc::Root<OpenBuffer>> entry :
-                         *buffer.ptr()->editor().buffers()) {
-                      OpenBuffer& reload_buffer = entry.second.ptr().value();
+                    for (gc::Root<OpenBuffer>& reload_buffer_root :
+                         *buffer.ptr()->editor().buffers() |
+                             std::views::values) {
+                      OpenBuffer& reload_buffer =
+                          reload_buffer_root.ptr().value();
                       if (reload_buffer.Read(
                               buffer_variables::reload_on_buffer_write)) {
                         LOG(INFO) << "Write of " << path << " triggers reload: "
@@ -413,9 +415,8 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
         return futures::Past(path_to_validate.DirectorySplit())
             .Transform([&](std::list<PathComponent> path_components)
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
-              for (std::pair<BufferName, gc::Root<OpenBuffer>> buffer_pair :
-                   *editor_state.buffers()) {
-                gc::Root<OpenBuffer> buffer = buffer_pair.second;
+              for (gc::Root<OpenBuffer> buffer :
+                   *editor_state.buffers() | std::views::values) {
                 auto buffer_path = Path::FromString(
                     buffer.ptr()->Read(buffer_variables::path));
                 if (IsError(buffer_path)) continue;
