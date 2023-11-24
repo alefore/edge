@@ -346,19 +346,18 @@ std::vector<std::list<PathComponent>> RemoveCommonPrefixes(
 
 std::vector<std::wstring> RemoveCommonPrefixesForTesting(
     std::vector<std::wstring> input) {
-  std::vector<std::list<PathComponent>> transformed =
-      container::Map(input, [](const std::wstring& c) {
-        return std::visit(
-            overload{[](Error) { return std::list<PathComponent>(); },
-                     [](Path path) {
-                       return ValueOrDie(path.DirectorySplit(),
-                                         L"RemoveCommonPrefixesForTesting");
-                     }},
-            Path::FromString(c));
-      });
-
   return container::Map(
-      RemoveCommonPrefixes(transformed),
+      RemoveCommonPrefixes(container::Map(
+          input,
+          [](const std::wstring& c) {
+            return std::visit(
+                overload{[](Error) { return std::list<PathComponent>(); },
+                         [](Path path) {
+                           return ValueOrDie(path.DirectorySplit(),
+                                             L"RemoveCommonPrefixesForTesting");
+                         }},
+                Path::FromString(c));
+          })),
       [](std::list<PathComponent> components) {
         return components.empty()
                    ? L""
