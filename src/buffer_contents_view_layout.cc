@@ -19,18 +19,21 @@
 #include "src/widget.h"
 
 namespace container = afc::language::container;
+
+using afc::infrastructure::screen::CursorsSet;
+using afc::language::GetValueOrDefault;
+using afc::language::MakeNonNullShared;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::Line;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
+
 namespace afc::editor {
 namespace {
-using infrastructure::screen::CursorsSet;
-using language::MakeNonNullShared;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::Line;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::Range;
 
 std::list<ColumnRange> ComputeBreaks(
     const BufferContentsViewLayout::Input& input, LineNumber line) {
@@ -169,20 +172,14 @@ BufferContentsViewLayout::Line GetScreenLine(
     return range.Contains(LineColumn(line, column));
   };
 
-  BufferContentsViewLayout::Line output{
+  return BufferContentsViewLayout::Line{
       .range = range,
       .has_active_cursor = active_position.has_value() &&
                            line == active_position->line &&
                            contains_cursor(active_position->column),
-      .current_cursors = {}};
-
-  if (auto cursors_it = cursors.find(line); cursors_it != cursors.end()) {
-    for (auto& column : cursors_it->second) {
-      if (contains_cursor(column)) output.current_cursors.insert(column);
-    }
-  }
-
-  return output;
+      .current_cursors = container::Filter(
+          contains_cursor,
+          GetValueOrDefault(cursors, line, std::set<ColumnNumber>()))};
 }
 
 const bool get_screen_line_tests_registration = tests::Register(
@@ -385,12 +382,12 @@ namespace {
 const bool buffer_contents_view_layout_tests_registration =
     tests::Register(L"BufferContentsViewLayout", [] {
       auto get_ranges = [](BufferContentsViewLayout::Input options) {
-        std::vector<Range> output;
-        for (const auto& l : BufferContentsViewLayout::Get(options).lines) {
-          output.push_back(l.range);
-          DVLOG(5) << "Range for testing: " << output.back();
-        }
-        return output;
+        return container::Map(
+            [](const auto& l) {
+              DVLOG(5) << "Range for testing: " << l.range;
+              return l.range;
+            },
+            BufferContentsViewLayout::Get(options).lines);
       };
       auto get_active_cursors = [](BufferContentsViewLayout::Input options) {
         std::vector<LineNumber> output;
