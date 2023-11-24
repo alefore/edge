@@ -32,7 +32,7 @@ SortedLineSequence::SortedLineSequence(LineSequence input,
                 });
             std::sort(lines.begin(), lines.end(), compare);
             MutableLineSequence builder;
-            for (auto& line : lines) builder.push_back(std::move(line));
+            builder.append_back(std::move(lines));
             if (builder.size() > LineNumberDelta(1))
               builder.EraseLines(LineNumber(), LineNumber(1));
             return builder.snapshot();
