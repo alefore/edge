@@ -15,12 +15,15 @@ extern "C" {
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
 
+namespace container = afc::language::container;
+
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::compute_hash;
 using afc::language::Error;
 using afc::language::hash_combine;
 using afc::language::MakeHashableIteratorRange;
+using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
@@ -409,11 +412,12 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
       L"properties",
       vm::NewCallback(pool, PurityType::kReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
-                        NonNull<std::shared_ptr<std::set<std::wstring>>> output;
-                        for (const ParseTreeProperty& property :
-                             tree->properties())
-                          output->insert(property.read());
-                        return output;
+                        return MakeNonNullShared<std::set<std::wstring>>(
+                            container::Map(
+                                [](const ParseTreeProperty& property) {
+                                  return property.read();
+                                },
+                                tree->properties(), std::set<std::wstring>()));
                       })
           .ptr());
 
