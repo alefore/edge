@@ -70,6 +70,15 @@ void EraseIf(std::list<Value>& container, Predicate predicate) {
   container.remove_if(std::move(predicate));
 }
 
+template <typename Predicate, typename Value>
+void EraseIf(std::set<Value>& container, Predicate predicate) {
+  for (auto it = container.begin(); it != container.end(); /* Skip. */)
+    if (predicate(*it))
+      it = container.erase(it);  // Erase returns the next valid iterator.
+    else
+      ++it;
+}
+
 template <typename Container>
 std::set<typename Container::key_type> GetSetWithKeys(
     const Container& container) {
