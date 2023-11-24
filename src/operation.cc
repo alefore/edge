@@ -1146,13 +1146,8 @@ int CommandArgumentRepetitions::get() const {
 }
 
 std::list<int> CommandArgumentRepetitions::get_list() const {
-  std::list<int> output;
-  for (auto& c : entries_) {
-    if (Flatten(c) != 0) {
-      output.push_back(Flatten(c));
-    }
-  }
-  return output;
+  return container::Filter([](int c) { return c != 0; },
+                           container::Map(entries_, Flatten, std::list<int>()));
 }
 
 void CommandArgumentRepetitions::sum(int value) {
