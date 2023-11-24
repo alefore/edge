@@ -91,14 +91,27 @@ template <typename T, typename = std::void_t<>>
 struct HasReserveMethod : std::false_type {};
 
 template <typename T>
-struct HasReserveMethod<T, std::void_t<decltype(std::declval<T>().reserve())>>
+struct HasReserveMethod<
+    T, std::void_t<decltype(std::declval<T>().reserve(size_t()))>>
     : std::true_type {};
+
+template <typename T, typename = std::void_t<>>
+struct HasInsertMethod : std::false_type {};
+
+template <typename T>
+struct HasInsertMethod<T, std::void_t<decltype(std::declval<T>().insert(
+                              *std::declval<T>().begin()))>> : std::true_type {
+};
 
 template <typename InputContainer, typename Callable, typename Container>
 auto Map(InputContainer&& input, Callable callable, Container output) {
   if constexpr (HasReserveMethod<Container>::value)
     output.reserve(output.size() + input.size());
-  for (auto&& value : input) output.push_back(callable(std::move(value)));
+  for (auto&& value : input)
+    if constexpr (HasInsertMethod<Container>::value)
+      output.insert(callable(std::move(value)));
+    else
+      output.push_back(callable(std::move(value)));
   return output;
 }
 
