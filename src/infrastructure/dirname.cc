@@ -8,23 +8,26 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-namespace afc::infrastructure {
-using language::Error;
-using language::FromByteString;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrDie;
-using language::ValueOrError;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
+namespace container = afc::language::container;
 
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrDie;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+
+namespace afc::infrastructure {
 ValueOrError<PathComponent> PathComponent::FromString(std::wstring component) {
   if (component.empty()) {
     return Error(L"Component can't be empty.");
@@ -216,11 +219,11 @@ Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
                                     L"ExpandHomeDirectory"))
                    return path;
                  components.pop_front();
-                 auto output = home_directory;
-                 for (auto& c : components) {
-                   output = Path::Join(output, c);
-                 }
-                 return output;
+                 return container::Fold(
+                     [](PathComponent c, Path output) {
+                       return Path::Join(std::move(output), std::move(c));
+                     },
+                     home_directory, std::move(components));
                }},
       path.DirectorySplit());
 }
