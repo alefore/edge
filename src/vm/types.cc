@@ -8,6 +8,8 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
+namespace container = afc::language::container;
+
 using afc::language::GetValueOrDie;
 
 namespace std {
@@ -191,9 +193,8 @@ std::wstring ToString(const Type& type) {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
     const {
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
-  for (auto& p : fields_) output.push_back(p.second.object_metadata());
-  return output;
+  return container::Map(fields_,
+                        [](auto& p) { return p.second.object_metadata(); });
 }
 
 /* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {
