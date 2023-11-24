@@ -182,13 +182,14 @@ LineSequence ShowFiles(EditorState& editor, std::wstring name,
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  MutableLineSequence output;
-  output.push_back(MakeNonNullShared<Line>(
-      LineBuilder(NewLazyString(L"## " + name + L" (" +
-                                std::to_wstring(entries.size()) + L")"))
-          .Build()));
-  output.append_back(container::Map(
-      std::move(entries), std::bind_front(ShowLine, std::ref(editor))));
+  MutableLineSequence output =
+      MutableLineSequence::WithLine(MakeNonNullShared<Line>(
+          LineBuilder(NewLazyString(L"## " + name + L" (" +
+                                    std::to_wstring(entries.size()) + L")"))
+              .Build()));
+  output = container::Map(std::move(entries),
+                          std::bind_front(ShowLine, std::ref(editor)),
+                          std::move(output));
   output.push_back(L"");
   return output.snapshot();
 }
