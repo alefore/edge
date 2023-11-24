@@ -77,6 +77,7 @@ std::set<typename Container::key_type> GetSetWithKeys(
       std::views::keys(container).begin(), std::views::keys(container).end());
 }
 
+namespace container {
 template <typename Container, typename Callable, typename Value>
 Value Fold(Callable aggregate, Value identity, Container&& container) {
   Value output = std::move(identity);
@@ -86,7 +87,6 @@ Value Fold(Callable aggregate, Value identity, Container&& container) {
   return output;
 }
 
-namespace container {
 template <typename T, typename = std::void_t<>>
 struct HasReserveMethod : std::false_type {};
 

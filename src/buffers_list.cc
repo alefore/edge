@@ -30,7 +30,6 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EraseIf;
 using afc::language::Error;
-using afc::language::Fold;
 using afc::language::IgnoreErrors;
 using afc::language::IsError;
 using afc::language::MakeNonNullShared;
@@ -137,7 +136,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
     output_items.push_front(std::move(current_output));
   }
 
-  LineBuilder output = Fold(
+  LineBuilder output = container::Fold(
       [](LineBuilder a, LineBuilder b) -> LineBuilder {
         b.Append(std::move(a));
         return b;
@@ -361,7 +360,7 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
       [](std::list<PathComponent> components) {
         return components.empty()
                    ? L""
-                   : Fold(
+                   : container::Fold(
                          [](PathComponent c, std::optional<Path> p) {
                            return p.has_value() ? Path::Join(*p, c) : c;
                          },
@@ -546,7 +545,7 @@ ValueOrError<std::vector<ColumnNumberDelta>> DivideLine(
     ++output[i];
     --remaining_characters;
   }
-  CHECK_EQ(Fold(
+  CHECK_EQ(container::Fold(
                [](ColumnNumberDelta a, ColumnNumberDelta b) {
                  VLOG(7) << "Entry: " << a;
                  return a + b;
