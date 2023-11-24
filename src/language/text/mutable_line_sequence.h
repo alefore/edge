@@ -44,6 +44,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   MutableLineSequence(MutableLineSequence&&) = default;
   MutableLineSequence(const MutableLineSequence&) = delete;
+  MutableLineSequence& operator=(MutableLineSequence&&) = default;
 
   static MutableLineSequence WithLine(
       language::NonNull<std::shared_ptr<const language::text::Line>> line);
