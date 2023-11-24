@@ -392,9 +392,8 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
                         std::to_wstring(exponent)));
               return;
             }
-            numbers::Number exponent_factor = numbers::FromInt(1);
-            for (int i = 0; i < exponent; i++)
-              exponent_factor *= numbers::FromInt(10);
+            numbers::Number exponent_factor =
+                numbers::Pow(numbers::FromInt(10), exponent);
             if (positive)
               value *= std::move(exponent_factor);
             else
