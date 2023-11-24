@@ -27,6 +27,7 @@
 #include "src/transformation/stack.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::futures::Past;
 using afc::infrastructure::ControlChar;
@@ -1138,11 +1139,7 @@ std::wstring CommandArgumentRepetitions::ToString() const {
 }
 
 int CommandArgumentRepetitions::get() const {
-  int output = 0;
-  for (auto& c : get_list()) {
-    output += c;
-  }
-  return output;
+  return container::Fold([](int a, int b) { return a + b; }, 0, get_list());
 }
 
 std::list<int> CommandArgumentRepetitions::get_list() const {
