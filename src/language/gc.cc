@@ -512,10 +512,9 @@ template <>
 struct ExpandHelper<Node> {
   std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
       const Node& node) {
-    std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output;
-    for (auto& child : node.children) {
-      output.push_back(child.object_metadata());
-    }
+    std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output =
+        container::Map([](auto& child) { return child.object_metadata(); },
+                       node.children);
     VLOG(5) << "Generated expansion of node " << &node << ": " << output.size();
     return output;
   }
