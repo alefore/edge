@@ -15,6 +15,7 @@
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::InsertOrDie;
@@ -176,10 +177,10 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
-      if (auto it = data.table.find(symbol); it != data.table.end()) {
-        for (const gc::Ptr<Value>& entry : it->second | std::views::values)
-          output->push_back(entry.ToRoot());
-      }
+      if (auto it = data.table.find(symbol); it != data.table.end())
+        container::Map(
+            it->second | std::views::values,
+            [](const gc::Ptr<Value>& entry) { return entry.ToRoot(); });
     });
   }
   // Deliverately ignoring `environment`:
