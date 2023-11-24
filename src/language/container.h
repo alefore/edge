@@ -4,6 +4,7 @@
 #include <list>
 #include <ranges>
 #include <set>
+#include <type_traits>
 #include <vector>
 
 namespace afc::language {
@@ -86,9 +87,17 @@ Value Fold(Callable aggregate, Value identity, Container&& container) {
 }
 
 namespace container {
+template <typename T, typename = std::void_t<>>
+struct HasReserveMethod : std::false_type {};
+
+template <typename T>
+struct HasReserveMethod<T, std::void_t<decltype(std::declval<T>().reserve())>>
+    : std::true_type {};
+
 template <typename InputContainer, typename Callable, typename Container>
 auto Map(InputContainer&& input, Callable callable, Container output) {
-  output.reserve(input.size());
+  if constexpr (HasReserveMethod<Container>::value)
+    output.reserve(output.size() + input.size());
   for (auto&& value : input) output.push_back(callable(std::move(value)));
   return output;
 }
