@@ -178,9 +178,10 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
       environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
       if (auto it = data.table.find(symbol); it != data.table.end())
-        container::Map(
+        *output = container::Map(
             it->second | std::views::values,
-            [](const gc::Ptr<Value>& entry) { return entry.ToRoot(); });
+            [](const gc::Ptr<Value>& entry) { return entry.ToRoot(); },
+            std::move(*output));
     });
   }
   // Deliverately ignoring `environment`:
