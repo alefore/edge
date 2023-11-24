@@ -1145,27 +1145,24 @@ void EnterInsertMode(InsertModeOptions options) {
         }
 
         shared_options->editor_state.status().Reset();
-        for (gc::Root<OpenBuffer>& buffer : shared_options->buffers.value()) {
-          buffer.ptr()->status().Reset();
-        }
+        for (OpenBuffer& buffer :
+             RootValueView(shared_options->buffers.value()))
+          buffer.status().Reset();
 
         if (shared_options->editor_state.structure() == Structure::kChar ||
             shared_options->editor_state.structure() == Structure::kLine) {
-          for (gc::Root<OpenBuffer>& buffer_root :
-               shared_options->buffers.value()) {
-            OpenBuffer& buffer = buffer_root.ptr().value();
+          for (OpenBuffer& buffer :
+               RootValueView(shared_options->buffers.value())) {
             buffer.CheckPosition();
             buffer.PushTransformationStack();
             buffer.PushTransformationStack();
           }
-          if (shared_options->editor_state.structure() == Structure::kLine) {
-            for (gc::Root<OpenBuffer>& buffer :
-                 shared_options->buffers.value()) {
-              buffer.ptr()->ApplyToCursors(
+          if (shared_options->editor_state.structure() == Structure::kLine)
+            for (OpenBuffer& buffer :
+                 RootValueView(shared_options->buffers.value()))
+              buffer.ApplyToCursors(
                   MakeNonNullUnique<InsertEmptyLineTransformation>(
                       shared_options->editor_state.direction()));
-            }
-          }
           EnterInsertCharactersMode(*shared_options);
         }
         shared_options->editor_state.ResetDirection();
