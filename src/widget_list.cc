@@ -21,12 +21,15 @@
 #include "src/language/wstring.h"
 #include "src/widget.h"
 
+namespace container = afc::language::container;
+
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::Line;
+using afc::language::text::LineNumberDelta;
+
 namespace afc::editor {
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::Line;
-using language::text::LineNumberDelta;
 
 Widget::OutputProducerOptions GetChildOptions(
     Widget::OutputProducerOptions options, size_t index, size_t index_active) {
@@ -67,10 +70,8 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
     OutputProducerOptions options) const {
   if (options.size.line.IsZero()) return LineWithCursor::Generator::Vector{};
 
-  std::vector<LineNumberDelta> lines_per_child;
-  for (auto& child : children_) {
-    lines_per_child.push_back(child->MinimumLines());
-  }
+  std::vector<LineNumberDelta> lines_per_child = container::Map(
+      children_, [](auto& child) { return child->MinimumLines(); });
 
   LineNumberDelta lines_given = std::accumulate(
       lines_per_child.begin(), lines_per_child.end(), LineNumberDelta(0));
