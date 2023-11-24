@@ -5,12 +5,15 @@
 #include <limits>
 #include <ranges>
 
+#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/math/checked_operation.h"
 #include "src/tests/tests.h"
+
+namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
@@ -101,9 +104,9 @@ const bool operation_tree_to_decimal_int_tests_registration =
             .callback = [input, positive_expectation, expectation] {
               Decimal output = ValueOrDie(OperationTreeToDecimal(input, 0));
               CHECK_EQ(output.positive, positive_expectation);
-              std::string output_str;
-              for (size_t d : output.digits | std::views::reverse)
-                output_str.push_back('0' + d);
+              std::string output_str = container::Map(
+                  [](size_t d) { return '0' + d; },
+                  output.digits | std::views::reverse, std::string{});
               CHECK_EQ(output_str, expectation);
             }};
       };
@@ -136,9 +139,9 @@ const bool remove_decimals_tests_registration =
                      std::wstring expectation) {
         return tests::Test(
             {.name = input, .callback = [=] {
-               Digits input_digits;
-               for (wchar_t c : input | std::views::reverse)
-                 input_digits.push_back(c - L'0');
+               Digits input_digits =
+                   container::Map([](wchar_t c) { return c - L'0'; },
+                                  input | std::views::reverse, Digits());
                std::wstring str = ToString(
                    {.digits = RemoveDecimals(input_digits, digits)}, 0);
                LOG(INFO) << "From [" << ToString({.digits = input_digits}, 0)
