@@ -142,6 +142,7 @@ src/language/gc.h \
 src/language/gc_tests.cc \
 src/language/gc_util.cc \
 src/language/gc_util.h \
+src/language/gc_view.h \
 src/language/hash.cc \
 src/language/hash.h \
 src/language/lazy_string/append.cc \
