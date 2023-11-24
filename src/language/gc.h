@@ -497,6 +497,8 @@ class WeakPtr {
 template <typename T>
 class Root {
  public:
+  using value_type = T;
+
   Root(const Root<T>& other) = default;
 
   template <typename U>
