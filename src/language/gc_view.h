@@ -27,7 +27,7 @@ class RootValueIterator {
       typename std::iterator_traits<Iterator>::value_type::value_type;
   using reference = value_type&;
 
-  reference operator*() const { return iterator_->ptr().value(); }
+  reference operator*() const { return (*iterator_).ptr().value(); }
 
   bool operator!=(const RootValueIterator& other) const {
     return iterator_ != other.iterator_;
@@ -51,19 +51,22 @@ class RootValueIterator {
 
 template <typename Range>
 class RootValueRange {
-  Range& range_;
+  Range range_;
 
  public:
-  explicit RootValueRange(Range& range) : range_(range) {}
+  template <typename R>
+  explicit RootValueRange(R&& range) : range_(std::forward<R>(range)) {}
 
   auto begin() { return RootValueIterator(std::begin(range_)); }
 
   auto end() { return RootValueIterator(std::end(range_)); }
+
+  size_t size() { return range_.size(); }
 };
 
 template <typename Range>
-RootValueRange<Range> RootValueView(Range& range) {
-  return RootValueRange<Range>(range);
+RootValueRange<Range> RootValueView(Range&& range) {
+  return RootValueRange<Range>(std::forward<Range>(range));
 }
 }  // namespace afc::language::gc
 #endif  // __AFC_LANGUAGE_GC_VIEW_H__

@@ -7,6 +7,7 @@
 #include <set>
 
 #include "src/language/container.h"
+#include "src/language/gc_view.h"
 #include "src/language/safe_types.h"
 #include "src/math/numbers.h"
 #include "src/vm/callbacks.h"
@@ -161,11 +162,10 @@ std::optional<gc::Root<Value>> Environment::Lookup(
     const std::wstring& symbol, Type expected_type) const {
   std::vector<gc::Root<Value>> values;
   PolyLookup(symbol_namespace, symbol, &values);
-  for (gc::Root<Value>& value : values) {
-    if (auto callback = GetImplicitPromotion(value.ptr()->type, expected_type);
+  for (Value& value : RootValueView(values)) {
+    if (auto callback = GetImplicitPromotion(value.type, expected_type);
         callback != nullptr) {
-      return callback(
-          pool, pool.NewRoot(MakeNonNullUnique<Value>(value.ptr().value())));
+      return callback(pool, pool.NewRoot(MakeNonNullUnique<Value>(value)));
     }
   }
   return std::nullopt;

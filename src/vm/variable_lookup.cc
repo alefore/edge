@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "compilation.h"
+#include "src/language/gc_view.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
@@ -78,11 +79,8 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   std::vector<Type> types;
   std::unordered_set<Type> types_already_seen;
 
-  for (gc::Root<Value>& v : result) {
-    if (types_already_seen.insert(v.ptr()->type).second) {
-      types.push_back(v.ptr()->type);
-    }
-  }
+  for (const Value& v : RootValueView(result))
+    if (types_already_seen.insert(v.type).second) types.push_back(v.type);
   return std::make_unique<VariableLookup>(std::move(symbol_namespace),
                                           std::move(symbol), types);
 }

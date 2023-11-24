@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include "src/language/gc_view.h"
 #include "src/language/wstring.h"
 #include "src/vm/compilation.h"
 #include "src/vm/environment.h"
@@ -9,16 +10,18 @@
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
+namespace gc = afc::language::gc;
+namespace container = afc::language::container;
+
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Success;
+
 namespace afc::vm {
 namespace {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
 
 using ::operator<<;
-
-namespace gc = language::gc;
 
 class AssignExpression : public Expression {
  public:
@@ -139,28 +142,22 @@ std::unique_ptr<Expression> NewAssignExpression(
   static const vm::Namespace kEmptyNamespace;
   compilation->environment.ptr()->PolyLookup(kEmptyNamespace, symbol,
                                              &variables);
-  for (gc::Root<Value>& v : variables) {
-    if (value->SupportsType(v.ptr()->type)) {
+  for (Value& v : RootValueView(variables))
+    if (value->SupportsType(v.type))
       return std::make_unique<AssignExpression>(
           AssignExpression::AssignmentType::kAssign, symbol,
           NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
-    }
-  }
 
   if (variables.empty()) {
     compilation->AddError(Error(L"Variable not found: \"" + symbol + L"\""));
     return nullptr;
   }
 
-  std::vector<Type> variable_types;
-  for (const gc::Root<Value>& v : variables) {
-    variable_types.push_back(v.ptr()->type);
-  }
-
   compilation->AddError(
       Error(L"Unable to assign a value to a variable supporting types: \"" +
             TypesToString(value->Types()) + L"\". Value types: " +
-            TypesToString(variable_types)));
+            TypesToString(container::Map([](const Value& v) { return v.type; },
+                                         RootValueView(variables)))));
 
   return nullptr;
 }

@@ -28,6 +28,7 @@ extern "C" {
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
@@ -608,10 +609,10 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           std::wstring extra;
           std::wstring separator = L": ";
           int count = 0;
-          for (const gc::Root<OpenBuffer>& pending_buffer :
-               data->pending_buffers) {
+          for (const OpenBuffer& pending_buffer :
+               RootValueView(data->pending_buffers)) {
             if (count < 5) {
-              extra += separator + pending_buffer.ptr()->name().read();
+              extra += separator + pending_buffer.name().read();
               separator = L", ";
             } else if (count == 5) {
               extra += L"…";
@@ -993,8 +994,8 @@ void EditorState::ExecutionIteration(
   // pending work updates may have visible effects.
   ExecutePendingWork();
 
-  for (const gc::Root<OpenBuffer>& buffer : *buffers() | std::views::values)
-    buffer.ptr()->AddExecutionHandlers(handler);
+  for (OpenBuffer& buffer : RootValueView(*buffers() | std::views::values))
+    buffer.AddExecutionHandlers(handler);
 
   handler.AddHandler(
       pipe_to_communicate_internal_events_.first, POLLIN | POLLPRI, [&](int) {

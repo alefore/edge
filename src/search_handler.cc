@@ -7,6 +7,7 @@
 #include "src/buffer_variables.h"
 #include "src/infrastructure/audio.h"
 #include "src/language/container.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
@@ -177,9 +178,9 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   // could probably add matches directly to the sorted contents; or, at least,
   // build the sorted contents from matches directly.
   std::set<std::wstring> matches;
-  for (gc::Root<OpenBuffer>& search_buffer : input.source_buffers) {
+  for (OpenBuffer& search_buffer : RootValueView(input.source_buffers)) {
     static constexpr int kMatchesLimit = 100;
-    SearchInBuffer(input, search_buffer.ptr().value(), kMatchesLimit, matches);
+    SearchInBuffer(input, search_buffer, kMatchesLimit, matches);
   }
   if (!matches.empty()) {
     // Add the matches to the predictions buffer.
