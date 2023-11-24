@@ -50,7 +50,7 @@ class RootValueIterator {
 
 template <typename Range>
 class RootValueRange {
-  const std::remove_reference_t<Range>& range_;
+  const Range range_;
 
  public:
   template <typename R>
