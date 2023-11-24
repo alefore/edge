@@ -70,6 +70,7 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -494,14 +495,16 @@ void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 
 std::shared_ptr<LazyString> EditorState::GetExitNotice() const {
   if (dirty_buffers_saved_to_backup_.empty()) return nullptr;
-  NonNull<std::shared_ptr<LazyString>> output =
-      Append(NewLazyString(L"Dirty contents backed up (in "),
-             NewLazyString(edge_path()[0].read()), NewLazyString(L"):\n"));
-  for (const BufferName& name : dirty_buffers_saved_to_backup_) {
-    output = Append(output, NewLazyString(L"  "), NewLazyString(name.read()),
-                    NewLazyString(L"\n"));
-  }
-  return output.get_shared();
+  return Append(NewLazyString(L"Dirty contents backed up (in "),
+                NewLazyString(edge_path()[0].read()), NewLazyString(L"):\n"),
+                Concatenate(container::Map(dirty_buffers_saved_to_backup_,
+                                           [](const BufferName& name) {
+                                             return Append(
+                                                 NewLazyString(L"  "),
+                                                 NewLazyString(name.read()),
+                                                 NewLazyString(L"\n"));
+                                           })))
+      .get_shared();
 }
 
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
