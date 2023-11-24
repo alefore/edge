@@ -19,31 +19,32 @@
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 
+namespace gc = afc::language::gc;
+namespace container = afc::language::container;
+
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::CursorsSet;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::CaptureAndHash;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::OutgoingLink;
+using afc::language::text::Range;
+
 namespace afc {
 namespace editor {
 namespace {
-using infrastructure::Tracker;
-using infrastructure::screen::CursorsSet;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::CaptureAndHash;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::OutgoingLink;
-using language::text::Range;
-
-namespace gc = language::gc;
-
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           wchar_t connect_final_char, std::wstring& output) {
   CHECK_LT(pos, output.size());
@@ -837,8 +838,8 @@ ColumnsVector::Column BufferMetadataOutput(
              b.box.size);
   }
 
-  std::set<LineNumber> lines_referenced;
-  for (auto& b : boxes) lines_referenced.insert(b.box.reference);
+  std::set<LineNumber> lines_referenced = container::Map(
+      boxes, [](auto& b) { return b.box.reference; }, std::set<LineNumber>());
 
   const std::vector<std::wstring> prefix_lines =
       ComputePrefixLines(screen_size, boxes);
@@ -865,7 +866,7 @@ ColumnsVector::Column BufferMetadataOutput(
     output.lines.lines.push_back(
         NewGenerator(std::move(prefix), std::move(metadata_line)));
     output.padding.push_back(
-        lines_referenced.find(i) != lines_referenced.end()
+        lines_referenced.contains(i)
             ? ColumnsVector::Padding{.modifiers = {LineModifier::kYellow},
                                      .head = NewLazyString(L"  ←"),
                                      .body = NewLazyString(L"-")}
