@@ -30,6 +30,7 @@ extern "C" {
 #include "src/tests/tests.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::concurrent::ChannelAll;
 using afc::concurrent::VersionPropertyKey;
@@ -360,15 +361,11 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               if (!path_input.empty() && *path_input.begin() == L'/') {
                 search_paths = {Path::Root()};
               } else {
-                std::vector<Path> resolved_paths;
-                for (Path& search_path : search_paths) {
-                  std::visit(overload{IgnoreErrors{},
-                                      [&](Path path) {
-                                        resolved_paths.push_back(path);
-                                      }},
-                             search_path.Resolve());
-                }
-                search_paths = std::move(resolved_paths);
+                search_paths = container::Filter(container::Map(
+                    [](Path path) -> std::optional<Path> {
+                      return OptionalFrom(path.Resolve());
+                    },
+                    std::move(search_paths)));
 
                 std::set<Path> unique_paths_set;
                 std::vector<Path> unique_paths;
@@ -656,9 +653,11 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   }
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName(L"Dictionary")});
-  for (auto& word : words) {
-    dictionary.ptr()->AppendLine(NewLazyString(word));
-  }
+  dictionary.ptr()->AppendLines(container::Map(
+      [](std::wstring word) {
+        return MakeNonNullShared<const Line>(Line(word));
+      },
+      words));
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
 }

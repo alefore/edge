@@ -570,6 +570,7 @@ class OpenBuffer {
       std::unique_ptr<FileDescriptorReader>& source);
 
   void UpdateLastAction();
+  // TODO(P1, 2023-11-24): Remove this? Just use `AppendLines`?
   void InsertLines(
       std::vector<
           language::NonNull<std::shared_ptr<const language::text::Line>>>);
