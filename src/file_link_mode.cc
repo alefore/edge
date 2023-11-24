@@ -26,6 +26,7 @@ extern "C" {
 #include "src/editor.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
@@ -191,18 +192,15 @@ futures::Value<PossibleError> Save(
                   }
                   if (buffer.ptr()->Read(
                           buffer_variables::trigger_reload_on_buffer_write)) {
-                    for (gc::Root<OpenBuffer>& reload_buffer_root :
-                         *buffer.ptr()->editor().buffers() |
-                             std::views::values) {
-                      OpenBuffer& reload_buffer =
-                          reload_buffer_root.ptr().value();
+                    for (OpenBuffer& reload_buffer :
+                         RootValueView(*buffer.ptr()->editor().buffers() |
+                                       std::views::values))
                       if (reload_buffer.Read(
                               buffer_variables::reload_on_buffer_write)) {
                         LOG(INFO) << "Write of " << path << " triggers reload: "
                                   << reload_buffer.Read(buffer_variables::name);
                         reload_buffer.Reload();
                       }
-                    }
                   }
                   stat(ToByteString(path.read()).c_str(), &stat_buffer.value());
                   break;

@@ -25,6 +25,7 @@ extern "C" {
 #include "src/futures/listenable_value.h"
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
@@ -49,8 +50,9 @@ extern "C" {
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
-namespace gc = afc::language::gc;
+namespace audio = afc::infrastructure::audio;
 namespace container = afc::language::container;
+namespace gc = afc::language::gc;
 
 using afc::concurrent::WorkQueue;
 using afc::futures::DeleteNotification;
@@ -1006,8 +1008,7 @@ class InsertMode : public EditorMode {
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
-  for (gc::Root<OpenBuffer>& buffer_root : options.buffers.value()) {
-    OpenBuffer& buffer = buffer_root.ptr().value();
+  for (OpenBuffer& buffer : RootValueView(options.buffers.value())) {
     if (buffer.fd() == nullptr) continue;
     if (buffer.Read(buffer_variables::extend_lines)) {
       buffer.MaybeExtendLine(buffer.position());
@@ -1015,26 +1016,20 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
       buffer.MaybeAdjustPositionCol();
     }
   }
-  for (gc::Root<OpenBuffer>& buffer_root : options.buffers.value()) {
-    buffer_root.ptr()->status().SetInformationText(MakeNonNullShared<Line>(
-        buffer_root.ptr()->fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
-  }
-
+  for (OpenBuffer& buffer : RootValueView(options.buffers.value()))
+    buffer.status().SetInformationText(
+        MakeNonNullShared<Line>(buffer.fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
   options.editor_state.set_keyboard_redirect(
       std::make_unique<InsertMode>(options));
 
-  bool beep = false;
-  for (gc::Root<OpenBuffer>& buffer_root : options.buffers.value()) {
-    OpenBuffer& buffer = buffer_root.ptr().value();
-    beep = buffer.active_cursors().size() > 1 &&
-           buffer.Read(buffer_variables::multiple_cursors);
-  }
-  if (beep) {
-    namespace audio = infrastructure::audio;
+  if (std::ranges::any_of(
+          RootValueView(options.buffers.value()), [](OpenBuffer& buffer) {
+            return buffer.active_cursors().size() > 1 &&
+                   buffer.Read(buffer_variables::multiple_cursors);
+          }))
     audio::BeepFrequencies(
         options.editor_state.audio_player(), 0.1,
         {audio::Frequency(659.25), audio::Frequency(1046.50)});
-  }
 }
 }  // namespace
 

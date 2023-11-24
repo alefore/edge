@@ -20,6 +20,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/overload.h"
@@ -643,11 +644,10 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
         PredictorOutput({.contents = SortedLineSequenceUniqueLines(
                              SortedLineSequence(LineSequence()))}));
   std::set<std::wstring> words;
-  for (gc::Root<OpenBuffer>& buffer : input.source_buffers) {
-    RegisterLeaves(buffer.ptr().value(), buffer.ptr()->parse_tree().value(),
-                   &words);
+  for (const OpenBuffer& buffer : RootValueView(input.source_buffers)) {
+    RegisterLeaves(buffer, buffer.parse_tree().value(), &words);
     std::wistringstream keywords(
-        buffer.ptr()->Read(buffer_variables::language_keywords));
+        buffer.Read(buffer_variables::language_keywords));
     words.insert(std::istream_iterator<std::wstring, wchar_t>(keywords),
                  std::istream_iterator<std::wstring, wchar_t>());
   }

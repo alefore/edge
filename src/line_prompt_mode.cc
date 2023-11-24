@@ -19,6 +19,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
 #include "src/language/container.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
@@ -86,11 +87,12 @@ std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
 GetCurrentFeatures(EditorState& editor) {
   std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
       output;
-  for (gc::Root<OpenBuffer>& buffer : *editor.buffers() | std::views::values)
-    if (buffer.ptr()->Read(buffer_variables::show_in_buffers_list) &&
-        editor.buffer_tree().GetBufferIndex(buffer.ptr().value()).has_value())
+  for (OpenBuffer& buffer :
+       RootValueView(*editor.buffers() | std::views::values))
+    if (buffer.Read(buffer_variables::show_in_buffers_list) &&
+        editor.buffer_tree().GetBufferIndex(buffer).has_value())
       output.insert(
-          {L"name", NewLazyString(buffer.ptr()->Read(buffer_variables::name))});
+          {L"name", NewLazyString(buffer.Read(buffer_variables::name))});
   editor.ForEachActiveBuffer([&output](OpenBuffer& buffer) {
     output.insert(
         {L"active", NewLazyString(buffer.Read(buffer_variables::name))});
