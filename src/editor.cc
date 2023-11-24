@@ -92,15 +92,17 @@ void EditorState::ExecutePendingWork() {
 }
 
 std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
-  std::optional<struct timespec> output;
-  for (auto& buffer : buffers_) {
-    if (auto buffer_output = buffer.second.ptr()->work_queue()->NextExecution();
-        buffer_output.has_value() &&
-        (!output.has_value() || buffer_output.value() < output.value())) {
-      output = buffer_output;
-    }
-  }
-  return output;
+  using Output = std::optional<struct timespec>;
+  return container::Fold(
+      [](struct timespec a, Output output) -> Output {
+        return output.has_value() ? std::min(a, output.value()) : a;
+      },
+      Output(),
+      container::Filter(container::Map(
+          [](const OpenBuffer& buffer) {
+            return buffer.work_queue()->NextExecution();
+          },
+          RootValueView(buffers_ | std::views::values))));
 }
 
 const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
@@ -249,9 +251,9 @@ EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
-  for (auto& buffer : buffers_) {
-    buffer.second.ptr()->Close();
-    buffer_tree_.RemoveBuffer(buffer.second.ptr().value());
+  for (OpenBuffer& buffer : RootValueView(buffers_ | std::views::values)) {
+    buffer.Close();
+    buffer_tree_.RemoveBuffer(buffer);
   }
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
