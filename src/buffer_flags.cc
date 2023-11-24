@@ -8,15 +8,17 @@
 #include "src/line_with_cursor.h"
 #include "src/path_flags.h"
 
+namespace container = afc::language::container;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::CaptureAndHash;
+using afc::language::MakeNonNullShared;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::Padding;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+
 namespace afc::editor {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::CaptureAndHash;
-using language::MakeNonNullShared;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::Padding;
-using language::text::Line;
-using language::text::LineBuilder;
 
 std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
   using flags::Color;
@@ -46,18 +48,17 @@ std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
 }
 
 LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
-  LineWithCursor::Generator::Vector output;
-  for (auto& modifier : GetBufferFlag(buffer)) {
-    output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
-        [](LineModifier m) {
-          LineBuilder options;
-          options.AppendString(Padding(ColumnNumberDelta(80), L'█'),
-                               LineModifierSet{m});
-          return LineWithCursor{
-              .line = MakeNonNullShared<Line>(std::move(options).Build())};
-        },
-        modifier)));
-  }
-  return output;
+  return LineWithCursor::Generator::Vector{
+      .lines = container::Map(GetBufferFlag(buffer), [](auto modifier) {
+        return LineWithCursor::Generator::New(CaptureAndHash(
+            [](LineModifier m) {
+              LineBuilder options;
+              options.AppendString(Padding(ColumnNumberDelta(80), L'█'),
+                                   LineModifierSet{m});
+              return LineWithCursor{
+                  .line = MakeNonNullShared<Line>(std::move(options).Build())};
+            },
+            modifier));
+      })};
 }
 }  // namespace afc::editor
