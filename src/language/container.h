@@ -96,6 +96,19 @@ Value Fold(Callable aggregate, Value identity, Container&& container) {
   return output;
 }
 
+template <typename Container, typename OutputType>
+OutputType Sum(OutputType identity, Container&& container) {
+  return Fold([](auto input, OutputType output) { return input + output; },
+              std::move(identity), std::forward<Container>(container));
+}
+
+template <typename Container, typename OutputType = std::decay_t<
+                                  decltype(*std::declval<Container>().begin())>>
+OutputType Sum(Container&& container) {
+  return Fold([](auto input, OutputType output) { return input + output; },
+              OutputType(), std::forward<Container>(container));
+}
+
 template <typename T, typename = std::void_t<>>
 struct HasReserveMethod : std::false_type {};
 
