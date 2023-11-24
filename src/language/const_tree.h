@@ -133,9 +133,7 @@ class VectorBlock {
   template <typename Predicate>
   static bool Every(const std::shared_ptr<const VectorBlock>& v,
                     Predicate& predicate) {
-    for (const auto& c : v->values_)
-      if (!predicate(c)) return false;
-    return true;
+    return std::ranges::all_of(v->values_, predicate);
   }
 
   size_t size() const { return values_.size(); }
