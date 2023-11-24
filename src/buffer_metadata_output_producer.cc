@@ -579,12 +579,12 @@ std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
 
   std::list<BoxWithPosition> output;
   VLOG(5) << "Adjusting boxes.";
-  for (auto box_it = boxes.rbegin(); box_it != boxes.rend(); ++box_it) {
-    sum_sizes -= box_it->size;
+  for (const auto& box : boxes | std::views::reverse) {
+    sum_sizes -= box.size;
     LineNumber position = std::max(
         LineNumber() + sum_sizes,
-        std::min(box_it->reference, LineNumber() + screen_size - box_it->size));
-    output.push_front({.box = *box_it, .position = position});
+        std::min(box.reference, LineNumber() + screen_size - box.size));
+    output.push_front({.box = box, .position = position});
     screen_size = position.ToDelta();
   }
   return output;
