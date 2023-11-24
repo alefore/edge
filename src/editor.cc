@@ -516,15 +516,15 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
     std::vector<std::wstring> buffers_with_problems;
-    for (auto& it : buffers_)
+    for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
       std::visit(overload{[](EmptyValue) {},
                           [&](Error error) {
                             buffers_with_problems.push_back(
-                                it.second.ptr()->Read(buffer_variables::name));
-                            it.second.ptr()->status().Set(
+                                buffer.ptr()->Read(buffer_variables::name));
+                            buffer.ptr()->status().Set(
                                 AugmentError(L"Unable to close", error));
                           }},
-                 it.second.ptr()->IsUnableToPrepareToClose());
+                 buffer.ptr()->IsUnableToPrepareToClose());
 
     if (!buffers_with_problems.empty()) {
       std::wstring error = L"🖝  Dirty buffers (pre):";
