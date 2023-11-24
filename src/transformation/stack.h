@@ -25,14 +25,20 @@ struct Stack {
     kCursorOnEachLine,
   };
 
-  void PushBack(Variant transformation);
-  void PushFront(Variant transformation);
   std::list<Variant> stack;
   PostTransformationBehavior post_transformation_behavior =
       PostTransformationBehavior::kNone;
 
   // Used if post_transformation_behavior is kCommandSystem.
   std::optional<ShellCommand> shell = std::nullopt;
+
+  // TODO(trivial, 2023-11-24): Get rid of these methods. Use the snake-case
+  // variants everywhere.
+  void PushBack(Variant transformation);
+  void PushFront(Variant transformation);
+
+  void push_back(Variant transformation);
+  void push_front(Variant transformation);
 };
 
 Variant OptimizeBase(Stack stack);
