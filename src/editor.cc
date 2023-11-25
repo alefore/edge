@@ -512,27 +512,30 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           .Build()));
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
-    auto buffers_with_problems = container::Filter(
-        [](const NonNull<OpenBuffer*> buffer) {
+    auto buffers_with_problems =
+        buffers_ | std::views::values |
+        // TODO(easy, 2023-11-25): Find a way to use RootValueView.
+        std::views::transform([](gc::Root<OpenBuffer> buffer) {
+          return NonNull<OpenBuffer*>::AddressOf(buffer.ptr().value());
+        }) |
+        std::views::filter([](const NonNull<OpenBuffer*>& buffer) {
           return IsError(buffer->status().LogErrors(AugmentErrors(
               L"Unable to close", buffer->IsUnableToPrepareToClose())));
-        },
-        container::Map(
-            [](const gc::Root<OpenBuffer>& buffer) {
-              return NonNull<OpenBuffer*>::AddressOf(buffer.ptr().value());
-            },
-            buffers_ | std::views::values));
+        });
 
     if (!buffers_with_problems.empty()) {
       switch (status_.InsertError(
           Error(Append(NewLazyString(L"🖝  Dirty buffers (pre):"),
-                       Concatenate(container::Map(
-                           [](const NonNull<OpenBuffer*>& buffer)
-                               -> NonNull<std::shared_ptr<LazyString>> {
-                             return NewLazyString(
-                                 L" " + buffer->Read(buffer_variables::name));
-                           },
-                           buffers_with_problems)))
+                       Concatenate(container::Materialize<std::vector<
+                                       NonNull<std::shared_ptr<LazyString>>>>(
+                           buffers_with_problems |
+                           std::views::transform(
+                               [](const NonNull<OpenBuffer*>& buffer)
+                                   -> NonNull<std::shared_ptr<LazyString>> {
+                                 return NewLazyString(
+                                     L" " +
+                                     buffer->Read(buffer_variables::name));
+                               }))))
                     ->ToString()),
           30)) {
         case error::Log::InsertResult::kInserted:

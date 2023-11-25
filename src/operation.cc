@@ -148,19 +148,21 @@ void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
 void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
   wchar_t backwards = c.structure == Structure::kLine ? L'👆' : L'👈';
   wchar_t forwards = c.structure == Structure::kLine ? L'👇' : L'👉';
-  std::wstring directions = container::Map(
-      [&](Direction direction) {
-        switch (direction) {
-          case Direction::kForwards:
-            return forwards;
-          case Direction::kBackwards:
-            return backwards;
-        }
-        LOG(FATAL) << "Invalid direction.";
-        return L' ';
-      },
-      c.directions, std::wstring());
-  SerializeCall(L"🪓", {StructureToString(c.structure), directions}, output);
+  SerializeCall(L"🪓",
+                {StructureToString(c.structure),
+                 container::Materialize<std::wstring>(
+                     c.directions |
+                     std::views::transform([&](const Direction& direction) {
+                       switch (direction) {
+                         case Direction::kForwards:
+                           return forwards;
+                         case Direction::kBackwards:
+                           return backwards;
+                       }
+                       LOG(FATAL) << "Invalid direction.";
+                       return L' ';
+                     }))},
+                output);
 }
 
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
@@ -1147,9 +1149,9 @@ int CommandArgumentRepetitions::get() const {
 }
 
 std::list<int> CommandArgumentRepetitions::get_list() const {
-  auto view = entries_ | std::views::transform(Flatten) |
-              std::views::filter([](int c) { return c != 0; });
-  return std::list(view.begin(), view.end());
+  return container::Materialize<std::list<int>>(
+      entries_ | std::views::transform(Flatten) |
+      std::views::filter([](int c) { return c != 0; }));
 }
 
 void CommandArgumentRepetitions::sum(int value) {

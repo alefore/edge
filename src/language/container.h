@@ -87,6 +87,13 @@ std::set<typename Container::key_type> GetSetWithKeys(
 }
 
 namespace container {
+// Convenience function. Hopefully we'll be able to do this with native C++
+// soon, and then we can just get rid of this.
+template <typename Container>
+Container Materialize(auto&& view) {
+  return Container(view.begin(), view.end());
+}
+
 template <typename Container, typename Callable, typename Value>
 Value Fold(Callable aggregate, Value identity, Container&& container) {
   Value output = std::move(identity);
