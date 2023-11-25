@@ -1,6 +1,7 @@
 #ifndef __AFC_LANGUAGE_CONTAINERS__
 #define __AFC_LANGUAGE_CONTAINERS__
 
+#include <algorithm>
 #include <list>
 #include <ranges>
 #include <set>
@@ -95,7 +96,13 @@ Container Materialize(auto&& view) {
 }
 
 auto MaterializeVector(auto&& view) {
-  return Materialize<std::vector<decltype(*view.begin())>>(std::move(view));
+  return Materialize<std::vector<std::decay_t<decltype(*view.begin())>>>(
+      std::move(view));
+}
+
+auto MaterializeSet(auto&& view) {
+  return Materialize<std::set<std::decay_t<decltype(*view.begin())>>>(
+      std::move(view));
 }
 
 template <typename Container, typename Callable, typename Value>
