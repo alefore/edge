@@ -94,6 +94,10 @@ Container Materialize(auto&& view) {
   return Container(view.begin(), view.end());
 }
 
+auto MaterializeVector(auto&& view) {
+  return Materialize<std::vector<decltype(*view.begin())>>(std::move(view));
+}
+
 template <typename Container, typename Callable, typename Value>
 Value Fold(Callable aggregate, Value identity, Container&& container) {
   Value output = std::move(identity);
