@@ -367,8 +367,9 @@ futures::ValueOrError<gc::Root<Value>> Call(
   return Evaluate(
       NewFunctionCall(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
-          container::Map(NewConstantExpression, args,
-                         std::vector<NonNull<std::shared_ptr<Expression>>>())),
+          container::Materialize<
+              std::vector<NonNull<std::shared_ptr<Expression>>>>(
+              args | std::views::transform(NewConstantExpression))),
       pool, Environment::New(pool), yield_callback);
 }
 
