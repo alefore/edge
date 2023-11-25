@@ -156,8 +156,9 @@ std::unique_ptr<Expression> NewAssignExpression(
   compilation->AddError(
       Error(L"Unable to assign a value to a variable supporting types: \"" +
             TypesToString(value->Types()) + L"\". Value types: " +
-            TypesToString(container::Map([](const Value& v) { return v.type; },
-                                         variables | gc::view::Value))));
+            TypesToString(container::MaterializeVector(
+                std::move(variables) | gc::view::Value |
+                std::views::transform([](Value v) { return v.type; })))));
 
   return nullptr;
 }
