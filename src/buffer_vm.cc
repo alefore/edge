@@ -587,8 +587,9 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
           [](gc::Root<OpenBuffer> buffer) {
-            buffer.ptr()->AppendLines(container::Map(
-                [](Tracker::Data data) {
+            buffer.ptr()->AppendLines(container::MaterializeVector(
+                Tracker::GetData() |
+                std::views::transform([](Tracker::Data data) {
                   return MakeNonNullShared<const Line>(
                       LineBuilder(Append(Append(NewLazyString(L"\""),
                                                 NewLazyString(data.name),
@@ -602,8 +603,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                                                 NewLazyString(std::to_wstring(
                                                     data.longest_seconds)))))
                           .Build());
-                },
-                Tracker::GetData()));
+                })));
           })
           .ptr());
 
