@@ -185,21 +185,6 @@ auto Map(Callable callable, InputContainer&& input) {
   return Map(std::move(callable), input,
              std::vector<decltype(callable(*input.begin()))>());
 }
-
-template <typename Callable, typename Container>
-Container Filter(Callable callable, Container output) {
-  EraseIf(output, [callable](auto& t) { return !callable(t); });
-  return output;
-}
-
-// Container should be a container with std::optional<> values. Will return a
-// copy of the container removing all std::nullopt entries.
-template <typename Container>
-auto Filter(Container container) {
-  return Map([](auto t) { return t.value(); },
-             Filter([](const auto& item) { return item.has_value(); },
-                    std::move(container)));
-}
 }  // namespace container
 }  // namespace afc::language
 #endif
