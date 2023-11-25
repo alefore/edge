@@ -191,11 +191,26 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void push_back(
       language::NonNull<std::shared_ptr<const language::text::Line>> line,
       ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+
+  template <std::ranges::range R>
   void append_back(
-      std::vector<
-          language::NonNull<std::shared_ptr<const language::text::Line>>>
-          lines,
-      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+      R&& lines, ObserverBehavior observer_behavior = ObserverBehavior::kShow) {
+    Lines::Ptr subtree = std::invoke([&lines] {
+      TRACK_OPERATION(MutableLineSequence_append_back_subtree);
+      return Lines::FromRange(lines.begin(), lines.end());
+    });
+
+    TRACK_OPERATION(MutableLineSequence_append_back_append);
+
+    LineNumber position = EndLine();
+    lines_ = Lines::Append(lines_, subtree);
+    switch (observer_behavior) {
+      case ObserverBehavior::kHide:
+        break;
+      case ObserverBehavior::kShow:
+        observer_->LinesInserted(position, LineNumberDelta(lines.size()));
+    }
+  }
   void pop_back();
 
   // Returns position, but ensuring that it is in a valid position in the

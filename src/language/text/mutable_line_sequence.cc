@@ -586,27 +586,6 @@ void MutableLineSequence::push_back(NonNull<std::shared_ptr<const Line>> line,
   }
 }
 
-void MutableLineSequence::append_back(
-    std::vector<NonNull<std::shared_ptr<const Line>>> lines,
-    ObserverBehavior observer_behavior) {
-  static Tracker tracker_subtree(L"MutableLineSequence::append_back::subtree");
-  auto tracker_subtree_call = tracker_subtree.Call();
-  Lines::Ptr subtree = Lines::FromRange(lines.begin(), lines.end());
-  tracker_subtree_call = nullptr;
-
-  static Tracker tracker(L"MutableLineSequence::append_back::append");
-  auto tracker_call = tracker.Call();
-
-  LineNumber position = EndLine();
-  lines_ = Lines::Append(lines_, subtree);
-  switch (observer_behavior) {
-    case ObserverBehavior::kHide:
-      break;
-    case ObserverBehavior::kShow:
-      observer_->LinesInserted(position, LineNumberDelta(lines.size()));
-  }
-}
-
 void MutableLineSequence::pop_back() {
   EraseLines(LineNumber() + size() - LineNumberDelta(1), LineNumber() + size());
 }
