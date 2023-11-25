@@ -20,6 +20,7 @@ extern "C" {
 #include "src/file_link_mode.h"
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/error/view.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
@@ -65,6 +66,7 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::SortedLineSequence;
 using afc::language::text::SortedLineSequenceUniqueLines;
+using afc::language::view::SkipErrors;
 
 namespace afc::editor {
 namespace {
@@ -362,11 +364,17 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               if (!path_input.empty() && *path_input.begin() == L'/') {
                 search_paths = {Path::Root()};
               } else {
-                search_paths = container::Filter(container::Map(
-                    [](Path path) -> std::optional<Path> {
-                      return OptionalFrom(path.Resolve());
-                    },
-                    std::move(search_paths)));
+                search_paths = container::MaterializeVector(
+                    search_paths | std::views::transform([](Path path) {
+                      return std::visit(
+                          overload{[](infrastructure::AbsolutePath output)
+                                       -> ValueOrError<Path> { return output; },
+                                   [](Error error) {
+                                     return ValueOrError<Path>(error);
+                                   }},
+                          path.Resolve());
+                    }) |
+                    SkipErrors);
 
                 std::set<Path> unique_paths_set;
                 std::vector<Path> unique_paths;
