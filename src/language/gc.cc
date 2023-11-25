@@ -32,9 +32,10 @@ namespace {
 using ObjectMetadataBag = Bag<std::weak_ptr<ObjectMetadata>>;
 
 size_t SumContainedSizes(const std::list<ObjectMetadataBag>& container) {
-  return container::Sum(container::Map(
-      [](const ObjectMetadataBag& item) -> size_t { return item.size(); },
-      container));
+  return container::Sum(
+      container |
+      std::views::transform(
+          [](const ObjectMetadataBag& item) -> size_t { return item.size(); }));
 }
 
 void PushAndClean(std::list<ObjectMetadataBag>& container,
@@ -512,9 +513,10 @@ template <>
 struct ExpandHelper<Node> {
   std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
       const Node& node) {
-    std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> output =
-        container::Map([](auto& child) { return child.object_metadata(); },
-                       node.children);
+    auto output = container::MaterializeVector(
+        node.children | std::views::transform([](auto& child) {
+          return child.object_metadata();
+        }));
     VLOG(5) << "Generated expansion of node " << &node << ": " << output.size();
     return output;
   }
