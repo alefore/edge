@@ -104,9 +104,9 @@ const bool operation_tree_to_decimal_int_tests_registration =
             .callback = [input, positive_expectation, expectation] {
               Decimal output = ValueOrDie(OperationTreeToDecimal(input, 0));
               CHECK_EQ(output.positive, positive_expectation);
-              std::string output_str = container::Map(
-                  [](size_t d) { return '0' + d; },
-                  output.digits | std::views::reverse, std::string{});
+              std::string output_str = container::Materialize<std::string>(
+                  output.digits | std::views::reverse |
+                  std::views::transform([](size_t d) { return '0' + d; }));
               CHECK_EQ(output_str, expectation);
             }};
       };
@@ -139,9 +139,10 @@ const bool remove_decimals_tests_registration =
                      std::wstring expectation) {
         return tests::Test(
             {.name = input, .callback = [=] {
-               Digits input_digits =
-                   container::Map([](wchar_t c) { return c - L'0'; },
-                                  input | std::views::reverse, Digits());
+               Digits input_digits = Digits(container::MaterializeVector(
+                   input | std::views::reverse |
+                   std::views::transform(
+                       [](wchar_t c) -> size_t { return c - L'0'; })));
                std::wstring str = ToString(
                    {.digits = RemoveDecimals(input_digits, digits)}, 0);
                LOG(INFO) << "From [" << ToString({.digits = input_digits}, 0)
