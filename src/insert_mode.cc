@@ -832,21 +832,24 @@ class InsertMode : public EditorMode {
 
   static NonNull<std::shared_ptr<std::vector<Path>>> CompletionModelPaths(
       const OpenBuffer& buffer) {
-    return MakeNonNullShared<std::vector<Path>>(container::Map(
-        [](Path path) {
-          VLOG(5) << "Loading model: " << path;
+    auto view =
+        TokenizeBySpaces(
+            NewLazyString(buffer.Read(buffer_variables::completion_model_paths))
+                .value()) |
+        std::views::transform([](Token path_str) {
+          return OptionalFrom(Path::FromString(path_str.value));
+        }) |
+        std::views::filter([](const auto& t) { return t.has_value(); }) |
+        std::views::transform([](std::optional<Path> path) {
+          VLOG(5) << "Loading model: " << *path;
           return Path::Join(
               ValueOrDie(PathComponent::FromString(L"completion_models")),
-              std::move(path));
-        },
-        container::Filter(container::Map(
-            [](Token path_str) {
-              return OptionalFrom(Path::FromString(path_str.value));
-            },
-            TokenizeBySpaces(
-                NewLazyString(
-                    buffer.Read(buffer_variables::completion_model_paths))
-                    .value())))));
+              std::move(*path));
+        });
+    // TODO(C++23, 2023-11-25): Once `std::ranges::to` is added, use that to
+    // inline the view below.
+    return MakeNonNullShared<std::vector<Path>>(
+        std::vector(view.begin(), view.end()));
   }
 
   static Range GetTokenRange(OpenBuffer& buffer) {

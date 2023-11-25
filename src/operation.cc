@@ -1,6 +1,7 @@
 #include "src/operation.h"
 
 #include <memory>
+#include <ranges>
 
 #include "src/buffer_variables.h"
 #include "src/editor.h"
@@ -1146,8 +1147,9 @@ int CommandArgumentRepetitions::get() const {
 }
 
 std::list<int> CommandArgumentRepetitions::get_list() const {
-  return container::Filter([](int c) { return c != 0; },
-                           container::Map(Flatten, entries_, std::list<int>()));
+  auto view = entries_ | std::views::transform(Flatten) |
+              std::views::filter([](int c) { return c != 0; });
+  return std::list(view.begin(), view.end());
 }
 
 void CommandArgumentRepetitions::sum(int value) {
