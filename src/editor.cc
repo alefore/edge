@@ -175,7 +175,7 @@ EditorState::EditorState(CommandLineValues args,
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
-      edge_path_(container::Materialize<std::vector<Path>>(
+      edge_path_(container::MaterializeVector(
           args_.config_paths |
           std::views::transform([](std::wstring s) -> ValueOrError<Path> {
             // TODO(easy, 2023-11-25): Get rid of the
@@ -535,8 +535,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
         !buffers_with_problems.empty()) {
       switch (status_.InsertError(
           Error(Append(NewLazyString(L"🖝  Dirty buffers (pre):"),
-                       Concatenate(container::Materialize<std::vector<
-                                       NonNull<std::shared_ptr<LazyString>>>>(
+                       Concatenate(container::MaterializeVector(
                            buffers_with_problems |
                            std::views::transform(
                                [](const NonNull<OpenBuffer*>& buffer)
