@@ -133,6 +133,7 @@ src/language/error/log.cc \
 src/language/error/log.h \
 src/language/error/value_or_error.cc \
 src/language/error/value_or_error.h \
+src/language/error/view.h \
 src/language/function_traits.h \
 src/language/ghost_type.cc \
 src/language/ghost_type.h \

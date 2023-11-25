@@ -28,6 +28,7 @@ extern "C" {
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
+#include "src/language/error/view.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -43,6 +44,7 @@ extern "C" {
 #include "src/widget_list.h"
 
 namespace container = afc::language::container;
+
 using afc::concurrent::ThreadPool;
 using afc::concurrent::ThreadPoolWithWorkQueue;
 using afc::concurrent::WorkQueue;
@@ -68,7 +70,9 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
+using afc::language::error::FromOptional;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
@@ -79,6 +83,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::view::SkipErrors;
 
 namespace afc::editor {
 namespace gc = language::gc;
@@ -98,11 +103,10 @@ std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
         return output.has_value() ? std::min(a, output.value()) : a;
       },
       Output(),
-      container::Filter(container::Map(
-          [](const OpenBuffer& buffer) {
-            return buffer.work_queue()->NextExecution();
-          },
-          buffers_ | std::views::values | gc::view::Value)));
+      buffers_ | std::views::values | gc::view::Value | std::views::transform([
+      ](OpenBuffer & buffer) -> ValueOrError<struct timespec> {
+        return FromOptional(buffer.work_queue()->NextExecution());
+      }) | SkipErrors);
 }
 
 const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
@@ -171,9 +175,15 @@ EditorState::EditorState(CommandLineValues args,
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
-      edge_path_(container::Filter(container::Map(
-          [](std::wstring s) { return OptionalFrom(Path::FromString(s)); },
-          args_.config_paths))),
+      edge_path_(container::Materialize<std::vector<Path>>(
+          args_.config_paths |
+          std::views::transform([](std::wstring s) -> ValueOrError<Path> {
+            // TODO(easy, 2023-11-25): Get rid of the
+            // Path::FromString(std::wstring) version (leaving only the one
+            // consuming a LazyString) and then get rid of the wrapping here.
+            return Path::FromString(s);
+          }) |
+          SkipErrors)),
       environment_([&] {
         gc::Root<vm::Environment> output = BuildEditorEnvironment(
             gc_pool_,
