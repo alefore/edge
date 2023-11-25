@@ -175,10 +175,13 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
-      if (auto it = data.table.find(symbol); it != data.table.end())
-        *output = container::Map(
-            [](const gc::Ptr<Value>& entry) { return entry.ToRoot(); },
-            it->second | std::views::values, std::move(*output));
+      if (auto it = data.table.find(symbol); it != data.table.end()) {
+        auto view = it->second | std::views::values |
+                    std::views::transform([](const gc::Ptr<Value>& entry) {
+                      return entry.ToRoot();
+                    });
+        output->insert(output->end(), view.begin(), view.end());
+      }
     });
   }
   // Deliverately ignoring `environment`:
