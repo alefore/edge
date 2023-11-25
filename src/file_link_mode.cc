@@ -193,8 +193,8 @@ futures::Value<PossibleError> Save(
                   if (buffer.ptr()->Read(
                           buffer_variables::trigger_reload_on_buffer_write)) {
                     for (OpenBuffer& reload_buffer :
-                         RootValueView(*buffer.ptr()->editor().buffers() |
-                                       std::views::values))
+                         *buffer.ptr()->editor().buffers() |
+                             std::views::values | gc::view::Value)
                       if (reload_buffer.Read(
                               buffer_variables::reload_on_buffer_write)) {
                         LOG(INFO) << "Write of " << path << " triggers reload: "

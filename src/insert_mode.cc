@@ -1010,7 +1010,7 @@ class InsertMode : public EditorMode {
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
-  for (OpenBuffer& buffer : RootValueView(options.buffers.value())) {
+  for (OpenBuffer& buffer : options.buffers.value() | gc::view::Value) {
     if (buffer.fd() == nullptr) continue;
     if (buffer.Read(buffer_variables::extend_lines)) {
       buffer.MaybeExtendLine(buffer.position());
@@ -1018,14 +1018,14 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
       buffer.MaybeAdjustPositionCol();
     }
   }
-  for (OpenBuffer& buffer : RootValueView(options.buffers.value()))
+  for (OpenBuffer& buffer : options.buffers.value() | gc::view::Value)
     buffer.status().SetInformationText(
         MakeNonNullShared<Line>(buffer.fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
   options.editor_state.set_keyboard_redirect(
       std::make_unique<InsertMode>(options));
 
   if (std::ranges::any_of(
-          RootValueView(options.buffers.value()), [](OpenBuffer& buffer) {
+          options.buffers.value() | gc::view::Value, [](OpenBuffer& buffer) {
             return buffer.active_cursors().size() > 1 &&
                    buffer.Read(buffer_variables::multiple_cursors);
           }))
@@ -1148,20 +1148,20 @@ void EnterInsertMode(InsertModeOptions options) {
 
         shared_options->editor_state.status().Reset();
         for (OpenBuffer& buffer :
-             RootValueView(shared_options->buffers.value()))
+             shared_options->buffers.value() | gc::view::Value)
           buffer.status().Reset();
 
         if (shared_options->editor_state.structure() == Structure::kChar ||
             shared_options->editor_state.structure() == Structure::kLine) {
           for (OpenBuffer& buffer :
-               RootValueView(shared_options->buffers.value())) {
+               shared_options->buffers.value() | gc::view::Value) {
             buffer.CheckPosition();
             buffer.PushTransformationStack();
             buffer.PushTransformationStack();
           }
           if (shared_options->editor_state.structure() == Structure::kLine)
             for (OpenBuffer& buffer :
-                 RootValueView(shared_options->buffers.value()))
+                 shared_options->buffers.value() | gc::view::Value)
               buffer.ApplyToCursors(
                   MakeNonNullUnique<InsertEmptyLineTransformation>(
                       shared_options->editor_state.direction()));

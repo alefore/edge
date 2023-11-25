@@ -644,7 +644,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
         PredictorOutput({.contents = SortedLineSequenceUniqueLines(
                              SortedLineSequence(LineSequence()))}));
   std::set<std::wstring> words;
-  for (const OpenBuffer& buffer : RootValueView(input.source_buffers)) {
+  for (const OpenBuffer& buffer : input.source_buffers | gc::view::Value) {
     RegisterLeaves(buffer, buffer.parse_tree().value(), &words);
     std::wistringstream keywords(
         buffer.Read(buffer_variables::language_keywords));

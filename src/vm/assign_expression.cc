@@ -142,7 +142,7 @@ std::unique_ptr<Expression> NewAssignExpression(
   static const vm::Namespace kEmptyNamespace;
   compilation->environment.ptr()->PolyLookup(kEmptyNamespace, symbol,
                                              &variables);
-  for (Value& v : RootValueView(variables))
+  for (Value& v : variables | gc::view::Value)
     if (value->SupportsType(v.type))
       return std::make_unique<AssignExpression>(
           AssignExpression::AssignmentType::kAssign, symbol,
@@ -157,7 +157,7 @@ std::unique_ptr<Expression> NewAssignExpression(
       Error(L"Unable to assign a value to a variable supporting types: \"" +
             TypesToString(value->Types()) + L"\". Value types: " +
             TypesToString(container::Map([](const Value& v) { return v.type; },
-                                         RootValueView(variables)))));
+                                         variables | gc::view::Value))));
 
   return nullptr;
 }

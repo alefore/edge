@@ -201,7 +201,7 @@ void RedrawScreens(const CommandLineValues& args,
   }
   VLOG(5) << "Updating remote screens.";
   for (OpenBuffer& buffer :
-       RootValueView(*editor_state().buffers() | std::views::values)) {
+       *editor_state().buffers() | std::views::values | gc::view::Value) {
     static const afc::vm::Namespace kEmptyNamespace;
     std::optional<gc::Root<afc::vm::Value>> value =
         buffer.environment()->Lookup(editor_state().gc_pool(), kEmptyNamespace,

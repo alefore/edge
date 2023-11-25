@@ -48,14 +48,19 @@ class RootValueIterator {
   }
 };
 
+namespace view {
+class RootValueViewAdaptor;
+
 template <typename Range>
 class RootValueRange {
   const Range range_;
 
- public:
+  friend class RootValueViewAdaptor;
+
   template <typename R>
   explicit RootValueRange(R&& range) : range_(std::forward<R>(range)) {}
 
+ public:
   auto begin() { return RootValueIterator(std::begin(range_)); }
   auto begin() const { return RootValueIterator(std::begin(range_)); }
 
@@ -65,15 +70,30 @@ class RootValueRange {
   size_t size() { return range_.size(); }
 };
 
+class RootValueViewAdaptor {
+ public:
+  // Call operator to take a range and return a RootValueRange
+  template <typename Range>
+  auto operator()(Range&& range) const {
+    return RootValueRange<Range>(std::forward<Range>(range));
+  }
+};
+
+// A global instance of the adaptor
+inline constexpr RootValueViewAdaptor Value{};
+
+// Overload the pipe operator for range and RootValueViewAdaptor
 template <typename Range>
-RootValueRange<Range> RootValueView(Range&& range) {
-  return RootValueRange<Range>(std::forward<Range>(range));
+auto operator|(Range&& r, RootValueViewAdaptor const& adaptor) {
+  return adaptor(std::forward<Range>(r));
 }
+}  // namespace view
 }  // namespace afc::language::gc
 namespace std::ranges {
 template <typename Range>
 inline constexpr bool
-    enable_borrowed_range<afc::language::gc::RootValueRange<Range>> = true;
+    enable_borrowed_range<afc::language::gc::view::RootValueRange<Range>> =
+        true;
 }
 
 #endif  // __AFC_LANGUAGE_GC_VIEW_H__

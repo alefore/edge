@@ -79,7 +79,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   std::vector<Type> types;
   std::unordered_set<Type> types_already_seen;
 
-  for (const Value& v : RootValueView(result))
+  for (const Value& v : result | gc::view::Value)
     if (types_already_seen.insert(v.type).second) types.push_back(v.type);
   return std::make_unique<VariableLookup>(std::move(symbol_namespace),
                                           std::move(symbol), types);

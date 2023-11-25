@@ -102,7 +102,7 @@ std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
           [](const OpenBuffer& buffer) {
             return buffer.work_queue()->NextExecution();
           },
-          RootValueView(buffers_ | std::views::values))));
+          buffers_ | std::views::values | gc::view::Value)));
 }
 
 const NonNull<std::shared_ptr<WorkQueue>>& EditorState::work_queue() const {
@@ -251,7 +251,7 @@ EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
-  for (OpenBuffer& buffer : RootValueView(buffers_ | std::views::values)) {
+  for (OpenBuffer& buffer : buffers_ | std::views::values | gc::view::Value) {
     buffer.Close();
     buffer_tree_.RemoveBuffer(buffer);
   }
@@ -512,18 +512,17 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           .Build()));
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
-    auto buffers_with_problems =
-        buffers_ | std::views::values |
-        // TODO(easy, 2023-11-25): Find a way to use RootValueView.
-        std::views::transform([](gc::Root<OpenBuffer> buffer) {
-          return NonNull<OpenBuffer*>::AddressOf(buffer.ptr().value());
-        }) |
-        std::views::filter([](const NonNull<OpenBuffer*>& buffer) {
-          return IsError(buffer->status().LogErrors(AugmentErrors(
-              L"Unable to close", buffer->IsUnableToPrepareToClose())));
-        });
-
-    if (!buffers_with_problems.empty()) {
+    if (auto buffers_with_problems =
+            buffers_ | std::views::values |
+            // TODO(easy, 2023-11-25): Find a way to use RootValueView.
+            std::views::transform([](gc::Root<OpenBuffer> buffer) {
+              return NonNull<OpenBuffer*>::AddressOf(buffer.ptr().value());
+            }) |
+            std::views::filter([](const NonNull<OpenBuffer*>& buffer) {
+              return IsError(buffer->status().LogErrors(AugmentErrors(
+                  L"Unable to close", buffer->IsUnableToPrepareToClose())));
+            });
+        !buffers_with_problems.empty()) {
       switch (status_.InsertError(
           Error(Append(NewLazyString(L"🖝  Dirty buffers (pre):"),
                        Concatenate(container::Materialize<std::vector<
@@ -615,7 +614,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           std::wstring separator = L": ";
           int count = 0;
           for (const OpenBuffer& pending_buffer :
-               RootValueView(data->pending_buffers)) {
+               data->pending_buffers | gc::view::Value) {
             if (count < 5) {
               extra += separator + pending_buffer.name().read();
               separator = L", ";
@@ -999,7 +998,7 @@ void EditorState::ExecutionIteration(
   // pending work updates may have visible effects.
   ExecutePendingWork();
 
-  for (OpenBuffer& buffer : RootValueView(*buffers() | std::views::values))
+  for (OpenBuffer& buffer : *buffers() | std::views::values | gc::view::Value)
     buffer.AddExecutionHandlers(handler);
 
   handler.AddHandler(

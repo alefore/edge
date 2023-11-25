@@ -162,12 +162,10 @@ std::optional<gc::Root<Value>> Environment::Lookup(
     const std::wstring& symbol, Type expected_type) const {
   std::vector<gc::Root<Value>> values;
   PolyLookup(symbol_namespace, symbol, &values);
-  for (Value& value : RootValueView(values)) {
+  for (Value& value : values | gc::view::Value)
     if (auto callback = GetImplicitPromotion(value.type, expected_type);
-        callback != nullptr) {
+        callback != nullptr)
       return callback(pool, pool.NewRoot(MakeNonNullUnique<Value>(value)));
-    }
-  }
   return std::nullopt;
 }
 

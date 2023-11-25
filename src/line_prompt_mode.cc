@@ -88,7 +88,7 @@ GetCurrentFeatures(EditorState& editor) {
   std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
       output;
   for (OpenBuffer& buffer :
-       RootValueView(*editor.buffers() | std::views::values))
+       *editor.buffers() | std::views::values | gc::view::Value)
     if (buffer.Read(buffer_variables::show_in_buffers_list) &&
         editor.buffer_tree().GetBufferIndex(buffer).has_value())
       output.insert(
