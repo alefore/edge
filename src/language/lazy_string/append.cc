@@ -69,15 +69,4 @@ NonNull<std::shared_ptr<LazyString>> Append(
   return Append(Append(std::move(a), std::move(b)),
                 Append(std::move(c), std::move(d)));
 }
-
-NonNull<std::shared_ptr<LazyString>> Concatenate(
-    std::vector<NonNull<std::shared_ptr<LazyString>>> inputs) {
-  // TODO: There's probably a faster way to do this. Not sure it matters.
-  NonNull<std::shared_ptr<LazyString>> output = EmptyString();
-  for (auto& i : inputs) {
-    output = Append(std::move(output), i);
-  }
-  return output;
-}
-
 }  // namespace afc::language::lazy_string
