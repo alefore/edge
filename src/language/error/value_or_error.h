@@ -135,5 +135,12 @@ std::optional<T> OptionalFrom(ValueOrError<T> value) {
       std::move(value));
 }
 
+namespace error {
+template <typename T>
+ValueOrError<T> FromOptional(std::optional<T> value) {
+  if (value.has_value()) return value.value();
+  return Error(L"No value.");
+}
+}  // namespace error
 }  // namespace afc::language
 #endif  // __AFC_EDITOR_VALUE_OR_ERROR_H__
