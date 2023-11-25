@@ -52,8 +52,10 @@ namespace view {
 class RootValueViewAdaptor;
 
 template <typename Range>
-class RootValueRange {
-  const Range range_;
+class RootValueRange
+    : public std::ranges::view_interface<RootValueRange<Range>> {
+  // Not `const` to enable move construction.
+  Range range_;
 
   friend class RootValueViewAdaptor;
 
@@ -67,7 +69,7 @@ class RootValueRange {
   auto end() { return RootValueIterator(std::end(range_)); }
   auto end() const { return RootValueIterator(std::end(range_)); }
 
-  size_t size() { return range_.size(); }
+  size_t size() const { return range_.size(); }
 };
 
 class RootValueViewAdaptor {
