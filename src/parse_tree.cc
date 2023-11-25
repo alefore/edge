@@ -413,11 +413,12 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
       vm::NewCallback(pool, PurityType::kReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return MakeNonNullShared<std::set<std::wstring>>(
-                            container::Map(
-                                [](const ParseTreeProperty& property) {
-                                  return property.read();
-                                },
-                                tree->properties(), std::set<std::wstring>()));
+                            container::MaterializeSet(
+                                tree->properties() |
+                                std::views::transform(
+                                    [](const ParseTreeProperty& property) {
+                                      return property.read();
+                                    })));
                       })
           .ptr());
 
