@@ -434,11 +434,10 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 
           case CommandArgumentModeApplyMode::kPreview:
             if (state.indices.size() != buffers_list.BuffersCount())
-              editor.buffer_tree().set_filter(container::Map(
-                  [&](size_t i) {
+              editor.buffer_tree().set_filter(container::MaterializeVector(
+                  state.indices | std::views::transform([&](size_t i) {
                     return buffers_list.GetBuffer(i).ptr().ToWeakPtr();
-                  },
-                  state.indices));
+                  })));
             break;
         }
         return EmptyValue();
