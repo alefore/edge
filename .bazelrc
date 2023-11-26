@@ -1,5 +1,5 @@
-# Set C++ standard to C++20.
-build --copt=-std=c++20
+# Set C++ standard to C++23.
+build --copt=-std=c++23
 # Enable debugging information
 build --copt=-g
 # Enable common warning flags
