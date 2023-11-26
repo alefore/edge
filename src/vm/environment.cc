@@ -288,12 +288,14 @@ Environment::Expand() const {
         output.push_back(value.object_metadata());
       });
   data_.lock([&output](const Data& data) {
-    for (const gc::Ptr<Environment>& namespace_environment :
-         data.namespaces | std::views::values)
-      output.push_back(namespace_environment.object_metadata());
+    std::ranges::copy(
+        data.namespaces | std::views::values | gc::view::ObjectMetadata,
+        std::back_inserter(output));
   });
-  for (const gc::Ptr<ObjectType>& entry : object_types_ | std::views::values)
-    output.push_back(entry.object_metadata());
+
+  std::ranges::copy(
+      object_types_ | std::views::values | gc::view::ObjectMetadata,
+      std::back_inserter(output));
   return output;
 }
 
