@@ -661,11 +661,12 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   }
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
       {.editor = input.editor, .name = BufferName(L"Dictionary")});
-  dictionary.ptr()->AppendLines(container::Map(
-      [](std::wstring word) {
+  // TODO(2023-11-26, Ranges): Add a method to Buffer that takes the range
+  // directly, to avoid the need to call MaterializeVector.
+  dictionary.ptr()->AppendLines(container::MaterializeVector(
+      words | std::views::transform([](std::wstring word) {
         return MakeNonNullShared<const Line>(Line(word));
-      },
-      words));
+      })));
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
 }
