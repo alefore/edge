@@ -218,12 +218,12 @@ std::vector<BufferContentsViewLayout::Line> PrependLines(
              r.begin >= output.front().range.begin().column;
     });
   }
-  std::vector<BufferContentsViewLayout::Line> lines_to_insert = container::Map(
-      [&](const ColumnRange& r) {
-        return GetScreenLine(options.contents, options.active_position, cursors,
-                             line, r);
-      },
-      line_breaks, std::vector<BufferContentsViewLayout::Line>());
+  std::vector<BufferContentsViewLayout::Line> lines_to_insert =
+      container::MaterializeVector(
+          line_breaks | std::views::transform([&](const ColumnRange& r) {
+            return GetScreenLine(options.contents, options.active_position,
+                                 cursors, line, r);
+          }));
   auto insert_start = lines_to_insert.begin();
   if (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
     insert_start += lines_to_insert.size() - lines_desired.read();
@@ -382,12 +382,12 @@ namespace {
 const bool buffer_contents_view_layout_tests_registration =
     tests::Register(L"BufferContentsViewLayout", [] {
       auto get_ranges = [](BufferContentsViewLayout::Input options) {
-        return container::Map(
-            [](const auto& l) {
+        return container::MaterializeVector(
+            BufferContentsViewLayout::Get(options).lines |
+            std::views::transform([](const auto& l) {
               DVLOG(5) << "Range for testing: " << l.range;
               return l.range;
-            },
-            BufferContentsViewLayout::Get(options).lines);
+            }));
       };
       auto get_active_cursors = [](BufferContentsViewLayout::Input options) {
         std::vector<LineNumber> output;
