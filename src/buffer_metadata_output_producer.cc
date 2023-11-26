@@ -838,8 +838,8 @@ ColumnsVector::Column BufferMetadataOutput(
              b.box.size);
   }
 
-  std::set<LineNumber> lines_referenced = container::Map(
-      [](auto& b) { return b.box.reference; }, boxes, std::set<LineNumber>());
+  std::set<LineNumber> lines_referenced = container::MaterializeSet(
+      boxes | std::views::transform([](auto& b) { return b.box.reference; }));
 
   const std::vector<std::wstring> prefix_lines =
       ComputePrefixLines(screen_size, boxes);
