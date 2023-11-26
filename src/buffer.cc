@@ -243,7 +243,6 @@ Observers::State MaybeScheduleNextWorkQueueExecution(
 }  // namespace
 
 using namespace afc::vm;
-using std::to_wstring;
 
 // Name of the buffer that holds the contents that have been deleted recently
 // and which should still be included in the delete buffer for additional
@@ -1364,7 +1363,7 @@ void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
   status_.SetInformationText(MakeNonNullShared<Line>(
       LineBuilder(Append(NewLazyString(L"cursors stack ("),
-                         NewLazyString(to_wstring(stack_size)),
+                         NewLazyString(std::to_wstring(stack_size)),
                          NewLazyString(L"): +")))
           .Build()));
 }
@@ -1377,7 +1376,7 @@ void OpenBuffer::PopActiveCursors() {
   }
   status_.SetInformationText(MakeNonNullShared<Line>(
       LineBuilder(Append(NewLazyString(L"cursors stack ("),
-                         NewLazyString(to_wstring(stack_size - 1)),
+                         NewLazyString(std::to_wstring(stack_size - 1)),
                          NewLazyString(L"): -")))
           .Build()));
 }
@@ -1724,8 +1723,9 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
         status_.InsertError(Error(L"No subprocess found."));
       } else if (terminal_ == nullptr) {
         status_.SetInformationText(MakeNonNullShared<Line>(
-            LineBuilder(Append(NewLazyString(L"SIGINT >> pid:"),
-                               NewLazyString(to_wstring(child_pid_->read()))))
+            LineBuilder(
+                Append(NewLazyString(L"SIGINT >> pid:"),
+                       NewLazyString(std::to_wstring(child_pid_->read()))))
                 .Build()));
         file_system_driver().Kill(child_pid_.value(), signal);
       } else {
@@ -1743,8 +1743,8 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
       break;
 
     default:
-      status_.InsertError(
-          Error(L"Unexpected signal received: " + to_wstring(signal.read())));
+      status_.InsertError(Error(L"Unexpected signal received: " +
+                                std::to_wstring(signal.read())));
   }
 }
 
@@ -2156,10 +2156,10 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
   }
 
   if (size_t size = undo_state_.UndoStackSize(); size > 0)
-    output.insert({L"↶", to_wstring(size)});
+    output.insert({L"↶", std::to_wstring(size)});
 
   if (size_t size = undo_state_.RedoStackSize(); size > 0)
-    output.insert({L"↷", to_wstring(size)});
+    output.insert({L"↷", std::to_wstring(size)});
 
   if (disk_state() == DiskState::kStale) {
     output.insert({L"🐾", L""});
@@ -2184,7 +2184,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
         output.insert({L"☰ ", L""});
         break;
       default:
-        output.insert({L"☰ ", to_wstring(contents_.size())});
+        output.insert({L"☰ ", std::to_wstring(contents_.size().read())});
     }
     if (Read(buffer_variables::follow_end_of_file)) {
       output.insert({L"↓", L""});
@@ -2521,9 +2521,9 @@ wstring OpenBuffer::GetLineMarksText() const {
   size_t expired_marks = GetExpiredLineMarks().size();
   wstring output;
   if (marks > 0 || expired_marks > 0) {
-    output = L"marks:" + to_wstring(marks);
+    output = L"marks:" + std::to_wstring(marks);
     if (expired_marks > 0) {
-      output += L"(" + to_wstring(expired_marks) + L")";
+      output += L"(" + std::to_wstring(expired_marks) + L")";
     }
   }
   return output;
