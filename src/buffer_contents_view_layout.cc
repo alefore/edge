@@ -177,7 +177,7 @@ BufferContentsViewLayout::Line GetScreenLine(
       .has_active_cursor = active_position.has_value() &&
                            line == active_position->line &&
                            contains_cursor(active_position->column),
-      .current_cursors = container::Materialize<std::set<ColumnNumber>>(
+      .current_cursors = container::MaterializeSet(
           GetValueOrDefault(cursors, line, std::set<ColumnNumber>()) |
           std::views::filter(contains_cursor))};
 }
