@@ -2,14 +2,20 @@
 #define __AFC_LANGUAGE_GC_VIEW_H__
 
 #include <memory>
-#include <optional>
-#include <tuple>
-#include <vector>
 
 #include "src/language/gc.h"
 #include "src/language/safe_types.h"
 
 namespace afc::language::gc {
+// Concept to check if an iterator type supports operator-
+template <typename Iterator>
+concept Subtractable = requires(Iterator a, Iterator b) {
+  {
+    a - b
+  } -> std::convertible_to<
+      typename std::iterator_traits<Iterator>::difference_type>;
+};
+
 class GetRootValue {
  public:
   template <typename Iterator>
@@ -21,7 +27,8 @@ class GetRootValue {
 class GetObjectMetadata {
  public:
   template <typename Iterator>
-  static auto& Adjust(const Iterator& iterator) {
+  static language::NonNull<std::shared_ptr<ObjectMetadata>> Adjust(
+      const Iterator& iterator) {
     return (*iterator).object_metadata();
   }
 };
@@ -31,7 +38,8 @@ class RootValueIterator {
   Iterator iterator_;
 
  public:
-  explicit RootValueIterator(Iterator iterator) : iterator_(iterator) {}
+  explicit RootValueIterator(Adapter, Iterator iterator)
+      : iterator_(iterator) {}
   explicit RootValueIterator() {}
 
   using iterator_category =
@@ -39,10 +47,12 @@ class RootValueIterator {
   using difference_type =
       typename std::iterator_traits<Iterator>::difference_type;
   using value_type =
-      typename std::iterator_traits<Iterator>::value_type::value_type;
+      std::decay_t<decltype(Adapter::Adjust(std::declval<const Iterator&>()))>;
   using reference = value_type&;
 
-  reference operator*() const { return Adapter::Adjust(iterator_); }
+  decltype(Adapter::Adjust(std::declval<const Iterator&>())) operator*() const {
+    return Adapter::Adjust(iterator_);
+  }
 
   bool operator!=(const RootValueIterator& other) const {
     return iterator_ != other.iterator_;
@@ -62,6 +72,14 @@ class RootValueIterator {
     ++*this;
     return tmp;
   }
+
+  // Conditional operator- definition.
+  // Define this only if the underlying iterator supports it
+  template <typename It = Iterator>
+    requires Subtractable<It>
+  difference_type operator-(const RootValueIterator& other) const {
+    return iterator_ - other.iterator_;
+  }
 };
 
 namespace view {
@@ -80,25 +98,13 @@ class RootValueRange
   explicit RootValueRange(R&& range) : range_(std::forward<R>(range)) {}
 
  public:
-  auto begin() {
-    return RootValueIterator<Adapter,
-                             std::decay_t<decltype(std::begin(range_))>>(
-        std::begin(range_));
-  }
+  auto begin() { return RootValueIterator(Adapter{}, std::begin(range_)); }
   auto begin() const {
-    return RootValueIterator<Adapter,
-                             std::decay_t<decltype(std::begin(range_))>>(
-        std::begin(range_));
+    return RootValueIterator(Adapter{}, std::begin(range_));
   }
 
-  auto end() {
-    return RootValueIterator<Adapter, std::decay_t<decltype(std::end(range_))>>(
-        std::end(range_));
-  }
-  auto end() const {
-    return RootValueIterator<Adapter, std::decay_t<decltype(std::end(range_))>>(
-        std::end(range_));
-  }
+  auto end() { return RootValueIterator(Adapter{}, std::end(range_)); }
+  auto end() const { return RootValueIterator(Adapter{}, std::end(range_)); }
 
   size_t size() const { return range_.size(); }
 };
@@ -109,7 +115,7 @@ class RootValueViewAdapter {
   // Call operator to take a range and return a RootValueRange
   template <typename Range>
   auto operator()(Range&& range) const {
-    return RootValueRange<GetRootValue, Range>(std::forward<Range>(range));
+    return RootValueRange<Adapter, Range>(std::forward<Range>(range));
   }
 };
 
