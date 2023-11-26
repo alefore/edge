@@ -217,14 +217,17 @@ transformation::Stack ApplyRepetitions(
     std::optional<Structure> structure,
     language::NonNull<std::unique_ptr<CompositeTransformation>>
         inner_transformation) {
-  return container::Map(
-      [&](int repetitions_value) {
-        return transformation::ModifiersAndComposite{
-            .modifiers = GetModifiers(structure, repetitions_value,
-                                      Direction::kForwards),
-            .transformation = std::move(inner_transformation)};
-      },
-      repetitions.get_list(), transformation::Stack());
+  transformation::Stack output;
+  std::ranges::copy(
+      repetitions.get_list() |
+          std::views::transform([&](int repetitions_value) {
+            return transformation::ModifiersAndComposite{
+                .modifiers = GetModifiers(structure, repetitions_value,
+                                          Direction::kForwards),
+                .transformation = std::move(inner_transformation)};
+          }),
+      std::back_inserter(output));
+  return output;
 }
 
 transformation::Stack GetTransformation(
