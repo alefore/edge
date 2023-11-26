@@ -36,21 +36,23 @@ std::vector<LineModifier> GetBufferFlag(const OpenBuffer& buffer) {
       {Color(L"yellow"), LineModifier::kYellow},
       {Color(L"magenta"), LineModifier::kMagenta},
       {Color(L"white"), LineModifier::kWhite}};
-  static const std::vector<Color> color_values =
-      container::Map([](auto p) { return p.first; }, modifiers);
+  static const std::vector<Color> color_values = container::MaterializeVector(
+      modifiers | std::views::transform([](auto p) { return p.first; }));
   std::vector<InputKey> spec = {path, path, path};
   std::vector<Color> flag = flags::GenerateFlags(
       spec, color_values,
       {{path, InputValue(buffer.Read(buffer_variables::path))}});
   CHECK_EQ(flag.size(), spec.size());
-  return container::Map(
-      [](Color color) { return GetValueOrDie(modifiers, color); }, flag);
+  return container::MaterializeVector(flag |
+                                      std::views::transform([](Color color) {
+                                        return GetValueOrDie(modifiers, color);
+                                      }));
 }
 
 LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
   return LineWithCursor::Generator::Vector{
-      .lines = container::Map(
-          [](auto modifier) {
+      .lines = container::MaterializeVector(
+          GetBufferFlag(buffer) | std::views::transform([](auto modifier) {
             return LineWithCursor::Generator::New(CaptureAndHash(
                 [](LineModifier m) {
                   LineBuilder options;
@@ -60,7 +62,6 @@ LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
                                             std::move(options).Build())};
                 },
                 modifier));
-          },
-          GetBufferFlag(buffer))};
+          }))};
 }
 }  // namespace afc::editor
