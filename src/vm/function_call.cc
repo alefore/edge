@@ -367,6 +367,8 @@ futures::ValueOrError<gc::Root<Value>> Call(
   return Evaluate(
       NewFunctionCall(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
+          // Need to spell the vector type explicitly, to trigger conversion
+          // from NonNull<unique<>> to NonNull<shared<>>.
           container::Materialize<
               std::vector<NonNull<std::shared_ptr<Expression>>>>(
               args | std::views::transform(NewConstantExpression))),
