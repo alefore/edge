@@ -522,10 +522,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
     if (auto buffers_with_problems =
-            buffers_ | std::views::values |
-            // TODO(easy, 2023-11-25): Find a way to use RootValueView.
-            std::views::transform([](gc::Root<OpenBuffer> buffer) {
-              return NonNull<OpenBuffer*>::AddressOf(buffer.ptr().value());
+            buffers_ | std::views::values | gc::view::Value |
+            std::views::transform([](OpenBuffer& buffer) {
+              return NonNull<OpenBuffer*>::AddressOf(buffer);
             }) |
             std::views::filter([](const NonNull<OpenBuffer*>& buffer) {
               return IsError(buffer->status().LogErrors(AugmentErrors(
