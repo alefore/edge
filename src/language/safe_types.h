@@ -236,27 +236,29 @@ class NonNull<std::shared_ptr<T>> {
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
   NonNull(NonNull<std::shared_ptr<Other>> value)
-      : value_(std::move(value.get_shared())) {}
+      : NonNull(std::move(value.get_shared())) {}
 
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
   // converted to `std::shared_ptr<T>`.
   template <typename Other>
   NonNull(NonNull<std::unique_ptr<Other>> value)
-      : value_(std::move(value).get_unique()) {}
+      : NonNull(std::shared_ptr<Other>(std::move(value).get_unique())) {}
 
   template <typename Other, typename Deleter>
   NonNull(NonNull<std::unique_ptr<Other, Deleter>> value)
-      : value_(std::move(value).get_unique()) {}
+      : NonNull(std::shared_ptr<Other>(std::move(value).get_unique())) {}
 
   template <typename Other>
   NonNull operator=(const NonNull<std::shared_ptr<Other>>& value) {
     value_ = value.get_shared();
+    CHECK(value_ != nullptr);  // This may detect read-after-move issues.
     return *this;
   }
 
   template <typename Other>
   NonNull operator=(NonNull<std::unique_ptr<Other>> value) {
     value_ = std::move(value).get_unique();
+    CHECK(value_ != nullptr);  // This may detect read-after-move issues.
     return *this;
   }
 
@@ -273,7 +275,9 @@ class NonNull<std::shared_ptr<T>> {
 
  private:
   template <typename Other>
-  explicit NonNull(std::shared_ptr<Other> value) : value_(std::move(value)) {}
+  explicit NonNull(std::shared_ptr<Other> value) : value_(std::move(value)) {
+    CHECK(value_ != nullptr);
+  }
 
   std::shared_ptr<T> value_;
 };
