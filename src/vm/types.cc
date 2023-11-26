@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/language/container.h"
+#include "src/language/gc_view.h"
 #include "src/language/hash.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -193,10 +194,8 @@ std::wstring ToString(const Type& type) {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
     const {
-  return container::MaterializeVector(fields_ |
-                                      std::views::transform([](auto& p) {
-                                        return p.second.object_metadata();
-                                      }));
+  return container::MaterializeVector(fields_ | std::views::values |
+                                      gc::view::ObjectMetadata);
 }
 
 /* static */ gc::Root<ObjectType> ObjectType::New(gc::Pool& pool, Type type) {
