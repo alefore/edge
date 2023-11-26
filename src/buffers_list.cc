@@ -10,6 +10,7 @@
 #include "src/infrastructure/time.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/padding.h"
@@ -345,8 +346,18 @@ std::vector<std::list<PathComponent>> RemoveCommonPrefixes(
 
 std::vector<std::wstring> RemoveCommonPrefixesForTesting(
     std::vector<std::wstring> input) {
-  return container::Map(
-      [](std::list<PathComponent> components) {
+  return container::MaterializeVector(
+      RemoveCommonPrefixes(container::MaterializeVector(
+          input | std::views::transform([](const std::wstring& c) {
+            return std::visit(
+                overload{[](Error) { return std::list<PathComponent>(); },
+                         [](Path path) {
+                           return ValueOrDie(path.DirectorySplit(),
+                                             L"RemoveCommonPrefixesForTesting");
+                         }},
+                Path::FromString(c));
+          }))) |
+      std::views::transform([](std::list<PathComponent> components) {
         return components.empty()
                    ? L""
                    : container::Fold(
@@ -355,18 +366,7 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
                          },
                          std::optional<Path>(), components)
                          ->read();
-      },
-      RemoveCommonPrefixes(container::Map(
-          [](const std::wstring& c) {
-            return std::visit(
-                overload{[](Error) { return std::list<PathComponent>(); },
-                         [](Path path) {
-                           return ValueOrDie(path.DirectorySplit(),
-                                             L"RemoveCommonPrefixesForTesting");
-                         }},
-                Path::FromString(c));
-          },
-          input)));
+      }));
 }
 
 const bool remove_common_prefixes_tests_registration =
@@ -598,13 +598,13 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
   // Contains one element for each entry in options.buffers.
   const std::vector<std::list<PathComponent>> path_components =
-      RemoveCommonPrefixes(container::Map(
-          [](const gc::Root<OpenBuffer>& buffer) {
+      RemoveCommonPrefixes(container::MaterializeVector(
+          options->buffers |
+          std::views::transform([](const gc::Root<OpenBuffer>& buffer) {
             return OptionalFrom(
                        GetPathComponentsForBuffer(buffer.ptr().value()))
                 .value_or(std::list<PathComponent>());
-          },
-          options->buffers));
+          })));
   CHECK_EQ(path_components.size(), options->buffers.size());
 
   VLOG(1) << "BuffersList created. Buffers per line: "
