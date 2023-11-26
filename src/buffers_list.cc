@@ -597,6 +597,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
       kProgressWidth;
 
   // Contains one element for each entry in options.buffers.
+  // TODO(2023-11-26, Range): Why can't I use gc::view::Value here?
   const std::vector<std::list<PathComponent>> path_components =
       RemoveCommonPrefixes(container::MaterializeVector(
           options->buffers |
@@ -964,9 +965,9 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
             .buffers = buffers_,
             .active_buffer = active_buffer(),
             .active_buffers = container::MaterializeSet(
-                customer_->active_buffers() |
-                std::views::transform([](gc::Root<OpenBuffer> b) {
-                  return NonNull<const OpenBuffer*>::AddressOf(b.ptr().value());
+                customer_->active_buffers() | gc::view::Value |
+                std::views::transform([](const OpenBuffer& b) {
+                  return NonNull<const OpenBuffer*>::AddressOf(b);
                 })),
             .buffers_per_line = layout.buffers_per_line,
             .size = LineColumnDelta(layout.lines, options.size.column),
