@@ -1,7 +1,14 @@
+#include <map>
+#include <vector>
+
+#include "src/language/container.h"
 #include "src/language/gc.h"
+#include "src/language/gc_view.h"
 #include "src/language/safe_types.h"
 #include "src/tests/concurrent.h"
 #include "src/tests/tests.h"
+
+namespace container = afc::language::container;
 
 using afc::concurrent::Operation;
 using afc::concurrent::OperationFactory;
@@ -20,9 +27,8 @@ template <>
 struct ExpandHelper<Node> {
   std::vector<NonNull<std::shared_ptr<ObjectMetadata>>> operator()(
       const Node& node) const {
-    return container::Map(
-        [](const auto& child) { return child.object_metadata(); },
-        node.children);
+    return container::MaterializeVector(node.children |
+                                        gc::view::ObjectMetadata);
   }
 };
 
