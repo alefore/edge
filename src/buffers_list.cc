@@ -963,12 +963,11 @@ LineWithCursor::Generator::Vector BuffersList::GetLines(
         MakeNonNullShared<BuffersListOptions>(BuffersListOptions{
             .buffers = buffers_,
             .active_buffer = active_buffer(),
-            .active_buffers = container::Map(
-                [](gc::Root<OpenBuffer> b) {
+            .active_buffers = container::MaterializeSet(
+                customer_->active_buffers() |
+                std::views::transform([](gc::Root<OpenBuffer> b) {
                   return NonNull<const OpenBuffer*>::AddressOf(b.ptr().value());
-                },
-                customer_->active_buffers(),
-                std::set<NonNull<const OpenBuffer*>>()),
+                })),
             .buffers_per_line = layout.buffers_per_line,
             .size = LineColumnDelta(layout.lines, options.size.column),
             .filter = OptimizeFilter(filter_)}));
