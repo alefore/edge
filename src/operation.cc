@@ -19,6 +19,7 @@
 #include "src/operation_scope.h"
 #include "src/set_mode_command.h"
 #include "src/terminal.h"
+#include "src/tests/tests.h"
 #include "src/transformation/bisect.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
@@ -55,7 +56,7 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
 namespace afc::editor::operation {
-
+using ::operator<<;
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
@@ -215,7 +216,7 @@ futures::Value<UndoCallback> ExecuteTransformation(
 transformation::Stack ApplyRepetitions(
     const CommandArgumentRepetitions& repetitions,
     std::optional<Structure> structure,
-    language::NonNull<std::unique_ptr<CompositeTransformation>>
+    language::NonNull<std::shared_ptr<CompositeTransformation>>
         inner_transformation) {
   transformation::Stack output;
   std::ranges::copy(
@@ -224,10 +225,35 @@ transformation::Stack ApplyRepetitions(
             return transformation::ModifiersAndComposite{
                 .modifiers = GetModifiers(structure, repetitions_value,
                                           Direction::kForwards),
-                .transformation = std::move(inner_transformation)};
+                .transformation = inner_transformation};
           }),
       std::back_inserter(output));
   return output;
+}
+
+namespace {
+bool apply_repetitions_test = tests::Register(
+    L"operation::ApplyRepetitions",
+    std::vector<tests::Test>(
+        {{.name = L"Empty",
+          .callback =
+              [] {
+                NonNull<std::shared_ptr<OperationScope>> operation_scope;
+                LOG(INFO) << ToString(ApplyRepetitions(
+                    CommandArgumentRepetitions(1), Structure::kLine,
+                    NewMoveTransformation(operation_scope)));
+              }},
+         {.name = L"LongRepetitionsList", .callback = [] {
+            NonNull<std::shared_ptr<OperationScope>> operation_scope;
+            CommandArgumentRepetitions repetitions(1);
+            repetitions.sum(1);
+            repetitions.sum(-1);
+            repetitions.sum(1);
+            repetitions.sum(-1);
+            LOG(INFO) << ToString(
+                ApplyRepetitions(repetitions, Structure::kLine,
+                                 NewMoveTransformation(operation_scope)));
+          }}}));
 }
 
 transformation::Stack GetTransformation(
