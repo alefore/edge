@@ -259,9 +259,10 @@ const bool merge_sections_tests_registration = tests::Register(
      }});
 
 LineNumberDelta SumSectionsLines(const std::set<Range> sections) {
-  return container::Sum(container::Map(
-      [](const Range& range) { return range.end().line - range.begin().line; },
-      sections));
+  return container::Sum(sections |
+                        std::views::transform([](const Range& range) {
+                          return range.end().line - range.begin().line;
+                        }));
 }
 
 std::set<Range> ExpandSections(LineNumber end_line,
