@@ -212,17 +212,26 @@ futures::Value<UndoCallback> ExecuteTransformation(
       });
 }
 
+transformation::Stack ApplyRepetitions(
+    const CommandArgumentRepetitions& repetitions,
+    std::optional<Structure> structure,
+    language::NonNull<std::unique_ptr<CompositeTransformation>>
+        inner_transformation) {
+  return container::Map(
+      [&](int repetitions_value) {
+        return transformation::ModifiersAndComposite{
+            .modifiers = GetModifiers(structure, repetitions_value,
+                                      Direction::kForwards),
+            .transformation = std::move(inner_transformation)};
+      },
+      repetitions.get_list(), transformation::Stack());
+}
+
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReach reach) {
-  return container::Map(
-      [&](int repetitions) {
-        return transformation::ModifiersAndComposite{
-            .modifiers = GetModifiers(reach.structure, repetitions,
-                                      Direction::kForwards),
-            .transformation = NewMoveTransformation(operation_scope)};
-      },
-      reach.repetitions.get_list(), transformation::Stack());
+  return ApplyRepetitions(reach.repetitions, reach.structure,
+                          NewMoveTransformation(operation_scope));
 }
 
 transformation::ModifiersAndComposite GetTransformation(
@@ -237,27 +246,15 @@ transformation::ModifiersAndComposite GetTransformation(
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReachLine reach_line) {
-  return container::Map(
-      [&](int repetitions) {
-        return transformation::ModifiersAndComposite{
-            .modifiers = GetModifiers(Structure::kLine, repetitions,
-                                      Direction::kForwards),
-            .transformation = NewMoveTransformation(operation_scope)};
-      },
-      reach_line.repetitions.get_list(), transformation::Stack());
+  return ApplyRepetitions(reach_line.repetitions, Structure::kLine,
+                          NewMoveTransformation(operation_scope));
 }
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
     transformation::Stack&, CommandReachPage reach_page) {
-  return container::Map(
-      [&](int repetitions) {
-        return transformation::ModifiersAndComposite{
-            .modifiers = GetModifiers(Structure::kPage, repetitions,
-                                      Direction::kForwards),
-            .transformation = NewMoveTransformation(operation_scope)};
-      },
-      reach_page.repetitions.get_list(), transformation::Stack());
+  return ApplyRepetitions(reach_page.repetitions, Structure::kPage,
+                          NewMoveTransformation(operation_scope));
 }
 
 transformation::Stack GetTransformation(
