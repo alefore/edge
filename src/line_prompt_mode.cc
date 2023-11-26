@@ -378,7 +378,7 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
 
 struct FilterSortHistorySyncOutput {
   std::vector<Error> errors;
-  std::vector<NonNull<std::shared_ptr<Line>>> lines;
+  std::vector<NonNull<std::shared_ptr<const Line>>> lines;
 };
 
 FilterSortHistorySyncOutput FilterSortHistorySync(
@@ -546,7 +546,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                 LineSequence::ForTests({L"prompt:\"foo\\\\nbardo\""}),
                 features);
             CHECK_EQ(output.lines.size(), 1ul);
-            Line& line = output.lines[0].value();
+            const Line& line = output.lines[0].value();
             CHECK(line.ToString() == L"foo\\nbardo");
 
             const std::map<ColumnNumber, LineModifierSet> modifiers =
@@ -649,10 +649,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
                               .Build()))));
         }
         if (!abort_value.has_value()) {
-          for (auto& line : output.lines) {
-            filter_buffer.AppendRawLine(line);
-          }
-
+          filter_buffer.AppendLines(std::move(output.lines));
           if (filter_buffer.lines_size() > LineNumberDelta(1)) {
             VLOG(5) << "Erasing the first (empty) line.";
             CHECK(filter_buffer.LineAt(LineNumber())->empty());
