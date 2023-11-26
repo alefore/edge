@@ -16,6 +16,13 @@ concept Subtractable = requires(Iterator a, Iterator b) {
       typename std::iterator_traits<Iterator>::difference_type>;
 };
 
+// Concept to check if an iterator type supports operator+
+template <typename Iterator>
+concept Addable = requires(
+    Iterator a, typename std::iterator_traits<Iterator>::difference_type n) {
+  { a + n } -> std::convertible_to<Iterator>;
+};
+
 class GetRootValue {
  public:
   template <typename Iterator>
@@ -79,6 +86,24 @@ class RootValueIterator {
     requires Subtractable<It>
   difference_type operator-(const RootValueIterator& other) const {
     return iterator_ - other.iterator_;
+  }
+
+  // Conditional operator+ definition.
+  // Define this only if the underlying iterator supports it
+  template <typename It = Iterator>
+    requires Addable<It>
+  friend It operator+(const RootValueIterator& iter,
+                      typename std::iterator_traits<It>::difference_type n) {
+    return iter.iterator_ + n;
+  }
+
+  // Conditional operator+ definition.
+  // Define this only if the underlying iterator supports it
+  template <typename It = Iterator>
+    requires Addable<It>
+  friend It operator+(typename std::iterator_traits<It>::difference_type n,
+                      const RootValueIterator& iter) {
+    return n + iter.iterator_;
   }
 };
 
