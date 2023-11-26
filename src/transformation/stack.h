@@ -13,6 +13,8 @@ namespace transformation {
 GHOST_TYPE(ShellCommand, std::wstring);
 
 struct Stack {
+  using value_type = Variant;
+
   enum PostTransformationBehavior {
     kNone,
     kDeleteRegion,
