@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/buffer_name.h"
+#include "src/buffer_state.h"
 #include "src/buffer_syntax_parser.h"
 #include "src/buffer_variables.h"
 #include "src/concurrent/work_queue.h"
@@ -634,16 +635,7 @@ class OpenBuffer {
   DiskState backup_state_ = DiskState::kCurrent;
   bool reading_from_parser_ = false;
 
-  EdgeStructInstance<bool> bool_variables_ =
-      buffer_variables::BoolStruct()->NewInstance();
-  EdgeStructInstance<std::wstring> string_variables_ =
-      buffer_variables::StringStruct()->NewInstance();
-  EdgeStructInstance<int> int_variables_ =
-      buffer_variables::IntStruct()->NewInstance();
-  EdgeStructInstance<double> double_variables_ =
-      buffer_variables::DoubleStruct()->NewInstance();
-  EdgeStructInstance<language::text::LineColumn> line_column_variables_ =
-      buffer_variables::LineColumnStruct()->NewInstance();
+  BufferVariablesInstance variables_;
 
   UndoState undo_state_;
 

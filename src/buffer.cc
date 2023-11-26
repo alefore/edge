@@ -382,7 +382,7 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
        {buffer_variables::symbol_characters, buffer_variables::tree_parser,
         buffer_variables::language_keywords, buffer_variables::typos,
         buffer_variables::identifier_behavior, buffer_variables::dictionary})
-    string_variables_.ObserveValue(v).Add([this] {
+    variables_.string_variables.ObserveValue(v).Add([this] {
       UpdateTreeParser();
       return Observers::State::kAlive;
     });
@@ -533,63 +533,9 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
             Path::Join(edge_state_directory,
                        ValueOrDie(PathComponent::FromString(L".edge_state")));
         LOG(INFO) << "PersistState: Preparing state file: " << path;
-        NonNull<std::unique_ptr<MutableLineSequence>> contents;
-        contents->push_back(L"// State of file: " + path.read());
-        contents->push_back(L"");
-
-        contents->push_back(L"buffer.set_position(" + position().ToCppString() +
-                            L");");
-        contents->push_back(L"");
-
-        contents->push_back(L"// String variables");
-        // TODO(2023-11-26, ranges): Extend const-tree to be able to receive the
-        // range directly. This is tricky because the iterators in the range
-        // need to support operator+. Also elsewhere in this function.
-        contents->append_back(language::container::MaterializeVector(
-            buffer_variables::StringStruct()->variables() |
-            std::views::transform([this](const auto& variable) {
-              return MakeNonNullShared<const Line>(
-                  Line(L"buffer.set_" + variable.first + L"(" +
-                       EscapedString::FromString(
-                           NewLazyString(Read(&variable.second.value())))
-                           .CppRepresentation() +
-                       L");"));
-            })));
-        contents->push_back(L"");
-
-        contents->push_back(L"// Int variables");
-        contents->append_back(language::container::MaterializeVector(
-            buffer_variables::IntStruct()->variables() |
-            std::views::transform([this](const auto& variable) {
-              return MakeNonNullShared<const Line>(Line(
-                  L"buffer.set_" + variable.first + L"(" +
-                  std::to_wstring(Read(&variable.second.value())) + L");"));
-            })));
-        contents->push_back(L"");
-
-        contents->push_back(L"// Bool variables");
-        contents->append_back(language::container::MaterializeVector(
-            buffer_variables::IntStruct()->variables() |
-            std::views::transform([this](const auto& variable) {
-              return MakeNonNullShared<const Line>(
-                  Line(L"buffer.set_" + variable.first + L"(" +
-                       (Read(&variable.second.value()) ? L"true" : L"false") +
-                       L");"));
-            })));
-        contents->push_back(L"");
-
-        contents->push_back(L"// LineColumn variables");
-        contents->append_back(language::container::MaterializeVector(
-            buffer_variables::LineColumnStruct()->variables() |
-            std::views::transform([this](const auto& variable) {
-              return MakeNonNullShared<const Line>(
-                  L"buffer.set_" + variable.first + L"(" +
-                  Read(&variable.second.value()).ToCppString() + L");");
-            })));
-        contents->push_back(L"");
-
         return futures::OnError(
-            SaveContentsToFile(path, contents->snapshot(),
+            SaveContentsToFile(path,
+                               SerializeState(path, position(), variables_),
                                editor().thread_pool(), file_system_driver()),
             [root_this](Error error) {
               error =
@@ -2298,11 +2244,11 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
 }
 
 const bool& OpenBuffer::Read(const EdgeVariable<bool>* variable) const {
-  return bool_variables_.Get(variable);
+  return variables_.bool_variables.Get(variable);
 }
 
 void OpenBuffer::Set(const EdgeVariable<bool>* variable, bool value) {
-  bool_variables_.Set(variable, value);
+  variables_.bool_variables.Set(variable, value);
 }
 
 void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
@@ -2312,37 +2258,37 @@ void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
 }
 
 const wstring& OpenBuffer::Read(const EdgeVariable<wstring>* variable) const {
-  return string_variables_.Get(variable);
+  return variables_.string_variables.Get(variable);
 }
 
 void OpenBuffer::Set(const EdgeVariable<wstring>* variable, wstring value) {
-  string_variables_.Set(variable, value);
+  variables_.string_variables.Set(variable, value);
 }
 
 const int& OpenBuffer::Read(const EdgeVariable<int>* variable) const {
-  return int_variables_.Get(variable);
+  return variables_.int_variables.Get(variable);
 }
 
 void OpenBuffer::Set(const EdgeVariable<int>* variable, int value) {
-  int_variables_.Set(variable, value);
+  variables_.int_variables.Set(variable, value);
 }
 
 const double& OpenBuffer::Read(const EdgeVariable<double>* variable) const {
-  return double_variables_.Get(variable);
+  return variables_.double_variables.Get(variable);
 }
 
 void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
-  double_variables_.Set(variable, value);
+  variables_.double_variables.Set(variable, value);
 }
 
 const LineColumn& OpenBuffer::Read(
     const EdgeVariable<LineColumn>* variable) const {
-  return line_column_variables_.Get(variable);
+  return variables_.line_column_variables.Get(variable);
 }
 
 void OpenBuffer::Set(const EdgeVariable<LineColumn>* variable,
                      LineColumn value) {
-  line_column_variables_.Set(variable, value);
+  variables_.line_column_variables.Set(variable, value);
 }
 
 futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(

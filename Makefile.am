@@ -29,6 +29,8 @@ src/buffer_metadata_output_producer.cc \
 src/buffer_metadata_output_producer.h \
 src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
+src/buffer_state.cc \
+src/buffer_state.h \
 src/buffer_tests.cc \
 src/widget_list.cc \
 src/widget_list.h \
