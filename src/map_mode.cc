@@ -9,7 +9,9 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/help_command.h"
+#include "src/language/container.h"
 #include "src/language/gc_util.h"
+#include "src/language/gc_view.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
@@ -19,6 +21,7 @@
 #include "src/vm/vm.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::concurrent::WorkQueue;
 using afc::infrastructure::ControlChar;
@@ -163,8 +166,9 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 MapModeCommands::Expand() const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
   for (const NonNull<std::shared_ptr<Frame>>& frame : frames_)
-    for (const gc::Ptr<Command>& command : frame->commands | std::views::values)
-      output.push_back(command.object_metadata());
+    std::ranges::copy(
+        frame->commands | std::views::values | gc::view::ObjectMetadata,
+        std::back_inserter(output));
   return output;
 }
 
