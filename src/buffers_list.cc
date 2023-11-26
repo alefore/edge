@@ -513,17 +513,6 @@ const bool get_buffer_visible_string_tests_registration = tests::Register(
                        .DirectorySplit()));
          }}});
 
-ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
-    const OpenBuffer& buffer) {
-  auto path_str = buffer.Read(buffer_variables::path);
-  if (path_str != buffer.Read(buffer_variables::name)) {
-    return Error(L"name doesn't match path.");
-  }
-  ASSIGN_OR_RETURN(Path path, Path::FromString(path_str));
-  ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());
-  return components;
-}
-
 ValueOrError<std::vector<ColumnNumberDelta>> DivideLine(
     ColumnNumberDelta total_length, ColumnNumberDelta separator_padding,
     size_t columns) {
@@ -583,6 +572,18 @@ bool divide_line_tests = tests::Register(
                                             ColumnNumberDelta(8),
                                             ColumnNumberDelta(7)}));
       }}});
+
+ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
+    const OpenBuffer& buffer) {
+  auto path_str = buffer.Read(buffer_variables::path);
+  if (path_str != buffer.Read(buffer_variables::name)) {
+    return Error(L"name doesn't match path.");
+  }
+  ASSIGN_OR_RETURN(Path path, Path::FromString(path_str));
+  ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());
+  return components;
+}
+
 LineWithCursor::Generator::Vector ProduceBuffersList(
     NonNull<std::shared_ptr<BuffersListOptions>> options) {
   static Tracker tracker(L"BuffersList::ProduceBuffersList");
