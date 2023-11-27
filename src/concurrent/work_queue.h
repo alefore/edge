@@ -13,6 +13,7 @@
 #include "src/futures/futures.h"
 #include "src/infrastructure/time.h"
 #include "src/language/observers.h"
+#include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 #include "src/math/decaying_counter.h"
 
@@ -33,7 +34,7 @@ namespace afc::concurrent {
 // input is being gradually read from a file).
 //
 // This class is thread-safe.
-class WorkQueue {
+class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
  public:
   struct ConstructorAccessTag {
    private:
@@ -47,7 +48,11 @@ class WorkQueue {
 
   struct Callback {
     struct timespec time = infrastructure::Now();
-    std::function<void()> callback;
+    // The ugly `mutable` annotation is just a workaround to allow us to extract
+    // callbacks from the priority_queue (because std::priority_queue doesn't
+    // provide a way to extract elements in a way that allows moving out of
+    // them).
+    mutable language::OnceOnlyFunction<void()> callback;
   };
 
   void Schedule(Callback callback);
@@ -59,9 +64,9 @@ class WorkQueue {
   // won't) be executed.
   void Execute();
 
-  template <typename CopyableObject>
-  void DeleteLater(struct timespec time, CopyableObject object) {
-    Schedule({.time = time, .callback = [object] {}});
+  template <typename Object>
+  void DeleteLater(struct timespec time, Object object) {
+    Schedule({.time = time, .callback = [object = std::move(object)] {}});
   }
 
   // Returns the time at which the earliest callback wants to run, or nullopt if

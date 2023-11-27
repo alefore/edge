@@ -12,6 +12,7 @@
 #include "src/language/container.h"
 #include "src/language/gc_util.h"
 #include "src/language/gc_view.h"
+#include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
@@ -29,6 +30,7 @@ using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::VectorExtendedChar;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::OnceOnlyFunction;
 using afc::language::overload;
 using afc::language::VisitPointer;
 using afc::vm::Expression;
@@ -126,29 +128,30 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
   const auto& value_type = std::get<vm::types::Function>(value.ptr()->type);
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
   CHECK(value_type.inputs.empty()) << "Definition has multiple inputs.";
-  Add(name, MakeCommandFromFunction(
-                editor_state_.gc_pool(),
-                gc::BindFront(
-                    editor_state_.gc_pool(),
-                    [&editor_state = editor_state_](
-                        const gc::Root<vm::Environment> environment_locked,
-                        gc::Ptr<vm::Value> value_nested) {
-                      LOG(INFO) << "Evaluating expression from Value...";
-                      NonNull<std::shared_ptr<vm::Expression>> expression =
-                          NewFunctionCall(
-                              NewConstantExpression(value_nested.ToRoot()), {});
-                      Evaluate(std::move(expression), environment_locked.pool(),
-                               environment_locked,
-                               [&editor_state](std::function<void()> callback) {
-                                 editor_state.work_queue()->Schedule(
-                                     WorkQueue::Callback{
-                                         .callback = std::move(callback)});
-                               });
-                    },
-                    environment.ToWeakPtr(), value.ptr())
-                    .ptr(),
-                description)
-                .ptr());
+  Add(name,
+      MakeCommandFromFunction(
+          editor_state_.gc_pool(),
+          gc::BindFront(
+              editor_state_.gc_pool(),
+              [&editor_state = editor_state_](
+                  const gc::Root<vm::Environment> environment_locked,
+                  gc::Ptr<vm::Value> value_nested) {
+                LOG(INFO) << "Evaluating expression from Value...";
+                NonNull<std::shared_ptr<vm::Expression>> expression =
+                    NewFunctionCall(
+                        NewConstantExpression(value_nested.ToRoot()), {});
+                Evaluate(
+                    std::move(expression), environment_locked.pool(),
+                    environment_locked,
+                    [&editor_state](OnceOnlyFunction<void()> callback) {
+                      editor_state.work_queue()->Schedule(
+                          WorkQueue::Callback{.callback = std::move(callback)});
+                    });
+              },
+              environment.ToWeakPtr(), value.ptr())
+              .ptr(),
+          description)
+          .ptr());
 }
 
 void MapModeCommands::Add(std::vector<ExtendedChar> name,

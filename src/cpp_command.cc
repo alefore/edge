@@ -16,6 +16,7 @@ using afc::concurrent::WorkQueue;
 using afc::infrastructure::ExtendedChar;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::OnceOnlyFunction;
 using afc::language::ValueOrError;
 
 namespace afc::editor {
@@ -68,8 +69,8 @@ class CppCommand : public Command {
   void ProcessInput(ExtendedChar) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
     Evaluate(expression_, editor_state_.gc_pool(), environment_.ToRoot(),
-             [work_queue =
-                  editor_state_.work_queue()](std::function<void()> callback) {
+             [work_queue = editor_state_.work_queue()](
+                 OnceOnlyFunction<void()> callback) {
                work_queue->Schedule(
                    WorkQueue::Callback{.callback = std::move(callback)});
              });

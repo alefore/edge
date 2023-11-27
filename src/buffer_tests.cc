@@ -4,6 +4,7 @@
 #include "src/editor.h"
 #include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
@@ -14,6 +15,7 @@ using afc::infrastructure::screen::CursorsSet;
 using afc::language::EraseOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::OnceOnlyFunction;
 using afc::language::Pointer;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
@@ -223,9 +225,9 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                   return Evaluate(
                       std::move(compilation_result.first), editor->gc_pool(),
                       compilation_result.second,
-                      [&editor](std::function<void()> resume_callback) {
-                        editor->work_queue()->Schedule(
-                            WorkQueue::Callback{.callback = resume_callback});
+                      [&editor](OnceOnlyFunction<void()> resume_callback) {
+                        editor->work_queue()->Schedule(WorkQueue::Callback{
+                            .callback = std::move(resume_callback)});
                       });
                 }();
             while (!future_value.Get().has_value())

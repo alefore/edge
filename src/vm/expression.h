@@ -10,6 +10,7 @@
 #include "src/futures/futures.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
+#include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 #include "src/vm/types.h"
 
@@ -23,7 +24,7 @@ class Trampoline {
   struct Options {
     language::gc::Pool& pool;
     language::gc::Root<Environment> environment;
-    std::function<void(std::function<void()>)> yield_callback;
+    std::function<void(language::OnceOnlyFunction<void()>)> yield_callback;
   };
 
   Trampoline(Options options);
@@ -49,7 +50,7 @@ class Trampoline {
   std::list<std::wstring> namespace_;
   language::gc::Root<Environment> environment_;
 
-  std::function<void(std::function<void()>)> yield_callback_;
+  std::function<void(language::OnceOnlyFunction<void()>)> yield_callback_;
   size_t jumps_ = 0;
 };
 
@@ -120,7 +121,7 @@ language::ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
 futures::ValueOrError<language::gc::Root<Value>> Evaluate(
     const language::NonNull<std::shared_ptr<Expression>>& expr,
     language::gc::Pool& pool, language::gc::Root<Environment> environment,
-    std::function<void(std::function<void()>)> yield_callback);
+    std::function<void(language::OnceOnlyFunction<void()>)> yield_callback);
 
 // If a value of `original` type can be promoted implicitly to a value of
 // `desired` type, returns a function that executes the promotion.

@@ -879,12 +879,11 @@ class InsertMode : public EditorMode {
       CompletionModelManager::Text text) {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
-        std::shared_ptr<StatusExpirationControl>(
-            buffer.status().SetExpiringInformationText(MakeNonNullShared<Line>(
-                LineBuilder(Append(NewLazyString(L"`"), compressed_text,
-                                   Append(NewLazyString(L"` is an alias for `"),
-                                          text, NewLazyString(L"`"))))
-                    .Build()))));
+        buffer.status().SetExpiringInformationText(MakeNonNullShared<Line>(
+            LineBuilder(Append(NewLazyString(L"`"), compressed_text,
+                               Append(NewLazyString(L"` is an alias for `"),
+                                      text, NewLazyString(L"`"))))
+                .Build())));
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(

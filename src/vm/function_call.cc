@@ -23,6 +23,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::OnceOnlyFunction;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -362,7 +363,7 @@ std::unique_ptr<Expression> NewMethodLookup(
 
 futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
-    std::function<void(std::function<void()>)> yield_callback) {
+    std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
   CHECK(std::holds_alternative<types::Function>(func.type));
   return Evaluate(
       NewFunctionCall(

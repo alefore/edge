@@ -33,6 +33,7 @@ extern "C" {
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/once_only_function.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/server.h"
@@ -64,6 +65,7 @@ using afc::language::MakeNonNullShared;
 using afc::language ::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Observers;
+using afc::language::OnceOnlyFunction;
 using afc::language::overload;
 using afc::language::Pointer;
 using afc::language::PossibleError;
@@ -223,7 +225,7 @@ EditorState::EditorState(CommandLineValues args,
               LOG(INFO) << "Evaluating file: " << path;
               return Evaluate(std::move(expression), gc_pool_, environment_,
                               [path, work_queue = work_queue()](
-                                  std::function<void()> resume) {
+                                  OnceOnlyFunction<void()> resume) {
                                 LOG(INFO)
                                     << "Evaluation of file yields: " << path;
                                 work_queue->Schedule(WorkQueue::Callback{

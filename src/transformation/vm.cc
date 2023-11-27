@@ -21,9 +21,18 @@
 #include "src/vm/function_call.h"
 #include "src/vm/types.h"
 
+using afc::concurrent::WorkQueue;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::OnceOnlyFunction;
+using afc::language::Success;
+using afc::vm::GetVMType;
+using afc::vm::PurityType;
+using afc::vm::VMTypeMapper;
+
 namespace afc {
-using language::MakeNonNullShared;
-using language::NonNull;
 
 namespace gc = language::gc;
 namespace vm {
@@ -33,14 +42,7 @@ const types::ObjectName VMTypeMapper<NonNull<
     types::ObjectName(L"Transformation");
 }  // namespace vm
 namespace editor {
-using language::MakeNonNullUnique;
 namespace {
-using concurrent::WorkQueue;
-using language::Error;
-using language::Success;
-using vm::GetVMType;
-using vm::PurityType;
-using vm::VMTypeMapper;
 
 class FunctionTransformation : public CompositeTransformation {
  public:
@@ -59,7 +61,7 @@ class FunctionTransformation : public CompositeTransformation {
             New(pool_, MakeNonNullShared<Input>(input)));
     return vm::Call(pool_, function_, std::move(args),
                     [work_queue = input.buffer.work_queue()](
-                        std::function<void()> callback) {
+                        OnceOnlyFunction<void()> callback) {
                       work_queue->Schedule(
                           WorkQueue::Callback{.callback = std::move(callback)});
                     })

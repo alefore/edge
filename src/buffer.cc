@@ -39,6 +39,7 @@ extern "C" {
 #include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/observers_gc.h"
+#include "src/language/once_only_function.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/delegating_mutable_line_sequence_observer.h"
@@ -103,6 +104,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::ObservableValue;
 using afc::language::Observers;
+using afc::language::OnceOnlyFunction;
 using afc::language::overload;
 using afc::language::Pointer;
 using afc::language::PossibleError;
@@ -1156,7 +1158,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
     gc::Root<Environment> environment) {
   return Evaluate(expr, editor().gc_pool(), environment,
                   [work_queue = work_queue(), root_this = ptr_this_->ToRoot()](
-                      std::function<void()> callback) {
+                      OnceOnlyFunction<void()> callback) {
                     work_queue->Schedule(
                         WorkQueue::Callback{.callback = std::move(callback)});
                   });
@@ -1198,8 +1200,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
                  return Evaluate(
                      std::move(expression), editor().gc_pool(),
                      environment_.ToRoot(),
-                     [path,
-                      work_queue = work_queue()](std::function<void()> resume) {
+                     [path, work_queue =
+                                work_queue()](OnceOnlyFunction<void()> resume) {
                        LOG(INFO) << "Evaluation of file yields: " << path;
                        work_queue->Schedule(
                            WorkQueue::Callback{.callback = std::move(resume)});
@@ -1763,8 +1765,8 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
                gc::Pool& pool = editor().gc_pool();
                args.push_back(Value::NewString(pool, std::move(*input_shared)));
                return Call(pool, t.ptr().value(), std::move(args),
-                           [work_queue =
-                                work_queue()](std::function<void()> callback) {
+                           [work_queue = work_queue()](
+                               OnceOnlyFunction<void()> callback) {
                              work_queue->Schedule(WorkQueue::Callback{
                                  .callback = std::move(callback)});
                            })
@@ -2058,13 +2060,12 @@ OpenBuffer::OpenBufferForCurrentPosition(
                          case RemoteURLBehavior::kLaunchBrowser:
                            editor.work_queue()->DeleteLater(
                                AddSeconds(Now(), 1.0),
-                               std::shared_ptr<StatusExpirationControl>(
-                                   editor.status().SetExpiringInformationText(
-                                       MakeNonNullShared<Line>(
-                                           LineBuilder(
-                                               Append(NewLazyString(L"Open: "),
-                                                      url.ToString()))
-                                               .Build()))));
+                               editor.status().SetExpiringInformationText(
+                                   MakeNonNullShared<Line>(
+                                       LineBuilder(
+                                           Append(NewLazyString(L"Open: "),
+                                                  url.ToString()))
+                                           .Build())));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to
                            // std::wstring from the URL's LazyString.

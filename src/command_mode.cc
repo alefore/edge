@@ -428,9 +428,8 @@ class ResetStateCommand : public Command {
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
       buffer.work_queue()->DeleteLater(
           AddSeconds(Now(), 0.2),
-          std::shared_ptr<StatusExpirationControl>(
-              buffer.status().SetExpiringInformationText(
-                  MakeNonNullShared<Line>(Line(L"❌ ESC")))));
+          buffer.status().SetExpiringInformationText(
+              MakeNonNullShared<Line>(Line(L"❌ ESC"))));
       return futures::Past(EmptyValue());
     });
     editor_state_.set_modifiers(Modifiers());

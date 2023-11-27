@@ -6,6 +6,7 @@
 
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
+#include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 #include "value.h"
 
@@ -29,7 +30,7 @@ std::unique_ptr<Expression> NewFunctionCall(
 futures::ValueOrError<language::gc::Root<Value>> Call(
     language::gc::Pool& pool, const Value& func,
     std::vector<language::gc::Root<Value>> args,
-    std::function<void(std::function<void()>)> yield_callback);
+    std::function<void(language::OnceOnlyFunction<void()>)> yield_callback);
 
 std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
                                             std::unique_ptr<Expression> object,

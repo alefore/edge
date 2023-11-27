@@ -7,13 +7,14 @@
 #include "src/infrastructure/time.h"
 #include "src/tests/tests.h"
 
-namespace afc::concurrent {
-using infrastructure::Now;
-using infrastructure::SecondsBetween;
-using language::EmptyValue;
-using language::MakeNonNullShared;
-using language::NonNull;
+using afc::infrastructure::Now;
+using afc::infrastructure::SecondsBetween;
+using afc::language::EmptyValue;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::OnceOnlyFunction;
 
+namespace afc::concurrent {
 /* static */ NonNull<std::shared_ptr<WorkQueue>> WorkQueue::New() {
   return MakeNonNullShared<WorkQueue>(ConstructorAccessTag());
 }
@@ -21,21 +22,22 @@ using language::NonNull;
 WorkQueue::WorkQueue(ConstructorAccessTag) {}
 
 void WorkQueue::Schedule(WorkQueue::Callback callback) {
-  CHECK(callback.callback != nullptr);
   data_.lock()->callbacks.push(std::move(callback));
   schedule_observers_.Notify();
 }
 
 futures::Value<EmptyValue> WorkQueue::Wait(struct timespec time) {
   futures::Future<EmptyValue> value;
-  Schedule({.time = time, .callback = [consumer = std::move(value.consumer)] {
-              consumer(EmptyValue());
-            }});
+  Schedule({.time = time,
+            .callback = OnceOnlyFunction<void()>(
+                [consumer = std::move(value.consumer)] {
+                  consumer(EmptyValue());
+                })});
   return std::move(value.value);
 }
 
 void WorkQueue::Execute() {
-  std::vector<std::function<void()>> callbacks_ready;
+  std::vector<OnceOnlyFunction<void()>> callbacks_ready;
   auto start = Now();
   data_.lock([&callbacks_ready](MutableData& data) {
     VLOG(5) << "Executing work queue: callbacks: " << data.callbacks.size();
@@ -45,11 +47,12 @@ void WorkQueue::Execute() {
     }
   });
 
+  if (callbacks_ready.empty()) return;
+
+  // Make sure we stay alive until all callbacks have run.
+  const std::shared_ptr<WorkQueue> shared_this = shared_from_this();
   for (auto& callback : callbacks_ready) {
-    callback();
-    // We could assign nullptr to `callback` in order to allow it to be deleted.
-    // However, we prefer to only let them be deleted at the end, before we
-    // return, in case they are the only thing keeping the work queue alive.
+    std::move(callback)();
     auto end = Now();
     data_.lock()->execution_seconds.IncrementAndGetEventsPerSecond(
         SecondsBetween(start, end));
@@ -98,8 +101,10 @@ const bool work_queue_tests_registration = tests::Register(
         // We know it hasn't been deleted since it contains a reference to
         // itself (in the first scheduled callback).
         work_queue_raw->Execute();
-        while (!done.has_value())
+        for (size_t iterations = 0; !done.has_value(); ++iterations) {
+          CHECK_LT(iterations, 1000ul);
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
       }}});
 
 const bool work_queue_channel_tests_registration = tests::Register(
@@ -119,8 +124,8 @@ const bool work_queue_channel_tests_registration = tests::Register(
             std::vector<int> values;
             NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
             ChannelAll<int> channel([&values, work_queue](int value) {
-              work_queue->Schedule(
-                  {.callback = [&values, value] { values.push_back(value); }});
+              work_queue->Schedule(WorkQueue::Callback{
+                  .callback = [&values, value] { values.push_back(value); }});
             });
             channel.Push(0);
             CHECK_EQ(values.size(), 0ul);

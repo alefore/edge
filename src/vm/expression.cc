@@ -1,5 +1,6 @@
 #include "src/vm/expression.h"
 
+#include "src/language/once_only_function.h"
 #include "src/language/wstring.h"
 #include "src/vm/value.h"
 
@@ -8,6 +9,7 @@ namespace gc = afc::language::gc;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::OnceOnlyFunction;
 using afc::language::Success;
 using afc::language::ValueOrError;
 
@@ -31,11 +33,12 @@ futures::ValueOrError<EvaluationOutput> Trampoline::Bounce(
   }
 
   futures::Future<language::ValueOrError<EvaluationOutput>> output;
-  yield_callback_([this, type, expression = std::move(expression),
-                   consumer = std::move(output.consumer)]() {
-    jumps_ = 0;
-    Bounce(expression, type).SetConsumer(std::move(consumer));
-  });
+  yield_callback_(OnceOnlyFunction<void()>(
+      [this, type, expression = std::move(expression),
+       consumer = std::move(output.consumer)]() mutable {
+        jumps_ = 0;
+        Bounce(std::move(expression), type).SetConsumer(std::move(consumer));
+      }));
   return std::move(output.value);
 }
 
@@ -75,7 +78,7 @@ ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
 futures::ValueOrError<gc::Root<Value>> Evaluate(
     const NonNull<std::shared_ptr<Expression>>& expr, gc::Pool& pool,
     gc::Root<Environment> environment,
-    std::function<void(std::function<void()>)> yield_callback) {
+    std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
   NonNull<std::shared_ptr<Trampoline>> trampoline =
       MakeNonNullShared<Trampoline>(
           Trampoline::Options{.pool = pool,

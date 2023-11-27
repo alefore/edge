@@ -641,12 +641,10 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
         if (!output.errors.empty()) {
           editor_state.work_queue()->DeleteLater(
               AddSeconds(Now(), 1.0),
-              std::shared_ptr<StatusExpirationControl>(
-                  editor_state.status().SetExpiringInformationText(
-                      MakeNonNullShared<Line>(
-                          LineBuilder(
-                              NewLazyString(output.errors.front().read()))
-                              .Build()))));
+              editor_state.status().SetExpiringInformationText(
+                  MakeNonNullShared<Line>(
+                      LineBuilder(NewLazyString(output.errors.front().read()))
+                          .Build())));
         }
         if (!abort_value.has_value()) {
           filter_buffer.AppendLines(std::move(output.lines));
