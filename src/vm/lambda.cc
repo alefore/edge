@@ -2,21 +2,24 @@
 
 #include <glog/logging.h>
 
+#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
 
+namespace gc = afc::language::gc;
+namespace container = afc::language::container;
+
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrError;
+
 namespace afc::vm {
 namespace {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ValueOrError;
-
-namespace gc = language::gc;
-
 class LambdaExpression : public Expression {
  public:
   static ValueOrError<NonNull<std::unique_ptr<LambdaExpression>>> New(
@@ -132,18 +135,22 @@ std::unique_ptr<UserFunction> UserFunction::New(
     return nullptr;
   }
 
-  types::Function function_type{.output = *return_type_def};
-  for (std::pair<Type, std::wstring> arg : *args) {
-    function_type.inputs.push_back(arg.first);
-  }
+  types::Function function_type{
+      .output = *return_type_def,
+      .inputs = container::MaterializeVector(
+          *args |
+          std::views::transform(
+              [](const std::pair<Type, std::wstring>& a) { return a.first; }))};
 
-  auto output = std::make_unique<UserFunction>(
-      UserFunction{.name = std::nullopt,
-                   .type = std::move(function_type),
-                   .argument_names = {}});
-  for (std::pair<Type, std::wstring> arg : *args) {
-    output->argument_names->push_back(arg.second);
-  }
+  auto output = std::make_unique<UserFunction>(UserFunction{
+      .name = std::nullopt,
+      .type = std::move(function_type),
+      .argument_names = MakeNonNullShared<std::vector<std::wstring>>(
+          container::MaterializeVector(
+              *args |
+              std::views::transform([](const std::pair<Type, std::wstring>& a) {
+                return a.second;
+              })))});
 
   if (name.has_value()) {
     output->name = name.value();
