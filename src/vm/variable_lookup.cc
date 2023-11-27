@@ -5,20 +5,23 @@
 #include <unordered_set>
 
 #include "compilation.h"
+#include "src/language/container.h"
 #include "src/language/gc_view.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
+namespace container = afc::language::container;
+namespace gc = afc::language::gc;
+
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Success;
+using afc::language::VisitPointer;
+
 namespace afc::vm {
 namespace {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
-using language::VisitPointer;
-
-namespace gc = language::gc;
 
 class VariableLookup : public Expression {
  public:
@@ -61,8 +64,6 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
                                               std::list<std::wstring> symbols) {
   CHECK(!symbols.empty());
 
-  std::vector<gc::Root<Value>> result;
-
   auto symbol = std::move(symbols.back());
   symbols.pop_back();
   Namespace symbol_namespace(
@@ -71,18 +72,21 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know
   // that we'll be in the right environment.
+  std::vector<gc::Root<Value>> result;
   compilation->environment.ptr()->PolyLookup(symbol_namespace, symbol, &result);
   if (result.empty()) {
     compilation->AddError(Error(L"Unknown variable: `" + symbol + L"`"));
     return nullptr;
   }
-  std::vector<Type> types;
-  std::unordered_set<Type> types_already_seen;
-
-  for (const Value& v : result | gc::view::Value)
-    if (types_already_seen.insert(v.type).second) types.push_back(v.type);
-  return std::make_unique<VariableLookup>(std::move(symbol_namespace),
-                                          std::move(symbol), types);
+  std::unordered_set<Type> already_seen;
+  return std::make_unique<VariableLookup>(
+      std::move(symbol_namespace), std::move(symbol),
+      container::MaterializeVector(
+          std::move(result) | gc::view::Value |
+          std::views::transform(&Value::type) |
+          std::views::filter([&already_seen](const Type& type) {
+            return already_seen.insert(type).second;
+          })));
 }
 
 }  // namespace afc::vm
