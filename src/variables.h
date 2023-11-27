@@ -195,10 +195,10 @@ class EdgeStruct {
     return it == variables_.end() ? nullptr : it->second.get().get();
   }
 
+  // TODO(trivial, 2023-11-27): Receive `output` by ref.
   void RegisterVariableNames(std::vector<std::wstring>* output) {
-    for (const auto& it : variables_) {
-      output->push_back(it.first);
-    }
+    std::ranges::copy(variables_ | std::views::keys,
+                      std::back_inserter(*output));
   }
 
   const std::map<std::wstring,
@@ -246,9 +246,8 @@ class EdgeStruct<std::unique_ptr<T>> {
   }
 
   void RegisterVariableNames(std::vector<std::wstring>& output) {
-    for (const auto& it : variables_) {
-      output.push_back(it.first);
-    }
+    std::ranges::copy(variables_ | std::views::keys,
+                      std::back_inserter(output));
   }
 
   const std::map<std::wstring,
