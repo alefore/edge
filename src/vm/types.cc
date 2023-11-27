@@ -217,13 +217,12 @@ void ObjectType::AddField(const std::wstring& name, gc::Ptr<Value> field) {
 
 std::vector<NonNull<Value*>> ObjectType::LookupField(
     const std::wstring& name) const {
-  std::vector<NonNull<Value*>> output;
   auto range = fields_.equal_range(name);
-
-  for (auto it = range.first; it != range.second; ++it) {
-    output.push_back(NonNull<Value*>::AddressOf(it->second.value()));
-  }
-  return output;
+  return container::MaterializeVector(
+      std::ranges::subrange(range.first, range.second) |
+      std::views::transform([](const auto& p) {
+        return NonNull<Value*>::AddressOf(p.second.value());
+      }));
 }
 
 void ObjectType::ForEachField(
