@@ -11,6 +11,7 @@
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/substring.h"
@@ -22,6 +23,7 @@
 #include "src/vm/function_call.h"
 #include "src/vm/value.h"
 
+namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 using afc::concurrent::VersionPropertyKey;
 using afc::futures::DeleteNotification;
@@ -163,10 +165,11 @@ ValueOrError<ParsedCommand> Parse(
 
   if (function_vector.has_value()) {
     output_function = function_vector.value();
-    NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_values;
-    for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it) {
-      argument_values->push_back(it->value);
-    }
+    auto argument_values = MakeNonNullShared<std::vector<std::wstring>>(
+        container::MaterializeVector(
+            output_tokens | std::views::drop(1) |
+            std::views::transform([](auto& v) { return v.value; })));
+
     output_function_inputs.push_back(vm::NewConstantExpression(
         VMTypeMapper<NonNull<std::shared_ptr<std::vector<std::wstring>>>>::New(
             pool, std::move(argument_values))));
