@@ -369,16 +369,12 @@ std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
                               Range range) {
   static Tracker tracker(L"BufferMetadataOutput::Prepare:PushMarks");
   auto call = tracker.Call();
-  std::list<MarkType> output;
-  auto it_begin = input.lower_bound(range.begin());
-  auto it_end = input.lower_bound(range.end());
-  while (it_begin != it_end) {
-    if (range.Contains(it_begin->second.target_line_column)) {
-      output.push_back(it_begin->second);
-    }
-    ++it_begin;
-  }
-  return output;
+  return container::Materialize<std::list<MarkType>>(
+      std::ranges::subrange(input.lower_bound(range.begin()),
+                            input.lower_bound(range.end())) |
+      std::views::values | std::views::filter([&range](const MarkType& m) {
+        return range.Contains(m.target_line_column);
+      }));
 }
 
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
