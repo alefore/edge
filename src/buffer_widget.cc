@@ -282,7 +282,7 @@ LineWithCursor::Generator::Vector ViewMultipleCursors(
     const Widget::OutputProducerOptions& output_producer_options,
     const BufferContentsViewLayout::Input& buffer_contents_window_input) {
   std::set<Range> sections = container::MaterializeSet(
-      buffer.active_cursors() | std::views::transform([](auto& cursor) {
+      buffer.active_cursors() | std::views::transform([&buffer](auto& cursor) {
         return Range(LineColumn(std::min(buffer.EndLine(), cursor.line)),
                      LineColumn(std::min(buffer.EndLine(),
                                          cursor.line + LineNumberDelta(1))));
