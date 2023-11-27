@@ -1,19 +1,25 @@
 #include "src/language/error/log.h"
 
+#include <ranges>
+
 #include "src/tests/tests.h"
+#include "src/language/container.h"
+
+using afc::language::EraseIf;
 
 namespace afc::language::error {
 Log::InsertResult Log::Insert(language::Error error,
                               infrastructure::Duration duration) {
   infrastructure::Time now = infrastructure::Now();
   return entries_.lock([&](std::vector<ErrorAndExpiration>& entries) {
-    std::erase_if(entries, [now](const ErrorAndExpiration& entry) {
+    EraseIf(entries, [now](const ErrorAndExpiration& entry) {
       return entry.expiration < now;
     });
-
-    InsertResult output = InsertResult::kInserted;
-    for (const ErrorAndExpiration& entry : entries)
-      if (entry.error == error) output = InsertResult::kAlreadyFound;
+    InsertResult output =
+        std::ranges::contains(
+            entries | std::views::transform(&ErrorAndExpiration::error), error)
+            ? InsertResult::kAlreadyFound
+            : InsertResult::kInserted;
     entries.push_back(ErrorAndExpiration{
         .error = std::move(error),
         .expiration = infrastructure::AddSeconds(now, duration)});
