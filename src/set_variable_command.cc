@@ -53,6 +53,9 @@ std::wstring TrimWhitespace(const std::wstring& in) {
 }
 
 Predictor VariablesPredictor() {
+  // We need to materialize the nested vector because, even though all ranges
+  // contain the same types (std::wstring), they actually have different types
+  // (because they are keys of maps with different value types).
   return PrecomputedPredictor(
       container::MaterializeVector(
           std::vector{container::MaterializeVector(
