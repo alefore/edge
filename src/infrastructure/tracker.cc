@@ -1,12 +1,16 @@
 #include "src/infrastructure/tracker.h"
 
 #include "src/infrastructure/time.h"
+#include "src/language/container.h"
+
+namespace container = afc::language::container;
+
+using afc::concurrent::EmptyValidator;
+using afc::concurrent::Protected;
 
 namespace afc::infrastructure {
 namespace {
 using Trackers = std::list<Tracker*>;
-using concurrent::EmptyValidator;
-using concurrent::Protected;
 
 Protected<Trackers>::Lock lock_trackers() {
   static Protected<Trackers, EmptyValidator<Trackers>, false>* const output =
@@ -16,11 +20,11 @@ Protected<Trackers>::Lock lock_trackers() {
 }  // namespace
 
 /* static */ std::list<Tracker::Data> Tracker::GetData() {
-  std::list<Tracker::Data> output;
   auto trackers = lock_trackers();
-  for (const auto* tracker : *trackers) {
-    output.push_back(*tracker->data_.lock());
-  }
+  auto output = container::Materialize<std::list<Tracker::Data>>(
+      *trackers | std::views::transform([](const auto* tracker) {
+        return *tracker->data_.lock();
+      }));
   trackers = nullptr;
   output.sort([](const Tracker::Data& a, const Tracker::Data& b) {
     return a.seconds < b.seconds;
