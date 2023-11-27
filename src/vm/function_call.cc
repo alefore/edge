@@ -280,12 +280,13 @@ std::unique_ptr<Expression> NewMethodLookup(
             std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
             PurityType purity() override {
-              PurityType output = obj_expr_->purity();
-              for (const Type& delegate_type : external_types_.value())
-                output = CombinePurityType(
-                    output,
-                    std::get<types::Function>(delegate_type).function_purity);
-              return output;
+              return container::Fold(
+                  [](const Type& delegate_type, PurityType output) {
+                    return CombinePurityType(
+                        output, std::get<types::Function>(delegate_type)
+                                    .function_purity);
+                  },
+                  obj_expr_->purity(), external_types_.value());
             }
 
             futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
