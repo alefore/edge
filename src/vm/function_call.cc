@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "src/language/container.h"
+#include "src/language/error/view.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -30,6 +31,7 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
+using afc::language::view::SkipErrors;
 
 namespace afc::vm {
 namespace {
@@ -65,14 +67,15 @@ PossibleError CheckFunctionArguments(
 std::vector<Type> DeduceTypes(
     Expression& func,
     const std::vector<NonNull<std::shared_ptr<Expression>>>& args) {
-  std::unordered_set<Type> output;
-  for (auto& type : func.Types()) {
-    if (std::holds_alternative<EmptyValue>(
-            CheckFunctionArguments(type, args))) {
-      output.insert(std::get<types::Function>(type).output.get());
-    }
-  }
-  return std::vector<Type>(output.begin(), output.end());
+  return container::MaterializeVector(
+      container::Materialize<std::unordered_set<Type>>(
+          func.Types() |
+          std::views::transform(
+              [&args](const Type& type) -> ValueOrError<Type> {
+                RETURN_IF_ERROR(CheckFunctionArguments(type, args));
+                return std::get<types::Function>(type).output.get();
+              }) |
+          SkipErrors));
 }
 
 class FunctionCall : public Expression {
