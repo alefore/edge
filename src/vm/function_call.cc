@@ -115,14 +115,13 @@ class FunctionCall : public Expression {
                                              return arg->Types()[0];
                                            })),
                                        .function_purity = purity()})
-        .Transform([&trampoline,
-                    args_types = args_](EvaluationOutput callback) {
+        .Transform([&trampoline, args = args_](EvaluationOutput callback) {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
           DVLOG(6) << "Got function: " << callback.value.ptr().value();
           CHECK(std::holds_alternative<types::Function>(
               callback.value.ptr()->type));
-          return CaptureArgs(trampoline, args_types,
+          return CaptureArgs(trampoline, args,
                              MakeNonNullShared<std::vector<gc::Root<Value>>>(),
                              callback.value.ptr()->LockCallback());
         });
@@ -133,12 +132,12 @@ class FunctionCall : public Expression {
       Trampoline& trampoline,
       NonNull<
           std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
-          args_types,
+          args,
       NonNull<std::shared_ptr<std::vector<gc::Root<Value>>>> values,
       gc::Root<gc::ValueWithFixedDependencies<Value::Callback>> callback) {
     DVLOG(5) << "Evaluating function parameters, args: " << values->size()
-             << " of " << args_types->size();
-    if (values->size() == args_types->size()) {
+             << " of " << args->size();
+    if (values->size() == args->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
       return callback.ptr()
           ->value(std::move(values.value()), trampoline)
@@ -149,28 +148,28 @@ class FunctionCall : public Expression {
                 Success(EvaluationOutput::New(std::move(return_value))));
           });
     }
-    NonNull<std::shared_ptr<Expression>>& arg = args_types->at(values->size());
+    NonNull<std::shared_ptr<Expression>>& arg = args->at(values->size());
     DVLOG(6) << "Bounce with types: " << TypesToString(arg->Types());
     return trampoline.Bounce(arg, arg->Types()[0])
-        .Transform([&trampoline, args_types, values,
-                    callback](EvaluationOutput value) {
-          DVLOG(7) << "Got evaluation output.";
-          switch (value.type) {
-            case EvaluationOutput::OutputType::kReturn:
-              DVLOG(5) << "Received return value.";
-              return futures::Past(Success(std::move(value)));
-            case EvaluationOutput::OutputType::kContinue:
-              DVLOG(5) << "Received results of parameter " << values->size() + 1
-                       << " (of " << args_types->size()
-                       << "): " << value.value.ptr().value();
-              values->push_back(std::move(value.value));
-              DVLOG(6) << "Recursive call.";
-              return CaptureArgs(trampoline, args_types, values, callback);
-          }
-          Error error(L"Unsupported value type.");
-          LOG(FATAL) << error;
-          return futures::Past(ValueOrError<EvaluationOutput>(error));
-        });
+        .Transform(
+            [&trampoline, args, values, callback](EvaluationOutput value) {
+              DVLOG(7) << "Got evaluation output.";
+              switch (value.type) {
+                case EvaluationOutput::OutputType::kReturn:
+                  DVLOG(5) << "Received return value.";
+                  return futures::Past(Success(std::move(value)));
+                case EvaluationOutput::OutputType::kContinue:
+                  DVLOG(5) << "Received results of parameter "
+                           << values->size() + 1 << " (of " << args->size()
+                           << "): " << value.value.ptr().value();
+                  values->push_back(std::move(value.value));
+                  DVLOG(6) << "Recursive call.";
+                  return CaptureArgs(trampoline, args, values, callback);
+              }
+              Error error(L"Unsupported value type.");
+              LOG(FATAL) << error;
+              return futures::Past(ValueOrError<EvaluationOutput>(error));
+            });
   }
 
   // Expression that evaluates to get the function to call.
