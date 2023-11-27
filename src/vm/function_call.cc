@@ -264,13 +264,13 @@ std::unique_ptr<Expression> NewMethodLookup(
             BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
                                  std::vector<NonNull<Value*>> delegates)
                 : delegates_(std::move(delegates)),
-                  external_types_([&]() {
-                    NonNull<std::shared_ptr<std::vector<Type>>> output;
-                    for (const NonNull<Value*>& delegate : delegates_)
-                      output->push_back(
-                          RemoveObjectFirstArgument(delegate->type));
-                    return output;
-                  }()),
+                  external_types_(MakeNonNullShared<std::vector<Type>>(
+                      container::MaterializeVector(
+                          delegates_ | std::views::transform(
+                                           [](const NonNull<Value*>& delegate) {
+                                             return RemoveObjectFirstArgument(
+                                                 delegate->type);
+                                           })))),
                   obj_expr_(std::move(obj_expr)) {}
 
             std::vector<Type> Types() override {
