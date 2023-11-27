@@ -78,15 +78,16 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
     compilation->AddError(Error(L"Unknown variable: `" + symbol + L"`"));
     return nullptr;
   }
+
   std::unordered_set<Type> already_seen;
-  return std::make_unique<VariableLookup>(
-      std::move(symbol_namespace), std::move(symbol),
-      container::MaterializeVector(
-          std::move(result) | gc::view::Value |
-          std::views::transform(&Value::type) |
-          std::views::filter([&already_seen](const Type& type) {
-            return already_seen.insert(type).second;
-          })));
+  std::vector<Type> types;
+  // We can't use `MaterializeVector` here: we need to ensure that the filtering
+  // is done in an order-preserving way.
+  for (const Type& type : std::move(result) | gc::view::Value |
+                              std::views::transform(&Value::type))
+    if (already_seen.insert(type).second) types.push_back(type);
+  return std::make_unique<VariableLookup>(std::move(symbol_namespace),
+                                          std::move(symbol), types);
 }
 
 }  // namespace afc::vm

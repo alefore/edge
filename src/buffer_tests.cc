@@ -277,6 +277,10 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"sleep(0.001);"),
       callback(L"[](number x) -> number { return 0; }"),
       callback(L"number foo = 5; number foo = 6; foo + 0.0;"),
+      callback(L"void Foo(number n, string x) { return; }\n"
+               L"void Foo(number n) { Foo(n, \"yes\"); }\n"
+               L"void Foo(number n, number y, number z) { Foo(n); }\n"
+               L"Foo(1, 2, 3);"),
       callback(L"{"
                L"auto foo = [](number x) -> number { return x * 5; };"
                L"foo(3) * 2;"
