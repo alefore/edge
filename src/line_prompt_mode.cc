@@ -38,6 +38,7 @@
 #include "src/vm/escape.h"
 #include "src/vm/value.h"
 
+namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using afc::concurrent::ChannelAll;
@@ -499,13 +500,15 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
 
   for (math::naive_bayes::Event& key :
        math::naive_bayes::Sort(history_data, current_features)) {
-    std::vector<TokenAndModifiers> tokens;
-    for (const Token& token : history_prompt_tokens[key]) {
-      VLOG(6) << "Add token BOLD: " << token;
-      tokens.push_back({token, LineModifierSet{LineModifier::kBold}});
-    }
     output.lines.push_back(
-        ColorizeLine(NewLazyString(key.read()), std::move(tokens)));
+        ColorizeLine(NewLazyString(key.read()),
+                     container::MaterializeVector(
+                         history_prompt_tokens[key] |
+                         std::views::transform([](const Token& token) {
+                           VLOG(6) << "Add token BOLD: " << token;
+                           return TokenAndModifiers{
+                               token, LineModifierSet{LineModifier::kBold}};
+                         }))));
   }
   return output;
 }
