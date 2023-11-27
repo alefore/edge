@@ -4,20 +4,23 @@
 
 #include <set>
 
+#include "src/language/container.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_column_vm.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
-namespace afc ::editor {
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
+namespace container = afc::language::container;
 
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+
+namespace afc ::editor {
 futures::ValueOrError<NonNull<std::shared_ptr<std::vector<std::wstring>>>>
 Justify(NonNull<std::shared_ptr<std::vector<std::wstring>>> input, int width) {
   LOG(INFO) << "Evaluating breaks with inputs: " << input->size();
@@ -179,10 +182,8 @@ void FindBoundariesBezier(
     return;
   }
 
-  std::vector<Point> points;
-  for (const auto& position : positions.value()) {
-    points.push_back(Point::New(position));
-  }
+  std::vector<Point> points = container::MaterializeVector(
+      positions.value() | std::views::transform(Point::New));
   std::vector<LineColumn> journey;
   InternalFindBoundariesBezier(points, 0.0, 1.0, points.front().ToLineColumn(),
                                points.back().ToLineColumn(), &journey);
