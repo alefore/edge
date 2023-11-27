@@ -65,14 +65,19 @@ using language::overload;
 
 namespace gc = language::gc;
 
-PurityType CombinePurityType(PurityType a, PurityType b) {
-  if (a == PurityType::kUnknown || b == PurityType::kUnknown)
-    return PurityType::kUnknown;
-  if (a == PurityType::kReader || b == PurityType::kReader)
-    return PurityType::kReader;
-  CHECK(a == PurityType::kPure);
-  CHECK(b == PurityType::kPure);
-  return PurityType::kPure;
+PurityType CombinePurityType(const std::vector<PurityType>& types) {
+  // We don't use `container::Fold` to enable early return.
+  PurityType output = PurityType::kPure;
+  for (PurityType a : types) switch (a) {
+      case PurityType::kUnknown:
+        return PurityType::kUnknown;
+      case PurityType::kReader:
+        output = PurityType::kReader;
+        break;
+      default:
+        CHECK(output != PurityType::kUnknown);
+    }
+  return output;
 }
 
 namespace {
@@ -82,8 +87,9 @@ bool combine_purity_type_tests_registration =
         std::stringstream value_stream;
         value_stream << a << " + " << b << " = " << expect;
         return tests::Test(
-            {.name = FromByteString(value_stream.str()),
-             .callback = [=] { CHECK(CombinePurityType(a, b) == expect); }});
+            {.name = FromByteString(value_stream.str()), .callback = [=] {
+               CHECK(CombinePurityType({a, b}) == expect);
+             }});
       };
       return std::vector<tests::Test>(
           {t(PurityType::kPure, PurityType::kPure, PurityType::kPure),

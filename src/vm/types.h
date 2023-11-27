@@ -32,9 +32,9 @@ constexpr PurityType PurityTypeWriter = PurityType::kUnknown;
 
 std::ostream& operator<<(std::ostream& os, const PurityType& value);
 
-// Given two purity type values, return the purity type of an expression that
-// depends on both.
-PurityType CombinePurityType(PurityType a, PurityType b);
+// Return the purity type of an expression that depends on a set of purity
+// types.
+PurityType CombinePurityType(const std::vector<PurityType>& types);
 
 namespace types {
 struct Void {};

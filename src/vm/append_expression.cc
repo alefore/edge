@@ -29,7 +29,7 @@ class AppendExpression : public Expression {
   }
 
   PurityType purity() override {
-    return CombinePurityType(e0_->purity(), e1_->purity());
+    return CombinePurityType({e0_->purity(), e1_->purity()});
   }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,

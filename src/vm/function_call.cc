@@ -94,17 +94,22 @@ class FunctionCall : public Expression {
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override {
-    PurityType output = func_->purity();
-    for (const NonNull<std::shared_ptr<Expression>>& a : args_.value()) {
-      output = CombinePurityType(a->purity(), output);
-      if (output == PurityType::kUnknown) return output;  // Optimization.
-    }
-    for (const auto& callback_type : func_->Types()) {
-      output = CombinePurityType(
-          std::get<types::Function>(callback_type).function_purity, output);
-      if (output == PurityType::kUnknown) return output;  // Optimization.
-    }
-    return output;
+    return CombinePurityType(container::MaterializeVector(
+        std::vector<std::vector<PurityType>>{
+            {func_->purity()},
+            container::MaterializeVector(
+                args_.value() |
+                std::views::transform(
+                    [](const NonNull<std::shared_ptr<Expression>>& a) {
+                      return a->purity();
+                    })),
+            container::MaterializeVector(
+                func_->Types() |
+                std::views::transform([](const auto& callback_type) {
+                  return std::get<types::Function>(callback_type)
+                      .function_purity;
+                }))} |
+        std::views::join));
   }
 
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
@@ -283,13 +288,14 @@ std::unique_ptr<Expression> NewMethodLookup(
             std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
             PurityType purity() override {
-              return container::Fold(
-                  [](const Type& delegate_type, PurityType output) {
-                    return CombinePurityType(
-                        output, std::get<types::Function>(delegate_type)
-                                    .function_purity);
-                  },
-                  obj_expr_->purity(), external_types_.value());
+              return CombinePurityType(
+                  {obj_expr_->purity(),
+                   CombinePurityType(container::MaterializeVector(
+                       external_types_.value() |
+                       std::views::transform([](const Type& delegate_type) {
+                         return std::get<types::Function>(delegate_type)
+                             .function_purity;
+                       })))});
             }
 
             futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
