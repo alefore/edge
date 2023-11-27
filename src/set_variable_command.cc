@@ -9,6 +9,7 @@
 #include "src/command_mode.h"
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -17,6 +18,7 @@
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
 
+namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using afc::futures::DeleteNotification;
@@ -51,12 +53,18 @@ std::wstring TrimWhitespace(const std::wstring& in) {
 }
 
 Predictor VariablesPredictor() {
-  std::vector<std::wstring> variables;
-  buffer_variables::BoolStruct()->RegisterVariableNames(&variables);
-  buffer_variables::StringStruct()->RegisterVariableNames(&variables);
-  buffer_variables::IntStruct()->RegisterVariableNames(&variables);
-  buffer_variables::DoubleStruct()->RegisterVariableNames(&variables);
-  return PrecomputedPredictor(variables, '_');
+  return PrecomputedPredictor(
+      container::MaterializeVector(
+          std::vector{container::MaterializeVector(
+                          buffer_variables::BoolStruct()->VariableNames()),
+                      container::MaterializeVector(
+                          buffer_variables::StringStruct()->VariableNames()),
+                      container::MaterializeVector(
+                          buffer_variables::IntStruct()->VariableNames()),
+                      container::MaterializeVector(
+                          buffer_variables::DoubleStruct()->VariableNames())} |
+          std::views::join),
+      '_');
 }
 }  // namespace
 

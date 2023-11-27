@@ -195,11 +195,7 @@ class EdgeStruct {
     return it == variables_.end() ? nullptr : it->second.get().get();
   }
 
-  // TODO(trivial, 2023-11-27): Receive `output` by ref.
-  void RegisterVariableNames(std::vector<std::wstring>* output) {
-    std::ranges::copy(variables_ | std::views::keys,
-                      std::back_inserter(*output));
-  }
+  auto VariableNames() const { return variables_ | std::views::keys; }
 
   const std::map<std::wstring,
                  language::NonNull<std::unique_ptr<EdgeVariable<T>>>>&
@@ -245,10 +241,7 @@ class EdgeStruct<std::unique_ptr<T>> {
     return it == variables_.end() ? nullptr : it->second.get();
   }
 
-  void RegisterVariableNames(std::vector<std::wstring>& output) {
-    std::ranges::copy(variables_ | std::views::keys,
-                      std::back_inserter(output));
-  }
+  auto VariableNames() const { return variables_ | std::views::keys; }
 
   const std::map<std::wstring,
                  language::NonNull<std::unique_ptr<EdgeVariable<T>>>>&

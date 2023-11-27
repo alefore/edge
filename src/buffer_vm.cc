@@ -94,9 +94,7 @@ void RegisterBufferFields(
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
   vm::Type buffer_type = object_type.ptr()->type();
 
-  std::vector<std::wstring> variable_names;
-  edge_struct->RegisterVariableNames(&variable_names);
-  for (const std::wstring& name : variable_names) {
+  for (const std::wstring& name : edge_struct->VariableNames()) {
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     // Getter.
