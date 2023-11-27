@@ -6,6 +6,7 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -15,22 +16,24 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
+namespace container = afc::language::container;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::compute_hash;
+using afc::language::MakeHashableIteratorRange;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+
 namespace afc::editor {
 namespace {
-using infrastructure::screen::LineModifierSet;
-using language::compute_hash;
-using language::MakeHashableIteratorRange;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::EmptyString;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
 
 std::optional<size_t> CombineHashes(
     const std::vector<LineWithCursor::Generator>& delegates,
@@ -78,10 +81,10 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
   }
   auto columns_vector =
       std::make_shared<ColumnsVector>(std::move(columns_vector_raw));
-  std::vector<LineWithCursor::Generator::Vector> inputs_by_column;
-  for (auto& c : columns_vector->columns) {
-    inputs_by_column.push_back(std::move(c.lines));
-  }
+  std::vector<LineWithCursor::Generator::Vector> inputs_by_column =
+      container::MaterializeVector(
+          columns_vector->columns |
+          std::views::transform(&ColumnsVector::Column::lines));
 
   LineWithCursor::Generator::Vector output;
   for (size_t i = 0; i < columns_vector->columns.size(); i++) {
