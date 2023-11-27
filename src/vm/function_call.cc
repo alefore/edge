@@ -4,6 +4,7 @@
 
 #include <unordered_set>
 
+#include "src/language/container.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -106,14 +107,13 @@ class FunctionCall : public Expression {
   futures::Value<ValueOrError<EvaluationOutput>> Evaluate(
       Trampoline& trampoline, const Type& type) override {
     DVLOG(3) << "Function call evaluation starts.";
-    std::vector<Type> type_inputs;
-    for (auto& arg : args_.value()) {
-      type_inputs.push_back(arg->Types()[0]);
-    }
-
     return trampoline
         .Bounce(func_, types::Function{.output = type,
-                                       .inputs = std::move(type_inputs),
+                                       .inputs = container::MaterializeVector(
+                                           args_.value() |
+                                           std::views::transform([](auto& arg) {
+                                             return arg->Types()[0];
+                                           })),
                                        .function_purity = purity()})
         .Transform([&trampoline,
                     args_types = args_](EvaluationOutput callback) {
