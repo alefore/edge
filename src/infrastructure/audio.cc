@@ -155,11 +155,11 @@ class PlayerImpl : public Player {
       Protected<MutableData>::Lock data = data_.lock();
       if (data->shutting_down) return false;
       CHECK_LT(data->generators.size(), 100ul);
-      std::vector<Generator*> enabled_generators;
-      for (auto& generator : data->generators)
-        if (generator.start_time <= data->time)
-          enabled_generators.push_back(&generator);
-
+      std::vector<Generator*> enabled_generators = container::MaterializeVector(
+          data->generators | std::views::filter([](const Generator& g) {
+            return g.start_time <= data->time;
+          }) |
+          std::views::transform(Generator & g) { return &g; });
       if (!enabled_generators.empty()) {  // Optimization.
         new_frame = std::move(NewFrame().get_unique());
         for (int i = 0; i < iterations; i++, data->time += delta) {
@@ -174,12 +174,9 @@ class PlayerImpl : public Player {
         data->time += iterations * delta;
       }
 
-      std::vector<Generator> next_generators;
-      for (auto& generator : data->generators)
-        if (generator.end_time > data->time)
-          next_generators.push_back(std::move(generator));
-
-      data->generators.swap(next_generators);
+      EraseIf(data->generators, [](const Generator& g) {
+        return generator.end_time <= data->time;
+      });
       if (data->generators.empty()) data->time = 0.0;
     }
     auto& frame = new_frame == nullptr ? empty_frame_.value() : *new_frame;
