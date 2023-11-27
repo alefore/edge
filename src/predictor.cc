@@ -376,15 +376,12 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     }) |
                     SkipErrors);
 
-                std::set<Path> unique_paths_set;
-                std::vector<Path> unique_paths;
-                for (const auto& search_path : search_paths) {
-                  if (unique_paths_set.insert(search_path).second) {
-                    unique_paths.push_back(search_path);
-                  }
-                }
-
-                search_paths = std::move(unique_paths);
+                std::set<Path> already_seen;
+                search_paths = container::MaterializeVector(
+                    std::move(search_paths) |
+                    std::views::filter([&already_seen](const Path& path) {
+                      return already_seen.insert(path).second;
+                    }));
               }
 
               int matches = 0;
