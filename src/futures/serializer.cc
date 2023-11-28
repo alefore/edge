@@ -20,11 +20,11 @@ void Serializer::Push(Callback callback) {
   // future value in `last_execution_` before we allow the consumer to start
   // running.
   std::exchange(last_execution_, std::move(new_future.value))
-      .SetConsumer(
-          [callback = std::move(callback),
-           consumer = std::move(new_future.consumer)](language::EmptyValue) {
-            callback().SetConsumer(consumer);
-          });
+      .SetConsumer([callback = std::move(callback),
+                    consumer = std::move(new_future.consumer)](
+                       language::EmptyValue) mutable {
+        callback().SetConsumer(std::move(consumer));
+      });
 }
 
 namespace {
@@ -55,21 +55,21 @@ const bool tests_registration = tests::Register(
                 return std::move(futures[i].value);
               });
             CHECK(calls == std::vector<size_t>({0}));
-            futures[0].consumer(EmptyValue());
+            std::move(futures[0].consumer)(EmptyValue());
             CHECK(calls == std::vector<size_t>({0, 1}));
-            futures[2].consumer(EmptyValue());
-            futures[3].consumer(EmptyValue());
+            std::move(futures[2].consumer)(EmptyValue());
+            std::move(futures[3].consumer)(EmptyValue());
             CHECK(calls == std::vector<size_t>({0, 1}));
-            futures[1].consumer(EmptyValue());
+            std::move(futures[1].consumer)(EmptyValue());
             CHECK(calls == std::vector<size_t>({0, 1, 2, 3, 4}));
-            futures[4].consumer(EmptyValue());
+            std::move(futures[4].consumer)(EmptyValue());
             CHECK(calls == std::vector<size_t>({0, 1, 2, 3, 4, 5}));
             serializer.Push([&calls] {
               calls.push_back(6);
               return futures::Past(EmptyValue());
             });
             CHECK(calls == std::vector<size_t>({0, 1, 2, 3, 4, 5}));
-            futures[5].consumer(EmptyValue());
+            std::move(futures[5].consumer)(EmptyValue());
             CHECK(calls == std::vector<size_t>({0, 1, 2, 3, 4, 5, 6}));
           }},
      {.name = L"Reentrant", .callback = [] {
@@ -93,13 +93,13 @@ const bool tests_registration = tests::Register(
           return std::move(futures[2].value);
         });
         CHECK(calls == std::vector<size_t>({0}));
-        futures[0].consumer(EmptyValue());
+        std::move(futures[0].consumer)(EmptyValue());
         CHECK(calls == std::vector<size_t>({0, 1}));
-        futures[1].consumer(EmptyValue());
+        std::move(futures[1].consumer)(EmptyValue());
         CHECK(calls == std::vector<size_t>({0, 1, 2}));
-        futures[2].consumer(EmptyValue());
+        std::move(futures[2].consumer)(EmptyValue());
         CHECK(calls == std::vector<size_t>({0, 1, 2, 3}));
-        futures[3].consumer(EmptyValue());
+        std::move(futures[3].consumer)(EmptyValue());
       }}});
 }
 }  // namespace afc::futures
