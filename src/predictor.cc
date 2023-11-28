@@ -196,7 +196,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
         CHECK(shared_options->progress_channel != nullptr);
         return shared_options
             ->predictor({.editor = shared_options->editor_state,
-                         .input = std::move(input),
+                         .input = input,
                          .predictions = buffer,
                          .source_buffers = shared_options->source_buffers,
                          .progress_channel = *shared_options->progress_channel,
@@ -545,6 +545,7 @@ const bool buffer_tests_registration =
                                .source_buffers = {}})
             .Transform([&](std::optional<PredictResults> predict_results) {
               CHECK(!std::exchange(executed, true));
+              CHECK(predict_results.has_value());
               callback(predict_results.value());
               return futures::Past(EmptyValue());
             });
