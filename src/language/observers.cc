@@ -65,8 +65,9 @@ void Observers::Notify() {
 
 futures::Value<EmptyValue> Observers::NewFuture() const {
   futures::Future<EmptyValue> output;
-  Add(Observers::Once(
-      [consumer = std::move(output.consumer)] { consumer(EmptyValue()); }));
+  Add(Observers::Once([consumer = std::move(output.consumer)] mutable {
+    std::move(consumer)(EmptyValue());
+  }));
   return std::move(output.value);
 }
 
