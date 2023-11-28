@@ -30,8 +30,8 @@ futures::Value<EmptyValue> WorkQueue::Wait(struct timespec time) {
   futures::Future<EmptyValue> value;
   Schedule({.time = time,
             .callback = OnceOnlyFunction<void()>(
-                [consumer = std::move(value.consumer)] {
-                  consumer(EmptyValue());
+                [consumer = std::move(value.consumer)] mutable {
+                  std::move(consumer)(EmptyValue());
                 })});
   return std::move(value.value);
 }
