@@ -617,7 +617,7 @@ class OpenBuffer {
   std::optional<int> child_exit_status_;
   struct timespec time_last_exit_;
   // Optional function to execute when a sub-process exits.
-  std::function<void()> on_exit_handler_;
+  std::optional<language::OnceOnlyFunction<void()>> on_exit_handler_;
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_ =
       concurrent::WorkQueue::New();

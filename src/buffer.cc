@@ -426,7 +426,7 @@ OpenBuffer::PrepareToClose() {
                   LOG(INFO) << name() << ": State persisted.";
                   if (child_pid_.has_value()) {
                     if (Read(buffer_variables::term_on_close)) {
-                      if (on_exit_handler_ != nullptr) {
+                      if (on_exit_handler_.has_value()) {
                         return futures::Past(
                             Error(L"Already waiting for termination."));
                       }
@@ -583,9 +583,9 @@ futures::Value<language::PossibleError> OpenBuffer::EndOfFile() {
               clock_gettime(0, &time_last_exit_);
 
               child_pid_ = std::nullopt;
-              if (on_exit_handler_) {
-                on_exit_handler_();
-                on_exit_handler_ = nullptr;
+              if (on_exit_handler_.has_value()) {
+                std::invoke(std::move(on_exit_handler_).value());
+                on_exit_handler_ = std::nullopt;
               }
               return futures::Past(Success());
             });
