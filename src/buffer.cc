@@ -863,7 +863,7 @@ void OpenBuffer::AppendLines(
   }
 }
 
-void OpenBuffer::Reload() {
+futures::Value<PossibleError> OpenBuffer::Reload() {
   display_data_ = MakeNonNullUnique<BufferDisplayData>();
 
   if (child_pid_.has_value()) {
@@ -871,7 +871,7 @@ void OpenBuffer::Reload() {
     file_system_driver().Kill(ProcessId(-child_pid_->read()),
                               UnixSignal(SIGHUP));
     Set(buffer_variables::reload_after_exit, true);
-    return;
+    return futures::Past(Success());
   }
 
   switch (reload_state_) {
@@ -880,25 +880,30 @@ void OpenBuffer::Reload() {
       break;
     case ReloadState::kOngoing:
       reload_state_ = ReloadState::kPending;
-      return;
+      return futures::Past(Error(L"Reload is already in progress."));
     case ReloadState::kPending:
-      return;
+      return futures::Past(
+          Error(L"Reload is already in progress and new one scheduled."));
   }
 
   auto paths = editor().edge_path();
 
-  futures::ForEach(
-      paths.begin(), paths.end(),
-      [this](Path dir) {
-        return EvaluateFile(Path::Join(dir, ValueOrDie(Path::FromString(
-                                                L"hooks/buffer-reload.cc"))))
-            .Transform([](gc::Root<Value>)
+  return futures::ForEach(
+             paths.begin(), paths.end(),
+             [this](Path dir) {
+               return EvaluateFile(
+                          Path::Join(dir, ValueOrDie(Path::FromString(
+                                              L"hooks/buffer-reload.cc"))))
+                   .Transform(
+                       [](gc::Root<Value>)
                            -> futures::ValueOrError<IterationControlCommand> {
-              return futures::Past(IterationControlCommand::kContinue);
-            })
-            .ConsumeErrors(
-                [](Error) { return Past(IterationControlCommand::kContinue); });
-      })
+                         return futures::Past(
+                             IterationControlCommand::kContinue);
+                       })
+                   .ConsumeErrors([](Error) {
+                     return Past(IterationControlCommand::kContinue);
+                   });
+             })
       .Transform([this](IterationControlCommand) {
         if (editor().exit_value().has_value()) return futures::Past(Success());
         SetDiskState(DiskState::kCurrent);

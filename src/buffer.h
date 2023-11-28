@@ -172,7 +172,7 @@ class OpenBuffer {
   void ReadData();
   void ReadErrorData();
 
-  void Reload();
+  futures::Value<language::PossibleError> Reload();
   // Signal that EndOfFile was received (in the input that the editor is reading
   // from fd_).
   futures::Value<language::PossibleError> EndOfFile();
@@ -478,8 +478,6 @@ class OpenBuffer {
 
   Log& log() const;
 
-  void UpdateBackup();
-
   /////////////////////////////////////////////////////////////////////////////
   // Display
   BufferDisplayData& display_data();
@@ -579,6 +577,7 @@ class OpenBuffer {
   SeekInput NewSeekInput(Structure structure, Direction direction,
                          language::text::LineColumn* position) const;
   void OnCursorMove();
+  void UpdateBackup();
 
   const Options options_;
   const language::NonNull<std::unique_ptr<transformation::Input::Adapter>>
