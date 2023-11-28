@@ -36,6 +36,7 @@
 #include "src/concurrent/protected.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/function_traits.h"
+#include "src/language/once_only_function.h"
 
 namespace afc::futures {
 
@@ -54,7 +55,7 @@ template <typename T>
 struct TransformTraitsCallableReturn {
   using Type = Value<T>;
   static void Feed(T output, typename Value<T>::Consumer consumer) {
-    consumer(std::move(output));
+    std::move(consumer)(std::move(output));
   }
 };
 
@@ -150,9 +151,10 @@ class Value {
     using Traits = TransformTraits<Type, Callable>;
     Future<typename Traits::ReturnType::type> output;
     std::move(*this).SetConsumer(
-        [consumer = output.consumer,
+        [consumer = std::move(output.consumer),
          callable = std::move(callable)](Type initial_value) mutable {
-          Traits::FeedValue(std::move(initial_value), callable, consumer);
+          Traits::FeedValue(std::move(initial_value), callable,
+                            std::move(consumer));
         });
     return std::move(output.value);
   }
@@ -186,25 +188,23 @@ class Value {
     }
 
     void Feed(Type final_value) {
-      Consumer consumer;
-
-      data_.lock([&](Data& data) {
+      auto consumer = data_.lock([&](Data& data) -> std::optional<Consumer> {
         CHECK(!data.value.has_value());
-        CHECK(!data.consumer.has_value() || data.consumer.value() != nullptr);
         if (data.consumer.has_value()) {
-          std::swap(consumer, *data.consumer);
+          return std::exchange(data.consumer, std::nullopt);
         } else {
           data.value.emplace(std::move(final_value));
+          return std::nullopt;
         }
       });
-      if (consumer != nullptr) consumer(std::move(final_value));
+      if (consumer.has_value()) std::move (*consumer)(std::move(final_value));
     }
 
     void SetConsumer(Consumer final_consumer) {
       data_.lock([&](Data& data) {
         CHECK(!data.consumer.has_value());
         if (data.value.has_value()) {
-          final_consumer(std::move(*data.value));
+          std::move(final_consumer)(std::move(*data.value));
           data.consumer = nullptr;
           data.value = std::nullopt;
         } else {
@@ -284,7 +284,7 @@ auto Value<Type>::ConsumeErrors(Callable error_callback) && {
 template <typename Type>
 static Value<Type> Past(Type value) {
   Future<Type> output;
-  output.consumer(std::move(value));
+  std::move(output.consumer)(std::move(value));
   return std::move(output.value);
 }
 
