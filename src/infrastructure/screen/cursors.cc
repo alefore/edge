@@ -602,7 +602,7 @@ futures::Value<EmptyValue> CursorsTracker::ApplyTransformationToCursors(
     if (data->cursors.empty()) {
       data->cursors.swap(&already_applied_cursors_);
       LOG(INFO) << "Current cursor at: " << *data->cursors.active();
-      data->done(EmptyValue());
+      std::move(data->done)(EmptyValue());
       return;
     }
     VLOG(6) << "Adjusting cursor: " << *data->cursors.begin();
