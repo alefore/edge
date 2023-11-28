@@ -14,7 +14,9 @@ using language::NonNull;
 DeleteNotification::DeleteNotification()
     : DeleteNotification(futures::Future<EmptyValue>()) {}
 
-DeleteNotification::~DeleteNotification() { consumer_(EmptyValue()); }
+DeleteNotification::~DeleteNotification() {
+  std::move(consumer_)(EmptyValue());
+}
 
 DeleteNotification::Value DeleteNotification::listenable_value() const {
   return listenable_value_;
