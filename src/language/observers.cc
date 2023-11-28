@@ -65,9 +65,13 @@ void Observers::Notify() {
 
 futures::Value<EmptyValue> Observers::NewFuture() const {
   futures::Future<EmptyValue> output;
-  Add(Observers::Once([consumer = std::move(output.consumer)] mutable {
-    std::move(consumer)(EmptyValue());
-  }));
+  // TODO(2023-11-28, P1): This is ugly, don't use std::make_shared. Make
+  // `Observers::Once` receive a OnceOnlyFunction directly?
+  Add(Observers::Once(
+      [consumer = std::make_shared<futures::Value<EmptyValue>::Consumer>(
+           std::move(output.consumer))] mutable {
+        std::invoke(std::move(*consumer), EmptyValue());
+      }));
   return std::move(output.value);
 }
 
