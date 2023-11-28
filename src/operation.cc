@@ -459,11 +459,13 @@ class State {
       transformation::Variant transformation) {
     futures::Future<UndoCallback> output;
     serializer_.Push([&editor_state = editor_state_, application_type,
-                      consumer = output.consumer, transformation] {
+                      consumer = std::move(output.consumer),
+                      transformation] mutable {
       return ExecuteTransformation(editor_state, application_type,
                                    transformation)
-          .Transform([consumer](UndoCallback undo_callback) {
-            consumer(std::move(undo_callback));
+          .Transform([consumer = std::move(consumer)](
+                         UndoCallback undo_callback) mutable {
+            std::move(consumer)(std::move(undo_callback));
             return Past(EmptyValue());
           });
     });
