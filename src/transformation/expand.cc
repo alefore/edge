@@ -212,7 +212,7 @@ bool predictor_transformation_tests_register = tests::Register(
         predictions_buffer->EndOfFile();
         LOG(INFO) << "Notifying inner future";
         CHECK(!final_value.has_value());
-        inner_future.consumer(
+        std::move(inner_future.consumer)(
             PredictorOutput{.longest_prefix = ColumnNumberDelta(2),
                             .contents = SortedLineSequenceUniqueLines(
                                 SortedLineSequence(LineSequence()))});
