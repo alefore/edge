@@ -64,11 +64,15 @@ class ThreadPoolWithWorkQueue {
   template <typename Callable>
   auto Run(Callable callable) {
     futures::Future<decltype(callable())> output;
-    thread_pool()->RunIgnoringResult(
-        [callable, consumer = output.consumer, work_queue = work_queue_] {
-          work_queue->Schedule(WorkQueue::Callback{
-              .callback = std::bind_front(consumer, callable())});
-        });
+    thread_pool()->RunIgnoringResult([callable,
+                                      consumer = std::move(output.consumer),
+                                      work_queue = work_queue_] mutable {
+      work_queue->Schedule(
+          WorkQueue::Callback{.callback = [consumer = std::move(consumer),
+                                           value = callable()] mutable {
+            std::invoke(std::move(consumer), std::move(value));
+          }});
+    });
     return std::move(output.value);
   }
 
