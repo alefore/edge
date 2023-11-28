@@ -52,7 +52,7 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
     // callbacks from the priority_queue (because std::priority_queue doesn't
     // provide a way to extract elements in a way that allows moving out of
     // them).
-    mutable language::OnceOnlyFunction<void()> callback;
+    mutable language::OnceOnlyFunction<void()> callback = [] {};
   };
 
   void Schedule(Callback callback);
