@@ -10,6 +10,7 @@
 
 #include "src/futures/futures.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/once_only_function.h"
 
 namespace afc::futures {
 // Receives multiple callbacks concurrently, each returning a future. Ensures
@@ -23,7 +24,8 @@ namespace afc::futures {
 // Push.
 class Serializer {
  public:
-  using Callback = std::function<futures::Value<language::EmptyValue>()>;
+  using Callback =
+      language::OnceOnlyFunction<futures::Value<language::EmptyValue>()>;
   void Push(Callback callback);
 
  private:

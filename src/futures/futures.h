@@ -37,6 +37,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/function_traits.h"
 #include "src/language/once_only_function.h"
+#include "src/language/overload.h"
 
 namespace afc::futures {
 
@@ -136,7 +137,7 @@ class Value {
     });
   }
 
-  using Consumer = std::function<void(Type)>;
+  using Consumer = language::OnceOnlyFunction<void(Type)>;
   using type = Type;
 
   bool has_value() const { return data_->has_value(); }
@@ -190,22 +191,32 @@ class Value {
     void Feed(Type final_value) {
       auto consumer = data_.lock([&](Data& data) -> std::optional<Consumer> {
         CHECK(!data.value.has_value());
-        if (data.consumer.has_value()) {
-          return std::exchange(data.consumer, std::nullopt);
-        } else {
-          data.value.emplace(std::move(final_value));
-          return std::nullopt;
-        }
+        return std::visit(
+            language::overload{
+                [&](ConsumerNotReceived) -> std::optional<Consumer> {
+                  data.value.emplace(std::move(final_value));
+                  return std::nullopt;
+                },
+                [&](Consumer consumer_value) -> std::optional<Consumer> {
+                  data.consumer = ConsumerExecuted{};
+                  return consumer_value;
+                },
+                [](ConsumerExecuted) -> std::optional<Consumer> {
+                  LOG(FATAL) << "Received value after consumer has executed.";
+                  return std::nullopt;
+                },
+            },
+            data.consumer);
       });
       if (consumer.has_value()) std::move (*consumer)(std::move(final_value));
     }
 
     void SetConsumer(Consumer final_consumer) {
       data_.lock([&](Data& data) {
-        CHECK(!data.consumer.has_value());
+        CHECK(std::holds_alternative<ConsumerNotReceived>(data.consumer));
         if (data.value.has_value()) {
           std::move(final_consumer)(std::move(*data.value));
-          data.consumer = nullptr;
+          data.consumer = ConsumerExecuted{};
           data.value = std::nullopt;
         } else {
           data.consumer = std::move(final_consumer);
@@ -214,10 +225,11 @@ class Value {
     }
 
    private:
+    struct ConsumerNotReceived {};
+    struct ConsumerExecuted {};
     struct Data {
-      // std::nullopt before a consumer is set. nullptr when a consumer has
-      // already been executed.
-      std::optional<Consumer> consumer;
+      std::variant<ConsumerNotReceived, Consumer, ConsumerExecuted> consumer =
+          ConsumerNotReceived{};
       std::optional<Type> value;
     };
     concurrent::Protected<Data> data_;
@@ -236,14 +248,6 @@ struct Future {
  public:
   Future() : Future(std::make_shared<FutureData>()) {}
 
-  // TODO(2022-06-10): Replace this with an instance of some class that
-  // references the FutureData. The corresponding method in that class should
-  // contain a single method with the && annotation.
-  //
-  // This is hard: many functions capture consumers; the requirement on
-  // std::function to be copyable makes that difficult. It may become easier
-  // once std::move_only_function (from C++23) becomes available; once that's
-  // in, we can use that for the callbacks.
   typename Value<Type>::Consumer consumer;
   Value<Type> value;
 
