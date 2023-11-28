@@ -185,9 +185,14 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   CHECK(!shared_options->abort_value.has_value());
 
   auto input = GetPredictInput(*shared_options);
+  // TODO(2023-11-28, P1): Using std::make_shared below is ugly. We should find
+  // a way to only notify elsewhere, such as based on the return value of a
+  // call to EndOfFile or some such.
   buffer_options.generate_contents =
       [shared_options = std::move(shared_options), input,
-       consumer = std::move(output.consumer)](OpenBuffer& buffer) {
+       consumer = std::make_shared<
+           futures::Value<std::optional<PredictResults>>::Consumer>(
+           std::move(output.consumer))](OpenBuffer& buffer) mutable {
         CHECK(shared_options->progress_channel != nullptr);
         return shared_options
             ->predictor({.editor = shared_options->editor_state,
@@ -196,19 +201,23 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                          .source_buffers = shared_options->source_buffers,
                          .progress_channel = *shared_options->progress_channel,
                          .abort_value = shared_options->abort_value})
-            .Transform([shared_options, input, &buffer, consumer](
-                           PredictorOutput predictor_output) -> PossibleError {
-              shared_options->progress_channel = nullptr;
-              buffer.set_current_cursor(LineColumn());
-              DECLARE_OR_RETURN(auto results,
-                                BuildResults(buffer, predictor_output,
-                                             shared_options->abort_value));
-              consumer(GetPredictInput(*shared_options) == input &&
-                               !shared_options->abort_value.has_value()
-                           ? std::optional<PredictResults>(results)
-                           : std::nullopt);
-              return Success();
-            });
+            .Transform(
+                [shared_options, input, &buffer,
+                 consumer = std::move(consumer)](
+                    PredictorOutput predictor_output) mutable -> PossibleError {
+                  shared_options->progress_channel = nullptr;
+                  buffer.set_current_cursor(LineColumn());
+                  DECLARE_OR_RETURN(auto results,
+                                    BuildResults(buffer, predictor_output,
+                                                 shared_options->abort_value));
+                  CHECK(consumer != nullptr);
+                  std::invoke(std::move(*consumer),
+                              GetPredictInput(*shared_options) == input &&
+                                      !shared_options->abort_value.has_value()
+                                  ? std::optional<PredictResults>(results)
+                                  : std::nullopt);
+                  return Success();
+                });
       };
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
