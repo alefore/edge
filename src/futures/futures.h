@@ -12,7 +12,7 @@
 // When the async work is done:
 //
 //   X my_x = ComputeX(...);
-//   consumer(my_x);
+//   std::move(consumer)(my_x);
 //
 // The original caller will have returned:
 //
@@ -93,13 +93,13 @@ struct TransformTraits<language::ValueOrError<InitialType>, Callable> {
   static void FeedValue(language::ValueOrError<InitialType> initial_value,
                         Callable& callable,
                         typename ReturnType::Consumer consumer) {
-    std::visit(
-        language::overload{[&](language::Error error) { consumer(error); },
-                           [&](InitialType value) {
-                             ReturnTraits::Feed(callable(std::move(value)),
-                                                std::move(consumer));
-                           }},
-        std::move(initial_value));
+    std::visit(language::overload{
+                   [&](language::Error error) { std::move(consumer)(error); },
+                   [&](InitialType value) {
+                     ReturnTraits::Feed(callable(std::move(value)),
+                                        std::move(consumer));
+                   }},
+               std::move(initial_value));
   }
 };
 
@@ -268,13 +268,13 @@ auto Value<Type>::ConsumeErrors(Callable error_callback) && {
   Future<typename std::variant_alternative_t<0, Type>> output;
   std::move(*this).SetConsumer([consumer = std::move(output.consumer),
                                 error_callback = std::move(error_callback)](
-                                   Type value_or_error) {
+                                   Type value_or_error) mutable {
     std::visit(language::overload{
                    [&](language::Error error) {
-                     error_callback(error).SetConsumer(consumer);
+                     error_callback(error).SetConsumer(std::move(consumer));
                    },
                    [&](typename std::variant_alternative_t<0, Type> immediate) {
-                     consumer(std::move(immediate));
+                     std::invoke(std::move(consumer), std::move(immediate));
                    }},
                std::move(value_or_error));
   });
