@@ -13,6 +13,9 @@ template <typename Ret, typename... Args>
 class OnceOnlyFunction<Ret(Args...)> {
   std::move_only_function<Ret(Args...)> func_;
 
+  template <typename Other>
+  friend class OnceOnlyFunction;
+
  public:
   template <typename Callable>
   OnceOnlyFunction(Callable&& callable)
@@ -20,7 +23,10 @@ class OnceOnlyFunction<Ret(Args...)> {
     CHECK(func_ != nullptr);
   }
 
-  OnceOnlyFunction(OnceOnlyFunction&& other) noexcept = default;
+  template <typename Other>
+  OnceOnlyFunction(OnceOnlyFunction<Other>&& other)
+      : OnceOnlyFunction(std::move(other.func_)) {}
+
   OnceOnlyFunction(const OnceOnlyFunction&) = delete;
   OnceOnlyFunction& operator=(const OnceOnlyFunction&) = delete;
   OnceOnlyFunction& operator=(OnceOnlyFunction&& other) noexcept = default;
