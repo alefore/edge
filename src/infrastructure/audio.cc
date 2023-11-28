@@ -4,13 +4,17 @@
 
 #include "src/concurrent/protected.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/container.h"
 #include "src/language/safe_types.h"
 
-namespace afc::infrastructure::audio {
-using concurrent::Protected;
-using language::MakeNonNullUnique;
-using language::NonNull;
+namespace container = afc::language::container;
 
+using afc::concurrent::Protected;
+using afc::language::EraseIf;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+
+namespace afc::infrastructure::audio {
 struct Generator {
   using Callback = std::function<SpeakerValue(audio::Player::Time)>;
   Callback callback;
@@ -156,10 +160,10 @@ class PlayerImpl : public Player {
       if (data->shutting_down) return false;
       CHECK_LT(data->generators.size(), 100ul);
       std::vector<Generator*> enabled_generators = container::MaterializeVector(
-          data->generators | std::views::filter([](const Generator& g) {
+          data->generators | std::views::filter([&](const Generator& g) {
             return g.start_time <= data->time;
           }) |
-          std::views::transform(Generator & g) { return &g; });
+          std::views::transform([](Generator& g) { return &g; }));
       if (!enabled_generators.empty()) {  // Optimization.
         new_frame = std::move(NewFrame().get_unique());
         for (int i = 0; i < iterations; i++, data->time += delta) {
@@ -174,9 +178,8 @@ class PlayerImpl : public Player {
         data->time += iterations * delta;
       }
 
-      EraseIf(data->generators, [](const Generator& g) {
-        return generator.end_time <= data->time;
-      });
+      EraseIf(data->generators,
+              [&](const Generator& g) { return g.end_time <= data->time; });
       if (data->generators.empty()) data->time = 0.0;
     }
     auto& frame = new_frame == nullptr ? empty_frame_.value() : *new_frame;
