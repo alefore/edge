@@ -9,6 +9,7 @@
 #include "src/concurrent/protected.h"
 #include "src/futures/futures.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/once_only_function.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 
@@ -22,6 +23,17 @@ class ListenableValue {
  public:
   using Listener = std::function<void(const Type&)>;
 
+ private:
+  struct Data {
+    // Once it becomes set, never changes.
+    std::optional<Type> value;
+    std::vector<Listener> listeners;
+  };
+
+  language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_ =
+      language::MakeNonNullShared<concurrent::Protected<Data>>();
+
+ public:
   ListenableValue(Value<Type> value) {
     std::move(value).Transform([shared_data = data_](Type immediate_value) {
       std::vector<std::function<void()>> callbacks;
@@ -30,11 +42,13 @@ class ListenableValue {
         data.value = std::move(immediate_value);
         for (Listener& l : data.listeners) {
           callbacks.push_back(
-              [l = std::move(l), &value = data.value.value()] { l(value); });
+              [l = std::move(l), &value = data.value.value()] mutable {
+                std::move(l)(value);
+              });
         }
         data.listeners.clear();
       });
-      for (auto& l : callbacks) l();
+      for (auto& l : callbacks) std::move(l)();
       return language::EmptyValue();
     });
   }
@@ -42,9 +56,9 @@ class ListenableValue {
   void AddListener(Listener listener) const {
     data_->lock([&](Data& data) {
       if (data.value.has_value()) {
-        listener(data.value.value());
+        std::move(listener)(data.value.value());
       } else {
-        data.listeners.push_back(listener);
+        data.listeners.push_back(std::move(listener));
       }
     });
   }
@@ -71,14 +85,6 @@ class ListenableValue {
   }
 
  private:
-  struct Data {
-    // Once it becomes set, never changes.
-    std::optional<Type> value;
-    std::vector<std::function<void(const Type&)>> listeners;
-  };
-
-  language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data_ =
-      language::MakeNonNullShared<concurrent::Protected<Data>>();
 };
 
 template <typename T>
