@@ -25,6 +25,7 @@ extern "C" {
 #include "src/directory_listing.h"
 #include "src/editor.h"
 #include "src/infrastructure/dirname.h"
+#include "src/infrastructure/execution.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
@@ -39,6 +40,7 @@ extern "C" {
 #include "src/vm/callbacks.h"
 #include "src/vm/value.h"
 
+namespace execution = afc::infrastructure::execution;
 namespace gc = afc::language::gc;
 
 using afc::concurrent::ThreadPoolWithWorkQueue;
@@ -62,6 +64,7 @@ using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -609,5 +612,114 @@ futures::Value<gc::Root<OpenBuffer>> OpenAnonymousBuffer(
             [buffer_root](EmptyValue) { return buffer_root; });
       });
 }
+
+namespace {
+using ::operator<<;
+using afc::infrastructure::execution::ExecutionEnvironment;
+using afc::infrastructure::execution::ExecutionEnvironmentOptions;
+
+class TestDriver {
+  NonNull<std::unique_ptr<EditorState>> editor_ = EditorForTests();
+
+  std::vector<NonNull<std::shared_ptr<LazyString>>> paths_to_unlink_ = {};
+
+  bool stop_ = false;
+  ExecutionEnvironment execution_environment_ =
+      ExecutionEnvironment(ExecutionEnvironmentOptions{
+          .stop_check = [&]() { return stop_; },
+          .get_next_alarm = [&] { return editor_->WorkQueueNextExecution(); },
+          .on_signals = [] { LOG(FATAL) << "Unexpected signals received."; },
+          .on_iteration =
+              [&](execution::IterationHandler& handle) {
+                editor_->ExecutionIteration(handle);
+              }});
+
+ public:
+  ~TestDriver() {
+    for (NonNull<std::shared_ptr<LazyString>> path : paths_to_unlink_)
+      CHECK_NE(unlink(ToByteString(path->ToString()).c_str()), -1);
+  }
+
+  NonNull<std::shared_ptr<LazyString>> NewTmpFile(
+      const LineSequence& contents) {
+    char* path = strdup("/tmp/edge-tests-buffersave-simplesave-XXXXXX");
+    int tmp_fd = mkstemp(path);
+    CHECK(tmp_fd != -1) << path << ": " << strerror(errno);
+    NonNull<std::shared_ptr<LazyString>> path_str =
+        NewLazyString(FromByteString(path));
+    paths_to_unlink_.push_back(path_str);
+    free(path);
+
+    std::string separator;
+    contents.ForEach([tmp_fd, &separator](std::wstring line) {
+      std::string line_str = separator + ToByteString(line);
+      separator = "\n";
+      write(tmp_fd, line_str.c_str(), line_str.size());
+    });
+    close(tmp_fd);
+
+    return path_str;
+  }
+
+  futures::Value<ValueOrError<gc::Root<OpenBuffer>>> OpenAndReadPath(
+      NonNull<std::shared_ptr<LazyString>> path,
+      std::optional<LineSequence> expected_content) {
+    return OpenFileIfFound(
+               OpenFileOptions{.editor_state = editor_.value(),
+                               .path = ValueOrDie(Path::FromString(path))})
+        .Transform([expected_content](gc::Root<OpenBuffer> buffer) {
+          return buffer.ptr()->WaitForEndOfFile().Transform([expected_content,
+                                                             buffer](
+                                                                EmptyValue) {
+            buffer.ptr()->contents().ForEach(
+                [](std::wstring line) { LOG(INFO) << "Read line: " << line; });
+            if (expected_content.has_value()) {
+              LOG(INFO) << "Validating, length: " << expected_content->size();
+              CHECK_EQ(buffer.ptr()->lines_size(), expected_content->size());
+              CHECK(buffer.ptr()->contents().snapshot().EveryLine(
+                  [expected_content](
+                      LineNumber i,
+                      const language::NonNull<std::shared_ptr<const Line>>&
+                          line) {
+                    CHECK_EQ(
+                        ToByteString(line->contents()->ToString()),
+                        ToByteString(
+                            expected_content->at(i)->contents()->ToString()));
+                    return true;
+                  }));
+            }
+            return futures::Past(Success(buffer));
+          });
+        });
+  }
+
+  PossibleError WaitFor(futures::Value<PossibleError> value) {
+    while (!value.has_value()) editor_->ExecutePendingWork();
+    return value.Get().value();
+  }
+
+  void Stop() {
+    CHECK(!stop_);
+    stop_ = true;
+  }
+
+  void Run() { execution_environment_.Run(); };
+};
+
+const bool buffer_positions_tests_registration = tests::Register(
+    L"BufferSave",
+    {{.name = L"Load", .callback = [] {
+        TestDriver driver;
+        LineSequence contents =
+            LineSequence::ForTests({L"Alejandro", L"Forero"});
+        driver.OpenAndReadPath(driver.NewTmpFile(contents), contents)
+            .Transform([&](gc::Root<OpenBuffer>) {
+              driver.Stop();
+              return Success();
+            });
+        driver.Run();
+      }}});
+
+}  // namespace
 
 }  // namespace afc::editor
