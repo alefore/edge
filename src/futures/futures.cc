@@ -16,8 +16,8 @@ Value<language::ValueOrError<EmptyValue>> IgnoreErrors(
     Value<PossibleError> value) {
   Future<PossibleError> output;
   std::move(value).SetConsumer(
-      [consumer = std::move(output.consumer)](const PossibleError&) {
-        consumer(Success());
+      [consumer = std::move(output.consumer)](const PossibleError&) mutable {
+        std::move(consumer)(Success());
       });
   return std::move(output.value);
 }
@@ -77,7 +77,7 @@ const bool futures_transform_tests_registration = tests::Register(
                    .SetConsumer([&](language::ValueOrError<bool> result) {
                      final_result = result;
                    });
-               inner_value.consumer(Error(L"xyz"));
+               std::move(inner_value.consumer)(Error(L"xyz"));
                CHECK(final_result.has_value());
              }},
         {.name = L"CorrectlyReturnsError",
@@ -90,7 +90,7 @@ const bool futures_transform_tests_registration = tests::Register(
                    .SetConsumer([&](language::ValueOrError<bool> result) {
                      final_result = result;
                    });
-               inner_value.consumer(Error(L"xyz"));
+               std::move(inner_value.consumer)(Error(L"xyz"));
                CHECK(final_result.has_value());
                CHECK_EQ(std::get<Error>(final_result.value()), Error(L"xyz"));
              }},
@@ -111,7 +111,7 @@ const bool futures_transform_tests_registration = tests::Register(
                Future<int> int_future;
                Value<V> variant_value = std::move(int_future.value);
                CHECK(!variant_value.Get().has_value());
-               int_future.consumer(6);
+               std::move(int_future.consumer)(6);
                std::optional<V> immediate_value = variant_value.Get();
                CHECK_EQ(std::get<int>(immediate_value.value()), 6);
                std::optional<V> value_received;
@@ -137,7 +137,7 @@ const bool futures_on_error_tests_registration = tests::Register(
                   return futures::Past(error);
                 });
             CHECK(!executed);
-            internal.consumer(Error(L"Foo"));
+            std::move(internal.consumer)(Error(L"Foo"));
             CHECK(executed);
           }},
      {.name = L"OverridesReturnedValue",
@@ -164,14 +164,15 @@ const bool double_registration_tests_registration = tests::Register(
       .callback =
           [] {
             futures::Future<int> object;
-            object.consumer(0);
+            std::move(object.consumer)(0);
             CHECK(object.value.Get().has_value());
             CHECK(object.value.has_value());
-            tests::ForkAndWaitForFailure([&] { object.consumer(0); });
+            tests::ForkAndWaitForFailure(
+                [&] { std::move(object.consumer)(0); });
           }},
      {.name = L"DoubleConsumerWithGet", .callback = [] {
         futures::Future<int> object;
-        object.consumer(0);
+        std::move(object.consumer)(0);
         CHECK(object.value.Get().has_value());
         CHECK(object.value.has_value());
         tests::ForkAndWaitForFailure([&] { object.consumer(0); });
