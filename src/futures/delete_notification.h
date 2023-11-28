@@ -29,7 +29,7 @@ class DeleteNotification {
  private:
   DeleteNotification(futures::Future<language::EmptyValue> future);
 
-  const futures::Value<language::EmptyValue>::Consumer consumer_;
+  futures::Value<language::EmptyValue>::Consumer consumer_;
   const ListenableValue<language::EmptyValue> listenable_value_;
 };
 }  // namespace afc::futures
