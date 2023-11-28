@@ -175,7 +175,7 @@ const bool double_registration_tests_registration = tests::Register(
         std::move(object.consumer)(0);
         CHECK(object.value.Get().has_value());
         CHECK(object.value.has_value());
-        tests::ForkAndWaitForFailure([&] { object.consumer(0); });
+        tests::ForkAndWaitForFailure([&] { std::move(object.consumer)(0); });
       }}});
 }  // namespace
 
