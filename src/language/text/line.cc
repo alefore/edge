@@ -88,7 +88,7 @@ const bool line_tests_registration = tests::Register(
                               .value = std::move(future.value)});
         Line line = std::move(builder).Build();
         CHECK(line.metadata()->ToString() == L"Foo");
-        future.consumer(NewLazyString(L"Bar"));
+        std::move(future.consumer)(NewLazyString(L"Bar"));
         CHECK(line.metadata()->ToString() == L"Bar");
       }}});
 }
