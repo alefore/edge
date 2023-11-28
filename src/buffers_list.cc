@@ -524,7 +524,7 @@ ValueOrError<std::vector<ColumnNumberDelta>> DivideLine(
 
   std::vector<ColumnNumberDelta> output(
       columns, (total_length - total_padding) / columns);
-  CHECK_GE(output.size(), 0ul);
+  CHECK_GT(output.size(), 0ul);
   ColumnNumberDelta remaining_characters =
       total_length - output[0] * columns - total_padding;
   CHECK_GE(remaining_characters, ColumnNumberDelta());
