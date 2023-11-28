@@ -21,7 +21,7 @@ namespace afc::futures {
 template <typename Type>
 class ListenableValue {
  public:
-  using Listener = std::function<void(const Type&)>;
+  using Listener = language::OnceOnlyFunction<void(const Type&)>;
 
  private:
   struct Data {
@@ -36,7 +36,7 @@ class ListenableValue {
  public:
   ListenableValue(Value<Type> value) {
     std::move(value).Transform([shared_data = data_](Type immediate_value) {
-      std::vector<std::function<void()>> callbacks;
+      std::vector<language::OnceOnlyFunction<void()>> callbacks;
       shared_data->lock([&](Data& data) {
         CHECK(!data.value.has_value());
         data.value = std::move(immediate_value);
