@@ -23,7 +23,7 @@ void Serializer::Push(Callback callback) {
       .SetConsumer([callback = std::move(callback),
                     consumer = std::move(new_future.consumer)](
                        language::EmptyValue) mutable {
-        callback().SetConsumer(std::move(consumer));
+        std::move(callback)().SetConsumer(std::move(consumer));
       });
 }
 
