@@ -180,10 +180,9 @@ const bool buffer_tests_registration = tests::Register(
     });
 
 const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
-  auto callback = [](std::wstring code) {
+  auto callback = [](std::wstring code, std::wstring name = L"") {
     return tests::Test{
-        .name = code.empty() ? L"<empty>" : (L"Code: " + code),
-        .callback = [code] {
+        .name = name.empty() ? (L"Code: " + code) : name, .callback = [code] {
           NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
           auto Reclaim = [&editor] {
             // We call Reclaim more than once because the first call enables
@@ -245,7 +244,7 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
         }};
   };
   return std::vector<tests::Test>({
-      callback(L""),
+      callback(L"", L"empty"),
       callback(L"5"),
       callback(L"5.2e8"),
       callback(L"\"foo\";"),
@@ -266,7 +265,8 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
       callback(L"-5;"),
       callback(L"string Foo(number x, number y, string z) { "
                L"while (x > y) x--; return z; }\n"
-               L"Foo(10, 0.5, \"blah\");"),
+               L"Foo(10, 0.5, \"blah\");",
+               L"WhileLoopAndReturn"),
       callback(L"string Foo() { string x = \"foo\"; return x; }"),
       callback(L"string x = \"foo\"; x = x + \"bar\" * 2;"),
       callback(L"number x = 10; while (x > 10) x--;"),
