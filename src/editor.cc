@@ -733,7 +733,10 @@ futures::Value<EmptyValue> EditorState::ProcessInput(
     size_t start_index) {
   while (start_index < input->size()) {
     if (auto handler = keyboard_redirect().get(); handler != nullptr) {
-      handler->ProcessInput(input->at(start_index++));
+      size_t advance = handler->Receive(*input, start_index);
+      CHECK_GT(advance, 0ul);
+      start_index += advance;
+      CHECK_LE(start_index, input->size());
       continue;
     }
 

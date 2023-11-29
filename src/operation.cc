@@ -366,7 +366,7 @@ class State {
     static Tracker tracker(L"State::RunUndoCallback");
     auto call = tracker.Call();
     const EditorState& editor = editor_state_;
-    const std::shared_ptr<EditorMode> keyboard_redirect =
+    const std::shared_ptr<InputReceiver> keyboard_redirect =
         editor.keyboard_redirect();
     serializer_.Push([callback = std::move(undo_callback_)]() {
       return Pointer(callback).Reference()();

@@ -73,6 +73,8 @@ src/directory_listing.h \
 src/directory_listing.cc \
 src/editor.cc \
 src/editor.h \
+src/editor_mode.cc \
+src/editor_mode.h \
 src/editor_vm.cc \
 src/editor_vm.h \
 src/editor_variables.cc \

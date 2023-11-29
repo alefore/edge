@@ -219,7 +219,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     }
 
     std::shared_ptr<const Line> line_contents = buffer.LineAt(line);
-    std::shared_ptr<EditorMode> editor_keyboard_redirect =
+    std::shared_ptr<InputReceiver> editor_keyboard_redirect =
         buffer.editor().keyboard_redirect();
     LineWithCursor::Generator generator =
         LineWithCursor::Generator::New(language::CaptureAndHash(
