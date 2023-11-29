@@ -566,7 +566,7 @@ void OpenBuffer::AppendEmptyLine() {
   contents_.push_back(NonNull<std::shared_ptr<Line>>());
 }
 
-futures::Value<language::PossibleError> OpenBuffer::EndOfFile() {
+futures::Value<language::PossibleError> OpenBuffer::SignalEndOfFile() {
   UpdateLastAction();
   CHECK(fd_ == nullptr);
   CHECK(fd_error_ == nullptr);
@@ -929,15 +929,11 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
             break;
           case ReloadState::kOngoing:
             reload_state_ = ReloadState::kDone;
-            if (fd_ == nullptr && fd_error_ == nullptr) {
-              EndOfFile();
-            }
+            if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
             break;
           case ReloadState::kPending:
             reload_state_ = ReloadState::kDone;
-            if (fd_ == nullptr && fd_error_ == nullptr) {
-              EndOfFile();
-            }
+            if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
             Reload();
         }
         LOG(INFO) << "Reload finished evaluation: " << name();
@@ -2551,9 +2547,7 @@ futures::Value<EmptyValue> OpenBuffer::ReadData(
           return EmptyValue();
         RegisterProgress();
         source = nullptr;
-        if (fd_ == nullptr && fd_error_ == nullptr) {
-          EndOfFile();
-        }
+        if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
         return EmptyValue();
       });
 }

@@ -188,7 +188,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
       input.predictions.AppendRawLine(MakeNonNullShared<Line>());
     }
   }
-  input.predictions.EndOfFile();
+  input.predictions.SignalEndOfFile();
   return input.predictions.WaitForEndOfFile().Transform([input](EmptyValue) {
     TRACK_OPERATION(SearchHandlerPredictor_sort);
     return PredictorOutput(

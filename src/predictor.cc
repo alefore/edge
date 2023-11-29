@@ -434,7 +434,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                         std::nullopt);
 
                 LOG(INFO) << "Signaling end of file.";
-                buffer.EndOfFile();
+                buffer.SignalEndOfFile();
               });
             },
             std::ref(predictor_input.progress_channel),
@@ -448,7 +448,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
 }
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
-  input.predictions.EndOfFile();
+  input.predictions.SignalEndOfFile();
   return futures::Past(PredictorOutput(
       {.contents =
            SortedLineSequenceUniqueLines(SortedLineSequence(LineSequence()))}));
@@ -509,7 +509,7 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
         .values = {
             {VersionPropertyKey(L"values"),
              std::to_wstring(input.predictions.lines_size().read() - 1)}}});
-    input.predictions.EndOfFile();
+    input.predictions.SignalEndOfFile();
     return futures::Past(PredictorOutput(
         {.contents = SortedLineSequenceUniqueLines(
              SortedLineSequence(input.predictions.contents().snapshot()))}));
@@ -619,7 +619,7 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
       ++line;
     }
 
-    input.predictions.EndOfFile();
+    input.predictions.SignalEndOfFile();
 
     // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add
     // methods to SortedLineSequence that allows us to extract a sub-range view,
