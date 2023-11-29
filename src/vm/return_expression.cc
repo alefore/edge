@@ -2,12 +2,13 @@
 
 #include <glog/logging.h>
 
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Success;
+using afc::language::VisitPointer;
+
 namespace afc::vm {
 namespace {
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
-
 class ReturnExpression : public Expression {
  public:
   ReturnExpression(NonNull<std::shared_ptr<Expression>> expr)
@@ -38,13 +39,13 @@ class ReturnExpression : public Expression {
 }  // namespace
 
 std::unique_ptr<Expression> NewReturnExpression(
-    Compilation*, std::unique_ptr<Expression> expr) {
-  if (expr == nullptr) {
-    return nullptr;
-  }
-
-  return std::make_unique<ReturnExpression>(
-      NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(expr)));
+    std::unique_ptr<Expression> expr_input) {
+  return VisitPointer(
+      std::move(expr_input),
+      [](NonNull<std::unique_ptr<Expression>> expr) {
+        return std::make_unique<ReturnExpression>(std::move(expr));
+      },
+      [] { return nullptr; });
 }
 
 }  // namespace afc::vm

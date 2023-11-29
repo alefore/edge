@@ -115,12 +115,11 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
   std::unique_ptr<Expression> a(A);
 
-  OUT = NewReturnExpression(compilation, std::move(a)).release();
+  OUT = NewReturnExpression(std::move(a)).release();
 }
 
 statement(OUT) ::= RETURN SEMICOLON . {
-  OUT = NewReturnExpression(compilation,
-                            NewVoidExpression(compilation->pool).get_unique())
+  OUT = NewReturnExpression(NewVoidExpression(compilation->pool).get_unique())
             .release();
 }
 
