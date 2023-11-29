@@ -58,12 +58,12 @@ class AppendExpression : public Expression {
 }  // namespace
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
-    Compilation* compilation, std::unique_ptr<Expression> a,
+    Compilation& compilation, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
     return Error(L"Missing input.");
   }
-  return compilation->RegisterErrors(NewAppendExpression(
+  return compilation.RegisterErrors(NewAppendExpression(
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b))));
 }

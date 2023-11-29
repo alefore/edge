@@ -11,7 +11,7 @@ class Expression;
 
 // Symbols is a list of tokens, including namespace or class prefixes. The last
 // item will be the final symbol to look up.
-std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
+std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
                                               std::list<std::wstring> symbols);
 
 }  // namespace afc::vm

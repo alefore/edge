@@ -12,7 +12,7 @@ class Expression;
 struct Compilation;
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-NewLogicalExpression(Compilation* compilation, bool identity,
+NewLogicalExpression(Compilation& compilation, bool identity,
                      std::unique_ptr<Expression> a,
                      std::unique_ptr<Expression> b);
 

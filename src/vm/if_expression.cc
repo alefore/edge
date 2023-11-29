@@ -70,7 +70,7 @@ class IfExpression : public Expression {
 }  // namespace
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
-    Compilation* compilation, std::unique_ptr<Expression> condition,
+    Compilation& compilation, std::unique_ptr<Expression> condition,
     std::unique_ptr<Expression> true_case,
     std::unique_ptr<Expression> false_case) {
   if (condition == nullptr || true_case == nullptr || false_case == nullptr) {
@@ -81,7 +81,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
     Error error(
         L"Expected bool value for condition of \"if\" expression but found " +
         TypesToString(condition->Types()) + L".");
-    compilation->AddError(error);
+    compilation.AddError(error);
     return error;
   }
 
@@ -89,12 +89,12 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
     Error error(L"Type mismatch between branches of conditional expression: " +
                 TypesToString(true_case->Types()) + L" and " +
                 TypesToString(false_case->Types()) + L".");
-    compilation->AddError(error);
+    compilation.AddError(error);
     return error;
   }
 
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
-                   compilation->RegisterErrors(CombineReturnTypes(
+                   compilation.RegisterErrors(CombineReturnTypes(
                        true_case->ReturnTypes(), false_case->ReturnTypes())));
 
   return MakeNonNullUnique<IfExpression>(

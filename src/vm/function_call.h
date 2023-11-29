@@ -23,7 +23,7 @@ language::NonNull<std::unique_ptr<Expression>> NewFunctionCall(
     std::vector<language::NonNull<std::shared_ptr<Expression>>> args);
 
 std::unique_ptr<Expression> NewFunctionCall(
-    Compilation* compilation,
+    Compilation& compilation,
     language::NonNull<std::unique_ptr<Expression>> func,
     std::vector<language::NonNull<std::shared_ptr<Expression>>> args);
 
@@ -32,7 +32,7 @@ futures::ValueOrError<language::gc::Root<Value>> Call(
     std::vector<language::gc::Root<Value>> args,
     std::function<void(language::OnceOnlyFunction<void()>)> yield_callback);
 
-std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
+std::unique_ptr<Expression> NewMethodLookup(Compilation& compilation,
                                             std::unique_ptr<Expression> object,
                                             std::wstring method_name);
 

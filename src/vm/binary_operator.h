@@ -60,7 +60,7 @@ class BinaryOperator : public Expression {
 // A convenience wrapper of BinaryOperator that combines primitive types
 // according to the functions given.
 std::unique_ptr<Expression> NewBinaryExpression(
-    Compilation* compilation, std::unique_ptr<Expression> a,
+    Compilation& compilation, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b,
     std::function<language::ValueOrError<std::wstring>(std::wstring,
                                                        std::wstring)>

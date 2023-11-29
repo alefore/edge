@@ -39,7 +39,7 @@ program(OUT) ::= statement_list(A) assignment_statement(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT =
-      ToUniquePtr(NewAppendExpression(compilation, std::move(a), std::move(b)))
+      ToUniquePtr(NewAppendExpression(*compilation, std::move(a), std::move(b)))
           .release();
 }
 
@@ -59,7 +59,7 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT =
-      ToUniquePtr(NewAppendExpression(compilation, std::move(a), std::move(b)))
+      ToUniquePtr(NewAppendExpression(*compilation, std::move(a), std::move(b)))
           .release();
 }
 
@@ -174,7 +174,7 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
   std::unique_ptr<Expression> condition(CONDITION);
   std::unique_ptr<Expression> body(BODY);
 
-  OUT = ToUniquePtr(NewWhileExpression(compilation, std::move(condition),
+  OUT = ToUniquePtr(NewWhileExpression(*compilation, std::move(condition),
                                        std::move(body)))
             .release();
 }
@@ -189,7 +189,7 @@ statement(OUT) ::=
   std::unique_ptr<Expression> update(UPDATE);
   std::unique_ptr<Expression> body(BODY);
 
-  OUT = ToUniquePtr(NewForExpression(compilation, std::move(init),
+  OUT = ToUniquePtr(NewForExpression(*compilation, std::move(init),
                                      std::move(condition), std::move(update),
                                      std::move(body)))
             .release();
@@ -202,12 +202,12 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
   std::unique_ptr<Expression> false_case(FALSE_CASE);
 
   A = ToUniquePtr(NewIfExpression(
-                      compilation, std::move(condition),
+                      *compilation, std::move(condition),
                       ToUniquePtr(NewAppendExpression(
-                          compilation, std::move(true_case),
+                          *compilation, std::move(true_case),
                           NewVoidExpression(compilation->pool).get_unique())),
                       ToUniquePtr(NewAppendExpression(
-                          compilation, std::move(false_case),
+                          *compilation, std::move(false_case),
                           NewVoidExpression(compilation->pool).get_unique()))))
           .release();
 }
@@ -218,9 +218,9 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
 
   A = ToUniquePtr(
           NewIfExpression(
-              compilation, std::move(condition),
+              *compilation, std::move(condition),
               ToUniquePtr(NewAppendExpression(
-                  compilation, std::move(true_case),
+                  *compilation, std::move(true_case),
                       NewVoidExpression(compilation->pool).get_unique())),
               NewVoidExpression(compilation->pool).get_unique()))
           .release();
@@ -242,7 +242,7 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
   } else {
     CHECK(func->name.has_value());
     std::optional<Type> result =
-        NewDefineTypeExpression(compilation, L"auto", *func->name, func->type);
+        NewDefineTypeExpression(*compilation, L"auto", *func->name, func->type);
     if (result == std::nullopt) {
       OUT = nullptr;
       func->Abort(*compilation);
@@ -258,7 +258,7 @@ assignment_statement(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME) . {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
   auto result = NewDefineTypeExpression(
-      compilation, type->value().ptr()->get_symbol(),
+      *compilation, type->value().ptr()->get_symbol(),
       name->value().ptr()->get_symbol(), {});
   OUT = result == std::nullopt
         ? nullptr
@@ -270,7 +270,7 @@ assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) . {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
   std::unique_ptr<Expression> value(VALUE);
 
-  A = NewDefineExpression(compilation, type->value().ptr()->get_symbol(),
+  A = NewDefineExpression(*compilation, type->value().ptr()->get_symbol(),
                           name->value().ptr()->get_symbol(), std::move(value))
           .release();
 }
@@ -386,7 +386,7 @@ expr(A) ::= expr(CONDITION) QUESTION_MARK
   std::unique_ptr<Expression> true_case(TRUE_CASE);
   std::unique_ptr<Expression> false_case(FALSE_CASE);
 
-  A = ToUniquePtr(NewIfExpression(compilation, std::move(condition),
+  A = ToUniquePtr(NewIfExpression(*compilation, std::move(condition),
                                   std::move(true_case), std::move(false_case)))
           .release();
 }
@@ -420,7 +420,7 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
   std::unique_ptr<Expression> value(VALUE);
 
-  OUT = NewAssignExpression(compilation, name->value().ptr()->get_symbol(),
+  OUT = NewAssignExpression(*compilation, name->value().ptr()->get_symbol(),
                             std::move(value))
             .release();
 }
@@ -430,10 +430,10 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
   std::unique_ptr<Expression> value(VALUE);
 
   OUT = NewAssignExpression(
-            compilation, name->value().ptr()->get_symbol(),
+            *compilation, name->value().ptr()->get_symbol(),
             NewBinaryExpression(
-                compilation,
-                NewVariableLookup(compilation,
+                *compilation,
+                NewVariableLookup(*compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value),
                 [](wstring a, wstring b) { return Success(a + b); },
@@ -447,10 +447,10 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
   std::unique_ptr<Expression> value(VALUE);
 
   OUT = NewAssignExpression(
-            compilation, name->value().ptr()->get_symbol(),
+            *compilation, name->value().ptr()->get_symbol(),
             NewBinaryExpression(
-                compilation,
-                NewVariableLookup(compilation,
+                *compilation,
+                NewVariableLookup(*compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
                 [](numbers::Number a, numbers::Number b) { return a - b; },
@@ -463,10 +463,10 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
   std::unique_ptr<Expression> value(VALUE);
 
   OUT = NewAssignExpression(
-            compilation, name->value().ptr()->get_symbol(),
+            *compilation, name->value().ptr()->get_symbol(),
             NewBinaryExpression(
-                compilation,
-                NewVariableLookup(compilation,
+                *compilation,
+                NewVariableLookup(*compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
                 [](numbers::Number a, numbers::Number b) { return a * b; },
@@ -493,10 +493,10 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   std::unique_ptr<Expression> value(VALUE);
 
   OUT = NewAssignExpression(
-            compilation, name->value().ptr()->get_symbol(),
+            *compilation, name->value().ptr()->get_symbol(),
             NewBinaryExpression(
-                compilation,
-                NewVariableLookup(compilation,
+                *compilation,
+                NewVariableLookup(*compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
                 [](numbers::Number a, numbers::Number b) { return a / b; },
@@ -508,12 +508,12 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
   auto var =
-      NewVariableLookup(compilation, {name->value().ptr()->get_symbol()});
+      NewVariableLookup(*compilation, {name->value().ptr()->get_symbol()});
   if (var == nullptr) {
     OUT = nullptr;
   } else if (var->IsNumber()) {
     OUT = NewAssignExpression(
-              compilation, name->value().ptr()->get_symbol(),
+              *compilation, name->value().ptr()->get_symbol(),
               std::unique_ptr<Expression>(
                   ValueOrDie(
                       BinaryOperator::New(
@@ -538,12 +538,12 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
   auto var =
-      NewVariableLookup(compilation, {name->value().ptr()->get_symbol()});
+      NewVariableLookup(*compilation, {name->value().ptr()->get_symbol()});
   if (var == nullptr) {
     OUT = nullptr;
   } else if (var->IsNumber()) {
     OUT = NewAssignExpression(
-              compilation, name->value().ptr()->get_symbol(),
+              *compilation, name->value().ptr()->get_symbol(),
               std::unique_ptr<Expression>(
                   ValueOrDie(
                       BinaryOperator::New(
@@ -572,7 +572,7 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
     OUT = nullptr;
   } else {
       OUT = NewFunctionCall(
-                compilation,
+                *compilation,
                 NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
                 std::move(*args))
                 .release();
@@ -838,7 +838,7 @@ expr(OUT) ::= expr(A) OR expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
 
-  OUT = ToUniquePtr(NewLogicalExpression(compilation, false, std::move(a),
+  OUT = ToUniquePtr(NewLogicalExpression(*compilation, false, std::move(a),
                                          std::move(b)))
             .release();
 }
@@ -846,8 +846,9 @@ expr(OUT) ::= expr(A) OR expr(B). {
 expr(OUT) ::= expr(A) AND expr(B). {
   std::unique_ptr<Expression> a(A);
   std::unique_ptr<Expression> b(B);
-  OUT = ToUniquePtr(
-            NewLogicalExpression(compilation, true, std::move(a), std::move(b)))
+
+  OUT = ToUniquePtr(NewLogicalExpression(*compilation, true, std::move(a),
+                                         std::move(b)))
             .release();
 }
 
@@ -856,7 +857,7 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewBinaryExpression(
-            compilation, std::move(a), std::move(b),
+            *compilation, std::move(a), std::move(b),
             [](wstring a_str, wstring b_str) { return Success(a_str + b_str); },
             [](numbers::Number a_number, numbers::Number b_number) {
               return a_number + b_number;
@@ -870,7 +871,7 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewBinaryExpression(
-            compilation, std::move(a), std::move(b), nullptr,
+            *compilation, std::move(a), std::move(b), nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
               return a_number - b_number;
             },
@@ -896,7 +897,7 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewBinaryExpression(
-            compilation, std::move(a), std::move(b), nullptr,
+            *compilation, std::move(a), std::move(b), nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
               return a_number * b_number;
             },
@@ -921,7 +922,7 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
   std::unique_ptr<Expression> b(B);
 
   OUT = NewBinaryExpression(
-            compilation, std::move(a), std::move(b), nullptr,
+            *compilation, std::move(a), std::move(b), nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
               return a_number / b_number;
             },
@@ -972,7 +973,7 @@ string(OUT) ::= string(A) STRING(B). {
 }
 
 expr(OUT) ::= non_empty_symbols_list(N) . {
-  OUT = NewVariableLookup(compilation, std::move(*N)).release();
+  OUT = NewVariableLookup(*compilation, std::move(*N)).release();
   delete N;
 }
 
@@ -998,7 +999,7 @@ non_empty_symbols_list(OUT) ::=
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
-  OUT = NewMethodLookup(compilation, std::unique_ptr<Expression>(OBJ),
+  OUT = NewMethodLookup(*compilation, std::unique_ptr<Expression>(OBJ),
                         FIELD->value().ptr()->get_symbol()).release();
   delete FIELD;
 }

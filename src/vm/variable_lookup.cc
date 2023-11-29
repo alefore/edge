@@ -60,7 +60,7 @@ class VariableLookup : public Expression {
 
 }  // namespace
 
-std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
+std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
                                               std::list<std::wstring> symbols) {
   CHECK(!symbols.empty());
 
@@ -73,9 +73,9 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   // `compilation->environment` directly) because during compilation, we know
   // that we'll be in the right environment.
   std::vector<gc::Root<Value>> result;
-  compilation->environment.ptr()->PolyLookup(symbol_namespace, symbol, &result);
+  compilation.environment.ptr()->PolyLookup(symbol_namespace, symbol, &result);
   if (result.empty()) {
-    compilation->AddError(Error(L"Unknown variable: `" + symbol + L"`"));
+    compilation.AddError(Error(L"Unknown variable: `" + symbol + L"`"));
     return nullptr;
   }
 

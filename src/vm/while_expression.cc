@@ -91,7 +91,7 @@ class WhileExpression : public Expression {
 }  // namespace
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
-    Compilation* compilation, std::unique_ptr<Expression> condition,
+    Compilation& compilation, std::unique_ptr<Expression> condition,
     std::unique_ptr<Expression> body) {
   if (condition == nullptr || body == nullptr) {
     return Error(L"Input missing.");
@@ -100,7 +100,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
     Error error(
         L"Expected bool value for condition of \"while\" loop but found: " +
         TypesToString(condition->Types()) + L".");
-    compilation->AddError(error);
+    compilation.AddError(error);
     return error;
   }
 
@@ -110,7 +110,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
 }
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewForExpression(
-    Compilation* compilation, std::unique_ptr<Expression> init,
+    Compilation& compilation, std::unique_ptr<Expression> init,
     std::unique_ptr<Expression> condition, std::unique_ptr<Expression> update,
     std::unique_ptr<Expression> body) {
   if (init == nullptr || condition == nullptr || update == nullptr ||

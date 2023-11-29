@@ -63,7 +63,7 @@ class LogicalExpression : public Expression {
 }  // namespace
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewLogicalExpression(
-    Compilation* compilation, bool identity, std::unique_ptr<Expression> a,
+    Compilation& compilation, bool identity, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
     return Error(L"Missing inputs");
@@ -71,13 +71,13 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewLogicalExpression(
   if (!a->IsBool()) {
     Error error(L"Expected `bool` value but found: " +
                 TypesToString(a->Types()));
-    compilation->AddError(error);
+    compilation.AddError(error);
     return error;
   }
   if (!b->IsBool()) {
     Error error(L"Expected `bool` value but found: " +
                 TypesToString(b->Types()));
-    compilation->AddError(error);
+    compilation.AddError(error);
     return error;
   }
   return MakeNonNullUnique<LogicalExpression>(

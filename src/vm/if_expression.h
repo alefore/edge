@@ -10,7 +10,7 @@
 namespace afc::vm {
 struct Compilation;
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-NewIfExpression(Compilation* compilation, std::unique_ptr<Expression> condition,
+NewIfExpression(Compilation& compilation, std::unique_ptr<Expression> condition,
                 std::unique_ptr<Expression> true_case,
                 std::unique_ptr<Expression> false_case);
 }  // namespace afc::vm

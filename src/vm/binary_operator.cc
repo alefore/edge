@@ -78,7 +78,7 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
 }
 
 std::unique_ptr<Expression> NewBinaryExpression(
-    Compilation* compilation, std::unique_ptr<Expression> a_raw,
+    Compilation& compilation, std::unique_ptr<Expression> a_raw,
     std::unique_ptr<Expression> b_raw,
     std::function<language::ValueOrError<std::wstring>(std::wstring,
                                                        std::wstring)>
@@ -96,7 +96,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
   auto b = NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b_raw));
 
   if (str_operator != nullptr && a->IsString() && b->IsString()) {
-    return ToUniquePtr(compilation->RegisterErrors(BinaryOperator::New(
+    return ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
         std::move(a), std::move(b), types::String{},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
@@ -108,7 +108,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
   }
 
   if (number_operator != nullptr && a->IsNumber() && b->IsNumber()) {
-    return ToUniquePtr(compilation->RegisterErrors(BinaryOperator::New(
+    return ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
         std::move(a), std::move(b), types::Number{},
         [number_operator](
             gc::Pool& pool, const Value& value_a,
@@ -121,7 +121,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
   }
 
   if (str_int_operator != nullptr && a->IsString() && b->IsNumber()) {
-    return ToUniquePtr(compilation->RegisterErrors(BinaryOperator::New(
+    return ToUniquePtr(compilation.RegisterErrors(BinaryOperator::New(
         std::move(a), std::move(b), types::String{},
         [str_int_operator](
             gc::Pool& pool, const Value& a_value,
@@ -134,9 +134,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
         })));
   }
 
-  compilation->AddError(Error(L"Unable to add types: " +
-                              TypesToString(a->Types()) + L" + " +
-                              TypesToString(b->Types())));
+  compilation.AddError(Error(L"Unable to add types: " +
+                             TypesToString(a->Types()) + L" + " +
+                             TypesToString(b->Types())));
   return nullptr;
 }
 

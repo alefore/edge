@@ -200,7 +200,7 @@ NonNull<std::unique_ptr<Expression>> NewFunctionCall(
 }
 
 std::unique_ptr<Expression> NewFunctionCall(
-    Compilation* compilation, NonNull<std::unique_ptr<Expression>> func,
+    Compilation& compilation, NonNull<std::unique_ptr<Expression>> func,
     std::vector<NonNull<std::shared_ptr<Expression>>> args) {
   std::vector<Error> errors;
   for (auto& type : func->Types()) {
@@ -212,12 +212,12 @@ std::unique_ptr<Expression> NewFunctionCall(
   }
 
   CHECK(!errors.empty());
-  compilation->AddError(MergeErrors(errors, L", "));
+  compilation.AddError(MergeErrors(errors, L", "));
   return nullptr;
 }
 
 std::unique_ptr<Expression> NewMethodLookup(
-    Compilation* compilation, std::unique_ptr<Expression> object_ptr,
+    Compilation& compilation, std::unique_ptr<Expression> object_ptr,
     std::wstring method_name) {
   return VisitPointer(
       std::move(object_ptr),
@@ -230,8 +230,7 @@ std::unique_ptr<Expression> NewMethodLookup(
           types::ObjectName object_type_name = NameForType(type);
 
           const ObjectType* object_type =
-              compilation->environment.ptr()->LookupObjectType(
-                  object_type_name);
+              compilation.environment.ptr()->LookupObjectType(object_type_name);
 
           if (object_type == nullptr) {
             errors.push_back(
@@ -364,7 +363,7 @@ std::unique_ptr<Expression> NewMethodLookup(
         }
 
         CHECK(!errors.empty());
-        compilation->AddError(MergeErrors(errors, L", "));
+        compilation.AddError(MergeErrors(errors, L", "));
         return nullptr;
       },
       [] { return nullptr; });

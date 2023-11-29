@@ -15,11 +15,11 @@ struct Compilation;
 class Expression;
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-NewWhileExpression(Compilation* compilation, unique_ptr<Expression> cond,
+NewWhileExpression(Compilation& compilation, unique_ptr<Expression> cond,
                    unique_ptr<Expression> body);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-NewForExpression(Compilation* compilation, std::unique_ptr<Expression> init,
+NewForExpression(Compilation& compilation, std::unique_ptr<Expression> init,
                  std::unique_ptr<Expression> condition,
                  std::unique_ptr<Expression> update,
                  std::unique_ptr<Expression> body);
