@@ -362,7 +362,7 @@ class OpenBufferMutableLineSequenceObserver
 
 OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
                        gc::Ptr<MapModeCommands> default_commands,
-                       gc::Ptr<EditorMode> mode)
+                       gc::Ptr<InputReceiver> mode)
     : options_(std::move(options)),
       transformation_adapter_(
           MakeNonNullUnique<TransformationInputAdapterImpl>(*this)),
@@ -1068,10 +1068,10 @@ LineNumberDelta OpenBuffer::lines_size() const { return contents_.size(); }
 
 LineNumber OpenBuffer::EndLine() const { return contents_.EndLine(); }
 
-EditorMode& OpenBuffer::mode() const { return mode_.value(); }
+InputReceiver& OpenBuffer::mode() const { return mode_.value(); }
 
-gc::Root<EditorMode> OpenBuffer::ResetMode() {
-  gc::Root<EditorMode> copy = mode_.ToRoot();
+gc::Root<InputReceiver> OpenBuffer::ResetMode() {
+  gc::Root<InputReceiver> copy = mode_.ToRoot();
   mode_ = MapMode::New(editor().gc_pool(), default_commands_).ptr();
   return copy;
 }

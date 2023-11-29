@@ -732,17 +732,16 @@ futures::Value<EmptyValue> EditorState::ProcessInput(
     std::shared_ptr<std::vector<infrastructure::ExtendedChar>> input,
     size_t start_index) {
   while (start_index < input->size()) {
-    if (auto handler = keyboard_redirect().get(); handler != nullptr) {
-      size_t advance = handler->Receive(*input, start_index);
+    InputReceiver* receiver = keyboard_redirect().get();
+    if (std::optional<language::gc::Root<OpenBuffer>> buffer = current_buffer();
+        receiver == nullptr && buffer.has_value())
+      receiver = &buffer->ptr()->mode();
+
+    if (receiver != nullptr) {
+      size_t advance = receiver->Receive(*input, start_index);
       CHECK_GT(advance, 0ul);
       start_index += advance;
       CHECK_LE(start_index, input->size());
-      continue;
-    }
-
-    if (std::optional<language::gc::Root<OpenBuffer>> buffer = current_buffer();
-        buffer.has_value()) {
-      buffer->ptr()->mode().ProcessInput(input->at(start_index++));
       continue;
     }
 

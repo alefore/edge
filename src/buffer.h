@@ -112,7 +112,7 @@ class OpenBuffer {
   static language::gc::Root<OpenBuffer> New(Options options);
   OpenBuffer(ConstructorAccessTag, Options options,
              language::gc::Ptr<MapModeCommands> default_commands,
-             language::gc::Ptr<EditorMode> mode);
+             language::gc::Ptr<InputReceiver> mode);
   ~OpenBuffer();
 
   EditorState& editor() const;
@@ -205,8 +205,8 @@ class OpenBuffer {
   language::text::LineNumberDelta lines_size() const;
   language::text::LineNumber EndLine() const;
 
-  EditorMode& mode() const;
-  language::gc::Root<EditorMode> ResetMode();
+  InputReceiver& mode() const;
+  language::gc::Root<InputReceiver> ResetMode();
 
   language::gc::Ptr<MapModeCommands> default_commands();
 
@@ -662,7 +662,7 @@ class OpenBuffer {
   size_t tree_depth_ = 0;
 
   const language::gc::Ptr<MapModeCommands> default_commands_;
-  language::gc::Ptr<EditorMode> mode_;
+  language::gc::Ptr<InputReceiver> mode_;
 
   // The time when the buffer was last selected as active.
   struct timespec last_visit_ = {};
