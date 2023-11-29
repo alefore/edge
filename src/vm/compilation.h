@@ -48,6 +48,13 @@ struct Compilation {
   Compilation(language::gc::Pool& input_pool,
               language::gc::Root<Environment> input_environment);
 
+  // Enable move construction/assignment.
+  Compilation(Compilation&&) = default;
+  Compilation& operator=(Compilation&&) = default;
+  // Disable copy construction/assignment.
+  Compilation(const Compilation&) = delete;
+  Compilation& operator=(const Compilation&) = delete;
+
   void AddError(language::Error error);
 
   template <typename T>
