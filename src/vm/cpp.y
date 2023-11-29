@@ -655,14 +655,13 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
                   types::Bool{},
-                  [compilation](
+                  [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
                     ASSIGN_OR_RETURN(
                         bool output,
                         numbers::IsEqual(a_value.get_number(),
-                                         b_value.get_number(),
-                                         compilation->numbers_precision));
+                                         b_value.get_number(), precision));
                     return Value::NewBool(pool, output);
                   })))
               .release();
@@ -698,14 +697,13 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
                   types::Bool{},
-                  [compilation](
+                  [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
                     ASSIGN_OR_RETURN(
                         bool output,
                         numbers::IsEqual(a_value.get_number(),
-                                         b_value.get_number(),
-                                         compilation->numbers_precision));
+                                         b_value.get_number(), precision));
                     return Value::NewBool(pool, !output);
                   })))
               .release();
@@ -729,13 +727,13 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
                   types::Bool{},
-                  [compilation](gc::Pool& pool, const Value& a_value,
-                     const Value& b_value) -> ValueOrError<gc::Root<Value>> {
+                  [precision = compilation->numbers_precision](
+                      gc::Pool& pool, const Value& a_value,
+                      const Value& b_value) -> ValueOrError<gc::Root<Value>> {
                     ASSIGN_OR_RETURN(
                         bool output,
                         numbers::IsLessThan(a_value.get_number(),
-                                            b_value.get_number(),
-                                            compilation->numbers_precision));
+                                            b_value.get_number(), precision));
                     return Value::NewBool(pool, output);
                   })))
               .release();
@@ -759,14 +757,13 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
                   types::Bool{},
-                  [compilation](
+                  [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    ASSIGN_OR_RETURN(
-                        bool output,
-                        numbers::IsLessThanOrEqual(
-                            a_value.get_number(), b_value.get_number(),
-                            compilation->numbers_precision));
+                    ASSIGN_OR_RETURN(bool output,
+                                     numbers::IsLessThanOrEqual(
+                                         a_value.get_number(),
+                                         b_value.get_number(), precision));
                     return Value::NewBool(pool, output);
                   })))
               .release();
@@ -790,14 +787,13 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
                   types::Bool{},
-                  [compilation](
+                  [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
                     ASSIGN_OR_RETURN(
                         bool output,
                         numbers::IsLessThan(b_value.get_number(),
-                                            a_value.get_number(),
-                                            compilation->numbers_precision));
+                                            a_value.get_number(), precision));
                     return Value::NewBool(pool, output);
                   })))
               .release();
@@ -821,14 +817,13 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),
                   NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(b)),
                   types::Bool{},
-                  [compilation](
+                  [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    ASSIGN_OR_RETURN(
-                        bool output,
-                        numbers::IsLessThanOrEqual(
-                            b_value.get_number(), a_value.get_number(),
-                            compilation->numbers_precision));
+                    ASSIGN_OR_RETURN(bool output,
+                                     numbers::IsLessThanOrEqual(
+                                         b_value.get_number(),
+                                         a_value.get_number(), precision));
                     return Value::NewBool(pool, output);
                   })))
               .release();
