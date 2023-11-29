@@ -1348,13 +1348,13 @@ void OpenBuffer::ToggleActiveCursors() {
 
   // TODO: Maybe it'd be best to pick the nearest after the cursor?
   // TODO: This should probably be merged somewhat with set_active_cursors?
-  for (auto it = cursors.begin(); it != cursors.end(); ++it) {
-    if (desired_position == *it) {
-      LOG(INFO) << "Desired position " << desired_position << " prevails.";
-      cursors.SetCurrentCursor(desired_position);
-      CHECK_LE(position().line, LineNumber(0) + lines_size());
-      return;
-    }
+  if (std::ranges::any_of(cursors, [&desired_position](auto& c) {
+        return c == desired_position;
+      })) {
+    LOG(INFO) << "Desired position " << desired_position << " prevails.";
+    cursors.SetCurrentCursor(desired_position);
+    CHECK_LE(position().line, LineNumber(0) + lines_size());
+    return;
   }
 
   cursors.SetCurrentCursor(*cursors.begin());
