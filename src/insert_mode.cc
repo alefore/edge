@@ -648,7 +648,20 @@ class InsertMode : public InputReceiver {
 
     ResetScrollBehavior();
 
-    std::wstring consumed_input(1, std::get<wchar_t>(input.at(start_index)));
+    // TODO(P1, 2023-11-30, trivial): Get rid of consumed_input; modify
+    // ForEachActiveBuffer to be able to receive the range directly.
+    std::wstring consumed_input;
+    for (auto c :
+         input | std::views::drop(start_index) |
+             std::views::take_while([](ExtendedChar c) {
+               static constexpr std::wstring special_characters = L" \n\t";
+               return std::get<wchar_t>(c) &&
+                      !special_characters.contains(std::get<wchar_t>(c));
+             }) |
+             std::views::transform([](ExtendedChar c) -> wchar_t {
+               return std::get<wchar_t>(c);
+             }))
+      consumed_input.push_back(c);
 
     // TODO: Apply TransformKeyboardText for buffers with fd?
     ForEachActiveBuffer(
