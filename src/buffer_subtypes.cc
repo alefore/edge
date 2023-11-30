@@ -11,4 +11,10 @@ std::variant<OpenBufferPasteMode, OpenBufferNoPasteMode> GetPasteModeVariant(
   else
     return OpenBufferNoPasteMode{buffer};
 }
+
+OpenBufferPasteMode::OpenBufferPasteMode(OpenBuffer& buffer) : value(buffer) {}
+
+OpenBufferNoPasteMode::OpenBufferNoPasteMode(OpenBuffer& buffer)
+    : value(buffer) {}
+
 }  // namespace afc::editor

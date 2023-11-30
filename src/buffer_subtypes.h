@@ -6,16 +6,32 @@
 namespace afc::editor {
 class OpenBuffer;
 
-struct OpenBufferPasteMode {
-  OpenBuffer& buffer;
-};
-
-struct OpenBufferNoPasteMode {
-  OpenBuffer& buffer;
-};
+class OpenBufferPasteMode;
+class OpenBufferNoPasteMode;
 
 std::variant<OpenBufferPasteMode, OpenBufferNoPasteMode> GetPasteModeVariant(
     OpenBuffer& buffer);
+
+struct OpenBufferPasteMode {
+  OpenBuffer& value;
+
+ private:
+  OpenBufferPasteMode(OpenBuffer&);
+
+  friend std::variant<OpenBufferPasteMode, OpenBufferNoPasteMode>
+  GetPasteModeVariant(OpenBuffer& buffer);
+};
+
+struct OpenBufferNoPasteMode {
+  OpenBuffer& value;
+
+ private:
+  OpenBufferNoPasteMode(OpenBuffer&);
+
+  friend std::variant<OpenBufferPasteMode, OpenBufferNoPasteMode>
+  GetPasteModeVariant(OpenBuffer& buffer);
+};
+
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_BUFFER_SUBTYPES__
