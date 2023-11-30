@@ -330,7 +330,7 @@ NewInsertion(EditorState& editor) {
       });
 }
 
-class InsertMode : public EditorMode {
+class InsertMode : public InputReceiver {
   const InsertModeOptions options_;
 
   // Copy of the contents of options_.buffers. gc::Root to make it easy for it
@@ -397,213 +397,207 @@ class InsertMode : public EditorMode {
     CHECK(!options_.buffers.value().empty());
   }
 
-  void ProcessInput(ExtendedChar c) override {
+  size_t Receive(const std::vector<ExtendedChar>& input,
+                 size_t start_index) override {
+    CHECK_LT(start_index, input.size());
+    CHECK(options_.buffers.has_value());
     bool old_literal = status_expiration_for_literal_ != nullptr;
     status_expiration_for_literal_ = nullptr;
 
-    CHECK(options_.buffers.has_value());
     auto future = futures::Past(futures::IterationControlCommand::kContinue);
-    std::visit(
-        overload{
-            [&](wchar_t regular_c) { ProcessRegular(regular_c, old_literal); },
-            [&](ControlChar control_c) {
-              TRACK_OPERATION(InsertMode_ProcessInput_ControlChar);
-              switch (control_c) {
-                case ControlChar::kEscape:
-                  ResetScrollBehavior();
-                  StartNewInsertion();
-
-                  ForEachActiveBuffer(
-                      buffers_, old_literal ? std::wstring{27} : L"",
-                      [options = options_, old_literal](OpenBuffer& buffer) {
-                        if (buffer.fd() != nullptr) {
-                          if (old_literal) {
-                            buffer.status().SetInformationText(
-                                MakeNonNullShared<Line>(L"ESC"));
-                          } else {
-                            buffer.status().Reset();
-                          }
-                          return futures::Past(EmptyValue());
-                        }
-                        buffer.MaybeAdjustPositionCol();
-                        gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
-                        // TODO(easy): Honor `old_literal`.
-                        return buffer
-                            .ApplyToCursors(
-                                NewDeleteSuffixSuperfluousCharacters())
-                            .Transform([options, buffer_root](EmptyValue) {
-                              buffer_root.ptr()->PopTransformationStack();
-                              auto repetitions =
-                                  options.editor_state.repetitions().value_or(
-                                      1);
-                              if (repetitions > 0) {
-                                options.editor_state.set_repetitions(
-                                    repetitions - 1);
-                              }
-                              return buffer_root.ptr()
-                                  ->RepeatLastTransformation();
-                            })
-                            .Transform([options, buffer_root](EmptyValue) {
-                              buffer_root.ptr()->PopTransformationStack();
-                              options.editor_state.PushCurrentPosition();
-                              buffer_root.ptr()->status().Reset();
-                              return EmptyValue();
-                            });
-                      })
-                      .Transform([options = options_, old_literal](EmptyValue) {
-                        if (old_literal) return EmptyValue();
-                        options.editor_state.status().Reset();
-                        CHECK(options.escape_handler != nullptr);
-                        options.escape_handler();  // Probably deletes us.
-                        options.editor_state.ResetRepetitions();
-                        options.editor_state.ResetInsertionModifier();
-                        options.editor_state.set_keyboard_redirect(nullptr);
-                        return EmptyValue();
-                      });
-                  return;
-
-                case ControlChar::kPageUp:
-                  ApplyScrollBehavior({27, '[', '5', '~'},
-                                      &ScrollBehavior::PageUp);
-                  return;
-
-                case ControlChar::kPageDown:
-                  ApplyScrollBehavior({27, '[', '6', '~'},
-                                      &ScrollBehavior::PageDown);
-                  return;
-
-                case ControlChar::kUpArrow:
-                  ApplyScrollBehavior({27, '[', 'A'}, &ScrollBehavior::Up);
-                  return;
-
-                case ControlChar::kDownArrow:
-                  ApplyScrollBehavior({27, '[', 'B'}, &ScrollBehavior::Down);
-                  return;
-
-                case ControlChar::kLeftArrow:
-                  ApplyScrollBehavior({27, '[', 'D'}, &ScrollBehavior::Left);
-                  return;
-
-                case ControlChar::kRightArrow:
-                  ApplyScrollBehavior({27, '[', 'C'}, &ScrollBehavior::Right);
-                  return;
-
-                case ControlChar::kCtrlA:
-                  ApplyScrollBehavior({1}, &ScrollBehavior::Begin);
-                  return;
-
-                case ControlChar::kCtrlE:
-                  ApplyScrollBehavior({5}, &ScrollBehavior::End);
-                  return;
-
-                case ControlChar::kCtrlL:
-                  WriteLineBuffer(buffers_, {0x0c});
-                  return;
-
-                case ControlChar::kCtrlD:
-                  HandleDelete({4}, Direction::kForwards);
-                  return;
-
-                case ControlChar::kDelete:
-                  HandleDelete({27, '[', 51, 126}, Direction::kForwards);
-                  return;
-
-                case ControlChar::kBackspace:
-                  HandleDelete({127}, Direction::kBackwards);
-                  return;
-
-                case ControlChar::kCtrlU: {
-                  ResetScrollBehavior();
-                  StartNewInsertion();
-                  // TODO: Find a way to set `copy_to_paste_buffer` in the
-                  // transformation.
-                  std::optional<gc::Root<vm::Value>> callback =
-                      options_.editor_state.environment().ptr()->Lookup(
-                          options_.editor_state.gc_pool(), vm::Namespace(),
-                          L"HandleKeyboardControlU",
-                          vm::types::Function{
-                              .output = vm::Type{vm::types::Void{}},
-                              .inputs = {vm::GetVMType<
-                                  gc::Root<OpenBuffer>>::vmtype()}});
-                  if (!callback.has_value()) {
-                    LOG(WARNING)
-                        << "Didn't find HandleKeyboardControlU function.";
-                    return;
-                  }
-                  ForEachActiveBuffer(
-                      buffers_, {21},
-                      [options = options_, callback](OpenBuffer& buffer) {
-                        NonNull<std::unique_ptr<vm::Expression>> expression =
-                            vm::NewFunctionCall(
-                                vm::NewConstantExpression(callback.value()),
-                                {vm::NewConstantExpression(
-                                    {VMTypeMapper<gc::Root<OpenBuffer>>::New(
-                                        buffer.editor().gc_pool(),
-                                        buffer.NewRoot())})});
-                        if (expression->Types().empty()) {
-                          buffer.status().InsertError(
-                              Error(L"Unable to compile (type mismatch)."));
-                          return futures::Past(EmptyValue());
-                        }
-                        return buffer
-                            .EvaluateExpression(std::move(expression),
-                                                buffer.environment().ToRoot())
-                            .ConsumeErrors([&pool = buffer.editor().gc_pool()](
-                                               Error) {
-                              return futures::Past(vm::Value::NewVoid(pool));
-                            })
-                            .Transform(ModifyHandler<gc::Root<vm::Value>>(
-                                options.modify_handler, buffer));
-                      });
-                  return;
-                }
-
-                case ControlChar::kCtrlV:
-                  if (old_literal) {
-                    DLOG(INFO) << "Inserting literal CTRL_V";
-                    WriteLineBuffer(buffers_, {22});
-                    ProcessRegular(wchar_t(22), true);
-                  } else {
-                    DLOG(INFO) << "Set literal.";
-                    status_expiration_for_literal_ =
-                        options_.editor_state.status()
-                            .SetExpiringInformationText(
-                                MakeNonNullShared<Line>(Line(L"<literal>")));
-                    return;
-                  }
-                  break;
-
-                case ControlChar::kCtrlK: {
-                  ResetScrollBehavior();
-                  StartNewInsertion();
-
-                  ForEachActiveBuffer(
-                      buffers_, {0x0b},
-                      [options = options_](OpenBuffer& buffer) {
-                        return buffer
-                            .ApplyToCursors(transformation::Delete{
-                                .modifiers =
-                                    {.structure = Structure::kLine,
-                                     .paste_buffer_behavior = Modifiers::
-                                         PasteBufferBehavior::kDoNothing,
-                                     .boundary_begin =
-                                         Modifiers::CURRENT_POSITION,
-                                     .boundary_end = Modifiers::LIMIT_CURRENT},
-                                .initiator =
-                                    transformation::Delete::Initiator::kUser})
-                            .Transform(ModifyHandler<EmptyValue>(
-                                options.modify_handler, buffer));
-                      });
-                  return;
-                }
-              }
-            }},
-        c);
+    return std::visit(overload{[&](wchar_t) {
+                                 return ProcessRegular(input, start_index,
+                                                       old_literal);
+                               },
+                               [&](ControlChar control_c) {
+                                 ProcessControl(control_c, old_literal);
+                                 return 1ul;
+                               }},
+                      input.at(start_index));
   }
 
-  void ProcessRegular(wchar_t regular_c, bool old_literal) {
+  void ProcessControl(ControlChar control_c, bool old_literal) {
+    TRACK_OPERATION(InsertMode_ProcessInput_ControlChar);
+    switch (control_c) {
+      case ControlChar::kEscape:
+        ResetScrollBehavior();
+        StartNewInsertion();
+
+        ForEachActiveBuffer(
+            buffers_, old_literal ? std::wstring{27} : L"",
+            [options = options_, old_literal](OpenBuffer& buffer) {
+              if (buffer.fd() != nullptr) {
+                if (old_literal) {
+                  buffer.status().SetInformationText(
+                      MakeNonNullShared<Line>(L"ESC"));
+                } else {
+                  buffer.status().Reset();
+                }
+                return futures::Past(EmptyValue());
+              }
+              buffer.MaybeAdjustPositionCol();
+              gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
+              // TODO(easy): Honor `old_literal`.
+              return buffer
+                  .ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
+                  .Transform([options, buffer_root](EmptyValue) {
+                    buffer_root.ptr()->PopTransformationStack();
+                    auto repetitions =
+                        options.editor_state.repetitions().value_or(1);
+                    if (repetitions > 0) {
+                      options.editor_state.set_repetitions(repetitions - 1);
+                    }
+                    return buffer_root.ptr()->RepeatLastTransformation();
+                  })
+                  .Transform([options, buffer_root](EmptyValue) {
+                    buffer_root.ptr()->PopTransformationStack();
+                    options.editor_state.PushCurrentPosition();
+                    buffer_root.ptr()->status().Reset();
+                    return EmptyValue();
+                  });
+            })
+            .Transform([options = options_, old_literal](EmptyValue) {
+              if (old_literal) return EmptyValue();
+              options.editor_state.status().Reset();
+              CHECK(options.escape_handler != nullptr);
+              options.escape_handler();  // Probably deletes us.
+              options.editor_state.ResetRepetitions();
+              options.editor_state.ResetInsertionModifier();
+              options.editor_state.set_keyboard_redirect(nullptr);
+              return EmptyValue();
+            });
+        return;
+
+      case ControlChar::kPageUp:
+        ApplyScrollBehavior({27, '[', '5', '~'}, &ScrollBehavior::PageUp);
+        return;
+
+      case ControlChar::kPageDown:
+        ApplyScrollBehavior({27, '[', '6', '~'}, &ScrollBehavior::PageDown);
+        return;
+
+      case ControlChar::kUpArrow:
+        ApplyScrollBehavior({27, '[', 'A'}, &ScrollBehavior::Up);
+        return;
+
+      case ControlChar::kDownArrow:
+        ApplyScrollBehavior({27, '[', 'B'}, &ScrollBehavior::Down);
+        return;
+
+      case ControlChar::kLeftArrow:
+        ApplyScrollBehavior({27, '[', 'D'}, &ScrollBehavior::Left);
+        return;
+
+      case ControlChar::kRightArrow:
+        ApplyScrollBehavior({27, '[', 'C'}, &ScrollBehavior::Right);
+        return;
+
+      case ControlChar::kCtrlA:
+        ApplyScrollBehavior({1}, &ScrollBehavior::Begin);
+        return;
+
+      case ControlChar::kCtrlE:
+        ApplyScrollBehavior({5}, &ScrollBehavior::End);
+        return;
+
+      case ControlChar::kCtrlL:
+        WriteLineBuffer(buffers_, {0x0c});
+        return;
+
+      case ControlChar::kCtrlD:
+        HandleDelete({4}, Direction::kForwards);
+        return;
+
+      case ControlChar::kDelete:
+        HandleDelete({27, '[', 51, 126}, Direction::kForwards);
+        return;
+
+      case ControlChar::kBackspace:
+        HandleDelete({127}, Direction::kBackwards);
+        return;
+
+      case ControlChar::kCtrlU: {
+        ResetScrollBehavior();
+        StartNewInsertion();
+        // TODO: Find a way to set `copy_to_paste_buffer` in the
+        // transformation.
+        std::optional<gc::Root<vm::Value>> callback =
+            options_.editor_state.environment().ptr()->Lookup(
+                options_.editor_state.gc_pool(), vm::Namespace(),
+                L"HandleKeyboardControlU",
+                vm::types::Function{
+                    .output = vm::Type{vm::types::Void{}},
+                    .inputs = {vm::GetVMType<gc::Root<OpenBuffer>>::vmtype()}});
+        if (!callback.has_value()) {
+          LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
+          return;
+        }
+        ForEachActiveBuffer(
+            buffers_, {21}, [options = options_, callback](OpenBuffer& buffer) {
+              NonNull<std::unique_ptr<vm::Expression>> expression =
+                  vm::NewFunctionCall(
+                      vm::NewConstantExpression(callback.value()),
+                      {vm::NewConstantExpression(
+                          {VMTypeMapper<gc::Root<OpenBuffer>>::New(
+                              buffer.editor().gc_pool(), buffer.NewRoot())})});
+              if (expression->Types().empty()) {
+                buffer.status().InsertError(
+                    Error(L"Unable to compile (type mismatch)."));
+                return futures::Past(EmptyValue());
+              }
+              return buffer
+                  .EvaluateExpression(std::move(expression),
+                                      buffer.environment().ToRoot())
+                  .ConsumeErrors([&pool = buffer.editor().gc_pool()](Error) {
+                    return futures::Past(vm::Value::NewVoid(pool));
+                  })
+                  .Transform(ModifyHandler<gc::Root<vm::Value>>(
+                      options.modify_handler, buffer));
+            });
+        return;
+      }
+
+      case ControlChar::kCtrlV:
+        if (old_literal) {
+          DLOG(INFO) << "Inserting literal CTRL_V";
+          WriteLineBuffer(buffers_, {22});
+          CHECK_EQ(ProcessRegular({wchar_t(22)}, 0ul, true), 1ul);
+        } else {
+          DLOG(INFO) << "Set literal.";
+          status_expiration_for_literal_ =
+              options_.editor_state.status().SetExpiringInformationText(
+                  MakeNonNullShared<Line>(Line(L"<literal>")));
+          return;
+        }
+        break;
+
+      case ControlChar::kCtrlK: {
+        ResetScrollBehavior();
+        StartNewInsertion();
+
+        ForEachActiveBuffer(
+            buffers_, {0x0b}, [options = options_](OpenBuffer& buffer) {
+              return buffer
+                  .ApplyToCursors(transformation::Delete{
+                      .modifiers =
+                          {.structure = Structure::kLine,
+                           .paste_buffer_behavior =
+                               Modifiers::PasteBufferBehavior::kDoNothing,
+                           .boundary_begin = Modifiers::CURRENT_POSITION,
+                           .boundary_end = Modifiers::LIMIT_CURRENT},
+                      .initiator = transformation::Delete::Initiator::kUser})
+                  .Transform(ModifyHandler<EmptyValue>(options.modify_handler,
+                                                       buffer));
+            });
+        return;
+      }
+    }
+  }
+
+  size_t ProcessRegular(std::vector<ExtendedChar> input, size_t start_index,
+                        bool old_literal) {
     TRACK_OPERATION(InsertMode_ProcessInput_Regular);
-    switch (regular_c) {
+    switch (std::get<wchar_t>(input.at(start_index))) {
       case '\t':
         ResetScrollBehavior();
         if (!old_literal) {
@@ -620,7 +614,7 @@ class InsertMode : public EditorMode {
             // completion purposes; we might as well not let it be
             // added to the history (so as to not pollute it).
             current_insertion_->DeleteToLineEnd(LineColumn());
-            return;
+            return 1;
           }
         }
 
@@ -636,7 +630,7 @@ class InsertMode : public EditorMode {
         ForEachActiveBuffer(buffers_, {'\n'}, [&](OpenBuffer& buffer) {
           return options_.new_line_handler(buffer);
         });
-        return;
+        return 1;
 
       case ' ':
         ResetScrollBehavior();
@@ -649,19 +643,21 @@ class InsertMode : public EditorMode {
               return ApplyCompletionModel(buffer, modify_mode,
                                           completion_model_supplier);
             });
-        return;
+        return 1;
     }
 
     ResetScrollBehavior();
 
+    std::wstring consumed_input(1, std::get<wchar_t>(input.at(start_index)));
+
     // TODO: Apply TransformKeyboardText for buffers with fd?
     ForEachActiveBuffer(
-        buffers_, {regular_c},
-        [regular_c, options = options_,
+        buffers_, consumed_input,
+        [consumed_input, options = options_,
          completion_model_supplier =
              completion_model_supplier_](OpenBuffer& buffer) {
           gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
-          return buffer.TransformKeyboardText(std::wstring(1, regular_c))
+          return buffer.TransformKeyboardText(consumed_input)
               .Transform([options, buffer_root](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
@@ -699,7 +695,8 @@ class InsertMode : public EditorMode {
                   ModifyHandler<EmptyValue>(options.modify_handler, buffer));
         });
     current_insertion_->AppendToLine(current_insertion_->EndLine(),
-                                     Line(std::wstring(1, regular_c)));
+                                     Line(consumed_input));
+    return consumed_input.size();
   }
 
   CursorMode cursor_mode() const override {
