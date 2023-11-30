@@ -10,6 +10,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/buffer_subtypes.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_vm.h"
 #include "src/command.h"
@@ -597,6 +598,10 @@ class InsertMode : public InputReceiver {
   size_t ProcessRegular(std::vector<ExtendedChar> input, size_t start_index,
                         bool old_literal) {
     TRACK_OPERATION(InsertMode_ProcessInput_Regular);
+    const bool all_in_paste_mode = std::ranges::all_of(
+        buffers_.value() | gc::view::Value, [](OpenBuffer& buffer) {
+          return buffer.Read(buffer_variables::paste_mode);
+        });
     switch (std::get<wchar_t>(input.at(start_index))) {
       case '\t':
         ResetScrollBehavior();
@@ -633,6 +638,9 @@ class InsertMode : public InputReceiver {
         return 1;
 
       case ' ':
+        if (all_in_paste_mode)
+          // Optimization: space should be handled like any regular character.
+          break;
         ResetScrollBehavior();
         ForEachActiveBuffer(
             buffers_, {' '},
@@ -640,8 +648,23 @@ class InsertMode : public InputReceiver {
              completion_model_supplier =
                  completion_model_supplier_](OpenBuffer& buffer) {
               CHECK(buffer.fd() == nullptr);
-              return ApplyCompletionModel(buffer, modify_mode,
-                                          completion_model_supplier);
+              return std::visit(
+                  overload{
+                      [&](OpenBufferNoPasteMode buffer_input) {
+                        return ApplyCompletionModel(modify_mode,
+                                                    completion_model_supplier,
+                                                    buffer_input);
+                      },
+                      [&](OpenBufferPasteMode buffer_input) {
+                        return buffer_input.buffer.ApplyToCursors(
+                            transformation::Insert{
+                                .contents_to_insert = LineSequence::WithLine(
+                                    MakeNonNullShared<Line>(
+                                        LineBuilder(NewLazyString(L" "))
+                                            .Build())),
+                                .modifiers = {.insertion = modify_mode}});
+                      }},
+                  GetPasteModeVariant(buffer));
             });
         return 1;
     }
@@ -653,10 +676,15 @@ class InsertMode : public InputReceiver {
     std::wstring consumed_input;
     for (auto c :
          input | std::views::drop(start_index) |
-             std::views::take_while([](ExtendedChar c) {
-               static constexpr std::wstring special_characters = L" \n\t";
+             std::views::take_while([all_in_paste_mode](ExtendedChar c) {
+               static constexpr std::wstring stop_characters_all_in_paste_mode =
+                   L"\n\t";
+               static constexpr std::wstring stop_characters_default =
+                   stop_characters_all_in_paste_mode + L" ";
                return std::get<wchar_t>(c) &&
-                      !special_characters.contains(std::get<wchar_t>(c));
+                      !(all_in_paste_mode ? stop_characters_all_in_paste_mode
+                                          : stop_characters_default)
+                           .contains(std::get<wchar_t>(c));
              }) |
              std::views::transform([](ExtendedChar c) -> wchar_t {
                return std::get<wchar_t>(c);
@@ -673,6 +701,7 @@ class InsertMode : public InputReceiver {
           return buffer.TransformKeyboardText(consumed_input)
               .Transform([options, buffer_root](std::wstring value) {
                 VLOG(6) << "Inserting text: [" << value << "]";
+                TRACK_OPERATION(InsertMode_ProcessInput_Regular_ApplyToCursors);
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
                     .contents_to_insert =
                         LineSequence::WithLine(MakeNonNullShared<Line>(value)),
@@ -681,6 +710,7 @@ class InsertMode : public InputReceiver {
                             options.editor_state.modifiers().insertion}});
               })
               .Transform([buffer_root, completion_model_supplier](EmptyValue) {
+                TRACK_OPERATION(InsertMode_ProcessInput_Regular_ShowCompletion);
                 Range token_range = GetTokenRange(buffer_root.ptr().value());
                 if (token_range.IsEmpty()) return futures::Past(EmptyValue{});
                 CompletionModelManager::CompressedText token =
@@ -937,28 +967,30 @@ class InsertMode : public InputReceiver {
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
-      OpenBuffer& buffer, Modifiers::ModifyMode modify_mode,
+      Modifiers::ModifyMode modify_mode,
       NonNull<std::shared_ptr<CompletionModelManager>>
-          completion_model_supplier) {
-    const auto model_paths = CompletionModelPaths(buffer);
-    const LineColumn position = buffer.AdjustLineColumn(buffer.position());
-    Range token_range = GetTokenRange(buffer);
+          completion_model_supplier,
+      OpenBufferNoPasteMode buffer) {
+    const auto model_paths = CompletionModelPaths(buffer.buffer);
+    const LineColumn position =
+        buffer.buffer.AdjustLineColumn(buffer.buffer.position());
+    Range token_range = GetTokenRange(buffer.buffer);
     futures::Value<EmptyValue> output =
-        buffer.ApplyToCursors(transformation::Insert{
+        buffer.buffer.ApplyToCursors(transformation::Insert{
             .contents_to_insert =
                 LineSequence::WithLine(MakeNonNullShared<Line>(
                     LineBuilder(NewLazyString(L" ")).Build())),
             .modifiers = {.insertion = modify_mode}});
 
-    if (model_paths->empty() || buffer.Read(buffer_variables::paste_mode)) {
+    if (model_paths->empty()) {
       VLOG(5) << "No tokens found in buffer_variables::completion_model_paths.";
       return output;
     }
 
     const NonNull<std::shared_ptr<const Line>> line =
-        buffer.contents().at(position.line);
+        buffer.buffer.contents().at(position.line);
 
-    auto buffer_root = buffer.NewRoot();
+    auto buffer_root = buffer.buffer.NewRoot();
     if (token_range.IsEmpty()) {
       VLOG(5) << "Unable to rewind for completion token.";
       static const wchar_t kCompletionDisableSuffix = L'-';
@@ -982,7 +1014,7 @@ class InsertMode : public InputReceiver {
     }
 
     CompletionModelManager::CompressedText token =
-        GetCompletionToken(buffer.contents().snapshot(), token_range);
+        GetCompletionToken(buffer.buffer.contents().snapshot(), token_range);
     return std::move(output).Transform([model_paths = std::move(model_paths),
                                         token, position, modify_mode,
                                         buffer_root, completion_model_supplier](
