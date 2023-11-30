@@ -1757,6 +1757,7 @@ FileSystemDriver& OpenBuffer::file_system_driver() const {
 
 futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
+  TRACK_OPERATION(OpenBuffer_TransformKeyboardText);
   auto input_shared = std::make_shared<std::wstring>(std::move(input));
   return futures::ForEach(
              keyboard_text_transformers_.begin(),
