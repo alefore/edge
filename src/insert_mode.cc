@@ -25,6 +25,7 @@ extern "C" {
 #include "src/futures/listenable_value.h"
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
+#include "src/language/gc_container.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -330,11 +331,47 @@ NewInsertion(EditorState& editor) {
 }
 
 class InsertMode : public EditorMode {
+  const InsertModeOptions options_;
+
+  // Copy of the contents of options_.buffers. gc::Root to make it easy for it
+  // to be captured efficiently.
+  //
+  // TODO(easy, 2023-11-30): Change this to be a gc::Ptr. That requires storing
+  // `InsertMode` instances in gc::Ptr, rather than std::shared_ptr. That
+  // requires changing the type of EditorState::keyboard_redirect_.
+  const gc::Root<std::vector<gc::Ptr<OpenBuffer>>> buffers_;
+
+  std::optional<
+      futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>>
+      scroll_behavior_;
+
+  // If nullptr, next key should be interpreted directly. If non-null, next
+  // key should be inserted literally.
+  std::unique_ptr<StatusExpirationControl,
+                  std::function<void(StatusExpirationControl*)>>
+      status_expiration_for_literal_ = nullptr;
+
+  // Given to ScrollBehaviorFactory::Build, and used to signal when we want to
+  // abort the build of the history.
+  NonNull<std::unique_ptr<DeleteNotification>>
+      scroll_behavior_abort_notification_;
+
+  std::unique_ptr<MutableLineSequence,
+                  std::function<void(MutableLineSequence*)>>
+      current_insertion_;
+
+  NonNull<std::shared_ptr<CompletionModelManager>> completion_model_supplier_;
+
  public:
   InsertMode(InsertModeOptions options)
       : options_(std::move(options)),
-        buffers_(MakeNonNullShared<std::vector<gc::Root<OpenBuffer>>>(
-            options_.buffers->begin(), options_.buffers->end())),
+        buffers_(options_.editor_state.gc_pool().NewRoot(
+            MakeNonNullUnique<
+                std::vector<gc::Ptr<OpenBuffer>>>(container::MaterializeVector(
+                options_.buffers.value_or(std::vector<gc::Root<OpenBuffer>>{}) |
+                std::views::transform([](const gc::Root<OpenBuffer>& buffer) {
+                  return buffer.ptr();
+                }))))),
         current_insertion_(NewInsertion(options_.editor_state)),
         completion_model_supplier_(MakeNonNullShared<CompletionModelManager>(
             [&editor = options_.editor_state](Path path) {
@@ -678,23 +715,26 @@ class InsertMode : public EditorMode {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    return {};
+    // This shouldn't be necessary; buffers_ is itself a root. However, since
+    // our plan is to eventually turn buffers_ into a gc::Ptr, it'll make sense
+    // to do (a variation of) this here when that happens.
+    return {buffers_.ptr().object_metadata()};
   }
 
  private:
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in
   // every buffer without an fd.
   static futures::Value<EmptyValue> ForEachActiveBuffer(
-      NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers,
+      const gc::Root<std::vector<gc::Ptr<OpenBuffer>>>& buffers,
       std::wstring line_buffer,
       std::function<futures::Value<EmptyValue>(OpenBuffer&)> callable) {
     return WriteLineBuffer(buffers, line_buffer)
         .Transform([buffers, callable](EmptyValue) {
           return futures::ForEach(
-              buffers.get_shared(),
-              [callable](gc::Root<OpenBuffer>& buffer_root) {
-                return buffer_root.ptr()->fd() == nullptr
-                           ? callable(buffer_root.ptr().value())
+              buffers.ptr()->begin(), buffers.ptr()->end(),
+              [buffers, callable](gc::Ptr<OpenBuffer>& buffer_ptr) {
+                return buffer_ptr->fd() == nullptr
+                           ? callable(buffer_ptr.value())
                                  .Transform([](EmptyValue) {
                                    return futures::IterationControlCommand::
                                        kContinue;
@@ -805,14 +845,14 @@ class InsertMode : public EditorMode {
   }
 
   static futures::Value<EmptyValue> WriteLineBuffer(
-      NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers,
+      gc::Root<std::vector<gc::Ptr<OpenBuffer>>> buffers,
       std::wstring line_buffer) {
     if (line_buffer.empty()) return futures::Past(EmptyValue());
     return futures::ForEach(
-               buffers.get_shared(),
-               [line_buffer =
-                    std::move(line_buffer)](gc::Root<OpenBuffer>& buffer_root) {
-                 OpenBuffer& buffer = buffer_root.ptr().value();
+               buffers.ptr()->begin(), buffers.ptr()->end(),
+               [line_buffer = std::move(line_buffer),
+                buffers](gc::Ptr<OpenBuffer>& buffer_ptr) {
+                 OpenBuffer& buffer = buffer_ptr.value();
                  if (auto fd = buffer.fd(); fd != nullptr) {
                    std::string bytes = ToByteString(line_buffer);
                    if (write(fd->fd().read(), bytes.c_str(), bytes.size()) ==
@@ -974,36 +1014,6 @@ class InsertMode : public EditorMode {
               }}));
     });
   }
-
-  const InsertModeOptions options_;
-
-  // Copy of the contents of options_.buffers. shared_ptr to make it easy for
-  // it to be captured efficiently.
-  //
-  // TODO(trivial, 2023-10-14): Turn them into `ptr` and just add them in
-  // `Expand`.
-  const NonNull<std::shared_ptr<std::vector<gc::Root<OpenBuffer>>>> buffers_;
-
-  std::optional<
-      futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>>
-      scroll_behavior_;
-
-  // If nullptr, next key should be interpreted directly. If non-null, next
-  // key should be inserted literally.
-  std::unique_ptr<StatusExpirationControl,
-                  std::function<void(StatusExpirationControl*)>>
-      status_expiration_for_literal_ = nullptr;
-
-  // Given to ScrollBehaviorFactory::Build, and used to signal when we want to
-  // abort the build of the history.
-  NonNull<std::unique_ptr<DeleteNotification>>
-      scroll_behavior_abort_notification_;
-
-  std::unique_ptr<MutableLineSequence,
-                  std::function<void(MutableLineSequence*)>>
-      current_insertion_;
-
-  NonNull<std::shared_ptr<CompletionModelManager>> completion_model_supplier_;
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
