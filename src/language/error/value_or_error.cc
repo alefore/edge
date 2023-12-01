@@ -1,8 +1,12 @@
 #include "src/language/error/value_or_error.h"
 
 #include "glog/logging.h"
+#include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
+
+using afc::language::lazy_string::NewLazyString;
 
 namespace afc::language {
 Error AugmentError(std::wstring prefix, Error error) {
@@ -13,13 +17,11 @@ Error AugmentError(std::wstring prefix, Error error) {
 Error MergeErrors(const std::vector<Error>& errors,
                   const std::wstring& separator) {
   CHECK(!errors.empty());
-  std::wstring error_description;
-  std::wstring current_separator = L"";
-  for (const Error& error : errors) {
-    error_description += current_separator + error.read();
-    current_separator = separator;
-  }
-  return Error(std::move(error_description));
+  return Error(Concatenate(errors | std::views::transform([](const Error& e) {
+                             return NewLazyString(e.read());
+                           }) |
+                           Intersperse(NewLazyString(separator)))
+                   ->ToString());
 }
 
 ValueOrError<EmptyValue> Success() {
