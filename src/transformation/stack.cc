@@ -2,6 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
@@ -16,6 +17,7 @@
 
 using ::operator<<;
 
+namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 using afc::infrastructure::screen::LineModifier;
 using afc::language::EmptyValue;
@@ -28,7 +30,9 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -461,14 +465,13 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
 }
 
 std::wstring ToStringBase(const Stack& stack) {
-  std::wstring output = L"Stack(";
-  std::wstring separator;
-  for (auto& v : stack.stack) {
-    output += separator + ToString(v);
-    separator = L", ";
-  }
-  output += L")";
-  return output;
+  return Append(NewLazyString(L"Stack("),
+                Concatenate(stack.stack | std::views::transform([](auto& v) {
+                              return NewLazyString(ToString(v));
+                            }) |
+                            Intersperse(NewLazyString(L", "))),
+                NewLazyString(L")"))
+      ->ToString();
 }
 
 void Stack::PushBack(Variant transformation) {
