@@ -2234,13 +2234,11 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
 
 /* static */ wstring OpenBuffer::FlagsToString(
     std::map<wstring, wstring> flags) {
-  wstring output;
-  wstring separator = L"";
-  for (auto& f : flags) {
-    output += separator + f.first + f.second;
-    separator = L"  ";
-  }
-  return output;
+  return Concatenate(flags | std::views::transform([](const auto& f) {
+                       return NewLazyString(f.first + f.second);
+                     }) |
+                     Intersperse(NewLazyString(L"  ")))
+      ->ToString();
 }
 
 const bool& OpenBuffer::Read(const EdgeVariable<bool>* variable) const {
