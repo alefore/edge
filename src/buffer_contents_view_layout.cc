@@ -268,11 +268,12 @@ std::vector<BufferContentsViewLayout::Line> AdjustToHonorMargin(
 
 std::optional<LineNumberDelta> GetCursorIndex(
     const BufferContentsViewLayout& window) {
-  LineNumberDelta i;
-  for (const BufferContentsViewLayout::Line& screen_line : window.lines) {
-    if (screen_line.has_active_cursor) return i;
-    ++i;
-  }
+  auto view = std::ranges::views::enumerate(window.lines) |
+              std::views::filter([](const auto& item) {
+                return std::get<1>(item).has_active_cursor;
+              });
+  if (auto it = view.begin(); it != view.end())
+    return LineNumberDelta(std::get<0>(*it));
   return std::nullopt;
 }
 }  // namespace
