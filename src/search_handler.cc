@@ -149,14 +149,12 @@ std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
 PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
                              size_t required_positions,
                              std::set<std::wstring>& matches) {
-  ASSIGN_OR_RETURN(
-      std::vector<LineColumn> positions,
-      buffer.status().LogErrors(SearchHandler(
-          input.editor.modifiers().direction,
-          SearchOptions{.starting_position = buffer.position(),
-                        // TODO(trivial, 2023-10-06): Get rid of NewLazyString.
-                        .search_query = NewLazyString(input.input)},
-          buffer.contents().snapshot())));
+  ASSIGN_OR_RETURN(std::vector<LineColumn> positions,
+                   buffer.status().LogErrors(SearchHandler(
+                       input.editor.modifiers().direction,
+                       SearchOptions{.starting_position = buffer.position(),
+                                     .search_query = input.input},
+                       buffer.contents().snapshot())));
 
   // Get the first kMatchesLimit matches:
   if (!positions.empty()) buffer.set_position(positions[0]);

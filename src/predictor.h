@@ -40,7 +40,7 @@ using ProgressChannel = concurrent::Channel<ProgressInformation>;
 // given prompt input and writes them to a buffer.
 struct PredictorInput {
   EditorState& editor;
-  std::wstring input;
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
 
   // The output buffer to write predictions to.
   //

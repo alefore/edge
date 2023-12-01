@@ -184,7 +184,8 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   }
   CHECK(!shared_options->abort_value.has_value());
 
-  auto input = GetPredictInput(*shared_options);
+  NonNull<std::shared_ptr<LazyString>> input =
+      NewLazyString(GetPredictInput(*shared_options));
   // TODO(2023-11-28, P1): Using std::make_shared below is ugly. We should find
   // a way to only notify elsewhere, such as based on the return value of a
   // call to EndOfFile or some such.
@@ -211,11 +212,13 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
                                     BuildResults(buffer, predictor_output,
                                                  shared_options->abort_value));
                   CHECK(consumer != nullptr);
-                  std::invoke(std::move(*consumer),
-                              GetPredictInput(*shared_options) == input &&
-                                      !shared_options->abort_value.has_value()
-                                  ? std::optional<PredictResults>(results)
-                                  : std::nullopt);
+                  std::invoke(
+                      std::move(*consumer),
+                      NewLazyString(GetPredictInput(*shared_options)).value() ==
+                                  input.value() &&
+                              !shared_options->abort_value.has_value()
+                          ? std::optional<PredictResults>(results)
+                          : std::nullopt);
                   return Success();
                 });
       };
@@ -339,7 +342,8 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 }
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
-  LOG(INFO) << "Generating predictions for: " << predictor_input.input;
+  LOG(INFO) << "Generating predictions for: "
+            << predictor_input.input->ToString();
   // TODO(easy, 2022-12-11, non-copyable-function): Change to MakeNonNullUnique.
   auto predictor_output =
       MakeNonNullShared<concurrent::Protected<PredictorOutput>>(
@@ -351,7 +355,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
         std::wstring path_input = std::visit(
-            overload{[&](Error) { return predictor_input.input; },
+            overload{[&](Error) {
+                       // TODO(easy, 2023-12-02): Get rid of ToString.
+                       return predictor_input.input->ToString();
+                     },
                      [&](Path path) {
                        return predictor_input.editor.expand_path(path).read();
                      }},
@@ -494,11 +501,13 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
     }
   }
   return [contents](PredictorInput input) {
-    for (auto it = contents->lower_bound(input.input); it != contents->end();
+    // TODO(2023-12-02): Find a way to avoid the call to `ToString`.
+    std::wstring input_str = input.input->ToString();
+    for (auto it = contents->lower_bound(input_str); it != contents->end();
          ++it) {
       auto result =
-          mismatch(input.input.begin(), input.input.end(), (*it).first.begin());
-      if (result.first == input.input.end()) {
+          mismatch(input_str.begin(), input_str.end(), (*it).first.begin());
+      if (result.first == input_str.end()) {
         input.predictions.AppendToLastLine(it->second);
         input.predictions.AppendRawLine(NonNull<std::shared_ptr<Line>>());
       } else {
@@ -526,7 +535,7 @@ const bool buffer_tests_registration =
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         test_predictor(PredictorInput{.editor = buffer.ptr()->editor(),
-                                      .input = input,
+                                      .input = NewLazyString(input),
                                       .predictions = buffer.ptr().value(),
                                       .source_buffers = {},
                                       .progress_channel = channel});
@@ -598,10 +607,13 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
                          }));
 
   return [contents](PredictorInput input) {
-    auto input_line = MakeNonNullShared<const Line>(
-        LineBuilder(NewLazyString(input.input)).Build());
+    auto input_line =
+        MakeNonNullShared<const Line>(LineBuilder(input.input).Build());
 
     LineNumber line = contents.sorted_lines().upper_bound(input_line);
+
+    // TODO(2023-12-02): Find a way to do this without `ToString`.
+    const std::wstring input_str = input.input->ToString();
 
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
@@ -610,8 +622,8 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
       auto line_contents = contents.sorted_lines().lines().at(line);
       auto line_str = line_contents->ToString();
       auto result =
-          mismatch(input.input.begin(), input.input.end(), line_str.begin());
-      if (result.first != input.input.end()) {
+          mismatch(input_str.begin(), input_str.end(), line_str.begin());
+      if (result.first != input_str.end()) {
         break;
       }
       input.predictions.AppendRawLine(line_contents->contents());
