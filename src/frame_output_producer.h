@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 
@@ -16,7 +17,8 @@ struct FrameOutputProducerOptions {
   std::optional<size_t> position_in_parent = std::nullopt;
   enum class ActiveState { kActive, kInactive };
   ActiveState active_state = ActiveState::kInactive;
-  std::wstring extra_information = L"";
+  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+      extra_information = language::lazy_string::EmptyString();
   std::wstring prefix = L"";
 };
 

@@ -41,7 +41,7 @@ Line FrameLine(FrameOutputProducerOptions options) {
     output.AppendString(L")", line_modifiers);
   }
 
-  if (!options.extra_information.empty()) {
+  if (!options.extra_information->size().IsZero()) {
     output.AppendString(L"─<", line_modifiers);
     output.AppendString(options.extra_information, line_modifiers);
     output.AppendString(L">", line_modifiers);

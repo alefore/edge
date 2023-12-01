@@ -479,9 +479,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
                 FrameOutputProducerOptions::ActiveState::kActive;
           }
 
-          // TODO(trivial, 2023-12-02): Get rid of ToString.
           frame_options.extra_information =
-              OpenBuffer::FlagsToString(buffer.ptr()->Flags())->ToString();
+              OpenBuffer::FlagsToString(buffer.ptr()->Flags());
           frame_options.width = ColumnNumberDelta(
               buffer.ptr()->Read(buffer_variables::line_width));
           bool add_left_frame =
