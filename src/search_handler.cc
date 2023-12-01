@@ -160,12 +160,15 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
 
   // Get the first kMatchesLimit matches:
   if (!positions.empty()) buffer.set_position(positions[0]);
-  for (auto& position : positions | std::views::take(required_positions)) {
-    CHECK_LT(position.line, buffer.EndLine());
-    auto line = buffer.LineAt(position.line);
-    CHECK_LT(position.column, line->EndColumn());
-    matches.insert(RegexEscape(line->Substring(position.column)));
-  }
+  std::ranges::copy(
+      positions | std::views::take(required_positions) |
+          std::views::transform([&](LineColumn& position) -> std::wstring {
+            CHECK_LT(position.line, buffer.EndLine());
+            auto line = buffer.LineAt(position.line);
+            CHECK_LT(position.column, line->EndColumn());
+            return RegexEscape(line->Substring(position.column));
+          }),
+      std::inserter(matches, matches.end()));
   return Success();
 }
 
