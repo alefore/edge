@@ -786,9 +786,11 @@ std::vector<gc::Root<OpenBuffer>> BuffersList::GetAllBuffers() const {
   return buffers_;
 }
 
-void BuffersList::RemoveBuffer(const OpenBuffer& buffer) {
-  EraseIf(buffers_, [&buffer](const gc::Root<OpenBuffer>& candidate) {
-    return &candidate.ptr().value() == &buffer;
+void BuffersList::RemoveBuffers(
+    const std::unordered_set<NonNull<const OpenBuffer*>>& buffers_to_erase) {
+  EraseIf(buffers_, [&buffers_to_erase](const gc::Root<OpenBuffer>& candidate) {
+    return buffers_to_erase.contains(
+        NonNull<const OpenBuffer*>::AddressOf(candidate.ptr().value()));
   });
   Update();
 }

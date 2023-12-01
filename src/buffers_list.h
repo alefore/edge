@@ -29,7 +29,8 @@ class BuffersList {
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
   void AddBuffer(language::gc::Root<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
-  void RemoveBuffer(const OpenBuffer& buffer);
+  void RemoveBuffers(
+      const std::unordered_set<language::NonNull<const OpenBuffer*>>& buffers);
   std::vector<language::gc::Root<OpenBuffer>> GetAllBuffers() const;
   const language::gc::Root<OpenBuffer>& GetBuffer(size_t index) const;
   std::optional<size_t> GetBufferIndex(const OpenBuffer& buffer) const;

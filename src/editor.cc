@@ -263,10 +263,15 @@ EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
-  for (OpenBuffer& buffer : buffers_ | std::views::values | gc::view::Value) {
+  for (OpenBuffer& buffer : buffers_ | std::views::values | gc::view::Value)
     buffer.Close();
-    buffer_tree_.RemoveBuffer(buffer);
-  }
+
+  buffer_tree_.RemoveBuffers(
+      container::Materialize<std::unordered_set<NonNull<const OpenBuffer*>>>(
+          buffers_ | std::views::values | gc::view::Value |
+          std::views::transform([](const OpenBuffer& buffer) {
+            return NonNull<const OpenBuffer*>::AddressOf(buffer);
+          })));
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
   buffers_.clear();
@@ -351,7 +356,8 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
       .Transform(
           [this, buffer = buffer.NewRoot()](OpenBuffer::PrepareToCloseOutput) {
             buffer.ptr()->Close();
-            buffer_tree_.RemoveBuffer(buffer.ptr().value());
+            buffer_tree_.RemoveBuffers(std::unordered_set{
+                NonNull<const OpenBuffer*>::AddressOf(buffer.ptr().value())});
             buffers_.erase(buffer.ptr()->name());
             AdjustWidgets();
             return futures::Past(Success());
