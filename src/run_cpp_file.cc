@@ -8,6 +8,7 @@
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/line_prompt_mode.h"
 
@@ -19,6 +20,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -59,9 +61,8 @@ futures::Value<PossibleError> RunCppFileHandler(
                    return ResolvePath(std::move(options));
                  }),
              [buffer, input](Error error) {
-               // TODO(easy, 2022-06-05): Get rid of ToString.
-               buffer->ptr()->status().InsertError(
-                   Error(L"🗱  File not found: " + input->ToString()));
+               buffer->ptr()->status().InsertError(NewError(
+                   Append(NewLazyString(L"🗱  File not found: "), input)));
                return futures::Past(error);
              })
       .Transform([buffer, &editor_state,
