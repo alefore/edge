@@ -5,6 +5,8 @@
 #include "src/language/container.h"
 #include "src/language/gc_view.h"
 #include "src/language/hash.h"
+#include "src/language/lazy_string/append.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
@@ -12,6 +14,9 @@
 namespace container = afc::language::container;
 
 using afc::language::GetValueOrDie;
+using afc::language::lazy_string::Concatenate;
+using afc::language::lazy_string::Intersperse;
+using afc::language::lazy_string::NewLazyString;
 
 namespace std {
 template <>
@@ -154,13 +159,11 @@ std::ostream& operator<<(std::ostream& os, const Type& type) {
 }
 
 std::wstring TypesToString(const std::vector<Type>& types) {
-  std::wstring output;
-  std::wstring separator = L"";
-  for (auto& t : types) {
-    output += separator + L"\"" + ToString(t) + L"\"";
-    separator = L", ";
-  }
-  return output;
+  return Concatenate(types | std::views::transform([](const Type& t) {
+                       return NewLazyString(L"\"" + ToString(t) + L"\"");
+                     }) |
+                     Intersperse(NewLazyString(L", ")))
+      ->ToString();
 }
 
 std::wstring TypesToString(const std::unordered_set<Type>& types) {
@@ -183,17 +186,16 @@ std::wstring ToString(const Type& type) {
                          {PurityType::kPure, L"function"},
                          {PurityType::kReader, L"Function"},
                          {PurityType::kUnknown, L"FUNCTION"}};
-                 std::wstring output =
-                     GetValueOrDie(function_purity_types,
-                                   function_type.function_purity) +
-                     L"<" + ToString(function_type.output.get()) + L"(";
-                 std::wstring separator = L"";
-                 for (const Type& input : function_type.inputs) {
-                   output += separator + ToString(input);
-                   separator = L", ";
-                 }
-                 output += L")>";
-                 return output;
+                 return GetValueOrDie(function_purity_types,
+                                      function_type.function_purity) +
+                        L"<" + ToString(function_type.output.get()) + L"(" +
+                        Concatenate(function_type.inputs |
+                                    std::views::transform([](const Type& t) {
+                                      return NewLazyString(ToString(t));
+                                    }) |
+                                    Intersperse(NewLazyString(L", ")))
+                            ->ToString() +
+                        L")>";
                }},
       type);
 }
