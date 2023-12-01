@@ -337,7 +337,8 @@ class OpenBuffer {
 
   bool dirty() const;
   std::map<std::wstring, std::wstring> Flags() const;
-  static std::wstring FlagsToString(std::map<std::wstring, std::wstring> flags);
+  static language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
+  FlagsToString(std::map<std::wstring, std::wstring> flags);
 
   futures::Value<std::wstring> TransformKeyboardText(std::wstring input);
   bool AddKeyboardTextTransformer(language::gc::Root<vm::Value> transformer);

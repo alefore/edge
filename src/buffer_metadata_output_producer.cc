@@ -405,11 +405,12 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   auto info_char_modifier = LineModifier::kDim;
 
   if (target_buffer.get() != &options.buffer) {
-    output.push_back(
-        MetadataLine{info_char, info_char_modifier,
-                     MakeNonNullShared<const Line>(
-                         OpenBuffer::FlagsToString(target_buffer->Flags())),
-                     MetadataLine::Type::kFlags});
+    output.push_back(MetadataLine{
+        info_char, info_char_modifier,
+        MakeNonNullShared<const Line>(
+            LineBuilder(OpenBuffer::FlagsToString(target_buffer->Flags()))
+                .Build()),
+        MetadataLine::Type::kFlags});
 #if 0
   } else if (contents.modified()) {
     info_char_modifier = LineModifier::kGreen;

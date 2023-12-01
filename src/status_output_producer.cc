@@ -12,11 +12,13 @@
 #include "src/columns_vector.h"
 #include "src/editor.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/line_marks.h"
 #include "src/section_brackets_producer.h"
 #include "src/tests/tests.h"
+
 namespace afc::editor {
 namespace {
 using infrastructure::Tracker;
@@ -144,8 +146,8 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     if (!flags.empty()) {
-      output.AppendString(
-          NewLazyString(L"  " + OpenBuffer::FlagsToString(std::move(flags))));
+      output.AppendString(Append(NewLazyString(L"  "),
+                                 OpenBuffer::FlagsToString(std::move(flags))));
     }
 
     if (options.status.text()->empty()) {
