@@ -42,7 +42,7 @@ language::NonNull<std::shared_ptr<LazyString>> Concatenate(R&& inputs) {
 //     std::vector<NonNull<std::shared_ptr<LazyString>> inputs = ...;
 //     NonNull<std::shared_ptr<LazyString>> output =
 //         Concatenate(inputs | Intersperse(NewLazyString(L", ")))
-auto Intersperse(NonNull<std::shared_ptr<LazyString>> separator) {
+inline auto Intersperse(NonNull<std::shared_ptr<LazyString>> separator) {
   return std::views::transform([&](NonNull<std::shared_ptr<LazyString>> v) {
            return std::vector<NonNull<std::shared_ptr<LazyString>>>{
                separator, std::move(v)};
