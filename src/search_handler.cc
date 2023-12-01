@@ -159,12 +159,8 @@ PossibleError SearchInBuffer(PredictorInput& input, OpenBuffer& buffer,
           buffer.contents().snapshot())));
 
   // Get the first kMatchesLimit matches:
-  for (size_t i = 0;
-       i < positions.size() && matches.size() < required_positions; i++) {
-    auto position = positions[i];
-    if (i == 0) {
-      buffer.set_position(position);
-    }
+  if (!positions.empty()) buffer.set_position(positions[0]);
+  for (auto& position : positions | std::views::take(required_positions)) {
     CHECK_LT(position.line, buffer.EndLine());
     auto line = buffer.LineAt(position.line);
     CHECK_LT(position.column, line->EndColumn());
