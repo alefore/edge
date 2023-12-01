@@ -8,12 +8,18 @@
 #include <variant>
 
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 
 namespace afc::language {
 GHOST_TYPE(Error, std::wstring);
+
+// TODO(easy, 2023-12-02): Convert all callers of `Error` to call `NewError` and
+// change the internal type.
+Error NewError(
+    language::NonNull<std::shared_ptr<lazy_string::LazyString>> error);
 
 // Example: AugmentError(L"🖫 Save failed", error)
 Error AugmentError(std::wstring prefix, Error error);

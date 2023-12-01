@@ -9,6 +9,11 @@
 using afc::language::lazy_string::NewLazyString;
 
 namespace afc::language {
+Error NewError(
+    language::NonNull<std::shared_ptr<lazy_string::LazyString>> error) {
+  return Error(error->ToString());
+}
+
 Error AugmentError(std::wstring prefix, Error error) {
   return Error(prefix + L": " + error.read());
 }
