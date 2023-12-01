@@ -34,6 +34,23 @@ language::NonNull<std::shared_ptr<LazyString>> Concatenate(R&& inputs) {
       EmptyString(), inputs);
 }
 
+// Returns a range transformation that can be used to intersperse a given
+// LazyString between elements in a range of LazyString elements.
+//
+// For example:
+//
+//     std::vector<NonNull<std::shared_ptr<LazyString>> inputs = ...;
+//     NonNull<std::shared_ptr<LazyString>> output =
+//         Concatenate(inputs | Intersperse(NewLazyString(L", ")))
+auto Intersperse(NonNull<std::shared_ptr<LazyString>> separator) {
+  return std::views::transform([&](NonNull<std::shared_ptr<LazyString>> v) {
+           return std::vector<NonNull<std::shared_ptr<LazyString>>>{
+               separator, std::move(v)};
+         }) |
+         std::views::join |
+         // Remove the first element (", ").
+         std::views::drop(1);
+}
 }  // namespace afc::language::lazy_string
 
 #endif  // __AFC_LANGUAGE_LAZY_STRING_APPEND_H__
