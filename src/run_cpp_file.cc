@@ -30,7 +30,7 @@ using afc::language::lazy_string::NewLazyString;
 using afc::language::text::OutgoingLink;
 
 namespace afc::editor {
-
+namespace {
 futures::Value<PossibleError> RunCppFileHandler(
     EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> input) {
   // TODO(easy): Honor `multiple_buffers`.
@@ -91,7 +91,6 @@ futures::Value<PossibleError> RunCppFileHandler(
       });
 }
 
-namespace {
 class RunCppFileCommand : public Command {
  public:
   RunCppFileCommand(EditorState& editor_state) : editor_state_(editor_state) {}
