@@ -48,6 +48,7 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
+#include "src/regular_file_adapter.h"
 #include "src/run_command_handler.h"
 #include "src/seek.h"
 #include "src/server.h"

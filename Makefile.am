@@ -248,6 +248,8 @@ src/path_flags.h \
 src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \
+src/regular_file_adapter.h \
+src/regular_file_adapter.cc \
 src/repeat_mode.cc \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
