@@ -83,7 +83,6 @@ src/editor_variables.cc \
 src/editor_variables.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
-src/file_adapter.h \
 src/file_link_mode.cc \
 src/file_descriptor_reader.cc \
 src/file_descriptor_reader.h \
@@ -113,8 +112,11 @@ src/infrastructure/extended_char.cc \
 src/infrastructure/extended_char.h \
 src/infrastructure/extended_char_vm.cc \
 src/infrastructure/extended_char_vm.h \
+src/infrastructure/file_adapter.h \
 src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
+src/infrastructure/regular_file_adapter.h \
+src/infrastructure/regular_file_adapter.cc \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
 src/infrastructure/screen/cursors.cc \
@@ -248,8 +250,6 @@ src/path_flags.h \
 src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \
-src/regular_file_adapter.h \
-src/regular_file_adapter.cc \
 src/repeat_mode.cc \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \

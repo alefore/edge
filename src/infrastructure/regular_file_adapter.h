@@ -6,8 +6,8 @@
 #include <optional>
 #include <vector>
 
-#include "src/file_adapter.h"
 #include "src/futures/futures.h"
+#include "src/infrastructure/file_adapter.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/error/value_or_error.h"

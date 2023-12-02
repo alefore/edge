@@ -19,6 +19,7 @@
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/execution.h"
+#include "src/infrastructure/file_adapter.h"
 #include "src/infrastructure/screen/cursors.h"
 #include "src/infrastructure/screen/visual_overlay.h"
 #include "src/language/ghost_type.h"

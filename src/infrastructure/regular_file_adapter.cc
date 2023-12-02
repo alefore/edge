@@ -1,4 +1,4 @@
-#include "src/regular_file_adapter.h"
+#include "src/infrastructure/regular_file_adapter.h"
 
 #include "src/language/lazy_string/substring.h"
 #include "src/language/text/line.h"
