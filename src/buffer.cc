@@ -374,6 +374,9 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       default_commands_(std::move(default_commands)),
       mode_(std::move(mode)),
       status_(options_.editor.audio_player()),
+      file_adapter_(
+          MakeNonNullUnique<RegularFileAdapter>(RegularFileAdapter::Options{
+              .thread_pool = editor().thread_pool(), .insert_lines = nullptr})),
       file_system_driver_(editor().thread_pool()) {
   work_queue_->OnSchedule().Add(std::bind_front(
       MaybeScheduleNextWorkQueueExecution,
@@ -555,7 +558,7 @@ void OpenBuffer::ClearContents(
                                                      name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
                        cursors_behavior);
-  tty_adapter_->SetPositionToZero();
+  file_adapter_->SetPositionToZero();
   undo_state_.Clear();
 }
 
@@ -653,12 +656,12 @@ void OpenBuffer::SendEndOfFileToProcess() {
 std::unique_ptr<bool, std::function<void(bool*)>>
 OpenBuffer::GetEndPositionFollower() {
   if (!Read(buffer_variables::follow_end_of_file)) return nullptr;
-  if (position() < end_position() && tty_adapter_->position() == std::nullopt)
+  if (position() < end_position() && file_adapter_->position() == std::nullopt)
     return nullptr;  // Not at the end, so user must have scrolled up.
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this](bool* value) {
         delete value;
-        set_position(tty_adapter_->position().value_or(end_position()));
+        set_position(file_adapter_->position().value_or(end_position()));
       });
 }
 
@@ -1635,8 +1638,8 @@ VisualOverlayMap OpenBuffer::SetVisualOverlayMap(VisualOverlayMap value) {
   return previous_value;
 }
 
-NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
-  class Adapter : public TerminalInputParser::Receiver {
+NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
+  class Adapter : public TerminalAdapter::Receiver {
    public:
     Adapter(OpenBuffer& buffer) : buffer_(buffer) {}
 
@@ -1684,8 +1687,8 @@ NonNull<std::unique_ptr<TerminalInputParser>> OpenBuffer::NewTerminal() {
     OpenBuffer& buffer_;
   };
 
-  return MakeNonNullUnique<TerminalInputParser>(
-      MakeNonNullUnique<Adapter>(*this), contents_);
+  return MakeNonNullUnique<TerminalAdapter>(MakeNonNullUnique<Adapter>(*this),
+                                            contents_);
 }
 
 language::NonNull<std::shared_ptr<const language::text::Line>>
@@ -1716,7 +1719,7 @@ const struct timespec OpenBuffer::time_last_exit() const {
 void OpenBuffer::PushSignal(UnixSignal signal) {
   status_.SetInformationText(
       MakeNonNullShared<Line>(std::to_wstring(signal.read())));
-  if (tty_adapter_->WriteSignal(signal)) return;
+  if (file_adapter_->WriteSignal(signal)) return;
 
   switch (signal.read()) {
     case SIGINT:
@@ -1818,11 +1821,13 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
   }
 
   CHECK(child_pid_ == std::nullopt);
-  tty_adapter_ = std::invoke(
-      [fd_is_terminal, this] -> NonNull<std::unique_ptr<TtyAdapter>> {
-        if (fd_is_terminal) return NewTerminal();
-        return MakeNonNullUnique<NullTtyAdapter>();
-      });
+  file_adapter_ = std::invoke([fd_is_terminal,
+                               this] -> NonNull<std::unique_ptr<FileAdapter>> {
+    if (fd_is_terminal) return NewTerminal();
+    return MakeNonNullUnique<RegularFileAdapter>(RegularFileAdapter::Options{
+        .thread_pool = editor().thread_pool(),
+        .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); }});
+  });
 
   auto new_reader = [this](FileDescriptor fd, LineModifierSet modifiers)
       -> std::unique_ptr<FileDescriptorReader> {
@@ -1839,24 +1844,23 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
                         << ": Evaluating VM code: " << input.ToString();
               EvaluateString(input.ToString());
             },
-        .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); },
         .process_terminal_input =
-            [this](
-                const language::NonNull<
-                    std::shared_ptr<language::lazy_string::LazyString>>& input,
-                std::function<void()> new_line) {
-              return tty_adapter_->ProcessCommandInput(input,
-                                                       std::move(new_line));
+            [this, modifiers](
+                language::NonNull<
+                    std::shared_ptr<language::lazy_string::LazyString>>
+                    input,
+                std::function<void(LineNumberDelta)> new_line_callback) {
+              return file_adapter_->ReceiveInput(std::move(input), modifiers,
+                                                 std::move(new_line_callback));
             },
         .fd = fd,
-        .modifiers = std::move(modifiers),
         .thread_pool = editor().thread_pool()});
   };
 
   fd_ = new_reader(input_fd, {});
   fd_error_ = new_reader(input_error_fd, {LineModifier::kBold});
   child_pid_ = child_pid;
-  tty_adapter_->UpdateSize();
+  file_adapter_->UpdateSize();
 }
 
 const FileDescriptorReader* OpenBuffer::fd() const { return fd_.get(); }

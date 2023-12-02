@@ -14,7 +14,7 @@
 namespace afc::editor {
 using infrastructure::FileDescriptor;
 using infrastructure::Tracker;
-using infrastructure::screen::LineModifierSet;
+using language::EmptyValue;
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
@@ -23,6 +23,7 @@ using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
+using language::text::LineNumberDelta;
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(MakeNonNullShared<Options>(std::move(options))) {
@@ -117,65 +118,17 @@ FileDescriptorReader::ReadData() {
   options_->maybe_exec(buffer_wrapper.value());
 
   clock_gettime(0, &last_input_received_);
-  if (options_->process_terminal_input(buffer_wrapper, [this]() {
-        lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
-      }))
-    return futures::Past(ReadResult::kContinue);
-
   state_ = State::kParsing;
-  return ParseAndInsertLines(buffer_wrapper).Transform([this](bool) {
-    state_ = State::kIdle;
-    return ReadResult::kContinue;
-  });
-}
-
-std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
-    NonNull<std::shared_ptr<LazyString>> contents,
-    const LineModifierSet& modifiers) {
-  static Tracker tracker(L"FileDescriptorReader::CreateLineInstances");
-  auto tracker_call = tracker.Call();
-
-  std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert;
-  lines_to_insert.reserve(4096);
-  ColumnNumber line_start;
-  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); ++i) {
-    if (contents->get(i) == '\n') {
-      VLOG(8) << "Adding line from " << line_start << " to " << i;
-
-      LineBuilder line_options;
-      line_options.set_contents(
-          Substring(contents, line_start, ColumnNumber(i) - line_start));
-      line_options.set_modifiers(ColumnNumber(0), modifiers);
-      lines_to_insert.emplace_back(
-          MakeNonNullShared<const Line>(std::move(line_options).Build()));
-
-      line_start = ColumnNumber(i) + ColumnNumberDelta(1);
-    }
-  }
-
-  VLOG(8) << "Adding last line from " << line_start << " to "
-          << contents->size();
-  LineBuilder line_options;
-  line_options.set_contents(Substring(contents, line_start));
-  line_options.set_modifiers(ColumnNumber(0), modifiers);
-  lines_to_insert.emplace_back(
-      MakeNonNullShared<Line>(std::move(line_options).Build()));
-  return lines_to_insert;
-}
-
-futures::Value<bool> FileDescriptorReader::ParseAndInsertLines(
-    NonNull<std::shared_ptr<LazyString>> contents) {
-  return options_->thread_pool
-      .Run(std::bind_front(CreateLineInstances, std::move(contents),
-                           options_->modifiers))
-      .Transform([options = options_, lines_read_rate = lines_read_rate_](
-                     std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
-        lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
-        static Tracker tracker(L"FileDescriptorReader::ParseAndInsertLines");
-        auto tracker_call = tracker.Call();
-        if (lines.empty()) return true;
-        options->insert_lines(std::move(lines));
-        return true;
+  return options_
+      ->process_terminal_input(
+          std::move(buffer_wrapper),
+          [this](LineNumberDelta lines) {
+            lines_read_rate_->IncrementAndGetEventsPerSecond(lines.read());
+          })
+      .Transform([this](EmptyValue) {
+        state_ = State::kIdle;
+        return futures::Past(ReadResult::kContinue);
       });
 }
+
 }  // namespace afc::editor

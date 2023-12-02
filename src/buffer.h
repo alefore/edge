@@ -470,7 +470,7 @@ class OpenBuffer {
 
   infrastructure::FileSystemDriver& file_system_driver() const;
 
-  language::NonNull<std::unique_ptr<TerminalInputParser>>
+  language::NonNull<std::unique_ptr<TerminalAdapter>>
   NewTerminal();  // Public for testing.
 
   // Returns the path to the directory that should be used to keep state for the
@@ -592,9 +592,6 @@ class OpenBuffer {
   // Non-const because Reload will reset it to a newly constructed instance.
   language::NonNull<std::unique_ptr<BufferDisplayData>> display_data_;
 
-  language::NonNull<std::unique_ptr<TtyAdapter>> tty_adapter_ =
-      language::MakeNonNullUnique<NullTtyAdapter>();
-
   // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is
   // reloaded.
@@ -680,6 +677,8 @@ class OpenBuffer {
   mutable Status status_;
 
   BufferSyntaxParser buffer_syntax_parser_;
+
+  language::NonNull<std::unique_ptr<FileAdapter>> file_adapter_;
 
   mutable infrastructure::FileSystemDriver file_system_driver_;
 

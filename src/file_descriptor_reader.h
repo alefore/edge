@@ -11,8 +11,8 @@
 
 #include "src/buffer_name.h"
 #include "src/concurrent/thread_pool.h"
+#include "src/futures/futures.h"
 #include "src/infrastructure/file_system_driver.h"
-#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
@@ -31,20 +31,15 @@ class FileDescriptorReader {
     BufferName buffer_name;
 
     std::function<void(const language::lazy_string::LazyString&)> maybe_exec;
-    std::function<void(std::vector<language::NonNull<
-                           std::shared_ptr<const language::text::Line>>>)>
-        insert_lines;
 
-    std::function<bool(const language::NonNull<
-                           std::shared_ptr<language::lazy_string::LazyString>>&,
-                       std::function<void()>)>
+    std::function<futures::Value<language::EmptyValue>(
+        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
+        std::function<void(language::text::LineNumberDelta)>)>
         process_terminal_input;
 
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
     infrastructure::FileDescriptor fd;
-
-    infrastructure::screen::LineModifierSet modifiers;
 
     // We want to avoid potentially expensive/slow parsing operations in the
     // main thread. To achieve that, we receive a thread pool owned by our

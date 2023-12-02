@@ -3,6 +3,7 @@
 #include <cctype>
 #include <csignal>
 #include <ostream>
+#include <vector>
 
 extern "C" {
 #include <sys/ioctl.h>
@@ -13,55 +14,59 @@ extern "C" {
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/language/wstring.h"
 #include "src/tests/fuzz.h"
 
-namespace afc::editor {
-using infrastructure::UnixSignal;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::Error;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::Observers;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
+using afc::infrastructure::UnixSignal;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::Observers;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::MutableLineSequence;
 
-TerminalInputParser::TerminalInputParser(
-    NonNull<std::unique_ptr<TerminalInputParser::Receiver>> receiver,
+namespace afc::editor {
+
+TerminalAdapter ::TerminalAdapter(
+    NonNull<std::unique_ptr<TerminalAdapter::Receiver>> receiver,
     MutableLineSequence& contents)
     : data_(MakeNonNullShared<Data>(
           Data{.receiver = std::move(receiver), .contents = contents})) {
   data_->receiver->view_size().Add(Observers::LockingObserver(
       std::weak_ptr<Data>(data_.get_shared()), InternalUpdateSize));
 
-  LOG(INFO) << "New TerminalInputParser for " << data_->receiver->name();
+  LOG(INFO) << "New TerminalAdapter for " << data_->receiver->name();
 }
 
-std::optional<LineColumn> TerminalInputParser::position() const {
+std::optional<LineColumn> TerminalAdapter::position() const {
   return data_->position;
 }
 
-void TerminalInputParser::SetPositionToZero() {
-  data_->position = LineColumn();
-}
+void TerminalAdapter::SetPositionToZero() { data_->position = LineColumn(); }
 
-bool TerminalInputParser::ProcessCommandInput(
+futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
     NonNull<std::shared_ptr<LazyString>> str,
-    const std::function<void()>& new_line_callback) {
+    const LineModifierSet& initial_modifiers,
+    const std::function<void(LineNumberDelta)>& new_line_callback) {
   data_->position.line =
       std::min(data_->position.line, data_->receiver->contents().EndLine());
-  LineModifierSet modifiers;
+  LineModifierSet modifiers = initial_modifiers;
 
   ColumnNumber read_index;
   VLOG(5) << "Terminal input: " << str->ToString();
@@ -81,7 +86,7 @@ bool TerminalInputParser::ProcessCommandInput(
       data_->position.column = ColumnNumber(0);
     } else if (c == '\n') {
       VLOG(8) << "Received \\n";
-      new_line_callback();
+      new_line_callback(LineNumberDelta(1));
       MoveToNextLine();
     } else if (c == 0x1b) {
       VLOG(8) << "Received 0x1b";
@@ -103,10 +108,10 @@ bool TerminalInputParser::ProcessCommandInput(
     }
   }
   data_->receiver->JumpToPosition(data_->position);
-  return true;
+  return futures::Past(EmptyValue());
 }
 
-std::vector<tests::fuzz::Handler> TerminalInputParser::FuzzHandlers() {
+std::vector<tests::fuzz::Handler> TerminalAdapter::FuzzHandlers() {
   using namespace tests::fuzz;
   std::vector<Handler> output;
   output.push_back(Call(std::function<void()>([this]() { position(); })));
@@ -116,13 +121,13 @@ std::vector<tests::fuzz::Handler> TerminalInputParser::FuzzHandlers() {
 
   output.push_back(Call(
       std::function<void(ShortRandomString)>([this](ShortRandomString input) {
-        ProcessCommandInput(NewLazyString(std::move(input.value)),
-                            []() { /* Nothing. */ });
+        return ReceiveInput(NewLazyString(std::move(input.value)), {},
+                            [](LineNumberDelta) {});
       })));
   return output;
 }
 
-ColumnNumber TerminalInputParser::ProcessTerminalEscapeSequence(
+ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
     NonNull<std::shared_ptr<LazyString>> str, ColumnNumber read_index,
     LineModifierSet* modifiers) {
   if (str->size() <= read_index.ToDelta()) {
@@ -376,7 +381,7 @@ ColumnNumber TerminalInputParser::ProcessTerminalEscapeSequence(
   return read_index;
 }
 
-void TerminalInputParser::MoveToNextLine() {
+void TerminalAdapter::MoveToNextLine() {
   ++data_->position.line;
   data_->position.column = ColumnNumber(0);
   if (data_->position.line ==
@@ -386,10 +391,10 @@ void TerminalInputParser::MoveToNextLine() {
   data_->receiver->JumpToPosition(data_->position);
 }
 
-void TerminalInputParser::UpdateSize() { InternalUpdateSize(data_.value()); }
+void TerminalAdapter::UpdateSize() { InternalUpdateSize(data_.value()); }
 
 /* static */
-void TerminalInputParser::InternalUpdateSize(Data& data) {
+void TerminalAdapter::InternalUpdateSize(Data& data) {
   std::optional<infrastructure::FileDescriptor> fd = data.receiver->fd();
   if (fd == std::nullopt) {
     LOG(INFO) << "Buffer fd is gone.";
@@ -418,12 +423,12 @@ void TerminalInputParser::InternalUpdateSize(Data& data) {
 }
 
 /* static */
-LineColumnDelta TerminalInputParser::LastViewSize(Data& data) {
+LineColumnDelta TerminalAdapter::LastViewSize(Data& data) {
   return data.receiver->view_size().Get().value_or(
       LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }
 
-bool TerminalInputParser::WriteSignal(UnixSignal signal) {
+bool TerminalAdapter::WriteSignal(UnixSignal signal) {
   if (std::optional<infrastructure::FileDescriptor> fd = data_->receiver->fd();
       fd != std::nullopt)
     switch (signal.read()) {
@@ -442,20 +447,67 @@ bool TerminalInputParser::WriteSignal(UnixSignal signal) {
   return false;
 }
 
-void NullTtyAdapter::UpdateSize() {}
+RegularFileAdapter::RegularFileAdapter(Options options)
+    : options_(std::move(options)) {}
 
-std::optional<language::text::LineColumn> NullTtyAdapter::position() const {
+void RegularFileAdapter::UpdateSize() {}
+
+std::optional<language::text::LineColumn> RegularFileAdapter::position() const {
   return std::nullopt;
 }
 
-void NullTtyAdapter::SetPositionToZero() {}
+void RegularFileAdapter::SetPositionToZero() {}
 
-bool NullTtyAdapter::ProcessCommandInput(
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
-    const std::function<void()>&) {
-  return false;
+std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
+    NonNull<std::shared_ptr<LazyString>> contents,
+    const LineModifierSet& modifiers) {
+  TRACK_OPERATION(FileDescriptorReader_CreateLineInstances);
+
+  std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert;
+  lines_to_insert.reserve(4096);
+  ColumnNumber line_start;
+  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); ++i) {
+    if (contents->get(i) == '\n') {
+      VLOG(8) << "Adding line from " << line_start << " to " << i;
+
+      LineBuilder line_options;
+      line_options.set_contents(
+          Substring(contents, line_start, ColumnNumber(i) - line_start));
+      line_options.set_modifiers(ColumnNumber(0), modifiers);
+      lines_to_insert.emplace_back(
+          MakeNonNullShared<const Line>(std::move(line_options).Build()));
+
+      line_start = ColumnNumber(i) + ColumnNumberDelta(1);
+    }
+  }
+
+  VLOG(8) << "Adding last line from " << line_start << " to "
+          << contents->size();
+  LineBuilder line_options;
+  line_options.set_contents(Substring(contents, line_start));
+  line_options.set_modifiers(ColumnNumber(0), modifiers);
+  lines_to_insert.emplace_back(
+      MakeNonNullShared<Line>(std::move(line_options).Build()));
+  return lines_to_insert;
 }
 
-bool NullTtyAdapter::WriteSignal(UnixSignal) { return false; }
+futures::Value<EmptyValue> RegularFileAdapter::ReceiveInput(
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+    const LineModifierSet& modifiers,
+    const std::function<void(LineNumberDelta)>& new_line_callback) {
+  return options_.thread_pool
+      .Run(std::bind_front(CreateLineInstances, std::move(str), modifiers))
+      .Transform([options = options_,
+                  new_line_callback = std::move(new_line_callback)](
+                     std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
+        TRACK_OPERATION(RegularFileAdapter_ReceiveInput);
+        CHECK_GT(lines.size(), 0ul);
+        new_line_callback(LineNumberDelta(lines.size()) - LineNumberDelta(1));
+        if (!lines.empty()) options.insert_lines(std::move(lines));
+        return EmptyValue();
+      });
+}
+
+bool RegularFileAdapter::WriteSignal(UnixSignal) { return false; }
 
 }  // namespace afc::editor

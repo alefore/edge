@@ -8,6 +8,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/concurrent/thread_pool.h"
+#include "src/futures/futures.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/error/value_or_error.h"
@@ -23,7 +25,42 @@ class Player;
 namespace afc::editor {
 class BufferName;
 
-class TtyAdapter {
+// Class that represents the bridge between the OpenBuffer class and a file
+// descriptor from which input is being received, and to which input can be
+// propagated. Two subclasses are expected: one for file descriptors with a tty,
+// and one for file descriptors without.
+//
+// Communication happens in both directions:
+//
+// - We process input received from the file descriptor (and update the contents
+//   of the buffer).
+//
+// - When the OpenBuffer receives signals, we propagate them to the file
+//   descriptor.
+class FileAdapter {
+ public:
+  virtual ~FileAdapter() = default;
+
+  // Propagates the last view size to buffer->fd().
+  virtual void UpdateSize() = 0;
+
+  virtual std::optional<language::text::LineColumn> position() const = 0;
+  virtual void SetPositionToZero() = 0;
+  virtual futures::Value<language::EmptyValue> ReceiveInput(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      const infrastructure::screen::LineModifierSet& modifiers,
+      const std::function<void(language::text::LineNumberDelta)>&
+          new_line_callback) = 0;
+
+  virtual bool WriteSignal(infrastructure::UnixSignal signal) = 0;
+};
+
+// Decodes input from a terminal-associated file descriptor.
+//
+// This input is received incrementally through `ReceiveInput`. As it is
+// decoded, `TerminalAdapter` calls the associated methods in the
+// `Receiver` instance.
+class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
  public:
   // Receiver contains methods that propagates commands that Edge receives from
   // the Tty to the OpenBuffer class. For example, the tty may send a code that
@@ -45,7 +82,7 @@ class TtyAdapter {
     virtual std::optional<infrastructure::FileDescriptor> fd() = 0;
 
     // Every buffer should keep track of the last size of a widget that has
-    // displayed it. TerminalInputParser uses this to be notified when it
+    // displayed it. TerminalAdapter uses this to be notified when it
     // changes and propagate that information to the underlying file descriptor
     // (e.g., so that $LINES shell variable is updated).
     virtual language::ObservableValue<language::text::LineColumnDelta>&
@@ -61,43 +98,6 @@ class TtyAdapter {
 
     virtual void JumpToPosition(language::text::LineColumn position) = 0;
   };
-  virtual ~TtyAdapter() = default;
-
-  // Propagates the last view size to buffer->fd().
-  virtual void UpdateSize() = 0;
-
-  virtual std::optional<language::text::LineColumn> position() const = 0;
-  virtual void SetPositionToZero() = 0;
-  virtual bool ProcessCommandInput(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
-      const std::function<void()>& new_line_callback) = 0;
-
-  virtual bool WriteSignal(infrastructure::UnixSignal signal) = 0;
-};
-
-// Decodes input from a terminal-associated file descriptor.
-//
-// This input is received incrementally through `ProcessCommandInput`. As it is
-// decoded, `TerminalInputParser` calls the associated methods in the `Receiver`
-// instance.
-class TerminalInputParser : public tests::fuzz::FuzzTestable,
-                            public TtyAdapter {
- public:
-  TerminalInputParser(language::NonNull<std::unique_ptr<Receiver>> receiver,
-                      language::text::MutableLineSequence& contents);
-
-  void UpdateSize() override;
-
-  std::optional<language::text::LineColumn> position() const override;
-  void SetPositionToZero() override;
-
-  bool ProcessCommandInput(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
-      const std::function<void()>& new_line_callback) override;
-
-  bool WriteSignal(infrastructure::UnixSignal signal) override;
-
-  std::vector<tests::fuzz::Handler> FuzzHandlers() override;
 
  private:
   struct Data {
@@ -113,6 +113,28 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable,
     language::text::LineColumn position = language::text::LineColumn();
   };
 
+  const language::NonNull<std::shared_ptr<Data>> data_;
+
+ public:
+  TerminalAdapter(language::NonNull<std::unique_ptr<Receiver>> receiver,
+                  language::text::MutableLineSequence& contents);
+
+  void UpdateSize() override;
+
+  std::optional<language::text::LineColumn> position() const override;
+  void SetPositionToZero() override;
+
+  futures::Value<language::EmptyValue> ReceiveInput(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      const infrastructure::screen::LineModifierSet& modifiers,
+      const std::function<void(language::text::LineNumberDelta)>&
+          new_line_callback) override;
+
+  bool WriteSignal(infrastructure::UnixSignal signal) override;
+
+  std::vector<tests::fuzz::Handler> FuzzHandlers() override;
+
+ private:
   static void InternalUpdateSize(Data& data);
 
   language::lazy_string::ColumnNumber ProcessTerminalEscapeSequence(
@@ -123,20 +145,32 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable,
   void MoveToNextLine();
 
   static language::text::LineColumnDelta LastViewSize(Data& data);
-
-  const language::NonNull<std::shared_ptr<Data>> data_;
 };
 
-class NullTtyAdapter : public TtyAdapter {
+class RegularFileAdapter : public FileAdapter {
  public:
+  struct Options {
+    concurrent::ThreadPoolWithWorkQueue& thread_pool;
+    std::function<void(std::vector<language::NonNull<
+                           std::shared_ptr<const language::text::Line>>>)>
+        insert_lines;
+  };
+
+ private:
+  const Options options_;
+
+ public:
+  RegularFileAdapter(Options options);
   void UpdateSize() override;
 
   std::optional<language::text::LineColumn> position() const override;
   void SetPositionToZero() override;
 
-  bool ProcessCommandInput(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
-      const std::function<void()>&) override;
+  futures::Value<language::EmptyValue> ReceiveInput(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      const infrastructure::screen::LineModifierSet& modifiers,
+      const std::function<void(language::text::LineNumberDelta)>&
+          new_line_callback) override;
 
   bool WriteSignal(infrastructure::UnixSignal signal) override;
 };
