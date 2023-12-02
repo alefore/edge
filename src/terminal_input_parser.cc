@@ -1,6 +1,7 @@
 #include "src/terminal_input_parser.h"
 
 #include <cctype>
+#include <csignal>
 #include <ostream>
 
 extern "C" {
@@ -18,6 +19,7 @@ extern "C" {
 #include "src/tests/fuzz.h"
 
 namespace afc::editor {
+using infrastructure::UnixSignal;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
 using language::Error;
@@ -46,13 +48,15 @@ TerminalInputParser::TerminalInputParser(
   LOG(INFO) << "New TerminalInputParser for " << data_->receiver->name();
 }
 
-LineColumn TerminalInputParser::position() const { return data_->position; }
-
-void TerminalInputParser::SetPosition(LineColumn position) {
-  data_->position = position;
+std::optional<LineColumn> TerminalInputParser::position() const {
+  return data_->position;
 }
 
-void TerminalInputParser::ProcessCommandInput(
+void TerminalInputParser::SetPositionToZero() {
+  data_->position = LineColumn();
+}
+
+bool TerminalInputParser::ProcessCommandInput(
     NonNull<std::shared_ptr<LazyString>> str,
     const std::function<void()>& new_line_callback) {
   data_->position.line =
@@ -99,6 +103,7 @@ void TerminalInputParser::ProcessCommandInput(
     }
   }
   data_->receiver->JumpToPosition(data_->position);
+  return true;
 }
 
 std::vector<tests::fuzz::Handler> TerminalInputParser::FuzzHandlers() {
@@ -106,8 +111,8 @@ std::vector<tests::fuzz::Handler> TerminalInputParser::FuzzHandlers() {
   std::vector<Handler> output;
   output.push_back(Call(std::function<void()>([this]() { position(); })));
 
-  output.push_back(Call(std::function<void(LineColumn)>(
-      [this](LineColumn position) { SetPosition(position); })));
+  output.push_back(
+      Call(std::function<void()>([this]() { SetPositionToZero(); })));
 
   output.push_back(Call(
       std::function<void(ShortRandomString)>([this](ShortRandomString input) {
@@ -417,5 +422,40 @@ LineColumnDelta TerminalInputParser::LastViewSize(Data& data) {
   return data.receiver->view_size().Get().value_or(
       LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }
+
+bool TerminalInputParser::WriteSignal(UnixSignal signal) {
+  if (std::optional<infrastructure::FileDescriptor> fd = data_->receiver->fd();
+      fd != std::nullopt)
+    switch (signal.read()) {
+      case SIGINT: {
+        std::string sequence(1, 0x03);
+        (void)write(fd->read(), sequence.c_str(), sequence.size());
+        return true;
+      }
+
+      case SIGTSTP: {
+        static const std::string sequence(1, 0x1a);
+        (void)write(fd->read(), sequence.c_str(), sequence.size());
+        return true;
+      }
+    }
+  return false;
+}
+
+void NullTtyAdapter::UpdateSize() {}
+
+std::optional<language::text::LineColumn> NullTtyAdapter::position() const {
+  return std::nullopt;
+}
+
+void NullTtyAdapter::SetPositionToZero() {}
+
+bool NullTtyAdapter::ProcessCommandInput(
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
+    const std::function<void()>&) {
+  return false;
+}
+
+bool NullTtyAdapter::WriteSignal(UnixSignal) { return false; }
 
 }  // namespace afc::editor

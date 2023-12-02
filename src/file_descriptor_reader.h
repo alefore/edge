@@ -35,8 +35,7 @@ class FileDescriptorReader {
                            std::shared_ptr<const language::text::Line>>>)>
         insert_lines;
 
-    // Should be null if there's no terminal.
-    std::function<void(const language::NonNull<
+    std::function<bool(const language::NonNull<
                            std::shared_ptr<language::lazy_string::LazyString>>&,
                        std::function<void()>)>
         process_terminal_input;

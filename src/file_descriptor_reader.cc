@@ -117,17 +117,16 @@ FileDescriptorReader::ReadData() {
   options_->maybe_exec(buffer_wrapper.value());
 
   clock_gettime(0, &last_input_received_);
-  if (options_->process_terminal_input == nullptr) {
-    state_ = State::kParsing;
-    return ParseAndInsertLines(buffer_wrapper).Transform([this](bool) {
-      state_ = State::kIdle;
-      return ReadResult::kContinue;
-    });
-  }
-  options_->process_terminal_input(buffer_wrapper, [this]() {
-    lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
+  if (options_->process_terminal_input(buffer_wrapper, [this]() {
+        lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
+      }))
+    return futures::Past(ReadResult::kContinue);
+
+  state_ = State::kParsing;
+  return ParseAndInsertLines(buffer_wrapper).Transform([this](bool) {
+    state_ = State::kIdle;
+    return ReadResult::kContinue;
   });
-  return futures::Past(ReadResult::kContinue);
 }
 
 std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(

@@ -555,9 +555,7 @@ void OpenBuffer::ClearContents(
                                                      name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
                        cursors_behavior);
-  if (terminal_ != nullptr) {
-    terminal_->SetPosition(LineColumn());
-  }
+  tty_adapter_->SetPositionToZero();
   undo_state_.Clear();
 }
 
@@ -654,17 +652,13 @@ void OpenBuffer::SendEndOfFileToProcess() {
 
 std::unique_ptr<bool, std::function<void(bool*)>>
 OpenBuffer::GetEndPositionFollower() {
-  if (!Read(buffer_variables::follow_end_of_file)) {
-    return nullptr;
-  }
-  if (position() < end_position() && terminal_ == nullptr) {
+  if (!Read(buffer_variables::follow_end_of_file)) return nullptr;
+  if (position() < end_position() && tty_adapter_->position() == std::nullopt)
     return nullptr;  // Not at the end, so user must have scrolled up.
-  }
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this](bool* value) {
         delete value;
-        set_position(terminal_ != nullptr ? terminal_->position()
-                                          : end_position());
+        set_position(tty_adapter_->position().value_or(end_position()));
       });
 }
 
@@ -1720,35 +1714,25 @@ const struct timespec OpenBuffer::time_last_exit() const {
 }
 
 void OpenBuffer::PushSignal(UnixSignal signal) {
+  status_.SetInformationText(
+      MakeNonNullShared<Line>(std::to_wstring(signal.read())));
+  if (tty_adapter_->WriteSignal(signal)) return;
+
   switch (signal.read()) {
     case SIGINT:
-      if (terminal_ == nullptr ? child_pid_ == std::nullopt : fd_ == nullptr) {
-        status_.InsertError(Error(L"No subprocess found."));
-      } else if (terminal_ == nullptr) {
+      if (child_pid_ != std::nullopt) {
         status_.SetInformationText(MakeNonNullShared<Line>(
             LineBuilder(
                 Append(NewLazyString(L"SIGINT >> pid:"),
                        NewLazyString(std::to_wstring(child_pid_->read()))))
                 .Build()));
         file_system_driver().Kill(child_pid_.value(), signal);
-      } else {
-        string sequence(1, 0x03);
-        (void)write(fd_->fd().read(), sequence.c_str(), sequence.size());
-        status_.SetInformationText(MakeNonNullShared<Line>(L"SIGINT"));
+        return;
       }
-      break;
-
-    case SIGTSTP:
-      static const string sequence(1, 0x1a);
-      if (terminal_ != nullptr && fd_ != nullptr) {
-        (void)write(fd_->fd().read(), sequence.c_str(), sequence.size());
-      }
-      break;
-
-    default:
-      status_.InsertError(Error(L"Unexpected signal received: " +
-                                std::to_wstring(signal.read())));
   }
+
+  status_.InsertError(
+      Error(L"Unhandled signal received: " + std::to_wstring(signal.read())));
 }
 
 FileSystemDriver& OpenBuffer::file_system_driver() const {
@@ -1834,7 +1818,11 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
   }
 
   CHECK(child_pid_ == std::nullopt);
-  terminal_ = fd_is_terminal ? std::move(NewTerminal().get_unique()) : nullptr;
+  tty_adapter_ = std::invoke(
+      [fd_is_terminal, this] -> NonNull<std::unique_ptr<TtyAdapter>> {
+        if (fd_is_terminal) return NewTerminal();
+        return MakeNonNullUnique<NullTtyAdapter>();
+      });
 
   auto new_reader = [this](FileDescriptor fd, LineModifierSet modifiers)
       -> std::unique_ptr<FileDescriptorReader> {
@@ -1853,15 +1841,13 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
             },
         .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); },
         .process_terminal_input =
-            terminal_ == nullptr
-                ? std::function<void(const language::NonNull<std::shared_ptr<
-                                         language::lazy_string::LazyString>>&,
-                                     std::function<void()>)>()
-                : ([this](const language::NonNull<std::shared_ptr<
-                              language::lazy_string::LazyString>>& input,
-                          std::function<void()> new_line) {
-                    terminal_->ProcessCommandInput(input, std::move(new_line));
-                  }),
+            [this](
+                const language::NonNull<
+                    std::shared_ptr<language::lazy_string::LazyString>>& input,
+                std::function<void()> new_line) {
+              return tty_adapter_->ProcessCommandInput(input,
+                                                       std::move(new_line));
+            },
         .fd = fd,
         .modifiers = std::move(modifiers),
         .thread_pool = editor().thread_pool()});
@@ -1869,12 +1855,8 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
 
   fd_ = new_reader(input_fd, {});
   fd_error_ = new_reader(input_error_fd, {LineModifier::kBold});
-
-  if (terminal_ != nullptr) {
-    terminal_->UpdateSize();
-  }
-
   child_pid_ = child_pid;
+  tty_adapter_->UpdateSize();
 }
 
 const FileDescriptorReader* OpenBuffer::fd() const { return fd_.get(); }

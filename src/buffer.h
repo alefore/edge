@@ -592,7 +592,8 @@ class OpenBuffer {
   // Non-const because Reload will reset it to a newly constructed instance.
   language::NonNull<std::unique_ptr<BufferDisplayData>> display_data_;
 
-  std::unique_ptr<TerminalInputParser> terminal_;
+  language::NonNull<std::unique_ptr<TtyAdapter>> tty_adapter_ =
+      language::MakeNonNullUnique<NullTtyAdapter>();
 
   // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is

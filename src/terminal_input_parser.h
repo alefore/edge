@@ -23,13 +23,12 @@ class Player;
 namespace afc::editor {
 class BufferName;
 
-// Decodes input from a terminal-associated file descriptor.
-//
-// This input is received incrementally through `ProcessCommandInput`. As it is
-// decoded, `TerminalInputParser` calls the associated methods in the `Receiver`
-// instance.
-class TerminalInputParser : public tests::fuzz::FuzzTestable {
+class TtyAdapter {
  public:
+  // Receiver contains methods that propagates commands that Edge receives from
+  // the Tty to the OpenBuffer class. For example, the tty may send a code that
+  // says "clear the screen"; this is turned into a call to
+  // `Receiver::EraseLines`.
   class Receiver {
    public:
     virtual ~Receiver() = default;
@@ -42,6 +41,7 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
 
     virtual BufferName name() = 0;
 
+    // The underlying file descriptor.
     virtual std::optional<infrastructure::FileDescriptor> fd() = 0;
 
     // Every buffer should keep track of the last size of a widget that has
@@ -61,19 +61,41 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
 
     virtual void JumpToPosition(language::text::LineColumn position) = 0;
   };
+  virtual ~TtyAdapter() = default;
 
+  // Propagates the last view size to buffer->fd().
+  virtual void UpdateSize() = 0;
+
+  virtual std::optional<language::text::LineColumn> position() const = 0;
+  virtual void SetPositionToZero() = 0;
+  virtual bool ProcessCommandInput(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      const std::function<void()>& new_line_callback) = 0;
+
+  virtual bool WriteSignal(infrastructure::UnixSignal signal) = 0;
+};
+
+// Decodes input from a terminal-associated file descriptor.
+//
+// This input is received incrementally through `ProcessCommandInput`. As it is
+// decoded, `TerminalInputParser` calls the associated methods in the `Receiver`
+// instance.
+class TerminalInputParser : public tests::fuzz::FuzzTestable,
+                            public TtyAdapter {
+ public:
   TerminalInputParser(language::NonNull<std::unique_ptr<Receiver>> receiver,
                       language::text::MutableLineSequence& contents);
 
-  // Propagates the last view size to buffer->fd().
-  void UpdateSize();
+  void UpdateSize() override;
 
-  language::text::LineColumn position() const;
-  void SetPosition(language::text::LineColumn position);
+  std::optional<language::text::LineColumn> position() const override;
+  void SetPositionToZero() override;
 
-  void ProcessCommandInput(
+  bool ProcessCommandInput(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
-      const std::function<void()>& new_line_callback);
+      const std::function<void()>& new_line_callback) override;
+
+  bool WriteSignal(infrastructure::UnixSignal signal) override;
 
   std::vector<tests::fuzz::Handler> FuzzHandlers() override;
 
@@ -103,6 +125,20 @@ class TerminalInputParser : public tests::fuzz::FuzzTestable {
   static language::text::LineColumnDelta LastViewSize(Data& data);
 
   const language::NonNull<std::shared_ptr<Data>> data_;
+};
+
+class NullTtyAdapter : public TtyAdapter {
+ public:
+  void UpdateSize() override;
+
+  std::optional<language::text::LineColumn> position() const override;
+  void SetPositionToZero() override;
+
+  bool ProcessCommandInput(
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
+      const std::function<void()>&) override;
+
+  bool WriteSignal(infrastructure::UnixSignal signal) override;
 };
 
 }  // namespace afc::editor
