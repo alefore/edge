@@ -8,7 +8,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/file_adapter.h"
 #include "src/infrastructure/file_system_driver.h"
