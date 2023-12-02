@@ -1650,7 +1650,9 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
 
     void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
 
-    BufferName name() override { return buffer_.name(); }
+    TerminalName name() override {
+      return TerminalName(L"Terminal:" + buffer_.name().read());
+    }
 
     std::optional<infrastructure::FileDescriptor> fd() override {
       if (const FileDescriptorReader* fd = buffer_.fd(); fd != nullptr)

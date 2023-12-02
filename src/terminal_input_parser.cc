@@ -9,7 +9,6 @@ extern "C" {
 #include <sys/ioctl.h>
 }
 
-#include "src/buffer_name.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
@@ -42,6 +41,7 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
 
 namespace afc::editor {
+using ::operator<<;
 
 TerminalAdapter ::TerminalAdapter(
     NonNull<std::unique_ptr<TerminalAdapter::Receiver>> receiver,

@@ -20,7 +20,8 @@
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::editor {
-class BufferName;
+// TODO(2023-12-02): This should use LazyString.
+GHOST_TYPE(TerminalName, std::wstring);
 
 // Decodes input from a terminal-associated file descriptor.
 //
@@ -43,7 +44,7 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
 
     virtual void AppendEmptyLine() = 0;
 
-    virtual BufferName name() = 0;
+    virtual TerminalName name() = 0;
 
     // The underlying file descriptor.
     virtual std::optional<infrastructure::FileDescriptor> fd() = 0;
