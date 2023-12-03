@@ -1872,27 +1872,31 @@ const FileDescriptorReader* OpenBuffer::fd_error() const {
 
 void OpenBuffer::AddExecutionHandlers(
     infrastructure::execution::IterationHandler& handler) {
-  auto register_reader = [&](const FileDescriptorReader* reader,
-                             std::function<void(int)> callback) {
+  auto register_reader = [&](std::unique_ptr<FileDescriptorReader>& reader) {
     VisitOptional(
         [&](struct pollfd pollfd) {
-          handler.AddHandler(FileDescriptor(pollfd.fd), pollfd.events,
-                             std::move(callback));
+          handler.AddHandler(
+              FileDescriptor(pollfd.fd), pollfd.events,
+              [buffer = NewRoot(), &reader](int) {
+                TRACK_OPERATION(Main_ReadData);
+                CHECK(reader != nullptr);
+                return reader->ReadData().Transform(
+                    [buffer, &reader](FileDescriptorReader::ReadResult value) {
+                      if (value != FileDescriptorReader::ReadResult::kDone)
+                        return EmptyValue();
+                      buffer.ptr()->RegisterProgress();
+                      reader = nullptr;
+                      if (buffer.ptr()->fd_ == nullptr &&
+                          buffer.ptr()->fd_error_ == nullptr)
+                        buffer.ptr()->SignalEndOfFile();
+                      return EmptyValue();
+                    });
+              });
         },
         [] {}, reader == nullptr ? std::nullopt : reader->GetPollFd());
   };
-  register_reader(fd(), [buffer = NewRoot()](int) {
-    LOG(INFO) << "Reading (normal): "
-              << buffer.ptr()->Read(buffer_variables::name);
-    TRACK_OPERATION(Main_ReadData);
-    buffer.ptr()->ReadData(buffer.ptr()->fd_);
-  });
-  register_reader(fd_error(), [buffer = NewRoot()](int) {
-    LOG(INFO) << "Reading (error): "
-              << buffer.ptr()->Read(buffer_variables::name);
-    TRACK_OPERATION(Main_ReadErrorData);
-    buffer.ptr()->ReadData(buffer.ptr()->fd_error_);
-  });
+  register_reader(fd_);
+  register_reader(fd_error_);
 }
 
 std::optional<infrastructure::ProcessId> OpenBuffer::child_pid() const {
@@ -2521,20 +2525,6 @@ bool OpenBuffer::IsPastPosition(LineColumn position) const {
          (position.line < contents_.EndLine() ||
           (position.line == contents_.EndLine() &&
            position.column <= LineAt(position.line)->EndColumn()));
-}
-
-futures::Value<EmptyValue> OpenBuffer::ReadData(
-    std::unique_ptr<FileDescriptorReader>& source) {
-  CHECK(source != nullptr);
-  return source->ReadData().Transform(
-      [this, &source](FileDescriptorReader::ReadResult value) {
-        if (value != FileDescriptorReader::ReadResult::kDone)
-          return EmptyValue();
-        RegisterProgress();
-        source = nullptr;
-        if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
-        return EmptyValue();
-      });
 }
 
 void OpenBuffer::UpdateLastAction() {

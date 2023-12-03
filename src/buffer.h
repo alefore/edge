@@ -562,11 +562,6 @@ class OpenBuffer {
   // language::text::LineColumn::Max and the buffer has read past that position.
   bool IsPastPosition(language::text::LineColumn position) const;
 
-  // Reads from one of the two FileDescriptorReader instances in the buffer
-  // (i.e., `fd_` or `fd_error_`).
-  futures::Value<language::EmptyValue> ReadData(
-      std::unique_ptr<FileDescriptorReader>& source);
-
   void UpdateLastAction();
   // TODO(P1, 2023-11-24): Remove this? Just use `AppendLines`?
   void InsertLines(
