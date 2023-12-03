@@ -21,9 +21,6 @@
 
 namespace afc {
 namespace editor {
-
-class OpenBuffer;
-
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {
  public:
