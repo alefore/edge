@@ -11,6 +11,7 @@
 
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
+#include "src/infrastructure/execution.h"
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -34,6 +35,12 @@ class FileDescriptorReader {
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
     infrastructure::FileDescriptor fd;
+
+    std::function<void()> receive_end_of_file;
+    std::function<void(
+        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
+        std::function<void()>)>
+        receive_data;
   };
 
   explicit FileDescriptorReader(Options options);
@@ -42,20 +49,7 @@ class FileDescriptorReader {
   infrastructure::FileDescriptor fd() const;
   struct timespec last_input_received() const;
 
-  // Return a pollfd value that can be passed to `poll`. If the file isn't ready
-  // for reading (e.g., state_ is kProcessing), returns std::nullopt.
-  std::optional<struct pollfd> GetPollFd() const;
-
-  struct EndOfFile {};
-  struct ReadDataInput {
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
-  };
-  std::variant<EndOfFile, ReadDataInput> ReadData();
-
-  // After a call to `ReadData` returns `ReadDataInput`, once our customer is
-  // done processing the input, they must communicate this by calling
-  // `ResumeReading to continue reading data.
-  void ResumeReading();
+  void Register(infrastructure::execution::IterationHandler&);
 
  private:
   futures::Value<bool> ParseAndInsertLines(

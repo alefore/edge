@@ -1833,19 +1833,45 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
         .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); }});
   });
 
-  auto new_reader = [this](FileDescriptor fd, std::wstring name_suffix)
-      -> std::unique_ptr<FileDescriptorReader> {
-    if (fd == FileDescriptor(-1)) {
-      return nullptr;
-    }
-    return std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
-        .name = FileDescriptorName(name().read() + L":" + name_suffix),
-        .fd = fd,
-    });
+  auto new_reader = [this](FileDescriptor fd, std::wstring name_suffix,
+                           LineModifierSet modifiers,
+                           std::unique_ptr<FileDescriptorReader>& reader) {
+    reader =
+        fd == FileDescriptor(-1)
+            ? nullptr
+            : std::make_unique<FileDescriptorReader>(
+                  FileDescriptorReader::Options{
+                      .name = FileDescriptorName(name().read() + L":" +
+                                                 name_suffix),
+                      .fd = fd,
+                      .receive_end_of_file =
+                          [buffer = NewRoot(), this, &reader]() {
+                            RegisterProgress();
+                            reader = nullptr;
+                            if (fd_ == nullptr && fd_error_ == nullptr)
+                              SignalEndOfFile();
+                          },
+                      .receive_data =
+                          [buffer = NewRoot(), this, modifiers](
+                              NonNull<std::shared_ptr<LazyString>> input,
+                              std::function<void()> done_callback) {
+                            RegisterProgress();
+                            if (Read(buffer_variables::vm_exec)) {
+                              LOG(INFO) << name() << ": Evaluating VM code: "
+                                        << input->ToString();
+                              EvaluateString(input->ToString());
+                            }
+                            file_adapter_
+                                ->ReceiveInput(std::move(input), modifiers)
+                                .Transform([done_callback = std::move(
+                                                done_callback)](EmptyValue) {
+                                  done_callback();
+                                  return futures::Past(EmptyValue());
+                                });
+                          }});
   };
-
-  fd_ = new_reader(input_fd, L"stdout");
-  fd_error_ = new_reader(input_error_fd, L"stderr");
+  new_reader(input_fd, L"stdout", {}, fd_);
+  new_reader(input_error_fd, L"stderr", {LineModifier::kBold}, fd_error_);
   child_pid_ = child_pid;
   file_adapter_->UpdateSize();
 }
@@ -1858,45 +1884,8 @@ const FileDescriptorReader* OpenBuffer::fd_error() const {
 
 void OpenBuffer::AddExecutionHandlers(
     infrastructure::execution::IterationHandler& handler) {
-  auto register_reader = [&](std::unique_ptr<FileDescriptorReader>& reader,
-                             const LineModifierSet modifiers) {
-    VisitOptional(
-        [&](struct pollfd pollfd) {
-          handler.AddHandler(
-              FileDescriptor(pollfd.fd), pollfd.events,
-              [buffer = NewRoot(), this, &reader, modifiers](int) {
-                TRACK_OPERATION(Main_ReadData);
-                CHECK(reader != nullptr);
-                std::visit(
-                    overload{[&](FileDescriptorReader::EndOfFile) {
-                               RegisterProgress();
-                               reader = nullptr;
-                               if (fd_ == nullptr && fd_error_ == nullptr)
-                                 SignalEndOfFile();
-                             },
-                             [&](FileDescriptorReader::ReadDataInput input) {
-                               RegisterProgress();
-                               if (Read(buffer_variables::vm_exec)) {
-                                 LOG(INFO) << name() << ": Evaluating VM code: "
-                                           << input.input->ToString();
-                                 EvaluateString(input.input->ToString());
-                               }
-                               file_adapter_
-                                   ->ReceiveInput(std::move(input.input),
-                                                  modifiers)
-                                   .Transform([&reader](EmptyValue) {
-                                     if (reader != nullptr)
-                                       reader->ResumeReading();
-                                     return futures::Past(EmptyValue());
-                                   });
-                             }},
-                    reader->ReadData());
-              });
-        },
-        [] {}, reader == nullptr ? std::nullopt : reader->GetPollFd());
-  };
-  register_reader(fd_, {});
-  register_reader(fd_error_, {LineModifier::kBold});
+  if (fd_ != nullptr) fd_->Register(handler);
+  if (fd_error_ != nullptr) fd_error_->Register(handler);
 }
 
 std::optional<infrastructure::ProcessId> OpenBuffer::child_pid() const {

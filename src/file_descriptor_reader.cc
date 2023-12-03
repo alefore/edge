@@ -41,86 +41,77 @@ struct timespec FileDescriptorReader::last_input_received() const {
   return last_input_received_;
 }
 
-std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
-  if (state_ == State::kProcessing) return std::nullopt;
-  struct pollfd output;
-  output.fd = fd().read();
-  output.events = POLLIN | POLLPRI;
-  output.revents = 0;
-  return output;
-}
-
-std::variant<FileDescriptorReader::EndOfFile,
-             FileDescriptorReader::ReadDataInput>
-FileDescriptorReader::ReadData() {
-  LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
-            << options_->name;
-  static const size_t kLowBufferSize = 1024 * 60;
-  if (low_buffer_ == nullptr) {
-    CHECK_EQ(low_buffer_length_, 0ul);
-    low_buffer_.reset(new char[kLowBufferSize]);
-  }
-  ssize_t characters_read =
-      read(fd().read(), low_buffer_.get() + low_buffer_length_,
-           kLowBufferSize - low_buffer_length_);
-  LOG(INFO) << "Read returns: " << characters_read;
-  if (characters_read == -1) {
-    if (errno == EAGAIN) return ReadDataInput{.input = EmptyString()};
-    return EndOfFile{};
-  }
-  CHECK_GE(characters_read, 0);
-  CHECK_LE(characters_read, ssize_t(kLowBufferSize - low_buffer_length_));
-  if (characters_read == 0) return EndOfFile{};
-  low_buffer_length_ += characters_read;
-
-  static Tracker chars_tracker(
-      L"FileDescriptorReader::ReadData::UnicodeConversion");
-  auto chars_tracker_call = chars_tracker.Call();
-
-  const char* low_buffer_tmp = low_buffer_.get();
-  int output_characters =
-      mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr);
-  std::vector<wchar_t> buffer(output_characters == -1 ? low_buffer_length_
-                                                      : output_characters);
-
-  low_buffer_tmp = low_buffer_.get();
-  if (output_characters == -1) {
-    low_buffer_tmp = nullptr;
-    for (size_t i = 0; i < low_buffer_length_; i++) {
-      buffer[i] = static_cast<wchar_t>(*(low_buffer_.get() + i));
+void FileDescriptorReader::Register(
+    infrastructure::execution::IterationHandler& handler) {
+  if (state_ == State::kProcessing) return;
+  handler.AddHandler(fd(), POLLIN | POLLPRI, [this](int) {
+    LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
+              << options_->name;
+    static const size_t kLowBufferSize = 1024 * 60;
+    if (low_buffer_ == nullptr) {
+      CHECK_EQ(low_buffer_length_, 0ul);
+      low_buffer_.reset(new char[kLowBufferSize]);
     }
-  } else {
-    mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length_, buffer.size(),
-               nullptr);
-  }
+    ssize_t characters_read =
+        read(fd().read(), low_buffer_.get() + low_buffer_length_,
+             kLowBufferSize - low_buffer_length_);
+    LOG(INFO) << "Read returns: " << characters_read;
+    if (characters_read == -1) {
+      if (errno == EAGAIN) return options_->receive_data(EmptyString(), [] {});
+      return options_->receive_end_of_file();
+    }
+    CHECK_GE(characters_read, 0);
+    CHECK_LE(characters_read, ssize_t(kLowBufferSize - low_buffer_length_));
+    if (characters_read == 0) return options_->receive_end_of_file();
+    low_buffer_length_ += characters_read;
 
-  chars_tracker_call = nullptr;
+    static Tracker chars_tracker(
+        L"FileDescriptorReader::ReadData::UnicodeConversion");
+    auto chars_tracker_call = chars_tracker.Call();
 
-  NonNull<std::shared_ptr<LazyString>> buffer_wrapper =
-      NewLazyString(std::move(buffer));
-  VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
+    const char* low_buffer_tmp = low_buffer_.get();
+    int output_characters =
+        mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr);
+    std::vector<wchar_t> buffer(output_characters == -1 ? low_buffer_length_
+                                                        : output_characters);
 
-  size_t processed = low_buffer_tmp == nullptr
-                         ? low_buffer_length_
-                         : low_buffer_tmp - low_buffer_.get();
-  VLOG(5) << options_->name << ": Characters consumed: " << processed
-          << ", produced: " << buffer_wrapper->size();
-  CHECK_LE(processed, low_buffer_length_);
-  memmove(low_buffer_.get(), low_buffer_tmp, low_buffer_length_ - processed);
-  low_buffer_length_ -= processed;
-  if (low_buffer_length_ == 0) {
-    LOG(INFO) << "Consumed all input.";
-    low_buffer_ = nullptr;
-  }
+    low_buffer_tmp = low_buffer_.get();
+    if (output_characters == -1) {
+      low_buffer_tmp = nullptr;
+      for (size_t i = 0; i < low_buffer_length_; i++) {
+        buffer[i] = static_cast<wchar_t>(*(low_buffer_.get() + i));
+      }
+    } else {
+      mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length_, buffer.size(),
+                 nullptr);
+    }
 
-  clock_gettime(0, &last_input_received_);
-  state_ = State::kProcessing;
-  return ReadDataInput{.input = std::move(buffer_wrapper)};
-}
+    chars_tracker_call = nullptr;
 
-void FileDescriptorReader::ResumeReading() {
-  CHECK(state_ == State::kProcessing);
-  state_ = State::kReading;
+    NonNull<std::shared_ptr<LazyString>> buffer_wrapper =
+        NewLazyString(std::move(buffer));
+    VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
+
+    size_t processed = low_buffer_tmp == nullptr
+                           ? low_buffer_length_
+                           : low_buffer_tmp - low_buffer_.get();
+    VLOG(5) << options_->name << ": Characters consumed: " << processed
+            << ", produced: " << buffer_wrapper->size();
+    CHECK_LE(processed, low_buffer_length_);
+    memmove(low_buffer_.get(), low_buffer_tmp, low_buffer_length_ - processed);
+    low_buffer_length_ -= processed;
+    if (low_buffer_length_ == 0) {
+      LOG(INFO) << "Consumed all input.";
+      low_buffer_ = nullptr;
+    }
+
+    clock_gettime(0, &last_input_received_);
+    state_ = State::kProcessing;
+    options_->receive_data(std::move(buffer_wrapper), [this] {
+      CHECK(state_ == State::kProcessing);
+      state_ = State::kReading;
+    });
+  });
 }
 
 }  // namespace afc::editor
