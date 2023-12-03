@@ -1,4 +1,4 @@
-#include "src/terminal_input_parser.h"
+#include "src/infrastructure/terminal_input_parser.h"
 
 #include <cctype>
 #include <csignal>

@@ -117,6 +117,8 @@ src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
 src/infrastructure/regular_file_adapter.h \
 src/infrastructure/regular_file_adapter.cc \
+src/infrastructure/terminal_input_parser.cc \
+src/infrastructure/terminal_input_parser.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
 src/infrastructure/screen/cursors.cc \
@@ -286,8 +288,6 @@ src/structure_move.cc \
 src/structure_move.h \
 src/terminal.cc \
 src/terminal.h \
-src/terminal_input_parser.cc \
-src/terminal_input_parser.h \
 src/tests/benchmarks.cc \
 src/tests/benchmarks.h \
 src/tests/concurrent.cc \
