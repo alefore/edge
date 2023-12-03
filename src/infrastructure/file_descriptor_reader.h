@@ -17,7 +17,6 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
-#include "src/math/decaying_counter.h"
 
 namespace afc {
 namespace editor {

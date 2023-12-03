@@ -84,8 +84,6 @@ src/editor_variables.h \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \
-src/file_descriptor_reader.cc \
-src/file_descriptor_reader.h \
 src/find_mode.cc \
 src/futures/futures.cc \
 src/futures/futures.h \
@@ -113,6 +111,8 @@ src/infrastructure/extended_char.h \
 src/infrastructure/extended_char_vm.cc \
 src/infrastructure/extended_char_vm.h \
 src/infrastructure/file_adapter.h \
+src/infrastructure/file_descriptor_reader.cc \
+src/infrastructure/file_descriptor_reader.h \
 src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
 src/infrastructure/regular_file_adapter.h \
