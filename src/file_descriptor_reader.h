@@ -34,15 +34,6 @@ class FileDescriptorReader {
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
     infrastructure::FileDescriptor fd;
-
-    // We want to avoid potentially expensive/slow parsing operations in the
-    // main thread. To achieve that, we receive a thread pool owned by our
-    // customer and we delegate as much work as feasible to it.
-    concurrent::ThreadPoolWithWorkQueue& thread_pool;
-
-    std::function<futures::Value<language::EmptyValue>(
-        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>)>
-        process_terminal_input;
   };
 
   explicit FileDescriptorReader(Options options);
@@ -52,19 +43,19 @@ class FileDescriptorReader {
   struct timespec last_input_received() const;
 
   // Return a pollfd value that can be passed to `poll`. If the file isn't ready
-  // for reading (e.g., a background operation is running on the data read),
-  // returns std::nullopt.
+  // for reading (e.g., state_ is kProcessing), returns std::nullopt.
   std::optional<struct pollfd> GetPollFd() const;
 
-  enum class ReadResult {
-    // If this is returned, no further calls to ReadData should happen (and our
-    // customer should probably drop this instance as soon as feasible).
-    kDone,
-    // If this is returned, we haven't finished reading. The customer should
-    // continue to call ReadData once it detects that more data is available.
-    kContinue
+  struct EndOfFile {};
+  struct ReadDataInput {
+    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
   };
-  futures::Value<ReadResult> ReadData();
+  std::variant<EndOfFile, ReadDataInput> ReadData();
+
+  // After a call to `ReadData` returns `ReadDataInput`, once our customer is
+  // done processing the input, they must communicate this by calling
+  // `ResumeReading to continue reading data.
+  void ResumeReading();
 
  private:
   futures::Value<bool> ParseAndInsertLines(
@@ -73,8 +64,8 @@ class FileDescriptorReader {
 
   const language::NonNull<std::shared_ptr<const Options>> options_;
 
-  enum State { kIdle, kParsing };
-  State state_ = State::kIdle;
+  enum State { kReading, kProcessing };
+  State state_ = State::kReading;
 
   // We read directly into low_buffer_ and then drain from that into
   // options_.buffer. It's possible that not all bytes read can be converted

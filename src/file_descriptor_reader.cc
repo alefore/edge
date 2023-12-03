@@ -18,6 +18,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -41,7 +42,7 @@ struct timespec FileDescriptorReader::last_input_received() const {
 }
 
 std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
-  if (state_ == State::kParsing) return std::nullopt;
+  if (state_ == State::kProcessing) return std::nullopt;
   struct pollfd output;
   output.fd = fd().read();
   output.events = POLLIN | POLLPRI;
@@ -49,7 +50,8 @@ std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
   return output;
 }
 
-futures::Value<FileDescriptorReader::ReadResult>
+std::variant<FileDescriptorReader::EndOfFile,
+             FileDescriptorReader::ReadDataInput>
 FileDescriptorReader::ReadData() {
   LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
             << options_->name;
@@ -63,14 +65,12 @@ FileDescriptorReader::ReadData() {
            kLowBufferSize - low_buffer_length_);
   LOG(INFO) << "Read returns: " << characters_read;
   if (characters_read == -1) {
-    return futures::Past(errno == EAGAIN ? ReadResult::kContinue
-                                         : ReadResult::kDone);
+    if (errno == EAGAIN) return ReadDataInput{.input = EmptyString()};
+    return EndOfFile{};
   }
   CHECK_GE(characters_read, 0);
   CHECK_LE(characters_read, ssize_t(kLowBufferSize - low_buffer_length_));
-  if (characters_read == 0) {
-    return futures::Past(ReadResult::kDone);
-  }
+  if (characters_read == 0) return EndOfFile{};
   low_buffer_length_ += characters_read;
 
   static Tracker chars_tracker(
@@ -114,12 +114,13 @@ FileDescriptorReader::ReadData() {
   }
 
   clock_gettime(0, &last_input_received_);
-  state_ = State::kParsing;
-  return options_->process_terminal_input(std::move(buffer_wrapper))
-      .Transform([this](EmptyValue) {
-        state_ = State::kIdle;
-        return futures::Past(ReadResult::kContinue);
-      });
+  state_ = State::kProcessing;
+  return ReadDataInput{.input = std::move(buffer_wrapper)};
+}
+
+void FileDescriptorReader::ResumeReading() {
+  CHECK(state_ == State::kProcessing);
+  state_ = State::kReading;
 }
 
 }  // namespace afc::editor
