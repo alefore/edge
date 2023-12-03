@@ -823,7 +823,7 @@ void OpenBuffer::AppendLines(
 
   auto lines_added = LineNumberDelta(lines.size());
   if (lines_added.IsZero()) return;
-
+  lines_read_rate_.IncrementAndGetEventsPerSecond(lines_added);
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
   contents_.append_back(UpdateLineMetadata(*this, std::move(lines)),
                         observer_behavior);
@@ -1691,6 +1691,10 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
                                             contents_);
 }
 
+double OpenBuffer::lines_read_rate() const {
+  return lines_read_rate_.GetEventsPerSecond();
+}
+
 language::NonNull<std::shared_ptr<const language::text::Line>>
 OpenBuffer::CurrentLine() const {
   LineNumber line = AdjustLineColumn(position()).line;
@@ -1841,11 +1845,10 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
         .fd = fd,
         .thread_pool = editor().thread_pool(),
         .process_terminal_input =
-            [this, modifiers](
-                language::NonNull<
-                    std::shared_ptr<language::lazy_string::LazyString>>
-                    input,
-                std::function<void(LineNumberDelta)> new_line_callback) {
+            [this,
+             modifiers](language::NonNull<
+                        std::shared_ptr<language::lazy_string::LazyString>>
+                            input) {
               RegisterProgress();
               if (Read(buffer_variables::vm_exec)) {
                 LOG(INFO) << name()
@@ -1853,8 +1856,7 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
                 EvaluateString(input->ToString());
               }
 
-              return file_adapter_->ReceiveInput(std::move(input), modifiers,
-                                                 std::move(new_line_callback));
+              return file_adapter_->ReceiveInput(std::move(input), modifiers);
             }});
   };
 

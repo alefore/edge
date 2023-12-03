@@ -315,10 +315,7 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
   auto update = buffer.last_progress_update();
   if (buffer.child_pid().has_value() && update.tv_sec != 0) {
     auto error_input = buffer.fd_error();
-    double lines_read_rate =
-        (buffer.fd_error() == nullptr ? 0
-                                      : buffer.fd_error()->lines_read_rate()) +
-        (buffer.fd() == nullptr ? 0 : buffer.fd()->lines_read_rate());
+    double lines_read_rate = buffer.lines_read_rate();
     double seconds_since_input =
         buffer.fd() == nullptr
             ? -1

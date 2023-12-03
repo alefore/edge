@@ -471,6 +471,9 @@ class OpenBuffer {
   language::NonNull<std::unique_ptr<TerminalAdapter>>
   NewTerminal();  // Public for testing.
 
+  // Returns lines-read-per-second.
+  double lines_read_rate() const;
+
   // Returns the path to the directory that should be used to keep state for the
   // current buffer. If the directory doesn't exist, creates it.
   futures::ValueOrError<infrastructure::Path> GetEdgeStateDirectory() const;
@@ -581,6 +584,9 @@ class OpenBuffer {
 
   std::unique_ptr<FileDescriptorReader> fd_;
   std::unique_ptr<FileDescriptorReader> fd_error_;
+
+  // Tracks lines read per second (through both fd_ and fd_error_).
+  math::DecayingCounter lines_read_rate_ = math::DecayingCounter(2.0);
 
   // Non-const because Reload will reset it to a newly constructed instance.
   language::NonNull<std::unique_ptr<BufferDisplayData>> display_data_;

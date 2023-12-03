@@ -41,8 +41,7 @@ class FileDescriptorReader {
     concurrent::ThreadPoolWithWorkQueue& thread_pool;
 
     std::function<futures::Value<language::EmptyValue>(
-        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
-        std::function<void(language::text::LineNumberDelta)>)>
+        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>)>
         process_terminal_input;
   };
 
@@ -51,7 +50,6 @@ class FileDescriptorReader {
 
   infrastructure::FileDescriptor fd() const;
   struct timespec last_input_received() const;
-  double lines_read_rate() const;
 
   // Return a pollfd value that can be passed to `poll`. If the file isn't ready
   // for reading (e.g., a background operation is running on the data read),
@@ -85,10 +83,6 @@ class FileDescriptorReader {
   size_t low_buffer_length_ = 0;
 
   mutable struct timespec last_input_received_ = {0, 0};
-
-  const language::NonNull<std::shared_ptr<math::DecayingCounter>>
-      lines_read_rate_ =
-          language::MakeNonNullShared<math::DecayingCounter>(2.0);
 };
 
 }  // namespace editor

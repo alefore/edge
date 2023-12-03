@@ -94,9 +94,7 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
 
   futures::Value<language::EmptyValue> ReceiveInput(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
-      const infrastructure::screen::LineModifierSet& modifiers,
-      const std::function<void(language::text::LineNumberDelta)>&
-          new_line_callback) override;
+      const infrastructure::screen::LineModifierSet& modifiers) override;
 
   bool WriteSignal(infrastructure::UnixSignal signal) override;
 

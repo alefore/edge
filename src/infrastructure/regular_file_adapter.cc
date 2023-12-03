@@ -69,17 +69,14 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
 
 futures::Value<EmptyValue> RegularFileAdapter::ReceiveInput(
     language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
-    const LineModifierSet& modifiers,
-    const std::function<void(LineNumberDelta)>& new_line_callback) {
+    const LineModifierSet& modifiers) {
   return options_.thread_pool
       .Run(std::bind_front(CreateLineInstances, std::move(str), modifiers))
-      .Transform([options = options_,
-                  new_line_callback = std::move(new_line_callback)](
+      .Transform([options = options_](
                      std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
         TRACK_OPERATION(RegularFileAdapter_ReceiveInput);
         CHECK_GT(lines.size(), 0ul);
-        new_line_callback(LineNumberDelta(lines.size()) - LineNumberDelta(1));
-        if (!lines.empty()) options.insert_lines(std::move(lines));
+        options.insert_lines(std::move(lines));
         return EmptyValue();
       });
 }

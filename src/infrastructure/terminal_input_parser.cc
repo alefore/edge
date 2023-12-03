@@ -62,8 +62,7 @@ void TerminalAdapter::SetPositionToZero() { data_->position = LineColumn(); }
 
 futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
     NonNull<std::shared_ptr<LazyString>> str,
-    const LineModifierSet& initial_modifiers,
-    const std::function<void(LineNumberDelta)>& new_line_callback) {
+    const LineModifierSet& initial_modifiers) {
   data_->position.line =
       std::min(data_->position.line, data_->receiver->contents().EndLine());
   LineModifierSet modifiers = initial_modifiers;
@@ -86,7 +85,6 @@ futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
       data_->position.column = ColumnNumber(0);
     } else if (c == '\n') {
       VLOG(8) << "Received \\n";
-      new_line_callback(LineNumberDelta(1));
       MoveToNextLine();
     } else if (c == 0x1b) {
       VLOG(8) << "Received 0x1b";
@@ -121,8 +119,7 @@ std::vector<tests::fuzz::Handler> TerminalAdapter::FuzzHandlers() {
 
   output.push_back(Call(
       std::function<void(ShortRandomString)>([this](ShortRandomString input) {
-        return ReceiveInput(NewLazyString(std::move(input.value)), {},
-                            [](LineNumberDelta) {});
+        return ReceiveInput(NewLazyString(std::move(input.value)), {});
       })));
   return output;
 }

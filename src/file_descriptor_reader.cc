@@ -40,10 +40,6 @@ struct timespec FileDescriptorReader::last_input_received() const {
   return last_input_received_;
 }
 
-double FileDescriptorReader::lines_read_rate() const {
-  return lines_read_rate_->GetEventsPerSecond();
-}
-
 std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
   if (state_ == State::kParsing) return std::nullopt;
   struct pollfd output;
@@ -119,12 +115,7 @@ FileDescriptorReader::ReadData() {
 
   clock_gettime(0, &last_input_received_);
   state_ = State::kParsing;
-  return options_
-      ->process_terminal_input(
-          std::move(buffer_wrapper),
-          [this](LineNumberDelta lines) {
-            lines_read_rate_->IncrementAndGetEventsPerSecond(lines.read());
-          })
+  return options_->process_terminal_input(std::move(buffer_wrapper))
       .Transform([this](EmptyValue) {
         state_ = State::kIdle;
         return futures::Past(ReadResult::kContinue);
