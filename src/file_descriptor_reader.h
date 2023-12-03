@@ -31,13 +31,6 @@ class FileDescriptorReader {
   struct Options {
     FileDescriptorName name;
 
-    std::function<void(const language::lazy_string::LazyString&)> maybe_exec;
-
-    std::function<futures::Value<language::EmptyValue>(
-        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
-        std::function<void(language::text::LineNumberDelta)>)>
-        process_terminal_input;
-
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
     infrastructure::FileDescriptor fd;
@@ -46,6 +39,11 @@ class FileDescriptorReader {
     // main thread. To achieve that, we receive a thread pool owned by our
     // customer and we delegate as much work as feasible to it.
     concurrent::ThreadPoolWithWorkQueue& thread_pool;
+
+    std::function<futures::Value<language::EmptyValue>(
+        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
+        std::function<void(language::text::LineNumberDelta)>)>
+        process_terminal_input;
   };
 
   explicit FileDescriptorReader(Options options);

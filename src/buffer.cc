@@ -1841,25 +1841,24 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
     }
     return std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
         .name = FileDescriptorName(name().read() + L":" + name_suffix),
-        .maybe_exec =
-            [this](const LazyString& input) {
-              RegisterProgress();
-              if (!Read(buffer_variables::vm_exec)) return;
-              LOG(INFO) << name()
-                        << ": Evaluating VM code: " << input.ToString();
-              EvaluateString(input.ToString());
-            },
+        .fd = fd,
+        .thread_pool = editor().thread_pool(),
         .process_terminal_input =
             [this, modifiers](
                 language::NonNull<
                     std::shared_ptr<language::lazy_string::LazyString>>
                     input,
                 std::function<void(LineNumberDelta)> new_line_callback) {
+              RegisterProgress();
+              if (Read(buffer_variables::vm_exec)) {
+                LOG(INFO) << name()
+                          << ": Evaluating VM code: " << input->ToString();
+                EvaluateString(input->ToString());
+              }
+
               return file_adapter_->ReceiveInput(std::move(input), modifiers,
                                                  std::move(new_line_callback));
-            },
-        .fd = fd,
-        .thread_pool = editor().thread_pool()});
+            }});
   };
 
   fd_ = new_reader(input_fd, L"stdout", {});

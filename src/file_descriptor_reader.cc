@@ -117,8 +117,6 @@ FileDescriptorReader::ReadData() {
     low_buffer_ = nullptr;
   }
 
-  options_->maybe_exec(buffer_wrapper.value());
-
   clock_gettime(0, &last_input_received_);
   state_ = State::kParsing;
   return options_
