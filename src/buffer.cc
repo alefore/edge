@@ -677,9 +677,6 @@ void OpenBuffer::RegisterProgress() {
   }
 }
 
-void OpenBuffer::ReadData() { ReadData(fd_); }
-void OpenBuffer::ReadErrorData() { ReadData(fd_error_); }
-
 void OpenBuffer::UpdateTreeParser() {
   if (!ptr_this_.has_value()) return;
   futures::Past(Path::FromString(Read(buffer_variables::dictionary)))
@@ -1888,13 +1885,13 @@ void OpenBuffer::AddExecutionHandlers(
     LOG(INFO) << "Reading (normal): "
               << buffer.ptr()->Read(buffer_variables::name);
     TRACK_OPERATION(Main_ReadData);
-    buffer.ptr()->ReadData();
+    buffer.ptr()->ReadData(buffer.ptr()->fd_);
   });
   register_reader(fd_error(), [buffer = NewRoot()](int) {
     LOG(INFO) << "Reading (error): "
               << buffer.ptr()->Read(buffer_variables::name);
     TRACK_OPERATION(Main_ReadErrorData);
-    buffer.ptr()->ReadErrorData();
+    buffer.ptr()->ReadData(buffer.ptr()->fd_error_);
   });
 }
 

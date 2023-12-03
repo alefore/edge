@@ -170,9 +170,6 @@ class OpenBuffer {
   void RegisterProgress();
   struct timespec last_progress_update() const { return last_progress_update_; }
 
-  void ReadData();
-  void ReadErrorData();
-
   futures::Value<language::PossibleError> Reload();
   // Signal that EndOfFile was received (in the input that the editor is reading
   // from fd_).
