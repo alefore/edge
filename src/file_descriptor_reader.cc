@@ -11,19 +11,21 @@
 #include "src/language/text/line.h"
 #include "src/language/wstring.h"
 
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::Tracker;
+using afc::language::EmptyValue;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineNumberDelta;
+
 namespace afc::editor {
-using infrastructure::FileDescriptor;
-using infrastructure::Tracker;
-using language::EmptyValue;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineNumberDelta;
+using ::operator<<;
 
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(MakeNonNullShared<Options>(std::move(options))) {
@@ -54,7 +56,7 @@ std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
 futures::Value<FileDescriptorReader::ReadResult>
 FileDescriptorReader::ReadData() {
   LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
-            << options_->buffer_name;
+            << options_->name;
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
     CHECK_EQ(low_buffer_length_, 0ul);
@@ -105,7 +107,7 @@ FileDescriptorReader::ReadData() {
   size_t processed = low_buffer_tmp == nullptr
                          ? low_buffer_length_
                          : low_buffer_tmp - low_buffer_.get();
-  VLOG(5) << options_->buffer_name << ": Characters consumed: " << processed
+  VLOG(5) << options_->name << ": Characters consumed: " << processed
           << ", produced: " << buffer_wrapper->size();
   CHECK_LE(processed, low_buffer_length_);
   memmove(low_buffer_.get(), low_buffer_tmp, low_buffer_length_ - processed);

@@ -9,7 +9,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "src/buffer_name.h"
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/file_system_driver.h"
@@ -21,11 +20,16 @@
 
 namespace afc {
 namespace editor {
+// Description of the file descriptor, used for logging/debugging.
+//
+// TODO(2023-12-02): This should use LazyString.
+GHOST_TYPE(FileDescriptorName, std::wstring);
+
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {
  public:
   struct Options {
-    BufferName buffer_name;
+    FileDescriptorName name;
 
     std::function<void(const language::lazy_string::LazyString&)> maybe_exec;
 

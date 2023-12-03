@@ -1832,13 +1832,15 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
         .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); }});
   });
 
-  auto new_reader = [this](FileDescriptor fd, LineModifierSet modifiers)
-      -> std::unique_ptr<FileDescriptorReader> {
+  auto new_reader =
+      [this](
+          FileDescriptor fd, std::wstring name_suffix,
+          LineModifierSet modifiers) -> std::unique_ptr<FileDescriptorReader> {
     if (fd == FileDescriptor(-1)) {
       return nullptr;
     }
     return std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
-        .buffer_name = name(),
+        .name = FileDescriptorName(name().read() + L":" + name_suffix),
         .maybe_exec =
             [this](const LazyString& input) {
               RegisterProgress();
@@ -1860,8 +1862,8 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
         .thread_pool = editor().thread_pool()});
   };
 
-  fd_ = new_reader(input_fd, {});
-  fd_error_ = new_reader(input_error_fd, {LineModifier::kBold});
+  fd_ = new_reader(input_fd, L"stdout", {});
+  fd_error_ = new_reader(input_error_fd, L"stderr", {LineModifier::kBold});
   child_pid_ = child_pid;
   file_adapter_->UpdateSize();
 }
