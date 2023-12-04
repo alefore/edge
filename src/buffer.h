@@ -172,8 +172,7 @@ class OpenBuffer {
   // If the buffer has a child process, sends EndOfFile to it.
   void SendEndOfFileToProcess();
 
-  void ClearContents(
-      language::text::MutableLineSequence::ObserverBehavior observer_behavior);
+  void ClearContents();
   void AppendEmptyLine();
 
   // Sort `length` lines starting at `start` according to a compare function.

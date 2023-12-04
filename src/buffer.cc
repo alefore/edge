@@ -551,14 +551,13 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
       });
 }
 
-void OpenBuffer::ClearContents(
-    MutableLineSequence::ObserverBehavior cursors_behavior) {
+void OpenBuffer::ClearContents() {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
   options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
   options_.editor.line_marks().ExpireMarksFromSource(contents().snapshot(),
                                                      name());
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
-                       cursors_behavior);
+                       MutableLineSequence::ObserverBehavior::kHide);
   file_adapter_->SetPositionToZero();
   undo_state_.Clear();
 }
@@ -744,7 +743,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
     Set(buffer_variables::show_in_buffers_list, false);
     Set(buffer_variables::delete_into_paste_buffer, false);
   }
-  ClearContents(MutableLineSequence::ObserverBehavior::kHide);
+  ClearContents();
 
   std::visit(
       overload{
@@ -873,7 +872,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
         if (editor().exit_value().has_value()) return futures::Past(Success());
         LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
         if (Read(buffer_variables::clear_on_reload)) {
-          ClearContents(MutableLineSequence::ObserverBehavior::kHide);
+          ClearContents();
           SetDiskState(DiskState::kCurrent);
         }
         return options_.generate_contents != nullptr
