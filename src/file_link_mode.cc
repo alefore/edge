@@ -87,11 +87,6 @@ futures::Value<PossibleError> GenerateContents(
   return file_system_driver->Stat(path).Transform(
       [stat_buffer, file_system_driver, &target,
        path](std::optional<struct stat> stat_results) {
-        if (stat_results.has_value() &&
-            target.Read(buffer_variables::clear_on_reload)) {
-          target.ClearContents(MutableLineSequence::ObserverBehavior::kHide);
-          target.SetDiskState(OpenBuffer::DiskState::kCurrent);
-        }
         if (!stat_results.has_value()) {
           return futures::Past(Success());
         }

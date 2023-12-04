@@ -119,7 +119,6 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
 futures::Value<PossibleError> GenerateContents(
     EditorState& editor_state, gc::WeakPtr<OpenBuffer> source_weak,
     OpenBuffer& target) {
-  target.ClearContents(MutableLineSequence::ObserverBehavior::kHide);
   for (const auto& dir : editor_state.edge_path()) {
     target.EvaluateFile(Path::Join(
         dir, ValueOrDie(Path::FromString(L"hooks/navigation-buffer-reload.cc"),

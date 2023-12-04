@@ -392,8 +392,6 @@ class State {
   futures::Value<gc::Root<OpenBuffer>> GetHelpBuffer() {
     return VisitOptional(
         [](gc::Root<OpenBuffer> buffer) {
-          buffer.ptr()->ClearContents(
-              MutableLineSequence::ObserverBehavior::kHide);
           buffer.ptr()->Reload();
           return futures::Past(std::move(buffer));
         },

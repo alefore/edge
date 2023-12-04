@@ -871,8 +871,11 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
              })
       .Transform([this](IterationControlCommand) {
         if (editor().exit_value().has_value()) return futures::Past(Success());
-        SetDiskState(DiskState::kCurrent);
         LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
+        if (Read(buffer_variables::clear_on_reload)) {
+          ClearContents(MutableLineSequence::ObserverBehavior::kHide);
+          SetDiskState(DiskState::kCurrent);
+        }
         return options_.generate_contents != nullptr
                    ? futures::IgnoreErrors(options_.generate_contents(*this))
                    : futures::Past(Success());
@@ -1788,11 +1791,6 @@ void OpenBuffer::InsertLines(
 futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     FileDescriptor input_fd, FileDescriptor input_error_fd, bool fd_is_terminal,
     std::optional<ProcessId> child_pid) {
-  if (Read(buffer_variables::clear_on_reload)) {
-    ClearContents(MutableLineSequence::ObserverBehavior::kHide);
-    SetDiskState(DiskState::kCurrent);
-  }
-
   CHECK(child_pid_ == std::nullopt);
   child_pid_ = child_pid;
 
