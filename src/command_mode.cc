@@ -763,24 +763,27 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
                  {operation::CommandReach{
                      .repetitions = operation::CommandArgumentRepetitions(-1)}})
                  .ptr());
-  commands.Add(
-      VectorExtendedChar(L"H"),
-      operation::NewTopLevelCommand(
-          L"home", L"moves to the beginning of the current line",
-          operation::TopCommand(), editor_state,
-          {operation::CommandReachBegin{
-              .structure = Structure::kChar,
-              .repetitions = operation::CommandArgumentRepetitions(1)}})
-          .ptr());
-  commands.Add(VectorExtendedChar(L"L"),
-               operation::NewTopLevelCommand(
-                   L"end", L"moves to the end of the current line",
-                   operation::TopCommand(), editor_state,
-                   {operation::CommandReachBegin{
-                       .structure = Structure::kChar,
-                       .repetitions = operation::CommandArgumentRepetitions(1),
-                       .direction = Direction::kBackwards}})
-                   .ptr());
+
+  for (ExtendedChar x : std::vector<ExtendedChar>({L'H', ControlChar::kHome}))
+    commands.Add(
+        {x}, operation::NewTopLevelCommand(
+                 L"home", L"moves to the beginning of the current line",
+                 operation::TopCommand(), editor_state,
+                 {operation::CommandReachBegin{
+                     .structure = Structure::kChar,
+                     .repetitions = operation::CommandArgumentRepetitions(1)}})
+                 .ptr());
+
+  for (ExtendedChar x : std::vector<ExtendedChar>({L'L', ControlChar::kEnd}))
+    commands.Add(
+        {x}, operation::NewTopLevelCommand(
+                 L"end", L"moves to the end of the current line",
+                 operation::TopCommand(), editor_state,
+                 {operation::CommandReachBegin{
+                     .structure = Structure::kChar,
+                     .repetitions = operation::CommandArgumentRepetitions(1),
+                     .direction = Direction::kBackwards}})
+                 .ptr());
   commands.Add(
       VectorExtendedChar(L"K"),
       operation::NewTopLevelCommand(
