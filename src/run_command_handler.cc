@@ -243,11 +243,11 @@ futures::Value<PossibleError> GenerateContents(
 
   LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
             << pipefd_err[parent_fd];
-  target.SetInputFiles(FileDescriptor(pipefd_out[parent_fd]),
-                       FileDescriptor(pipefd_err[parent_fd]),
-                       target.Read(buffer_variables::pts), child_pid);
-  target.WaitForEndOfFile().Transform(
-      [&editor_state, data, &target](EmptyValue) {
+  return target
+      .SetInputFiles(FileDescriptor(pipefd_out[parent_fd]),
+                     FileDescriptor(pipefd_err[parent_fd]),
+                     target.Read(buffer_variables::pts), child_pid)
+      .Transform([&editor_state, data, &target](EmptyValue) {
         LOG(INFO) << "End of file notification.";
         if (editor_state.buffer_tree().GetBufferIndex(target).has_value()) {
           namespace audio = infrastructure::audio;
@@ -267,7 +267,6 @@ futures::Value<PossibleError> GenerateContents(
         time(&data->time_end);
         return Success();
       });
-  return futures::Past(Success());
 }
 
 wstring DurationToString(size_t duration) {
