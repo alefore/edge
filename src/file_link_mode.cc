@@ -97,15 +97,8 @@ futures::Value<PossibleError> GenerateContents(
         }
         stat_buffer.value() = stat_results.value();
 
-        if (!S_ISDIR(stat_buffer->st_mode)) {
-          return file_system_driver->Open(path, O_RDONLY | O_NONBLOCK, 0)
-              .Transform([&target](FileDescriptor fd) {
-                target.SetInputFiles(fd, FileDescriptor(-1), false,
-                                     std::optional<ProcessId>());
-                return Success();
-              });
-        }
-
+        if (!S_ISDIR(stat_buffer->st_mode))
+          return target.SetInputFromPath(path);
         return GenerateDirectoryListing(path, target).Transform([](EmptyValue) {
           return futures::Past(Success());
         });
