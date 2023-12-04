@@ -3,7 +3,6 @@
 #include "src/language/lazy_string/substring.h"
 #include "src/language/text/line.h"
 
-using afc::infrastructure::UnixSignal;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
@@ -22,7 +21,7 @@ using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 
-namespace afc::editor {
+namespace afc::infrastructure {
 RegularFileAdapter::RegularFileAdapter(Options options)
     : options_(std::move(options)) {}
 
@@ -82,4 +81,4 @@ futures::Value<EmptyValue> RegularFileAdapter::ReceiveInput(
 }
 
 bool RegularFileAdapter::WriteSignal(UnixSignal) { return false; }
-}  // namespace afc::editor
+}  // namespace afc::infrastructure

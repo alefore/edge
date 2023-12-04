@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_REGULAR_FILE_ADAPTER_H__
-#define __AFC_EDITOR_REGULAR_FILE_ADAPTER_H__
+#ifndef __AFC_INFRASTRUCTURE_REGULAR_FILE_ADAPTER_H__
+#define __AFC_INFRASTRUCTURE_REGULAR_FILE_ADAPTER_H__
 
 #include <functional>
 #include <memory>
@@ -16,7 +16,7 @@
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 
-namespace afc::editor {
+namespace afc::infrastructure {
 class RegularFileAdapter : public FileAdapter {
  public:
   struct Options {
@@ -42,5 +42,5 @@ class RegularFileAdapter : public FileAdapter {
 
   bool WriteSignal(infrastructure::UnixSignal signal) override;
 };
-}  // namespace afc::editor
-#endif  // __AFC_EDITOR_REGULAR_FILE_ADAPTER_H__
+}  // namespace afc::infrastructure
+#endif  // __AFC_INFRASTRUCTURE_REGULAR_FILE_ADAPTER_H__

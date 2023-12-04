@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_FILE_ADAPTER_H__
-#define __AFC_EDITOR_FILE_ADAPTER_H__
+#ifndef __AFC_INFRASTRUCTURE_FILE_ADAPTER_H__
+#define __AFC_INFRASTRUCTURE_FILE_ADAPTER_H__
 
 #include <functional>
 #include <memory>
@@ -13,7 +13,7 @@
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 
-namespace afc::editor {
+namespace afc::infrastructure {
 // Class that represents the bridge between the OpenBuffer class and a file
 // descriptor from which input is being received, and to which input can be
 // propagated. Two subclasses are expected: one for file descriptors with a tty,
@@ -41,5 +41,5 @@ class FileAdapter {
 
   virtual bool WriteSignal(infrastructure::UnixSignal signal) = 0;
 };
-}  // namespace afc::editor
-#endif  // __AFC_EDITOR_FILE_ADAPTER_H__
+}  // namespace afc::infrastructure
+#endif  // __AFC_INFRASTRUCTURE_FILE_ADAPTER_H__

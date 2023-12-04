@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_BUFFER_TERMINAL_H__
-#define __AFC_EDITOR_BUFFER_TERMINAL_H__
+#ifndef __AFC_INFRASTRUCTURE_TERMINAL_ADAPTER_H__
+#define __AFC_INFRASTRUCTURE_TERMINAL_ADAPTER_H__
 
 #include <functional>
 #include <memory>
@@ -19,7 +19,7 @@
 #include "src/language/text/line_sequence.h"
 #include "src/tests/fuzz_testable.h"
 
-namespace afc::editor {
+namespace afc::infrastructure {
 // TODO(2023-12-02): This should use LazyString.
 GHOST_TYPE(TerminalName, std::wstring);
 
@@ -47,7 +47,7 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
     virtual TerminalName name() = 0;
 
     // The underlying file descriptor.
-    virtual std::optional<infrastructure::FileDescriptor> fd() = 0;
+    virtual std::optional<FileDescriptor> fd() = 0;
 
     // Every buffer should keep track of the last size of a widget that has
     // displayed it. TerminalAdapter uses this to be notified when it
@@ -94,9 +94,9 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
 
   futures::Value<language::EmptyValue> ReceiveInput(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
-      const infrastructure::screen::LineModifierSet& modifiers) override;
+      const screen::LineModifierSet& modifiers) override;
 
-  bool WriteSignal(infrastructure::UnixSignal signal) override;
+  bool WriteSignal(UnixSignal signal) override;
 
   std::vector<tests::fuzz::Handler> FuzzHandlers() override;
 
@@ -106,12 +106,12 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
   language::lazy_string::ColumnNumber ProcessTerminalEscapeSequence(
       language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
       language::lazy_string::ColumnNumber read_index,
-      infrastructure::screen::LineModifierSet* modifiers);
+      screen::LineModifierSet* modifiers);
 
   void MoveToNextLine();
 
   static language::text::LineColumnDelta LastViewSize(Data& data);
 };
-}  // namespace afc::editor
+}  // namespace afc::infrastructure
 
-#endif  // __AFC_EDITOR_BUFFER_TERMINAL_H__
+#endif  // __AFC_INFRASTRUCTURE_TERMINAL_ADAPTER_H__

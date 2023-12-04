@@ -22,7 +22,7 @@
 #include "src/infrastructure/file_descriptor_reader.h"
 #include "src/infrastructure/screen/cursors.h"
 #include "src/infrastructure/screen/visual_overlay.h"
-#include "src/infrastructure/terminal_input_parser.h"
+#include "src/infrastructure/terminal_adapter.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/substring.h"
@@ -466,7 +466,7 @@ class OpenBuffer {
 
   infrastructure::FileSystemDriver& file_system_driver() const;
 
-  language::NonNull<std::unique_ptr<TerminalAdapter>>
+  language::NonNull<std::unique_ptr<infrastructure::TerminalAdapter>>
   NewTerminal();  // Public for testing.
 
   // Returns lines-read-per-second.
@@ -679,7 +679,7 @@ class OpenBuffer {
 
   BufferSyntaxParser buffer_syntax_parser_;
 
-  language::NonNull<std::unique_ptr<FileAdapter>> file_adapter_;
+  language::NonNull<std::unique_ptr<infrastructure::FileAdapter>> file_adapter_;
 
   mutable infrastructure::FileSystemDriver file_system_driver_;
 

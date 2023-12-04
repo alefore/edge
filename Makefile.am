@@ -117,8 +117,8 @@ src/infrastructure/file_system_driver.cc \
 src/infrastructure/file_system_driver.h \
 src/infrastructure/regular_file_adapter.h \
 src/infrastructure/regular_file_adapter.cc \
-src/infrastructure/terminal_input_parser.cc \
-src/infrastructure/terminal_input_parser.h \
+src/infrastructure/terminal_adapter.cc \
+src/infrastructure/terminal_adapter.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
 src/infrastructure/screen/cursors.cc \

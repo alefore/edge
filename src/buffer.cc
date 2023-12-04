@@ -78,12 +78,15 @@ using afc::futures::IterationControlCommand;
 using afc::futures::OnError;
 using afc::infrastructure::AbsolutePath;
 using afc::infrastructure::AddSeconds;
+using afc::infrastructure::FileAdapter;
 using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
 using afc::infrastructure::ProcessId;
+using afc::infrastructure::RegularFileAdapter;
+using afc::infrastructure::TerminalAdapter;
 using afc::infrastructure::Tracker;
 using afc::infrastructure::UnixSignal;
 using afc::infrastructure::UpdateIfMillisecondsHavePassed;
@@ -1619,8 +1622,8 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
 
     void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
 
-    TerminalName name() override {
-      return TerminalName(L"Terminal:" + buffer_.name().read());
+    infrastructure::TerminalName name() override {
+      return infrastructure::TerminalName(L"Terminal:" + buffer_.name().read());
     }
 
     std::optional<infrastructure::FileDescriptor> fd() override {

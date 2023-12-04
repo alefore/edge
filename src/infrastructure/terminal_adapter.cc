@@ -1,4 +1,4 @@
-#include "src/infrastructure/terminal_input_parser.h"
+#include "src/infrastructure/terminal_adapter.h"
 
 #include <cctype>
 #include <csignal>
@@ -19,7 +19,6 @@ extern "C" {
 #include "src/language/wstring.h"
 #include "src/tests/fuzz.h"
 
-using afc::infrastructure::UnixSignal;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
@@ -40,7 +39,7 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
 
-namespace afc::editor {
+namespace afc::infrastructure {
 using ::operator<<;
 
 TerminalAdapter ::TerminalAdapter(
@@ -443,4 +442,4 @@ bool TerminalAdapter::WriteSignal(UnixSignal signal) {
     }
   return false;
 }
-}  // namespace afc::editor
+}  // namespace afc::infrastructure
