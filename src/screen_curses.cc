@@ -223,11 +223,15 @@ std::optional<ExtendedChar> ReadChar(std::mbstate_t* mbstate) {
                 return ControlChar::kRightArrow;
               case 'D':
                 return ControlChar::kLeftArrow;
+              case 'F':
+                return ControlChar::kEnd;
+              case 'H':
+                return ControlChar::kHome;
             }
           }
             return -1;
         }
-        // cerr << "Unget: " << next << "\n";
+        // std::cerr << "Unget: " << next << "\n";
         ungetch(next);
       }
         return ControlChar::kEscape;
