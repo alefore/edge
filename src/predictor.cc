@@ -49,6 +49,7 @@ using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::OptionalFrom;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -186,48 +187,41 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
 
   NonNull<std::shared_ptr<LazyString>> input =
       NewLazyString(GetPredictInput(*shared_options));
-  // TODO(2023-11-28, P1): Using std::make_shared below is ugly. We should find
-  // a way to only notify elsewhere, such as based on the return value of a
-  // call to EndOfFile or some such.
-  buffer_options.generate_contents =
-      [shared_options = std::move(shared_options), input,
-       consumer = std::make_shared<
-           futures::Value<std::optional<PredictResults>>::Consumer>(
-           std::move(output.consumer))](OpenBuffer& buffer) mutable {
-        CHECK(shared_options->progress_channel != nullptr);
-        return shared_options
-            ->predictor({.editor = shared_options->editor_state,
-                         .input = input,
-                         .predictions = buffer,
-                         .source_buffers = shared_options->source_buffers,
-                         .progress_channel = *shared_options->progress_channel,
-                         .abort_value = shared_options->abort_value})
-            .Transform(
-                [shared_options, input, &buffer,
-                 consumer = std::move(consumer)](
-                    PredictorOutput predictor_output) mutable -> PossibleError {
-                  shared_options->progress_channel = nullptr;
-                  buffer.set_current_cursor(LineColumn());
-                  DECLARE_OR_RETURN(auto results,
-                                    BuildResults(buffer, predictor_output,
-                                                 shared_options->abort_value));
-                  CHECK(consumer != nullptr);
-                  std::invoke(
-                      std::move(*consumer),
-                      NewLazyString(GetPredictInput(*shared_options)).value() ==
-                                  input.value() &&
-                              !shared_options->abort_value.has_value()
-                          ? std::optional<PredictResults>(results)
-                          : std::nullopt);
-                  return Success();
-                });
-      };
+
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
-  predictions_buffer.ptr()->Reload();
-  return std::move(output.value);
+
+  return shared_options
+      ->predictor(
+          PredictorInput{.editor = shared_options->editor_state,
+                         .input = input,
+                         .predictions = predictions_buffer.ptr().value(),
+                         .source_buffers = shared_options->source_buffers,
+                         .progress_channel = *shared_options->progress_channel,
+                         .abort_value = shared_options->abort_value})
+      .Transform([shared_options, input,
+                  predictions_buffer](PredictorOutput predictor_output) mutable
+                 -> ValueOrError<PredictResults> {
+        shared_options->progress_channel = nullptr;
+        predictions_buffer.ptr()->set_current_cursor(LineColumn());
+        DECLARE_OR_RETURN(
+            auto results,
+            BuildResults(predictions_buffer.ptr().value(), predictor_output,
+                         shared_options->abort_value));
+        if (NewLazyString(GetPredictInput(*shared_options)).value() !=
+                input.value() ||
+            shared_options->abort_value.has_value())
+          return Error(L"Aborted");
+        return results;
+      })
+      .Transform(
+          [](PredictResults r) -> ValueOrError<std::optional<PredictResults>> {
+            return r;
+          })
+      .ConsumeErrors(
+          [](auto) { return futures::Past(std::optional<PredictResults>()); });
 }
 
 struct DescendDirectoryTreeOutput {
