@@ -125,10 +125,12 @@ ValueOrError<PredictResults> BuildResults(
       .predictor_output = predictor_output};
 }
 
-std::wstring GetPredictInput(
+NonNull<std::shared_ptr<LazyString>> GetPredictInput(
     const std::variant<std::wstring, gc::Root<OpenBuffer>>& input) {
   return std::visit(
-      overload{[](std::wstring text) { return text; },
+      overload{[](std::wstring text) -> NonNull<std::shared_ptr<LazyString>> {
+                 return NewLazyString(text);
+               },
                [](const gc::Root<OpenBuffer>& buffer_root) {
                  OpenBuffer& buffer = buffer_root.ptr().value();
                  Modifiers modifiers;
@@ -146,13 +148,11 @@ std::wstring GetPredictInput(
                  } else {
                    CHECK_GE(line->EndColumn(), range.begin().column);
                  }
-                 return line
-                     ->Substring(range.begin().column,
-                                 (range.begin().line == range.end().line
-                                      ? range.end().column
-                                      : line->EndColumn()) -
-                                     range.begin().column)
-                     ->ToString();
+                 return line->Substring(range.begin().column,
+                                        (range.begin().line == range.end().line
+                                             ? range.end().column
+                                             : line->EndColumn()) -
+                                            range.begin().column);
                }},
       input);
 }
@@ -189,8 +189,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   }
   CHECK(!options.abort_value.has_value());
 
-  NonNull<std::shared_ptr<LazyString>> input =
-      NewLazyString(GetPredictInput(options.input));
+  NonNull<std::shared_ptr<LazyString>> input = GetPredictInput(options.input);
 
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
@@ -214,8 +213,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
         DECLARE_OR_RETURN(auto results,
                           BuildResults(predictions_buffer.ptr().value(),
                                        predictor_output, abort_value));
-        if (NewLazyString(GetPredictInput(options_input)).value() !=
-                input.value() ||
+        if (GetPredictInput(options_input).value() != input.value() ||
             abort_value.has_value())
           return Error(L"Aborted");
         return results;
