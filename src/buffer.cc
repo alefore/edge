@@ -902,7 +902,6 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                    ? futures::IgnoreErrors(options_.generate_contents(*this))
                    : futures::Past(Success());
       })
-      .Transform([this](EmptyValue) { return SignalEndOfFile(); })
       .Transform([this](EmptyValue) {
         return futures::OnError(
             GetEdgeStateDirectory().Transform(options_.log_supplier),
@@ -923,10 +922,10 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
             break;
           case ReloadState::kPending:
             reload_state_ = ReloadState::kDone;
-            Reload();
+            return Reload();
         }
         LOG(INFO) << "Reload finished evaluation: " << name();
-        return Success();
+        return SignalEndOfFile();
       });
 }
 
