@@ -185,13 +185,10 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
       input.predictions.AppendRawLine(MakeNonNullShared<Line>());
     }
   }
-  input.predictions.SignalEndOfFile();
-  return input.predictions.WaitForEndOfFile().Transform([input](EmptyValue) {
-    TRACK_OPERATION(SearchHandlerPredictor_sort);
-    return PredictorOutput(
-        {.contents = SortedLineSequenceUniqueLines(
-             SortedLineSequence(input.predictions.contents().snapshot()))});
-  });
+  TRACK_OPERATION(SearchHandlerPredictor_sort);
+  return futures::Past(PredictorOutput(
+      {.contents = SortedLineSequenceUniqueLines(
+           SortedLineSequence(input.predictions.contents().snapshot()))}));
 }
 
 ValueOrError<std::vector<LineColumn>> SearchHandler(
