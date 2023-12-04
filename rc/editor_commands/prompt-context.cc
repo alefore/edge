@@ -1,8 +1,18 @@
 #include "lib/strings.cc"
 
+// Set of commands that should just be run directly.
+SetString shell_prompt_preview_execution = SetString();
+shell_prompt_preview_execution.insert("grep");
+shell_prompt_preview_execution.insert("grep-code");
+shell_prompt_preview_execution.insert("ls");
+shell_prompt_preview_execution.insert("ls-code");
+shell_prompt_preview_execution.insert("ps");
+
+// Set of commands for which `man` should be run.
 SetString shell_prompt_help_programs_man = SetString();
 shell_prompt_help_programs_man.insert("look");
 
+// Set of commands for which `$command --help` should be run.
 SetString shell_prompt_help_programs = SetString();
 shell_prompt_help_programs.insert("apt-get");
 shell_prompt_help_programs.insert("blaze");
@@ -12,6 +22,7 @@ shell_prompt_help_programs.insert("date");
 shell_prompt_help_programs.insert("edge");
 shell_prompt_help_programs.insert("find");
 shell_prompt_help_programs.insert("gcc");
+shell_prompt_help_programs.insert("gdb");
 shell_prompt_help_programs.insert("git");
 shell_prompt_help_programs.insert("grep");
 shell_prompt_help_programs.insert("hg");
@@ -20,6 +31,7 @@ shell_prompt_help_programs.insert("locate");
 shell_prompt_help_programs.insert("make");
 shell_prompt_help_programs.insert("man");
 shell_prompt_help_programs.insert("python");
+shell_prompt_help_programs.insert("python3");
 shell_prompt_help_programs.insert("rm");
 shell_prompt_help_programs.insert("sleep");
 
@@ -83,12 +95,20 @@ string LookUpSubCommand(SetString sub_commands, string command) {
 string HelpCommandFor(string command) { return command + " --help"; }
 
 string GetShellPromptContextProgram(string input) {
+  // Just in case ... avoid doing a preview if the command looks somewhat
+  // complex.
+  if (input.find_first_of("|;&", 0) != -1) return "";
+
   string base_command = BaseCommand(input);
   if (base_command == "man") {
     string sub_command = GetSubCommand(input);
     if (!sub_command.empty()) {
       return "apropos " + sub_command;
     }
+  }
+
+  if (shell_prompt_preview_execution.contains(base_command)) {
+    return input;
   }
 
   if (shell_prompt_help_programs_man.contains(base_command)) {
