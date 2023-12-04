@@ -120,8 +120,8 @@ void AppendStatus(const CommandReach& reach, LineBuilder& output) {
 void AppendStatus(const CommandReachBegin& reach, LineBuilder& output) {
   SerializeCall(
       (reach.direction == Direction::kBackwards
-           ? (reach.structure == Structure::kLine ? kHomeUp : kHomeLeft)
-           : (reach.structure == Structure::kLine ? kHomeDown : kHomeRight))
+           ? (reach.structure == Structure::kLine ? kHomeUp : kHomeRight)
+           : (reach.structure == Structure::kLine ? kHomeDown : kHomeLeft))
           .read(),
       {StructureToString(reach.structure), reach.repetitions.ToString()},
       output);
@@ -1104,7 +1104,11 @@ class OperationMode : public EditorMode {
         .Insert(ControlChar::kDownArrow, MoveHandler(ControlChar::kDownArrow))
         .Insert(ControlChar::kUpArrow, MoveHandler(ControlChar::kUpArrow))
         .Insert(L'H', push(kHomeLeft, CommandReachBegin{}))
+        .Insert(ControlChar::kHome, push(kHomeLeft, CommandReachBegin{}))
         .Insert(L'L',
+                push(kHomeRight,
+                     CommandReachBegin{.direction = Direction::kBackwards}))
+        .Insert(ControlChar::kEnd,
                 push(kHomeRight,
                      CommandReachBegin{.direction = Direction::kBackwards}))
         .Insert(L'K',
