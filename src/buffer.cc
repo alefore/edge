@@ -1848,11 +1848,15 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
             .fd = fd,
             .receive_end_of_file =
                 [buffer = NewRoot(), this, &reader,
-                 output_consumer = std::move(output.consumer)]() mutable {
+                 output_consumer = std::move(output.consumer)] mutable {
                   RegisterProgress();
+                  // We must make copies of a few fields because setting
+                  // `reader`` to nullptr will likely erase us.
+                  auto buffer_copy = std::move(buffer);
+                  auto output_consumer_copy = std::move(output_consumer);
                   reader = nullptr;
-                  std::move(output_consumer)(EmptyValue());
                   if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
+                  std::move(output_consumer_copy)(EmptyValue());
                 },
             .receive_data =
                 [buffer = NewRoot(), this, modifiers](
