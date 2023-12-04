@@ -120,12 +120,15 @@ struct PredictOptions {
 
   // Input for the prediction.
   //
-  // Either a static std::wstring or an input buffer from which the input should
-  // be extracted (typically corresponding to a prompt).
+  // Either a static string or an input buffer from which the input should be
+  // extracted (typically corresponding to a prompt).
   //
   // The reason we support a buffer is that the predictors can handle the case
   // where the input changes while they are generating predictions.
-  std::variant<std::wstring, language::gc::Root<OpenBuffer>> input;
+  std::variant<
+      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
+      language::gc::Root<OpenBuffer>>
+      input;
 
   // Given to the predictor (see `PredictorInput::source_buffers`). The caller
   // must ensure it doesn't get deallocated until the future returned by the

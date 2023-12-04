@@ -367,7 +367,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   using BufferMapper = vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>;
   return Predict(PredictOptions{.editor_state = editor,
                                 .predictor = predictor,
-                                .input = line->ToString(),
+                                .input = line,
                                 .source_buffers = editor.active_buffers(),
                                 .progress_channel =
                                     std::move(progress_channel).get_unique(),

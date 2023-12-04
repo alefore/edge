@@ -256,7 +256,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                          PredictOptions{
                              .editor_state = editor_state,
                              .predictor = variables_predictor,
-                             .input = line->ToString(),
+                             .input = line,
                              .source_buffers = editor_state.active_buffers(),
                              .progress_channel =
                                  std::move(progress_channel).get_unique(),

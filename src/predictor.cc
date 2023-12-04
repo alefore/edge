@@ -126,11 +126,10 @@ ValueOrError<PredictResults> BuildResults(
 }
 
 NonNull<std::shared_ptr<LazyString>> GetPredictInput(
-    const std::variant<std::wstring, gc::Root<OpenBuffer>>& input) {
+    const std::variant<NonNull<std::shared_ptr<LazyString>>,
+                       gc::Root<OpenBuffer>>& input) {
   return std::visit(
-      overload{[](std::wstring text) -> NonNull<std::shared_ptr<LazyString>> {
-                 return NewLazyString(text);
-               },
+      overload{[](NonNull<std::shared_ptr<LazyString>> text) { return text; },
                [](const gc::Root<OpenBuffer>& buffer_root) {
                  OpenBuffer& buffer = buffer_root.ptr().value();
                  Modifiers modifiers;
@@ -520,7 +519,7 @@ const bool buffer_tests_registration =
         bool executed = false;
         Predict(PredictOptions{.editor_state = buffer.ptr()->editor(),
                                .predictor = test_predictor,
-                               .input = input,
+                               .input = NewLazyString(input),
                                .source_buffers = {}})
             .Transform([&](std::optional<PredictResults> predict_results) {
               CHECK(!std::exchange(executed, true));
