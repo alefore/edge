@@ -568,57 +568,32 @@ void OpenBuffer::AppendEmptyLine() {
   contents_.push_back(NonNull<std::shared_ptr<Line>>());
 }
 
-futures::Value<language::PossibleError> OpenBuffer::SignalEndOfFile() {
+void OpenBuffer::SignalEndOfFile() {
   UpdateLastAction();
   CHECK(fd() == nullptr);
   CHECK(fd_error() == nullptr);
-  return VisitOptional(
-             [&](ProcessId child_pid) -> futures::Value<PossibleError> {
-               return file_system_driver()
-                   .WaitPid(child_pid, 0)
-                   .Transform(
-                       [this, root = NewRoot()](
-                           FileSystemDriver::WaitPidOutput waitpid_output) {
-                         child_exit_status_ = waitpid_output.wstatus;
-                         clock_gettime(0, &time_last_exit_);
+  // We can remove expired marks now. We know that the set of fresh marks
+  // is now complete.
+  editor().line_marks().RemoveExpiredMarksFromSource(name());
 
-                         child_pid_ = std::nullopt;
-                         if (on_exit_handler_.has_value()) {
-                           std::invoke(std::move(on_exit_handler_).value());
-                           on_exit_handler_ = std::nullopt;
-                         }
-                         return futures::Past(Success());
-                       });
-             },
-             [] -> futures::Value<PossibleError> {
-               return futures::Past(Success());
-             },
-             child_pid_)
-      .Transform([this, root = NewRoot()](EmptyValue) {
-        // We can remove expired marks now. We know that the set of fresh marks
-        // is now complete.
-        editor().line_marks().RemoveExpiredMarksFromSource(name());
+  end_of_file_observers_.Notify();
+  contents_observer_->Notify(false);
 
-        end_of_file_observers_.Notify();
-        contents_observer_->Notify(false);
+  if (Read(buffer_variables::reload_after_exit)) {
+    Set(buffer_variables::reload_after_exit,
+        Read(buffer_variables::default_reload_after_exit));
+    Reload();
+  }
 
-        if (Read(buffer_variables::reload_after_exit)) {
-          Set(buffer_variables::reload_after_exit,
-              Read(buffer_variables::default_reload_after_exit));
-          Reload();
-        }
-        if (Read(buffer_variables::close_after_clean_exit) &&
-            child_exit_status_.has_value() &&
-            WIFEXITED(child_exit_status_.value()) &&
-            WEXITSTATUS(child_exit_status_.value()) == 0)
-          editor().CloseBuffer(*this);
+  if (Read(buffer_variables::close_after_clean_exit) &&
+      child_exit_status_.has_value() && WIFEXITED(child_exit_status_.value()) &&
+      WEXITSTATUS(child_exit_status_.value()) == 0)
+    editor().CloseBuffer(*this);
 
-        if (std::optional<gc::Root<OpenBuffer>> current_buffer =
-                editor().current_buffer();
-            current_buffer.has_value() && name() == BufferName::BuffersList())
-          current_buffer->ptr()->Reload();
-        return Success();
-      });
+  if (std::optional<gc::Root<OpenBuffer>> current_buffer =
+          editor().current_buffer();
+      current_buffer.has_value() && name() == BufferName::BuffersList())
+    current_buffer->ptr()->Reload();
 }
 
 void OpenBuffer::SendEndOfFileToProcess() {
@@ -922,10 +897,12 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
             break;
           case ReloadState::kPending:
             reload_state_ = ReloadState::kDone;
+            SignalEndOfFile();
             return Reload();
         }
         LOG(INFO) << "Reload finished evaluation: " << name();
-        return SignalEndOfFile();
+        SignalEndOfFile();
+        return futures::Past(Success());
       });
 }
 
@@ -1873,12 +1850,33 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
       JoinValues(new_reader(input_fd, L"stdout", {}, fd_),
                  new_reader(input_error_fd, L"stderr", {LineModifier::kBold},
                             fd_error_))
-          .Transform(
-              [this, buffer = NewRoot()](std::tuple<EmptyValue, EmptyValue>) {
-                CHECK(fd_ == nullptr);
-                CHECK(fd_error_ == nullptr);
-                return EmptyValue();
-              });
+          .Transform([this,
+                      buffer = NewRoot()](std::tuple<EmptyValue, EmptyValue>) {
+            CHECK(fd_ == nullptr);
+            CHECK(fd_error_ == nullptr);
+            return VisitOptional(
+                [&](ProcessId materialized_child_pid)
+                    -> futures::Value<EmptyValue> {
+                  return file_system_driver()
+                      .WaitPid(materialized_child_pid, 0)
+                      .Transform(
+                          [this, root = NewRoot()](
+                              FileSystemDriver::WaitPidOutput waitpid_output) {
+                            child_exit_status_ = waitpid_output.wstatus;
+                            clock_gettime(0, &time_last_exit_);
+
+                            child_pid_ = std::nullopt;
+                            if (on_exit_handler_.has_value()) {
+                              std::invoke(std::move(on_exit_handler_).value());
+                              on_exit_handler_ = std::nullopt;
+                            }
+                            return futures::Past(Success());
+                          })
+                      .ConsumeErrors(
+                          [](Error) { return futures::Past(EmptyValue()); });
+                },
+                [] { return futures::Past(EmptyValue()); }, child_pid_);
+          });
   file_adapter_->UpdateSize();  // Must follow creation of file descriptors.
   return end_of_file_future;
 }

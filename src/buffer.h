@@ -567,7 +567,7 @@ class OpenBuffer {
   void UpdateLastAction();
 
   // Signal that EndOfFile was received in both fd_ and fd_error_.
-  futures::Value<language::PossibleError> SignalEndOfFile();
+  void SignalEndOfFile();
 
   // TODO(P1, 2023-11-24): Remove this? Just use `AppendLines`?
   void InsertLines(
