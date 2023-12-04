@@ -659,7 +659,8 @@ class TestDriver {
       std::optional<LineSequence> expected_content) {
     return OpenFileIfFound(
                OpenFileOptions{.editor_state = editor_.value(),
-                               .path = ValueOrDie(Path::FromString(path))})
+                               .path = ValueOrDie(Path::FromString(path)),
+                               .use_search_paths = true})
         .Transform([expected_content](gc::Root<OpenBuffer> buffer) {
           return buffer.ptr()->WaitForEndOfFile().Transform([expected_content,
                                                              buffer](

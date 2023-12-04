@@ -168,9 +168,6 @@ class OpenBuffer {
   struct timespec last_progress_update() const { return last_progress_update_; }
 
   futures::Value<language::PossibleError> Reload();
-  // Signal that EndOfFile was received (in the input that the editor is reading
-  // from fd_).
-  futures::Value<language::PossibleError> SignalEndOfFile();
 
   // If the buffer has a child process, sends EndOfFile to it.
   void SendEndOfFileToProcess();
@@ -568,6 +565,10 @@ class OpenBuffer {
   bool IsPastPosition(language::text::LineColumn position) const;
 
   void UpdateLastAction();
+
+  // Signal that EndOfFile was received in both fd_ and fd_error_.
+  futures::Value<language::PossibleError> SignalEndOfFile();
+
   // TODO(P1, 2023-11-24): Remove this? Just use `AppendLines`?
   void InsertLines(
       std::vector<

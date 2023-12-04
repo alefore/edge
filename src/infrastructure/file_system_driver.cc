@@ -73,8 +73,10 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
                                path)]() -> language::ValueOrError<struct stat> {
     struct stat output;
     if (stat(ToByteString(path.read()).c_str(), &output) == -1) {
-      return Error(L"Stat failed: `" + path.read() + L"`: " +
-                   FromByteString(strerror(errno)));
+      Error error(L"Stat failed: `" + path.read() + L"`: " +
+                  FromByteString(strerror(errno)));
+      LOG(INFO) << error;
+      return error;
     }
     return Success(output);
   });

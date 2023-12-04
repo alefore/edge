@@ -570,60 +570,55 @@ void OpenBuffer::AppendEmptyLine() {
 
 futures::Value<language::PossibleError> OpenBuffer::SignalEndOfFile() {
   UpdateLastAction();
-  CHECK(fd_ == nullptr);
-  CHECK(fd_error_ == nullptr);
-  futures::Value<PossibleError> value = VisitOptional(
-      [&](ProcessId child_pid) -> futures::Value<PossibleError> {
-        return OnError(file_system_driver_.WaitPid(child_pid, 0),
-                       [&](Error error) -> futures::ValueOrError<
-                                            FileSystemDriver::WaitPidOutput> {
-                         return futures::Past(error);
-                       })
-            .Transform([this, root = NewRoot()](
+  CHECK(fd() == nullptr);
+  CHECK(fd_error() == nullptr);
+  return VisitOptional(
+             [&](ProcessId child_pid) -> futures::Value<PossibleError> {
+               return file_system_driver()
+                   .WaitPid(child_pid, 0)
+                   .Transform(
+                       [this, root = NewRoot()](
                            FileSystemDriver::WaitPidOutput waitpid_output) {
-              child_exit_status_ = waitpid_output.wstatus;
-              clock_gettime(0, &time_last_exit_);
+                         child_exit_status_ = waitpid_output.wstatus;
+                         clock_gettime(0, &time_last_exit_);
 
-              child_pid_ = std::nullopt;
-              if (on_exit_handler_.has_value()) {
-                std::invoke(std::move(on_exit_handler_).value());
-                on_exit_handler_ = std::nullopt;
-              }
-              return futures::Past(Success());
-            });
-      },
-      []() -> futures::Value<PossibleError> {
-        return futures::Past(Success());
-      },
-      child_pid_);
+                         child_pid_ = std::nullopt;
+                         if (on_exit_handler_.has_value()) {
+                           std::invoke(std::move(on_exit_handler_).value());
+                           on_exit_handler_ = std::nullopt;
+                         }
+                         return futures::Past(Success());
+                       });
+             },
+             [] -> futures::Value<PossibleError> {
+               return futures::Past(Success());
+             },
+             child_pid_)
+      .Transform([this, root = NewRoot()](EmptyValue) {
+        // We can remove expired marks now. We know that the set of fresh marks
+        // is now complete.
+        editor().line_marks().RemoveExpiredMarksFromSource(name());
 
-  return std::move(value).Transform([this, root = NewRoot()](EmptyValue) {
-    // We can remove expired marks now. We know that the set of fresh marks is
-    // now complete.
-    editor().line_marks().RemoveExpiredMarksFromSource(name());
+        end_of_file_observers_.Notify();
+        contents_observer_->Notify(false);
 
-    end_of_file_observers_.Notify();
-    contents_observer_->Notify(false);
+        if (Read(buffer_variables::reload_after_exit)) {
+          Set(buffer_variables::reload_after_exit,
+              Read(buffer_variables::default_reload_after_exit));
+          Reload();
+        }
+        if (Read(buffer_variables::close_after_clean_exit) &&
+            child_exit_status_.has_value() &&
+            WIFEXITED(child_exit_status_.value()) &&
+            WEXITSTATUS(child_exit_status_.value()) == 0)
+          editor().CloseBuffer(*this);
 
-    if (Read(buffer_variables::reload_after_exit)) {
-      Set(buffer_variables::reload_after_exit,
-          Read(buffer_variables::default_reload_after_exit));
-      Reload();
-    }
-    if (Read(buffer_variables::close_after_clean_exit) &&
-        child_exit_status_.has_value() &&
-        WIFEXITED(child_exit_status_.value()) &&
-        WEXITSTATUS(child_exit_status_.value()) == 0) {
-      editor().CloseBuffer(*this);
-    }
-
-    std::optional<gc::Root<OpenBuffer>> current_buffer =
-        editor().current_buffer();
-    if (current_buffer.has_value() && name() == BufferName::BuffersList()) {
-      current_buffer->ptr()->Reload();
-    }
-    return Success();
-  });
+        if (std::optional<gc::Root<OpenBuffer>> current_buffer =
+                editor().current_buffer();
+            current_buffer.has_value() && name() == BufferName::BuffersList())
+          current_buffer->ptr()->Reload();
+        return Success();
+      });
 }
 
 void OpenBuffer::SendEndOfFileToProcess() {
@@ -907,6 +902,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
                    ? futures::IgnoreErrors(options_.generate_contents(*this))
                    : futures::Past(Success());
       })
+      .Transform([this](EmptyValue) { return SignalEndOfFile(); })
       .Transform([this](EmptyValue) {
         return futures::OnError(
             GetEdgeStateDirectory().Transform(options_.log_supplier),
@@ -924,11 +920,9 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
             break;
           case ReloadState::kOngoing:
             reload_state_ = ReloadState::kDone;
-            if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
             break;
           case ReloadState::kPending:
             reload_state_ = ReloadState::kDone;
-            if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
             Reload();
         }
         LOG(INFO) << "Reload finished evaluation: " << name();
@@ -1884,8 +1878,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
               [this, buffer = NewRoot()](std::tuple<EmptyValue, EmptyValue>) {
                 CHECK(fd_ == nullptr);
                 CHECK(fd_error_ == nullptr);
-                return SignalEndOfFile().ConsumeErrors(
-                    [](Error) { return futures::Past(EmptyValue()); });
+                return EmptyValue();
               });
   file_adapter_->UpdateSize();  // Must follow creation of file descriptors.
   return end_of_file_future;
