@@ -1850,12 +1850,10 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                 [buffer = NewRoot(), this, &reader,
                  output_consumer = std::move(output.consumer)] mutable {
                   RegisterProgress();
-                  // We must make copies of a few fields because setting
-                  // `reader`` to nullptr will likely erase us.
-                  auto buffer_copy = std::move(buffer);
+                  // Why make a copy? Because setting `reader` to nullptr erases
+                  // us.
                   auto output_consumer_copy = std::move(output_consumer);
                   reader = nullptr;
-                  if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
                   std::move(output_consumer_copy)(EmptyValue());
                 },
             .receive_data =
@@ -1878,13 +1876,19 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     return std::move(output.value);
   };
 
-  futures::Value<EmptyValue> fd_future =
-      new_reader(input_fd, L"stdout", {}, fd_);
-  futures::Value<EmptyValue> fd_error_future =
-      new_reader(input_error_fd, L"stderr", {LineModifier::kBold}, fd_error_);
-  file_adapter_->UpdateSize();
-  return JoinValues(std::move(fd_future), std::move(fd_error_future))
-      .Transform([](auto) { return EmptyValue(); });
+  futures::Value<EmptyValue> end_of_file_future =
+      JoinValues(new_reader(input_fd, L"stdout", {}, fd_),
+                 new_reader(input_error_fd, L"stderr", {LineModifier::kBold},
+                            fd_error_))
+          .Transform(
+              [this, buffer = NewRoot()](std::tuple<EmptyValue, EmptyValue>) {
+                CHECK(fd_ == nullptr);
+                CHECK(fd_error_ == nullptr);
+                return SignalEndOfFile().ConsumeErrors(
+                    [](Error) { return futures::Past(EmptyValue()); });
+              });
+  file_adapter_->UpdateSize();  // Must follow creation of file descriptors.
+  return end_of_file_future;
 }
 
 futures::Value<PossibleError> OpenBuffer::SetInputFromPath(
