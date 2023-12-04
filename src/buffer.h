@@ -449,10 +449,12 @@ class OpenBuffer {
   /////////////////////////////////////////////////////////////////////////////
   // Interaction with the operating system
 
-  void SetInputFiles(infrastructure::FileDescriptor input_fd,
-                     infrastructure::FileDescriptor input_fd_error,
-                     bool fd_is_terminal,
-                     std::optional<infrastructure::ProcessId> child_pid);
+  // Returns a future that is notified when the two files provided have been
+  // fully read.
+  futures::Value<language::EmptyValue> SetInputFiles(
+      infrastructure::FileDescriptor input_fd,
+      infrastructure::FileDescriptor input_fd_error, bool fd_is_terminal,
+      std::optional<infrastructure::ProcessId> child_pid);
 
   const FileDescriptorReader* fd() const;
   const FileDescriptorReader* fd_error() const;

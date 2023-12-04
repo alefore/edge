@@ -1815,16 +1815,17 @@ void OpenBuffer::InsertLines(
               MutableLineSequence::ObserverBehavior::kHide);
 }
 
-void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
-                               FileDescriptor input_error_fd,
-                               bool fd_is_terminal,
-                               std::optional<ProcessId> child_pid) {
+futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
+    FileDescriptor input_fd, FileDescriptor input_error_fd, bool fd_is_terminal,
+    std::optional<ProcessId> child_pid) {
   if (Read(buffer_variables::clear_on_reload)) {
     ClearContents(MutableLineSequence::ObserverBehavior::kHide);
     SetDiskState(DiskState::kCurrent);
   }
 
   CHECK(child_pid_ == std::nullopt);
+  child_pid_ = child_pid;
+
   file_adapter_ = std::invoke([fd_is_terminal,
                                this] -> NonNull<std::unique_ptr<FileAdapter>> {
     if (fd_is_terminal) return NewTerminal();
@@ -1836,44 +1837,50 @@ void OpenBuffer::SetInputFiles(FileDescriptor input_fd,
   auto new_reader = [this](FileDescriptor fd, std::wstring name_suffix,
                            LineModifierSet modifiers,
                            std::unique_ptr<FileDescriptorReader>& reader) {
+    if (fd == FileDescriptor(-1)) {
+      reader = nullptr;
+      return futures::Past(EmptyValue());
+    }
+    futures::Future<EmptyValue> output;
     reader =
-        fd == FileDescriptor(-1)
-            ? nullptr
-            : std::make_unique<FileDescriptorReader>(
-                  FileDescriptorReader::Options{
-                      .name = FileDescriptorName(name().read() + L":" +
-                                                 name_suffix),
-                      .fd = fd,
-                      .receive_end_of_file =
-                          [buffer = NewRoot(), this, &reader]() {
-                            RegisterProgress();
-                            reader = nullptr;
-                            if (fd_ == nullptr && fd_error_ == nullptr)
-                              SignalEndOfFile();
-                          },
-                      .receive_data =
-                          [buffer = NewRoot(), this, modifiers](
-                              NonNull<std::shared_ptr<LazyString>> input,
-                              std::function<void()> done_callback) {
-                            RegisterProgress();
-                            if (Read(buffer_variables::vm_exec)) {
-                              LOG(INFO) << name() << ": Evaluating VM code: "
-                                        << input->ToString();
-                              EvaluateString(input->ToString());
-                            }
-                            file_adapter_
-                                ->ReceiveInput(std::move(input), modifiers)
-                                .Transform([done_callback = std::move(
-                                                done_callback)](EmptyValue) {
-                                  done_callback();
-                                  return futures::Past(EmptyValue());
-                                });
-                          }});
+        std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
+            .name = FileDescriptorName(name().read() + L":" + name_suffix),
+            .fd = fd,
+            .receive_end_of_file =
+                [buffer = NewRoot(), this, &reader,
+                 output_consumer = std::move(output.consumer)]() mutable {
+                  RegisterProgress();
+                  reader = nullptr;
+                  std::move(output_consumer)(EmptyValue());
+                  if (fd_ == nullptr && fd_error_ == nullptr) SignalEndOfFile();
+                },
+            .receive_data =
+                [buffer = NewRoot(), this, modifiers](
+                    NonNull<std::shared_ptr<LazyString>> input,
+                    std::function<void()> done_callback) {
+                  RegisterProgress();
+                  if (Read(buffer_variables::vm_exec)) {
+                    LOG(INFO) << name()
+                              << ": Evaluating VM code: " << input->ToString();
+                    EvaluateString(input->ToString());
+                  }
+                  file_adapter_->ReceiveInput(std::move(input), modifiers)
+                      .Transform([done_callback =
+                                      std::move(done_callback)](EmptyValue) {
+                        done_callback();
+                        return futures::Past(EmptyValue());
+                      });
+                }});
+    return std::move(output.value);
   };
-  new_reader(input_fd, L"stdout", {}, fd_);
-  new_reader(input_error_fd, L"stderr", {LineModifier::kBold}, fd_error_);
-  child_pid_ = child_pid;
+
+  futures::Value<EmptyValue> fd_future =
+      new_reader(input_fd, L"stdout", {}, fd_);
+  futures::Value<EmptyValue> fd_error_future =
+      new_reader(input_error_fd, L"stderr", {LineModifier::kBold}, fd_error_);
   file_adapter_->UpdateSize();
+  return JoinValues(std::move(fd_future), std::move(fd_error_future))
+      .Transform([](auto) { return EmptyValue(); });
 }
 
 const FileDescriptorReader* OpenBuffer::fd() const { return fd_.get(); }

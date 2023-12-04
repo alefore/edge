@@ -58,11 +58,11 @@ void FileDescriptorReader::Register(
     LOG(INFO) << "Read returns: " << characters_read;
     if (characters_read == -1) {
       if (errno == EAGAIN) return options_->receive_data(EmptyString(), [] {});
-      return options_->receive_end_of_file();
+      return std::move(options_->receive_end_of_file)();
     }
     CHECK_GE(characters_read, 0);
     CHECK_LE(characters_read, ssize_t(kLowBufferSize - low_buffer_length_));
-    if (characters_read == 0) return options_->receive_end_of_file();
+    if (characters_read == 0) return std::move(options_->receive_end_of_file)();
     low_buffer_length_ += characters_read;
 
     static Tracker chars_tracker(

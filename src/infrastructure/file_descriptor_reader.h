@@ -15,6 +15,7 @@
 #include "src/infrastructure/file_system_driver.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 
@@ -35,7 +36,7 @@ class FileDescriptorReader {
     // it) is transferred to the FileDescriptorReader.
     infrastructure::FileDescriptor fd;
 
-    std::function<void()> receive_end_of_file;
+    mutable language::OnceOnlyFunction<void()> receive_end_of_file;
     std::function<void(
         language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
         std::function<void()>)>
@@ -48,6 +49,7 @@ class FileDescriptorReader {
   infrastructure::FileDescriptor fd() const;
   struct timespec last_input_received() const;
 
+  // Must not be called after `receive_end_of_file` has been called.
   void Register(infrastructure::execution::IterationHandler&);
 
  private:
