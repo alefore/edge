@@ -493,10 +493,12 @@ class InsertMode : public InputReceiver {
         ApplyScrollBehavior({27, '[', 'C'}, &ScrollBehavior::Right);
         return;
 
+      case ControlChar::kHome:
       case ControlChar::kCtrlA:
         ApplyScrollBehavior({1}, &ScrollBehavior::Begin);
         return;
 
+      case ControlChar::kEnd:
       case ControlChar::kCtrlE:
         ApplyScrollBehavior({5}, &ScrollBehavior::End);
         return;

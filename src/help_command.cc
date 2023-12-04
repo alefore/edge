@@ -76,6 +76,12 @@ Line DescribeSequence(const std::vector<ExtendedChar>& input) {
                             case ControlChar::kPageUp:
                               output.AppendString(L"PgUp", std::nullopt);
                               break;
+                            case ControlChar::kHome:
+                              output.AppendString(L"Home", std::nullopt);
+                              break;
+                            case ControlChar::kEnd:
+                              output.AppendString(L"End", std::nullopt);
+                              break;
                             case ControlChar::kCtrlA:
                               output.AppendString(L"^a", std::nullopt);
                               break;

@@ -22,7 +22,9 @@ enum class ControlChar {
   kCtrlD,
   kCtrlA,
   kCtrlE,
-  kDelete
+  kDelete,
+  kHome,
+  kEnd
 };
 
 // Represents either a regular wchar_t, or a special control character.
