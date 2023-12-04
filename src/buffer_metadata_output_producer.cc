@@ -483,7 +483,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         L"BufferMetadataOutput::Prepare:AddMetadataForExpiredMark");
     auto call = tracker.Call();
     if (auto mark_contents = mark.source_line_content->ToString();
-        marks_strings.contains(mark_contents)) {
+        !marks_strings.contains(mark_contents)) {
       output.push_back(
           MetadataLine{'!', LineModifier::kRed,
                        MakeNonNullShared<Line>(L"👻 " + mark_contents),
