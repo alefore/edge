@@ -118,13 +118,14 @@ struct PredictOptions {
   EditorState& editor_state;
   Predictor predictor;
 
-  // The text to use for the prediction. If not set, it'll be extracted from
-  // `input_buffer` based on `input_selection_structure`.
-  std::optional<std::wstring> text = {};
-
-  // The buffer that contains the input to use for the prediction. Only read if
-  // `text` is absent.
-  std::optional<language::gc::Root<OpenBuffer>> input_buffer = std::nullopt;
+  // Input for the prediction.
+  //
+  // Either a static std::wstring or an input buffer from which the input should
+  // be extracted (typically corresponding to a prompt).
+  //
+  // The reason we support a buffer is that the predictors can handle the case
+  // where the input changes while they are generating predictions.
+  std::variant<std::wstring, language::gc::Root<OpenBuffer>> input;
 
   // Given to the predictor (see `PredictorInput::source_buffers`). The caller
   // must ensure it doesn't get deallocated until the future returned by the

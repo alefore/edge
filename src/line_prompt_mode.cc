@@ -1166,7 +1166,7 @@ InsertModeOptions PromptState::insert_mode_options() {
             CHECK(prompt_state->status().prompt_extra_information() != nullptr);
             Predict({.editor_state = prompt_state->editor_state(),
                      .predictor = prompt_state->options().predictor,
-                     .input_buffer = buffer.NewRoot(),
+                     .input = buffer.NewRoot(),
                      .source_buffers = prompt_state->options().source_buffers})
                 .Transform([prompt_state,
                             input](std::optional<PredictResults> results) {

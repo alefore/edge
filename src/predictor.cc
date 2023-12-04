@@ -126,29 +126,35 @@ ValueOrError<PredictResults> BuildResults(
 }
 
 std::wstring GetPredictInput(
-    const std::optional<std::wstring>& text,
-    const std::optional<gc::Root<OpenBuffer>>& optional_buffer) {
-  if (text.has_value()) return text.value();
-  OpenBuffer& buffer = optional_buffer.value().ptr().value();
-  Modifiers modifiers;
-  modifiers.direction = Direction::kBackwards;
-  modifiers.structure = Structure::kLine;
-  auto range = buffer.FindPartialRange(modifiers, buffer.position());
-  range.set_end(std::max(range.end(), buffer.position()));
-  auto line = buffer.LineAt(range.begin().line);
-  CHECK_LE(range.begin().column, line->EndColumn());
-  if (range.begin().line == range.end().line) {
-    CHECK_GE(range.end().column, range.begin().column);
-    range.set_end_column(std::min(range.end().column, line->EndColumn()));
-  } else {
-    CHECK_GE(line->EndColumn(), range.begin().column);
-  }
-  return line
-      ->Substring(range.begin().column,
-                  (range.begin().line == range.end().line ? range.end().column
-                                                          : line->EndColumn()) -
-                      range.begin().column)
-      ->ToString();
+    const std::variant<std::wstring, gc::Root<OpenBuffer>>& input) {
+  return std::visit(
+      overload{[](std::wstring text) { return text; },
+               [](const gc::Root<OpenBuffer>& buffer_root) {
+                 OpenBuffer& buffer = buffer_root.ptr().value();
+                 Modifiers modifiers;
+                 modifiers.direction = Direction::kBackwards;
+                 modifiers.structure = Structure::kLine;
+                 auto range =
+                     buffer.FindPartialRange(modifiers, buffer.position());
+                 range.set_end(std::max(range.end(), buffer.position()));
+                 auto line = buffer.LineAt(range.begin().line);
+                 CHECK_LE(range.begin().column, line->EndColumn());
+                 if (range.begin().line == range.end().line) {
+                   CHECK_GE(range.end().column, range.begin().column);
+                   range.set_end_column(
+                       std::min(range.end().column, line->EndColumn()));
+                 } else {
+                   CHECK_GE(line->EndColumn(), range.begin().column);
+                 }
+                 return line
+                     ->Substring(range.begin().column,
+                                 (range.begin().line == range.end().line
+                                      ? range.end().column
+                                      : line->EndColumn()) -
+                                     range.begin().column)
+                     ->ToString();
+               }},
+      input);
 }
 }  // namespace
 
@@ -184,7 +190,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   CHECK(!options.abort_value.has_value());
 
   NonNull<std::shared_ptr<LazyString>> input =
-      NewLazyString(GetPredictInput(options.text, options.input_buffer));
+      NewLazyString(GetPredictInput(options.input));
 
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
@@ -201,15 +207,14 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   return options.predictor(std::move(predictor_input))
       .Transform([abort_value = options.abort_value, input,
                   progress_channel = std::move(options.progress_channel),
-                  input_text = options.text,
-                  input_buffer = options.input_buffer,
+                  options_input = options.input,
                   predictions_buffer](PredictorOutput predictor_output) mutable
                  -> ValueOrError<PredictResults> {
         predictions_buffer.ptr()->set_current_cursor(LineColumn());
         DECLARE_OR_RETURN(auto results,
                           BuildResults(predictions_buffer.ptr().value(),
                                        predictor_output, abort_value));
-        if (NewLazyString(GetPredictInput(input_text, input_buffer)).value() !=
+        if (NewLazyString(GetPredictInput(options_input)).value() !=
                 input.value() ||
             abort_value.has_value())
           return Error(L"Aborted");
@@ -517,7 +522,7 @@ const bool buffer_tests_registration =
         bool executed = false;
         Predict(PredictOptions{.editor_state = buffer.ptr()->editor(),
                                .predictor = test_predictor,
-                               .text = input,
+                               .input = input,
                                .source_buffers = {}})
             .Transform([&](std::optional<PredictResults> predict_results) {
               CHECK(!std::exchange(executed, true));

@@ -101,7 +101,7 @@ class PredictorTransformation : public CompositeTransformation {
     return Predict({.editor_state = input.buffer.editor(),
                     .predictor = predictor_,
                     // TODO(easy, 2023-10-06): Avoid call to ToString.
-                    .text = text_->ToString(),
+                    .input = text_->ToString(),
                     // TODO: Ugh, the const_cast below is fucking ugly. I have a
                     // lake in my model: should PredictionOptions::source_buffer
                     // be `const` so that it can be applied here? But then...
