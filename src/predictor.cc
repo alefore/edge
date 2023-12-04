@@ -125,18 +125,17 @@ ValueOrError<PredictResults> BuildResults(
       .predictor_output = predictor_output};
 }
 
-std::wstring GetPredictInput(const PredictOptions& options) {
-  if (options.text.has_value()) return options.text.value();
-  std::optional<gc::Root<OpenBuffer>> buffer = options.input_buffer;
-  // TODO(2022-05-16): Why is this CHECK safe?
-  CHECK(buffer.has_value());
+std::wstring GetPredictInput(
+    const std::optional<std::wstring>& text,
+    const std::optional<gc::Root<OpenBuffer>>& optional_buffer) {
+  if (text.has_value()) return text.value();
+  OpenBuffer& buffer = optional_buffer.value().ptr().value();
   Modifiers modifiers;
   modifiers.direction = Direction::kBackwards;
   modifiers.structure = Structure::kLine;
-  auto range =
-      buffer->ptr()->FindPartialRange(modifiers, buffer->ptr()->position());
-  range.set_end(std::max(range.end(), buffer->ptr()->position()));
-  auto line = buffer->ptr()->LineAt(range.begin().line);
+  auto range = buffer.FindPartialRange(modifiers, buffer.position());
+  range.set_end(std::max(range.end(), buffer.position()));
+  auto line = buffer.LineAt(range.begin().line);
   CHECK_LE(range.begin().column, line->EndColumn());
   if (range.begin().line == range.end().line) {
     CHECK_GE(range.end().column, range.begin().column);
@@ -173,46 +172,46 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 }
 
 futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
-  auto shared_options = std::make_shared<PredictOptions>(std::move(options));
   futures::Future<std::optional<PredictResults>> output;
-  OpenBuffer::Options buffer_options{.editor = shared_options->editor_state,
+  OpenBuffer::Options buffer_options{.editor = options.editor_state,
                                      .name = PredictionsBufferName()};
 
-  if (shared_options->progress_channel == nullptr) {
-    shared_options->progress_channel =
+  if (options.progress_channel == nullptr) {
+    options.progress_channel =
         std::make_unique<ChannelAll<ProgressInformation>>(
             [](ProgressInformation) {});
   }
-  CHECK(!shared_options->abort_value.has_value());
+  CHECK(!options.abort_value.has_value());
 
   NonNull<std::shared_ptr<LazyString>> input =
-      NewLazyString(GetPredictInput(*shared_options));
+      NewLazyString(GetPredictInput(options.text, options.input_buffer));
 
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
 
-  return shared_options
-      ->predictor(
-          PredictorInput{.editor = shared_options->editor_state,
-                         .input = input,
-                         .predictions = predictions_buffer.ptr().value(),
-                         .source_buffers = shared_options->source_buffers,
-                         .progress_channel = *shared_options->progress_channel,
-                         .abort_value = shared_options->abort_value})
-      .Transform([shared_options, input,
+  PredictorInput predictor_input{
+      .editor = options.editor_state,
+      .input = input,
+      .predictions = predictions_buffer.ptr().value(),
+      .source_buffers = options.source_buffers,
+      .progress_channel = *options.progress_channel,
+      .abort_value = options.abort_value};
+  return options.predictor(std::move(predictor_input))
+      .Transform([abort_value = options.abort_value, input,
+                  progress_channel = std::move(options.progress_channel),
+                  input_text = options.text,
+                  input_buffer = options.input_buffer,
                   predictions_buffer](PredictorOutput predictor_output) mutable
                  -> ValueOrError<PredictResults> {
-        shared_options->progress_channel = nullptr;
         predictions_buffer.ptr()->set_current_cursor(LineColumn());
-        DECLARE_OR_RETURN(
-            auto results,
-            BuildResults(predictions_buffer.ptr().value(), predictor_output,
-                         shared_options->abort_value));
-        if (NewLazyString(GetPredictInput(*shared_options)).value() !=
+        DECLARE_OR_RETURN(auto results,
+                          BuildResults(predictions_buffer.ptr().value(),
+                                       predictor_output, abort_value));
+        if (NewLazyString(GetPredictInput(input_text, input_buffer)).value() !=
                 input.value() ||
-            shared_options->abort_value.has_value())
+            abort_value.has_value())
           return Error(L"Aborted");
         return results;
       })
