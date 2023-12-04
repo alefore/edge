@@ -207,8 +207,6 @@ bool predictor_transformation_tests_register = tests::Register(
         predictions_buffer->AppendLine(NewLazyString(L"footer"));
         predictions_buffer->AppendLine(NewLazyString(L"foxtrot"));
         predictions_buffer->EraseLines(LineNumber(), LineNumber().next());
-        LOG(INFO) << "Signaling EOF to predictions_buffer.";
-        predictions_buffer->SignalEndOfFile();
         LOG(INFO) << "Notifying inner future";
         CHECK(!final_value.has_value());
         std::move(inner_future.consumer)(
