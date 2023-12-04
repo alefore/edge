@@ -87,7 +87,9 @@ struct PredictorOutput {
   // Did the input match a file exactly?
   bool found_exact_match = false;
 
-  language::text::SortedLineSequenceUniqueLines contents;
+  language::text::SortedLineSequenceUniqueLines contents =
+      language::text::SortedLineSequenceUniqueLines(
+          language::text::SortedLineSequence(language::text::LineSequence()));
 };
 
 std::ostream& operator<<(std::ostream& os, const PredictorOutput& lc);

@@ -283,7 +283,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
                    ProgressChannel& progress_channel,
                    DeleteNotification::Value& abort_value,
                    MutableLineSequence& output_lines,
-                   concurrent::Protected<PredictorOutput>& predictor_output) {
+                   PredictorOutput& predictor_output) {
   static Tracker top_tracker(L"FilePredictor::ScanDirectory");
   auto top_call = top_tracker.Call();
 
@@ -308,8 +308,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
       continue;
     }
     if (mismatch_results.second == entry_path.end()) {
-      predictor_output.lock(
-          [](PredictorOutput& output) { output.found_exact_match = true; });
+      predictor_output.found_exact_match = true;
     }
     longest_pattern_match = pattern.size();
     auto full_path = PathJoin(prefix, FromByteString(entry->d_name)) +
@@ -331,27 +330,19 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   progress_channel.Push(ProgressInformation{
       .values = {{VersionPropertyKey(L"files"), std::to_wstring(*matches)}}});
 
-  predictor_output.lock([&](PredictorOutput& output) {
-    output.longest_prefix =
-        std::max(output.longest_prefix,
-                 ColumnNumberDelta(prefix.size() + longest_pattern_match));
-    if (pattern.empty()) {
-      output.found_exact_match = true;
-    }
-  });
+  predictor_output.longest_prefix =
+      std::max(predictor_output.longest_prefix,
+               ColumnNumberDelta(prefix.size() + longest_pattern_match));
+  if (pattern.empty()) {
+    predictor_output.found_exact_match = true;
+  }
 }
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: "
             << predictor_input.input->ToString();
-  // TODO(easy, 2022-12-11, non-copyable-function): Change to MakeNonNullUnique.
-  auto predictor_output =
-      MakeNonNullShared<concurrent::Protected<PredictorOutput>>(
-          PredictorOutput({.contents = SortedLineSequenceUniqueLines(
-                               SortedLineSequence(LineSequence()))}));
   return GetSearchPaths(predictor_input.editor)
-      .Transform([predictor_input,
-                  predictor_output](std::vector<Path> search_paths) {
+      .Transform([predictor_input](std::vector<Path> search_paths) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
         std::wstring path_input = std::visit(
@@ -364,19 +355,16 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                      }},
             Path::FromString(predictor_input.input));
 
-        OpenBuffer::LockFunction get_buffer =
-            predictor_input.predictions.GetLockFunction();
-
         // TODO: Don't use sources_buffers[0], ignoring the other buffers.
         std::wregex noise_regex =
             predictor_input.source_buffers.empty()
                 ? std::wregex()
                 : std::wregex(predictor_input.source_buffers[0].ptr()->Read(
                       buffer_variables::directory_noise));
-        predictor_input.editor.thread_pool().RunIgnoringResult(std::bind_front(
-            [predictor_output, path_input, get_buffer, search_paths,
-             noise_regex](ProgressChannel& progress_channel,
-                          DeleteNotification::Value abort_value) mutable {
+        return predictor_input.editor.thread_pool().Run(std::bind_front(
+            [path_input, search_paths, noise_regex](
+                ProgressChannel& progress_channel,
+                DeleteNotification::Value abort_value) mutable {
               if (!path_input.empty() && *path_input.begin() == L'/') {
                 search_paths = {Path::Root()};
               } else {
@@ -400,6 +388,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     }));
               }
 
+              PredictorOutput predictor_output;
               int matches = 0;
               MutableLineSequence predictions;
               for (const auto& search_path : search_paths) {
@@ -410,13 +399,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;
                 }
-                predictor_output->lock(
-                    [&descend_results](PredictorOutput& output) {
-                      output.longest_directory_match = std::max(
-                          output.longest_directory_match,
-                          ColumnNumberDelta(
-                              descend_results.valid_proper_prefix_length));
-                    });
+                predictor_output.longest_directory_match =
+                    std::max(predictor_output.longest_directory_match,
+                             ColumnNumberDelta(
+                                 descend_results.valid_proper_prefix_length));
                 CHECK_LE(descend_results.valid_prefix_length,
                          path_input.size());
                 ScanDirectory(
@@ -425,40 +411,29 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                       path_input.size()),
                     path_input.substr(0, descend_results.valid_prefix_length),
                     &matches, progress_channel, abort_value, predictions,
-                    predictor_output.value());
-                if (abort_value.has_value()) return;
+                    predictor_output);
+                if (abort_value.has_value()) return PredictorOutput{};
               }
               SortedLineSequenceUniqueLines output_lines(
                   SortedLineSequence(std::move(predictions).snapshot()));
-              get_buffer([predictor_output, output_lines](OpenBuffer& buffer) {
-                predictor_output->lock(
-                    [&output_lines](PredictorOutput& output) {
-                      output.contents = output_lines;
-                    });
-                TRACK_OPERATION(FilePredictor_SetBufferContents);
-                buffer.InsertInPosition(output_lines.sorted_lines().lines(),
-                                        buffer.contents().range().end(),
-                                        std::nullopt);
-
-                LOG(INFO) << "Signaling end of file.";
-                buffer.SignalEndOfFile();
-              });
+              predictor_output.contents = output_lines;
+              return predictor_output;
             },
             std::ref(predictor_input.progress_channel),
             std::move(predictor_input.abort_value)));
-        return predictor_input.predictions.WaitForEndOfFile();
       })
-      .Transform([predictor_output](EmptyValue) {
-        return predictor_output->lock(
-            [](PredictorOutput& output) -> PredictorOutput { return output; });
+      .Transform([buffer = predictor_input.predictions.NewRoot()](
+                     PredictorOutput predictor_output) {
+        TRACK_OPERATION(FilePredictor_SetBufferContents);
+        buffer.ptr()->InsertInPosition(
+            predictor_output.contents.sorted_lines().lines(),
+            buffer.ptr()->contents().range().end(), std::nullopt);
+        return futures::Past(std::move(predictor_output));
       });
 }
 
-futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input) {
-  input.predictions.SignalEndOfFile();
-  return futures::Past(PredictorOutput(
-      {.contents =
-           SortedLineSequenceUniqueLines(SortedLineSequence(LineSequence()))}));
+futures::Value<PredictorOutput> EmptyPredictor(PredictorInput) {
+  return futures::Past(PredictorOutput{});
 }
 
 namespace {
@@ -518,7 +493,6 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
         .values = {
             {VersionPropertyKey(L"values"),
              std::to_wstring(input.predictions.lines_size().read() - 1)}}});
-    input.predictions.SignalEndOfFile();
     return futures::Past(PredictorOutput(
         {.contents = SortedLineSequenceUniqueLines(
              SortedLineSequence(input.predictions.contents().snapshot()))}));
@@ -631,8 +605,6 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
       ++line;
     }
 
-    input.predictions.SignalEndOfFile();
-
     // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add
     // methods to SortedLineSequence that allows us to extract a sub-range view,
     // and filter. There shouldn't be a need to re-sort.
@@ -691,6 +663,8 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
 }
 
 Predictor ComposePredictors(Predictor a, Predictor b) {
+  // TODO(easy, 2023-12-04): Use JoinValues instead. That would allow them to
+  // execute concurrently.
   return [a, b](PredictorInput input) {
     gc::Root<OpenBuffer> a_predictions =
         OpenBuffer::New(OpenBuffer::Options{.editor = input.editor});
