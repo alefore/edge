@@ -71,11 +71,8 @@ class OpenBuffer {
     // This will be run when the buffer is first created or when its contents
     // need to be reloaded.
     //
-    // The returned future must be notified when the function is done executing.
-    // This is typically used to offload to background threads IO operations.
-    // When the future is notified, the contents are typically not yet ready:
-    // they still need to be read. However, we'll know that `fd_` will have been
-    // set at that point. That allows us to more correctly detect EOF.
+    // The returned future must be notified when the contents have been fully
+    // loaded (for example, based on the return value of SetInputFiles).
     //
     // The caller (OpenBuffer) guarantees that the buffer won't be deleted until
     // the return future has received a value.
@@ -456,6 +453,8 @@ class OpenBuffer {
       infrastructure::FileDescriptor input_fd,
       infrastructure::FileDescriptor input_fd_error, bool fd_is_terminal,
       std::optional<infrastructure::ProcessId> child_pid);
+  futures::Value<language::PossibleError> SetInputFromPath(
+      const infrastructure::Path& path);
 
   const FileDescriptorReader* fd() const;
   const FileDescriptorReader* fd_error() const;

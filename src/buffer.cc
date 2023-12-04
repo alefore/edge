@@ -1887,6 +1887,22 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
       .Transform([](auto) { return EmptyValue(); });
 }
 
+futures::Value<PossibleError> OpenBuffer::SetInputFromPath(
+    const infrastructure::Path& path) {
+  return OnError(file_system_driver().Open(path, O_RDONLY | O_NONBLOCK, 0),
+                 [path](Error error) {
+                   LOG(INFO)
+                       << path << ": SetInputFromPath: Open failed: " << error;
+                   return futures::Past(error);
+                 })
+      .Transform([buffer = NewRoot(),
+                  path](FileDescriptor fd) -> futures::Value<PossibleError> {
+        LOG(INFO) << path << ": Opened file descriptor: " << fd;
+        return buffer.ptr()->SetInputFiles(fd, FileDescriptor(-1), false,
+                                           std::optional<ProcessId>());
+      });
+}
+
 const FileDescriptorReader* OpenBuffer::fd() const { return fd_.get(); }
 
 const FileDescriptorReader* OpenBuffer::fd_error() const {
