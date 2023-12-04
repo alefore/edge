@@ -216,19 +216,7 @@ futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
   FUTURES_ASSIGN_OR_RETURN(Path path, Path::FromString(address_str));
 
   LOG(INFO) << L"Server starts: " << path;
-  return OnError(target.file_system_driver().Open(path, O_RDONLY | O_NDELAY, 0),
-                 [path](Error error) {
-                   LOG(ERROR)
-                       << path
-                       << ": Server: GenerateContents: Open failed: " << error;
-                   return futures::Past(error);
-                 })
-      .Transform([target = target.NewRoot()](FileDescriptor fd) {
-        LOG(INFO) << "Server received connection: " << fd;
-        target.ptr()->SetInputFiles(fd, FileDescriptor(-1), false,
-                                    std::optional<ProcessId>());
-        return Success();
-      });
+  return target.SetInputFromPath(path);
 }
 
 ValueOrError<Path> StartServer(EditorState& editor_state,
