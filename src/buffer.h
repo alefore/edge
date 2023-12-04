@@ -415,7 +415,8 @@ class OpenBuffer {
   // is executed.
   //
   // Retaining the LockFunction ensures that the underlying buffer is retained.
-  using LockFunction = std::function<void(std::function<void(OpenBuffer&)>)>;
+  using LockFunction =
+      std::function<void(language::OnceOnlyFunction<void(OpenBuffer&)>)>;
   LockFunction GetLockFunction();
 
   /////////////////////////////////////////////////////////////////////////////

@@ -1211,11 +1211,11 @@ const NonNull<std::shared_ptr<WorkQueue>>& OpenBuffer::work_queue() const {
 }
 
 OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
-  return [root_this =
-              ptr_this_->ToRoot()](std::function<void(OpenBuffer&)> callback) {
+  return [root_this = ptr_this_->ToRoot()](
+             OnceOnlyFunction<void(OpenBuffer&)> callback) {
     root_this.ptr()->work_queue()->Schedule(WorkQueue::Callback{
-        .callback = [root_this, callback = std::move(callback)]() {
-          callback(root_this.ptr().value());
+        .callback = [root_this, callback = std::move(callback)] mutable {
+          std::move(callback)(root_this.ptr().value());
         }});
   };
 }
