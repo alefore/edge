@@ -172,10 +172,8 @@ class NavigationBufferCommand : public Command {
           gc::Root<OpenBuffer> output = OpenBuffer::New(
               {.editor = editor_state_,
                .name = name,
-               .generate_contents = [&editor_state = editor_state_,
-                                     source_weak](OpenBuffer& target) {
-                 return GenerateContents(editor_state, source_weak, target);
-               }});
+               .generate_contents = std::bind_front(
+                   GenerateContents, std::ref(editor_state_), source_weak)});
           OpenBuffer& buffer = output.ptr().value();
 
           buffer.Set(buffer_variables::show_in_buffers_list, false);
