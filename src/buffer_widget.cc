@@ -383,7 +383,14 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                              input.output_producer_options.size.line.read())),
                          std::max(LineNumberDelta(buffer.Read(
                                       buffer_variables::margin_lines)),
-                                  LineNumberDelta(0)))))};
+                                  LineNumberDelta(0))))),
+      .layout_goal =
+          input.buffer_display_data.max_content_lines() > buffer.lines_size()
+              ? BufferContentsViewLayout::Input::LayoutGoal::kVisibility
+              : BufferContentsViewLayout::Input::LayoutGoal::kNoFlickering};
+
+  input.buffer_display_data.set_max_content_lines(buffer.lines_size());
+  CHECK_GE(input.buffer_display_data.max_content_lines(), buffer.lines_size());
 
   if (auto w = ColumnNumberDelta(buffer.Read(buffer_variables::line_width));
       !buffer.Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
@@ -416,7 +423,6 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .view_start = window.view_start};
   if (!buffer.Read(buffer_variables::paste_mode))
     input.buffer_display_data.AddDisplayWidth(output.lines.width);
-
   output.lines.width = std::max(output.lines.width,
                                 input.buffer_display_data.max_display_width());
   output.lines = CenterOutput(std::move(output.lines), total_size.column,
@@ -458,14 +464,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
         }
         BufferOutputProducerOutput output =
             CreateBufferOutputProducer(std::move(input));
-        // We avoid updating the desired view_start while the buffer is still
-        // being read.
-        if (buffer.ptr()->lines_size() >=
-                buffer.ptr()->position().line.ToDelta() &&
-            (buffer.ptr()->child_pid().has_value() ||
-             buffer.ptr()->fd() == nullptr)) {
-          buffer.ptr()->Set(buffer_variables::view_start, output.view_start);
-        }
+        buffer.ptr()->Set(buffer_variables::view_start, output.view_start);
 
         if (options_.position_in_parent.has_value()) {
           FrameOutputProducerOptions frame_options;
