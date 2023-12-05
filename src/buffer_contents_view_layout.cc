@@ -244,9 +244,14 @@ std::vector<BufferContentsViewLayout::Line> AdjustToHonorMargin(
       options.active_position.has_value()
           ? FindPositionInScreen(output, *options.active_position)
           : std::optional<LineNumber>();
-  auto lines_desired = [&] {
-    return std::max(LineNumberDelta(0),
-                    options.margin_lines - position_line->ToDelta());
+  auto lines_desired = [&] -> LineNumberDelta {
+    return std::max(
+        std::max(LineNumberDelta(0),
+                 options.margin_lines - position_line->ToDelta()),
+        options.layout_goal ==
+                BufferContentsViewLayout::Input::LayoutGoal::kVisibility
+            ? options.lines_shown - LineNumberDelta(output.size())
+            : LineNumberDelta(0));
   };
   for (LineNumber line = options.begin.column.IsZero()
                              ? options.begin.line - LineNumberDelta(1)
@@ -594,7 +599,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(10)}));
                     }),
-           new_test(L"NoJumpUp",
+           new_test(L"GoalNoFlickering",
                     [&](auto options) {
                       options.lines_shown = LineNumberDelta(10);
                       options.begin = LineColumn(LineNumber(14));
@@ -607,6 +612,21 @@ const bool buffer_contents_view_layout_tests_registration =
                       CHECK_EQ(ranges[5],
                                RangeToLineEnd(LineColumn(LineNumber(16))));
                     }),
+           new_test(
+               L"GoalVisibility",
+               [&](auto options) {
+                 options.lines_shown = LineNumberDelta(10);
+                 options.begin = LineColumn(LineNumber(14));
+                 options.margin_lines = LineNumberDelta(2);
+                 options.active_position = LineColumn(LineNumber(13));
+                 options.layout_goal =
+                     BufferContentsViewLayout::Input::LayoutGoal::kVisibility;
+                 auto ranges = get_ranges(options);
+                 CHECK_EQ(ranges.size(), 10ul);
+                 CHECK_EQ(ranges[0], RangeToLineEnd(LineColumn(LineNumber(7))));
+                 CHECK_EQ(ranges[9],
+                          RangeToLineEnd(LineColumn(LineNumber(16))));
+               }),
            new_test(L"NoActivePosition",
                     [&](auto options) {
                       options.active_position = std::nullopt;

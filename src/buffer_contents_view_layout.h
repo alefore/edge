@@ -43,6 +43,12 @@ struct BufferContentsViewLayout {
     // - less than lines_shown / 2, or
     // - active_position is nullopt.
     language::text::LineNumberDelta margin_lines;
+
+    enum class LayoutGoal {
+      kVisibility,    // Prefer to occupy as much of the screen as possible.
+      kNoFlickering,  // Prefer to reduce flickering across re-draws.
+    };
+    LayoutGoal layout_goal = LayoutGoal::kNoFlickering;
   };
   static BufferContentsViewLayout Get(Input input);
 
