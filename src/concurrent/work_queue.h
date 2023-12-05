@@ -48,11 +48,7 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
 
   struct Callback {
     struct timespec time = infrastructure::Now();
-    // The ugly `mutable` annotation is just a workaround to allow us to extract
-    // callbacks from the priority_queue (because std::priority_queue doesn't
-    // provide a way to extract elements in a way that allows moving out of
-    // them).
-    mutable language::OnceOnlyFunction<void()> callback = [] {};
+    language::OnceOnlyFunction<void()> callback = [] {};
   };
 
   void Schedule(Callback callback);
@@ -63,6 +59,7 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
   // Any new callbacks that they transitively schedule may not (and typically
   // won't) be executed.
   void Execute();
+  void Execute(std::function<infrastructure::Time()> clock);
 
   template <typename Object>
   void DeleteLater(struct timespec time, Object object) {
@@ -85,9 +82,10 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
         Callback, std::vector<Callback>,
         std::function<bool(const Callback&, const Callback&)>>;
 
-    Queue callbacks = Queue([](const Callback& a, const Callback& b) {
-      return !(a.time < b.time);
-    });
+    // This is a priority queue. The elements are ~sorted by `Callback::time` in
+    // descending order (last element is the next one that should execute). This
+    // isn't a full order, but is a heap order.
+    std::vector<Callback> callbacks;
 
     // This is used to track the percentage of time spent executing (seconds per
     // second).

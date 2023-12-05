@@ -15,6 +15,10 @@ using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 
 namespace afc::concurrent {
+bool operator>(const WorkQueue::Callback& a, const WorkQueue::Callback& b) {
+  return a.time > b.time;
+};
+
 /* static */ NonNull<std::shared_ptr<WorkQueue>> WorkQueue::New() {
   return MakeNonNullShared<WorkQueue>(ConstructorAccessTag());
 }
@@ -22,7 +26,10 @@ namespace afc::concurrent {
 WorkQueue::WorkQueue(ConstructorAccessTag) {}
 
 void WorkQueue::Schedule(WorkQueue::Callback callback) {
-  data_.lock()->callbacks.push(std::move(callback));
+  data_.lock([&](MutableData& data) {
+    data.callbacks.emplace_back(std::move(callback));
+    std::push_heap(data.callbacks.begin(), data.callbacks.end(), operator>);
+  });
   schedule_observers_.Notify();
 }
 
@@ -36,14 +43,17 @@ futures::Value<EmptyValue> WorkQueue::Wait(struct timespec time) {
   return std::move(value.value);
 }
 
-void WorkQueue::Execute() {
+void WorkQueue::Execute() { Execute(infrastructure::Now); }
+
+void WorkQueue::Execute(std::function<infrastructure::Time()> clock) {
   std::vector<OnceOnlyFunction<void()>> callbacks_ready;
-  auto start = Now();
-  data_.lock([&callbacks_ready](MutableData& data) {
+  auto start = clock();
+  data_.lock([&callbacks_ready, &clock](MutableData& data) {
     VLOG(5) << "Executing work queue: callbacks: " << data.callbacks.size();
-    while (!data.callbacks.empty() && data.callbacks.top().time < Now()) {
-      callbacks_ready.push_back(std::move(data.callbacks.top().callback));
-      data.callbacks.pop();
+    while (!data.callbacks.empty() && data.callbacks.front().time < clock()) {
+      callbacks_ready.push_back(std::move(data.callbacks.front().callback));
+      std::pop_heap(data.callbacks.begin(), data.callbacks.end(), operator>);
+      data.callbacks.pop_back();
     }
   });
 
@@ -61,10 +71,9 @@ void WorkQueue::Execute() {
 }
 
 std::optional<struct timespec> WorkQueue::NextExecution() {
-  return data_.lock([](MutableData& data) {
-    return data.callbacks.empty()
-               ? std::nullopt
-               : std::optional<struct timespec>(data.callbacks.top().time);
+  return data_.lock([](MutableData & data) -> std::optional<struct timespec> {
+    if (data.callbacks.empty()) return std::nullopt;
+    return data.callbacks.front().time;
   });
 }
 
@@ -81,30 +90,53 @@ using futures::DeleteNotification;
 
 const bool work_queue_tests_registration = tests::Register(
     L"WorkQueue",
-    {{.name = L"CallbackKeepsWorkQueueAlive", .runs = 100, .callback = [] {
-        auto delete_notification = std::make_unique<DeleteNotification>();
-        DeleteNotification::Value done =
-            delete_notification->listenable_value();
-        NonNull<WorkQueue*> work_queue_raw = [&delete_notification] {
-          NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
-          work_queue->Schedule(WorkQueue::Callback{.callback = [work_queue] {
-            LOG(INFO) << "First callback starts";
-          }});
+    {{.name = L"CallbackKeepsWorkQueueAlive",
+      .runs = 100,
+      .callback =
+          [] {
+            auto delete_notification = std::make_unique<DeleteNotification>();
+            DeleteNotification::Value done =
+                delete_notification->listenable_value();
+            NonNull<WorkQueue*> work_queue_raw = [&delete_notification] {
+              NonNull<std::shared_ptr<WorkQueue>> work_queue = WorkQueue::New();
+              work_queue->Schedule(
+                  WorkQueue::Callback{.callback = [work_queue] {
+                    LOG(INFO) << "First callback starts";
+                  }});
+              work_queue->Schedule(
+                  WorkQueue::Callback{.callback = [&delete_notification] {
+                    LOG(INFO) << "Second callback starts";
+                    delete_notification = nullptr;
+                  }});
+              LOG(INFO) << "Execute.";
+              return work_queue.get();
+            }();
+            // We know it hasn't been deleted since it contains a reference to
+            // itself (in the first scheduled callback).
+            work_queue_raw->Execute();
+            for (size_t iterations = 0; !done.has_value(); ++iterations) {
+              CHECK_LT(iterations, 1000ul);
+              std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+          }},
+     {.name = L"InsertOrder", .callback = [] {
+        language::NonNull<std::shared_ptr<WorkQueue>> work_queue =
+            WorkQueue::New();
+        struct timespec time {};
+        using infrastructure::AddSeconds;
+        // We insert them in some ~random order.
+        for (double delta : {6, 2, 4, 3, 7, 1, 0, 5})
           work_queue->Schedule(
-              WorkQueue::Callback{.callback = [&delete_notification] {
-                LOG(INFO) << "Second callback starts";
-                delete_notification = nullptr;
-              }});
-          LOG(INFO) << "Execute.";
-          return work_queue.get();
-        }();
-        // We know it hasn't been deleted since it contains a reference to
-        // itself (in the first scheduled callback).
-        work_queue_raw->Execute();
-        for (size_t iterations = 0; !done.has_value(); ++iterations) {
-          CHECK_LT(iterations, 1000ul);
-          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+              {.time = AddSeconds(time, delta), .callback = [] {}});
+
+        for (size_t i = 0; i < 8; i++) {
+          LOG(INFO) << "At " << i << ": "
+                    << SecondsBetween(time,
+                                      work_queue->NextExecution().value());
+          CHECK(work_queue->NextExecution() == AddSeconds(time, i));
+          work_queue->Execute([&] { return AddSeconds(time, i + 0.5); });
         }
+        CHECK(!work_queue->NextExecution().has_value());
       }}});
 
 const bool work_queue_channel_tests_registration = tests::Register(
