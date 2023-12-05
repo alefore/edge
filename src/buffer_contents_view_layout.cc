@@ -236,8 +236,7 @@ std::vector<BufferContentsViewLayout::Line> AdjustToHonorMargin(
     const BufferContentsViewLayout::Input& options,
     const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
     std::vector<BufferContentsViewLayout::Line> output) {
-  if (output.empty() || options.margin_lines > options.lines_shown / 2 ||
-      options.begin == LineColumn()) {
+  if (output.empty() || options.begin == LineColumn()) {
     return output;
   }
 
@@ -246,9 +245,8 @@ std::vector<BufferContentsViewLayout::Line> AdjustToHonorMargin(
           ? FindPositionInScreen(output, *options.active_position)
           : std::optional<LineNumber>();
   auto lines_desired = [&] {
-    return std::max(std::max(LineNumberDelta(0),
-                             options.margin_lines - position_line->ToDelta()),
-                    options.lines_shown - LineNumberDelta(output.size()));
+    return std::max(LineNumberDelta(0),
+                    options.margin_lines - position_line->ToDelta());
   };
   for (LineNumber line = options.begin.column.IsZero()
                              ? options.begin.line - LineNumberDelta(1)
@@ -295,6 +293,11 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
                  LineColumn(options.active_position->line.MinusHandlingOverflow(
                      options.lines_shown - options.status_lines)));
   }
+
+  // Ensure that margins are not bigger than half of the screen.
+  options.margin_lines =
+      std::min(options.lines_shown / 2, options.margin_lines);
+
   std::map<LineNumber, std::set<ColumnNumber>> cursors;
   for (auto& cursor : options.active_cursors) {
     cursors[cursor.line].insert(cursor.column);
@@ -465,9 +468,9 @@ const bool buffer_contents_view_layout_tests_registration =
                           LineColumn(LineNumber(4), ColumnNumber(3));
                       options.begin = LineColumn(LineNumber(7));
                       CHECK_EQ(get_ranges(options)[0],
-                               RangeToLineEnd(LineColumn(LineNumber(4))));
+                               RangeToLineEnd(LineColumn(LineNumber(0))));
                       CHECK(get_active_cursors(options) ==
-                            std::vector<LineNumber>({LineNumber(0)}));
+                            std::vector<LineNumber>({LineNumber(4)}));
                     }),
            new_test(L"TopMarginForceScrollToBegin",
                     [&](auto options) {
@@ -590,6 +593,19 @@ const bool buffer_contents_view_layout_tests_registration =
                                RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(10)}));
+                    }),
+           new_test(L"NoJumpUp",
+                    [&](auto options) {
+                      options.lines_shown = LineNumberDelta(10);
+                      options.begin = LineColumn(LineNumber(14));
+                      options.margin_lines = LineNumberDelta(2);
+                      options.active_position = LineColumn(LineNumber(13));
+                      auto ranges = get_ranges(options);
+                      CHECK_EQ(ranges.size(), 6ul);
+                      CHECK_EQ(ranges[0],
+                               RangeToLineEnd(LineColumn(LineNumber(11))));
+                      CHECK_EQ(ranges[5],
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                     }),
            new_test(L"NoActivePosition",
                     [&](auto options) {

@@ -95,7 +95,8 @@ LineWithCursor::Generator::Vector CenterVertically(
                  prefix_size);
     input.PrependEmptyLines(prefix_size);
     display_data.AddVerticalPrefixSize(prefix_size);
-  }
+  } else
+    display_data.AddVerticalPrefixSize(LineNumberDelta());
 
   input.resize(total_lines - status_lines);
   return input;
