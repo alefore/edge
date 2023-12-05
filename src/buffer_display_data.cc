@@ -36,12 +36,12 @@ std::optional<LineNumberDelta> BufferDisplayData::min_vertical_prefix_size()
   return min_vertical_prefix_size_;
 }
 
-language::text::LineNumberDelta BufferDisplayData::max_content_lines() const {
-  return max_content_lines_;
+language::text::LineNumberDelta BufferDisplayData::content_lines() const {
+  return content_lines_;
 }
 
-void BufferDisplayData::set_max_content_lines(
+void BufferDisplayData::set_content_lines(
     language::text::LineNumberDelta input) {
-  max_content_lines_ = std::max(max_content_lines_, input);
+  content_lines_ = input;
 }
 }  // namespace afc::editor

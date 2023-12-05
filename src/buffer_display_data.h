@@ -22,14 +22,17 @@ class BufferDisplayData {
   std::optional<language::text::LineNumberDelta> min_vertical_prefix_size()
       const;
 
-  language::text::LineNumberDelta max_content_lines() const;
-  void set_max_content_lines(language::text::LineNumberDelta);
+  language::text::LineNumberDelta content_lines() const;
+  void set_content_lines(language::text::LineNumberDelta);
 
  private:
-  // We remember the maximum size that this buffer has been drawn at. That is
-  // used when the buffer grows (which is a proxy for "the buffer is being
-  // loaded/generated") to adjust the view more aggressively.
-  language::text::LineNumberDelta max_content_lines_ =
+  // We remember the size that this buffer had when we last drew it.
+  //
+  // If the buffer changes size, we'll aim to full all screen space; otherwise,
+  // we'll aim to avoid flickering. That means that scrolling in the buffer
+  // (without changing it) will always aim to avoid flickering; modifying the
+  // buffer will only trigger flickering if the size changes.
+  language::text::LineNumberDelta content_lines_ =
       language::text::LineNumberDelta();
 
   language::ObservableValue<language::text::LineColumnDelta> view_size_;

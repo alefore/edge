@@ -385,12 +385,12 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
                                       buffer_variables::margin_lines)),
                                   LineNumberDelta(0))))),
       .layout_goal =
-          input.buffer_display_data.max_content_lines() > buffer.lines_size()
+          input.buffer_display_data.content_lines() != buffer.lines_size()
               ? BufferContentsViewLayout::Input::LayoutGoal::kVisibility
               : BufferContentsViewLayout::Input::LayoutGoal::kNoFlickering};
 
-  input.buffer_display_data.set_max_content_lines(buffer.lines_size());
-  CHECK_GE(input.buffer_display_data.max_content_lines(), buffer.lines_size());
+  input.buffer_display_data.set_content_lines(buffer.lines_size());
+  CHECK_EQ(input.buffer_display_data.content_lines(), buffer.lines_size());
 
   if (auto w = ColumnNumberDelta(buffer.Read(buffer_variables::line_width));
       !buffer.Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
