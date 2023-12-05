@@ -27,13 +27,7 @@ class OnceOnlyFunction<Ret(Args...)> {
   OnceOnlyFunction(OnceOnlyFunction<Other>&& other)
       : OnceOnlyFunction(std::move(other.func_)) {}
 
-  // TODO(2023-11-28, P0): This is very shitty, we should get rid of it. It is
-  // required because WorkQueue uses std::priority_queue, which requires it in
-  // std::priority_queue::push.
-  template <typename Other>
-  OnceOnlyFunction(OnceOnlyFunction<Other>& other)
-      : OnceOnlyFunction(std::move(other.func_)) {}
-
+  OnceOnlyFunction(OnceOnlyFunction&&) = default;
   OnceOnlyFunction(const OnceOnlyFunction&) = delete;
   OnceOnlyFunction& operator=(const OnceOnlyFunction&) = delete;
   OnceOnlyFunction& operator=(OnceOnlyFunction&& other) noexcept = default;
