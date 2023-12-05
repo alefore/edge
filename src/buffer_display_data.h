@@ -22,7 +22,16 @@ class BufferDisplayData {
   std::optional<language::text::LineNumberDelta> min_vertical_prefix_size()
       const;
 
+  language::text::LineNumberDelta max_content_lines() const;
+  void set_max_content_lines(language::text::LineNumberDelta);
+
  private:
+  // We remember the maximum size that this buffer has been drawn at. That is
+  // used when the buffer grows (which is a proxy for "the buffer is being
+  // loaded/generated") to adjust the view more aggressively.
+  language::text::LineNumberDelta max_content_lines_ =
+      language::text::LineNumberDelta();
+
   language::ObservableValue<language::text::LineColumnDelta> view_size_;
 
   // The maximum width that has been found for a screen line corresponding to
@@ -32,8 +41,6 @@ class BufferDisplayData {
   //
   // This is used when centering the output of a buffer horizontally, to prevent
   // jittering.
-  //
-  // Cleared when the buffer is reloaded.
   language::lazy_string::ColumnNumberDelta max_display_width_ =
       language::lazy_string::ColumnNumberDelta(0);
 
@@ -42,8 +49,6 @@ class BufferDisplayData {
   //
   // This is used when centering the output of a buffer vertically, to prevent
   // jittering.
-  //
-  // Cleared when the buffer is reloaded.
   std::optional<language::text::LineNumberDelta> min_vertical_prefix_size_ =
       std::nullopt;
 };
