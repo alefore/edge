@@ -197,9 +197,10 @@ class Value {
                   data.value.emplace(std::move(final_value));
                   return std::nullopt;
                 },
-                [&](Consumer consumer_value) -> std::optional<Consumer> {
+                [&](Consumer& consumer_value) -> std::optional<Consumer> {
+                  Consumer output = std::move(consumer_value);
                   data.consumer = ConsumerExecuted{};
-                  return consumer_value;
+                  return output;
                 },
                 [](ConsumerExecuted) -> std::optional<Consumer> {
                   LOG(FATAL) << "Received value after consumer has executed.";
