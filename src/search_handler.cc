@@ -79,9 +79,9 @@ auto GetRegexTraits(bool case_sensitive) {
 }
 
 ValueOrError<std::vector<LineColumn>> PerformSearch(
-    const SearchOptions& options, const LineSequence& contents) {
-  std::vector<LineColumn> positions;
-
+    const SearchOptions& options, const LineSequence& contents,
+    size_t previously_found_matches,
+    std::function<bool(const LineColumn&)> predicate) {
   std::wregex pattern;
   try {
     pattern = std::wregex(options.search_query->ToString(),
@@ -93,15 +93,20 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     return error;
   }
 
+  std::vector<LineColumn> positions;
   contents.EveryLine([&](LineNumber position,
                          const NonNull<std::shared_ptr<const Line>>& line) {
     auto matches = GetMatches(line->ToString(), pattern);
-    for (const auto& column : matches) {
-      positions.push_back(LineColumn(position, column));
-    }
-    if (!matches.empty())
+    size_t initial_size = positions.size();
+    std::ranges::copy(
+        matches | std::views::transform([position](ColumnNumber column) {
+          return LineColumn(position, column);
+        }) | std::views::filter(predicate),
+        std::back_inserter(positions));
+    if (positions.size() > initial_size)
       options.progress_channel->Push(ProgressInformation{
-          .counters = {{VersionPropertyKey(L"matches"), positions.size()}}});
+          .counters = {{VersionPropertyKey(L"matches"),
+                        previously_found_matches + positions.size()}}});
     if (!options.abort_value.has_value() &&
         (!options.required_positions.has_value() ||
          options.required_positions.value() > positions.size()))
@@ -214,7 +219,7 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
   }
 
   // We extend `range_before` to cover the entire line, in case the starting
-  // position is in the middle of the match. We account for that afterwards.
+  // position is in the middle of a match. We account for that afterwards.
   range_before.set_end_column(std::numeric_limits<ColumnNumber>::max());
 
   // We should skip the current position. Start searching strictly after the
@@ -223,11 +228,13 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
     range_after.set_begin(LineColumn(range_after.begin().line,
                                      range_after.begin().column.next()));
 
-  auto Search =
-      [&options,
-       &contents](const Range& range) -> ValueOrError<std::vector<LineColumn>> {
+  auto Search = [&options, &contents](
+                    const Range& range, size_t previously_found_matches,
+                    std::function<bool(const LineColumn&)> predicate)
+      -> ValueOrError<std::vector<LineColumn>> {
     DECLARE_OR_RETURN(std::vector<LineColumn> results,
-                      PerformSearch(options, contents.ViewRange(range)));
+                      PerformSearch(options, contents.ViewRange(range),
+                                    previously_found_matches, predicate));
     if (!range.begin().column.IsZero())
       for (LineColumn& result : results) {
         result.line += range.begin().line.ToDelta();
@@ -237,16 +244,17 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
     return results;
   };
 
-  DECLARE_OR_RETURN(std::vector<LineColumn> output, Search(range_after));
+  DECLARE_OR_RETURN(
+      std::vector<LineColumn> output,
+      Search(range_after, 0, [](const LineColumn&) { return true; }));
 
   DECLARE_OR_RETURN(std::vector<LineColumn> results_before,
-                    Search(range_before));
-
-  // Account for the fact that we extended `range_before` past the starting
-  // position: ignore matches past the starting position. They should already be
-  // in `output` anyway.
-  EraseIf(results_before,
-          [&](LineColumn result) { return result > starting_position; });
+                    Search(range_before, output.size(),
+                           // Account for the fact that we extended
+                           // `range_before` past the starting position
+                           [starting_position](const LineColumn& candidate) {
+                             return candidate <= starting_position;
+                           }));
 
   output.insert(output.end(), results_before.begin(), results_before.end());
   switch (direction) {
