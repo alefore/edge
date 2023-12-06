@@ -86,23 +86,24 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
   return delete_buffer;
 }
 
-void HandleLineDeletion(Range range, OpenBuffer& buffer) {
+void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
+                        OpenBuffer& buffer) {
   std::vector<std::function<void()>> observers;
   std::shared_ptr<const Line> first_line_contents;
   for (LineColumn delete_position = range.begin();
        delete_position.line < range.end().line;
        delete_position = LineColumn(delete_position.line.next())) {
-    LineColumn position = buffer.AdjustLineColumn(delete_position);
+    LineColumn position = adapter.contents().AdjustLineColumn(delete_position);
     if (position.line != delete_position.line || !position.column.IsZero())
       continue;
 
-    CHECK_GE(buffer.contents().size(), position.line.ToDelta());
+    CHECK_GE(adapter.contents().size(), position.line.ToDelta());
 
     LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
-              << buffer.contents().size();
+              << adapter.contents().size();
 
     NonNull<std::shared_ptr<const Line>> line_contents =
-        buffer.contents().at(position.line);
+        adapter.contents().at(position.line);
     DVLOG(5) << "Erasing line: " << line_contents->ToString();
     VisitPointer(
         buffer.CurrentLine()->outgoing_link(),
@@ -155,7 +156,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   input.mode = options.mode.value_or(input.mode);
 
   auto output = std::make_shared<transformation::Result>(
-      input.buffer.AdjustLineColumn(input.position));
+      input.adapter.contents().AdjustLineColumn(input.position));
   Range range;
 
   if (options.range.has_value()) {
@@ -176,8 +177,8 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       }
     }
   }
-  range = Range(input.buffer.AdjustLineColumn(range.begin()),
-                input.buffer.AdjustLineColumn(range.end()));
+  range = Range(input.adapter.contents().AdjustLineColumn(range.begin()),
+                input.adapter.contents().AdjustLineColumn(range.end()));
   if (range.IsEmpty()) {
     VLOG(5) << "Nothing to delete.";
     return futures::Past(std::move(*output));
@@ -188,7 +189,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
       input.mode == Input::Mode::kFinal &&
       options.initiator == Delete::Initiator::kUser) {
     LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
-    HandleLineDeletion(range, input.buffer);
+    HandleLineDeletion(range, input.adapter, input.buffer);
   }
 
   output->success = true;

@@ -95,22 +95,20 @@ futures::Value<PossibleError> PreviewCppExpression(
 
 futures::Value<Result> HandleCommandCpp(Input input,
                                         Delete original_delete_transformation) {
-  LineSequence contents = input.buffer.contents().snapshot().ViewRange(
-      *original_delete_transformation.range);
+  LineSequence contents =
+      input.adapter.contents().ViewRange(*original_delete_transformation.range);
   if (input.mode == Input::Mode::kPreview) {
     auto delete_transformation =
         std::make_shared<Delete>(std::move(original_delete_transformation));
     delete_transformation->preview_modifiers = {LineModifier::kGreen,
                                                 LineModifier::kUnderline};
     return PreviewCppExpression(input.buffer, contents)
-        .ConsumeErrors(
-            [&buffer = input.buffer, delete_transformation](Error error) {
-              delete_transformation->preview_modifiers = {
-                  LineModifier::kRed, LineModifier::kUnderline};
-              buffer.status().SetInformationText(
-                  MakeNonNullShared<Line>(error.read()));
-              return futures::Past(EmptyValue());
-            })
+        .ConsumeErrors([&input, delete_transformation](Error error) {
+          delete_transformation->preview_modifiers = {LineModifier::kRed,
+                                                      LineModifier::kUnderline};
+          input.adapter.AddError(error);
+          return futures::Past(EmptyValue());
+        })
         .Transform([delete_transformation, input](EmptyValue) {
           return Apply(*delete_transformation,
                        input.NewChild(delete_transformation->range->begin()));
@@ -328,10 +326,10 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
                             trace, output)
       .Transform([output, input, copy, trace](EmptyValue) {
-        Range range{std::min(std::min(input.position, output->position),
-                             input.buffer.end_position()),
-                    std::min(std::max(input.position, output->position),
-                             input.buffer.end_position())};
+        Range range{input.adapter.contents().AdjustLineColumn(
+                        std::min(input.position, output->position)),
+                    input.adapter.contents().AdjustLineColumn(
+                        std::max(input.position, output->position))};
         Delete delete_transformation{
             .modifiers = {.direction = input.position < output->position
                                            ? Direction::kForwards
@@ -340,8 +338,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
             .initiator = transformation::Delete::Initiator::kInternal};
         switch (copy->post_transformation_behavior) {
           case Stack::PostTransformationBehavior::kNone: {
-            LineSequence contents =
-                input.buffer.contents().snapshot().ViewRange(range);
+            LineSequence contents = input.adapter.contents().ViewRange(range);
             input.buffer.status().Reset();
             DVLOG(5) << "Analyze contents for range: " << range;
             return PreviewCppExpression(input.buffer, contents)
@@ -380,9 +377,8 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
               return Apply(delete_transformation,
                            input.NewChild(range.begin()));
             }
-            LineSequence contents =
-                input.buffer.contents().snapshot().ViewRange(
-                    *delete_transformation.range);
+            LineSequence contents = input.adapter.contents().ViewRange(
+                *delete_transformation.range);
             AddLineToHistory(input.buffer.editor(), HistoryFileCommands(),
                              contents.ToLazyString());
             std::wstring tmp_path = [contents] {

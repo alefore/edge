@@ -24,6 +24,7 @@ struct Input {
         const language::text::LineColumn& input_position,
         const std::optional<infrastructure::screen::LineModifierSet>&
             modifiers) = 0;
+    virtual void AddError(language::Error) = 0;
   };
 
   explicit Input(Adapter& adapter, editor::OpenBuffer& input_buffer);

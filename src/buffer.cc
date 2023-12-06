@@ -292,6 +292,10 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
                                     modifiers);
   }
 
+  void AddError(Error error) override {
+    buffer_.status().SetInformationText(MakeNonNullShared<Line>(error.read()));
+  }
+
  private:
   OpenBuffer& buffer_;
 };
