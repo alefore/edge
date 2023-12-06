@@ -76,6 +76,11 @@ class LineSequence {
 
   LineColumn AdjustLineColumn(LineColumn position) const;
 
+  language::text::LineColumn PositionBefore(
+      language::text::LineColumn position) const;
+  language::text::LineColumn PositionAfter(
+      language::text::LineColumn position) const;
+
  private:
   friend class MutableLineSequence;
   friend class SortedLineSequence;

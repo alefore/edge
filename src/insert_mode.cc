@@ -829,7 +829,7 @@ class InsertMode : public InputReceiver {
           StartNewInsertion();
         } else {
           current_insertion_->DeleteToLineEnd(
-              current_insertion_->PositionBefore(
+              current_insertion_->snapshot().PositionBefore(
                   current_insertion_->range().end()));
         }
         break;

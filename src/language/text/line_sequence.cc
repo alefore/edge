@@ -301,4 +301,228 @@ LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
   position.column = std::min(at(position.line)->EndColumn(), position.column);
   return position;
 }
+LineColumn LineSequence::PositionBefore(LineColumn position) const {
+  if (position.line > EndLine()) {
+    position.line = EndLine();
+    position.column = at(position.line)->EndColumn();
+  } else if (position.column > at(position.line)->EndColumn()) {
+    position.column = at(position.line)->EndColumn();
+  } else if (position.column > ColumnNumber(0)) {
+    position.column--;
+  } else if (position.line > LineNumber(0)) {
+    position.line =
+        std::min(position.line, LineNumber(0) + size()) - LineNumberDelta(1);
+    position.column = at(position.line)->EndColumn();
+  }
+  return position;
+}
+
+namespace {
+using ::operator<<;
+
+const bool position_before_tests_registration = tests::Register(
+    L"LineSequence::PositionBefore",
+    {{.name = L"EmptyBufferZeroLineColumn",
+      .callback =
+          [] { CHECK_EQ(LineSequence().PositionBefore({}), LineColumn()); }},
+     {.name = L"EmptyBufferZeroLine",
+      .callback =
+          [] {
+            CHECK_EQ(
+                LineSequence().PositionBefore({LineNumber(), ColumnNumber(10)}),
+                LineColumn());
+          }},
+     {.name = L"EmptyBufferNormalLineColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequence().PositionBefore(
+                         {LineNumber(25), ColumnNumber(10)}),
+                     LineColumn());
+          }},
+     {.name = L"NormalBufferZeroLineColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionBefore({}), LineColumn());
+          }},
+     {.name = L"NormalBufferZeroLineNormalColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionBefore(
+                         {LineNumber(), ColumnNumber(4)}),
+                     LineColumn(LineNumber(), ColumnNumber(3)));
+          }},
+     {.name = L"NormalBufferZeroLineLargeColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionBefore(
+                         {LineNumber(), ColumnNumber(30)}),
+                     LineColumn(LineNumber(),
+                                ColumnNumber(sizeof("alejandro") - 1)));
+          }},
+     {.name = L"NormalBufferNormalLineZeroColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionBefore(
+                         {LineNumber(1), ColumnNumber()}),
+                     LineColumn(LineNumber(0),
+                                ColumnNumber(sizeof("alejandro") - 1)));
+          }},
+     {.name = L"NormalBufferNormalLineNormalColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionBefore(
+                         {LineNumber(1), ColumnNumber(4)}),
+                     LineColumn(LineNumber(1), ColumnNumber(3)));
+          }},
+     {.name = L"NormalBufferNormalLineLargeColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                LineSequenceForTests().PositionBefore(
+                    {LineNumber(1), ColumnNumber(30)}),
+                LineColumn(LineNumber(1), ColumnNumber(sizeof("forero") - 1)));
+          }},
+     {.name = L"NormalBufferLargeLineColumn", .callback = [] {
+        CHECK_EQ(LineSequenceForTests().PositionBefore(
+                     {LineNumber(25), ColumnNumber(10)}),
+                 LineColumn(LineNumber(2), ColumnNumber(6)));
+      }}});
+}  // namespace
+
+LineColumn LineSequence::PositionAfter(LineColumn position) const {
+  if (position.line > EndLine()) {
+    position.line = EndLine();
+    position.column = at(position.line)->EndColumn();
+  } else if (position.column < at(position.line)->EndColumn()) {
+    ++position.column;
+  } else if (position.line < EndLine()) {
+    ++position.line;
+    position.column = ColumnNumber();
+  } else if (position.column > at(position.line)->EndColumn()) {
+    position.column = at(position.line)->EndColumn();
+  }
+  return position;
+}
+
+namespace {
+const bool position_after_tests_registration = tests::Register(
+    L"LineSequence::PositionAfter",
+    {{.name = L"EmptyBufferZeroLineColumn",
+      .callback =
+          [] { CHECK_EQ(LineSequence().PositionAfter({}), LineColumn()); }},
+     {.name = L"EmptyBufferZeroLine",
+      .callback =
+          [] {
+            CHECK_EQ(
+                LineSequence().PositionAfter({LineNumber(0), ColumnNumber(10)}),
+                LineColumn());
+          }},
+     {.name = L"EmptyBufferNormalLineColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequence().PositionAfter(
+                         {LineNumber(25), ColumnNumber(10)}),
+                     LineColumn());
+          }},
+     {.name = L"NormalBufferZeroLineColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionAfter({}),
+                     LineColumn(LineNumber(0), ColumnNumber(1)));
+          }},
+     {.name = L"NormalBufferZeroLineNormalColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
+                         {LineNumber(0), ColumnNumber(4)}),
+                     LineColumn(LineNumber(), ColumnNumber(5)));
+          }},
+     {.name = L"NormalBufferZeroLineEndColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                LineSequenceForTests().PositionAfter(
+                    {LineNumber(0), ColumnNumber(sizeof("alejandro") - 1)}),
+                LineColumn(LineNumber(1), ColumnNumber(0)));
+          }},
+     {.name = L"NormalBufferZeroLineLargeColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
+                         {LineNumber(0), ColumnNumber(30)}),
+                     LineColumn(LineNumber(1), ColumnNumber(0)));
+          }},
+     {.name = L"NormalBufferNormalLineZeroColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
+                         {LineNumber(1), ColumnNumber(0)}),
+                     LineColumn(LineNumber(1), ColumnNumber(1)));
+          }},
+     {.name = L"NormalBufferNormalLineNormalColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
+                         {LineNumber(1), ColumnNumber(3)}),
+                     LineColumn(LineNumber(1), ColumnNumber(4)));
+          }},
+     {.name = L"NormalBufferNormalLineEndColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
+                         {LineNumber(1), ColumnNumber(sizeof("forero") - 1)}),
+                     LineColumn(LineNumber(2), ColumnNumber(0)));
+          }},
+     {.name = L"NormalBufferEndLineZeroColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
+                         {LineNumber(2), ColumnNumber(0)}),
+                     LineColumn(LineNumber(2), ColumnNumber(1)));
+          }},
+     {.name = L"NormalBufferEndLineNormalColumn",
+      .callback =
+          [] {
+            CHECK_EQ(LineSequenceForTests().PositionAfter(
+                         {LineNumber(2), ColumnNumber(3)}),
+                     LineColumn(LineNumber(2), ColumnNumber(4)));
+          }},
+     {.name = L"NormalBufferEndLineEndColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                LineSequenceForTests().PositionAfter(
+                    {LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)}),
+                LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
+          }},
+     {.name = L"NormalBufferEndLineLargeColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                LineSequenceForTests().PositionAfter(
+                    {LineNumber(2), ColumnNumber(30)}),
+                LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
+          }},
+     {.name = L"NormalBufferLargeLineZeroColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                LineSequenceForTests().PositionBefore(
+                    {LineNumber(25), ColumnNumber(0)}),
+                LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
+          }},
+     {.name = L"NormalBufferLargeLineNormalColumn",
+      .callback =
+          [] {
+            CHECK_EQ(
+                LineSequenceForTests().PositionBefore(
+                    {LineNumber(25), ColumnNumber(3)}),
+                LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
+          }},
+     {.name = L"NormalBufferLargeLineLargeColumn", .callback = [] {
+        CHECK_EQ(LineSequenceForTests().PositionBefore(
+                     {LineNumber(25), ColumnNumber(30)}),
+                 LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
+      }}});
+}
 }  // namespace afc::language::text

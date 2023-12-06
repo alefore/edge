@@ -53,11 +53,6 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
   LineSequence snapshot() const;
 
-  language::text::LineColumn PositionBefore(
-      language::text::LineColumn position) const;
-  language::text::LineColumn PositionAfter(
-      language::text::LineColumn position) const;
-
   language::text::LineNumberDelta size() const {
     return language::text::LineNumberDelta(lines_->size());
   }
