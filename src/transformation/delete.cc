@@ -168,11 +168,11 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     if (range.IsEmpty()) {
       switch (options.modifiers.direction) {
         case Direction::kForwards:
-          range.set_end(input.buffer.contents().PositionAfter(range.end()));
+          range.set_end(input.adapter.contents().PositionAfter(range.end()));
           break;
         case Direction::kBackwards:
           range.set_begin(
-              input.buffer.contents().PositionBefore(range.begin()));
+              input.adapter.contents().PositionBefore(range.begin()));
           break;
       }
     }
