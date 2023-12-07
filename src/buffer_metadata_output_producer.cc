@@ -13,6 +13,7 @@
 #include "src/language/hash.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/padding.h"
 #include "src/line_marks.h"
 #include "src/line_with_cursor.h"
 #include "src/parse_tree.h"
@@ -137,21 +138,20 @@ struct MetadataLine {
   Type type;
 };
 
-ColumnNumberDelta width(const std::wstring prefix, MetadataLine& line) {
-  return std::max(ColumnNumberDelta(1), ColumnNumberDelta(prefix.size())) +
+ColumnNumberDelta width(const Line& prefix, MetadataLine& line) {
+  return std::max(ColumnNumberDelta(1),
+                  ColumnNumberDelta(prefix.contents().size())) +
          line.suffix->contents().size();
 }
 
-LineWithCursor::Generator NewGenerator(std::wstring input_prefix,
-                                       MetadataLine line) {
+LineWithCursor::Generator NewGenerator(Line input_prefix, MetadataLine line) {
   return LineWithCursor::Generator::New(CaptureAndHash(
-      [](wchar_t info_char, LineModifier modifier, Line suffix,
-         std::wstring prefix) {
+      [](wchar_t info_char, LineModifier modifier, Line suffix, Line prefix) {
         LineBuilder options;
         if (prefix.empty()) {
           options.AppendCharacter(info_char, {modifier});
         } else {
-          options.AppendString(prefix, LineModifierSet{LineModifier::kYellow});
+          options.Append(LineBuilder(std::move(prefix)));
         }
         options.Append(LineBuilder(std::move(suffix)));
         return LineWithCursor{
@@ -519,6 +519,7 @@ std::ostream& operator<<(std::ostream& os, const Box& b) {
 struct BoxWithPosition {
   Box box;
   LineNumber position;
+  LineModifierSet modifiers = {};
 
   bool operator==(const BoxWithPosition& other) const {
     return box == other.box && position == other.position;
@@ -576,13 +577,23 @@ std::list<BoxWithPosition> FindLayout(std::list<Box> boxes,
   CHECK_LE(sum_sizes, screen_size);
 
   std::list<BoxWithPosition> output;
+  size_t count = 0;
   VLOG(5) << "Adjusting boxes.";
   for (const auto& box : boxes | std::views::reverse) {
     sum_sizes -= box.size;
     LineNumber position = std::max(
         LineNumber() + sum_sizes,
         std::min(box.reference, LineNumber() + screen_size - box.size));
-    output.push_front({.box = box, .position = position});
+    static const std::vector<LineModifierSet> modifiers = {
+        LineModifierSet{LineModifier::kYellow},
+        LineModifierSet{LineModifier::kCyan},
+        LineModifierSet{LineModifier::kGreen},
+        LineModifierSet{LineModifier::kBlue},
+    };
+    output.push_front(
+        BoxWithPosition{.box = box,
+                        .position = position,
+                        .modifiers = modifiers[count++ % modifiers.size()]});
     screen_size = position.ToDelta();
   }
   return output;
@@ -664,7 +675,7 @@ bool find_layout_tests_registration =
       });
     }());
 
-std::vector<std::wstring> ComputePrefixLines(
+std::vector<LineBuilder> ComputePrefixLines(
     LineNumberDelta screen_size, const std::vector<BoxWithPosition>& boxes) {
   using BoxIndex = size_t;
   auto downwards = [&](BoxIndex i) {
@@ -690,42 +701,47 @@ std::vector<std::wstring> ComputePrefixLines(
     }
   }
 
-  std::vector<std::wstring> output(screen_size.read(), L"");
-  auto get = [&](LineNumber l) -> std::wstring& {
+  std::vector<LineBuilder> output = container::MaterializeVector(
+      std::views::iota(0, screen_size.read()) |
+      std::views::transform([](auto) { return LineBuilder(); }));
+  auto get = [&](LineNumber l) -> LineBuilder& {
     CHECK_LT(l.read(), output.size());
-    return output[l.read()];
+    return output.at(l.read());
   };
-  auto push = [&](LineNumber l, wchar_t c, size_t* indents) {
-    bool padding_dash = false;
-    switch (c) {
-      case L'╮':
-      case L'╯':
-      case L'─':
-        padding_dash = true;
-        break;
-      case L'╭':
-      case L'│':
-      case L'╰':
-        break;
-      default:
-        LOG(FATAL) << "Unexpected character: " << static_cast<int>(c);
-    }
-    std::wstring& target = get(l);
-    size_t padding_size =
-        target.size() < *indents ? *indents - target.size() : 0;
-    target += std::wstring(padding_size, padding_dash ? L'─' : L' ') +
-              std::wstring(1, c);
-    *indents = target.size() - 1;
-  };
-
   for (BoxIndex start : box_groups) {
     BoxIndex index = start;
+    auto push = [&](LineNumber l, wchar_t c, ColumnNumberDelta* indents) {
+      bool padding_dash = false;
+      switch (c) {
+        case L'╮':
+        case L'╯':
+        case L'─':
+          padding_dash = true;
+          break;
+        case L'╭':
+        case L'│':
+        case L'╰':
+          break;
+        default:
+          LOG(FATAL) << "Unexpected character: " << static_cast<int>(c);
+      }
+      LineBuilder& target = get(l);
+      ColumnNumberDelta padding_size = target.size() < *indents
+                                           ? *indents - target.size()
+                                           : ColumnNumberDelta();
+      target.AppendString(
+          std::wstring(padding_size.read(), padding_dash ? L'─' : L' ') +
+              std::wstring(1, c),
+          boxes[index].modifiers);
+      *indents = target.size() - ColumnNumberDelta(1);
+    };
+
     VLOG(5) << "Inserting lines for !upwards boxes at section: " << index;
     while (index < boxes.size() && !upwards(index)) {
       if (downwards(index)) {
         LineNumber l =
             boxes[index].position + boxes[index].box.size - LineNumberDelta(1);
-        size_t indents = 0;
+        ColumnNumberDelta indents;
         push(l, L'╭', &indents);
         ++l;
         while (l < boxes[index].box.reference) {
@@ -734,7 +750,7 @@ std::vector<std::wstring> ComputePrefixLines(
         }
         push(l, L'╯', &indents);
       } else {
-        size_t indents = 0;
+        ColumnNumberDelta indents;
         push(boxes[index].box.reference, L'─', &indents);
       }
       index++;
@@ -752,7 +768,7 @@ std::vector<std::wstring> ComputePrefixLines(
               << index << " to " << first_upwards;
       for (; index >= first_upwards; index--) {
         LineNumber l = boxes[index].position;
-        size_t indents = 0;
+        ColumnNumberDelta indents;
         push(l, L'╰', &indents);
         --l;
         while (l > boxes[index].box.reference) {
@@ -766,32 +782,41 @@ std::vector<std::wstring> ComputePrefixLines(
   }
   for (const auto& b : boxes) {
     if (b.box.size == LineNumberDelta(1)) continue;
-    size_t indents = 0;
+    ColumnNumberDelta indents;
     // Figure out the maximum indent.
     for (LineNumberDelta l; l < b.box.size; ++l) {
       indents = std::max(indents, get(b.position + l).size());
     }
     // Add indents for all lines overlapping with the current box.
     for (LineNumberDelta l; l < b.box.size; ++l) {
-      std::wstring& target = output[(b.position + l).read()];
+      LineBuilder& target = output[(b.position + l).read()];
       CHECK_LE(target.size(), indents);
-      target.resize(indents, target.empty() || target.back() == L'╮' ||
-                                     target.back() == L'│' ||
-                                     target.back() == L'╯'
-                                 ? L' '
-                                 : L'─');
+      target.AppendString(
+          Padding(
+              indents - target.size(),
+              target.size().IsZero() ||
+                      std::wstring(L"╮│╯").find_first_of(target.contents().get(
+                          ColumnNumber() + target.contents().size() -
+                          ColumnNumberDelta(1))) != std::wstring::npos
+                  ? L' '
+                  : L'─'),
+          b.modifiers);
     }
     // Add the wrappings around the box.
-    get(b.position).push_back(b.position >= b.box.reference ? L'┬' : L'╭');
+    get(b.position)
+        .AppendCharacter(b.position >= b.box.reference ? L'┬' : L'╭',
+                         b.modifiers);
     for (LineNumberDelta l(1); l + LineNumberDelta(1) < b.box.size; ++l) {
       get(b.position + l)
-          .push_back(b.position + l == b.box.reference ? L'┤' : L'│');
+          .AppendCharacter(b.position + l == b.box.reference ? L'┤' : L'│',
+                           b.modifiers);
     }
     get(b.position + b.box.size - LineNumberDelta(1))
-        .push_back(b.position + b.box.size - LineNumberDelta(1) <=
-                           b.box.reference
-                       ? L'┴'
-                       : L'╰');
+        .AppendCharacter(
+            b.position + b.box.size - LineNumberDelta(1) <= b.box.reference
+                ? L'┴'
+                : L'╰',
+            b.modifiers);
   }
   return output;
 }
@@ -828,6 +853,7 @@ ColumnsVector::Column BufferMetadataOutput(
 
   const std::list<BoxWithPosition> boxes_list =
       FindLayout(std::move(boxes_input), screen_size);
+  // TODO(2023-12-06, trivial): Use container::MaterializeVector.
   const std::vector<BoxWithPosition> boxes(boxes_list.begin(),
                                            boxes_list.end());
 
@@ -840,7 +866,7 @@ ColumnsVector::Column BufferMetadataOutput(
   std::set<LineNumber> lines_referenced = container::MaterializeSet(
       boxes | std::views::transform([](auto& b) { return b.box.reference; }));
 
-  const std::vector<std::wstring> prefix_lines =
+  std::vector<LineBuilder> prefix_lines =
       ComputePrefixLines(screen_size, boxes);
   ColumnsVector::Column output;
   size_t box_index = 0;
@@ -859,7 +885,7 @@ ColumnsVector::Column BufferMetadataOutput(
     CHECK(!metadata_by_line[source].empty());
     MetadataLine& metadata_line = metadata_by_line[source].front();
 
-    std::wstring prefix = prefix_lines[i.read()];
+    Line prefix = std::move(prefix_lines[i.read()]).Build();
     output.lines.width =
         std::max(output.lines.width, width(prefix, metadata_line));
     output.lines.lines.push_back(
