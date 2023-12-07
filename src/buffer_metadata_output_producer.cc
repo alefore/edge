@@ -851,11 +851,8 @@ ColumnsVector::Column BufferMetadataOutput(
     }
   }
 
-  const std::list<BoxWithPosition> boxes_list =
-      FindLayout(std::move(boxes_input), screen_size);
-  // TODO(2023-12-06, trivial): Use container::MaterializeVector.
-  const std::vector<BoxWithPosition> boxes(boxes_list.begin(),
-                                           boxes_list.end());
+  const std::vector<BoxWithPosition> boxes = container::MaterializeVector(
+      FindLayout(std::move(boxes_input), screen_size));
 
   for (auto& b : boxes) {
     VLOG(5) << "Received output box: " << b;
