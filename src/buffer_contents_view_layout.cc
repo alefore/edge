@@ -23,6 +23,7 @@ namespace container = afc::language::container;
 using afc::infrastructure::screen::CursorsSet;
 using afc::language::GetValueOrDefault;
 using afc::language::MakeNonNullShared;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::text::Line;
@@ -44,23 +45,18 @@ std::list<ColumnRange> ComputeBreaks(
 
 // If the position is before the ranges, returns 0. If the position is after
 // the ranges, returns the last line.
-LineNumber FindPositionInScreen(
-    const std::vector<BufferContentsViewLayout::Line>& screen_lines,
-    LineColumn position) {
+LineNumber FindPositionInScreen(const std::vector<Range>& screen_lines,
+                                LineColumn position) {
   CHECK(!screen_lines.empty());
-  if (position < screen_lines.front().range.begin()) {
-    return LineNumber();
-  }
+  if (position < screen_lines.front().begin()) return LineNumber();
 
-  if (screen_lines.back().range.end() < position) {
-    return LineNumber(screen_lines.size()) -
-           LineNumberDelta(1);  // Optimization.
-  }
+  if (screen_lines.back().end() < position)  // Optimization.
+    return LineNumber(screen_lines.size()) - LineNumberDelta(1);
 
   LineNumber output;
   for (auto it = std::next(screen_lines.cbegin()); it != screen_lines.cend();
        ++it) {
-    if (position < it->range.begin()) {
+    if (position < it->begin()) {
       return output;
     }
     ++output;
@@ -74,32 +70,22 @@ const bool find_position_in_screen_tests_registration = tests::Register(
     {{.name = L"BeforeFirst",
       .callback =
           [] {
-            CHECK_EQ(
-                FindPositionInScreen(
-                    std::vector<BufferContentsViewLayout::Line>({
-                        {.range =
-                             Range::InLine(LineNumber(10), ColumnNumber(20),
-                                           ColumnNumberDelta(8)),
-                         .has_active_cursor = false,
-                         .current_cursors = {}},
-                        {.range = Range::InLine(LineNumber(11), ColumnNumber(0),
-                                                ColumnNumberDelta(10)),
-                         .has_active_cursor = false,
-                         .current_cursors = {}},
-                    }),
-                    LineColumn(LineNumber(4), ColumnNumber(25))),
-                LineNumber());
+            CHECK_EQ(FindPositionInScreen(
+                         std::vector<Range>(
+                             {Range::InLine(LineNumber(10), ColumnNumber(20),
+                                            ColumnNumberDelta(8)),
+                              Range::InLine(LineNumber(11), ColumnNumber(0),
+                                            ColumnNumberDelta(10))}),
+                         LineColumn(LineNumber(4), ColumnNumber(25))),
+                     LineNumber());
           }},
      {.name = L"InFirst",
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::vector<BufferContentsViewLayout::Line>(
-                             {{.range = Range::InLine(LineNumber(10),
-                                                      ColumnNumber(20),
-                                                      ColumnNumberDelta(8)),
-                               .has_active_cursor = false,
-                               .current_cursors = {}}}),
+                         std::vector<Range>(
+                             {Range::InLine(LineNumber(10), ColumnNumber(20),
+                                            ColumnNumberDelta(8))}),
                          LineColumn(LineNumber(10), ColumnNumber(25))),
                      LineNumber(0));
           }},
@@ -107,67 +93,51 @@ const bool find_position_in_screen_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::vector<BufferContentsViewLayout::Line>(
-                             {{.range = Range::InLine(LineNumber(10),
-                                                      ColumnNumber(20),
-                                                      ColumnNumberDelta(8)),
-                               .has_active_cursor = false,
-                               .current_cursors = {}},
-                              {.range = Range::InLine(LineNumber(11),
-                                                      ColumnNumber(0),
-                                                      ColumnNumberDelta(10)),
-                               .has_active_cursor = false,
-                               .current_cursors = {}}}),
+                         std::vector<Range>(
+                             {Range::InLine(LineNumber(10), ColumnNumber(20),
+                                            ColumnNumberDelta(8)),
+                              Range::InLine(LineNumber(11), ColumnNumber(0),
+                                            ColumnNumberDelta(10))}),
                          LineColumn(LineNumber(10), ColumnNumber(95))),
                      LineNumber(0));
           }},
      {.name = L"InSecond",
       .callback =
           [] {
-            CHECK_EQ(
-                FindPositionInScreen(
-                    std::vector<BufferContentsViewLayout::Line>({
-                        {.range =
-                             Range::InLine(LineNumber(10), ColumnNumber(20),
-                                           ColumnNumberDelta(8)),
-                         .has_active_cursor = false,
-                         .current_cursors = {}},
-                        {.range = Range::InLine(LineNumber(11), ColumnNumber(0),
-                                                ColumnNumberDelta(10)),
-                         .has_active_cursor = false,
-                         .current_cursors = {}},
-                    }),
-                    LineColumn(LineNumber(11), ColumnNumber(2))),
-                LineNumber(1));
+            CHECK_EQ(FindPositionInScreen(
+                         std::vector<Range>(
+                             {Range::InLine(LineNumber(10), ColumnNumber(20),
+                                            ColumnNumberDelta(8)),
+                              Range::InLine(LineNumber(11), ColumnNumber(0),
+                                            ColumnNumberDelta(10))}),
+                         LineColumn(LineNumber(11), ColumnNumber(2))),
+                     LineNumber(1));
           }},
      {.name = L"AfterLast", .callback = [] {
-        CHECK_EQ(
-            FindPositionInScreen(
-                std::vector<BufferContentsViewLayout::Line>({
-                    {.range = Range::InLine(LineNumber(10), ColumnNumber(20),
-                                            ColumnNumberDelta(8)),
-                     .has_active_cursor = false,
-                     .current_cursors = {}},
-                    {.range = Range::InLine(LineNumber(11), ColumnNumber(0),
-                                            ColumnNumberDelta(10)),
-                     .has_active_cursor = false,
-                     .current_cursors = {}},
-                }),
-                LineColumn(LineNumber(12))),
-            LineNumber(1));
+        CHECK_EQ(FindPositionInScreen(
+                     std::vector<Range>(
+                         {Range::InLine(LineNumber(10), ColumnNumber(20),
+                                        ColumnNumberDelta(8)),
+                          Range::InLine(LineNumber(11), ColumnNumber(0),
+                                        ColumnNumberDelta(10))}),
+                     LineColumn(LineNumber(12))),
+                 LineNumber(1));
       }}});
 
-BufferContentsViewLayout::Line GetScreenLine(
-    const LineSequence& contents, std::optional<LineColumn> active_position,
-    const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
-    LineNumber line, ColumnRange column_range) {
+Range GetRange(const LineSequence& contents, LineNumber line,
+               ColumnRange column_range) {
   CHECK_LE(line, contents.EndLine());
-  Range range =
-      Range(LineColumn(line, column_range.begin),
-            LineColumn(line, column_range.end < contents.at(line)->EndColumn()
-                                 ? column_range.end
-                                 : std::numeric_limits<ColumnNumber>::max()));
+  return Range(
+      LineColumn(line, column_range.begin),
+      LineColumn(line, column_range.end < contents.at(line)->EndColumn()
+                           ? column_range.end
+                           : std::numeric_limits<ColumnNumber>::max()));
+}
 
+BufferContentsViewLayout::Line RangeToLine(
+    const Range& range, std::optional<LineColumn> active_position,
+    const std::set<ColumnNumber>& cursors) {
+  LineNumber line = range.begin().line;
   auto contains_cursor = [&](ColumnNumber column) {
     return range.Contains(LineColumn(line, column));
   };
@@ -178,18 +148,18 @@ BufferContentsViewLayout::Line GetScreenLine(
                            line == active_position->line &&
                            contains_cursor(active_position->column),
       .current_cursors = container::MaterializeSet(
-          GetValueOrDefault(cursors, line, std::set<ColumnNumber>()) |
-          std::views::filter(contains_cursor))};
+          cursors | std::views::filter(contains_cursor))};
 }
 
 const bool get_screen_line_tests_registration = tests::Register(
-    L"GetScreenLine",
+    L"RangeToLine",
     {{.name = L"SimpleLine",
       .callback =
           [] {
-            BufferContentsViewLayout::Line output = GetScreenLine(
-                LineSequence::ForTests({L"foo"}), std::nullopt, {},
-                LineNumber(0), ColumnRange{ColumnNumber(0), ColumnNumber(3)});
+            BufferContentsViewLayout::Line output = RangeToLine(
+                GetRange(LineSequence::ForTests({L"foo"}), LineNumber(0),
+                         ColumnRange{ColumnNumber(0), ColumnNumber(3)}),
+                std::nullopt, {});
             CHECK_EQ(output.range.end(),
                      LineColumn(LineNumber(0),
                                 std::numeric_limits<ColumnNumber>::max()));
@@ -197,49 +167,37 @@ const bool get_screen_line_tests_registration = tests::Register(
      {.name = L"CursorAtEnd", .callback = [] {
         LineColumn position =
             LineColumn(LineNumber(), std::numeric_limits<ColumnNumber>::max());
-        BufferContentsViewLayout::Line output = GetScreenLine(
-            LineSequence::ForTests({L"Foo"}), position,
-            std::map<LineNumber, std::set<ColumnNumber>>(
-                {{LineNumber(), {position.column}}}),
-            LineNumber(), ColumnRange{ColumnNumber(0), ColumnNumber(3)});
+        BufferContentsViewLayout::Line output = RangeToLine(
+            GetRange(LineSequence::ForTests({L"Foo"}), LineNumber(0),
+                     ColumnRange{ColumnNumber(0), ColumnNumber(3)}),
+            position, std::set<ColumnNumber>{position.column});
         CHECK(output.has_active_cursor);
         CHECK(output.current_cursors.contains(position.column));
       }}});
 
-std::vector<BufferContentsViewLayout::Line> PrependLines(
-    const BufferContentsViewLayout::Input& options,
-    const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
-    LineNumber line, LineNumberDelta lines_desired,
-    std::vector<BufferContentsViewLayout::Line> output) {
+std::vector<Range> ComputePrefixLines(
+    const BufferContentsViewLayout::Input& options, LineNumber line,
+    LineNumberDelta lines_desired, LineColumn current_start) {
+  CHECK_GT(lines_desired, LineNumberDelta());
   std::list<ColumnRange> line_breaks = ComputeBreaks(options, line);
-  if (line == output.front().range.begin().line) {
+  if (line == current_start.line) {
     line_breaks.remove_if([&](const ColumnRange& r) {
-      return r.end > output.front().range.begin().column ||
-             r.begin >= output.front().range.begin().column;
+      return r.end > current_start.column || r.begin >= current_start.column;
     });
   }
-  std::vector<BufferContentsViewLayout::Line> lines_to_insert =
-      container::MaterializeVector(
-          line_breaks | std::views::transform([&](const ColumnRange& r) {
-            return GetScreenLine(options.contents, options.active_position,
-                                 cursors, line, r);
-          }));
-  auto insert_start = lines_to_insert.begin();
-  if (LineNumberDelta(lines_to_insert.size()) > lines_desired) {
-    insert_start += lines_to_insert.size() - lines_desired.read();
-  }
-  output.insert(output.begin(), insert_start, lines_to_insert.end());
-  return output;
+  return container::MaterializeVector(
+      line_breaks |
+      std::views::drop(line_breaks.size() >
+                               static_cast<size_t>(lines_desired.read())
+                           ? line_breaks.size() - lines_desired.read()
+                           : 0) |
+      std::views::transform([&](const ColumnRange& column_range) {
+        return GetRange(options.contents, line, column_range);
+      }));
 }
 
-std::vector<BufferContentsViewLayout::Line> AdjustToHonorMargin(
-    const BufferContentsViewLayout::Input& options,
-    const std::map<LineNumber, std::set<ColumnNumber>>& cursors,
-    std::vector<BufferContentsViewLayout::Line> output) {
-  if (output.empty() || options.begin == LineColumn()) {
-    return output;
-  }
-
+std::vector<Range> AdjustToHonorMargin(
+    const BufferContentsViewLayout::Input& options, std::vector<Range> output) {
   std::optional<LineNumber> position_line =
       options.active_position.has_value()
           ? FindPositionInScreen(output, *options.active_position)
@@ -259,9 +217,9 @@ std::vector<BufferContentsViewLayout::Line> AdjustToHonorMargin(
        position_line.has_value() && lines_desired() > LineNumberDelta();
        --line) {
     LineNumberDelta original_length(output.size());
-    auto lines_to_insert = lines_desired();
-    output = PrependLines(options, cursors, line, lines_to_insert,
-                          std::move(output));
+    std::vector<Range> prefix = ComputePrefixLines(
+        options, line, lines_desired(), output.front().begin());
+    output.insert(output.begin(), prefix.begin(), prefix.end());
     CHECK_GE(LineNumberDelta(output.size()), original_length);
     position_line.value() += LineNumberDelta(output.size()) - original_length;
     if (line.IsZero()) break;
@@ -269,11 +227,11 @@ std::vector<BufferContentsViewLayout::Line> AdjustToHonorMargin(
   return output;
 }
 
-std::optional<LineNumberDelta> GetCursorIndex(
-    const BufferContentsViewLayout& window) {
-  auto view = std::ranges::views::enumerate(window.lines) |
-              std::views::filter([](const auto& item) {
-                return std::get<1>(item).has_active_cursor;
+std::optional<LineNumberDelta> GetCursorIndex(const std::vector<Range>& ranges,
+                                              LineColumn active_position) {
+  auto view = std::ranges::views::enumerate(ranges) |
+              std::views::filter([&](const auto& item) {
+                return std::get<1>(item).Contains(active_position);
               });
   if (auto it = view.begin(); it != view.end())
     return LineNumberDelta(std::get<0>(*it));
@@ -303,87 +261,92 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
   options.margin_lines =
       std::min(options.lines_shown / 2, options.margin_lines);
 
-  std::map<LineNumber, std::set<ColumnNumber>> cursors;
-  for (auto& cursor : options.active_cursors) {
-    cursors[cursor.line].insert(cursor.column);
-  }
-
   DVLOG(4) << "Initial line: " << options.begin.line;
-  BufferContentsViewLayout output;
+  std::vector<Range> output_ranges;
   for (LineNumber line = options.begin.line;
-       LineNumberDelta(output.lines.size()) < options.lines_shown; ++line) {
-    if (line > options.contents.EndLine()) {
-      break;
-    }
-
+       LineNumberDelta(output_ranges.size()) < options.lines_shown &&
+       line <= options.contents.EndLine();
+       ++line) {
     std::list<ColumnRange> line_breaks = ComputeBreaks(options, line);
-    if (line == options.begin.line) {
+    if (line == options.begin.line)
       while (!line_breaks.empty() &&
              line_breaks.front().end <= options.begin.column &&
-             !line_breaks.front().end.IsZero()) {
+             !line_breaks.front().end.IsZero())
         line_breaks.pop_front();
-      }
-    }
-    while (LineNumberDelta(output.lines.size()) < options.lines_shown &&
+    while (LineNumberDelta(output_ranges.size()) < options.lines_shown &&
            !line_breaks.empty()) {
-      output.lines.push_back(GetScreenLine(options.contents,
-                                           options.active_position, cursors,
-                                           line, line_breaks.front()));
+      output_ranges.push_back(
+          GetRange(options.contents, line, line_breaks.front()));
       line_breaks.pop_front();
       DVLOG(5) << "Added screen line for line: " << line
-               << ", range: " << output.lines.back().range;
+               << ", range: " << output_ranges.back();
 
       if ((!line_breaks.empty() || line < options.contents.EndLine()) &&
           options.margin_lines <= options.lines_shown / 2 &&
-          LineNumberDelta(output.lines.size()) == options.lines_shown &&
+          LineNumberDelta(output_ranges.size()) == options.lines_shown &&
           (options.active_position.has_value() &&
-           FindPositionInScreen(output.lines, *options.active_position) >=
+           FindPositionInScreen(output_ranges, *options.active_position) >=
                LineNumber() + options.lines_shown - options.margin_lines)) {
         // TODO: This is slow? Maybe we can do all deletions at once, outside of
         // the loop? Didn't really look into the code to see if this is
         // feasible.
-        CHECK(!output.lines.empty());
-        output.lines.erase(output.lines.begin());
+        CHECK(!output_ranges.empty());
+        output_ranges.erase(output_ranges.begin());
       }
     }
   }
-  CHECK_LE(LineNumberDelta(output.lines.size()), options.lines_shown);
+  CHECK_LE(LineNumberDelta(output_ranges.size()), options.lines_shown);
 
-  output.lines = AdjustToHonorMargin(options, cursors, std::move(output.lines));
+  if (!output_ranges.empty() && options.begin > LineColumn())
+    output_ranges = AdjustToHonorMargin(options, std::move(output_ranges));
 
   // Initialize output.status_position:
   LineNumberDelta lines_to_drop = std::max(
-      LineNumberDelta(), LineNumberDelta(output.lines.size()) +
+      LineNumberDelta(), LineNumberDelta(output_ranges.size()) +
                              options.status_lines - options.lines_shown);
 
   VLOG(5) << "Wrapping up: lines_shown: " << options.lines_shown
           << ", status_lines: " << options.status_lines
-          << ", output.lines.size: " << output.lines.size();
-  LineNumberDelta cursor_index =
-      GetCursorIndex(output).value_or(LineNumberDelta());
+          << ", output_ranges.size: " << output_ranges.size();
+  LineNumberDelta cursor_index = VisitOptional(
+      [&](LineColumn active_position) {
+        return GetCursorIndex(output_ranges, active_position)
+            .value_or(LineNumberDelta());
+      },
+      [] { return LineNumberDelta(); }, options.active_position);
+  BufferContentsViewLayout output;
   if (options.lines_shown <
-          LineNumberDelta(output.lines.size()) + options.status_lines &&
+          LineNumberDelta(output_ranges.size()) + options.status_lines &&
       cursor_index >= options.lines_shown - options.status_lines -
                           std::max(options.margin_lines, LineNumberDelta(1))) {
-    output.lines.erase(
-        output.lines.begin(),
-        output.lines.begin() +
+    output_ranges.erase(
+        output_ranges.begin(),
+        output_ranges.begin() +
             std::min(lines_to_drop,
                      LineNumberDelta(1) + cursor_index -
                          (options.lines_shown - options.status_lines -
                           std::max(options.margin_lines, LineNumberDelta(1))))
                 .read());
-    output.view_start = output.lines.empty()
-                            ? options.begin
-                            : output.lines.front().range.begin();
-  } else if (LineNumberDelta(output.lines.size()) <= lines_to_drop) {
-    output.lines.clear();
+    output.view_start =
+        output_ranges.empty() ? options.begin : output_ranges.front().begin();
+  } else if (LineNumberDelta(output_ranges.size()) <= lines_to_drop) {
+    output_ranges.clear();
   } else {
-    output.lines.resize(output.lines.size() - lines_to_drop.read());
-    output.view_start = output.lines.empty()
-                            ? options.begin
-                            : output.lines.front().range.begin();
+    output_ranges.resize(output_ranges.size() - lines_to_drop.read());
+    output.view_start =
+        output_ranges.empty() ? options.begin : output_ranges.front().begin();
   }
+
+  std::map<LineNumber, std::set<ColumnNumber>> cursors;
+  for (auto& cursor : options.active_cursors)
+    cursors[cursor.line].insert(cursor.column);
+  output.lines = container::MaterializeVector(
+      output_ranges | std::views::transform([&](const Range& range) {
+        return RangeToLine(range, options.active_position,
+                           GetValueOrDefault(cursors, range.begin().line,
+                                             std::set<ColumnNumber>()));
+      }));
+
   return output;
 }
 
