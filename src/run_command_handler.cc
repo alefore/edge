@@ -460,7 +460,8 @@ class ForkEditorCommand : public Command {
                     })
                   : PromptOptions::ColorizeFunction(nullptr),
           .handler = std::bind_front(RunCommandHandler, std::ref(editor_state_),
-                                     0, 1, OptionalFrom(children_path))});
+                                     0, 1, OptionalFrom(children_path)),
+          .predictor = FilePredictor});
     } else if (editor_state_.structure() == Structure::kLine) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
