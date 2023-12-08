@@ -46,18 +46,18 @@ std::list<ColumnRange> ComputeBreaks(
 
 // If the position is before the ranges, returns 0. If the position is after
 // the ranges, returns the last line.
-LineNumber FindPositionInScreen(const std::vector<Range>& screen_lines,
+LineNumber FindPositionInScreen(const std::list<LineRange>& screen_lines,
                                 LineColumn position) {
   CHECK(!screen_lines.empty());
-  if (position < screen_lines.front().begin()) return LineNumber();
+  if (position < screen_lines.front().value.begin()) return LineNumber();
 
-  if (screen_lines.back().end() < position)  // Optimization.
+  if (screen_lines.back().value.end() < position)  // Optimization.
     return LineNumber(screen_lines.size()) - LineNumberDelta(1);
 
   LineNumber output;
   for (auto it = std::next(screen_lines.cbegin()); it != screen_lines.cend();
        ++it) {
-    if (position < it->begin()) {
+    if (position < it->value.begin()) {
       return output;
     }
     ++output;
@@ -71,58 +71,62 @@ const bool find_position_in_screen_tests_registration = tests::Register(
     {{.name = L"BeforeFirst",
       .callback =
           [] {
-            CHECK_EQ(FindPositionInScreen(
-                         std::vector<Range>(
-                             {Range::InLine(LineNumber(10), ColumnNumber(20),
-                                            ColumnNumberDelta(8)),
-                              Range::InLine(LineNumber(11), ColumnNumber(0),
-                                            ColumnNumberDelta(10))}),
-                         LineColumn(LineNumber(4), ColumnNumber(25))),
-                     LineNumber());
+            CHECK_EQ(
+                FindPositionInScreen(
+                    std::list<LineRange>(
+                        {LineRange(LineColumn(LineNumber(10), ColumnNumber(20)),
+                                   ColumnNumberDelta(8)),
+                         LineRange(LineColumn(LineNumber(11), ColumnNumber(0)),
+                                   ColumnNumberDelta(10))}),
+                    LineColumn(LineNumber(4), ColumnNumber(25))),
+                LineNumber());
           }},
      {.name = L"InFirst",
       .callback =
           [] {
             CHECK_EQ(FindPositionInScreen(
-                         std::vector<Range>(
-                             {Range::InLine(LineNumber(10), ColumnNumber(20),
-                                            ColumnNumberDelta(8))}),
+                         std::list<LineRange>({LineRange(
+                             LineColumn(LineNumber(10), ColumnNumber(20)),
+                             ColumnNumberDelta(8))}),
                          LineColumn(LineNumber(10), ColumnNumber(25))),
                      LineNumber(0));
           }},
      {.name = L"BeforeSecond",
       .callback =
           [] {
-            CHECK_EQ(FindPositionInScreen(
-                         std::vector<Range>(
-                             {Range::InLine(LineNumber(10), ColumnNumber(20),
-                                            ColumnNumberDelta(8)),
-                              Range::InLine(LineNumber(11), ColumnNumber(0),
-                                            ColumnNumberDelta(10))}),
-                         LineColumn(LineNumber(10), ColumnNumber(95))),
-                     LineNumber(0));
+            CHECK_EQ(
+                FindPositionInScreen(
+                    std::list<LineRange>(
+                        {LineRange(LineColumn(LineNumber(10), ColumnNumber(20)),
+                                   ColumnNumberDelta(8)),
+                         LineRange(LineColumn(LineNumber(11), ColumnNumber(0)),
+                                   ColumnNumberDelta(10))}),
+                    LineColumn(LineNumber(10), ColumnNumber(95))),
+                LineNumber(0));
           }},
      {.name = L"InSecond",
       .callback =
           [] {
-            CHECK_EQ(FindPositionInScreen(
-                         std::vector<Range>(
-                             {Range::InLine(LineNumber(10), ColumnNumber(20),
-                                            ColumnNumberDelta(8)),
-                              Range::InLine(LineNumber(11), ColumnNumber(0),
-                                            ColumnNumberDelta(10))}),
-                         LineColumn(LineNumber(11), ColumnNumber(2))),
-                     LineNumber(1));
+            CHECK_EQ(
+                FindPositionInScreen(
+                    std::list<LineRange>(
+                        {LineRange(LineColumn(LineNumber(10), ColumnNumber(20)),
+                                   ColumnNumberDelta(8)),
+                         LineRange(LineColumn(LineNumber(11), ColumnNumber(0)),
+                                   ColumnNumberDelta(10))}),
+                    LineColumn(LineNumber(11), ColumnNumber(2))),
+                LineNumber(1));
           }},
      {.name = L"AfterLast", .callback = [] {
-        CHECK_EQ(FindPositionInScreen(
-                     std::vector<Range>(
-                         {Range::InLine(LineNumber(10), ColumnNumber(20),
-                                        ColumnNumberDelta(8)),
-                          Range::InLine(LineNumber(11), ColumnNumber(0),
-                                        ColumnNumberDelta(10))}),
-                     LineColumn(LineNumber(12))),
-                 LineNumber(1));
+        CHECK_EQ(
+            FindPositionInScreen(
+                std::list<LineRange>(
+                    {LineRange(LineColumn(LineNumber(10), ColumnNumber(20)),
+                               ColumnNumberDelta(8)),
+                     LineRange(LineColumn(LineNumber(11), ColumnNumber(0)),
+                               ColumnNumberDelta(10))}),
+                LineColumn(LineNumber(12))),
+            LineNumber(1));
       }}});
 
 LineRange GetRange(const LineSequence& contents, LineNumber line,
@@ -135,15 +139,15 @@ LineRange GetRange(const LineSequence& contents, LineNumber line,
 }
 
 BufferContentsViewLayout::Line RangeToLine(
-    const Range& range, std::optional<LineColumn> active_position,
+    const LineRange& range, std::optional<LineColumn> active_position,
     const std::set<ColumnNumber>& cursors) {
-  LineNumber line = range.begin().line;
+  LineNumber line = range.value.begin().line;
   auto contains_cursor = [&](ColumnNumber column) {
-    return range.Contains(LineColumn(line, column));
+    return range.value.Contains(LineColumn(line, column));
   };
 
   return BufferContentsViewLayout::Line{
-      .range = range,
+      .range = range.value,
       .has_active_cursor = active_position.has_value() &&
                            line == active_position->line &&
                            contains_cursor(active_position->column),
@@ -158,8 +162,7 @@ const bool get_screen_line_tests_registration = tests::Register(
           [] {
             BufferContentsViewLayout::Line output = RangeToLine(
                 GetRange(LineSequence::ForTests({L"foo"}), LineNumber(0),
-                         ColumnRange{ColumnNumber(0), ColumnNumber(3)})
-                    .value,
+                         ColumnRange{ColumnNumber(0), ColumnNumber(3)}),
                 std::nullopt, {});
             CHECK_EQ(output.range.end(),
                      LineColumn(LineNumber(0),
@@ -170,14 +173,13 @@ const bool get_screen_line_tests_registration = tests::Register(
             LineColumn(LineNumber(), std::numeric_limits<ColumnNumber>::max());
         BufferContentsViewLayout::Line output = RangeToLine(
             GetRange(LineSequence::ForTests({L"Foo"}), LineNumber(0),
-                     ColumnRange{ColumnNumber(0), ColumnNumber(3)})
-                .value,
+                     ColumnRange{ColumnNumber(0), ColumnNumber(3)}),
             position, std::set<ColumnNumber>{position.column});
         CHECK(output.has_active_cursor);
         CHECK(output.current_cursors.contains(position.column));
       }}});
 
-std::vector<Range> ComputePrefixLines(
+std::list<LineRange> ComputePrefixLines(
     const BufferContentsViewLayout::Input& options, LineNumber line,
     LineNumberDelta lines_desired, LineColumn current_start) {
   CHECK_GT(lines_desired, LineNumberDelta());
@@ -187,19 +189,20 @@ std::vector<Range> ComputePrefixLines(
       return r.end > current_start.column || r.begin >= current_start.column;
     });
   }
-  return container::MaterializeVector(
+  return container::MaterializeList(
       line_breaks |
       std::views::drop(line_breaks.size() >
                                static_cast<size_t>(lines_desired.read())
                            ? line_breaks.size() - lines_desired.read()
                            : 0) |
       std::views::transform([&](const ColumnRange& column_range) {
-        return GetRange(options.contents, line, column_range).value;
+        return GetRange(options.contents, line, column_range);
       }));
 }
 
-std::vector<Range> AdjustToHonorMargin(
-    const BufferContentsViewLayout::Input& options, std::vector<Range> output) {
+std::list<LineRange> AdjustToHonorMargin(
+    const BufferContentsViewLayout::Input& options,
+    std::list<LineRange> output) {
   std::optional<LineNumber> position_line =
       options.active_position.has_value()
           ? FindPositionInScreen(output, *options.active_position)
@@ -219,8 +222,8 @@ std::vector<Range> AdjustToHonorMargin(
        position_line.has_value() && lines_desired() > LineNumberDelta();
        --line) {
     LineNumberDelta original_length(output.size());
-    std::vector<Range> prefix = ComputePrefixLines(
-        options, line, lines_desired(), output.front().begin());
+    std::list<LineRange> prefix = ComputePrefixLines(
+        options, line, lines_desired(), output.front().value.begin());
     output.insert(output.begin(), prefix.begin(), prefix.end());
     CHECK_GE(LineNumberDelta(output.size()), original_length);
     position_line.value() += LineNumberDelta(output.size()) - original_length;
@@ -229,11 +232,11 @@ std::vector<Range> AdjustToHonorMargin(
   return output;
 }
 
-std::optional<LineNumberDelta> GetCursorIndex(const std::vector<Range>& ranges,
-                                              LineColumn active_position) {
+std::optional<LineNumberDelta> GetCursorIndex(
+    const std::list<LineRange>& ranges, LineColumn active_position) {
   auto view = std::ranges::views::enumerate(ranges) |
               std::views::filter([&](const auto& item) {
-                return std::get<1>(item).Contains(active_position);
+                return std::get<1>(item).value.Contains(active_position);
               });
   if (auto it = view.begin(); it != view.end())
     return LineNumberDelta(std::get<0>(*it));
@@ -264,7 +267,7 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
       std::min(options.lines_shown / 2, options.margin_lines);
 
   DVLOG(4) << "Initial line: " << options.begin.line;
-  std::vector<Range> output_ranges;
+  std::list<LineRange> output_ranges;
   for (LineNumber line = options.begin.line;
        LineNumberDelta(output_ranges.size()) < options.lines_shown &&
        line <= options.contents.EndLine();
@@ -278,7 +281,7 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
     while (LineNumberDelta(output_ranges.size()) < options.lines_shown &&
            !line_breaks.empty()) {
       output_ranges.push_back(
-          GetRange(options.contents, line, line_breaks.front()).value);
+          GetRange(options.contents, line, line_breaks.front()));
       line_breaks.pop_front();
       DVLOG(5) << "Added screen line for line: " << line
                << ", range: " << output_ranges.back();
@@ -323,29 +326,33 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
                           std::max(options.margin_lines, LineNumberDelta(1))) {
     output_ranges.erase(
         output_ranges.begin(),
-        output_ranges.begin() +
+        std::next(
+            output_ranges.begin(),
             std::min(lines_to_drop,
                      LineNumberDelta(1) + cursor_index -
                          (options.lines_shown - options.status_lines -
                           std::max(options.margin_lines, LineNumberDelta(1))))
-                .read());
-    output.view_start =
-        output_ranges.empty() ? options.begin : output_ranges.front().begin();
+                .read()));
+    output.view_start = output_ranges.empty()
+                            ? options.begin
+                            : output_ranges.front().value.begin();
   } else if (LineNumberDelta(output_ranges.size()) <= lines_to_drop) {
     output_ranges.clear();
   } else {
-    output_ranges.resize(output_ranges.size() - lines_to_drop.read());
-    output.view_start =
-        output_ranges.empty() ? options.begin : output_ranges.front().begin();
+    output_ranges.erase(std::prev(output_ranges.end(), lines_to_drop.read()),
+                        output_ranges.end());
+    output.view_start = output_ranges.empty()
+                            ? options.begin
+                            : output_ranges.front().value.begin();
   }
 
   std::map<LineNumber, std::set<ColumnNumber>> cursors;
   for (auto& cursor : options.active_cursors)
     cursors[cursor.line].insert(cursor.column);
   output.lines = container::MaterializeVector(
-      output_ranges | std::views::transform([&](const Range& range) {
+      output_ranges | std::views::transform([&](const LineRange& range) {
         return RangeToLine(range, options.active_position,
-                           GetValueOrDefault(cursors, range.begin().line,
+                           GetValueOrDefault(cursors, range.value.begin().line,
                                              std::set<ColumnNumber>()));
       }));
 
@@ -360,7 +367,7 @@ const bool buffer_contents_view_layout_tests_registration =
             BufferContentsViewLayout::Get(options).lines |
             std::views::transform([](const auto& l) {
               DVLOG(5) << "Range for testing: " << l.range;
-              return l.range;
+              return ValueOrDie(LineRange::New(l.range));
             }));
       };
       auto get_active_cursors = [](BufferContentsViewLayout::Input options) {
@@ -413,8 +420,7 @@ const bool buffer_contents_view_layout_tests_registration =
                             }});
       };
       auto RangeToLineEnd = [](LineColumn p) {
-        return Range(
-            p, LineColumn(p.line, std::numeric_limits<ColumnNumber>::max()));
+        return LineRange(p, std::numeric_limits<ColumnNumberDelta>::max());
       };
 
       return std::vector<tests::Test>(
@@ -484,36 +490,37 @@ const bool buffer_contents_view_layout_tests_registration =
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(7)}));
                     }),
-           new_test(L"TopMarginWithLineWraps",
-                    [&](auto options) {
-                      options.begin = LineColumn(LineNumber(11));
-                      options.columns_shown = ColumnNumberDelta(2);
-                      options.active_position =
-                          LineColumn(LineNumber(2), ColumnNumber(5));
-                      options.margin_lines = LineNumberDelta(4);
-                      auto ranges = get_ranges(options);
-                      // Margins:
-                      CHECK_EQ(ranges[0],
-                               Range::InLine(LineNumber(1), ColumnNumber(4),
-                                             ColumnNumberDelta(2)));
-                      CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn(
-                                              LineNumber(1), ColumnNumber(6))));
-                      CHECK_EQ(ranges[2],
-                               Range::InLine(LineNumber(2), ColumnNumber(0),
-                                             ColumnNumberDelta(2)));
-                      CHECK_EQ(ranges[3],
-                               Range::InLine(LineNumber(2), ColumnNumber(2),
-                                             ColumnNumberDelta(2)));
-                      // Actual cursor:
-                      CHECK_EQ(ranges[4],
-                               Range::InLine(LineNumber(2), ColumnNumber(4),
-                                             ColumnNumberDelta(2)));
-                      // Next line:
-                      CHECK_EQ(ranges[5], RangeToLineEnd(LineColumn(
-                                              LineNumber(2), ColumnNumber(6))));
-                      CHECK(get_active_cursors(options) ==
-                            std::vector<LineNumber>({LineNumber(4)}));
-                    }),
+           new_test(
+               L"TopMarginWithLineWraps",
+               [&](auto options) {
+                 options.begin = LineColumn(LineNumber(11));
+                 options.columns_shown = ColumnNumberDelta(2);
+                 options.active_position =
+                     LineColumn(LineNumber(2), ColumnNumber(5));
+                 options.margin_lines = LineNumberDelta(4);
+                 auto ranges = get_ranges(options);
+                 // Margins:
+                 CHECK_EQ(ranges[0],
+                          LineRange(LineColumn(LineNumber(1), ColumnNumber(4)),
+                                    ColumnNumberDelta(2)));
+                 CHECK_EQ(ranges[1], RangeToLineEnd(LineColumn(
+                                         LineNumber(1), ColumnNumber(6))));
+                 CHECK_EQ(ranges[2],
+                          LineRange(LineColumn(LineNumber(2), ColumnNumber(0)),
+                                    ColumnNumberDelta(2)));
+                 CHECK_EQ(ranges[3],
+                          LineRange(LineColumn(LineNumber(2), ColumnNumber(2)),
+                                    ColumnNumberDelta(2)));
+                 // Actual cursor:
+                 CHECK_EQ(ranges[4],
+                          LineRange(LineColumn(LineNumber(2), ColumnNumber(4)),
+                                    ColumnNumberDelta(2)));
+                 // Next line:
+                 CHECK_EQ(ranges[5], RangeToLineEnd(LineColumn(
+                                         LineNumber(2), ColumnNumber(6))));
+                 CHECK(get_active_cursors(options) ==
+                       std::vector<LineNumber>({LineNumber(4)}));
+               }),
            new_test(L"TopMarginWithLineWrapsForceScrollToTop",
                     [&](auto options) {
                       options.active_position =
@@ -521,9 +528,10 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.margin_lines = LineNumberDelta(20);
                       options.columns_shown = ColumnNumberDelta(2);
                       options.lines_shown = LineNumberDelta(50);
-                      CHECK_EQ(get_ranges(options)[0],
-                               Range::InLine(LineNumber(0), ColumnNumber(0),
-                                             ColumnNumberDelta(2)));
+                      CHECK_EQ(
+                          get_ranges(options)[0],
+                          LineRange(LineColumn(LineNumber(0), ColumnNumber(0)),
+                                    ColumnNumberDelta(2)));
                       CHECK(get_active_cursors(options) ==
                             std::vector<LineNumber>({LineNumber(7)}));
                     }),
@@ -539,11 +547,11 @@ const bool buffer_contents_view_layout_tests_registration =
                  CHECK_EQ(ranges[49], RangeToLineEnd(LineColumn(
                                           LineNumber(16), ColumnNumber(4))));
                  CHECK_EQ(ranges[48],
-                          Range::InLine(LineNumber(16), ColumnNumber(2),
-                                        ColumnNumberDelta(2)));
+                          LineRange(LineColumn(LineNumber(16), ColumnNumber(2)),
+                                    ColumnNumberDelta(2)));
                  CHECK_EQ(ranges[47],
-                          Range::InLine(LineNumber(16), ColumnNumber(0),
-                                        ColumnNumberDelta(2)));
+                          LineRange(LineColumn(LineNumber(16), ColumnNumber(0)),
+                                    ColumnNumberDelta(2)));
                  CHECK_EQ(ranges[46], RangeToLineEnd(LineColumn(
                                           LineNumber(15), ColumnNumber(4))));
                  CHECK(get_active_cursors(options) ==
@@ -634,8 +642,9 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.active_position = options.contents.range().end();
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
-                      CHECK_EQ(output.lines.back().range,
-                               RangeToLineEnd(LineColumn(LineNumber(16))));
+                      CHECK_EQ(
+                          output.lines.back().range,
+                          RangeToLineEnd(LineColumn(LineNumber(16))).value);
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionAtEndDrops",
@@ -645,8 +654,9 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.active_position = options.contents.range().end();
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 9ul);
-                      CHECK_EQ(output.lines.back().range,
-                               RangeToLineEnd(LineColumn(LineNumber(16))));
+                      CHECK_EQ(
+                          output.lines.back().range,
+                          RangeToLineEnd(LineColumn(LineNumber(16))).value);
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionPastEndFits",
@@ -656,8 +666,9 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.active_position = LineColumn(LineNumber(9999));
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
-                      CHECK_EQ(output.lines.back().range,
-                               RangeToLineEnd(LineColumn(LineNumber(16))));
+                      CHECK_EQ(
+                          output.lines.back().range,
+                          RangeToLineEnd(LineColumn(LineNumber(16))).value);
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionPastEndDrops",
@@ -667,8 +678,9 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.active_position = LineColumn(LineNumber(9999));
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 8ul);
-                      CHECK_EQ(output.lines.back().range,
-                               RangeToLineEnd(LineColumn(LineNumber(16))));
+                      CHECK_EQ(
+                          output.lines.back().range,
+                          RangeToLineEnd(LineColumn(LineNumber(16))).value);
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionColumnMaxValue",
@@ -681,7 +693,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 8ul);
                       CHECK_EQ(output.lines.front().range,
-                               RangeToLineEnd(LineColumn(LineNumber(0))));
+                               RangeToLineEnd(LineColumn(LineNumber(0))).value);
                       CHECK(output.lines[0].has_active_cursor);
                     }),
            new_test(L"ViewStartWithPositionAtEnd",
@@ -693,8 +705,9 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.margin_lines = LineNumberDelta(2);
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 2ul);
-                      CHECK_EQ(output.lines.front().range,
-                               RangeToLineEnd(LineColumn(LineNumber(15))));
+                      CHECK_EQ(
+                          output.lines.front().range,
+                          RangeToLineEnd(LineColumn(LineNumber(15))).value);
                       CHECK_EQ(output.view_start, LineColumn(LineNumber(15)));
                     }),
            new_test(L"StatusDownWhenFits",
@@ -718,7 +731,7 @@ const bool buffer_contents_view_layout_tests_registration =
     // TODO: This test fails. Fix the code and make it pass.
 #if 0
                       CHECK_EQ(output.lines.front().range,
-                               Range::InLine(LineNumber(16), ColumnNumber(),
+                               LineRange(LineColumn(LineNumber(16), ColumnNumber()),
                                              ColumnNumberDelta(2)));
                       CHECK_EQ(output.view_start,
                                LineColumn(LineNumber(15), ColumnNumber(4)));
