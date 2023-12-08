@@ -144,6 +144,7 @@ futures::Value<ColorizePromptOptions> AdjustPath(
   return Predict(PredictOptions{.editor_state = editor,
                                 .predictor = FilePredictor,
                                 .input = line,
+                                .input_column = ColumnNumber() + line->size(),
                                 .source_buffers = editor.active_buffers(),
                                 .progress_channel =
                                     std::move(progress_channel).get_unique(),

@@ -1198,6 +1198,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     .editor_state = prompt_state->editor_state(),
                     .predictor = prompt_state->options().predictor,
                     .input = GetPredictInput(buffer),
+                    .input_column = buffer.position().column,
                     .source_buffers = prompt_state->options().source_buffers,
                     .progress_channel =
                         std::move(progress_channel).get_unique(),

@@ -121,6 +121,10 @@ struct PredictOptions {
   // Input for the prediction.
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
 
+  // If the input comes from a prompt, position of the current cursor. This will
+  // be used in the future for predictors that expand only a single token.
+  language::lazy_string::ColumnNumber input_column;
+
   // Given to the predictor (see `PredictorInput::source_buffers`).
   //
   // TODO: Mark the buffers as const. See comments in `PredictorInput`.

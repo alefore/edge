@@ -29,6 +29,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::Append;
+using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -257,6 +258,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                              .editor_state = editor_state,
                              .predictor = variables_predictor,
                              .input = line,
+                             .input_column = ColumnNumber() + line->size(),
                              .source_buffers = editor_state.active_buffers(),
                              .progress_channel =
                                  std::move(progress_channel).get_unique(),

@@ -485,6 +485,7 @@ const bool buffer_tests_registration =
         Predict(PredictOptions{.editor_state = buffer.ptr()->editor(),
                                .predictor = test_predictor,
                                .input = NewLazyString(input),
+                               .input_column = ColumnNumber(input.size()),
                                .source_buffers = {}})
             .Transform([&](std::optional<PredictResults> predict_results) {
               CHECK(!std::exchange(executed, true));
