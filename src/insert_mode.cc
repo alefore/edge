@@ -683,7 +683,7 @@ class InsertMode : public InputReceiver {
                    L"\n\t";
                static constexpr std::wstring stop_characters_default =
                    stop_characters_all_in_paste_mode + L" ";
-               return std::get<wchar_t>(c) &&
+               return std::holds_alternative<wchar_t>(c) &&
                       !(all_in_paste_mode ? stop_characters_all_in_paste_mode
                                           : stop_characters_default)
                            .contains(std::get<wchar_t>(c));
@@ -692,6 +692,9 @@ class InsertMode : public InputReceiver {
                return std::get<wchar_t>(c);
              }))
       consumed_input.push_back(c);
+
+    if (consumed_input.empty())
+      consumed_input.push_back(std::get<wchar_t>(input[start_index]));
 
     // TODO: Apply TransformKeyboardText for buffers with fd?
     ForEachActiveBuffer(
