@@ -130,9 +130,7 @@ struct PredictOptions {
       language::gc::Root<OpenBuffer>>
       input;
 
-  // Given to the predictor (see `PredictorInput::source_buffers`). The caller
-  // must ensure it doesn't get deallocated until the future returned by the
-  // predictor is done running.
+  // Given to the predictor (see `PredictorInput::source_buffers`).
   //
   // TODO: Mark the buffers as const. See comments in `PredictorInput`.
   std::vector<language::gc::Root<OpenBuffer>> source_buffers;
