@@ -99,9 +99,14 @@ void Range::set_end_column(ColumnNumber value) {
   return LineRange(input.begin(), input.end().column - input.begin().column);
 }
 
-LineRange::LineRange(LineColumn begin,
-                     afc::language::lazy_string::ColumnNumberDelta size)
-    : value(Range(begin, LineColumn(begin.line, begin.column + size))) {}
+LineRange::LineRange(LineColumn begin, ColumnNumberDelta size)
+    : value(Range(
+          begin,
+          LineColumn(begin.line,
+                     std::numeric_limits<ColumnNumberDelta>::max() - size <=
+                             begin.column.ToDelta()
+                         ? std::numeric_limits<ColumnNumber>::max()
+                         : begin.column + size))) {}
 
 std::ostream& operator<<(std::ostream& os, const Range& range) {
   os << "[" << range.begin() << ", " << range.end() << ")";
