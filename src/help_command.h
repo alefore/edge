@@ -23,4 +23,4 @@ language::gc::Root<Command> NewHelpCommand(
 
 }  // namespace afc::editor
 
-#endif
+#endif  // __AFC_EDITOR_HELP_COMMAND_H__
