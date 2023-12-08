@@ -137,6 +137,7 @@ class HelpCommand : public Command {
     auto original_buffer = editor_state_.current_buffer();
     const BufferName name(L"- help: " + mode_description_);
 
+    // TODO(easy, 2023-12-08): Use generate_contents for the contents.
     auto buffer_root = OpenBuffer::New({.editor = editor_state_, .name = name});
     OpenBuffer& buffer = buffer_root.ptr().value();
     buffer.Set(buffer_variables::tree_parser, L"md");
