@@ -24,32 +24,43 @@ using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
 namespace afc::editor {
 namespace {
 
-LineSequence ShowMarksForBuffer(BufferName name, const LineMarks& marks) {
+LineSequence ShowMarksForBuffer(const EditorState& editor,
+                                const LineMarks& marks, BufferName name) {
   MutableLineSequence output;
   output.push_back(L"## Target: " + name.read());
   struct MarkView {
     bool expired;
     LineColumn target;
-    NonNull<std::shared_ptr<LazyString>> text;
+    NonNull<std::shared_ptr<const Line>> text;
   };
   std::map<BufferName, std::vector<MarkView>> marks_by_source;
   for (const std::pair<const LineColumn, LineMarks::Mark>& data :
        marks.GetMarksForTargetBuffer(name)) {
+    auto source = editor.buffers()->find(data.second.source_buffer);
     marks_by_source[data.second.source_buffer].push_back(MarkView{
-        .expired = false, .target = data.first, .text = NewLazyString(L"...")});
+        .expired = false,
+        .target = data.first,
+        .text =
+            (source != editor.buffers()->end() &&
+             data.second.source_line <
+                 LineNumber(0) + source->second.ptr()->contents().size())
+                ? source->second.ptr()->contents().at(data.second.source_line)
+                : MakeNonNullShared<const Line>(L"(dead mark)")});
   }
   for (const std::pair<const LineColumn, LineMarks::ExpiredMark>& data :
        marks.GetExpiredMarksForTargetBuffer(name))
     marks_by_source[data.second.source_buffer].push_back(
         MarkView{.expired = true,
                  .target = data.first,
-                 .text = data.second.source_line_content});
+                 .text = MakeNonNullShared<Line>(
+                     LineBuilder(data.second.source_line_content).Build())});
   for (std::pair<const BufferName, std::vector<MarkView>> data :
        std::move(marks_by_source)) {
     output.push_back(L"");
@@ -58,8 +69,9 @@ LineSequence ShowMarksForBuffer(BufferName name, const LineMarks& marks) {
         std::move(data.second) |
         std::views::transform(
             [](MarkView mark) -> NonNull<std::shared_ptr<Line>> {
-              return MakeNonNullShared<Line>(
-                  LineBuilder(Append(NewLazyString(L"* "), mark.text)).Build());
+              LineBuilder line_output(NewLazyString(L"* "));
+              line_output.Append(LineBuilder(std::move(mark.text.value())));
+              return MakeNonNullShared<Line>(std::move(line_output).Build());
             }));
   }
   return output.snapshot();
@@ -76,9 +88,8 @@ futures::Value<PossibleError> GenerateContents(const EditorState& editor,
   const LineMarks& marks = editor.line_marks();
   for (const LineSequence& buffer_data :
        marks.GetMarkTargets() |
-           std::views::transform([&](const BufferName& name) {
-             return ShowMarksForBuffer(name, marks);
-           }))
+           std::views::transform(std::bind_front(
+               ShowMarksForBuffer, std::ref(editor), std::ref(marks))))
     output.insert(output.EndLine(), std::move(buffer_data), std::nullopt);
   buffer.InsertInPosition(output.snapshot(), buffer.contents().range().end(),
                           std::nullopt);
