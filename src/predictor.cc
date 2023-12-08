@@ -125,36 +125,6 @@ ValueOrError<PredictResults> BuildResults(
       .predictor_output = predictor_output};
 }
 
-NonNull<std::shared_ptr<LazyString>> GetPredictInput(
-    const std::variant<NonNull<std::shared_ptr<LazyString>>,
-                       gc::Root<OpenBuffer>>& input) {
-  return std::visit(
-      overload{[](NonNull<std::shared_ptr<LazyString>> text) { return text; },
-               [](const gc::Root<OpenBuffer>& buffer_root) {
-                 OpenBuffer& buffer = buffer_root.ptr().value();
-                 Modifiers modifiers;
-                 modifiers.direction = Direction::kBackwards;
-                 modifiers.structure = Structure::kLine;
-                 auto range =
-                     buffer.FindPartialRange(modifiers, buffer.position());
-                 range.set_end(std::max(range.end(), buffer.position()));
-                 auto line = buffer.LineAt(range.begin().line);
-                 CHECK_LE(range.begin().column, line->EndColumn());
-                 if (range.begin().line == range.end().line) {
-                   CHECK_GE(range.end().column, range.begin().column);
-                   range.set_end_column(
-                       std::min(range.end().column, line->EndColumn()));
-                 } else {
-                   CHECK_GE(line->EndColumn(), range.begin().column);
-                 }
-                 return line->Substring(range.begin().column,
-                                        (range.begin().line == range.end().line
-                                             ? range.end().column
-                                             : line->EndColumn()) -
-                                            range.begin().column);
-               }},
-      input);
-}
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os, const PredictorOutput& lc) {
@@ -188,8 +158,6 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   }
   CHECK(!options.abort_value.has_value());
 
-  NonNull<std::shared_ptr<LazyString>> input = GetPredictInput(options.input);
-
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
@@ -197,24 +165,21 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
 
   PredictorInput predictor_input{
       .editor = options.editor_state,
-      .input = input,
+      .input = options.input,
       .predictions = predictions_buffer.ptr().value(),
       .source_buffers = options.source_buffers,
       .progress_channel = *options.progress_channel,
       .abort_value = options.abort_value};
   return options.predictor(std::move(predictor_input))
-      .Transform([abort_value = options.abort_value, input,
+      .Transform([abort_value = options.abort_value,
                   progress_channel = std::move(options.progress_channel),
-                  options_input = options.input,
                   predictions_buffer](PredictorOutput predictor_output) mutable
                  -> ValueOrError<PredictResults> {
         predictions_buffer.ptr()->set_current_cursor(LineColumn());
         DECLARE_OR_RETURN(auto results,
                           BuildResults(predictions_buffer.ptr().value(),
                                        predictor_output, abort_value));
-        if (GetPredictInput(options_input).value() != input.value() ||
-            abort_value.has_value())
-          return Error(L"Aborted");
+        if (abort_value.has_value()) return Error(L"Aborted");
         return results;
       })
       .Transform(

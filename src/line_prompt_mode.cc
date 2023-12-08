@@ -81,9 +81,31 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
+using afc::language::text::Range;
 
 namespace afc::editor {
 namespace {
+NonNull<std::shared_ptr<LazyString>> GetPredictInput(const OpenBuffer& buffer) {
+  Range range =
+      buffer.FindPartialRange(Modifiers{.structure = Structure::kLine,
+                                        .direction = Direction::kBackwards},
+                              buffer.position());
+  range.set_end(std::max(range.end(), buffer.position()));
+  auto line = buffer.LineAt(range.begin().line);
+  CHECK_LE(range.begin().column, line->EndColumn());
+  if (range.begin().line == range.end().line) {
+    CHECK_GE(range.end().column, range.begin().column);
+    range.set_end_column(std::min(range.end().column, line->EndColumn()));
+  } else {
+    CHECK_GE(line->EndColumn(), range.begin().column);
+  }
+  return line->Substring(
+      range.begin().column,
+      (range.begin().line == range.end().line ? range.end().column
+                                              : line->EndColumn()) -
+          range.begin().column);
+}
+
 std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
 GetCurrentFeatures(EditorState& editor) {
   std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
@@ -843,10 +865,6 @@ class StatusVersionAdapter {
 };
 
 futures::Value<EmptyValue> PromptState::OnModify() {
-  if (options().colorize_options_provider == nullptr ||
-      status().GetType() != Status::Type::kPrompt)
-    return futures::Past(EmptyValue());
-
   NonNull<std::shared_ptr<const Line>> line =
       prompt_buffer_.ptr()->contents().at(LineNumber());
 
@@ -855,6 +873,10 @@ futures::Value<EmptyValue> PromptState::OnModify() {
 
   abort_notification_ = MakeNonNullShared<DeleteNotification>();
   auto abort_notification_value = abort_notification_->listenable_value();
+
+  if (options().colorize_options_provider == nullptr ||
+      status().GetType() != Status::Type::kPrompt)
+    return futures::Past(EmptyValue());
 
   NonNull<std::unique_ptr<ProgressChannel>> progress_channel =
       MakeNonNullUnique<ChannelAll<ProgressInformation>>(
@@ -1161,10 +1183,14 @@ InsertModeOptions PromptState::insert_mode_options() {
                 buffer.CurrentLine()->contents();
             LOG(INFO) << "Triggering predictions from: " << input.value();
             CHECK(prompt_state->status().prompt_extra_information() != nullptr);
-            Predict({.editor_state = prompt_state->editor_state(),
-                     .predictor = prompt_state->options().predictor,
-                     .input = buffer.NewRoot(),
-                     .source_buffers = prompt_state->options().source_buffers})
+            Predict(
+                PredictOptions{
+                    .editor_state = prompt_state->editor_state(),
+                    .predictor = prompt_state->options().predictor,
+                    .input = GetPredictInput(buffer),
+                    .source_buffers = prompt_state->options().source_buffers,
+                    .abort_value =
+                        prompt_state->abort_notification_->listenable_value()})
                 .Transform([prompt_state,
                             input](std::optional<PredictResults> results) {
                   if (!results.has_value()) return EmptyValue();
