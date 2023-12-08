@@ -62,7 +62,6 @@ struct Range {
 };
 
 std::ostream& operator<<(std::ostream& os, const Range& range);
-
 bool operator<(const Range& a, const Range& b);
 
 // Wrapper around `Range` that guarantees that the range is entirely in a single
@@ -77,6 +76,9 @@ struct LineRange {
   const Range value;
 };
 
+std::ostream& operator<<(std::ostream& os, const LineRange& range);
+bool operator<(const LineRange& a, const LineRange& b);
+bool operator==(const LineRange& a, const LineRange& b);
 }  // namespace afc::language::text
 namespace std {
 template <>

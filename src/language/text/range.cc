@@ -116,4 +116,18 @@ std::ostream& operator<<(std::ostream& os, const Range& range) {
 bool operator<(const Range& a, const Range& b) {
   return a.begin() < b.begin() || (a.begin() == b.begin() && a.end() < b.end());
 }
+
+std::ostream& operator<<(std::ostream& os, const LineRange& range) {
+  os << "lr:" << range.value;
+  return os;
+}
+
+bool operator<(const LineRange& a, const LineRange& b) {
+  return a.value < b.value;
+}
+
+bool operator==(const LineRange& a, const LineRange& b) {
+  return a.value == b.value;
+}
+
 }  // namespace afc::language::text
