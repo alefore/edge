@@ -8,6 +8,7 @@
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/range.h"
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::language::text {

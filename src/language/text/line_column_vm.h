@@ -8,6 +8,7 @@
 
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/range.h"  // TODO(2023-12-08, P1): Remove.
 #include "src/vm/callbacks.h"
 #include "src/vm/container.h"
 

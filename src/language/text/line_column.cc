@@ -7,6 +7,7 @@
 
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/text/range.h"  // TODO(2023-12-08, P1): Remove.
 #include "src/language/wstring.h"
 #include "src/vm/environment.h"
 
