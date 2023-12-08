@@ -237,13 +237,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                   .initial_column =
                       screen_line_inner.range.value.begin().column,
                   .width = size_columns,
-                  .input_width =
-                      // TODO(2023-12-08, trivial): This can be simplified!
-                  screen_line_inner.range.value.begin().line ==
-                          screen_line_inner.range.value.end().line
-                      ? screen_line_inner.range.value.end().column -
-                            screen_line_inner.range.value.begin().column
-                      : std::numeric_limits<ColumnNumberDelta>::max()};
+                  .input_width = screen_line_inner.range.value.end().column -
+                                 screen_line_inner.range.value.begin().column};
               if (!atomic_lines) {
                 options.inactive_cursor_columns =
                     screen_line_inner.current_cursors;
