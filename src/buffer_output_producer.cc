@@ -105,45 +105,41 @@ LineWithCursor::Generator ParseTreeHighlighter(
 // If range.begin().column is non-zero, the columns in the output will have
 // already subtracted it. In other words, the columns in the output are
 // relative to range.begin().column, rather than absolute.
-//
-// Only modifiers in the line range.begin().line will ever be outputed. Most of
-// the time, range.end is either in the same line or at the beginning of the
-// next, and this restriction won't apply.
 void GetSyntaxModifiersForLine(
-    Range range, const ParseTree& tree, LineModifierSet syntax_modifiers,
+    LineRange range, const ParseTree& tree, LineModifierSet syntax_modifiers,
     std::map<ColumnNumber, LineModifierSet>& output) {
   VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
-  if (range.Intersection(tree.range()).IsEmpty()) return;
+  if (range.value.Intersection(tree.range()).IsEmpty()) return;
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
-    if (tree_position.line != range.begin().line) return;
+    if (tree_position.line != range.line()) return;
     auto column = tree_position.column.MinusHandlingOverflow(
-        range.begin().column.ToDelta());
+        range.value.begin().column.ToDelta());
     output[column] = syntax_modifiers;
   };
 
   PushCurrentModifiers(tree.range().end());
   syntax_modifiers.insert(tree.modifiers().begin(), tree.modifiers().end());
-  PushCurrentModifiers(std::max(range.begin(), tree.range().begin()));
+  PushCurrentModifiers(std::max(range.value.begin(), tree.range().begin()));
 
   const auto& children = tree.children();
   auto it = std::upper_bound(
-      children.begin(), children.end(), range.begin(),
+      children.begin(), children.end(), range.value.begin(),
       [](const LineColumn& position, const ParseTree& candidate) {
         return position < candidate.range().end();
       });
 
-  while (it != children.end() && (*it).range().begin() <= range.end()) {
+  while (it != children.end() && (*it).range().begin() <= range.value.end()) {
     GetSyntaxModifiersForLine(range, *it, syntax_modifiers, output);
     ++it;
   }
 }
 
 LineWithCursor::Generator ParseTreeHighlighterTokens(
-    NonNull<std::shared_ptr<const ParseTree>> root, Range range,
+    NonNull<std::shared_ptr<const ParseTree>> root, LineRange range,
     LineWithCursor::Generator generator) {
   generator.inputs_hash =
       hash_combine(hash_combine(generator.inputs_hash.value(), root->hash()),
-                   std::hash<Range>{}(range));
+                   std::hash<LineRange>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
     LineWithCursor input = generator.generate();
     LineBuilder options(input.line.value());
@@ -305,8 +301,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
               : line_contents->EndColumn();
       generator = ParseTreeHighlighter(begin, end, std::move(generator));
     } else if (!buffer.parse_tree()->children().empty()) {
-      // TODO(trivial, 2023-12-08): Stay with LineRange.
-      generator = ParseTreeHighlighterTokens(root, screen_line.range.value,
+      generator = ParseTreeHighlighterTokens(root, screen_line.range,
                                              std::move(generator));
     }
 
