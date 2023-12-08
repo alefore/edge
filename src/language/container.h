@@ -105,6 +105,11 @@ auto MaterializeSet(auto&& view) {
       std::move(view));
 }
 
+auto MaterializeList(auto&& view) {
+  return Materialize<std::list<std::decay_t<decltype(*view.begin())>>>(
+      std::move(view));
+}
+
 template <typename Container, typename Callable, typename Value>
 Value Fold(Callable aggregate, Value identity, Container&& container) {
   Value output = std::move(identity);
