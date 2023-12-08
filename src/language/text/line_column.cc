@@ -93,7 +93,6 @@ std::wstring LineColumn::Serialize() const {
   return L"LineColumn(" + to_wstring(line) + L", " + to_wstring(column) + L")";
 }
 
-// TODO(easy?, 2023-09-18): Assert that input_begin <= input_end?
 Range::Range(LineColumn input_begin, LineColumn input_end)
     : begin_(input_begin), end_(input_end) {
   CHECK_LE(begin_, end_);
