@@ -30,6 +30,7 @@ using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineRange;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
 
@@ -124,14 +125,13 @@ const bool find_position_in_screen_tests_registration = tests::Register(
                  LineNumber(1));
       }}});
 
-Range GetRange(const LineSequence& contents, LineNumber line,
-               ColumnRange column_range) {
+LineRange GetRange(const LineSequence& contents, LineNumber line,
+                   ColumnRange column_range) {
   CHECK_LE(line, contents.EndLine());
-  return Range(
-      LineColumn(line, column_range.begin),
-      LineColumn(line, column_range.end < contents.at(line)->EndColumn()
-                           ? column_range.end
-                           : std::numeric_limits<ColumnNumber>::max()));
+  return LineRange(LineColumn(line, column_range.begin),
+                   column_range.end < contents.at(line)->EndColumn()
+                       ? column_range.end - column_range.begin
+                       : std::numeric_limits<ColumnNumberDelta>::max());
 }
 
 BufferContentsViewLayout::Line RangeToLine(
@@ -158,7 +158,8 @@ const bool get_screen_line_tests_registration = tests::Register(
           [] {
             BufferContentsViewLayout::Line output = RangeToLine(
                 GetRange(LineSequence::ForTests({L"foo"}), LineNumber(0),
-                         ColumnRange{ColumnNumber(0), ColumnNumber(3)}),
+                         ColumnRange{ColumnNumber(0), ColumnNumber(3)})
+                    .value,
                 std::nullopt, {});
             CHECK_EQ(output.range.end(),
                      LineColumn(LineNumber(0),
@@ -169,7 +170,8 @@ const bool get_screen_line_tests_registration = tests::Register(
             LineColumn(LineNumber(), std::numeric_limits<ColumnNumber>::max());
         BufferContentsViewLayout::Line output = RangeToLine(
             GetRange(LineSequence::ForTests({L"Foo"}), LineNumber(0),
-                     ColumnRange{ColumnNumber(0), ColumnNumber(3)}),
+                     ColumnRange{ColumnNumber(0), ColumnNumber(3)})
+                .value,
             position, std::set<ColumnNumber>{position.column});
         CHECK(output.has_active_cursor);
         CHECK(output.current_cursors.contains(position.column));
@@ -192,7 +194,7 @@ std::vector<Range> ComputePrefixLines(
                            ? line_breaks.size() - lines_desired.read()
                            : 0) |
       std::views::transform([&](const ColumnRange& column_range) {
-        return GetRange(options.contents, line, column_range);
+        return GetRange(options.contents, line, column_range).value;
       }));
 }
 
@@ -276,7 +278,7 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
     while (LineNumberDelta(output_ranges.size()) < options.lines_shown &&
            !line_breaks.empty()) {
       output_ranges.push_back(
-          GetRange(options.contents, line, line_breaks.front()));
+          GetRange(options.contents, line, line_breaks.front()).value);
       line_breaks.pop_front();
       DVLOG(5) << "Added screen line for line: " << line
                << ", range: " << output_ranges.back();
