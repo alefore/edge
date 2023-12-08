@@ -70,8 +70,11 @@ bool operator<(const Range& a, const Range& b);
 // This can be used by preconditions/postconditions.
 struct LineRange {
   static language::ValueOrError<LineRange> New(Range input);
+
   LineRange(LineColumn start,
             afc::language::lazy_string::ColumnNumberDelta size);
+
+  LineNumber line() const;
 
   const Range value;
 };
@@ -85,6 +88,13 @@ template <>
 struct hash<afc::language::text::Range> {
   std::size_t operator()(const afc::language::text::Range& range) const {
     return afc::language::compute_hash(range.begin(), range.end());
+  }
+};
+
+template <>
+struct hash<afc::language::text::LineRange> {
+  std::size_t operator()(const afc::language::text::LineRange& range) const {
+    return afc::language::compute_hash(459076ul, range.value);
   }
 };
 }  // namespace std

@@ -53,7 +53,7 @@ struct BufferContentsViewLayout {
   static BufferContentsViewLayout Get(Input input);
 
   struct Line {
-    language::text::Range range;
+    language::text::LineRange range;
     bool has_active_cursor;
     // Returns the set of cursors that fall in the current range.
     //

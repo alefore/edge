@@ -20,33 +20,35 @@
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::infrastructure::screen::VisualOverlay;
+using afc::infrastructure::screen::VisualOverlayKey;
+using afc::infrastructure::screen::VisualOverlayMap;
+using afc::infrastructure::screen::VisualOverlayPriority;
+using afc::language::compute_hash;
+using afc::language::hash_combine;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeWithHash;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::VisitPointer;
+using afc::language::WithHash;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineRange;
+using afc::language::text::Range;
+
 namespace afc::editor {
 namespace {
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using infrastructure::screen::VisualOverlay;
-using infrastructure::screen::VisualOverlayKey;
-using infrastructure::screen::VisualOverlayMap;
-using infrastructure::screen::VisualOverlayPriority;
-using language::compute_hash;
-using language::hash_combine;
-using language::MakeNonNullShared;
-using language::MakeWithHash;
-using language::NonNull;
-using language::overload;
-using language::VisitPointer;
-using language::WithHash;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::Range;
 
 LineWithCursor::Generator ApplyVisualOverlay(
     VisualOverlayMap overlays, LineWithCursor::Generator generator) {
@@ -211,7 +213,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
       .lines = {}, .width = output_producer_options.size.column};
 
   for (BufferContentsViewLayout::Line screen_line : lines) {
-    auto line = screen_line.range.begin().line;
+    auto line = screen_line.range.line();
 
     if (line > buffer.EndLine()) {
       output.lines.push_back(LineWithCursor::Generator::Empty());
@@ -232,18 +234,20 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                EditorMode::CursorMode cursor_mode) {
               LineWithCursor::ViewOptions options{
                   .line = *line_contents_with_hash.value,
-                  .initial_column = screen_line_inner.range.begin().column,
+                  .initial_column =
+                      screen_line_inner.range.value.begin().column,
                   .width = size_columns,
                   .input_width =
-                      screen_line_inner.range.begin().line ==
-                              screen_line_inner.range.end().line
-                          ? screen_line_inner.range.end().column -
-                                screen_line_inner.range.begin().column
-                          : std::numeric_limits<ColumnNumberDelta>::max()};
+                      // TODO(2023-12-08, trivial): This can be simplified!
+                  screen_line_inner.range.value.begin().line ==
+                          screen_line_inner.range.value.end().line
+                      ? screen_line_inner.range.value.end().column -
+                            screen_line_inner.range.value.begin().column
+                      : std::numeric_limits<ColumnNumberDelta>::max()};
               if (!atomic_lines) {
                 options.inactive_cursor_columns =
                     screen_line_inner.current_cursors;
-                if (position.line == screen_line_inner.range.begin().line &&
+                if (position.line == screen_line_inner.range.line() &&
                     options.inactive_cursor_columns.erase(position.column)) {
                   options.active_cursor_column = position.column;
                 }
@@ -294,19 +298,20 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                 .cursor_mode()));
 
     if (&current_tree != root.get().get() &&
-        screen_line.range.begin().line >= current_tree.range().begin().line &&
-        screen_line.range.begin().line <= current_tree.range().end().line) {
+        screen_line.range.line() >= current_tree.range().begin().line &&
+        screen_line.range.line() <= current_tree.range().end().line) {
       ColumnNumber begin =
-          screen_line.range.begin().line == current_tree.range().begin().line
+          screen_line.range.line() == current_tree.range().begin().line
               ? current_tree.range().begin().column
               : ColumnNumber(0);
       ColumnNumber end =
-          screen_line.range.begin().line == current_tree.range().end().line
+          screen_line.range.line() == current_tree.range().end().line
               ? current_tree.range().end().column
               : line_contents->EndColumn();
       generator = ParseTreeHighlighter(begin, end, std::move(generator));
     } else if (!buffer.parse_tree()->children().empty()) {
-      generator = ParseTreeHighlighterTokens(root, screen_line.range,
+      // TODO(trivial, 2023-12-08): Stay with LineRange.
+      generator = ParseTreeHighlighterTokens(root, screen_line.range.value,
                                              std::move(generator));
     }
 
@@ -315,8 +320,9 @@ LineWithCursor::Generator::Vector ProduceBufferView(
       generator = LineHighlighter(std::move(generator));
     }
 
-    if (VisualOverlayMap overlays =
-            FilterOverlays(buffer.visual_overlay_map(), screen_line.range);
+    // TODO(2023-12-08, trivial): Stay with LineRange.
+    if (VisualOverlayMap overlays = FilterOverlays(buffer.visual_overlay_map(),
+                                                   screen_line.range.value);
         !overlays.empty())
       generator = ApplyVisualOverlay(std::move(overlays), std::move(generator));
 
@@ -334,7 +340,8 @@ const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
          auto buffer = NewBufferForTests(editor.value());
          std::vector<BufferContentsViewLayout::Line> screen_lines;
          screen_lines.push_back(
-             {.range = Range(LineColumn(), LineColumn(LineNumber(1))),
+             {.range = LineRange(LineColumn(),
+                                 std::numeric_limits<ColumnNumberDelta>::max()),
               .has_active_cursor = false,
               .current_cursors = {}});
          auto lines = ProduceBufferView(

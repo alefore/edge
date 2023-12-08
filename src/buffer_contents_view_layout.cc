@@ -147,7 +147,7 @@ BufferContentsViewLayout::Line RangeToLine(
   };
 
   return BufferContentsViewLayout::Line{
-      .range = range.value,
+      .range = range,
       .has_active_cursor = active_position.has_value() &&
                            line == active_position->line &&
                            contains_cursor(active_position->column),
@@ -164,7 +164,7 @@ const bool get_screen_line_tests_registration = tests::Register(
                 GetRange(LineSequence::ForTests({L"foo"}), LineNumber(0),
                          ColumnRange{ColumnNumber(0), ColumnNumber(3)}),
                 std::nullopt, {});
-            CHECK_EQ(output.range.end(),
+            CHECK_EQ(output.range.value.end(),
                      LineColumn(LineNumber(0),
                                 std::numeric_limits<ColumnNumber>::max()));
           }},
@@ -367,7 +367,7 @@ const bool buffer_contents_view_layout_tests_registration =
             BufferContentsViewLayout::Get(options).lines |
             std::views::transform([](const auto& l) {
               DVLOG(5) << "Range for testing: " << l.range;
-              return ValueOrDie(LineRange::New(l.range));
+              return l.range;
             }));
       };
       auto get_active_cursors = [](BufferContentsViewLayout::Input options) {
@@ -642,9 +642,8 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.active_position = options.contents.range().end();
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
-                      CHECK_EQ(
-                          output.lines.back().range,
-                          RangeToLineEnd(LineColumn(LineNumber(16))).value);
+                      CHECK_EQ(output.lines.back().range,
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionAtEndDrops",
@@ -654,9 +653,8 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.active_position = options.contents.range().end();
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 9ul);
-                      CHECK_EQ(
-                          output.lines.back().range,
-                          RangeToLineEnd(LineColumn(LineNumber(16))).value);
+                      CHECK_EQ(output.lines.back().range,
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionPastEndFits",
@@ -666,9 +664,8 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.active_position = LineColumn(LineNumber(9999));
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 10ul);
-                      CHECK_EQ(
-                          output.lines.back().range,
-                          RangeToLineEnd(LineColumn(LineNumber(16))).value);
+                      CHECK_EQ(output.lines.back().range,
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionPastEndDrops",
@@ -678,9 +675,8 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.active_position = LineColumn(LineNumber(9999));
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 8ul);
-                      CHECK_EQ(
-                          output.lines.back().range,
-                          RangeToLineEnd(LineColumn(LineNumber(16))).value);
+                      CHECK_EQ(output.lines.back().range,
+                               RangeToLineEnd(LineColumn(LineNumber(16))));
                       CHECK(output.lines.back().has_active_cursor);
                     }),
            new_test(L"CursorWhenPositionColumnMaxValue",
@@ -693,7 +689,7 @@ const bool buffer_contents_view_layout_tests_registration =
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 8ul);
                       CHECK_EQ(output.lines.front().range,
-                               RangeToLineEnd(LineColumn(LineNumber(0))).value);
+                               RangeToLineEnd(LineColumn(LineNumber(0))));
                       CHECK(output.lines[0].has_active_cursor);
                     }),
            new_test(L"ViewStartWithPositionAtEnd",
@@ -705,9 +701,8 @@ const bool buffer_contents_view_layout_tests_registration =
                       options.margin_lines = LineNumberDelta(2);
                       auto output = BufferContentsViewLayout::Get(options);
                       CHECK_EQ(output.lines.size(), 2ul);
-                      CHECK_EQ(
-                          output.lines.front().range,
-                          RangeToLineEnd(LineColumn(LineNumber(15))).value);
+                      CHECK_EQ(output.lines.front().range,
+                               RangeToLineEnd(LineColumn(LineNumber(15))));
                       CHECK_EQ(output.view_start, LineColumn(LineNumber(15)));
                     }),
            new_test(L"StatusDownWhenFits",

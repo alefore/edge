@@ -35,6 +35,7 @@ using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineNumberDelta;
+using language::text::LineRange;
 using language::text::Range;
 
 /* static */ ColumnNumberDelta LineNumberOutputWidth(
@@ -65,16 +66,16 @@ LineWithCursor::Generator::Vector LineNumberOutput(
                         ColumnNumberDelta(buffer.editor().Read(
                             editor_variables::numbers_column_padding)))};
   for (const BufferContentsViewLayout::Line& screen_line : screen_lines) {
-    if (screen_line.range.begin().line > buffer.EndLine()) {
+    if (screen_line.range.line() > buffer.EndLine()) {
       return output;  // The buffer is smaller than the screen.
     }
 
     output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
-        [](Range range, ColumnNumberDelta width,
+        [](LineRange range, ColumnNumberDelta width,
            HashableContainer<LineModifierSet> modifiers) {
           std::wstring number =
-              range.begin().column.IsZero()
-                  ? to_wstring(range.begin().line + LineNumberDelta(1))
+              range.value.begin().column.IsZero()
+                  ? to_wstring(range.line() + LineNumberDelta(1))
                   : L"↪";
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
           language::NonNull<std::shared_ptr<LazyString>> padding =

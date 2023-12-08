@@ -108,6 +108,8 @@ LineRange::LineRange(LineColumn begin, ColumnNumberDelta size)
                          ? std::numeric_limits<ColumnNumber>::max()
                          : begin.column + size))) {}
 
+LineNumber LineRange::line() const { return value.begin().line; }
+
 std::ostream& operator<<(std::ostream& os, const Range& range) {
   os << "[" << range.begin() << ", " << range.end() << ")";
   return os;

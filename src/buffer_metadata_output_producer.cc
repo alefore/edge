@@ -164,7 +164,7 @@ LineWithCursor::Generator NewGenerator(std::wstring input_prefix,
 
 LineNumber initial_line(const BufferMetadataOutputOptions& options) {
   CHECK(!options.screen_lines.empty());
-  return options.screen_lines.front().range.begin().line;
+  return options.screen_lines.front().range.line();
 }
 
 // Assume that the screen is currently showing the screen_position lines out
@@ -197,9 +197,10 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
     return LineBuilder{};
   }
   CHECK_GE(line, initial_line(options));
-  auto range = MapScreenLineToContentsRange(
+  // TODO(2023-12-08, trivial): Switch to LineRange.
+  Range range = MapScreenLineToContentsRange(
       Range(LineColumn(LineNumber(initial_line(options))),
-            options.screen_lines.back().range.begin()),
+            options.screen_lines.back().range.value.begin()),
       line, options.buffer.lines_size());
   int count = 0;
   auto cursors_end = cursors.lower_bound(range.end());
@@ -807,7 +808,8 @@ ColumnsVector::Column BufferMetadataOutput(
   std::vector<std::list<MetadataLine>> metadata_by_line(
       options.screen_lines.size());
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
-    if (Range range = options.screen_lines[i.ToDelta().read()].range;
+    // TODO(2023-12-08, trivial): Stay with LineRange.
+    if (Range range = options.screen_lines[i.ToDelta().read()].range.value;
         range.begin().line < LineNumber(0) + options.buffer.lines_size()) {
       metadata_by_line[i.read()] = Prepare(options, range);
     }
