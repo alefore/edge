@@ -64,6 +64,19 @@ struct Range {
 std::ostream& operator<<(std::ostream& os, const Range& range);
 
 bool operator<(const Range& a, const Range& b);
+
+// Wrapper around `Range` that guarantees that the range is entirely in a single
+// line (i.e., value.begin().line == value.end().line).
+//
+// This can be used by preconditions/postconditions.
+struct LineRange {
+  static language::ValueOrError<LineRange> New(Range input);
+  LineRange(LineColumn start,
+            afc::language::lazy_string::ColumnNumberDelta size);
+
+  const Range value;
+};
+
 }  // namespace afc::language::text
 namespace std {
 template <>

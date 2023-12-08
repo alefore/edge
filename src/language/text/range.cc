@@ -92,6 +92,17 @@ void Range::set_end_column(ColumnNumber value) {
   CHECK_LE(begin_, end_);
 }
 
+/* static */ language::ValueOrError<LineRange> LineRange::New(Range input) {
+  if (input.begin().line != input.end().line)
+    return Error(L"Range spans multiple lines.");
+  CHECK_GT(input.end().column, input.begin().column);
+  return LineRange(input.begin(), input.end().column - input.begin().column);
+}
+
+LineRange::LineRange(LineColumn begin,
+                     afc::language::lazy_string::ColumnNumberDelta size)
+    : value(Range(begin, LineColumn(begin.line, begin.column + size))) {}
+
 std::ostream& operator<<(std::ostream& os, const Range& range) {
   os << "[" << range.begin() << ", " << range.end() << ")";
   return os;
