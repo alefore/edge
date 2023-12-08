@@ -297,7 +297,10 @@ wint_t LineSequence::character_at(const LineColumn& position) const {
 
 LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(size(), LineNumberDelta(0));
-  position.line = std::min(position.line, EndLine());
+  if (position.line > EndLine()) {
+    position.line = EndLine();
+    position.column = std::numeric_limits<ColumnNumber>::max();
+  }
   position.column = std::min(at(position.line)->EndColumn(), position.column);
   return position;
 }
