@@ -734,6 +734,9 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     editor_state().set_modifiers(original_modifiers_);
   }
 
+  NonNull<std::unique_ptr<ProgressChannel>> NewProgressChannel(
+      NonNull<std::shared_ptr<StatusVersionAdapter>> status_value_viewer);
+
   gc::Root<OpenBuffer> GetPromptBuffer() const {
     BufferName name(L"- prompt");
     if (auto it = options_.editor_state.buffers()->find(name);
@@ -864,6 +867,21 @@ class StatusVersionAdapter {
       status_version_;
 };
 
+NonNull<std::unique_ptr<ProgressChannel>> PromptState::NewProgressChannel(
+    NonNull<std::shared_ptr<StatusVersionAdapter>> status_value_viewer) {
+  return MakeNonNullUnique<ChannelAll<ProgressInformation>>(
+      [work_queue = prompt_buffer_.ptr()->work_queue(),
+       status_value_viewer](ProgressInformation extra_information) {
+        work_queue->Schedule({.callback = [status_value_viewer,
+                                           extra_information] {
+          if (!status_value_viewer->Expired()) {
+            status_value_viewer->SetStatusValues(extra_information.values);
+            status_value_viewer->SetStatusValues(extra_information.counters);
+          }
+        }});
+      });
+}
+
 futures::Value<EmptyValue> PromptState::OnModify() {
   NonNull<std::shared_ptr<const Line>> line =
       prompt_buffer_.ptr()->contents().at(LineNumber());
@@ -877,20 +895,6 @@ futures::Value<EmptyValue> PromptState::OnModify() {
   if (options().colorize_options_provider == nullptr ||
       status().GetType() != Status::Type::kPrompt)
     return futures::Past(EmptyValue());
-
-  NonNull<std::unique_ptr<ProgressChannel>> progress_channel =
-      MakeNonNullUnique<ChannelAll<ProgressInformation>>(
-          [work_queue = prompt_buffer_.ptr()->work_queue(),
-           status_value_viewer](ProgressInformation extra_information) {
-            work_queue->Schedule({.callback = [status_value_viewer,
-                                               extra_information] {
-              if (!status_value_viewer->Expired()) {
-                status_value_viewer->SetStatusValues(extra_information.values);
-                status_value_viewer->SetStatusValues(
-                    extra_information.counters);
-              }
-            }});
-          });
 
   return JoinValues(
              FilterHistory(editor_state(), history(), abort_notification_value,
@@ -911,9 +915,9 @@ futures::Value<EmptyValue> PromptState::OnModify() {
                    return EmptyValue();
                  }),
              options()
-                 .colorize_options_provider(line->contents(),
-                                            std::move(progress_channel),
-                                            abort_notification_value)
+                 .colorize_options_provider(
+                     line->contents(), NewProgressChannel(status_value_viewer),
+                     abort_notification_value)
                  .Transform([shared_this = shared_from_this(),
                              abort_notification_value, line](
                                 ColorizePromptOptions colorize_prompt_options) {
@@ -1183,23 +1187,37 @@ InsertModeOptions PromptState::insert_mode_options() {
                 buffer.CurrentLine()->contents();
             LOG(INFO) << "Triggering predictions from: " << input.value();
             CHECK(prompt_state->status().prompt_extra_information() != nullptr);
+            auto status_version_value =
+                MakeNonNullShared<StatusVersionAdapter>(prompt_state);
+            NonNull<std::unique_ptr<ProgressChannel>> progress_channel =
+                prompt_state->NewProgressChannel(status_version_value);
+            progress_channel->Push(ProgressInformation{
+                .values = {{VersionPropertyKey(L"🔮"), L"…"}}});
             Predict(
                 PredictOptions{
                     .editor_state = prompt_state->editor_state(),
                     .predictor = prompt_state->options().predictor,
                     .input = GetPredictInput(buffer),
                     .source_buffers = prompt_state->options().source_buffers,
+                    .progress_channel =
+                        std::move(progress_channel).get_unique(),
                     .abort_value =
                         prompt_state->abort_notification_->listenable_value()})
-                .Transform([prompt_state,
+                .Transform([prompt_state, status_version_value,
                             input](std::optional<PredictResults> results) {
-                  if (!results.has_value()) return EmptyValue();
+                  if (!results.has_value()) {
+                    status_version_value->SetStatusValue(
+                        VersionPropertyKey(L"🔮"), L"empty");
+                    return EmptyValue();
+                  }
                   if (results.value().common_prefix.has_value() &&
                       !results.value().common_prefix.value().empty() &&
                       input->ToString() !=
                           results.value().common_prefix.value()) {
                     LOG(INFO) << "Prediction advanced from " << input.value()
                               << " to " << results.value();
+                    status_version_value->SetStatusValue(
+                        VersionPropertyKey(L"🔮"), L"advanced");
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Delete{
@@ -1224,6 +1242,8 @@ InsertModeOptions PromptState::insert_mode_options() {
                     return EmptyValue();
                   }
                   LOG(INFO) << "Prediction didn't advance.";
+                  status_version_value->SetStatusValue(
+                      VersionPropertyKey(L"🔮"), L"stuck");
                   auto buffers = prompt_state->editor_state().buffers();
                   auto name = PredictionsBufferName();
                   if (auto it = buffers->find(name); it != buffers->end()) {
