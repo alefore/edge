@@ -196,6 +196,7 @@ src/language/text/line_sequence_functional.h \
 src/language/text/mutable_line_sequence.cc \
 src/language/text/mutable_line_sequence.h \
 src/language/text/mutable_line_sequence_observer.h \
+src/language/text/range.cc \
 src/language/text/range.h \
 src/language/text/sorted_line_sequence.cc \
 src/language/text/sorted_line_sequence.h \

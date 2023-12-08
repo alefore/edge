@@ -8,9 +8,8 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/hash.h"
-#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
-#include "src/tests/fuzz.h"
+#include "src/language/text/line_column.h"
 
 namespace afc::language::text {
 // A range that contains every position i such that begin <= i < end.
