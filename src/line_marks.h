@@ -64,6 +64,8 @@ struct LineMarks {
   const std::multimap<language::text::LineColumn, ExpiredMark>&
   GetExpiredMarksForTargetBuffer(const BufferName& target_buffer) const;
 
+  std::set<BufferName> GetMarkTargets() const;
+
  private:
   struct MarksMaps {
     std::multimap<language::text::LineColumn, Mark> marks;

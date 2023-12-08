@@ -32,6 +32,7 @@
 #include "src/language/overload.h"
 #include "src/language/text/line_column.h"
 #include "src/language/wstring.h"
+#include "src/line_marks_buffer.h"
 #include "src/line_prompt_mode.h"
 #include "src/map_mode.h"
 #include "src/navigate_command.h"
@@ -606,6 +607,9 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           .ptr());
 
   commands.Add(VectorExtendedChar(L"af"), NewForkCommand(editor_state).ptr());
+
+  commands.Add(VectorExtendedChar(L"am"),
+               NewLineMarksBufferCommand(editor_state).ptr());
 
   commands.Add(VectorExtendedChar(L"N"),
                NewNavigationBufferCommand(editor_state).ptr());

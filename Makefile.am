@@ -208,6 +208,8 @@ src/line_with_cursor.cc \
 src/line_with_cursor.h \
 src/line_marks.cc \
 src/line_marks.h \
+src/line_marks_buffer.cc \
+src/line_marks_buffer.h \
 src/line_marks_test.cc \
 src/line_number_output_producer.h \
 src/line_number_output_producer.cc \

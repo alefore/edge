@@ -6,14 +6,17 @@
 #include <vector>
 
 #include "src/infrastructure/tracker.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/wstring.h"
 
+namespace container = afc::language::container;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineSequence;
+
 namespace afc::editor {
-using language::lazy_string::NewLazyString;
-using language::text::LineColumn;
-using language::text::LineSequence;
 
 void LineMarks::AddMark(Mark mark) {
   marks_by_source_target[mark.source_buffer][mark.target_buffer].marks.insert(
@@ -125,6 +128,10 @@ LineMarks::GetExpiredMarksForTargetBuffer(
     return it->second.expired_marks;
   static const std::multimap<LineColumn, LineMarks::ExpiredMark> empty_output;
   return empty_output;
+}
+
+std::set<BufferName> LineMarks::GetMarkTargets() const {
+  return container::MaterializeSet(marks_by_target | std::views::keys);
 }
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {
