@@ -304,6 +304,8 @@ src/tests/fuzz_testable.h \
 src/tests/fuzz_testable.cc \
 src/tests/tests.cc \
 src/tests/tests.h \
+src/token_predictor.cc \
+src/token_predictor.h \
 src/transformation/bisect.cc \
 src/transformation/bisect.h \
 src/transformation/composite.cc \
