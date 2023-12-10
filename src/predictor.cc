@@ -166,6 +166,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   PredictorInput predictor_input{
       .editor = options.editor_state,
       .input = options.input,
+      .input_column = options.input_column,
       .predictions = predictions_buffer.ptr().value(),
       .source_buffers = options.source_buffers,
       .progress_channel = *options.progress_channel,
@@ -468,11 +469,13 @@ const bool buffer_tests_registration =
         ChannelAll<ProgressInformation> channel([](ProgressInformation) {});
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-        test_predictor(PredictorInput{.editor = buffer.ptr()->editor(),
-                                      .input = NewLazyString(input),
-                                      .predictions = buffer.ptr().value(),
-                                      .source_buffers = {},
-                                      .progress_channel = channel});
+        test_predictor(
+            PredictorInput{.editor = buffer.ptr()->editor(),
+                           .input = NewLazyString(input),
+                           .input_column = ColumnNumber(input.size()),
+                           .predictions = buffer.ptr().value(),
+                           .source_buffers = {},
+                           .progress_channel = channel});
         LOG(INFO) << "Contents: "
                   << buffer.ptr()->contents().snapshot().ToString();
         return buffer.ptr()->contents().snapshot().ToString();
@@ -633,6 +636,7 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
         OpenBuffer::New(OpenBuffer::Options{.editor = input.editor});
     return a(PredictorInput{.editor = input.editor,
                             .input = input.input,
+                            .input_column = input.input_column,
                             .predictions = a_predictions.ptr().value(),
                             .source_buffers = input.source_buffers,
                             .progress_channel = input.progress_channel,
@@ -640,6 +644,7 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
         .Transform([input, b, b_predictions](PredictorOutput a_output) {
           return b({.editor = input.editor,
                     .input = input.input,
+                    .input_column = input.input_column,
                     .predictions = b_predictions.ptr().value(),
                     .source_buffers = input.source_buffers,
                     .progress_channel = input.progress_channel,

@@ -41,6 +41,7 @@ using ProgressChannel = concurrent::Channel<ProgressInformation>;
 struct PredictorInput {
   EditorState& editor;
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
+  language::lazy_string::ColumnNumber input_column;
 
   // The output buffer to write predictions to.
   //
