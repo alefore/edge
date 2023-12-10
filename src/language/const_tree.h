@@ -138,7 +138,7 @@ class VectorBlock {
   }
 
   template <typename Callable>
-  VectorBlock Map(const Callable& callable) {
+  VectorBlock Map(const Callable& callable) const {
     return VectorBlock(ConstructorAccessTag(),
                        container::MaterializeVector(
                            values_ | std::views::transform(callable)));
@@ -223,11 +223,12 @@ class ConstTree {
   }
 
   template <typename Callable>
-  NonNull<Ptr> Map(const Callable& callback) {
+  NonNull<Ptr> Map(const Callable& callback) const {
     return ConstTree(
-        ConstructorAccessTag(), block_.Map(callback),
-        left_ == nullptr ? nullptr : left_.Map(callback).get_unique(),
-        right_ == nullptr ? nullptr : right_.Map(callback).get_unique());
+               ConstructorAccessTag(), block_->Map(callback),
+               left_ == nullptr ? nullptr : left_->Map(callback).get_shared(),
+               right_ == nullptr ? nullptr : right_->Map(callback).get_shared())
+        .Share();
   }
 
   static ConstTree Leaf(ValueType element) {
