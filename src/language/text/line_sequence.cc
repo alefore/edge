@@ -288,6 +288,15 @@ void LineSequence::ForEach(
   });
 }
 
+LineSequence LineSequence::Map(
+    const std::function<language::NonNull<std::shared_ptr<const Line>>(
+        const language::NonNull<std::shared_ptr<const Line>>&)>&) const {
+  // TODO(easy, 2023-12-09): Make LineSequence implement a range and use
+  // std::ranges::copy.
+  Lines::Ptr output = nullptr;
+  return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
+}
+
 wint_t LineSequence::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());
   NonNull<std::shared_ptr<const Line>> line = at(position.line);
@@ -304,6 +313,7 @@ LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
   position.column = std::min(at(position.line)->EndColumn(), position.column);
   return position;
 }
+
 LineColumn LineSequence::PositionBefore(LineColumn position) const {
   if (position.line > EndLine()) {
     position.line = EndLine();

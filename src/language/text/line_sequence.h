@@ -73,6 +73,10 @@ class LineSequence {
                    callback) const;
   void ForEach(const std::function<void(std::wstring)>& callback) const;
 
+  LineSequence Map(
+      const std::function<language::NonNull<std::shared_ptr<const Line>>(
+          const language::NonNull<std::shared_ptr<const Line>>&)>&) const;
+
   wint_t character_at(const LineColumn& position) const;
 
   LineColumn AdjustLineColumn(LineColumn position) const;
