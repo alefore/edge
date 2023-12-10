@@ -290,11 +290,9 @@ void LineSequence::ForEach(
 
 LineSequence LineSequence::Map(
     const std::function<language::NonNull<std::shared_ptr<const Line>>(
-        const language::NonNull<std::shared_ptr<const Line>>&)>&) const {
-  // TODO(easy, 2023-12-09): Make LineSequence implement a range and use
-  // std::ranges::copy.
-  Lines::Ptr output = nullptr;
-  return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
+        const language::NonNull<std::shared_ptr<const Line>>&)>& transformer)
+    const {
+  return LineSequence(lines_->Map(transformer));
 }
 
 wint_t LineSequence::character_at(const LineColumn& position) const {
