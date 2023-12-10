@@ -8,6 +8,7 @@
 #include <optional>
 #include <variant>
 
+#include "src/language/container.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 
@@ -136,6 +137,13 @@ class VectorBlock {
     return std::ranges::all_of(v->values_, predicate);
   }
 
+  template <typename Callable>
+  VectorBlock Map(const Callable& callable) {
+    return VectorBlock(ConstructorAccessTag(),
+                       container::MaterializeVector(
+                           values_ | std::views::transform(callable)));
+  }
+
   size_t size() const { return values_.size(); }
 
   const T& Get(size_t index) const {
@@ -212,6 +220,14 @@ class ConstTree {
 
   NonNull<Ptr> Share() && {
     return MakeNonNullShared<ConstTree>(std::move(*this));
+  }
+
+  template <typename Callable>
+  NonNull<Ptr> Map(const Callable& callback) {
+    return ConstTree(
+        ConstructorAccessTag(), block_.Map(callback),
+        left_ == nullptr ? nullptr : left_.Map(callback).get_unique(),
+        right_ == nullptr ? nullptr : right_.Map(callback).get_unique());
   }
 
   static ConstTree Leaf(ValueType element) {
