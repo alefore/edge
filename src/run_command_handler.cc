@@ -30,6 +30,7 @@ extern "C" {
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
+#include "src/token_predictor.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/environment.h"
 #include "src/vm/escape.h"
@@ -461,7 +462,7 @@ class ForkEditorCommand : public Command {
                   : PromptOptions::ColorizeFunction(nullptr),
           .handler = std::bind_front(RunCommandHandler, std::ref(editor_state_),
                                      0, 1, OptionalFrom(children_path)),
-          .predictor = FilePredictor});
+          .predictor = TokenPredictor(FilePredictor)});
     } else if (editor_state_.structure() == Structure::kLine) {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
