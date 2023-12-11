@@ -244,6 +244,12 @@ void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
   observer_->LinesErased(first, last - first);
 }
 
+bool MutableLineSequence::MaybeEraseEmptyFirstLine() {
+  if (EndLine() == LineNumber(0) || !at(LineNumber())->empty()) return false;
+  EraseLines(LineNumber(0), LineNumber(1));
+  return true;
+}
+
 void MutableLineSequence::SplitLine(LineColumn position) {
   LineBuilder builder(at(position.line).value());
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
