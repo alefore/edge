@@ -166,12 +166,6 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   futures::Future<std::optional<PredictResults>> output;
   OpenBuffer::Options buffer_options{.editor = options.editor,
                                      .name = PredictionsBufferName()};
-
-  if (options.progress_channel == nullptr) {
-    options.progress_channel =
-        std::make_unique<ChannelAll<ProgressInformation>>(
-            [](ProgressInformation) {});
-  }
   CHECK(!options.abort_value.has_value());
 
   auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
@@ -179,12 +173,13 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
   return options
-      .predictor(PredictorInput{.editor = options.editor,
-                                .input = options.input,
-                                .input_column = options.input_column,
-                                .source_buffers = options.source_buffers,
-                                .progress_channel = *options.progress_channel,
-                                .abort_value = options.abort_value})
+      .predictor(
+          PredictorInput{.editor = options.editor,
+                         .input = options.input,
+                         .input_column = options.input_column,
+                         .source_buffers = options.source_buffers,
+                         .progress_channel = options.progress_channel.value(),
+                         .abort_value = options.abort_value})
       .Transform([abort_value = options.abort_value,
                   progress_channel = std::move(options.progress_channel),
                   predictions_buffer](PredictorOutput predictor_output) mutable

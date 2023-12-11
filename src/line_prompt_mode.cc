@@ -1200,8 +1200,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     .input = GetPredictInput(buffer),
                     .input_column = buffer.position().column,
                     .source_buffers = prompt_state->options().source_buffers,
-                    .progress_channel =
-                        std::move(progress_channel).get_unique(),
+                    .progress_channel = std::move(progress_channel),
                     .abort_value =
                         prompt_state->abort_notification_->listenable_value()})
                 .Transform([prompt_state, status_version_value,

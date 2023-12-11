@@ -260,8 +260,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                              .input = line,
                              .input_column = ColumnNumber() + line->size(),
                              .source_buffers = editor_state.active_buffers(),
-                             .progress_channel =
-                                 std::move(progress_channel).get_unique(),
+                             .progress_channel = std::move(progress_channel),
                              .abort_value = std::move(abort_value)})
                   .Transform([](std::optional<PredictResults>
                                     results_optional) {

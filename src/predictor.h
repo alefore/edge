@@ -119,7 +119,10 @@ struct PredictOptions {
   std::vector<language::gc::Root<OpenBuffer>> source_buffers;
 
   // Can be null, in which case Predict will use a dummy no-op channel.
-  std::unique_ptr<ProgressChannel> progress_channel = nullptr;
+  language::NonNull<std::unique_ptr<ProgressChannel>> progress_channel =
+      language::MakeNonNullUnique<
+          afc::concurrent::ChannelAll<ProgressInformation>>(
+          [](ProgressInformation) {});
 
   // Notification that the caller can use to signal that it wants to stop the
   // prediction (without waiting for it to complete).

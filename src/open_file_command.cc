@@ -146,8 +146,7 @@ futures::Value<ColorizePromptOptions> AdjustPath(
                                 .input = line,
                                 .input_column = ColumnNumber() + line->size(),
                                 .source_buffers = editor.active_buffers(),
-                                .progress_channel =
-                                    std::move(progress_channel).get_unique(),
+                                .progress_channel = std::move(progress_channel),
                                 .abort_value = std::move(abort_value)})
       .Transform([&editor, line](std::optional<PredictResults> results) {
         if (!results.has_value()) return futures::Past(ColorizePromptOptions{});
