@@ -164,7 +164,7 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 
 futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   futures::Future<std::optional<PredictResults>> output;
-  OpenBuffer::Options buffer_options{.editor = options.editor_state,
+  OpenBuffer::Options buffer_options{.editor = options.editor,
                                      .name = PredictionsBufferName()};
 
   if (options.progress_channel == nullptr) {
@@ -179,7 +179,7 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
   return options
-      .predictor(PredictorInput{.editor = options.editor_state,
+      .predictor(PredictorInput{.editor = options.editor,
                                 .input = options.input,
                                 .input_column = options.input_column,
                                 .source_buffers = options.source_buffers,
@@ -492,7 +492,7 @@ const bool buffer_tests_registration =
                               std::function<void(PredictResults)> callback) {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         bool executed = false;
-        Predict(PredictOptions{.editor_state = editor.value(),
+        Predict(PredictOptions{.editor = editor.value(),
                                .predictor = test_predictor,
                                .input = NewLazyString(input),
                                .input_column = ColumnNumber(input.size()),

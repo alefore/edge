@@ -255,7 +255,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                 -> futures::Value<ColorizePromptOptions> {
               return Predict(
                          PredictOptions{
-                             .editor_state = editor_state,
+                             .editor = editor_state,
                              .predictor = variables_predictor,
                              .input = line,
                              .input_column = ColumnNumber() + line->size(),

@@ -141,7 +141,7 @@ futures::Value<ColorizePromptOptions> AdjustPath(
     EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value abort_value) {
-  return Predict(PredictOptions{.editor_state = editor,
+  return Predict(PredictOptions{.editor = editor,
                                 .predictor = FilePredictor,
                                 .input = line,
                                 .input_column = ColumnNumber() + line->size(),

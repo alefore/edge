@@ -1195,7 +1195,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                 .values = {{VersionPropertyKey(L"🔮"), L"…"}}});
             Predict(
                 PredictOptions{
-                    .editor_state = prompt_state->editor_state(),
+                    .editor = prompt_state->editor_state(),
                     .predictor = prompt_state->options().predictor,
                     .input = GetPredictInput(buffer),
                     .input_column = buffer.position().column,

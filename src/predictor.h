@@ -103,7 +103,7 @@ struct PredictResults {
 std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
 
 struct PredictOptions {
-  EditorState& editor_state;
+  EditorState& editor;
   Predictor predictor;
 
   // Input for the prediction.
