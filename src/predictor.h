@@ -53,7 +53,7 @@ struct PredictorInput {
   // modify them.
   std::vector<language::gc::Root<OpenBuffer>> source_buffers;
 
-  ProgressChannel& progress_channel;
+  language::NonNull<std::shared_ptr<ProgressChannel>> progress_channel;
 
   futures::DeleteNotification::Value abort_value =
       futures::DeleteNotification::Never();
@@ -119,8 +119,8 @@ struct PredictOptions {
   std::vector<language::gc::Root<OpenBuffer>> source_buffers;
 
   // Can be null, in which case Predict will use a dummy no-op channel.
-  language::NonNull<std::unique_ptr<ProgressChannel>> progress_channel =
-      language::MakeNonNullUnique<
+  language::NonNull<std::shared_ptr<ProgressChannel>> progress_channel =
+      language::MakeNonNullShared<
           afc::concurrent::ChannelAll<ProgressInformation>>(
           [](ProgressInformation) {});
 

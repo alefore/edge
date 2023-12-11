@@ -48,6 +48,7 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::OptionalFrom;
 using afc::language::overload;
@@ -173,15 +174,14 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
   return options
-      .predictor(
-          PredictorInput{.editor = options.editor,
-                         .input = options.input,
-                         .input_column = options.input_column,
-                         .source_buffers = options.source_buffers,
-                         .progress_channel = options.progress_channel.value(),
-                         .abort_value = options.abort_value})
+      .predictor(PredictorInput{.editor = options.editor,
+                                .input = options.input,
+                                .input_column = options.input_column,
+                                .source_buffers = options.source_buffers,
+                                .progress_channel = options.progress_channel,
+                                .abort_value = options.abort_value})
       .Transform([abort_value = options.abort_value,
-                  progress_channel = std::move(options.progress_channel),
+                  progress_channel = options.progress_channel,
                   predictions_buffer](PredictorOutput predictor_output) mutable
                  -> ValueOrError<PredictResults> {
         DECLARE_OR_RETURN(auto results,
@@ -331,7 +331,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                       buffer_variables::directory_noise));
         return predictor_input.editor.thread_pool().Run(std::bind_front(
             [path_input, search_paths, noise_regex](
-                ProgressChannel& progress_channel,
+                NonNull<std::shared_ptr<ProgressChannel>> progress_channel,
                 DeleteNotification::Value abort_value) mutable {
               if (!path_input.empty() && *path_input.begin() == L'/') {
                 search_paths = {Path::Root()};
@@ -378,8 +378,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     path_input.substr(descend_results.valid_prefix_length,
                                       path_input.size()),
                     path_input.substr(0, descend_results.valid_prefix_length),
-                    &matches, progress_channel, abort_value, predictions,
-                    predictor_output);
+                    &matches, progress_channel.value(), abort_value,
+                    predictions, predictor_output);
                 if (abort_value.has_value()) return PredictorOutput{};
               }
               predictions.MaybeEraseEmptyFirstLine();
@@ -388,7 +388,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
               predictor_output.contents = output_lines;
               return predictor_output;
             },
-            std::ref(predictor_input.progress_channel),
+            predictor_input.progress_channel,
             std::move(predictor_input.abort_value)));
       });
 }
@@ -453,7 +453,7 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
     }
     output_contents.MaybeEraseEmptyFirstLine();
 
-    input.progress_channel.Push(ProgressInformation{
+    input.progress_channel->Push(ProgressInformation{
         .values = {{VersionPropertyKey(L"values"),
                     std::to_wstring(output_contents.size().read() - 1)}}});
     return futures::Past(
@@ -468,15 +468,17 @@ const bool buffer_tests_registration =
       const static Predictor test_predictor = PrecomputedPredictor(
           {L"foo", L"bar", L"bard", L"foo_bar", L"alejo"}, L'_');
       auto predict = [&](std::wstring input) {
-        ChannelAll<ProgressInformation> channel([](ProgressInformation) {});
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         PredictorOutput output =
             test_predictor(
-                PredictorInput{.editor = editor.value(),
-                               .input = NewLazyString(input),
-                               .input_column = ColumnNumber(input.size()),
-                               .source_buffers = {},
-                               .progress_channel = channel})
+                PredictorInput{
+                    .editor = editor.value(),
+                    .input = NewLazyString(input),
+                    .input_column = ColumnNumber(input.size()),
+                    .source_buffers = {},
+                    .progress_channel =
+                        MakeNonNullUnique<ChannelAll<ProgressInformation>>(
+                            [](ProgressInformation) {})})
                 .Get()
                 .value();
         LineSequence lines = output.contents.sorted_lines().lines();
