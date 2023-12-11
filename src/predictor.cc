@@ -73,11 +73,9 @@ using afc::language::view::SkipErrors;
 namespace afc::editor {
 namespace {
 ValueOrError<PredictResults> BuildResults(
-    OpenBuffer& predictions_buffer, PredictorOutput predictor_output,
+    EditorState& editor, PredictorOutput predictor_output,
     DeleteNotification::Value& abort_value) {
   TRACK_OPERATION(Predictor_BuildResults);
-  LOG(INFO) << "Predictions buffer received end of file. Predictions: "
-            << predictions_buffer.contents().size();
   if (abort_value.has_value()) return Error(L"Aborted");
 
   std::optional<std::wstring> common_prefix;
@@ -125,13 +123,18 @@ ValueOrError<PredictResults> BuildResults(
              .lines()
              .at(LineNumber())
              ->empty());
+  auto predictions_buffer = OpenBuffer::New(
+      OpenBuffer::Options{.editor = editor, .name = PredictionsBufferName()});
+  predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
+  predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
+  predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
   TRACK_OPERATION(Predictor_BuildResult_InsertInPosition);
-  predictions_buffer.InsertInPosition(
+  predictions_buffer.ptr()->InsertInPosition(
       predictor_output.contents.sorted_lines().lines(), LineColumn(),
       std::nullopt);
   return PredictResults{
       .common_prefix = common_prefix,
-      .predictions_buffer = predictions_buffer.NewRoot(),
+      .predictions_buffer = predictions_buffer,
       .matches = predictor_output.contents.sorted_lines().lines().EndLine() ==
                              LineNumber(0) &&
                          predictor_output.contents.sorted_lines()
@@ -139,7 +142,7 @@ ValueOrError<PredictResults> BuildResults(
                              .at(LineNumber())
                              ->empty()
                      ? 0
-                     : predictions_buffer.lines_size().read(),
+                     : predictions_buffer.ptr()->lines_size().read(),
       .predictor_output = predictor_output};
 }
 }  // namespace
@@ -166,27 +169,20 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 futures::Value<std::optional<PredictResults>> Predict(
     const Predictor& predictor, PredictorInput options) {
   futures::Future<std::optional<PredictResults>> output;
-  OpenBuffer::Options buffer_options{.editor = options.editor,
-                                     .name = PredictionsBufferName()};
   CHECK(!options.abort_value.has_value());
 
-  auto predictions_buffer = OpenBuffer::New(std::move(buffer_options));
-  predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
-  predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
-  predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
   return predictor(PredictorInput{.editor = options.editor,
                                   .input = options.input,
                                   .input_column = options.input_column,
                                   .source_buffers = options.source_buffers,
                                   .progress_channel = options.progress_channel,
                                   .abort_value = options.abort_value})
-      .Transform([abort_value = options.abort_value,
-                  progress_channel = options.progress_channel,
-                  predictions_buffer](PredictorOutput predictor_output) mutable
+      .Transform([&editor = options.editor, abort_value = options.abort_value,
+                  progress_channel = options.progress_channel](
+                     PredictorOutput predictor_output) mutable
                  -> ValueOrError<PredictResults> {
         DECLARE_OR_RETURN(auto results,
-                          BuildResults(predictions_buffer.ptr().value(),
-                                       predictor_output, abort_value));
+                          BuildResults(editor, predictor_output, abort_value));
         if (abort_value.has_value()) return Error(L"Aborted");
         return results;
       })
