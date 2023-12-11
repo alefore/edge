@@ -254,9 +254,9 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                     DeleteNotification::Value abort_value)
                 -> futures::Value<ColorizePromptOptions> {
               return Predict(
+                         variables_predictor,
                          PredictOptions{
                              .editor = editor_state,
-                             .predictor = variables_predictor,
                              .input = line,
                              .input_column = ColumnNumber() + line->size(),
                              .source_buffers = editor_state.active_buffers(),

@@ -104,7 +104,6 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
 
 struct PredictOptions {
   EditorState& editor;
-  Predictor predictor;
 
   // Input for the prediction.
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
@@ -136,7 +135,7 @@ struct PredictOptions {
 // The vaue will be absent if the prediction finished when it was too late (for
 // example, because the query has changed in the meantime).
 futures::Value<std::optional<PredictResults>> Predict(
-    PredictOptions predict_options);
+    const Predictor& predictor, PredictOptions predict_options);
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput input);
 

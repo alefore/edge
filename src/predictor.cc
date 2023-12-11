@@ -163,7 +163,8 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
   return os;
 }
 
-futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
+futures::Value<std::optional<PredictResults>> Predict(
+    const Predictor& predictor, PredictOptions options) {
   futures::Future<std::optional<PredictResults>> output;
   OpenBuffer::Options buffer_options{.editor = options.editor,
                                      .name = PredictionsBufferName()};
@@ -173,13 +174,12 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
-  return options
-      .predictor(PredictorInput{.editor = options.editor,
-                                .input = options.input,
-                                .input_column = options.input_column,
-                                .source_buffers = options.source_buffers,
-                                .progress_channel = options.progress_channel,
-                                .abort_value = options.abort_value})
+  return predictor(PredictorInput{.editor = options.editor,
+                                  .input = options.input,
+                                  .input_column = options.input_column,
+                                  .source_buffers = options.source_buffers,
+                                  .progress_channel = options.progress_channel,
+                                  .abort_value = options.abort_value})
       .Transform([abort_value = options.abort_value,
                   progress_channel = options.progress_channel,
                   predictions_buffer](PredictorOutput predictor_output) mutable
@@ -489,8 +489,8 @@ const bool buffer_tests_registration =
                               std::function<void(PredictResults)> callback) {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         bool executed = false;
-        Predict(PredictOptions{.editor = editor.value(),
-                               .predictor = test_predictor,
+        Predict(test_predictor,
+                PredictOptions{.editor = editor.value(),
                                .input = NewLazyString(input),
                                .input_column = ColumnNumber(input.size()),
                                .source_buffers = {}})

@@ -1194,9 +1194,9 @@ InsertModeOptions PromptState::insert_mode_options() {
             progress_channel->Push(ProgressInformation{
                 .values = {{VersionPropertyKey(L"🔮"), L"…"}}});
             Predict(
+                prompt_state->options().predictor,
                 PredictOptions{
                     .editor = prompt_state->editor_state(),
-                    .predictor = prompt_state->options().predictor,
                     .input = GetPredictInput(buffer),
                     .input_column = buffer.position().column,
                     .source_buffers = prompt_state->options().source_buffers,

@@ -99,9 +99,9 @@ class PredictorTransformation : public CompositeTransformation {
 
   futures::Value<Output> Apply(Input input) const override {
     return Predict(
+               predictor_,
                PredictOptions{
                    .editor = input.buffer.editor(),
-                   .predictor = predictor_,
                    .input = text_,
                    .input_column = ColumnNumber() + text_->size(),
                    // TODO: Ugh, the const_cast below is fucking ugly. I have a

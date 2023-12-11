@@ -365,8 +365,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
              Parse(editor.gc_pool(), line, environment, search_namespaces));
 
   using BufferMapper = vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>;
-  return Predict(PredictOptions{.editor = editor,
-                                .predictor = predictor,
+  return Predict(predictor,
+                 PredictOptions{.editor = editor,
                                 .input = line,
                                 .input_column = ColumnNumber() + line->size(),
                                 .source_buffers = editor.active_buffers(),
