@@ -38,6 +38,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
 using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
 using afc::language::text::SortedLineSequenceUniqueLines;
@@ -183,17 +184,17 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
   static constexpr int kMatchesLimit = 100;
   for (OpenBuffer& search_buffer : input.source_buffers | gc::view::Value)
     SearchInBuffer(input, search_buffer, kMatchesLimit, matches);
-  if (!matches.empty()) {
-    // Add the matches to the predictions buffer.
-    for (const std::wstring& match : matches) {
-      input.predictions.AppendToLastLine(NewLazyString(match));
-      input.predictions.AppendRawLine(MakeNonNullShared<Line>());
-    }
-  }
+  MutableLineSequence output_contents;
+  std::ranges::copy(
+      std::move(matches) | std::views::transform([](std::wstring match) {
+        return MakeNonNullShared<Line>(Line(match));
+      }),
+      std::back_inserter(output_contents));
+  output_contents.MaybeEraseEmptyFirstLine();
   TRACK_OPERATION(SearchHandlerPredictor_sort);
-  return futures::Past(PredictorOutput(
-      {.contents = SortedLineSequenceUniqueLines(
-           SortedLineSequence(input.predictions.contents().snapshot()))}));
+  return futures::Past(
+      PredictorOutput{.contents = SortedLineSequenceUniqueLines(
+                          SortedLineSequence(output_contents.snapshot()))});
 }
 
 ValueOrError<std::vector<LineColumn>> SearchHandler(

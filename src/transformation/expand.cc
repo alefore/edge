@@ -188,26 +188,15 @@ bool predictor_transformation_tests_register = tests::Register(
     L"PredictorTransformation",
     {{.name = L"DeleteBufferDuringPrediction", .callback = [] {
         futures::Future<PredictorOutput> inner_future;
-        OpenBuffer* predictions_buffer = nullptr;
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         auto final_value =
             NewBufferForTests(editor.value())
                 .ptr()
                 ->ApplyToCursors(MakeNonNullShared<PredictorTransformation>(
-                    [&](PredictorInput input)
-                        -> futures::Value<PredictorOutput> {
-                      predictions_buffer = &input.predictions;
+                    [&](PredictorInput) -> futures::Value<PredictorOutput> {
                       return std::move(inner_future.value);
                     },
                     NewLazyString(L"foo")));
-        // We've dropped our reference to the buffer, even though it still has
-        // work scheduled. This is the gist of this tests: validate that the
-        // transformation executes successfully regardless.
-        LOG(INFO) << "Preparing predictions buffer";
-        CHECK(predictions_buffer != nullptr);
-        predictions_buffer->AppendLine(NewLazyString(L"footer"));
-        predictions_buffer->AppendLine(NewLazyString(L"foxtrot"));
-        predictions_buffer->EraseLines(LineNumber(), LineNumber().next());
         LOG(INFO) << "Notifying inner future";
         CHECK(!final_value.has_value());
         std::move(inner_future.consumer)(

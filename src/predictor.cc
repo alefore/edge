@@ -118,13 +118,29 @@ ValueOrError<PredictResults> BuildResults(
         return true;
       });
   if (abort_value.has_value()) return Error(L"Aborted");
+  CHECK(predictor_output.contents.sorted_lines().lines().EndLine() ==
+            LineNumber(0) ||
+        !predictor_output.contents.sorted_lines()
+             .lines()
+             .at(LineNumber())
+             ->empty());
+  TRACK_OPERATION(Predictor_BuildResult_InsertInPosition);
+  predictions_buffer.InsertInPosition(
+      predictor_output.contents.sorted_lines().lines(), LineColumn(),
+      std::nullopt);
   return PredictResults{
       .common_prefix = common_prefix,
       .predictions_buffer = predictions_buffer.NewRoot(),
-      .matches = (predictions_buffer.lines_size() - LineNumberDelta(1)).read(),
+      .matches = predictor_output.contents.sorted_lines().lines().EndLine() ==
+                             LineNumber(0) &&
+                         predictor_output.contents.sorted_lines()
+                             .lines()
+                             .at(LineNumber())
+                             ->empty()
+                     ? 0
+                     : predictions_buffer.lines_size().read(),
       .predictor_output = predictor_output};
 }
-
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os, const PredictorOutput& lc) {
@@ -162,21 +178,17 @@ futures::Value<std::optional<PredictResults>> Predict(PredictOptions options) {
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
-
-  PredictorInput predictor_input{
-      .editor = options.editor_state,
-      .input = options.input,
-      .input_column = options.input_column,
-      .predictions = predictions_buffer.ptr().value(),
-      .source_buffers = options.source_buffers,
-      .progress_channel = *options.progress_channel,
-      .abort_value = options.abort_value};
-  return options.predictor(std::move(predictor_input))
+  return options
+      .predictor(PredictorInput{.editor = options.editor_state,
+                                .input = options.input,
+                                .input_column = options.input_column,
+                                .source_buffers = options.source_buffers,
+                                .progress_channel = *options.progress_channel,
+                                .abort_value = options.abort_value})
       .Transform([abort_value = options.abort_value,
                   progress_channel = std::move(options.progress_channel),
                   predictions_buffer](PredictorOutput predictor_output) mutable
                  -> ValueOrError<PredictResults> {
-        predictions_buffer.ptr()->set_current_cursor(LineColumn());
         DECLARE_OR_RETURN(auto results,
                           BuildResults(predictions_buffer.ptr().value(),
                                        predictor_output, abort_value));
@@ -375,6 +387,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                     predictor_output);
                 if (abort_value.has_value()) return PredictorOutput{};
               }
+              predictions.MaybeEraseEmptyFirstLine();
               SortedLineSequenceUniqueLines output_lines(
                   SortedLineSequence(std::move(predictions).snapshot()));
               predictor_output.contents = output_lines;
@@ -382,14 +395,6 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
             },
             std::ref(predictor_input.progress_channel),
             std::move(predictor_input.abort_value)));
-      })
-      .Transform([buffer = predictor_input.predictions.NewRoot()](
-                     PredictorOutput predictor_output) {
-        TRACK_OPERATION(FilePredictor_SetBufferContents);
-        buffer.ptr()->InsertInPosition(
-            predictor_output.contents.sorted_lines().lines(),
-            buffer.ptr()->contents().range().end(), std::nullopt);
-        return futures::Past(std::move(predictor_output));
       });
 }
 
@@ -439,24 +444,26 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
   return [contents](PredictorInput input) {
     // TODO(2023-12-02): Find a way to avoid the call to `ToString`.
     std::wstring input_str = input.input->ToString();
+    MutableLineSequence output_contents;
     for (auto it = contents->lower_bound(input_str); it != contents->end();
          ++it) {
-      auto result =
-          mismatch(input_str.begin(), input_str.end(), (*it).first.begin());
-      if (result.first == input_str.end()) {
-        input.predictions.AppendToLastLine(it->second);
-        input.predictions.AppendRawLine(NonNull<std::shared_ptr<Line>>());
+      if (auto result =
+              mismatch(input_str.begin(), input_str.end(), (*it).first.begin());
+          result.first == input_str.end()) {
+        output_contents.push_back(
+            MakeNonNullShared<Line>(LineBuilder(it->second).Build()));
       } else {
         break;
       }
     }
+    output_contents.MaybeEraseEmptyFirstLine();
+
     input.progress_channel.Push(ProgressInformation{
-        .values = {
-            {VersionPropertyKey(L"values"),
-             std::to_wstring(input.predictions.lines_size().read() - 1)}}});
-    return futures::Past(PredictorOutput(
-        {.contents = SortedLineSequenceUniqueLines(
-             SortedLineSequence(input.predictions.contents().snapshot()))}));
+        .values = {{VersionPropertyKey(L"values"),
+                    std::to_wstring(output_contents.size().read() - 1)}}});
+    return futures::Past(
+        PredictorOutput({.contents = SortedLineSequenceUniqueLines(
+                             SortedLineSequence(output_contents.snapshot()))}));
   };
 }
 
@@ -468,24 +475,24 @@ const bool buffer_tests_registration =
       auto predict = [&](std::wstring input) {
         ChannelAll<ProgressInformation> channel([](ProgressInformation) {});
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-        gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-        test_predictor(
-            PredictorInput{.editor = buffer.ptr()->editor(),
-                           .input = NewLazyString(input),
-                           .input_column = ColumnNumber(input.size()),
-                           .predictions = buffer.ptr().value(),
-                           .source_buffers = {},
-                           .progress_channel = channel});
-        LOG(INFO) << "Contents: "
-                  << buffer.ptr()->contents().snapshot().ToString();
-        return buffer.ptr()->contents().snapshot().ToString();
+        PredictorOutput output =
+            test_predictor(
+                PredictorInput{.editor = editor.value(),
+                               .input = NewLazyString(input),
+                               .input_column = ColumnNumber(input.size()),
+                               .source_buffers = {},
+                               .progress_channel = channel})
+                .Get()
+                .value();
+        LineSequence lines = output.contents.sorted_lines().lines();
+        LOG(INFO) << "Contents: " << lines.ToString();
+        return lines.ToString();
       };
       auto test_predict = [&](std::wstring input,
                               std::function<void(PredictResults)> callback) {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-        gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         bool executed = false;
-        Predict(PredictOptions{.editor_state = buffer.ptr()->editor(),
+        Predict(PredictOptions{.editor_state = editor.value(),
                                .predictor = test_predictor,
                                .input = NewLazyString(input),
                                .input_column = ColumnNumber(input.size()),
@@ -505,10 +512,10 @@ const bool buffer_tests_registration =
            {.name = L"CallNoPredictionsLateOverlap",
             .callback = [&] { CHECK(predict(L"o") == L""); }},
            {.name = L"CallExactPrediction",
-            .callback = [&] { CHECK(predict(L"ale") == L"alejo\n"); }},
+            .callback = [&] { CHECK(predict(L"ale") == L"alejo"); }},
            {.name = L"CallTokenPrediction",
             .callback =
-                [&] { CHECK(predict(L"bar") == L"bar\nfoo_bar\nbard\n"); }},
+                [&] { CHECK(predict(L"bar") == L"bar\nbard\nfoo_bar"); }},
            {.name = L"NoMatchesCheckOutput",
             .callback =
                 [&] {
@@ -553,29 +560,32 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     // TODO(2023-12-02): Find a way to do this without `ToString`.
     const std::wstring input_str = input.input->ToString();
 
+    MutableLineSequence output_contents;
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).
     while (line < contents.sorted_lines().lines().EndLine()) {
-      auto line_contents = contents.sorted_lines().lines().at(line);
+      NonNull<std::shared_ptr<const Line>> line_contents =
+          contents.sorted_lines().lines().at(line);
       auto line_str = line_contents->ToString();
       auto result =
           mismatch(input_str.begin(), input_str.end(), line_str.begin());
       if (result.first != input_str.end()) {
         break;
       }
-      input.predictions.AppendRawLine(line_contents->contents());
+      output_contents.push_back(line_contents);
 
       ++line;
     }
+    output_contents.MaybeEraseEmptyFirstLine();
 
     // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add
     // methods to SortedLineSequence that allows us to extract a sub-range view,
     // and filter. There shouldn't be a need to re-sort.
     TRACK_OPERATION(DictionaryPredictor_Sorting);
-    return futures::Past(PredictorOutput(
-        {.contents = SortedLineSequenceUniqueLines(
-             SortedLineSequence(input.predictions.contents().snapshot()))}));
+    return futures::Past(
+        PredictorOutput({.contents = SortedLineSequenceUniqueLines(
+                             SortedLineSequence(output_contents.snapshot()))}));
   };
 }
 
@@ -630,31 +640,22 @@ Predictor ComposePredictors(Predictor a, Predictor b) {
   // TODO(easy, 2023-12-04): Use JoinValues instead. That would allow them to
   // execute concurrently.
   return [a, b](PredictorInput input) {
-    gc::Root<OpenBuffer> a_predictions =
-        OpenBuffer::New(OpenBuffer::Options{.editor = input.editor});
-    gc::Root<OpenBuffer> b_predictions =
-        OpenBuffer::New(OpenBuffer::Options{.editor = input.editor});
     return a(PredictorInput{.editor = input.editor,
                             .input = input.input,
                             .input_column = input.input_column,
-                            .predictions = a_predictions.ptr().value(),
                             .source_buffers = input.source_buffers,
                             .progress_channel = input.progress_channel,
                             .abort_value = input.abort_value})
-        .Transform([input, b, b_predictions](PredictorOutput a_output) {
+        .Transform([input, b](PredictorOutput a_output) {
           return b({.editor = input.editor,
                     .input = input.input,
                     .input_column = input.input_column,
-                    .predictions = b_predictions.ptr().value(),
                     .source_buffers = input.source_buffers,
                     .progress_channel = input.progress_channel,
                     .abort_value = input.abort_value})
               .Transform([input, a_output](PredictorOutput b_output) {
                 SortedLineSequenceUniqueLines merged_contents(
                     a_output.contents, b_output.contents);
-                input.predictions.InsertInPosition(
-                    merged_contents.sorted_lines().lines(), LineColumn(),
-                    std::nullopt);
                 TRACK_OPERATION(ComposePredictors_Sorting);
                 return PredictorOutput(
                     {.contents = std::move(merged_contents)});

@@ -43,19 +43,6 @@ struct PredictorInput {
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
   language::lazy_string::ColumnNumber input_column;
 
-  // The output buffer to write predictions to.
-  //
-  // It begins with nothing but an empty line. As such, you probably don't want
-  // to use OpenBuffer::AppendLine (because that would leave an empty line at
-  // the beggining) but, instead, OpenBuffer::AppendToLastLine, followed by
-  // OpenBuffer::AppendRawLine(..., empty_line). In other words, once the
-  // predictor is done running, the buffer must have an empty line at the end
-  // (and not at the beginning).
-  //
-  // The customer must ensure that the buffer survives until the corresponding
-  // future is notified by the predictor.
-  OpenBuffer& predictions;
-
   // If the completion is specific to a given buffer (as opposed to in a global
   // status, with no corresponding buffer), this will be pointing to the buffer.
   // That allows the predictor to inspect the buffer contents (e.g., searching
