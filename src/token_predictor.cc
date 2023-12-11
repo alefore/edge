@@ -214,12 +214,8 @@ Predictor TokenPredictor(Predictor predictor) {
               input.input_column - token_to_expand.begin.ToDelta();
           NonNull<std::shared_ptr<LazyString>> original_input =
               std::exchange(input.input, NewLazyString(token_to_expand.value));
-          LOG(INFO) << "XXXX: OriginalInput: " << original_input.value();
-          LOG(INFO) << "XXXX: AdjustedInput: " << input.input.value();
           return predictor(input).Transform(
               [original_input, token_to_expand](PredictorOutput output) {
-                LOG(INFO) << "XXXX: Received: "
-                          << output.contents.sorted_lines().lines().size();
                 return futures::Past(PredictorOutput{
                     .longest_prefix =
                         output.longest_prefix + token_to_expand.begin.ToDelta(),
