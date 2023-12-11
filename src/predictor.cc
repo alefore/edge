@@ -164,7 +164,7 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 }
 
 futures::Value<std::optional<PredictResults>> Predict(
-    const Predictor& predictor, PredictOptions options) {
+    const Predictor& predictor, PredictorInput options) {
   futures::Future<std::optional<PredictResults>> output;
   OpenBuffer::Options buffer_options{.editor = options.editor,
                                      .name = PredictionsBufferName()};
@@ -490,7 +490,7 @@ const bool buffer_tests_registration =
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         bool executed = false;
         Predict(test_predictor,
-                PredictOptions{.editor = editor.value(),
+                PredictorInput{.editor = editor.value(),
                                .input = NewLazyString(input),
                                .input_column = ColumnNumber(input.size()),
                                .source_buffers = {}})

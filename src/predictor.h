@@ -40,7 +40,12 @@ using ProgressChannel = concurrent::Channel<ProgressInformation>;
 // given prompt input and writes them to a buffer.
 struct PredictorInput {
   EditorState& editor;
+
+  // Input for the prediction.
   language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
+
+  // If the input comes from a prompt, position of the current cursor. This will
+  // be used in the future for predictors that expand only a single token.
   language::lazy_string::ColumnNumber input_column;
 
   // If the completion is specific to a given buffer (as opposed to in a global
@@ -53,8 +58,14 @@ struct PredictorInput {
   // modify them.
   std::vector<language::gc::Root<OpenBuffer>> source_buffers;
 
-  language::NonNull<std::shared_ptr<ProgressChannel>> progress_channel;
+  // Can be null, in which case Predict will use a dummy no-op channel.
+  language::NonNull<std::shared_ptr<ProgressChannel>> progress_channel =
+      language::MakeNonNullShared<
+          afc::concurrent::ChannelAll<ProgressInformation>>(
+          [](ProgressInformation) {});
 
+  // Notification that the caller can use to signal that it wants to stop the
+  // prediction (without waiting for it to complete).
   futures::DeleteNotification::Value abort_value =
       futures::DeleteNotification::Never();
 };
@@ -102,40 +113,13 @@ struct PredictResults {
 
 std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
 
-struct PredictOptions {
-  EditorState& editor;
-
-  // Input for the prediction.
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
-
-  // If the input comes from a prompt, position of the current cursor. This will
-  // be used in the future for predictors that expand only a single token.
-  language::lazy_string::ColumnNumber input_column;
-
-  // Given to the predictor (see `PredictorInput::source_buffers`).
-  //
-  // TODO: Mark the buffers as const. See comments in `PredictorInput`.
-  std::vector<language::gc::Root<OpenBuffer>> source_buffers;
-
-  // Can be null, in which case Predict will use a dummy no-op channel.
-  language::NonNull<std::shared_ptr<ProgressChannel>> progress_channel =
-      language::MakeNonNullShared<
-          afc::concurrent::ChannelAll<ProgressInformation>>(
-          [](ProgressInformation) {});
-
-  // Notification that the caller can use to signal that it wants to stop the
-  // prediction (without waiting for it to complete).
-  futures::DeleteNotification::Value abort_value =
-      futures::DeleteNotification::Never();
-};
-
 // Create a new buffer running a given predictor on the input in a given status
 // prompt. When that's done, notifies the returned future.
 //
 // The vaue will be absent if the prediction finished when it was too late (for
 // example, because the query has changed in the meantime).
 futures::Value<std::optional<PredictResults>> Predict(
-    const Predictor& predictor, PredictOptions predict_options);
+    const Predictor& predictor, PredictorInput predict_options);
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput input);
 

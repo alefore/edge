@@ -100,7 +100,7 @@ class PredictorTransformation : public CompositeTransformation {
   futures::Value<Output> Apply(Input input) const override {
     return Predict(
                predictor_,
-               PredictOptions{
+               PredictorInput{
                    .editor = input.buffer.editor(),
                    .input = text_,
                    .input_column = ColumnNumber() + text_->size(),
