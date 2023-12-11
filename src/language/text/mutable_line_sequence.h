@@ -29,10 +29,13 @@ class NullMutableLineSequenceObserver : public MutableLineSequenceObserver {
 };
 
 class MutableLineSequence : public tests::fuzz::FuzzTestable {
-  using Lines = language::ConstTree<
-      language::VectorBlock<
-          language::NonNull<std::shared_ptr<const language::text::Line>>, 256>,
-      256>;
+ public:
+  using value_type =
+      language::NonNull<std::shared_ptr<const language::text::Line>>;
+
+ private:
+  using Lines =
+      language::ConstTree<language::VectorBlock<value_type, 256>, 256>;
 
  public:
   MutableLineSequence();
@@ -173,6 +176,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void EraseLines(language::text::LineNumber first,
                   language::text::LineNumber last,
                   ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+  bool MaybeEraseEmptyFirstLine();
 
   void SplitLine(language::text::LineColumn position);
 
