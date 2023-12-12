@@ -86,12 +86,10 @@ const bool get_local_file_path_tests_registration = tests::Register(
       }}});
 }
 
-NonNull<std::shared_ptr<LazyString>> URL::ToString() const {
-  return NewLazyString(value_);
-}
+LazyString URL::ToString() const { return NewLazyString(value_); }
 
 std::vector<URL> GetLocalFileURLsWithExtensions(
-    LazyString& file_context_extensions, const URL& url) {
+    const LazyString& file_context_extensions, const URL& url) {
   std::vector<URL> output = {url};
   return std::visit(
       overload{[&](Error) { return output; },

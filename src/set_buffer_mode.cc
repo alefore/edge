@@ -333,14 +333,13 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
         state_future =
             std::move(state_future)
                 .Transform([filter = TokenizeBySpaces(
-                                NewLazyString(operation.text_input).value()),
+                                NewLazyString(operation.text_input)),
                             &buffers_list](State state) {
                   Indices new_indices;
                   for (auto& index : state.indices) {
                     gc::Root<OpenBuffer> buffer = buffers_list.GetBuffer(index);
-                    if (NonNull<std::shared_ptr<LazyString>> str =
-                            NewLazyString(
-                                buffer.ptr()->Read(buffer_variables::name));
+                    if (LazyString str = NewLazyString(
+                            buffer.ptr()->Read(buffer_variables::name));
                         FindFilterPositions(
                             filter,
                             ExtendTokensToEndOfString(

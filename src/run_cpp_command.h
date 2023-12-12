@@ -33,8 +33,7 @@ class Command;
 //
 // In this case, that'd run something like: build("foo", "bar hey");
 futures::ValueOrError<language::gc::Root<vm::Value>> RunCppCommandShell(
-    const language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>&
-        command,
+    const language::lazy_string::LazyString& command,
     EditorState& editor_state);
 
 language::gc::Root<Command> NewRunCppCommand(EditorState& editor_state,

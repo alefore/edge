@@ -8,12 +8,11 @@ using afc::language::lazy_string::LowerCase;
 
 namespace afc::language::text {
 SortedLineSequence::SortedLineSequence(LineSequence input)
-    : SortedLineSequence(input,
-                         [](const NonNull<std::shared_ptr<const Line>>& a,
-                            const NonNull<std::shared_ptr<const Line>>& b) {
-                           return LowerCase(a->contents()).value() <
-                                  LowerCase(b->contents()).value();
-                         }) {}
+    : SortedLineSequence(
+          input, [](const NonNull<std::shared_ptr<const Line>>& a,
+                    const NonNull<std::shared_ptr<const Line>>& b) {
+            return LowerCase(a->contents()) < LowerCase(b->contents());
+          }) {}
 
 SortedLineSequence::SortedLineSequence(LineSequence input,
                                        SortedLineSequence::Compare compare)

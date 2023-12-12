@@ -42,7 +42,7 @@ struct PredictorInput {
   EditorState& editor;
 
   // Input for the prediction.
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input;
+  language::lazy_string::LazyString input;
 
   // If the input comes from a prompt, position of the current cursor. This will
   // be used in the future for predictors that expand only a single token.

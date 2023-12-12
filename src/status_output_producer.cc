@@ -192,7 +192,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     LineBuilder prefix(contents.value());
     prefix.DeleteSuffix(column);
     output.Append(std::move(prefix));
-    cursor = ColumnNumber(0) + output.contents()->size();
+    cursor = ColumnNumber(0) + output.contents().size();
     LineBuilder suffix(contents.value());
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     output.Append(std::move(suffix));

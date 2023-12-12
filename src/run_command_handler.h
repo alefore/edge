@@ -59,13 +59,10 @@ language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
 
 // Input must already be unescaped (e.g., contain `\n` rather than `\\n`).
 futures::Value<language::EmptyValue> RunCommandHandler(
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> input,
-    EditorState& editor_state,
+    language::lazy_string::LazyString input, EditorState& editor_state,
     std::map<std::wstring, std::wstring> environment);
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
-    EditorState& editor_state,
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-        input);
+    EditorState& editor_state, language::lazy_string::LazyString input);
 }  // namespace afc::editor
 
 #endif

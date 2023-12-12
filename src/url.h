@@ -25,8 +25,7 @@ class URL {
 
   language::ValueOrError<infrastructure::Path> GetLocalFilePath() const;
 
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  ToString() const;
+  language::lazy_string::LazyString ToString() const;
 
  private:
   ValueType value_;
@@ -35,7 +34,8 @@ class URL {
 // If `url` is a local file, returns a vector with variations adding all the
 // extensions from a list of extensions (given as a space-separated list).
 std::vector<URL> GetLocalFileURLsWithExtensions(
-    language::lazy_string::LazyString& file_context_extensions, const URL& url);
+    const language::lazy_string::LazyString& file_context_extensions,
+    const URL& url);
 
 }  // namespace afc::editor
 

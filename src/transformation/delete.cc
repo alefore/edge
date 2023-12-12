@@ -135,9 +135,8 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
       .prompt = NewLazyString(L"unlink " + details + L"? [yes/no] "),
       .history_file = HistoryFile(L"confirmation"),
       .handler =
-          [buffer = buffer.NewRoot(),
-           observers](NonNull<std::shared_ptr<LazyString>> input) {
-            if (input.value() == NewLazyString(L"yes").value()) {
+          [buffer = buffer.NewRoot(), observers](LazyString input) {
+            if (input == NewLazyString(L"yes")) {
               for (auto& o : observers) o();
             } else {
               // TODO: insert it again?  Actually, only let it

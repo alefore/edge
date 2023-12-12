@@ -111,7 +111,7 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
     VLOG(5) << "Unable to find suitable GetPathMetadata definition";
     return {
         .initial_value = EmptyString(),
-        .value = futures::Future<NonNull<std::shared_ptr<LazyString>>>().value};
+        .value = futures::Future<LazyString>().value};
   }
 
   std::vector<NonNull<std::shared_ptr<Expression>>> args;
@@ -127,7 +127,7 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
                                   target.environment().ToRoot())
               .Transform([](gc::Root<vm::Value> value)
                              -> futures::ValueOrError<
-                                 NonNull<std::shared_ptr<LazyString>>> {
+                                 LazyString> {
                 VLOG(7) << "Evaluated result: " << value.ptr()->get_string();
                 return futures::Past(NewLazyString(value.ptr()->get_string()));
               })

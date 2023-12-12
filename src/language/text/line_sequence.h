@@ -36,7 +36,7 @@ class LineSequence {
   // Returns a new LineSequence that contains a subset of the current one.
   LineSequence ViewRange(language::text::Range range) const;
 
-  NonNull<std::shared_ptr<lazy_string::LazyString>> ToLazyString() const;
+  lazy_string::LazyString ToLazyString() const;
   std::wstring ToString() const;
 
   LineNumberDelta size() const;

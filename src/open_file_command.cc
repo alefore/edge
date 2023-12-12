@@ -46,8 +46,8 @@ using afc::language::text::LineNumberDelta;
 
 namespace afc::editor {
 namespace {
-futures::Value<EmptyValue> OpenFileHandler(
-    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> name) {
+futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
+                                           LazyString name) {
   return OpenOrCreateFile(
              OpenFileOptions{
                  .editor_state = editor_state,
@@ -58,8 +58,7 @@ futures::Value<EmptyValue> OpenFileHandler(
 
 // Returns the buffer to show for context, or nullptr.
 futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
-    EditorState& editor, const PredictResults& results,
-    NonNull<std::shared_ptr<LazyString>> line) {
+    EditorState& editor, const PredictResults& results, LazyString line) {
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.predictor_output.found_exact_match) {
@@ -94,7 +93,7 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
 }
 
 ColorizePromptOptions DrawPath(
-    NonNull<std::shared_ptr<LazyString>> line, PredictResults results,
+    LazyString line, PredictResults results,
     std::optional<gc::Root<OpenBuffer>> context_buffer) {
   ColorizePromptOptions output;
   VisitOptional(
@@ -105,7 +104,7 @@ ColorizePromptOptions DrawPath(
       [&] { output.context = ColorizePromptOptions::ContextClear{}; },
       context_buffer);
 
-  ForEachColumn(line.value(), [&](ColumnNumber column, wchar_t c) {
+  ForEachColumn(line, [&](ColumnNumber column, wchar_t c) {
     LineModifierSet modifiers;
     switch (c) {
       case L'/':
@@ -124,8 +123,8 @@ ColorizePromptOptions DrawPath(
           } else if (results.matches == 1) {
             modifiers.insert(LineModifier::kGreen);
           } else if (results.common_prefix.has_value() &&
-                     line->size() < ColumnNumberDelta(
-                                        results.common_prefix.value().size())) {
+                     line.size() < ColumnNumberDelta(
+                                       results.common_prefix.value().size())) {
             modifiers.insert(LineModifier::kYellow);
           }
         }
@@ -138,13 +137,13 @@ ColorizePromptOptions DrawPath(
 }
 
 futures::Value<ColorizePromptOptions> AdjustPath(
-    EditorState& editor, const NonNull<std::shared_ptr<LazyString>>& line,
+    EditorState& editor, const LazyString& line,
     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value abort_value) {
   return Predict(FilePredictor,
                  PredictorInput{.editor = editor,
                                 .input = line,
-                                .input_column = ColumnNumber() + line->size(),
+                                .input_column = ColumnNumber() + line.size(),
                                 .source_buffers = editor.active_buffers(),
                                 .progress_channel = std::move(progress_channel),
                                 .abort_value = std::move(abort_value)})

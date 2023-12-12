@@ -49,9 +49,9 @@ void AddContents(const OpenBuffer& source, const Line& input,
                  LineBuilder* line_options) {
   auto trim = TrimLeft(input.contents(),
                        source.Read(buffer_variables::line_prefix_characters));
-  CHECK_LE(trim->size(), input.contents()->size());
+  CHECK_LE(trim.size(), input.contents().size());
   auto characters_trimmed =
-      ColumnNumberDelta(input.contents()->size() - trim->size());
+      ColumnNumberDelta(input.contents().size() - trim.size());
   auto initial_length = line_options->EndColumn().ToDelta();
   line_options->set_contents(Append(line_options->contents(), trim));
   for (auto& m : input.modifiers()) {
@@ -62,9 +62,8 @@ void AddContents(const OpenBuffer& source, const Line& input,
   }
 }
 
-void AppendLine(OpenBuffer& source,
-                NonNull<std::shared_ptr<LazyString>> padding,
-                LineColumn position, OpenBuffer& target) {
+void AppendLine(OpenBuffer& source, LazyString padding, LineColumn position,
+                OpenBuffer& target) {
   LineBuilder options;
   options.set_contents(padding);
   options.SetOutgoingLink(
@@ -74,8 +73,7 @@ void AppendLine(OpenBuffer& source,
 }
 
 void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
-                 NonNull<std::shared_ptr<LazyString>> padding,
-                 OpenBuffer& target) {
+                 LazyString padding, OpenBuffer& target) {
   for (size_t i = 0; i < tree.children().size(); i++) {
     auto& child = tree.children()[i];
     if (child.range().begin().line + LineNumberDelta(1) ==

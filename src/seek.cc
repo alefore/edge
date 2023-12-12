@@ -196,12 +196,10 @@ std::function<bool(const Line& line)> Negate(
 std::function<bool(const Line& line)> IsLineSubsetOf(
     const std::wstring& allowed_chars) {
   return [allowed_chars](const Line& line) {
-    return !FindFirstColumnWithPredicate(line.contents().value(),
-                                         [&](ColumnNumber, wchar_t c) {
-                                           return allowed_chars.find(c) ==
-                                                  allowed_chars.npos;
-                                         })
-                .has_value();
+    return !FindFirstColumnWithPredicate(line.contents(), [&](ColumnNumber,
+                                                              wchar_t c) {
+              return allowed_chars.find(c) == allowed_chars.npos;
+            }).has_value();
   };
 }
 

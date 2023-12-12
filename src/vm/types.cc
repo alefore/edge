@@ -163,7 +163,7 @@ std::wstring TypesToString(const std::vector<Type>& types) {
                        return NewLazyString(L"\"" + ToString(t) + L"\"");
                      }) |
                      Intersperse(NewLazyString(L", ")))
-      ->ToString();
+      .ToString();
 }
 
 std::wstring TypesToString(const std::unordered_set<Type>& types) {
@@ -194,7 +194,7 @@ std::wstring ToString(const Type& type) {
                                       return NewLazyString(ToString(t));
                                     }) |
                                     Intersperse(NewLazyString(L", ")))
-                            ->ToString() +
+                            .ToString() +
                         L")>";
                }},
       type);

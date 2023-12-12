@@ -78,7 +78,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
                   ? to_wstring(range.line() + LineNumberDelta(1))
                   : L"↪";
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
-          language::NonNull<std::shared_ptr<LazyString>> padding =
+          LazyString padding =
               Padding(width - ColumnNumberDelta(number.size() + 1), L' ');
 
           LineBuilder line_options;

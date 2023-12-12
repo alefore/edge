@@ -83,7 +83,7 @@ std::wstring GetSymbol(const Range& range, const LineSequence& contents) {
   return contents.at(range.begin().line)
       ->Substring(range.begin().column,
                   range.end().column - range.begin().column)
-      ->ToString();
+      .ToString();
 }
 
 void PrepareTokenPartition(

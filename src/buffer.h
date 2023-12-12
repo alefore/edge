@@ -211,15 +211,11 @@ class OpenBuffer {
       language::NonNull<std::shared_ptr<language::text::Line>> line);
 
   // Can handle \n characters, breaking it into lines.
-  void AppendLazyString(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          input);
+  void AppendLazyString(language::lazy_string::LazyString input);
   // line must not contain \n characters.
-  void AppendLine(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          line);
+  void AppendLine(language::lazy_string::LazyString line);
   void AppendRawLine(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      language::lazy_string::LazyString str,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::kShow);
 
@@ -229,9 +225,7 @@ class OpenBuffer {
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::kShow);
 
-  void AppendToLastLine(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          str);
+  void AppendToLastLine(language::lazy_string::LazyString str);
   void AppendToLastLine(language::text::Line line);
 
   // Adds a new line. If there's a previous line, notifies various things about
@@ -328,8 +322,8 @@ class OpenBuffer {
 
   bool dirty() const;
   std::map<std::wstring, std::wstring> Flags() const;
-  static language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  FlagsToString(std::map<std::wstring, std::wstring> flags);
+  static language::lazy_string::LazyString FlagsToString(
+      std::map<std::wstring, std::wstring> flags);
 
   futures::Value<std::wstring> TransformKeyboardText(std::wstring input);
   bool AddKeyboardTextTransformer(language::gc::Root<vm::Value> transformer);
@@ -556,8 +550,8 @@ class OpenBuffer {
       language::text::LineColumn position, transformation::Input::Mode mode);
   void UpdateTreeParser();
 
-  void ProcessCommandInput(
-      std::shared_ptr<language::lazy_string::LazyString> str);
+  // TODO(trivial, 2023-12-11): Document why this isn't const-ref.
+  void ProcessCommandInput(language::lazy_string::LazyString str);
 
   // Returns true if the position given is set to a value other than
   // language::text::LineColumn::Max and the buffer has read past that position.

@@ -202,10 +202,10 @@ ValueOrError<Path> Path::FromString(std::wstring path) {
   return Path::FromString(NewLazyString(std::move(path)));
 }
 
-ValueOrError<Path> Path::FromString(NonNull<std::shared_ptr<LazyString>> path) {
+ValueOrError<Path> Path::FromString(LazyString path) {
   // TODO(easy, 2022-06-10): Avoid call to ToString.
-  return path->size().IsZero() ? Error(L"Empty path.")
-                               : Success(Path(path->ToString()));
+  return path.size().IsZero() ? Error(L"Empty path.")
+                              : Success(Path(path.ToString()));
 }
 
 Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {

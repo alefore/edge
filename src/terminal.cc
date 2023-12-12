@@ -241,7 +241,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
            (modifiers_it == modifiers.end() ||
             modifiers_it->first > input_column)) {
       output_column += ColumnNumberDelta(
-          wcwidth(line_with_cursor.line->contents()->get(input_column)));
+          wcwidth(line_with_cursor.line->contents().get(input_column)));
       ++input_column;
     }
 

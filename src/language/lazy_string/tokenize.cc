@@ -65,27 +65,26 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   return output;
 }
 
-void PushIfNonEmpty(const NonNull<std::shared_ptr<LazyString>>& source,
-                    Token token, std::vector<Token>& output) {
+void PushIfNonEmpty(const LazyString& source, Token token,
+                    std::vector<Token>& output) {
   CHECK_LE(token.begin, token.end);
   if (token.begin < token.end) {
     token.value =
-        Substring(source, token.begin, token.end - token.begin)->ToString();
+        Substring(source, token.begin, token.end - token.begin).ToString();
     output.push_back(std::move(token));
   }
 }
 
-std::vector<Token> TokenizeGroupsAlnum(
-    const NonNull<std::shared_ptr<LazyString>>& name) {
+std::vector<Token> TokenizeGroupsAlnum(const LazyString& name) {
   std::vector<Token> output;
-  for (ColumnNumber i; i.ToDelta() < name->size();) {
-    while (i.ToDelta() < name->size() && !isalnum(name->get(i))) {
-      // if (name->get(i) == L'\\') ++i;
+  for (ColumnNumber i; i.ToDelta() < name.size();) {
+    while (i.ToDelta() < name.size() && !isalnum(name.get(i))) {
+      // if (name.get(i) == L'\\') ++i;
       ++i;
     }
     Token token;
     token.begin = i;
-    while (i.ToDelta() < name->size() && isalnum(name->get(i))) {
+    while (i.ToDelta() < name.size() && isalnum(name.get(i))) {
       ++i;
     }
     token.end = i;
@@ -113,8 +112,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
 }
 #endif
 
-std::vector<Token> TokenizeNameForPrefixSearches(
-    const NonNull<std::shared_ptr<LazyString>>& name) {
+std::vector<Token> TokenizeNameForPrefixSearches(const LazyString& name) {
   std::vector<Token> output;
   for (const auto& input_token : TokenizeGroupsAlnum(name)) {
     ColumnNumber i = input_token.begin;
@@ -123,8 +121,8 @@ std::vector<Token> TokenizeNameForPrefixSearches(
       output_token.begin = i;
       ++i;
       while (i < input_token.end &&
-             ((isupper(name->get(i - ColumnNumberDelta(1))) ||
-               islower(name->get(i))))) {
+             ((isupper(name.get(i - ColumnNumberDelta(1))) ||
+               islower(name.get(i))))) {
         ++i;
       }
       output_token.end = i;
@@ -153,14 +151,14 @@ std::optional<Token> FindPrefixInTokens(std::wstring prefix,
 }
 }  // namespace
 
-std::vector<Token> ExtendTokensToEndOfString(
-    NonNull<std::shared_ptr<LazyString>> str, std::vector<Token> tokens) {
+std::vector<Token> ExtendTokensToEndOfString(LazyString str,
+                                             std::vector<Token> tokens) {
   std::vector<Token> output;
   output.reserve(tokens.size());
   for (auto& token : tokens) {
-    output.push_back(Token{.value = Substring(str, token.begin)->ToString(),
+    output.push_back(Token{.value = Substring(str, token.begin).ToString(),
                            .begin = token.begin,
-                           .end = ColumnNumber() + str->size()});
+                           .end = ColumnNumber() + str.size()});
   }
   return output;
 }

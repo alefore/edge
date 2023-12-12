@@ -60,7 +60,7 @@ struct SearchNamespaces {
           std::vector<vm::Namespace> output = {kEmptyNamespace};
           auto var = NewLazyString(
               buffer.Read(buffer_variables::cpp_prompt_namespaces));
-          for (auto& token : TokenizeBySpaces(var.value())) {
+          for (auto& token : TokenizeBySpaces(var)) {
             output.push_back(vm::Namespace({token.value}));
           }
           return output;
@@ -70,7 +70,7 @@ struct SearchNamespaces {
 };
 
 futures::Value<EmptyValue> RunCppCommandLiteralHandler(
-    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> name) {
+    EditorState& editor_state, LazyString name) {
   // TODO(easy): Honor `multiple_buffers`.
   return VisitPointer(
       editor_state.current_buffer(),
@@ -80,7 +80,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
         return buffer
             .ptr()
 
-            ->EvaluateString(name->ToString())
+            ->EvaluateString(name.ToString())
             .Transform([buffer](gc::Root<vm::Value> value) {
               if (value.ptr()->IsVoid()) return Success();
               std::ostringstream oss;
@@ -101,12 +101,11 @@ struct ParsedCommand {
 };
 
 ValueOrError<ParsedCommand> Parse(
-    gc::Pool& pool, NonNull<std::shared_ptr<LazyString>> command,
-    const vm::Environment& environment,
-    NonNull<std::shared_ptr<LazyString>> function_name_prefix,
+    gc::Pool& pool, LazyString command, const vm::Environment& environment,
+    LazyString function_name_prefix,
     std::unordered_set<vm::Type> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
-  std::vector<Token> output_tokens = TokenizeBySpaces(command.value());
+  std::vector<Token> output_tokens = TokenizeBySpaces(command);
   if (output_tokens.empty()) {
     // Deliberately empty so as to not trigger a status update.
     return Error(L"");
@@ -118,13 +117,13 @@ ValueOrError<ParsedCommand> Parse(
     environment.CaseInsensitiveLookup(
         n,
         Append(function_name_prefix, NewLazyString(output_tokens[0].value))
-            ->ToString(),
+            .ToString(),
         &functions);
     if (!functions.empty()) break;
   }
 
   if (functions.empty()) {
-    Error error(L"Unknown symbol: " + function_name_prefix->ToString() +
+    Error error(L"Unknown symbol: " + function_name_prefix.ToString() +
                 output_tokens[0].value);
     VLOG(5) << "Parse: " << error;
     return error;
@@ -205,8 +204,7 @@ ValueOrError<ParsedCommand> Parse(
                        .function_inputs = std::move(output_function_inputs)};
 }
 
-ValueOrError<ParsedCommand> Parse(gc::Pool& pool,
-                                  NonNull<std::shared_ptr<LazyString>> command,
+ValueOrError<ParsedCommand> Parse(gc::Pool& pool, LazyString command,
                                   vm::Environment& environment,
                                   const SearchNamespaces& search_namespaces) {
   return Parse(pool, std::move(command), environment, EmptyString(),
@@ -274,15 +272,15 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
                                    buffer.environment().ToRoot());
 }
 
-futures::Value<EmptyValue> RunCppCommandShellHandler(
-    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> command) {
+futures::Value<EmptyValue> RunCppCommandShellHandler(EditorState& editor_state,
+                                                     LazyString command) {
   return RunCppCommandShell(command, editor_state)
       .Transform([](auto) { return Success(); })
       .ConsumeErrors([](auto) { return futures::Past(EmptyValue()); });
 }
 
 futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
-    EditorState& editor, NonNull<std::shared_ptr<LazyString>> line,
+    EditorState& editor, LazyString line,
     NonNull<std::shared_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value) {
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
@@ -301,7 +299,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
             ColorizePromptOptions output{
                 .tokens = {{.token = {.value = L"",
                                       .begin = ColumnNumber(0),
-                                      .end = ColumnNumber(0) + line->size()},
+                                      .end = ColumnNumber(0) + line.size()},
                             .modifiers = modifiers}}};
             if (compilation_result.first->Types() ==
                 std::vector<vm::Type>({vm::types::Void{}}))
@@ -338,15 +336,15 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                 {.values = {{VersionPropertyKey(L"error"), error.read()}}});
             return futures::Past(ColorizePromptOptions());
           }},
-      buffer->ptr()->CompileString(line->ToString()));
+      buffer->ptr()->CompileString(line.ToString()));
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
     EditorState& editor, const SearchNamespaces& search_namespaces,
-    Predictor predictor, NonNull<std::shared_ptr<LazyString>> line,
+    Predictor predictor, LazyString line,
     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
     DeleteNotification::Value abort_value) {
-  VLOG(7) << "ColorizeOptionsProvider: " << line->ToString();
+  VLOG(7) << "ColorizeOptionsProvider: " << line.ToString();
   NonNull<std::shared_ptr<ColorizePromptOptions>> output;
   std::optional<gc::Root<OpenBuffer>> buffer = editor.current_buffer();
   vm::Environment& environment =
@@ -359,7 +357,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                         output->tokens.push_back(
                             {.token = {.value = L"",
                                        .begin = ColumnNumber(0),
-                                       .end = ColumnNumber() + line->size()},
+                                       .end = ColumnNumber() + line.size()},
                              .modifiers = {LineModifier::kCyan}});
                       }},
              Parse(editor.gc_pool(), line, environment, search_namespaces));
@@ -368,7 +366,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   return Predict(predictor,
                  PredictorInput{.editor = editor,
                                 .input = line,
-                                .input_column = ColumnNumber() + line->size(),
+                                .input_column = ColumnNumber() + line.size(),
                                 .source_buffers = editor.active_buffers(),
                                 .progress_channel = std::move(progress_channel),
                                 .abort_value = std::move(abort_value)})
@@ -441,8 +439,7 @@ std::vector<std::wstring> GetCppTokens(
 }  // namespace
 
 futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
-    const NonNull<std::shared_ptr<LazyString>>& command,
-    EditorState& editor_state) {
+    const LazyString& command, EditorState& editor_state) {
   using futures::Past;
   auto buffer = editor_state.current_buffer();
   if (!buffer.has_value()) {
@@ -487,9 +484,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
   return NewLinePromptCommand(
       editor_state, description, [&editor_state, mode]() {
         std::wstring prompt;
-        std::function<futures::Value<EmptyValue>(
-            NonNull<std::shared_ptr<LazyString>> input)>
-            handler;
+        std::function<futures::Value<EmptyValue>(LazyString input)> handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
         Predictor predictor = EmptyPredictor;
         switch (mode) {

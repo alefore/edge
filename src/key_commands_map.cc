@@ -30,8 +30,7 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
 namespace afc::editor::operation {
-/* static */ NonNull<std::shared_ptr<LazyString>> KeyCommandsMap::ToString(
-    Category category) {
+/* static */ LazyString KeyCommandsMap::ToString(Category category) {
   switch (category) {
     case KeyCommandsMap::Category::kStringControl:
       return NewLazyString(L"String");
@@ -97,16 +96,15 @@ LineSequence KeyCommandsMapSequence::Help() const {
   for (const KeyCommandsMap::Category& category :
        descriptions | std::views::keys)
     longest_category =
-        std::max(longest_category, KeyCommandsMap::ToString(category)->size());
+        std::max(longest_category, KeyCommandsMap::ToString(category).size());
 
   for (const std::pair<const KeyCommandsMap::Category,
                        std::map<ExtendedChar, Description>>& category_entry :
        descriptions) {
     LineBuilder category_line;
-    NonNull<std::shared_ptr<LazyString>> category_name =
-        KeyCommandsMap::ToString(category_entry.first);
+    LazyString category_name = KeyCommandsMap::ToString(category_entry.first);
     category_line.AppendString(
-        Padding(longest_category - category_name->size(), L' '));
+        Padding(longest_category - category_name.size(), L' '));
     category_line.AppendString(category_name,
                                LineModifierSet{LineModifier::kBold});
     category_line.AppendString(NewLazyString(L":"));

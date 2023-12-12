@@ -41,6 +41,7 @@ using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -103,8 +104,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
   size_t pos = 0;
   char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
   int tmp_fd = mkstemp(path);
-  NonNull<std::shared_ptr<LazyString>> path_str =
-      NewLazyString(FromByteString(path));
+  LazyString path_str = NewLazyString(FromByteString(path));
   free(path);
 
   commands_to_run =
@@ -113,7 +113,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
           vm::EscapedString::FromString(path_str).CppRepresentation()) +
       ");\n";
   LOG(INFO) << "Sending commands to fd: " << server_fd << " through path "
-            << path_str->ToString() << ": " << commands_to_run;
+            << path_str.ToString() << ": " << commands_to_run;
   while (pos < commands_to_run.size()) {
     VLOG(5) << commands_to_run.substr(pos);
     int bytes_written = write(tmp_fd, commands_to_run.c_str() + pos,
@@ -130,7 +130,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
   }
   DECLARE_OR_RETURN(Path input_path, Path::FromString(path_str));
   std::string command =
-      "#include \"" + ToByteString(path_str->ToString()) + "\"\n";
+      "#include \"" + ToByteString(path_str.ToString()) + "\"\n";
   if (write(server_fd.read(), command.c_str(), command.size()) !=
       static_cast<int>(command.size())) {
     std::cerr << "write: " << strerror(errno);

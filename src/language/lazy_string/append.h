@@ -10,25 +10,15 @@
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
-language::NonNull<std::shared_ptr<LazyString>> Append(
-    language::NonNull<std::shared_ptr<LazyString>> a,
-    language::NonNull<std::shared_ptr<LazyString>> b);
-language::NonNull<std::shared_ptr<LazyString>> Append(
-    language::NonNull<std::shared_ptr<LazyString>> a,
-    language::NonNull<std::shared_ptr<LazyString>> b,
-    language::NonNull<std::shared_ptr<LazyString>> c);
-language::NonNull<std::shared_ptr<LazyString>> Append(
-    language::NonNull<std::shared_ptr<LazyString>> a,
-    language::NonNull<std::shared_ptr<LazyString>> b,
-    language::NonNull<std::shared_ptr<LazyString>> c,
-    language::NonNull<std::shared_ptr<LazyString>> d);
+LazyString Append(LazyString a, LazyString b);
+LazyString Append(LazyString a, LazyString b, LazyString c);
+LazyString Append(LazyString a, LazyString b, LazyString c, LazyString d);
 
 template <std::ranges::range R>
-language::NonNull<std::shared_ptr<LazyString>> Concatenate(R&& inputs) {
+LazyString Concatenate(R&& inputs) {
   // TODO: There's probably a faster way to do this. Not sure it matters.
   return container::Fold(
-      [](language::NonNull<std::shared_ptr<LazyString>> fragment,
-         language::NonNull<std::shared_ptr<LazyString>> total) {
+      [](LazyString fragment, LazyString total) {
         return Append(std::move(total), fragment);
       },
       EmptyString(), inputs);
@@ -39,13 +29,12 @@ language::NonNull<std::shared_ptr<LazyString>> Concatenate(R&& inputs) {
 //
 // For example:
 //
-//     std::vector<NonNull<std::shared_ptr<LazyString>> inputs = ...;
-//     NonNull<std::shared_ptr<LazyString>> output =
+//     std::vector<LazyString inputs = ...;
+//     LazyString output =
 //         Concatenate(inputs | Intersperse(NewLazyString(L", ")))
-inline auto Intersperse(NonNull<std::shared_ptr<LazyString>> separator) {
-  return std::views::transform([&](NonNull<std::shared_ptr<LazyString>> v) {
-           return std::vector<NonNull<std::shared_ptr<LazyString>>>{
-               separator, std::move(v)};
+inline auto Intersperse(LazyString separator) {
+  return std::views::transform([&](LazyString v) {
+           return std::vector<LazyString>{separator, std::move(v)};
          }) |
          std::views::join |
          // Remove the first element (", ").

@@ -98,7 +98,7 @@ ValueOrError<PredictResults> BuildResults(
             std::min(ColumnNumberDelta(common_prefix.value().size()),
                      line->EndColumn().ToDelta());
         std::wstring current =
-            line->Substring(ColumnNumber(0), current_size)->ToString();
+            line->Substring(ColumnNumber(0), current_size).ToString();
 
         auto prefix_end =
             mismatch(common_prefix->begin(), common_prefix->end(),
@@ -304,7 +304,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
 
 futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: "
-            << predictor_input.input->ToString();
+            << predictor_input.input.ToString();
   return GetSearchPaths(predictor_input.editor)
       .Transform([predictor_input](std::vector<Path> search_paths) {
         // We can't use a Path type because this comes from the prompt and ...
@@ -312,7 +312,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
         std::wstring path_input = std::visit(
             overload{[&](Error) {
                        // TODO(easy, 2023-12-02): Get rid of ToString.
-                       return predictor_input.input->ToString();
+                       return predictor_input.input.ToString();
                      },
                      [&](Path path) {
                        return predictor_input.editor.expand_path(path).read();
@@ -421,20 +421,19 @@ const BufferName& PredictionsBufferName() {
 
 Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
                                wchar_t separator) {
-  const auto contents = std::make_shared<
-      std::multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>>();
+  const auto contents =
+      std::make_shared<std::multimap<std::wstring, LazyString>>();
   for (const std::wstring& prediction_raw : predictions) {
     std::vector<std::wstring> variations;
     RegisterVariations(prediction_raw, separator, &variations);
-    const NonNull<std::shared_ptr<LazyString>> prediction =
-        NewLazyString(prediction_raw);
+    const LazyString prediction = NewLazyString(prediction_raw);
     for (auto& variation : variations) {
       contents->insert(make_pair(variation, prediction));
     }
   }
   return [contents](PredictorInput input) {
     // TODO(2023-12-02): Find a way to avoid the call to `ToString`.
-    std::wstring input_str = input.input->ToString();
+    std::wstring input_str = input.input.ToString();
     MutableLineSequence output_contents;
     for (auto it = contents->lower_bound(input_str); it != contents->end();
          ++it) {
@@ -551,7 +550,7 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     LineNumber line = contents.sorted_lines().upper_bound(input_line);
 
     // TODO(2023-12-02): Find a way to do this without `ToString`.
-    const std::wstring input_str = input.input->ToString();
+    const std::wstring input_str = input.input.ToString();
 
     MutableLineSequence output_contents;
     // TODO: This has complexity N log N. We could instead extend BufferContents
@@ -593,7 +592,7 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
         line->Substring(tree.range().begin().column,
                         std::min(tree.range().end().column, line->EndColumn()) -
                             tree.range().begin().column)
-            ->ToString();
+            .ToString();
     if (!word.empty()) {
       DVLOG(5) << "Found leave: " << word;
       words->insert(word);

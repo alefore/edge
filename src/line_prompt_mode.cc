@@ -85,7 +85,7 @@ using afc::language::text::Range;
 
 namespace afc::editor {
 namespace {
-NonNull<std::shared_ptr<LazyString>> GetPredictInput(const OpenBuffer& buffer) {
+LazyString GetPredictInput(const OpenBuffer& buffer) {
   Range range =
       buffer.FindPartialRange(Modifiers{.structure = Structure::kLine,
                                         .direction = Direction::kBackwards},
@@ -106,10 +106,9 @@ NonNull<std::shared_ptr<LazyString>> GetPredictInput(const OpenBuffer& buffer) {
           range.begin().column);
 }
 
-std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
-GetCurrentFeatures(EditorState& editor) {
-  std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
-      output;
+std::unordered_multimap<std::wstring, LazyString> GetCurrentFeatures(
+    EditorState& editor) {
+  std::unordered_multimap<std::wstring, LazyString> output;
   for (OpenBuffer& buffer :
        *editor.buffers() | std::views::values | gc::view::Value)
     if (buffer.Read(buffer_variables::show_in_buffers_list) &&
@@ -126,12 +125,9 @@ GetCurrentFeatures(EditorState& editor) {
 
 // Generates additional features that are derived from the features returned by
 // GetCurrentFeatures (and thus don't need to be saved).
-std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
-GetSyntheticFeatures(
-    const std::unordered_multimap<
-        std::wstring, NonNull<std::shared_ptr<LazyString>>>& input) {
-  std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
-      output;
+std::unordered_multimap<std::wstring, LazyString> GetSyntheticFeatures(
+    const std::unordered_multimap<std::wstring, LazyString>& input) {
+  std::unordered_multimap<std::wstring, LazyString> output;
   std::unordered_set<Path> directories;
   std::unordered_set<std::wstring> extensions;
   VLOG(5) << "Generating features from input: " << input.size();
@@ -176,32 +172,26 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"ExtensionsSimple",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                input;
+            std::unordered_multimap<std::wstring, LazyString> input;
             input.insert({L"name", NewLazyString(L"foo.cc")});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
-            CHECK(output.find(L"extension")->second->ToString() == L"cc");
+            CHECK(output.find(L"extension")->second.ToString() == L"cc");
           }},
      {.name = L"ExtensionsLongDirectory",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                input;
+            std::unordered_multimap<std::wstring, LazyString> input;
             input.insert(
                 {L"name", NewLazyString(L"/home/alejo/src/edge/foo.cc")});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
-            CHECK(output.find(L"extension")->second->ToString() == L"cc");
+            CHECK(output.find(L"extension")->second.ToString() == L"cc");
           }},
      {.name = L"ExtensionsMultiple",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                input;
+            std::unordered_multimap<std::wstring, LazyString> input;
             input.insert({L"name", NewLazyString(L"/home/alejo/foo.cc")});
             input.insert({L"name", NewLazyString(L"bar.cc")});
             input.insert({L"name",
@@ -214,7 +204,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
             auto range = output.equal_range(L"extension");
             CHECK_EQ(std::distance(range.first, range.second), 3l);
             while (range.first != range.second) {
-              auto value = range.first->second->ToString();
+              auto value = range.first->second.ToString();
               CHECK(value == L"cc" || value == L"h" || value == L"md");
               ++range.first;
             }
@@ -222,9 +212,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"DirectoryPlain",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                input;
+            std::unordered_multimap<std::wstring, LazyString> input;
             input.insert({L"name", NewLazyString(L"foo.cc")});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 0ul);
@@ -232,19 +220,15 @@ const bool get_synthetic_features_tests_registration = tests::Register(
      {.name = L"DirectoryPath",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                input;
+            std::unordered_multimap<std::wstring, LazyString> input;
             input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 1ul);
-            CHECK(output.find(L"directory")->second->ToString() ==
+            CHECK(output.find(L"directory")->second.ToString() ==
                   L"/home/alejo/edge");
           }},
      {.name = L"DirectoryMultiple", .callback = [] {
-        std::unordered_multimap<std::wstring,
-                                NonNull<std::shared_ptr<LazyString>>>
-            input;
+        std::unordered_multimap<std::wstring, LazyString> input;
         input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
         input.insert({L"name", NewLazyString(L"/home/alejo/edge/bar.cc")});
         input.insert({L"name", NewLazyString(L"/home/alejo/btc/input.txt")});
@@ -252,7 +236,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
         auto range = output.equal_range(L"directory");
         CHECK_EQ(std::distance(range.first, range.second), 2l);
         while (range.first != range.second) {
-          auto value = range.first->second->ToString();
+          auto value = range.first->second.ToString();
           CHECK(value == L"/home/alejo/edge" || value == L"/home/alejo/btc");
           ++range.first;
         }
@@ -292,24 +276,22 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
       });
 }
 
-ValueOrError<
-    std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>>
-ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
-  std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
-      output;
-  for (const Token& token : TokenizeBySpaces(line.value())) {
+ValueOrError<std::unordered_multimap<std::wstring, LazyString>>
+ParseHistoryLine(const LazyString& line) {
+  std::unordered_multimap<std::wstring, LazyString> output;
+  for (const Token& token : TokenizeBySpaces(line)) {
     auto colon = token.value.find(':');
     if (colon == std::wstring::npos)
       return Error(L"Unable to parse prompt line (no colon found in token): " +
-                   line->ToString());
+                   line.ToString());
     ColumnNumber value_start = token.begin + ColumnNumberDelta(colon);
     ++value_start;  // Skip the colon.
     ColumnNumber value_end = token.end;
     if (value_end <= value_start + ColumnNumberDelta(1) ||
-        line->get(value_start) != '\"' ||
-        line->get(value_end.previous()) != '\"') {
+        line.get(value_start) != '\"' ||
+        line.get(value_end.previous()) != '\"') {
       return Error(L"Unable to parse prompt line (expected quote): " +
-                   line->ToString());
+                   line.ToString());
     }
     // Skip quotes:
     ++value_start;
@@ -318,8 +300,8 @@ ParseHistoryLine(const NonNull<std::shared_ptr<LazyString>>& line) {
                    Substring(line, value_start, value_end - value_start)});
   }
 
-  std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
-      synthetic_features = GetSyntheticFeatures(output);
+  std::unordered_multimap<std::wstring, LazyString> synthetic_features =
+      GetSyntheticFeatures(output);
   output.insert(synthetic_features.begin(), synthetic_features.end());
 
   return output;
@@ -335,12 +317,11 @@ auto parse_history_line_tests_registration = tests::Register(
      {.name = L"Empty", .callback = [] {
         auto result =
             ValueOrDie(ParseHistoryLine(NewLazyString(L"prompt:\"\"")));
-        CHECK(result.find(L"prompt")->second->ToString() == L"");
+        CHECK(result.find(L"prompt")->second.ToString() == L"");
       }}});
 
 // TODO(easy, 2022-06-03): Get rid of this? Just call EscapedString directly?
-NonNull<std::shared_ptr<LazyString>> QuoteString(
-    NonNull<std::shared_ptr<LazyString>> src) {
+LazyString QuoteString(LazyString src) {
   return NewLazyString(vm::EscapedString::FromString(src).CppRepresentation());
 }
 
@@ -348,7 +329,7 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
   auto test = [](std::wstring name, std::wstring input,
                  std::wstring expected_output) {
     return tests::Test({.name = name, .callback = [=] {
-                          CHECK(QuoteString(NewLazyString(input))->ToString() ==
+                          CHECK(QuoteString(NewLazyString(input)).ToString() ==
                                 expected_output);
                         }});
   };
@@ -361,9 +342,8 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
        test(L"MultiLine", L"foo\nbar\nhey", L"\"foo\\nbar\\nhey\"")});
 }());
 
-NonNull<std::shared_ptr<LazyString>> BuildHistoryLine(
-    EditorState& editor, NonNull<std::shared_ptr<LazyString>> input) {
-  std::vector<NonNull<std::shared_ptr<LazyString>>> line_for_history;
+LazyString BuildHistoryLine(EditorState& editor, LazyString input) {
+  std::vector<LazyString> line_for_history;
   line_for_history.emplace_back(NewLazyString(L"prompt:"));
   line_for_history.emplace_back(QuoteString(std::move(input)));
   for (auto& [name, feature] : GetCurrentFeatures(editor)) {
@@ -374,13 +354,12 @@ NonNull<std::shared_ptr<LazyString>> BuildHistoryLine(
 }
 
 NonNull<std::shared_ptr<Line>> ColorizeLine(
-    NonNull<std::shared_ptr<LazyString>> line,
-    std::vector<TokenAndModifiers> tokens) {
+    LazyString line, std::vector<TokenAndModifiers> tokens) {
   sort(tokens.begin(), tokens.end(),
        [](const TokenAndModifiers& a, const TokenAndModifiers& b) {
          return a.token.begin < b.token.begin;
        });
-  VLOG(6) << "Producing output: " << line->ToString();
+  VLOG(6) << "Producing output: " << line.ToString();
   LineBuilder options;
   ColumnNumber position;
   auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
@@ -395,7 +374,7 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
     push_to_position(t.token.begin, {});
     push_to_position(t.token.end, t.modifiers);
   }
-  push_to_position(ColumnNumber() + line->size(), {});
+  push_to_position(ColumnNumber() + line.size(), {});
   return MakeNonNullShared<Line>(std::move(options).Build());
 }
 
@@ -407,8 +386,7 @@ struct FilterSortHistorySyncOutput {
 FilterSortHistorySyncOutput FilterSortHistorySync(
     DeleteNotification::Value abort_value, std::wstring filter,
     LineSequence history_contents,
-    std::unordered_multimap<std::wstring, NonNull<std::shared_ptr<LazyString>>>
-        features) {
+    std::unordered_multimap<std::wstring, LazyString> features) {
   FilterSortHistorySyncOutput output;
   if (abort_value.has_value()) return output;
   // Sets of features for each unique `prompt` value in the history.
@@ -416,96 +394,91 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   // Tokens by parsing the `prompt` value in the history.
   std::unordered_map<math::naive_bayes::Event, std::vector<Token>>
       history_prompt_tokens;
-  std::vector<Token> filter_tokens =
-      TokenizeBySpaces(NewLazyString(filter).value());
-  history_contents.EveryLine(
-      [&](LineNumber, const NonNull<std::shared_ptr<const Line>>& line) {
-        VLOG(8) << "Considering line: " << line->ToString();
-        auto warn_if = [&](bool condition, Error error) {
-          if (condition) {
-            // We don't use AugmentError because we'd rather append to the
-            // end of the description, not the beginning.
-            error = Error(error.read() + L": " + line->contents()->ToString());
-            VLOG(5) << "Found error: " << error;
-            output.errors.push_back(error);
-          }
-          return condition;
-        };
-        if (line->empty()) return true;
-        ValueOrError<std::unordered_multimap<
-            std::wstring, NonNull<std::shared_ptr<LazyString>>>>
-            line_keys_or_error = ParseHistoryLine(line->contents());
-        auto* line_keys = std::get_if<0>(&line_keys_or_error);
-        if (line_keys == nullptr) {
-          output.errors.push_back(std::get<Error>(line_keys_or_error));
-          return !abort_value.has_value();
-        }
-        auto range = line_keys->equal_range(L"prompt");
-        int prompt_count = std::distance(range.first, range.second);
-        if (warn_if(prompt_count == 0,
-                    Error(L"Line is missing `prompt` section")) ||
-            warn_if(prompt_count != 1,
-                    Error(L"Line has multiple `prompt` sections"))) {
-          return !abort_value.has_value();
-        }
+  std::vector<Token> filter_tokens = TokenizeBySpaces(NewLazyString(filter));
+  history_contents.EveryLine([&](LineNumber,
+                                 const NonNull<std::shared_ptr<const Line>>&
+                                     line) {
+    VLOG(8) << "Considering line: " << line->ToString();
+    auto warn_if = [&](bool condition, Error error) {
+      if (condition) {
+        // We don't use AugmentError because we'd rather append to the
+        // end of the description, not the beginning.
+        error = Error(error.read() + L": " + line->contents().ToString());
+        VLOG(5) << "Found error: " << error;
+        output.errors.push_back(error);
+      }
+      return condition;
+    };
+    if (line->empty()) return true;
+    ValueOrError<std::unordered_multimap<std::wstring, LazyString>>
+        line_keys_or_error = ParseHistoryLine(line->contents());
+    auto* line_keys = std::get_if<0>(&line_keys_or_error);
+    if (line_keys == nullptr) {
+      output.errors.push_back(std::get<Error>(line_keys_or_error));
+      return !abort_value.has_value();
+    }
+    auto range = line_keys->equal_range(L"prompt");
+    int prompt_count = std::distance(range.first, range.second);
+    if (warn_if(prompt_count == 0,
+                Error(L"Line is missing `prompt` section")) ||
+        warn_if(prompt_count != 1,
+                Error(L"Line has multiple `prompt` sections"))) {
+      return !abort_value.has_value();
+    }
 
-        std::visit(
-            overload{
-                [range](Error error) {
-                  LOG(INFO) << AugmentError(
-                      L"Unescaping string: " + range.first->second->ToString(),
-                      error);
-                },
-                [&](vm::EscapedString cpp_string) {
-                  VLOG(8) << "Considering history value: "
-                          << cpp_string.EscapedRepresentation();
-                  NonNull<std::shared_ptr<LazyString>> prompt_value =
-                      cpp_string.OriginalString();
-                  if (FindFirstColumnWithPredicate(
-                          prompt_value.value(),
-                          [](ColumnNumber, wchar_t c) { return c == L'\n'; })
-                          .has_value()) {
-                    VLOG(5)
-                        << "Ignoring value that contains a new line character.";
-                    return;
-                  }
-                  std::vector<Token> line_tokens = ExtendTokensToEndOfString(
-                      prompt_value,
-                      TokenizeNameForPrefixSearches(prompt_value));
-                  // TODO(easy, 2022-11-26): Get rid of call ToString.
-                  math::naive_bayes::Event event_key(
-                      cpp_string.OriginalString()->ToString());
-                  std::vector<math::naive_bayes::FeaturesSet>* features_output =
-                      nullptr;
-                  if (filter_tokens.empty()) {
-                    VLOG(6) << "Accepting value (empty filters): "
-                            << line->contents().value();
-                    features_output = &history_data[event_key];
-                  } else if (auto match = FindFilterPositions(filter_tokens,
-                                                              line_tokens);
-                             match.has_value()) {
-                    VLOG(5) << "Accepting value, produced a match: "
-                            << line->contents().value();
-                    features_output = &history_data[event_key];
-                    history_prompt_tokens.insert(
-                        {event_key, std::move(match.value())});
-                  } else {
-                    VLOG(6) << "Ignoring value, no match: "
-                            << line->contents().value();
-                    return;
-                  }
-                  math::naive_bayes::FeaturesSet current_features;
-                  for (auto& [key, value] : *line_keys) {
-                    if (key != L"prompt") {
-                      current_features.insert(math::naive_bayes::Feature(
-                          key + L":" + QuoteString(value)->ToString()));
-                    }
-                  }
-                  features_output->push_back(std::move(current_features));
-                }},
-            vm::EscapedString::Parse(range.first->second));
-        return !abort_value.has_value();
-      });
+    std::visit(
+        overload{
+            [range](Error error) {
+              LOG(INFO) << AugmentError(
+                  L"Unescaping string: " + range.first->second.ToString(),
+                  error);
+            },
+            [&](vm::EscapedString cpp_string) {
+              VLOG(8) << "Considering history value: "
+                      << cpp_string.EscapedRepresentation();
+              LazyString prompt_value = cpp_string.OriginalString();
+              if (FindFirstColumnWithPredicate(prompt_value, [](ColumnNumber,
+                                                                wchar_t c) {
+                    return c == L'\n';
+                  }).has_value()) {
+                VLOG(5) << "Ignoring value that contains a new line character.";
+                return;
+              }
+              std::vector<Token> line_tokens = ExtendTokensToEndOfString(
+                  prompt_value, TokenizeNameForPrefixSearches(prompt_value));
+              // TODO(easy, 2022-11-26): Get rid of call ToString.
+              math::naive_bayes::Event event_key(
+                  cpp_string.OriginalString().ToString());
+              std::vector<math::naive_bayes::FeaturesSet>* features_output =
+                  nullptr;
+              if (filter_tokens.empty()) {
+                VLOG(6) << "Accepting value (empty filters): "
+                        << line->contents();
+                features_output = &history_data[event_key];
+              } else if (auto match =
+                             FindFilterPositions(filter_tokens, line_tokens);
+                         match.has_value()) {
+                VLOG(5) << "Accepting value, produced a match: "
+                        << line->contents();
+                features_output = &history_data[event_key];
+                history_prompt_tokens.insert(
+                    {event_key, std::move(match.value())});
+              } else {
+                VLOG(6) << "Ignoring value, no match: " << line->contents();
+                return;
+              }
+              math::naive_bayes::FeaturesSet current_features;
+              for (auto& [key, value] : *line_keys) {
+                if (key != L"prompt") {
+                  current_features.insert(math::naive_bayes::Feature(
+                      key + L":" + QuoteString(value).ToString()));
+                }
+              }
+              features_output->push_back(std::move(current_features));
+            }},
+        vm::EscapedString::Parse(range.first->second));
+    return !abort_value.has_value();
+  });
 
   VLOG(4) << "Matches found: " << history_data.read().size();
 
@@ -513,11 +486,11 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   math::naive_bayes::FeaturesSet current_features;
   for (const auto& [name, value] : features) {
     current_features.insert(math::naive_bayes::Feature(
-        name + L":" + QuoteString(value)->ToString()));
+        name + L":" + QuoteString(value).ToString()));
   }
   for (const auto& [name, value] : GetSyntheticFeatures(features)) {
     current_features.insert(math::naive_bayes::Feature(
-        name + L":" + QuoteString(value)->ToString()));
+        name + L":" + QuoteString(value).ToString()));
   }
 
   for (math::naive_bayes::Event& key :
@@ -540,9 +513,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
     {{.name = L"EmptyFilter",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                features;
+            std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
                 DeleteNotification::Never(), L"", LineSequence(), features);
             CHECK(output.lines.empty());
@@ -550,9 +521,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
      {.name = L"NoMatch",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                features;
+            std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
                 DeleteNotification::Never(), L"quux",
                 LineSequence::ForTests(
@@ -563,9 +532,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
      {.name = L"MatchAfterEscape",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                features;
+            std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
                 DeleteNotification::Never(), L"nbar",
                 LineSequence::ForTests({L"prompt:\"foo\\\\nbardo\""}),
@@ -593,9 +560,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
      {.name = L"MatchIncludingEscapeCorrectlyHandled",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                features;
+            std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
                 DeleteNotification::Never(), L"nbar",
                 LineSequence::ForTests({L"prompt:\"foo\\nbar\""}), features);
@@ -604,9 +569,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
      {.name = L"IgnoresInvalidEntries",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                features;
+            std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
                 DeleteNotification::Never(), L"f",
                 LineSequence::ForTests(
@@ -619,18 +582,14 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
      {.name = L"HistoryWithRawNewLine",
       .callback =
           [] {
-            std::unordered_multimap<std::wstring,
-                                    NonNull<std::shared_ptr<LazyString>>>
-                features;
+            std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
                 DeleteNotification::Never(), L"ls",
                 LineSequence::ForTests({L"prompt:\"ls\n\""}), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"HistoryWithEscapedNewLine", .callback = [] {
-        std::unordered_multimap<std::wstring,
-                                NonNull<std::shared_ptr<LazyString>>>
-            features;
+        std::unordered_multimap<std::wstring, LazyString> features;
         FilterSortHistorySyncOutput output = FilterSortHistorySync(
             DeleteNotification::Never(), L"ls",
             LineSequence::ForTests({L"prompt:\"ls\\n\""}), features);
@@ -1127,8 +1086,8 @@ HistoryFile HistoryFileCommands() { return HistoryFile(L"commands"); }
 
 // input must not be escaped.
 void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
-                      NonNull<std::shared_ptr<LazyString>> input) {
-  if (input->size().IsZero()) return;
+                      LazyString input) {
+  if (input.size().IsZero()) return;
   switch (editor.args().prompt_history_behavior) {
     case CommandLineValues::HistoryFileBehavior::kUpdate:
       GetHistoryBuffer(editor, history_file)
@@ -1172,8 +1131,7 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .new_line_handler =
           [prompt_state](OpenBuffer& buffer) {
-            NonNull<std::shared_ptr<LazyString>> input =
-                buffer.CurrentLine()->contents();
+            LazyString input = buffer.CurrentLine()->contents();
             AddLineToHistory(prompt_state->editor_state(),
                              prompt_state->options().history_file, input);
             auto ensure_survival_of_current_closure =
@@ -1183,9 +1141,8 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .start_completion =
           [prompt_state](OpenBuffer& buffer) {
-            NonNull<std::shared_ptr<LazyString>> input =
-                buffer.CurrentLine()->contents();
-            LOG(INFO) << "Triggering predictions from: " << input.value();
+            LazyString input = buffer.CurrentLine()->contents();
+            LOG(INFO) << "Triggering predictions from: " << input;
             CHECK(prompt_state->status().prompt_extra_information() != nullptr);
             auto status_version_value =
                 MakeNonNullShared<StatusVersionAdapter>(prompt_state);
@@ -1212,10 +1169,10 @@ InsertModeOptions PromptState::insert_mode_options() {
                   }
                   if (results.value().common_prefix.has_value() &&
                       !results.value().common_prefix.value().empty() &&
-                      input->ToString() !=
+                      input.ToString() !=
                           results.value().common_prefix.value()) {
-                    LOG(INFO) << "Prediction advanced from " << input.value()
-                              << " to " << results.value();
+                    LOG(INFO) << "Prediction advanced from " << input << " to "
+                              << results.value();
                     status_version_value->SetStatusValue(
                         VersionPropertyKey(L"🔮"), L"advanced");
 
@@ -1230,7 +1187,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                             .initiator =
                                 transformation::Delete::Initiator::kInternal});
 
-                    NonNull<std::shared_ptr<LazyString>> line =
+                    LazyString line =
                         NewLazyString(results.value().common_prefix.value());
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(

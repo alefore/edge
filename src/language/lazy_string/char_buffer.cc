@@ -9,7 +9,7 @@
 
 namespace afc::language::lazy_string {
 namespace {
-class RepeatedChar : public LazyString {
+class RepeatedChar : public LazyStringImpl {
  public:
   RepeatedChar(ColumnNumberDelta times, wchar_t c) : times_(times), c_(c) {}
 
@@ -26,7 +26,7 @@ class RepeatedChar : public LazyString {
 };
 
 template <typename Container>
-class StringFromContainer : public LazyString {
+class StringFromContainer : public LazyStringImpl {
  public:
   StringFromContainer(Container data) : data_(std::move(data)) {}
 
@@ -41,7 +41,7 @@ class StringFromContainer : public LazyString {
   const Container data_;
 };
 
-class MoveableCharBuffer : public LazyString {
+class MoveableCharBuffer : public LazyStringImpl {
  public:
   MoveableCharBuffer(const wchar_t* const* buffer, size_t input_size)
       : buffer_(buffer), size_(input_size) {}
@@ -75,39 +75,36 @@ class CharBufferWithOwnership : public CharBuffer {
 };
 }  // namespace
 
-NonNull<std::unique_ptr<LazyString>> NewMoveableCharBuffer(
-    const wchar_t* const* buffer, size_t size) {
-  return MakeNonNullUnique<MoveableCharBuffer>(buffer, size);
+LazyString NewMoveableCharBuffer(const wchar_t* const* buffer, size_t size) {
+  return LazyString(MakeNonNullShared<MoveableCharBuffer>(buffer, size));
 }
 
-NonNull<std::unique_ptr<LazyString>> NewCharBuffer(const wchar_t* buffer,
-                                                   size_t size) {
-  return MakeNonNullUnique<CharBuffer>(buffer, size);
+LazyString NewCharBuffer(const wchar_t* buffer, size_t size) {
+  return LazyString(MakeNonNullShared<CharBuffer>(buffer, size));
 }
 
-NonNull<std::unique_ptr<LazyString>> NewCharBufferWithOwnership(
-    const wchar_t* buffer, size_t size) {
-  return MakeNonNullUnique<CharBufferWithOwnership>(buffer, size);
+LazyString NewCharBufferWithOwnership(const wchar_t* buffer, size_t size) {
+  return LazyString(MakeNonNullShared<CharBufferWithOwnership>(buffer, size));
 }
 
-NonNull<std::unique_ptr<LazyString>> NewCopyCharBuffer(const wchar_t* buffer) {
-  return MakeNonNullUnique<CharBufferWithOwnership>(wcsdup(buffer),
-                                                    wcslen(buffer));
+LazyString NewCopyCharBuffer(const wchar_t* buffer) {
+  return LazyString(MakeNonNullShared<CharBufferWithOwnership>(wcsdup(buffer),
+                                                               wcslen(buffer)));
 }
 
-NonNull<std::unique_ptr<LazyString>> NewLazyString(std::wstring buffer) {
-  return MakeNonNullUnique<StringFromContainer<std::wstring>>(
-      std::move(buffer));
+LazyString NewLazyString(std::wstring buffer) {
+  return LazyString(
+      MakeNonNullShared<StringFromContainer<std::wstring>>(std::move(buffer)));
 }
 
-NonNull<std::unique_ptr<LazyString>> NewLazyString(std::vector<wchar_t> data) {
-  return MakeNonNullUnique<StringFromContainer<std::vector<wchar_t>>>(
-      std::move(data));
+LazyString NewLazyString(std::vector<wchar_t> data) {
+  return LazyString(
+      MakeNonNullShared<StringFromContainer<std::vector<wchar_t>>>(
+          std::move(data)));
 }
 
-NonNull<std::unique_ptr<LazyString>> NewLazyString(ColumnNumberDelta times,
-                                                   wchar_t c) {
-  return MakeNonNullUnique<RepeatedChar>(times, c);
+LazyString NewLazyString(ColumnNumberDelta times, wchar_t c) {
+  return LazyString(MakeNonNullShared<RepeatedChar>(times, c));
 }
 
 }  // namespace afc::language::lazy_string

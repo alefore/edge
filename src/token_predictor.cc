@@ -51,74 +51,67 @@ bool find_token_tests = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            CHECK(!FindToken(TokenizeBySpaces(EmptyString().value()),
-                             ColumnNumber())
+            CHECK(!FindToken(TokenizeBySpaces(EmptyString()), ColumnNumber())
                        .has_value());
           }},
      {.name = L"SpacesInTheMiddle",
       .callback =
           [] {
-            CHECK(!FindToken(
-                       TokenizeBySpaces(NewLazyString(L"012    89").value()),
-                       ColumnNumber(15))
+            CHECK(!FindToken(TokenizeBySpaces(NewLazyString(L"012    89")),
+                             ColumnNumber(15))
                        .has_value());
           }},
      {.name = L"MiddleSecondToken",
       .callback =
           [] {
-            CHECK_EQ(
-                FindToken(TokenizeBySpaces(
-                              NewLazyString(L"01234 678901 345678").value()),
-                          ColumnNumber(8))
-                    .value(),
-                Token({.value = L"678901",
-                       .begin = ColumnNumber(6),
-                       .end = ColumnNumber(12)}));
+            CHECK_EQ(FindToken(TokenizeBySpaces(
+                                   NewLazyString(L"01234 678901 345678")),
+                               ColumnNumber(8))
+                         .value(),
+                     Token({.value = L"678901",
+                            .begin = ColumnNumber(6),
+                            .end = ColumnNumber(12)}));
           }},
      {.name = L"EndSecondToken",
       .callback =
           [] {
-            CHECK_EQ(
-                FindToken(TokenizeBySpaces(
-                              NewLazyString(L"01234 678901 345678").value()),
-                          ColumnNumber(12))
-                    .value(),
-                Token({.value = L"678901",
-                       .begin = ColumnNumber(6),
-                       .end = ColumnNumber(12)}));
+            CHECK_EQ(FindToken(TokenizeBySpaces(
+                                   NewLazyString(L"01234 678901 345678")),
+                               ColumnNumber(12))
+                         .value(),
+                     Token({.value = L"678901",
+                            .begin = ColumnNumber(6),
+                            .end = ColumnNumber(12)}));
           }},
      {.name = L"BeginThirdToken",
       .callback =
           [] {
-            CHECK_EQ(
-                FindToken(TokenizeBySpaces(
-                              NewLazyString(L"01234 678901 345678").value()),
-                          ColumnNumber(13))
-                    .value(),
-                Token({.value = L"345678",
-                       .begin = ColumnNumber(13),
-                       .end = ColumnNumber(19)}));
+            CHECK_EQ(FindToken(TokenizeBySpaces(
+                                   NewLazyString(L"01234 678901 345678")),
+                               ColumnNumber(13))
+                         .value(),
+                     Token({.value = L"345678",
+                            .begin = ColumnNumber(13),
+                            .end = ColumnNumber(19)}));
           }},
      {.name = L"MiddleLastToken",
       .callback =
           [] {
-            CHECK_EQ(
-                FindToken(TokenizeBySpaces(
-                              NewLazyString(L"01234 678901 345678").value()),
-                          ColumnNumber(15))
-                    .value(),
-                Token({.value = L"345678",
-                       .begin = ColumnNumber(13),
-                       .end = ColumnNumber(19)}));
+            CHECK_EQ(FindToken(TokenizeBySpaces(
+                                   NewLazyString(L"01234 678901 345678")),
+                               ColumnNumber(15))
+                         .value(),
+                     Token({.value = L"345678",
+                            .begin = ColumnNumber(13),
+                            .end = ColumnNumber(19)}));
           }},
      {.name = L"EndOfString", .callback = [] {
-        CHECK_EQ(
-            FindToken(TokenizeBySpaces(NewLazyString(L"01234 678901").value()),
-                      ColumnNumber(12))
-                .value(),
-            Token({.value = L"678901",
-                   .begin = ColumnNumber(6),
-                   .end = ColumnNumber(12)}));
+        CHECK_EQ(FindToken(TokenizeBySpaces(NewLazyString(L"01234 678901")),
+                           ColumnNumber(12))
+                     .value(),
+                 Token({.value = L"678901",
+                        .begin = ColumnNumber(6),
+                        .end = ColumnNumber(12)}));
       }}});
 
 // Transforms a sequence of expansions for a token inside an input into a
@@ -134,8 +127,8 @@ bool find_token_tests = tests::Register(
 //   expanded.
 // * `token_expanded`: The token that was expanded.
 // * `lines`: A sequence of lines found that are suitable to expand the token.
-LineSequence TransformLines(const NonNull<std::shared_ptr<LazyString>>& input,
-                            const Token& token, LineSequence lines) {
+LineSequence TransformLines(const LazyString& input, const Token& token,
+                            LineSequence lines) {
   LineBuilder head(input);
   head.DeleteSuffix(token.begin);
 
@@ -212,7 +205,7 @@ Predictor TokenPredictor(Predictor predictor) {
           LOG(INFO) << "Found token: " << token_to_expand;
           input.input_column =
               input.input_column - token_to_expand.begin.ToDelta();
-          NonNull<std::shared_ptr<LazyString>> original_input =
+          LazyString original_input =
               std::exchange(input.input, NewLazyString(token_to_expand.value));
           return predictor(input).Transform(
               [original_input, token_to_expand](PredictorOutput output) {
@@ -232,7 +225,7 @@ Predictor TokenPredictor(Predictor predictor) {
           LOG(INFO) << "No expansion.";
           return predictor(input);
         },
-        FindToken(TokenizeBySpaces(input.input.value()), input.input_column));
+        FindToken(TokenizeBySpaces(input.input), input.input_column));
   };
 }
 }  // namespace afc::editor

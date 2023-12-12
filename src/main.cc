@@ -403,7 +403,7 @@ int main(int argc, const char** argv) {
       .Run();
 
   int output = editor_state().exit_value().value();
-  std::shared_ptr<LazyString> exit_notice = editor_state().GetExitNotice();
+  std::optional<LazyString> exit_notice = editor_state().GetExitNotice();
   LOG(INFO) << "Deleting editor.";
   global_editor_state = nullptr;
 
@@ -411,6 +411,6 @@ int main(int argc, const char** argv) {
   screen_curses = nullptr;
 
   LOG(INFO) << "Returning";
-  if (exit_notice != nullptr) std::cerr << *exit_notice;
+  if (exit_notice.has_value()) std::cerr << *exit_notice;
   return output;
 }

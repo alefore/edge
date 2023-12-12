@@ -34,15 +34,14 @@ std::optional<language::text::LineColumn> RegularFileAdapter::position() const {
 void RegularFileAdapter::SetPositionToZero() {}
 
 std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
-    NonNull<std::shared_ptr<LazyString>> contents,
-    const LineModifierSet& modifiers) {
+    LazyString contents, const LineModifierSet& modifiers) {
   TRACK_OPERATION(FileDescriptorReader_CreateLineInstances);
 
   std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert;
   lines_to_insert.reserve(4096);
   ColumnNumber line_start;
-  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); ++i) {
-    if (contents->get(i) == '\n') {
+  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents.size()); ++i) {
+    if (contents.get(i) == '\n') {
       VLOG(8) << "Adding line from " << line_start << " to " << i;
 
       LineBuilder line_options;
@@ -57,7 +56,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
   }
 
   VLOG(8) << "Adding last line from " << line_start << " to "
-          << contents->size();
+          << contents.size();
   LineBuilder line_options;
   line_options.set_contents(Substring(contents, line_start));
   line_options.set_modifiers(ColumnNumber(0), modifiers);
@@ -67,8 +66,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
 }
 
 futures::Value<EmptyValue> RegularFileAdapter::ReceiveInput(
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
-    const LineModifierSet& modifiers) {
+    language::lazy_string::LazyString str, const LineModifierSet& modifiers) {
   return options_.thread_pool
       .Run(std::bind_front(CreateLineInstances, std::move(str), modifiers))
       .Transform([options = options_](

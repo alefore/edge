@@ -219,8 +219,8 @@ struct ContentStats {
   }
 };
 
-NonNull<std::shared_ptr<LazyString>> ToString(const ContentStats& stats) {
-  NonNull<std::shared_ptr<LazyString>> output = EmptyString();
+LazyString ToString(const ContentStats& stats) {
+  LazyString output = EmptyString();
   auto key = [&output](std::wstring s, std::optional<size_t> value) {
     if (value)
       output = Append(std::move(output),
@@ -254,7 +254,7 @@ ContentStats AnalyzeContent(const LineSequence& contents,
           }
         });
   }
-  VLOG(7) << "AnalyzeContent: Output: " << ToString(output).value();
+  VLOG(7) << "AnalyzeContent: Output: " << ToString(output);
   return output;
 }
 
@@ -467,7 +467,7 @@ std::wstring ToStringBase(const Stack& stack) {
                             }) |
                             Intersperse(NewLazyString(L", "))),
                 NewLazyString(L")"))
-      ->ToString();
+      .ToString();
 }
 
 void Stack::PushBack(Variant transformation) {

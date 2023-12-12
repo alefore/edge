@@ -918,9 +918,8 @@ class InsertMode : public InputReceiver {
   static NonNull<std::shared_ptr<std::vector<Path>>> CompletionModelPaths(
       const OpenBuffer& buffer) {
     return MakeNonNullShared<std::vector<Path>>(container::MaterializeVector(
-        TokenizeBySpaces(
-            NewLazyString(buffer.Read(buffer_variables::completion_model_paths))
-                .value()) |
+        TokenizeBySpaces(NewLazyString(
+            buffer.Read(buffer_variables::completion_model_paths))) |
         std::views::transform([](Token path_str) {
           return OptionalFrom(Path::FromString(path_str.value));
         }) |
@@ -940,7 +939,7 @@ class InsertMode : public InputReceiver {
         buffer.contents().at(position.line);
 
     ColumnNumber start = position.column;
-    CHECK_LE(start.ToDelta(), line->contents()->size());
+    CHECK_LE(start.ToDelta(), line->contents().size());
     while (!start.IsZero() &&
            (std::isalpha(line->get(start - ColumnNumberDelta(1))) ||
             line->get(start - ColumnNumberDelta(1)) == L'\''))
@@ -954,7 +953,7 @@ class InsertMode : public InputReceiver {
         Substring(buffer_contents.at(token_range.begin().line)->contents(),
                   token_range.begin().column,
                   token_range.end().column - token_range.begin().column));
-    VLOG(6) << "Found completion token: " << output.value();
+    VLOG(6) << "Found completion token: " << output;
     return output;
   }
 
@@ -1029,15 +1028,15 @@ class InsertMode : public InputReceiver {
           .Transform(VisitCallback(overload{
               [buffer_root, token,
                position_start =
-                   LineColumn(position.line, position.column - token->size()),
-               length = token->size(),
+                   LineColumn(position.line, position.column - token.size()),
+               length = token.size(),
                modify_mode](CompletionModelManager::Text completion_text) {
                 transformation::Stack stack;
                 stack.PushBack(transformation::Delete{
                     .range = Range::InLine(position_start, length),
                     .initiator = transformation::Delete::Initiator::kInternal});
                 const ColumnNumberDelta completion_text_size =
-                    completion_text->size();
+                    completion_text.size();
                 stack.PushBack(transformation::Insert{
                     .contents_to_insert =
                         LineSequence::WithLine(MakeNonNullShared<Line>(

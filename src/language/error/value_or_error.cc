@@ -9,9 +9,8 @@
 using afc::language::lazy_string::NewLazyString;
 
 namespace afc::language {
-Error NewError(
-    language::NonNull<std::shared_ptr<lazy_string::LazyString>> error) {
-  return Error(error->ToString());
+Error NewError(lazy_string::LazyString error) {
+  return Error(error.ToString());
 }
 
 Error AugmentError(std::wstring prefix, Error error) {
@@ -26,7 +25,7 @@ Error MergeErrors(const std::vector<Error>& errors,
                              return NewLazyString(e.read());
                            }) |
                            Intersperse(NewLazyString(separator)))
-                   ->ToString());
+                   .ToString());
 }
 
 ValueOrError<EmptyValue> Success() {

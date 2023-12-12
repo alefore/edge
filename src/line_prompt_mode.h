@@ -47,7 +47,7 @@ struct PromptOptions {
   EditorState& editor_state;
 
   // Text to show in the prompt.
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> prompt;
+  language::lazy_string::LazyString prompt;
 
   // Used to set buffer_variables::contents_type on the buffer for the prompt.
   // The extensions code inspects this and can adjust behaviors.
@@ -60,8 +60,7 @@ struct PromptOptions {
   std::wstring initial_value = L"";
 
   using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
-      const language::NonNull<
-          std::shared_ptr<language::lazy_string::LazyString>>& line,
+      const language::lazy_string::LazyString& line,
       language::NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
       futures::DeleteNotification::Value abort_value)>;
 
@@ -71,7 +70,7 @@ struct PromptOptions {
 
   // Function to run when the prompt receives the final input.
   std::function<futures::Value<language::EmptyValue>(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>)>
+      language::lazy_string::LazyString)>
       handler;
 
   // Optional. Function to run when the prompt is cancelled (because ESCAPE was
@@ -89,10 +88,8 @@ struct PromptOptions {
   Status status = Status::kEditor;
 };
 
-void AddLineToHistory(
-    EditorState& editor, const HistoryFile& history_file,
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-        input);
+void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,
+                      language::lazy_string::LazyString input);
 
 void Prompt(PromptOptions options);
 

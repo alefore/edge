@@ -93,7 +93,7 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
   void SetPositionToZero() override;
 
   futures::Value<language::EmptyValue> ReceiveInput(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      language::lazy_string::LazyString str,
       const screen::LineModifierSet& modifiers) override;
 
   bool WriteSignal(UnixSignal signal) override;
@@ -104,7 +104,7 @@ class TerminalAdapter : public tests::fuzz::FuzzTestable, public FileAdapter {
   static void InternalUpdateSize(Data& data);
 
   language::lazy_string::ColumnNumber ProcessTerminalEscapeSequence(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      language::lazy_string::LazyString str,
       language::lazy_string::ColumnNumber read_index,
       screen::LineModifierSet* modifiers);
 

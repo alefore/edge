@@ -139,7 +139,7 @@ struct MetadataLine {
 
 ColumnNumberDelta width(const std::wstring prefix, MetadataLine& line) {
   return std::max(ColumnNumberDelta(1), ColumnNumberDelta(prefix.size())) +
-         line.suffix->contents()->size();
+         line.suffix->contents().size();
 }
 
 LineWithCursor::Generator NewGenerator(std::wstring input_prefix,
@@ -423,13 +423,13 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
 
   VisitPointer(
       contents->metadata(),
-      [&output](NonNull<std::shared_ptr<LazyString>> metadata) {
+      [&output](LazyString metadata) {
         static Tracker tracker(
             L"BufferMetadataOutput::Prepare:VisitContentsMetadata");
         auto call = tracker.Call();
 
-        if (metadata->size().IsZero()) return;
-        ForEachColumn(metadata.value(), [](ColumnNumber, wchar_t c) {
+        if (metadata.size().IsZero()) return;
+        ForEachColumn(metadata, [](ColumnNumber, wchar_t c) {
           CHECK(c != L'\n') << "Metadata has invalid newline character.";
         });
         output.push_back(
@@ -483,7 +483,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     static Tracker tracker(
         L"BufferMetadataOutput::Prepare:AddMetadataForExpiredMark");
     auto call = tracker.Call();
-    if (auto mark_contents = mark.source_line_content->ToString();
+    if (auto mark_contents = mark.source_line_content.ToString();
         !marks_strings.contains(mark_contents)) {
       output.push_back(
           MetadataLine{'!', LineModifier::kRed,

@@ -59,8 +59,7 @@ class KeyCommandsMap {
   KeyCommandsMap(const KeyCommandsMap&) = delete;
   KeyCommandsMap(KeyCommandsMap&&) = default;
 
-  static language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  ToString(Category category);
+  static language::lazy_string::LazyString ToString(Category category);
 
   KeyCommandsMap& Insert(infrastructure::ExtendedChar c, KeyCommand command) {
     if (command.active) table_.insert({c, std::move(command)});

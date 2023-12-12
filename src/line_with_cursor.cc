@@ -99,7 +99,7 @@ LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
           times.read(),
           LineWithCursor::Generator{.inputs_hash = {},
                                     .generate = [line] { return line; }}),
-      .width = line.line->contents()->size()};
+      .width = line.line->contents().size()};
 }
 
 /* static */
@@ -133,7 +133,7 @@ LineWithCursor LineWithCursor::View(
     CHECK(c != '\n');
 
     ColumnNumber current_position =
-        ColumnNumber() + line_output.contents()->size();
+        ColumnNumber() + line_output.contents().size();
     if (modifiers_it != options.line.modifiers().end()) {
       CHECK_GE(modifiers_it->first, input_column);
       if (modifiers_it->first == input_column) {
@@ -205,7 +205,7 @@ LineWithCursor LineWithCursor::View(
       options.active_cursor_column.has_value()) {
     // Same as above: we use the current position (rather than output_column)
     // since terminals compensate for wide characters.
-    line_with_cursor.cursor = ColumnNumber() + line_output.contents()->size();
+    line_with_cursor.cursor = ColumnNumber() + line_output.contents().size();
   }
 
   line_with_cursor.line =

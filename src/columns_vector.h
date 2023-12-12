@@ -16,8 +16,8 @@ struct ColumnsVector {
   // `head` followed by repetitions of `body`.
   struct Padding {
     infrastructure::screen::LineModifierSet modifiers = {};
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> head;
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> body;
+    language::lazy_string::LazyString head;
+    language::lazy_string::LazyString body;
   };
 
   struct Column {

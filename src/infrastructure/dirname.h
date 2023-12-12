@@ -69,8 +69,7 @@ class Path {
   static Path Join(Path a, Path b);
   static language::ValueOrError<Path> FromString(std::wstring path);
   static language::ValueOrError<Path> FromString(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          path);
+      language::lazy_string::LazyString path);
   static Path ExpandHomeDirectory(const Path& home_directory, const Path& path);
 
   // If an extension was already present, replaces it with the new value.

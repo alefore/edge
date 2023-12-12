@@ -59,9 +59,9 @@ std::optional<size_t> CombineHashes(
 LineBuilder GeneratePadding(const ColumnsVector::Padding padding,
                             ColumnNumberDelta size) {
   LineBuilder options;
-  CHECK(!padding.body->size().IsZero());
-  NonNull<std::shared_ptr<LazyString>> contents = padding.head;
-  while (contents->size() < size) {
+  CHECK(!padding.body.size().IsZero());
+  LazyString contents = padding.head;
+  while (contents.size() < size) {
     contents = Append(std::move(contents), padding.body);
   }
   options.AppendString(Substring(std::move(contents), ColumnNumber(), size),
@@ -75,7 +75,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
   for (const auto& column : columns_vector_raw.columns) {
     for (const auto& p : column.padding) {
       if (p.has_value()) {
-        CHECK(!p->body->size().IsZero());
+        CHECK(!p->body.size().IsZero());
       }
     }
   }

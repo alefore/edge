@@ -12,18 +12,36 @@ GHOST_TYPE_NUMBER_WITH_DELTA(ColumnNumber, size_t, ColumnNumberDelta, int);
 
 // An immutable string. Implementations must ensure that identical calls to
 // methods in a given instance always output the same values.
-class LazyString {
+class LazyStringImpl {
  public:
-  virtual ~LazyString() {}
+  virtual ~LazyStringImpl() {}
   virtual wchar_t get(ColumnNumber pos) const = 0;
   virtual ColumnNumberDelta size() const = 0;
+};
+
+class AppendImpl;
+class LazyStringImpl;
+
+class LazyString {
+  language::NonNull<std::shared_ptr<const LazyStringImpl>> data_;
+
+  friend AppendImpl;
+  friend LazyStringImpl;
+
+ public:
+  explicit LazyString(
+      language::NonNull<std::shared_ptr<const LazyStringImpl>> data)
+      : data_(std::move(data)) {}
+
+  wchar_t get(ColumnNumber pos) const { return data_->get(pos); }
+  ColumnNumberDelta size() const { return data_->size(); }
 
   std::wstring ToString() const;
 
   bool operator<(const LazyString& x);
 };
 
-NonNull<std::shared_ptr<LazyString>> EmptyString();
+LazyString EmptyString();
 
 bool operator==(const LazyString& a, const LazyString& b);
 

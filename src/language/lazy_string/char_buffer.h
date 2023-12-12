@@ -8,20 +8,13 @@
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
-language::NonNull<std::unique_ptr<LazyString>> NewMoveableCharBuffer(
-    const wchar_t* const* buffer, size_t size);
-language::NonNull<std::unique_ptr<LazyString>> NewCharBuffer(
-    const wchar_t* buffer, size_t size);
-language::NonNull<std::unique_ptr<LazyString>> NewCharBufferWithOwnership(
-    const wchar_t* buffer, size_t size);
-language::NonNull<std::unique_ptr<LazyString>> NewCopyCharBuffer(
-    const wchar_t* buffer);
-language::NonNull<std::unique_ptr<LazyString>> NewLazyString(
-    std::wstring input);
-language::NonNull<std::unique_ptr<LazyString>> NewLazyString(
-    std::vector<wchar_t> input);
-language::NonNull<std::unique_ptr<LazyString>> NewLazyString(
-    ColumnNumberDelta times, wchar_t c);
+LazyString NewMoveableCharBuffer(const wchar_t* const* buffer, size_t size);
+LazyString NewCharBuffer(const wchar_t* buffer, size_t size);
+LazyString NewCharBufferWithOwnership(const wchar_t* buffer, size_t size);
+LazyString NewCopyCharBuffer(const wchar_t* buffer);
+LazyString NewLazyString(std::wstring input);
+LazyString NewLazyString(std::vector<wchar_t> input);
+LazyString NewLazyString(ColumnNumberDelta times, wchar_t c);
 }  // namespace afc::language::lazy_string
 
 #endif

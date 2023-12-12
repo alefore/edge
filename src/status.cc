@@ -124,8 +124,7 @@ Status::Type Status::GetType() const {
   return data_->type;
 }
 
-void Status::set_prompt(NonNull<std::shared_ptr<LazyString>> text,
-                        gc::Root<OpenBuffer> buffer) {
+void Status::set_prompt(LazyString text, gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
   data_ = MakeNonNullShared<Data>(Data{
       .type = Status::Type::kPrompt,
@@ -286,16 +285,16 @@ void Status::Bell() {
 
   LineBuilder output;
   if (FindFirstColumnWithPredicate(
-          data_->text->contents().value(), [&](ColumnNumber, const wchar_t& c) {
+          data_->text->contents(), [&](ColumnNumber, const wchar_t& c) {
             return c != L'🎼' && c != L'…' && c != L' ' &&
                    std::find(notes.begin(), notes.end(), c) == notes.end();
           }) != std::nullopt) {
     output.AppendString(NewLazyString(L"🎼"));
   } else {
     LineBuilder previous = LineBuilder(std::move(data_->text.value()));
-    if (previous.contents()->size() > kMaxLength) {
+    if (previous.contents().size() > kMaxLength) {
       previous.DeleteCharacters(ColumnNumber(),
-                                previous.contents()->size() - kMaxLength);
+                                previous.contents().size() - kMaxLength);
       output.AppendString(NewLazyString(L"…"));
     }
     output.Append(std::move(previous));

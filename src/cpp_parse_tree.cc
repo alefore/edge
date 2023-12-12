@@ -205,17 +205,17 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     CHECK_EQ(original_position.line, result->position().line);
     CHECK_GT(result->position().column, original_position.column);
     auto length = result->position().column - original_position.column;
-    NonNull<std::shared_ptr<const LazyString>> str =
+    LazyString str =
         Substring(result->buffer().at(original_position.line)->contents(),
                   original_position.column, length);
     LineModifierSet modifiers;
     // TODO(2022-04-22): Avoid the call to ToString?
-    if (keywords_.find(str->ToString()) != keywords_.end()) {
+    if (keywords_.find(str.ToString()) != keywords_.end()) {
       modifiers.insert(LineModifier::kCyan);
-    } else if (typos_.find(str->ToString()) != typos_.end()) {
+    } else if (typos_.find(str.ToString()) != typos_.end()) {
       modifiers.insert(LineModifier::kRed);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
-      modifiers = HashToModifiers(std::hash<std::wstring>{}(str->ToString()),
+      modifiers = HashToModifiers(std::hash<std::wstring>{}(str.ToString()),
                                   HashToModifiersBold::kNever);
     }
     result->PushAndPop(length, std::move(modifiers));

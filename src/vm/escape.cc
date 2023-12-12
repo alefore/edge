@@ -12,37 +12,35 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
 using language::lazy_string::NewLazyString;
 
-/* static */ EscapedString EscapedString::FromString(
-    NonNull<std::shared_ptr<LazyString>> input) {
+/* static */ EscapedString EscapedString::FromString(LazyString input) {
   // TODO(easy, 2022-06-10): Get rid of this call to ToString.
-  return EscapedString(input->ToString());
+  return EscapedString(input.ToString());
 }
 
 /* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-        input) {
+    language::lazy_string::LazyString input) {
   std::wstring original_string;
-  for (ColumnNumber i; i.ToDelta() < input->size(); ++i) {
-    switch (input->get(i)) {
+  for (ColumnNumber i; i.ToDelta() < input.size(); ++i) {
+    switch (input.get(i)) {
       case '\\':
-        if ((++i).ToDelta() >= input->size())
+        if ((++i).ToDelta() >= input.size())
           return Error(L"String ends in escape character.");
-        switch (input->get(i)) {
+        switch (input.get(i)) {
           case 'n':
             original_string += '\n';
             break;
           case '"':
           case '\\':
           case '\'':
-            original_string += input->get(i);
+            original_string += input.get(i);
             break;
           default:
             return Error(L"Unknown escaped character: " +
-                         std::wstring(1, input->get(i)));
+                         std::wstring(1, input.get(i)));
         }
         break;
       default:
-        original_string += input->get(i);
+        original_string += input.get(i);
     }
   }
   return EscapedString(original_string);
@@ -78,7 +76,7 @@ std::wstring EscapedString::CppRepresentation() const {
 }
 
 // Returns the original (unescaped) string.
-NonNull<std::shared_ptr<LazyString>> EscapedString::OriginalString() const {
+LazyString EscapedString::OriginalString() const {
   // TODO(easy, 2022-11-26): Get rid of NewLazyString here; store the lazy
   // string directly.
   return NewLazyString(input_);
@@ -98,7 +96,7 @@ bool cpp_unescape_string_tests_registration =
                                  EscapedString::FromString(NewLazyString(input))
                                      .EscapedRepresentation())))
                       .OriginalString()
-                      ->ToString();
+                      .ToString();
               LOG(INFO) << "Comparing: " << input << " to " << output;
               CHECK(input == output);
             }};

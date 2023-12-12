@@ -40,10 +40,8 @@ class Status {
   enum class Type { kWarning, kInformation, kPrompt };
   Type GetType() const;
 
-  void set_prompt(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          text,
-      language::gc::Root<OpenBuffer> buffer);
+  void set_prompt(language::lazy_string::LazyString text,
+                  language::gc::Root<OpenBuffer> buffer);
 
   // Sets the context buffer.
   //

@@ -19,11 +19,8 @@
 
 namespace afc::language::text {
 struct LineMetadataEntry {
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-      initial_value;
-  futures::ListenableValue<
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>
-      value;
+  language::lazy_string::LazyString initial_value;
+  futures::ListenableValue<language::lazy_string::LazyString> value;
 };
 
 struct OutgoingLink {
@@ -42,25 +39,24 @@ class Line {
 
   Line(const Line& line);
 
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  contents() const;
+  language::lazy_string::LazyString contents() const;
   language::lazy_string::ColumnNumber EndColumn() const;
   bool empty() const;
 
   wint_t get(language::lazy_string::ColumnNumber column) const;
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  Substring(language::lazy_string::ColumnNumber column,
-            language::lazy_string::ColumnNumberDelta length) const;
+  language::lazy_string::LazyString Substring(
+      language::lazy_string::ColumnNumber column,
+      language::lazy_string::ColumnNumberDelta length) const;
 
   // Returns the substring from pos to the end of the string.
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  Substring(language::lazy_string::ColumnNumber column) const;
+  language::lazy_string::LazyString Substring(
+      language::lazy_string::ColumnNumber column) const;
 
-  std::wstring ToString() const { return contents()->ToString(); }
+  std::wstring ToString() const { return contents().ToString(); }
 
-  std::shared_ptr<language::lazy_string::LazyString> metadata() const;
-  language::ValueOrError<futures::ListenableValue<
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
+  std::optional<language::lazy_string::LazyString> metadata() const;
+  language::ValueOrError<
+      futures::ListenableValue<language::lazy_string::LazyString>>
   metadata_future() const;
 
   const std::map<language::lazy_string::ColumnNumber,
@@ -80,8 +76,8 @@ class Line {
 
  private:
   struct Data {
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-        contents = language::lazy_string::EmptyString();
+    language::lazy_string::LazyString contents =
+        language::lazy_string::EmptyString();
 
     // Columns without an entry here reuse the last present value. If no
     // previous value, assume afc::infrastructure::screen::LineModifierSet().
@@ -120,9 +116,7 @@ class LineBuilder {
 
   explicit LineBuilder(Line&&);
   explicit LineBuilder(const Line&);
-  explicit LineBuilder(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          input_contents);
+  explicit LineBuilder(language::lazy_string::LazyString input_contents);
 
   LineBuilder(LineBuilder&&) = default;
   LineBuilder& operator=(LineBuilder&&) = default;
@@ -148,12 +142,9 @@ class LineBuilder {
   void InsertCharacterAtPosition(language::lazy_string::ColumnNumber position);
   void AppendCharacter(wchar_t c,
                        afc::infrastructure::screen::LineModifierSet modifier);
+  void AppendString(language::lazy_string::LazyString suffix);
   void AppendString(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          suffix);
-  void AppendString(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-          suffix,
+      language::lazy_string::LazyString suffix,
       std::optional<afc::infrastructure::screen::LineModifierSet> modifier);
   void AppendString(
       std::wstring contents,
@@ -213,10 +204,8 @@ class LineBuilder {
                          value);
   void ClearModifiers();
 
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-  contents() const;
-  void set_contents(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>);
+  language::lazy_string::LazyString contents() const;
+  void set_contents(language::lazy_string::LazyString);
 
  private:
   explicit LineBuilder(Line::Data);

@@ -18,8 +18,7 @@ GHOST_TYPE(Error, std::wstring);
 
 // TODO(easy, 2023-12-02): Convert all callers of `Error` to call `NewError` and
 // change the internal type.
-Error NewError(
-    language::NonNull<std::shared_ptr<lazy_string::LazyString>> error);
+Error NewError(lazy_string::LazyString error);
 
 // Example: AugmentError(L"🖫 Save failed", error)
 Error AugmentError(std::wstring prefix, Error error);

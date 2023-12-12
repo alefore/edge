@@ -48,15 +48,13 @@ namespace {
 void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
                         LineBuilder& output_line) {
   ColumnNumberDelta length =
-      std::visit(overload{[&](NonNull<std::shared_ptr<LazyString>> input) {
-                            return input->size();
-                          },
+      std::visit(overload{[&](LazyString input) { return input.size(); },
                           [&](ColumnNumberDelta l) { return l; }},
                  overlay.content);
 
-  if (column.ToDelta() > output_line.contents()->size()) return;
-  if ((column + length).ToDelta() > output_line.contents()->size())
-    length = output_line.contents()->size() - column.ToDelta();
+  if (column.ToDelta() > output_line.contents().size()) return;
+  if ((column + length).ToDelta() > output_line.contents().size())
+    length = output_line.contents().size() - column.ToDelta();
 
   std::map<language::lazy_string::ColumnNumber, LineModifierSet> modifiers =
       output_line.modifiers();
@@ -99,16 +97,16 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
               ToggleModifier(m, it->second);
           }
       }
-      if (column.ToDelta() + length == output_line.contents()->size())
+      if (column.ToDelta() + length == output_line.contents().size())
         output_line.insert_end_of_line_modifiers(last_modifiers);
       else
         modifiers.insert({column + length, last_modifiers});
   }
 
-  std::visit(overload{[&](NonNull<std::shared_ptr<LazyString>> input) {
-                        for (ColumnNumberDelta i; i < input->size(); ++i)
+  std::visit(overload{[&](LazyString input) {
+                        for (ColumnNumberDelta i; i < input.size(); ++i)
                           output_line.SetCharacter(
-                              column + i, input->get(ColumnNumber() + i), {});
+                              column + i, input.get(ColumnNumber() + i), {});
                       },
                       [&](ColumnNumberDelta) {}},
              overlay.content);

@@ -67,10 +67,10 @@ class ScreenCurses : public Screen {
   void Move(LineColumn position) override {
     move(position.line.read(), position.column.read());
   }
-  void WriteString(const NonNull<std::shared_ptr<LazyString>>& s) override {
+  void WriteString(const LazyString& s) override {
     static Tracker tracker(L"ScreenCurses::WriteString");
     auto call = tracker.Call();
-    addwstr(s->ToString().c_str());
+    addwstr(s.ToString().c_str());
   }
 
   void SetModifier(LineModifier modifier) override {

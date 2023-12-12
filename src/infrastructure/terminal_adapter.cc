@@ -60,16 +60,15 @@ std::optional<LineColumn> TerminalAdapter::position() const {
 void TerminalAdapter::SetPositionToZero() { data_->position = LineColumn(); }
 
 futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
-    NonNull<std::shared_ptr<LazyString>> str,
-    const LineModifierSet& initial_modifiers) {
+    LazyString str, const LineModifierSet& initial_modifiers) {
   data_->position.line =
       std::min(data_->position.line, data_->receiver->contents().EndLine());
   LineModifierSet modifiers = initial_modifiers;
 
   ColumnNumber read_index;
-  VLOG(5) << "Terminal input: " << str->ToString();
-  while (read_index < ColumnNumber(0) + str->size()) {
-    int c = str->get(read_index);
+  VLOG(5) << "Terminal input: " << str.ToString();
+  while (read_index < ColumnNumber(0) + str.size()) {
+    int c = str.get(read_index);
     ++read_index;
     if (c == '\b') {
       VLOG(8) << "Received \\b";
@@ -124,14 +123,13 @@ std::vector<tests::fuzz::Handler> TerminalAdapter::FuzzHandlers() {
 }
 
 ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
-    NonNull<std::shared_ptr<LazyString>> str, ColumnNumber read_index,
-    LineModifierSet* modifiers) {
-  if (str->size() <= read_index.ToDelta()) {
+    LazyString str, ColumnNumber read_index, LineModifierSet* modifiers) {
+  if (str.size() <= read_index.ToDelta()) {
     LOG(INFO) << "Unhandled character sequence: "
-              << Substring(str, read_index)->ToString() << ")\n";
+              << Substring(str, read_index).ToString() << ")\n";
     return read_index;
   }
-  switch (str->get(read_index)) {
+  switch (str.get(read_index)) {
     case 'M':
       VLOG(9) << "Received: cuu1: Up one line.";
       if (data_->position.line > LineNumber(0)) {
@@ -143,14 +141,14 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
       break;
     default:
       LOG(INFO) << "Unhandled character sequence: "
-                << Substring(str, read_index)->ToString();
+                << Substring(str, read_index).ToString();
   }
   ++read_index;
   CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
   auto current_line = data_->receiver->contents().at(data_->position.line);
   std::string sequence;
-  while (read_index.ToDelta() < str->size()) {
-    int c = str->get(read_index);
+  while (read_index.ToDelta() < str.size()) {
+    int c = str.get(read_index);
     ++read_index;
     switch (c) {
       case '@': {

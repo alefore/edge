@@ -12,9 +12,8 @@ namespace afc::language::lazy_string {
 // character given.
 //
 // Length must not be negative (but can be zero).
-language::NonNull<std::shared_ptr<afc::language::lazy_string::LazyString>>
-Padding(const afc::language::lazy_string::ColumnNumberDelta& length,
-        wchar_t fill);
+afc::language::lazy_string::LazyString Padding(
+    const afc::language::lazy_string::ColumnNumberDelta& length, wchar_t fill);
 }  // namespace afc::language::lazy_string
 
 #endif  // __AFC_LANGUAGE_LAZY_STRING_PADDING_H__

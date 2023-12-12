@@ -88,15 +88,14 @@ void FileDescriptorReader::Register(
 
     chars_tracker_call = nullptr;
 
-    NonNull<std::shared_ptr<LazyString>> buffer_wrapper =
-        NewLazyString(std::move(buffer));
-    VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
+    LazyString buffer_wrapper = NewLazyString(std::move(buffer));
+    VLOG(5) << "Input: [" << buffer_wrapper.ToString() << "]";
 
     size_t processed = low_buffer_tmp == nullptr
                            ? low_buffer_length_
                            : low_buffer_tmp - low_buffer_.get();
     VLOG(5) << options_->name << ": Characters consumed: " << processed
-            << ", produced: " << buffer_wrapper->size();
+            << ", produced: " << buffer_wrapper.size();
     CHECK_LE(processed, low_buffer_length_);
     memmove(low_buffer_.get(), low_buffer_tmp, low_buffer_length_ - processed);
     low_buffer_length_ -= processed;

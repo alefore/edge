@@ -116,8 +116,7 @@ class EditorState {
   BufferName GetUnusedBufferName(const std::wstring& prefix);
   void set_exit_value(int exit_value);
   std::optional<int> exit_value() const { return exit_value_; }
-  // May return null.
-  std::shared_ptr<language::lazy_string::LazyString> GetExitNotice() const;
+  std::optional<language::lazy_string::LazyString> GetExitNotice() const;
 
   enum class TerminationType { kWhenClean, kIgnoringErrors };
   void Terminate(TerminationType termination_type, int exit_value);

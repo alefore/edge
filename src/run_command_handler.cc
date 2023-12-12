@@ -346,9 +346,9 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
 void RunCommand(const BufferName& name,
                 std::map<std::wstring, std::wstring> environment,
                 EditorState& editor_state, std::optional<Path> children_path,
-                NonNull<std::shared_ptr<LazyString>> input) {
+                LazyString input) {
   auto buffer = editor_state.current_buffer();
-  if (input->size().IsZero()) {
+  if (input.size().IsZero()) {
     if (buffer.has_value()) {
       buffer->ptr()->ResetMode();
       buffer->ptr()->status().Reset();
@@ -359,7 +359,7 @@ void RunCommand(const BufferName& name,
 
   ForkCommandOptions options;
   // TODO(easy, 2022-06-05): Avoid call to ToString.
-  options.command = input->ToString();
+  options.command = input.ToString();
   options.name = name;
   options.insertion_type =
       buffer.has_value() &&
@@ -371,10 +371,10 @@ void RunCommand(const BufferName& name,
   ForkCommand(editor_state, options);
 }
 
-futures::Value<EmptyValue> RunCommandHandler(
-    EditorState& editor_state, size_t i, size_t n,
-    std::optional<Path> children_path,
-    NonNull<std::shared_ptr<LazyString>> input) {
+futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
+                                             size_t i, size_t n,
+                                             std::optional<Path> children_path,
+                                             LazyString input) {
   std::map<std::wstring, std::wstring> environment = {
       {L"EDGE_RUN", std::to_wstring(i)}, {L"EDGE_RUNS", std::to_wstring(n)}};
   std::wstring name =
@@ -442,21 +442,19 @@ class ForkEditorCommand : public Command {
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       Prompt(PromptOptions{
           .editor_state = editor_state_,
-          .prompt = Append(
-              std::visit(overload{[](Error) { return EmptyString(); },
-                                  [](Path path)
-                                      -> NonNull<std::shared_ptr<LazyString>> {
-                                    return NewLazyString(path.read());
-                                  }},
-                         children_path),
-              NewLazyString(L"$ ")),
+          .prompt =
+              Append(std::visit(overload{[](Error) { return EmptyString(); },
+                                         [](Path path) -> LazyString {
+                                           return NewLazyString(path.read());
+                                         }},
+                                children_path),
+                     NewLazyString(L"$ ")),
           .history_file = HistoryFileCommands(),
           .colorize_options_provider =
               prompt_state->context_command_callback.has_value()
-                  ? ([prompt_state](
-                         const NonNull<std::shared_ptr<LazyString>>& line,
-                         NonNull<std::unique_ptr<ProgressChannel>>,
-                         DeleteNotification::Value) {
+                  ? ([prompt_state](const LazyString& line,
+                                    NonNull<std::unique_ptr<ProgressChannel>>,
+                                    DeleteNotification::Value) {
                       return PromptChange(prompt_state.value(), line);
                     })
                   : PromptOptions::ColorizeFunction(nullptr),
@@ -505,8 +503,7 @@ class ForkEditorCommand : public Command {
 
  private:
   static futures::Value<ColorizePromptOptions> PromptChange(
-      PromptState& prompt_state,
-      const NonNull<std::shared_ptr<LazyString>>& line) {
+      PromptState& prompt_state, const LazyString& line) {
     CHECK(prompt_state.context_command_callback.has_value());
     EditorState& editor = prompt_state.original_buffer.ptr()->editor();
     language::gc::Pool& pool = editor.gc_pool();
@@ -514,7 +511,7 @@ class ForkEditorCommand : public Command {
     NonNull<std::unique_ptr<vm::Expression>> expression = vm::NewFunctionCall(
         vm::NewConstantExpression(*prompt_state.context_command_callback),
         {vm::NewConstantExpression(
-            vm::Value::NewString(pool, line->ToString()))});
+            vm::Value::NewString(pool, line.ToString()))});
     if (expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(
@@ -685,20 +682,20 @@ gc::Root<Command> NewForkCommand(EditorState& editor_state) {
 
 futures::Value<EmptyValue> RunCommandHandler(
     EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
-    NonNull<std::shared_ptr<LazyString>> input) {
+    LazyString input) {
   // TODO(easy, 2022-06-05): Avoid call to ToString.
-  RunCommand(BufferName(L"$ " + input->ToString()), environment, editor_state,
+  RunCommand(BufferName(L"$ " + input.ToString()), environment, editor_state,
              OptionalFrom(GetChildrenPath(editor_state)), input);
   return futures::Past(EmptyValue());
 }
 
-futures::Value<EmptyValue> RunMultipleCommandsHandler(
-    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> input) {
+futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
+                                                      LazyString input) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
         buffer.contents().ForEach([&editor_state, input](wstring arg) {
           std::map<std::wstring, std::wstring> environment = {{L"ARG", arg}};
-          RunCommand(BufferName(L"$ " + input->ToString() + L" " + arg),
+          RunCommand(BufferName(L"$ " + input.ToString() + L" " + arg),
                      environment, editor_state,
                      OptionalFrom(GetChildrenPath(editor_state)), input);
         });

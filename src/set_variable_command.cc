@@ -72,11 +72,10 @@ Predictor VariablesPredictor() {
 }
 }  // namespace
 
-futures::Value<EmptyValue> SetVariableCommandHandler(
-    EditorState& editor_state,
-    NonNull<std::shared_ptr<LazyString>> input_name) {
+futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
+                                                     LazyString input_name) {
   // TODO(easy, 2022-06-05): Get rid of ToString.
-  std::wstring name = TrimWhitespace(input_name->ToString());
+  std::wstring name = TrimWhitespace(input_name.ToString());
   if (name.empty()) {
     return futures::Past(EmptyValue());
   }
@@ -96,12 +95,12 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
          .history_file = history_file,
          .initial_value = active_buffers[0].ptr()->Read(var),
          .handler =
-             [&editor_state, var](NonNull<std::shared_ptr<LazyString>> input) {
+             [&editor_state, var](LazyString input) {
                editor_state.ResetRepetitions();
                return editor_state.ForEachActiveBuffer(
                    [var, input](OpenBuffer& buffer) {
                      // TODO(easy, 2022-06-05): Get rid of calls to ToString.
-                     buffer.Set(var, input->ToString());
+                     buffer.Set(var, input.ToString());
                      buffer.status().SetInformationText(MakeNonNullShared<Line>(
                          LineBuilder(Append(NewLazyString(var->name()),
                                             NewLazyString(L" := "), input))
@@ -133,10 +132,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
             .history_file = history_file,
             .initial_value = std::to_wstring(editor_state.Read(var)),
             .handler =
-                [&editor_state, var, &default_error_status](
-                    NonNull<std::shared_ptr<LazyString>> input) {
+                [&editor_state, var, &default_error_status](LazyString input) {
                   // TODO(easy, 2022-06-05): Get rid of ToString.
-                  std::wstringstream ss(input->ToString());
+                  std::wstringstream ss(input.ToString());
                   double value;
                   ss >> value;
                   if (ss.eof() && !ss.fail()) {
@@ -145,7 +143,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                     // TODO(easy, 2022-06-05): Get rid of ToString.
                     default_error_status.InsertError(
                         Error(L"Invalid value for double value “" +
-                              var->name() + L"”: " + input->ToString()));
+                              var->name() + L"”: " + input.ToString()));
                   }
                   return futures::Past(EmptyValue());
                 },
@@ -178,12 +176,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
         .history_file = history_file,
         .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
         .handler =
-            [&editor_state, var, &default_error_status](
-                NonNull<std::shared_ptr<LazyString>> input) {
+            [&editor_state, var, &default_error_status](LazyString input) {
               int value;
               try {
                 // TODO(easy, 2022-06-05): Get rid of ToString.
-                value = stoi(input->ToString());
+                value = stoi(input.ToString());
               } catch (const std::invalid_argument& ia) {
                 default_error_status.InsertError(
                     Error(L"Invalid value for integer value “" + var->name() +
@@ -210,10 +207,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
         .history_file = history_file,
         .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
         .handler =
-            [&editor_state, var, &default_error_status](
-                NonNull<std::shared_ptr<LazyString>> input) {
+            [&editor_state, var, &default_error_status](LazyString input) {
               // TODO(easy, 2022-06-05): Get rid of ToString.
-              std::wstringstream ss(input->ToString());
+              std::wstringstream ss(input.ToString());
               double value;
               ss >> value;
               if (ss.eof() && !ss.fail()) {
@@ -226,7 +222,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(
                 // TODO(easy, 2022-06-05): Get rid of ToString.
                 default_error_status.InsertError(
                     Error(L"Invalid value for double value “" + var->name() +
-                          L"”: " + input->ToString()));
+                          L"”: " + input.ToString()));
               }
               return futures::Past(EmptyValue());
             },
@@ -249,7 +245,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
             .history_file = HistoryFile(L"variables"),
             .colorize_options_provider =
                 [&editor_state, variables_predictor = variables_predictor](
-                    const NonNull<std::shared_ptr<LazyString>>& line,
+                    const LazyString& line,
                     NonNull<std::unique_ptr<ProgressChannel>> progress_channel,
                     DeleteNotification::Value abort_value)
                 -> futures::Value<ColorizePromptOptions> {
@@ -258,7 +254,7 @@ gc::Root<Command> NewSetVariableCommand(EditorState& editor_state) {
                          PredictorInput{
                              .editor = editor_state,
                              .input = line,
-                             .input_column = ColumnNumber() + line->size(),
+                             .input_column = ColumnNumber() + line.size(),
                              .source_buffers = editor_state.active_buffers(),
                              .progress_channel = std::move(progress_channel),
                              .abort_value = std::move(abort_value)})

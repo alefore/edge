@@ -24,8 +24,7 @@ struct SearchOptions {
   language::text::LineColumn starting_position = {};
 
   // The regular expression to search.
-  language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-      search_query;
+  language::lazy_string::LazyString search_query;
 
   // An optional position where the search should stop.
   std::optional<language::text::LineColumn> limit_position = std::nullopt;

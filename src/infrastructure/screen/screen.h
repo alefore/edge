@@ -51,9 +51,7 @@ class Screen {
 
   virtual void SetCursorVisibility(CursorVisibility cursor_visibility) = 0;
   virtual void Move(language::text::LineColumn position) = 0;
-  virtual void WriteString(
-      const language::NonNull<
-          std::shared_ptr<language::lazy_string::LazyString>>& str) = 0;
+  virtual void WriteString(const language::lazy_string::LazyString& str) = 0;
 
   virtual void SetModifier(LineModifier modifier) = 0;
 

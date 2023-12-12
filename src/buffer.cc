@@ -148,16 +148,14 @@ std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
 
   TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
   for (NonNull<std::shared_ptr<const Line>>& line : lines)
-    if (line->metadata() == nullptr && !line->empty())
+    if (line->metadata() == std::nullopt && !line->empty())
       std::visit(
           overload{
               [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
                             language::gc::Root<vm::Environment>>
                       compilation_result) {
-                futures::ListenableValue<NonNull<std::shared_ptr<LazyString>>>
-                    metadata_value(
-                        futures::Future<NonNull<std::shared_ptr<LazyString>>>()
-                            .value);
+                futures::ListenableValue<LazyString> metadata_value(
+                    futures::Future<LazyString>().value);
 
                 std::wstring description =
                     L"C++: " +
@@ -184,16 +182,12 @@ std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
                               .Transform([](gc::Root<vm::Value> value) {
                                 std::ostringstream oss;
                                 oss << value.ptr().value();
-                                return Success(
-                                    NonNull<std::shared_ptr<LazyString>>(
-                                        NewLazyString(
-                                            FromByteString(oss.str()))));
+                                return Success(LazyString(
+                                    NewLazyString(FromByteString(oss.str()))));
                               })
                               .ConsumeErrors([](Error error) {
-                                return futures::Past(
-                                    NonNull<std::shared_ptr<LazyString>>(
-                                        NewLazyString(
-                                            L"E: " + std::move(error.read()))));
+                                return futures::Past(LazyString(NewLazyString(
+                                    L"E: " + std::move(error.read()))));
                               });
                         });
                   } break;
@@ -210,7 +204,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
                     std::move(line_builder).Build());
               },
               IgnoreErrors{}},
-          buffer.CompileString(line->contents()->ToString()));
+          buffer.CompileString(line->contents().ToString()));
   return lines;
 }
 
@@ -1001,9 +995,9 @@ const BufferDisplayData& OpenBuffer::display_data() const {
   return display_data_.value();
 }
 
-void OpenBuffer::AppendLazyString(NonNull<std::shared_ptr<LazyString>> input) {
+void OpenBuffer::AppendLazyString(LazyString input) {
   ColumnNumber start;
-  ForEachColumn(input.value(), [&](ColumnNumber i, wchar_t c) {
+  ForEachColumn(input, [&](ColumnNumber i, wchar_t c) {
     CHECK_GE(i, start);
     if (c == '\n') {
       AppendLine(Substring(input, start, i - start));
@@ -1034,7 +1028,7 @@ void OpenBuffer::SortAllContents(
 void OpenBuffer::SortAllContentsIgnoringCase() {
   SortAllContents([](const NonNull<std::shared_ptr<const Line>>& a,
                      const NonNull<std::shared_ptr<const Line>>& b) {
-    return LowerCase(a->contents()).value() < LowerCase(b->contents()).value();
+    return LowerCase(a->contents()) < LowerCase(b->contents());
   });
 }
 
@@ -1066,9 +1060,9 @@ void OpenBuffer::InsertLine(LineNumber line_position,
                         UpdateLineMetadata(*this, {std::move(line)})[0]);
 }
 
-void OpenBuffer::AppendLine(NonNull<std::shared_ptr<LazyString>> str) {
+void OpenBuffer::AppendLine(LazyString str) {
   if (reading_from_parser_) {
-    switch (str->get(ColumnNumber(0))) {
+    switch (str.get(ColumnNumber(0))) {
       case 'E':
         return AppendRawLine(Substring(str, ColumnNumber(1)));
     }
@@ -1077,7 +1071,7 @@ void OpenBuffer::AppendLine(NonNull<std::shared_ptr<LazyString>> str) {
 
   if (contents_.size() == LineNumberDelta(1) &&
       contents_.back()->EndColumn().IsZero()) {
-    if (str->ToString() == L"EDGE PARSER v1.0") {
+    if (str.ToString() == L"EDGE PARSER v1.0") {
       reading_from_parser_ = true;
       return;
     }
@@ -1087,8 +1081,7 @@ void OpenBuffer::AppendLine(NonNull<std::shared_ptr<LazyString>> str) {
 }
 
 void OpenBuffer::AppendRawLine(
-    NonNull<std::shared_ptr<LazyString>> str,
-    MutableLineSequence::ObserverBehavior observer_behavior) {
+    LazyString str, MutableLineSequence::ObserverBehavior observer_behavior) {
   AppendRawLine(MakeNonNullShared<Line>(LineBuilder(std::move(str)).Build()),
                 observer_behavior);
 }
@@ -1101,7 +1094,7 @@ void OpenBuffer::AppendRawLine(
                         observer_behavior);
 }
 
-void OpenBuffer::AppendToLastLine(NonNull<std::shared_ptr<LazyString>> str) {
+void OpenBuffer::AppendToLastLine(LazyString str) {
   AppendToLastLine(LineBuilder(std::move(str)).Build());
 }
 
@@ -1832,13 +1825,12 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                 },
             .receive_data =
                 [buffer = NewRoot(), this, modifiers](
-                    NonNull<std::shared_ptr<LazyString>> input,
-                    std::function<void()> done_callback) {
+                    LazyString input, std::function<void()> done_callback) {
                   RegisterProgress();
                   if (Read(buffer_variables::vm_exec)) {
                     LOG(INFO) << name()
-                              << ": Evaluating VM code: " << input->ToString();
-                    EvaluateString(input->ToString());
+                              << ": Evaluating VM code: " << input.ToString();
+                    EvaluateString(input.ToString());
                   }
                   file_adapter_->ReceiveInput(std::move(input), modifiers)
                       .Transform([done_callback =
@@ -1976,8 +1968,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   }
 
   std::vector<URL> urls_with_extensions = GetLocalFileURLsWithExtensions(
-      NewLazyString(buffer.Read(buffer_variables::file_context_extensions))
-          .value(),
+      NewLazyString(buffer.Read(buffer_variables::file_context_extensions)),
       *initial_url);
 
   std::vector<Path> search_paths = {};
@@ -2058,7 +2049,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                    data->source.Lock(),
                    [&](gc::Root<OpenBuffer> buffer) {
                      auto& editor = buffer.ptr()->editor();
-                     VLOG(5) << "Checking URL: " << url.ToString().value();
+                     VLOG(5) << "Checking URL: " << url.ToString();
                      if (url.schema().value_or(URL::Schema::kFile) !=
                          URL::Schema::kFile) {
                        switch (remote_url_behavior) {
@@ -2081,7 +2072,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                ForkCommandOptions{
                                    .command =
                                        L"xdg-open " +
-                                       ShellEscape(url.ToString()->ToString()),
+                                       ShellEscape(url.ToString().ToString()),
                                    .insertion_type =
                                        BuffersList::AddBufferType::kIgnore,
                                });
@@ -2237,7 +2228,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
   return output;
 }
 
-/* static */ NonNull<std::shared_ptr<LazyString>> OpenBuffer::FlagsToString(
+/* static */ LazyString OpenBuffer::FlagsToString(
     std::map<wstring, wstring> flags) {
   return Concatenate(flags | std::views::transform([](const auto& f) {
                        return NewLazyString(f.first + f.second);

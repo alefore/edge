@@ -87,7 +87,7 @@ class ScreenVm : public Screen {
                ToByteString(to_wstring(position.column)) + "));";
   }
 
-  void WriteString(const NonNull<std::shared_ptr<LazyString>>& str) override {
+  void WriteString(const LazyString& str) override {
     buffer_ +=
         "screen.WriteString(" +
         ToByteString(vm::EscapedString::FromString(str).CppRepresentation()) +

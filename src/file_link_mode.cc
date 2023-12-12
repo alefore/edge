@@ -609,7 +609,7 @@ using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 class TestDriver {
   NonNull<std::unique_ptr<EditorState>> editor_ = EditorForTests();
 
-  std::vector<NonNull<std::shared_ptr<LazyString>>> paths_to_unlink_ = {};
+  std::vector<LazyString> paths_to_unlink_ = {};
 
   bool stop_ = false;
   ExecutionEnvironment execution_environment_ =
@@ -624,17 +624,15 @@ class TestDriver {
 
  public:
   ~TestDriver() {
-    for (NonNull<std::shared_ptr<LazyString>> path : paths_to_unlink_)
-      CHECK_NE(unlink(ToByteString(path->ToString()).c_str()), -1);
+    for (const LazyString& path : paths_to_unlink_)
+      CHECK_NE(unlink(ToByteString(path.ToString()).c_str()), -1);
   }
 
-  NonNull<std::shared_ptr<LazyString>> NewTmpFile(
-      const LineSequence& contents) {
+  LazyString NewTmpFile(const LineSequence& contents) {
     char* path = strdup("/tmp/edge-tests-buffersave-simplesave-XXXXXX");
     int tmp_fd = mkstemp(path);
     CHECK(tmp_fd != -1) << path << ": " << strerror(errno);
-    NonNull<std::shared_ptr<LazyString>> path_str =
-        NewLazyString(FromByteString(path));
+    LazyString path_str = NewLazyString(FromByteString(path));
     paths_to_unlink_.push_back(path_str);
     free(path);
 
@@ -650,8 +648,7 @@ class TestDriver {
   }
 
   futures::Value<ValueOrError<gc::Root<OpenBuffer>>> OpenAndReadPath(
-      NonNull<std::shared_ptr<LazyString>> path,
-      std::optional<LineSequence> expected_content) {
+      LazyString path, std::optional<LineSequence> expected_content) {
     return OpenFileIfFound(
                OpenFileOptions{.editor_state = editor_.value(),
                                .path = ValueOrDie(Path::FromString(path)),
@@ -671,9 +668,9 @@ class TestDriver {
                       const language::NonNull<std::shared_ptr<const Line>>&
                           line) {
                     CHECK_EQ(
-                        ToByteString(line->contents()->ToString()),
+                        ToByteString(line->contents().ToString()),
                         ToByteString(
-                            expected_content->at(i)->contents()->ToString()));
+                            expected_content->at(i)->contents().ToString()));
                     return true;
                   }));
             }

@@ -81,7 +81,7 @@ const bool line_tests_registration = tests::Register(
             CHECK(initial_hash != final_hash);
           }},
      {.name = L"MetadataBecomesAvailable", .callback = [] {
-        futures::Future<NonNull<std::shared_ptr<LazyString>>> future;
+        futures::Future<LazyString> future;
         LineBuilder builder;
         builder.SetMetadata(
             LineMetadataEntry{.initial_value = NewLazyString(L"Foo"),
@@ -97,9 +97,7 @@ LineBuilder::LineBuilder(Line&& line) : data_(std::move(line.data_)) {}
 
 LineBuilder::LineBuilder(const Line& line) : data_(line.data_) {}
 
-LineBuilder::LineBuilder(
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-        input_contents)
+LineBuilder::LineBuilder(language::lazy_string::LazyString input_contents)
     : data_(Line::Data{.contents = std::move(input_contents)}) {}
 
 LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
@@ -111,11 +109,11 @@ Line LineBuilder::Build() && { return Line(std::move(data_)); }
 ColumnNumber LineBuilder::EndColumn() const {
   // TODO: Compute this separately, taking the width of characters into
   // account.
-  return ColumnNumber(0) + contents()->size();
+  return ColumnNumber(0) + contents().size();
 }
 
 language::lazy_string::ColumnNumberDelta LineBuilder::size() const {
-  return contents()->size();
+  return contents().size();
 }
 
 void LineBuilder::SetCharacter(ColumnNumber column, int c,
@@ -128,7 +126,7 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
     data_.contents =
         lazy_string::Append(std::move(data_.contents), std::move(str));
   } else {
-    NonNull<std::shared_ptr<lazy_string::LazyString>> suffix =
+    LazyString suffix =
         lazy_string::Substring(data_.contents, column + ColumnNumberDelta(1));
     data_.contents = lazy_string::Append(
         lazy_string::Substring(std::move(data_.contents), ColumnNumber(0),
@@ -176,12 +174,12 @@ const bool line_set_character_tests_registration = tests::Register(
     {{.name = L"ConsecutiveSets", .callback = [] {
         LineBuilder options;
         options.AppendString(std::wstring(L"ALEJANDRO"), std::nullopt);
-        CHECK(options.contents()->ToString() == L"ALEJANDRO");
+        CHECK(options.contents().ToString() == L"ALEJANDRO");
         CHECK(options.modifiers().empty());
 
         options.SetCharacter(ColumnNumber(1), L'l',
                              LineModifierSet{LineModifier::kBold});
-        CHECK(options.contents()->ToString() == L"AlEJANDRO");
+        CHECK(options.contents().ToString() == L"AlEJANDRO");
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -190,7 +188,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(2), L'e',
                              LineModifierSet{LineModifier::kBold});
-        CHECK(options.contents()->ToString() == L"AleJANDRO");
+        CHECK(options.contents().ToString() == L"AleJANDRO");
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -199,7 +197,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(3), L'j',
                              LineModifierSet{LineModifier::kUnderline});
-        CHECK(options.contents()->ToString() == L"AlejANDRO");
+        CHECK(options.contents().ToString() == L"AlejANDRO");
         CHECK_EQ(options.modifiers().size(), 3ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -210,7 +208,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(5), L'n',
                              LineModifierSet{LineModifier::kBlue});
-        CHECK(options.contents()->ToString() == L"AlejAnDRO");
+        CHECK(options.contents().ToString() == L"AlejAnDRO");
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -225,7 +223,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(4), L'a',
                              LineModifierSet{LineModifier::kRed});
-        CHECK(options.contents()->ToString() == L"AlejanDRO");
+        CHECK(options.contents().ToString() == L"AlejanDRO");
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -240,7 +238,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(0), L'a',
                              LineModifierSet{LineModifier::kBold});
-        CHECK(options.contents()->ToString() == L"alejanDRO");
+        CHECK(options.contents().ToString() == L"alejanDRO");
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(0))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -275,24 +273,23 @@ void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
 void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(!modifier.contains(LineModifier::kReset));
-  data_.modifiers[ColumnNumber(0) + data_.contents->size()] = modifier;
+  data_.modifiers[ColumnNumber(0) + data_.contents.size()] = modifier;
   data_.contents = lazy_string::Append(std::move(data_.contents),
                                        NewLazyString(std::wstring(1, c)));
   SetMetadata(std::nullopt);
   ValidateInvariants();
 }
 
-void LineBuilder::AppendString(NonNull<std::shared_ptr<LazyString>> suffix) {
+void LineBuilder::AppendString(LazyString suffix) {
   AppendString(std::move(suffix), std::nullopt);
 }
 
 void LineBuilder::AppendString(
-    NonNull<std::shared_ptr<LazyString>> suffix,
-    std::optional<LineModifierSet> suffix_modifiers) {
+    LazyString suffix, std::optional<LineModifierSet> suffix_modifiers) {
   ValidateInvariants();
   LineBuilder suffix_line(std::move(suffix));
   if (suffix_modifiers.has_value() &&
-      suffix_line.data_.contents->size() > ColumnNumberDelta(0)) {
+      suffix_line.data_.contents.size() > ColumnNumberDelta(0)) {
     suffix_line.data_.modifiers[ColumnNumber(0)] = suffix_modifiers.value();
   }
   Append(std::move(suffix_line));
@@ -448,14 +445,9 @@ void LineBuilder::set_modifiers(
 
 void LineBuilder::ClearModifiers() { data_.modifiers.clear(); }
 
-language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-LineBuilder::contents() const {
-  return data_.contents;
-}
+LazyString LineBuilder::contents() const { return data_.contents; }
 
-void LineBuilder::set_contents(
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>
-        value) {
+void LineBuilder::set_contents(LazyString value) {
   data_.contents = std::move(value);
 }
 
@@ -469,7 +461,7 @@ Line::Line(const Line& line) : data_(line.data_), hash_(ComputeHash(data_)) {}
 /* static */
 size_t Line::ComputeHash(const Line::Data& data) {
   return compute_hash(
-      data.contents.value(),
+      data.contents,
       MakeHashableIteratorRange(
           data.modifiers.begin(), data.modifiers.end(),
           [](const std::pair<ColumnNumber, LineModifierSet>& value) {
@@ -479,41 +471,35 @@ size_t Line::ComputeHash(const Line::Data& data) {
       MakeHashableIteratorRange(data.end_of_line_modifiers), data.metadata);
 }
 
-NonNull<std::shared_ptr<LazyString>> Line::contents() const {
-  return data_.contents;
-}
+LazyString Line::contents() const { return data_.contents; }
 
 ColumnNumber Line::EndColumn() const {
-  return ColumnNumber(0) + data_.contents->size();
+  return ColumnNumber(0) + data_.contents.size();
 }
 
 bool Line::empty() const { return EndColumn().IsZero(); }
 
 wint_t Line::get(ColumnNumber column) const {
   CHECK_LT(column, EndColumn());
-  return data_.contents->get(column);
+  return data_.contents.get(column);
 }
 
-NonNull<std::shared_ptr<LazyString>> Line::Substring(
-    ColumnNumber column, ColumnNumberDelta delta) const {
+LazyString Line::Substring(ColumnNumber column, ColumnNumberDelta delta) const {
   return lazy_string::Substring(contents(), column, delta);
 }
 
-NonNull<std::shared_ptr<LazyString>> Line::Substring(
-    ColumnNumber column) const {
+LazyString Line::Substring(ColumnNumber column) const {
   return lazy_string::Substring(contents(), column);
 }
 
-std::shared_ptr<LazyString> Line::metadata() const {
+std::optional<LazyString> Line::metadata() const {
   if (const auto& metadata = data_.metadata; metadata.has_value())
-    return metadata->value.get_copy()
-        .value_or(metadata->initial_value)
-        .get_shared();
-  return nullptr;
+    return metadata->value.get_copy().value_or(metadata->initial_value);
+
+  return std::nullopt;
 }
 
-language::ValueOrError<futures::ListenableValue<
-    language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>>>
+language::ValueOrError<futures::ListenableValue<LazyString>>
 Line::metadata_future() const {
   if (const auto& metadata = data_.metadata; metadata.has_value()) {
     return metadata.value().value;
@@ -548,7 +534,7 @@ Line::Line(Line::Data data)
 
 std::ostream& operator<<(std::ostream& os,
                          const afc::language::text::Line& line) {
-  os << line.contents().value();
+  os << line.contents();
   return os;
 }
 
@@ -557,6 +543,6 @@ namespace std {
 std::size_t hash<afc::language::text::LineMetadataEntry>::operator()(
     const afc::language::text::LineMetadataEntry& m) const {
   return std::hash<afc::language::lazy_string::LazyString>{}(
-      m.value.get_copy().value_or(m.initial_value).value());
+      m.value.get_copy().value_or(m.initial_value));
 }
 }  // namespace std

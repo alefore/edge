@@ -47,9 +47,9 @@ std::wstring GetMetadata(std::wstring line) {
   buffer.ptr()->editor().work_queue()->Execute();
 
   auto line_in_buffer = buffer.ptr()->LineAt(buffer.ptr()->EndLine());
-  std::shared_ptr<language::lazy_string::LazyString> metadata =
+  std::optional<language::lazy_string::LazyString> metadata =
       line_in_buffer->metadata();
-  auto output = metadata == nullptr ? L"" : metadata->ToString();
+  auto output = metadata.has_value() ? metadata->ToString() : L"";
   LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
             << output << L"]";
   return output;
@@ -125,15 +125,13 @@ const bool buffer_tests_registration = tests::Register(
                LineBuilder options(NewLazyString(L"foo"));
                options.SetMetadata(language::text::LineMetadataEntry{
                    .initial_value = NewLazyString(L"bar"),
-                   .value = futures::Past(NonNull<std::shared_ptr<LazyString>>(
-                       NewLazyString(L"quux")))});
+                   .value = futures::Past(NewLazyString(L"quux"))});
                buffer.ptr()->AppendRawLine(
                    MakeNonNullShared<Line>(std::move(options).Build()));
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();
-               CHECK(Pointer(buffer.ptr()->contents().back()->metadata())
-                         .Reference()
-                         .ToString() == L"quux");
+               CHECK(buffer.ptr()->contents().back()->metadata()->ToString() ==
+                     L"quux");
              }},
         {.name = L"PassingParametersPreservesThem",
          .callback =

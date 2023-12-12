@@ -7,8 +7,7 @@
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
-language::NonNull<std::shared_ptr<LazyString>> LowerCase(
-    language::NonNull<std::shared_ptr<LazyString>> input);
+LazyString LowerCase(LazyString input);
 }  // namespace afc::language::lazy_string
 
 #endif  // __AFC_LANGUAGE_LAZY_STRING_LOWERCASE_H__

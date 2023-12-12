@@ -15,9 +15,8 @@
 
 namespace afc::infrastructure::screen {
 struct VisualOverlay {
-  std::variant<
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
-      language::lazy_string::ColumnNumberDelta>
+  std::variant<language::lazy_string::LazyString,
+               language::lazy_string::ColumnNumberDelta>
       content = language::lazy_string::ColumnNumberDelta(1);
 
   LineModifierSet modifiers;

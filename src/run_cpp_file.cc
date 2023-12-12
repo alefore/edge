@@ -31,8 +31,8 @@ using afc::language::text::OutgoingLink;
 
 namespace afc::editor {
 namespace {
-futures::Value<PossibleError> RunCppFileHandler(
-    EditorState& editor_state, NonNull<std::shared_ptr<LazyString>> input) {
+futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
+                                                LazyString input) {
   // TODO(easy): Honor `multiple_buffers`.
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   if (!buffer.has_value()) {
@@ -57,7 +57,7 @@ futures::Value<PossibleError> RunCppFileHandler(
                  editor_state, MakeNonNullShared<FileSystemDriver>(
                                    editor_state.thread_pool()))
                  .Transform([input](ResolvePathOptions<EmptyValue> options) {
-                   options.path = input->ToString();
+                   options.path = input.ToString();
                    return ResolvePath(std::move(options));
                  }),
              [buffer, input](Error error) {
@@ -112,8 +112,7 @@ class RunCppFileCommand : public Command {
          .initial_value =
              buffer->ptr()->Read(buffer_variables::editor_commands_path),
          .handler =
-             [&editor =
-                  editor_state_](NonNull<std::shared_ptr<LazyString>> input) {
+             [&editor = editor_state_](LazyString input) {
                return RunCppFileHandler(editor, input).ConsumeErrors([](Error) {
                  return futures::Past(EmptyValue());
                });

@@ -109,7 +109,7 @@ class MarkdownParser : public LineOrientedTreeParser {
             while (!seek.AtRangeEnd() && IsSymbol(seek.read())) seek.Once();
             ColumnNumberDelta length =
                 result->position().column - original_position.column;
-            NonNull<std::shared_ptr<LazyString>> str = Substring(
+            LazyString str = Substring(
                 result->buffer().at(original_position.line)->contents(),
                 original_position.column, length);
             result->PushAndPop(length, IsTypo(str)
@@ -126,15 +126,15 @@ class MarkdownParser : public LineOrientedTreeParser {
     return symbol_characters_.find(c) != symbol_characters_.npos;
   }
 
-  bool IsTypo(NonNull<std::shared_ptr<LazyString>> symbol) const {
+  bool IsTypo(LazyString symbol) const {
     if (dictionary_.lines().range().IsEmpty()) return false;
     LineNumber line = dictionary_.upper_bound(
         MakeNonNullShared<const Line>(LineBuilder(LowerCase(symbol)).Build()));
     if (line.IsZero()) return false;
 
     --line;
-    return LowerCase(dictionary_.lines().at(line)->contents()).value() !=
-           LowerCase(symbol).value();
+    return LowerCase(dictionary_.lines().at(line)->contents()) !=
+           LowerCase(symbol);
   }
 
   void HandleOpenLink(ParseData* result) {

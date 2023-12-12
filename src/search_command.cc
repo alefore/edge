@@ -108,8 +108,7 @@ void DoSearch(OpenBuffer& buffer, SearchOptions options) {
 }
 
 ColorizePromptOptions SearchResultsModifiers(
-    NonNull<std::shared_ptr<LazyString>> line,
-    ValueOrError<SearchResultsSummary> result_or_error) {
+    LazyString line, ValueOrError<SearchResultsSummary> result_or_error) {
   LineModifierSet modifiers = std::visit(
       overload{[&](Error) { return LineModifierSet{LineModifier::kRed}; },
                [&](const SearchResultsSummary& result) -> LineModifierSet {
@@ -128,7 +127,7 @@ ColorizePromptOptions SearchResultsModifiers(
 
   return {.tokens = {{.token = {.value = L"",
                                 .begin = ColumnNumber(0),
-                                .end = ColumnNumber(0) + line->size()},
+                                .end = ColumnNumber(0) + line.size()},
                       .modifiers = std::move(modifiers)}}};
 }
 
@@ -263,7 +262,7 @@ class SearchCommand : public Command {
              [&editor_state = editor_state_,
               buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(
                   editor_state_.active_buffers())](
-                 const NonNull<std::shared_ptr<LazyString>>& line,
+                 const LazyString& line,
                  NonNull<std::unique_ptr<ProgressChannel>>
                      parent_progress_channel,
                  DeleteNotification::Value abort_value) {
@@ -290,7 +289,7 @@ class SearchCommand : public Command {
                                   {.values = {
                                        {VersionPropertyKey(L"case"), L"on"}}});
                             }
-                            if (line->size().IsZero()) {
+                            if (line.size().IsZero()) {
                               return futures::Past(Control::kContinue);
                             }
                             auto search_options = BuildPromptSearchOptions(
@@ -350,8 +349,7 @@ class SearchCommand : public Command {
                    });
              },
          .handler =
-             [&editor_state =
-                  editor_state_](NonNull<std::shared_ptr<LazyString>> input) {
+             [&editor_state = editor_state_](LazyString input) {
                return editor_state
                    .ForEachActiveBuffer([input](OpenBuffer& buffer) {
                      if (auto search_options = BuildPromptSearchOptions(
@@ -377,7 +375,7 @@ class SearchCommand : public Command {
 
  private:
   static std::optional<SearchOptions> BuildPromptSearchOptions(
-      NonNull<std::shared_ptr<LazyString>> input, OpenBuffer& buffer,
+      LazyString input, OpenBuffer& buffer,
       DeleteNotification::Value abort_value) {
     auto& editor = buffer.editor();
     SearchOptions search_options{.search_query = std::move(input)};

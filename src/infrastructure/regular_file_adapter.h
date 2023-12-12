@@ -37,7 +37,7 @@ class RegularFileAdapter : public FileAdapter {
   void SetPositionToZero() override;
 
   futures::Value<language::EmptyValue> ReceiveInput(
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>> str,
+      language::lazy_string::LazyString str,
       const infrastructure::screen::LineModifierSet& modifiers) override;
 
   bool WriteSignal(infrastructure::UnixSignal signal) override;

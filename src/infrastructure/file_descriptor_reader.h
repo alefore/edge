@@ -37,9 +37,8 @@ class FileDescriptorReader {
     infrastructure::FileDescriptor fd;
 
     mutable language::OnceOnlyFunction<void()> receive_end_of_file;
-    std::function<void(
-        language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>,
-        std::function<void()>)>
+    std::function<void(language::lazy_string::LazyString,
+                       std::function<void()>)>
         receive_data;
   };
 
@@ -54,8 +53,7 @@ class FileDescriptorReader {
 
  private:
   futures::Value<bool> ParseAndInsertLines(
-      language::NonNull<std::shared_ptr<afc::language::lazy_string::LazyString>>
-          contents);
+      afc::language::lazy_string::LazyString contents);
 
   const language::NonNull<std::shared_ptr<const Options>> options_;
 

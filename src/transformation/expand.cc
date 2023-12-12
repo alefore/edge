@@ -52,12 +52,11 @@ using afc::language::text::SortedLineSequenceUniqueLines;
 namespace afc::editor {
 namespace {
 
-NonNull<std::shared_ptr<LazyString>> GetToken(
-    const CompositeTransformation::Input& input,
-    EdgeVariable<std::wstring>* characters_variable) {
+LazyString GetToken(const CompositeTransformation::Input& input,
+                    EdgeVariable<std::wstring>* characters_variable) {
   if (input.position.column < ColumnNumber(2)) return EmptyString();
   const ColumnNumber end = input.position.column.previous().previous();
-  const NonNull<std::shared_ptr<LazyString>> line =
+  const LazyString line =
       input.buffer.contents().snapshot().at(input.position.line)->contents();
 
   std::wstring chars_str = input.buffer.Read(characters_variable);
@@ -67,8 +66,7 @@ NonNull<std::shared_ptr<LazyString>> GetToken(
       },
       [] { return ColumnNumber(0); },
       FindLastNotOf(
-          line.value(),
-          std::unordered_set<wchar_t>(chars_str.begin(), chars_str.end()),
+          line, std::unordered_set<wchar_t>(chars_str.begin(), chars_str.end()),
           end));
 
   return Substring(line, symbol_start,
@@ -87,10 +85,9 @@ transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
 
 class PredictorTransformation : public CompositeTransformation {
  public:
-  PredictorTransformation(Predictor predictor,
-                          NonNull<std::shared_ptr<LazyString>> text)
+  PredictorTransformation(Predictor predictor, LazyString text)
       : predictor_(std::move(predictor)), text_(std::move(text)) {
-    CHECK_GT(text_->size(), ColumnNumberDelta());
+    CHECK_GT(text_.size(), ColumnNumberDelta());
   }
 
   std::wstring Serialize() const override {
@@ -103,7 +100,7 @@ class PredictorTransformation : public CompositeTransformation {
                PredictorInput{
                    .editor = input.buffer.editor(),
                    .input = text_,
-                   .input_column = ColumnNumber() + text_->size(),
+                   .input_column = ColumnNumber() + text_.size(),
                    // TODO: Ugh, the const_cast below is fucking ugly. I have a
                    // lake in my model: should PredictionOptions::source_buffer
                    // be `const` so that it can be applied here? But then...
@@ -120,12 +117,12 @@ class PredictorTransformation : public CompositeTransformation {
           }
           if (!results->common_prefix.has_value() ||
               ColumnNumberDelta(results->common_prefix.value().size()) <
-                  text->size()) {
-            CHECK_LE(results->predictor_output.longest_prefix, text->size());
-            NonNull<std::shared_ptr<LazyString>> prefix =
+                  text.size()) {
+            CHECK_LE(results->predictor_output.longest_prefix, text.size());
+            LazyString prefix =
                 Substring(text, ColumnNumber(0),
                           results->predictor_output.longest_prefix);
-            if (!prefix->size().IsZero()) {
+            if (!prefix.size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
               buffer.status().SetInformationText(MakeNonNullShared<Line>(
                   LineBuilder(Append(NewLazyString(L"No matches found. Longest "
@@ -137,8 +134,8 @@ class PredictorTransformation : public CompositeTransformation {
           }
 
           Output output;
-          CHECK_GT(text->size(), ColumnNumberDelta());
-          output.Push(DeleteLastCharacters(text->size()));
+          CHECK_GT(text.size(), ColumnNumberDelta());
+          output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
               .contents_to_insert =
                   LineSequence::WithLine(MakeNonNullShared<Line>(
@@ -149,13 +146,13 @@ class PredictorTransformation : public CompositeTransformation {
 
  private:
   const Predictor predictor_;
-  const NonNull<std::shared_ptr<LazyString>> text_;
+  const LazyString text_;
 };
 
 class InsertHistoryTransformation : public CompositeTransformation {
  public:
   InsertHistoryTransformation(transformation::Variant delete_transformation,
-                              NonNull<std::shared_ptr<LazyString>> query)
+                              LazyString query)
       : delete_transformation_(std::move(delete_transformation)),
         search_options_({.query = std::move(query)}) {}
 
@@ -175,7 +172,7 @@ class InsertHistoryTransformation : public CompositeTransformation {
         [&] {
           // TODO(easy, 2023-10-06): Get rid of ToString.
           input.editor.status().InsertError(
-              Error(L"No matches: " + search_options_.query->ToString()));
+              Error(L"No matches: " + search_options_.query.ToString()));
         });
     return futures::Past(std::move(output));
   }
@@ -298,8 +295,7 @@ const bool read_and_insert_tests_registration = tests::Register(
 
 class Execute : public CompositeTransformation {
  public:
-  Execute(NonNull<std::shared_ptr<LazyString>> command)
-      : command_(std::move(command)) {}
+  Execute(LazyString command) : command_(std::move(command)) {}
 
   std::wstring Serialize() const override { return L"Execute();"; }
 
@@ -318,7 +314,7 @@ class Execute : public CompositeTransformation {
   }
 
  private:
-  const NonNull<std::shared_ptr<LazyString>> command_;
+  const LazyString command_;
 };
 
 class ExpandTransformation : public CompositeTransformation {
@@ -337,10 +333,10 @@ class ExpandTransformation : public CompositeTransformation {
         transformation_future = futures::Past(nullptr);
     switch (c) {
       case 'r': {
-        NonNull<std::shared_ptr<LazyString>> symbol =
+        LazyString symbol =
             GetToken(input, buffer_variables::symbol_characters);
         output->Push(
-            DeleteLastCharacters(ColumnNumberDelta(1) + symbol->size()));
+            DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size()));
         std::visit(overload{IgnoreErrors{},
                             [&](Path path) {
                               transformation_future =
@@ -350,18 +346,18 @@ class ExpandTransformation : public CompositeTransformation {
                    Path::FromString(symbol));
       } break;
       case '/':
-        if (NonNull<std::shared_ptr<LazyString>> path =
+        if (LazyString path =
                 GetToken(input, buffer_variables::path_characters);
-            !path->size().IsZero()) {
+            !path.size().IsZero()) {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
           transformation_future = futures::Past(
               std::make_unique<PredictorTransformation>(FilePredictor, path));
         }
         break;
       case ' ':
-        if (NonNull<std::shared_ptr<LazyString>> symbol =
+        if (LazyString symbol =
                 GetToken(input, buffer_variables::symbol_characters);
-            !symbol->size().IsZero()) {
+            !symbol.size().IsZero()) {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
           futures::Value<Predictor> predictor_future =
               futures::Past(SyntaxBasedPredictor);
@@ -394,8 +390,8 @@ class ExpandTransformation : public CompositeTransformation {
         break;
       case ':': {
         auto symbol = GetToken(input, buffer_variables::symbol_characters);
-        output->Push(DeleteLastCharacters(
-            ColumnNumberDelta(1) + symbol->size() + ColumnNumberDelta(1)));
+        output->Push(DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size() +
+                                          ColumnNumberDelta(1)));
         transformation_future =
             futures::Past(std::make_unique<Execute>(symbol));
       } break;
@@ -403,7 +399,7 @@ class ExpandTransformation : public CompositeTransformation {
         auto query = GetToken(input, buffer_variables::path_characters);
         transformation_future =
             futures::Past(std::make_unique<InsertHistoryTransformation>(
-                DeleteLastCharacters(query->size() + ColumnNumberDelta(1)),
+                DeleteLastCharacters(query.size() + ColumnNumberDelta(1)),
                 query));
       }
     }

@@ -300,7 +300,7 @@ class WordsTreeParser : public TreeParser {
         auto keyword =
             Substring(contents.contents(), keyword_range.begin().column,
                       keyword_range.end().column - keyword_range.begin().column)
-                ->ToString();
+                .ToString();
         ParseTree child = delegate_->FindChildren(buffer, keyword_range);
         if (typos_.find(keyword) != typos_.end()) {
           child.InsertModifier(LineModifier::kRed);

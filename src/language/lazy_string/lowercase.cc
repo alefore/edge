@@ -10,19 +10,18 @@
 
 namespace afc::language::lazy_string {
 namespace {
-class LowerCaseImpl : public LazyString {
+class LowerCaseImpl : public LazyStringImpl {
  public:
-  LowerCaseImpl(NonNull<std::shared_ptr<LazyString>> input)
-      : input_(std::move(input)) {}
+  LowerCaseImpl(LazyString input) : input_(std::move(input)) {}
 
   wchar_t get(ColumnNumber pos) const override {
-    return towlower(input_->get(pos));
+    return towlower(input_.get(pos));
   }
 
-  ColumnNumberDelta size() const override { return input_->size(); }
+  ColumnNumberDelta size() const override { return input_.size(); }
 
  private:
-  const NonNull<std::shared_ptr<LazyString>> input_;
+  const LazyString input_;
 };
 
 const bool lower_case_tests_registration = tests::Register(
@@ -35,14 +34,13 @@ const bool lower_case_tests_registration = tests::Register(
      {.name = L"SimpleString", .callback = [] {
         // TODO: Why can't we use CHECK_EQ? Why can't the compiler find
         // the operator<<?
-        CHECK(LowerCaseImpl(NewLazyString(L"Alejandro Forero")).ToString() ==
+        CHECK(LowerCase(NewLazyString(L"Alejandro Forero")).ToString() ==
               L"alejandro forero");
       }}});
 }  // namespace
 
-NonNull<std::shared_ptr<LazyString>> LowerCase(
-    NonNull<std::shared_ptr<LazyString>> input) {
-  return MakeNonNullShared<LowerCaseImpl>(std::move(input));
+LazyString LowerCase(LazyString input) {
+  return LazyString(MakeNonNullShared<LowerCaseImpl>(std::move(input)));
 }
 
 }  // namespace afc::language::lazy_string

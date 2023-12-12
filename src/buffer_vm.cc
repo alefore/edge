@@ -165,7 +165,7 @@ std::pair<LineNumber, LineNumberDelta> GetBoundariesForTransformation(
     while (!output.second.IsZero() &&
            buffer.at(output.first + output.second - LineNumberDelta(1))
                ->contents()
-               ->size()
+               .size()
                .IsZero())
       --output.second;
   }
@@ -268,17 +268,17 @@ void DefineSortLinesByKey(
                                            const language::text::Line>>& a,
                                        const language::NonNull<std::shared_ptr<
                                            const language::text::Line>>& b) {
-                                  auto it_a = data->keys.find(
-                                      a->contents()->ToString());
-                                  auto it_b = data->keys.find(
-                                      b->contents()->ToString());
+                                  auto it_a =
+                                      data->keys.find(a->contents().ToString());
+                                  auto it_b =
+                                      data->keys.find(b->contents().ToString());
                                   CHECK(it_a != data->keys.end());
                                   CHECK(it_b != data->keys.end());
                                   VLOG(10) << "Sort key: "
-                                           << a->contents()->ToString() << ": "
+                                           << a->contents().ToString() << ": "
                                            << it_a->second;
                                   VLOG(10) << "Sort key: "
-                                           << b->contents()->ToString() << ": "
+                                           << b->contents().ToString() << ": "
                                            << it_b->second;
                                   return it_a->second < it_b->second;
                                 });
@@ -623,16 +623,16 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
 
   buffer_object_type.ptr()->AddField(
       L"LineMetadataString",
-      vm::NewCallback(
-          pool, PurityType::kPure,
-          [](gc::Root<OpenBuffer> buffer, int line_number) {
-            language::NonNull<std::shared_ptr<const Line>> line =
-                buffer.ptr()->contents().at(LineNumber(line_number));
-            return ToFuture(line->metadata_future())
-                .Transform([](NonNull<std::shared_ptr<LazyString>> str_value) {
-                  return Success(str_value->ToString());
-                });
-          })
+      vm::NewCallback(pool, PurityType::kPure,
+                      [](gc::Root<OpenBuffer> buffer, int line_number) {
+                        language::NonNull<std::shared_ptr<const Line>> line =
+                            buffer.ptr()->contents().at(
+                                LineNumber(line_number));
+                        return ToFuture(line->metadata_future())
+                            .Transform([](LazyString str_value) {
+                              return Success(str_value.ToString());
+                            });
+                      })
           .ptr());
   return buffer_object_type;
 }

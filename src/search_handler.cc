@@ -85,7 +85,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     std::function<bool(const LineColumn&)> predicate) {
   std::wregex pattern;
   try {
-    pattern = std::wregex(options.search_query->ToString(),
+    pattern = std::wregex(options.search_query.ToString(),
                           GetRegexTraits(options.case_sensitive));
   } catch (std::regex_error& e) {
     Error error(L"Regex failure: " + FromByteString(e.what()));
@@ -140,10 +140,10 @@ bool operator==(const SearchResultsSummary& a, const SearchResultsSummary& b) {
   return a.matches == b.matches && a.search_completion == b.search_completion;
 }
 
-std::wstring RegexEscape(NonNull<std::shared_ptr<LazyString>> str) {
+std::wstring RegexEscape(LazyString str) {
   std::wstring results;
   static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
-  ForEachColumn(str.value(), [&](ColumnNumber, wchar_t c) {
+  ForEachColumn(str, [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.find(c) == std::wstring::npos) {
       results.push_back('\\');
     }
@@ -200,7 +200,7 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
 ValueOrError<std::vector<LineColumn>> SearchHandler(
     Direction direction, const SearchOptions& options,
     const LineSequence& contents) {
-  if (options.search_query->size().IsZero()) {
+  if (options.search_query.size().IsZero()) {
     return {};
   }
 
@@ -388,7 +388,7 @@ ValueOrError<LineColumn> GetNextMatch(Direction direction,
 
   // TODO(easy, 2023-09-09): Get rid of ToString.
   return Error(
-      Append(NewLazyString(L"No matches: "), options.search_query)->ToString());
+      Append(NewLazyString(L"No matches: "), options.search_query).ToString());
 }
 
 void HandleSearchResults(

@@ -11,7 +11,7 @@ namespace {
 using infrastructure::Tracker;
 using ::operator<<;
 
-class EmptyStringImpl : public LazyString {
+class EmptyStringImpl : public LazyStringImpl {
  public:
   wchar_t get(ColumnNumber) const override {
     LOG(FATAL) << "Attempt to read from empty string.";
@@ -45,8 +45,8 @@ bool LazyString::operator<(const LazyString& x) {
   return size() < x.size();
 }
 
-NonNull<std::shared_ptr<LazyString>> EmptyString() {
-  return NonNull<std::shared_ptr<EmptyStringImpl>>();
+LazyString EmptyString() {
+  return LazyString(NonNull<std::shared_ptr<EmptyStringImpl>>());
 }
 
 bool operator==(const LazyString& a, const LazyString& b) {

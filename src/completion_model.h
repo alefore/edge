@@ -18,10 +18,8 @@ class CompletionModelManager {
   // TODO(templates, 2023-09-02): Use GHOST_TYPE. That is tricky because we need
   // to be able to selectively disable some constructors, which requires finicky
   // SFINAE. And operator<<.
-  using CompressedText =
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
-  using Text =
-      language::NonNull<std::shared_ptr<language::lazy_string::LazyString>>;
+  using CompressedText = language::lazy_string::LazyString;
+  using Text = language::lazy_string::LazyString;
 
   struct NothingFound {};
 
