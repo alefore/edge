@@ -1,15 +1,18 @@
 #include "src/undo_state.h"
 
+#include "src/language/container.h"
+
+namespace container = afc::language::container;
+
+using afc::editor::transformation::Variant;
+using afc::futures::IterationControlCommand;
+using afc::language::EmptyValue;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Success;
+
 namespace afc::editor {
-
-using futures::IterationControlCommand;
-using language::EmptyValue;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
-using transformation::Variant;
-
 void UndoState::Clear() {
   AbandonCurrent();
   undo_stack_.clear();
@@ -21,32 +24,36 @@ void UndoState::CommitCurrent() {
   if (current_modified_buffer_) {
     // Suppose this history:
     //
-    //   v1 -a-> v2 -b-> v3 -c-> v4
+    //     v1 -a-> v2 -b-> v3 -c-> v4
     //
-    // If we undo to v2 and apply change d to v5, we want the history to be:
+    //     undo_stack_: a, b, c
+    //     redo_stack_: (empty)
     //
-    //   v1 -a-> v2 -b-> v3 -c-> v4 -c'-> v3 -b'-> v2 -d-> v5
+    // If we undo to v2, we are here:
     //
-    // As change d is commited and we get here, we start with:
+    //     v1 -a-> v2
     //
-    //   undo_stack_: a
-    //   redo_stack_: c, b
-    std::list<NonNull<std::shared_ptr<transformation::Stack>>> undo_chain;
-    std::list<NonNull<std::shared_ptr<transformation::Stack>>> redo_chain;
-    for (auto& entry : redo_stack_) {
-      undo_chain.push_front(std::move(entry.undo));
-      redo_chain.push_back(std::move(entry.redo));
-    }
+    //     undo_stack_: a
+    //     redo_stack_: c/c', b/b'
+    //
+    // If change d that transforms v2 to v5 is applied, we want this history:
+    //
+    //     v1 -a-> v2 -b-> v3 -c-> v4 -c'-> v3 -b'-> v2 -d-> v5
+    //       ╰┬───╯  ╰─────┬──────╯  ╰─────┬────────╯  ╰───┬╯
+    //        ╰─> history  ╰─> undo chain  ╰─> redo chain  ╰─> last change
+    //
+    // c' (b') is to the inverse of transformation c (b).
+    //
+    //     undo_stack_: a, b, c, c', b', d
+    //     redo_stack_: (empty)
+    std::ranges::copy(redo_stack_ |
+                          std::views::transform(&RedoStackEntry::undo) |
+                          std::views::reverse,
+                      std::back_inserter(undo_stack_));
+    std::ranges::copy(
+        redo_stack_ | std::views::transform(&RedoStackEntry::redo),
+        std::back_inserter(undo_stack_));
     redo_stack_.clear();
-
-    // We have transfered from redo_stack_ into undo_chain and redo_chain:
-    //
-    //   undo_chain: b, c
-    //   redo_chain: c', b'
-    //
-    // Now we insert them into undo_stack_.
-    undo_stack_.splice(undo_stack_.end(), undo_chain);
-    undo_stack_.splice(undo_stack_.end(), redo_chain);
   }
   undo_stack_.push_back(std::move(current_));
   AbandonCurrent();
