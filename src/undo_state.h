@@ -61,9 +61,9 @@ class UndoState {
   std::list<RedoStackEntry> redo_stack_;
 
   // As we go applying a set of transformations that should be undone
-  // atomically,, we start pushing into current_ their corresponding "undo"
-  // transformations. Once the atom is commited, we move from current_ into
-  // past_.
+  // atomically, we start pushing into current_ their corresponding "undo"
+  // transformations. Once the atom is commited (through CommitCurrent), we move
+  // from current_ into past_ (and adjust undo_stack_ and redo_stack_).
   language::NonNull<std::shared_ptr<transformation::Stack>> current_;
   bool current_modified_buffer_ = false;
 };
