@@ -56,19 +56,16 @@ class Status {
   // Returns nullptr if the status type isn't kPrompt.
   const concurrent::VersionPropertyReceiver* prompt_extra_information() const;
 
-  language::NonNull<std::shared_ptr<language::text::Line>>
-  prompt_extra_information_line() const;
+  language::text::Line prompt_extra_information_line() const;
 
-  void SetInformationText(
-      language::NonNull<std::shared_ptr<language::text::Line>>);
+  void SetInformationText(language::text::Line);
 
   // Sets the status to a given text and returns an opaque token. The caller
   // uses the opaque token to control when the text given is retired (by letting
   // the token expire).
   [[nodiscard]] std::unique_ptr<StatusExpirationControl,
                                 std::function<void(StatusExpirationControl*)>>
-  SetExpiringInformationText(
-      language::NonNull<std::shared_ptr<afc::language::text::Line>> text);
+  SetExpiringInformationText(afc::language::text::Line text);
 
   // Prefer `InsertError` over `Set`.
   void Set(language::Error text);
@@ -103,7 +100,7 @@ class Status {
 
   void Bell();
 
-  language::NonNull<std::shared_ptr<language::text::Line>> text() const;
+  const language::text::Line& text() const;
 
  private:
   friend StatusExpirationControl;
@@ -119,8 +116,7 @@ class Status {
     const struct timespec creation_time = infrastructure::Now();
 
     const Type type = Type::kInformation;
-    language::NonNull<std::shared_ptr<language::text::Line>> text =
-        language::MakeNonNullShared<language::text::Line>();
+    language::text::Line text = language::text::Line();
 
     const std::optional<language::gc::Root<OpenBuffer>> prompt_buffer =
         std::nullopt;

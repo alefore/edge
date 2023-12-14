@@ -30,16 +30,13 @@ using ::operator<<;
     std::vector<std::wstring> inputs) {
   CHECK(!inputs.empty());
   Lines::Ptr output = nullptr;
-  for (const std::wstring& input : inputs) {
-    output =
-        Lines::PushBack(output, MakeNonNullShared<Line>(input)).get_shared();
-  }
+  for (const std::wstring& input : inputs)
+    output = Lines::PushBack(output, Line(input)).get_shared();
   // This is safe because we've validated that inputs isn't empty.
   return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
 }
 
-/* static */ LineSequence LineSequence::WithLine(
-    NonNull<std::shared_ptr<Line>> line) {
+/* static */ LineSequence LineSequence::WithLine(Line line) {
   return LineSequence(Lines::PushBack(nullptr, std::move(line)));
 }
 
@@ -50,28 +47,25 @@ LineSequence LineSequence::ViewRange(Range range) const {
   output = Lines::Suffix(Lines::Prefix(output, range.end().line.read() + 1),
                          range.begin().line.read());
 
-  if (range.end().column < output->Get(output->size() - 1)->EndColumn()) {
-    LineBuilder replacement(output->Get(output->size() - 1).value());
+  if (range.end().column < output->Get(output->size() - 1).EndColumn()) {
+    LineBuilder replacement(output->Get(output->size() - 1));
     replacement.DeleteSuffix(range.end().column);
     output = output->Replace(output->size() - 1, std::move(replacement).Build())
                  .get_shared();
   }
 
   if (!range.begin().column.IsZero()) {
-    LineBuilder replacement(output->Get(0).value());
+    LineBuilder replacement(output->Get(0));
     replacement.DeleteCharacters(
         ColumnNumber(0),
-        std::min(output->Get(0)->EndColumn(), range.begin().column).ToDelta());
+        std::min(output->Get(0).EndColumn(), range.begin().column).ToDelta());
     output = output->Replace(0, std::move(replacement).Build()).get_shared();
   }
 
   return VisitPointer(
       output,
       [](NonNull<Lines::Ptr> lines) { return LineSequence(std::move(lines)); },
-      [] {
-        return LineSequence(
-            Lines::PushBack(nullptr, NonNull<std::shared_ptr<Line>>()));
-      });
+      [] { return LineSequence(Lines::PushBack(nullptr, Line())); });
 }
 
 namespace {
@@ -190,9 +184,8 @@ const bool filter_to_range_tests_registration = tests::Register(
 std::wstring LineSequence::ToString() const {
   std::wstring output;
   output.reserve(CountCharacters());
-  EveryLine([&output](LineNumber position,
-                      const NonNull<std::shared_ptr<const Line>>& line) {
-    output.append((position == LineNumber(0) ? L"" : L"\n") + line->ToString());
+  EveryLine([&output](LineNumber position, const Line& line) {
+    output.append((position == LineNumber(0) ? L"" : L"\n") + line.ToString());
     return true;
   });
   VLOG(10) << "ToString: " << output;
@@ -215,13 +208,13 @@ LineNumber LineSequence::EndLine() const {
 }
 
 Range LineSequence::range() const {
-  return Range(LineColumn(), LineColumn(EndLine(), back()->EndColumn()));
+  return Range(LineColumn(), LineColumn(EndLine(), back().EndColumn()));
 }
 
 size_t LineSequence::CountCharacters() const {
   ColumnNumberDelta output;
-  ForEach([&output](const NonNull<std::shared_ptr<const Line>>& line) {
-    output += line->EndColumn().ToDelta() + ColumnNumberDelta(sizeof("\n") - 1);
+  ForEach([&output](const Line& line) {
+    output += line.EndColumn().ToDelta() + ColumnNumberDelta(sizeof("\n") - 1);
   });
   if (output > ColumnNumberDelta(0)) {
     output--;  // Last line has no \n.
@@ -229,71 +222,54 @@ size_t LineSequence::CountCharacters() const {
   return output.read();
 }
 
-const NonNull<std::shared_ptr<const Line>>& LineSequence::at(
-    LineNumber line_number) const {
+const Line& LineSequence::at(LineNumber line_number) const {
   CHECK_LT(line_number, LineNumber(0) + size());
   return lines_->Get(line_number.read());
 }
 
-NonNull<std::shared_ptr<const Line>> LineSequence::back() const {
-  return at(EndLine());
-}
+const Line& LineSequence::back() const { return at(EndLine()); }
 
-NonNull<std::shared_ptr<const Line>> LineSequence::front() const {
-  return at(LineNumber(0));
-}
+const Line& LineSequence::front() const { return at(LineNumber(0)); }
 
 bool LineSequence::ForEachLine(
     LineNumber start, LineNumberDelta length,
-    const std::function<bool(
-        LineNumber, const language::NonNull<std::shared_ptr<const Line>>&)>&
-        callback) const {
+    const std::function<bool(LineNumber, const Line&)>& callback) const {
   CHECK_GE(length, LineNumberDelta());
   CHECK_LE((start + length).ToDelta(), size());
   return Lines::Every(
       Lines::Suffix(Lines::Prefix(lines_.get_shared(), (start + length).read()),
                     start.read()),
-      [&](const NonNull<std::shared_ptr<const Line>>& line) {
-        return callback(start++, line);
-      });
+      [&](const Line& line) { return callback(start++, line); });
 }
 
 bool LineSequence::EveryLine(
-    const std::function<bool(LineNumber,
-                             const NonNull<std::shared_ptr<const Line>>&)>&
-        callback) const {
+    const std::function<bool(LineNumber, const Line&)>& callback) const {
   return ForEachLine(LineNumber(), size(), callback);
 }
 
 void LineSequence::ForEach(
-    const std::function<void(const NonNull<std::shared_ptr<const Line>>&)>&
-        callback) const {
-  EveryLine(
-      [callback](LineNumber, const NonNull<std::shared_ptr<const Line>>& line) {
-        callback(line);
-        return true;
-      });
+    const std::function<void(const Line&)>& callback) const {
+  EveryLine([callback](LineNumber, const Line& line) {
+    callback(line);
+    return true;
+  });
 }
 
 void LineSequence::ForEach(
     const std::function<void(std::wstring)>& callback) const {
-  ForEach([callback](const NonNull<std::shared_ptr<const Line>>& line) {
-    callback(line->ToString());
-  });
+  ForEach([callback](const Line& line) { callback(line.ToString()); });
 }
 
 LineSequence LineSequence::Map(
-    const std::function<language::NonNull<std::shared_ptr<const Line>>(
-        const language::NonNull<std::shared_ptr<const Line>>&)>& transformer)
-    const {
+    const std::function<Line(const Line&)>& transformer) const {
   return LineSequence(lines_->Map(transformer));
 }
 
 wint_t LineSequence::character_at(const LineColumn& position) const {
   CHECK_LE(position.line, EndLine());
-  NonNull<std::shared_ptr<const Line>> line = at(position.line);
-  return position.column >= line->EndColumn() ? L'\n'
-                                              : line->get(position.column);
+  const Line& line = at(position.line);
+  return position.column >= line.EndColumn() ? L'\n'
+                                             : line.get(position.column);
 }
 
 LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
@@ -302,22 +278,22 @@ LineColumn LineSequence::AdjustLineColumn(LineColumn position) const {
     position.line = EndLine();
     position.column = std::numeric_limits<ColumnNumber>::max();
   }
-  position.column = std::min(at(position.line)->EndColumn(), position.column);
+  position.column = std::min(at(position.line).EndColumn(), position.column);
   return position;
 }
 
 LineColumn LineSequence::PositionBefore(LineColumn position) const {
   if (position.line > EndLine()) {
     position.line = EndLine();
-    position.column = at(position.line)->EndColumn();
-  } else if (position.column > at(position.line)->EndColumn()) {
-    position.column = at(position.line)->EndColumn();
+    position.column = at(position.line).EndColumn();
+  } else if (position.column > at(position.line).EndColumn()) {
+    position.column = at(position.line).EndColumn();
   } else if (position.column > ColumnNumber(0)) {
     position.column--;
   } else if (position.line > LineNumber(0)) {
     position.line =
         std::min(position.line, LineNumber(0) + size()) - LineNumberDelta(1);
-    position.column = at(position.line)->EndColumn();
+    position.column = at(position.line).EndColumn();
   }
   return position;
 }
@@ -397,14 +373,14 @@ const bool position_before_tests_registration = tests::Register(
 LineColumn LineSequence::PositionAfter(LineColumn position) const {
   if (position.line > EndLine()) {
     position.line = EndLine();
-    position.column = at(position.line)->EndColumn();
-  } else if (position.column < at(position.line)->EndColumn()) {
+    position.column = at(position.line).EndColumn();
+  } else if (position.column < at(position.line).EndColumn()) {
     ++position.column;
   } else if (position.line < EndLine()) {
     ++position.line;
     position.column = ColumnNumber();
-  } else if (position.column > at(position.line)->EndColumn()) {
-    position.column = at(position.line)->EndColumn();
+  } else if (position.column > at(position.line).EndColumn()) {
+    position.column = at(position.line).EndColumn();
   }
   return position;
 }

@@ -137,8 +137,7 @@ Range GetRange(const LineSequence& contents, Direction initial_direction,
       case Direction::kForwards:
         return Range(
             position,
-            LineColumn(position.line,
-                       contents.at(position.line).value().EndColumn()));
+            LineColumn(position.line, contents.at(position.line).EndColumn()));
 
       case Direction::kBackwards:
         return Range(LineColumn(position.line, ColumnNumber()), position);
@@ -147,7 +146,7 @@ Range GetRange(const LineSequence& contents, Direction initial_direction,
     switch (initial_direction) {
       case Direction::kForwards:
         return Range(position, LineColumn(contents.EndLine(),
-                                          contents.back()->EndColumn()));
+                                          contents.back().EndColumn()));
       case Direction::kBackwards:
         return Range(LineColumn(), position);
     }

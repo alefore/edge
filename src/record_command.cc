@@ -46,12 +46,10 @@ class RecordCommand : public Command {
           OpenBuffer& buffer = buffer_root.ptr().value();
           if (buffer.HasTransformationStack()) {
             buffer.PopTransformationStack();
-            buffer.status().SetInformationText(
-                MakeNonNullShared<Line>(L"Recording: stop"));
+            buffer.status().SetInformationText(Line(L"Recording: stop"));
           } else {
             buffer.PushTransformationStack();
-            buffer.status().SetInformationText(
-                MakeNonNullShared<Line>(L"Recording: start"));
+            buffer.status().SetInformationText(Line(L"Recording: start"));
           }
           buffer.ResetMode();
         },

@@ -18,7 +18,7 @@ using afc::language::text::LineBuilder;
 
 namespace afc::editor {
 
-NonNull<std::shared_ptr<Line>> FrameLine(FrameOutputProducerOptions options) {
+Line FrameLine(FrameOutputProducerOptions options) {
   LineModifierSet line_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::kInactive
           ? LineModifierSet({LineModifier::kDim})

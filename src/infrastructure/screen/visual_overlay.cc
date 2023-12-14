@@ -116,8 +116,7 @@ void ApplyVisualOverlay(ColumnNumber column, const VisualOverlay& overlay,
 }
 }  // namespace
 
-NonNull<std::shared_ptr<Line>> ApplyVisualOverlayMap(
-    const VisualOverlayMap& overlays, Line& line) {
+Line ApplyVisualOverlayMap(const VisualOverlayMap& overlays, Line& line) {
   LineBuilder line_builder(line);
   for (const std::pair<const VisualOverlayPriority,
                        std::map<VisualOverlayKey,

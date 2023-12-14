@@ -54,7 +54,7 @@ std::wstring GetBufferContext(const OpenBuffer& buffer) {
     if (source != buffer.editor().buffers()->end() &&
         LineNumber(0) + source->second.ptr()->contents().size() >
             mark.source_line) {
-      return source->second.ptr()->contents().at(mark.source_line)->ToString();
+      return source->second.ptr()->contents().at(mark.source_line).ToString();
     }
   }
   std::wstring name = buffer.Read(buffer_variables::name);
@@ -150,7 +150,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
                                  OpenBuffer::FlagsToString(std::move(flags))));
     }
 
-    if (options.status.text()->empty()) {
+    if (options.status.text().empty()) {
       output.AppendString(
           NewLazyString(L"  “" + GetBufferContext(*options.buffer) + L"” "));
     }
@@ -181,32 +181,29 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
   std::optional<ColumnNumber> cursor;
 
   if (options.status.prompt_buffer().has_value()) {
-    NonNull<std::shared_ptr<const Line>> contents =
-        options.status.prompt_buffer()->ptr()->CurrentLine();
+    const Line& contents = options.status.prompt_buffer()->ptr()->CurrentLine();
     auto column =
-        std::min(contents->EndColumn(),
+        std::min(contents.EndColumn(),
                  options.status.prompt_buffer()->ptr()->current_position_col());
     VLOG(5) << "Setting status cursor: " << column;
 
-    output.Append(LineBuilder(options.status.text().value()));
-    LineBuilder prefix(contents.value());
+    output.Append(LineBuilder(options.status.text()));
+    LineBuilder prefix(contents);
     prefix.DeleteSuffix(column);
     output.Append(std::move(prefix));
     cursor = ColumnNumber(0) + output.contents().size();
-    LineBuilder suffix(contents.value());
+    LineBuilder suffix(contents);
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     output.Append(std::move(suffix));
-    output.Append(
-        LineBuilder(options.status.prompt_extra_information_line().value()));
+    output.Append(LineBuilder(options.status.prompt_extra_information_line()));
   } else {
     VLOG(6) << "Not setting status cursor.";
-    output.Append(LineBuilder(options.status.text().value()));
+    output.Append(LineBuilder(options.status.text()));
     if (options.buffer != nullptr) {
-      if (NonNull<std::shared_ptr<Line>> editor_status_text =
-              options.buffer->editor().status().text();
-          !editor_status_text->empty()) {
+      if (Line editor_status_text = options.buffer->editor().status().text();
+          !editor_status_text.empty()) {
         output.AppendString(NewLazyString(L" 🌼 "));
-        output.Append(LineBuilder(editor_status_text.value()));
+        output.Append(LineBuilder(editor_status_text));
       }
     }
   }
@@ -245,11 +242,11 @@ LineWithCursor::Generator::Vector StatusOutput(StatusOutputOptions options) {
   static Tracker tracker(L"StatusOutput");
   auto call = tracker.Call();
 
-  const auto info_lines = options.status.GetType() == Status::Type::kPrompt ||
-                                  !options.status.text()->empty() ||
-                                  options.buffer != nullptr
-                              ? LineNumberDelta(1)
-                              : LineNumberDelta();
+  const LineNumberDelta info_lines =
+      options.status.GetType() == Status::Type::kPrompt ||
+              !options.status.text().empty() || options.buffer != nullptr
+          ? LineNumberDelta(1)
+          : LineNumberDelta();
 
   options.size.line =
       std::min(options.size.line, info_lines + context_lines(options));

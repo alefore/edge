@@ -34,11 +34,11 @@ std::optional<language::text::LineColumn> RegularFileAdapter::position() const {
 
 void RegularFileAdapter::SetPositionToZero() {}
 
-std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
-    LazyString contents, const LineModifierSet& modifiers) {
+std::vector<Line> CreateLineInstances(LazyString contents,
+                                      const LineModifierSet& modifiers) {
   TRACK_OPERATION(FileDescriptorReader_CreateLineInstances);
 
-  std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert;
+  std::vector<Line> lines_to_insert;
   lines_to_insert.reserve(4096);
   ColumnNumber line_start;
   for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents.size()); ++i) {
@@ -68,8 +68,7 @@ futures::Value<EmptyValue> RegularFileAdapter::ReceiveInput(
     language::lazy_string::LazyString str, const LineModifierSet& modifiers) {
   return options_.thread_pool
       .Run(std::bind_front(CreateLineInstances, std::move(str), modifiers))
-      .Transform([options = options_](
-                     std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
+      .Transform([options = options_](std::vector<Line> lines) {
         TRACK_OPERATION(RegularFileAdapter_ReceiveInput);
         CHECK_GT(lines.size(), 0ul);
         options.insert_lines(std::move(lines));

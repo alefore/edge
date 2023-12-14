@@ -129,7 +129,7 @@ const bool buffer_tests_registration = tests::Register(
                buffer.ptr()->AppendRawLine(std::move(options).Build());
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();
-               CHECK(buffer.ptr()->contents().back()->metadata()->ToString() ==
+               CHECK(buffer.ptr()->contents().back().metadata()->ToString() ==
                      L"quux");
              }},
         {.name = L"PassingParametersPreservesThem",

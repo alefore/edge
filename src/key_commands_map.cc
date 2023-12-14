@@ -68,7 +68,7 @@ KeyCommandsMapSequence::GetKeys() const {
   return output;
 }
 
-NonNull<std::shared_ptr<Line>> KeyCommandsMapSequence::SummaryLine() const {
+Line KeyCommandsMapSequence::SummaryLine() const {
   LineBuilder output;
   std::map<KeyCommandsMap::Category, std::wstring> entries_by_category;
   for (const std::pair<const ExtendedChar, KeyCommandsMap::Category>& entry :
@@ -127,7 +127,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
     help_output.push_back(std::move(category_line).Build());
   }
   if (help_output.size() > LineNumberDelta(1) &&
-      help_output.snapshot().front()->empty())
+      help_output.snapshot().front().empty())
     help_output.EraseLines(LineNumber(), LineNumber(1));
   return help_output.snapshot();
 }

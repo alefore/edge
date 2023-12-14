@@ -74,7 +74,7 @@ struct LineWithCursor {
   };
   static LineWithCursor View(const ViewOptions& options);
 
-  language::NonNull<std::shared_ptr<language::text::Line>> line;
+  language::text::Line line;
 
   // Output parameter. If the active cursor is found in the line, stores here
   // the column in which it was output here. May be nullptr.

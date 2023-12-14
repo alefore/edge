@@ -111,7 +111,7 @@ class MarkdownParser : public LineOrientedTreeParser {
             ColumnNumberDelta length =
                 result->position().column - original_position.column;
             LazyString str = Substring(
-                result->buffer().at(original_position.line)->contents(),
+                result->buffer().at(original_position.line).contents(),
                 original_position.column, length);
             result->PushAndPop(length, IsTypo(str)
                                            ? LineModifierSet{LineModifier::kRed}
@@ -134,7 +134,7 @@ class MarkdownParser : public LineOrientedTreeParser {
     if (line.IsZero()) return false;
 
     --line;
-    return LowerCase(dictionary_.lines().at(line)->contents()) !=
+    return LowerCase(dictionary_.lines().at(line).contents()) !=
            LowerCase(symbol);
   }
 

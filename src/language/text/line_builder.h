@@ -34,7 +34,7 @@ class LineBuilder {
   LineBuilder(const LineBuilder&) = delete;
 
   LineBuilder Copy() const;
-  NonNull<std::shared_ptr<Line>> Build() &&;
+  Line Build() &&;
 
   // Prefer `size`.
   language::lazy_string::ColumnNumber EndColumn() const;

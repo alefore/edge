@@ -40,7 +40,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   }
   if (editor_state.structure() == Structure::kLine) {
     std::optional<OutgoingLink> outgoing_link =
-        buffer->ptr()->CurrentLine()->outgoing_link();
+        buffer->ptr()->CurrentLine().outgoing_link();
     if (outgoing_link.has_value()) {
       if (auto it =
               editor_state.buffers()->find(BufferName(outgoing_link->path));

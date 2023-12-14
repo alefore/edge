@@ -103,7 +103,7 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
   std::vector<ParseTree> trees = {ParseTree(range)};
 
   range.ForEachLine([&](LineNumber i) {
-    size_t hash = GetLineHash(contents.at(i)->contents(), states_stack);
+    size_t hash = GetLineHash(contents.at(i).contents(), states_stack);
     NonNull<const ParseResults*> parse_results = cache_.Get(hash, [&] {
       TRACK_OPERATION(LineOrientedTreeParser_FindChildren_Parse);
       ParseData data(contents, std::move(states_stack),
@@ -121,7 +121,7 @@ ParseTree LineOrientedTreeParser::FindChildren(const LineSequence& contents,
   });
 
   auto final_position =
-      LineColumn(contents.EndLine(), contents.back()->EndColumn());
+      LineColumn(contents.EndLine(), contents.back().EndColumn());
   if (final_position >= range.end()) {
     DVLOG(5) << "Draining final states: " << states_stack.size();
     ParseData data(contents, std::move(states_stack),

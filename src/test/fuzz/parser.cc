@@ -36,7 +36,7 @@ int main(int, char** argv) {
   for (std::wstring line; std::getline(input, line, L'\n');) {
     LineBuilder options(NewLazyString(line));
     contents.AppendToLine(contents.EndLine(), std::move(options).Build());
-    contents.push_back(afc::language::MakeNonNullShared<Line>());
+    contents.push_back(Line());
   }
 
   std::cout << "Parsing input: " << contents.snapshot().ToString();

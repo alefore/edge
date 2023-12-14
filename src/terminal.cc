@@ -29,6 +29,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
@@ -212,7 +213,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
   std::vector<decltype(LineDrawer::draw_callback)> functions;
 
   VLOG(6) << "Writing line of length: "
-          << line_with_cursor.line->EndColumn().ToDelta();
+          << line_with_cursor.line.EndColumn().ToDelta();
   ColumnNumber input_column;
   ColumnNumber output_column;
 
@@ -220,10 +221,10 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
       [](Screen& screen) { screen.SetModifier(LineModifier::kReset); });
 
   std::map<ColumnNumber, LineModifierSet> modifiers =
-      line_with_cursor.line->modifiers();
+      line_with_cursor.line.modifiers();
   auto modifiers_it = modifiers.lower_bound(input_column);
 
-  while (input_column < line_with_cursor.line->EndColumn() &&
+  while (input_column < line_with_cursor.line.EndColumn() &&
          output_column < ColumnNumber(0) + width) {
     if (line_with_cursor.cursor.has_value() &&
         input_column == line_with_cursor.cursor.value()) {
@@ -233,7 +234,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
     // Each iteration will advance input_column and then print between start
     // and input_column.
     auto start = input_column;
-    while (input_column < line_with_cursor.line->EndColumn() &&
+    while (input_column < line_with_cursor.line.EndColumn() &&
            output_column < ColumnNumber(0) + width &&
            (!line_with_cursor.cursor.has_value() ||
             input_column != line_with_cursor.cursor.value() ||
@@ -241,15 +242,15 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
            (modifiers_it == modifiers.end() ||
             modifiers_it->first > input_column)) {
       output_column += ColumnNumberDelta(
-          wcwidth(line_with_cursor.line->contents().get(input_column)));
+          wcwidth(line_with_cursor.line.contents().get(input_column)));
       ++input_column;
     }
 
     if (start != input_column) {
       static Tracker tracker(L"Terminal::GetLineDrawer: Call WriteString");
       auto call = tracker.Call();
-      auto str = Substring(line_with_cursor.line->contents(), start,
-                           input_column - start);
+      LazyString str = Substring(line_with_cursor.line.contents(), start,
+                                 input_column - start);
       functions.push_back([str](Screen& screen) { screen.WriteString(str); });
     }
 

@@ -40,8 +40,7 @@ MutableLineSequence::MutableLineSequence()
     : MutableLineSequence(
           MakeNonNullShared<NullMutableLineSequenceObserver>()) {}
 
-/* static */ MutableLineSequence MutableLineSequence::WithLine(
-    NonNull<std::shared_ptr<const Line>> line) {
+/* static */ MutableLineSequence MutableLineSequence::WithLine(Line line) {
   MutableLineSequence output;
   output.lines_ = Lines::PushBack(nullptr, std::move(line));
   return output;
@@ -64,7 +63,7 @@ LineNumber MutableLineSequence::EndLine() const {
 }
 
 Range MutableLineSequence::range() const {
-  return Range(LineColumn(), LineColumn(EndLine(), back()->EndColumn()));
+  return Range(LineColumn(), LineColumn(EndLine(), back().EndColumn()));
 }
 
 NonNull<std::unique_ptr<MutableLineSequence>> MutableLineSequence::copy()
@@ -82,10 +81,10 @@ void MutableLineSequence::insert(
   auto suffix = Lines::Suffix(lines_.get_shared(), position_line.read());
   VisitOptional(
       [&prefix, &source](LineModifierSet modifiers) {
-        source.ForEach([&](NonNull<std::shared_ptr<const Line>> line) {
-          VLOG(6) << "Insert line: " << line->EndColumn()
+        source.ForEach([&](const Line& line) {
+          VLOG(6) << "Insert line: " << line.EndColumn()
                   << " modifiers: " << modifiers.size();
-          LineBuilder builder(line.value());
+          LineBuilder builder(line);
           builder.SetAllModifiers(modifiers);
           prefix =
               Lines::PushBack(std::move(prefix), std::move(builder).Build())
@@ -97,19 +96,16 @@ void MutableLineSequence::insert(
   lines_ = VisitPointer(
       Lines::Append(prefix, suffix),
       [](NonNull<Lines::Ptr> value) { return value; },
-      [] {
-        return Lines::PushBack(nullptr, NonNull<std::shared_ptr<Line>>());
-      });
+      [] { return Lines::PushBack(nullptr, Line()); });
   observer_->LinesInserted(position_line, source.size());
 }
 
 bool MutableLineSequence::EveryLine(
     const std::function<bool(LineNumber, const Line&)>& callback) const {
   LineNumber line_number;
-  return Lines::Every(lines_.get_shared(),
-                      [&](const NonNull<std::shared_ptr<const Line>>& line) {
-                        return callback(line_number++, line.value());
-                      });
+  return Lines::Every(lines_.get_shared(), [&](const Line& line) {
+    return callback(line_number++, line);
+  });
 }
 
 void MutableLineSequence::ForEach(
@@ -125,8 +121,7 @@ void MutableLineSequence::ForEach(
   ForEach([callback](const Line& line) { callback(line.ToString()); });
 }
 
-void MutableLineSequence::insert_line(LineNumber line_position,
-                                      NonNull<std::shared_ptr<const Line>> line,
+void MutableLineSequence::insert_line(LineNumber line_position, Line line,
                                       ObserverBehavior observer_behavior) {
   LOG(INFO) << "Inserting line at position: " << line_position;
   size_t original_size = lines_->size();
@@ -144,8 +139,7 @@ void MutableLineSequence::insert_line(LineNumber line_position,
   }
 }
 
-void MutableLineSequence::set_line(LineNumber position,
-                                   NonNull<std::shared_ptr<const Line>> line) {
+void MutableLineSequence::set_line(LineNumber position, Line line) {
   static Tracker tracker(L"MutableLineSequence::set_line");
   auto tracker_call = tracker.Call();
 
@@ -164,7 +158,7 @@ void MutableLineSequence::DeleteCharactersFromLine(
     return;
   }
   CHECK_GT(amount, ColumnNumberDelta(0));
-  CHECK_LE(position.column + amount, at(position.line)->EndColumn());
+  CHECK_LE(position.column + amount, at(position.line).EndColumn());
 
   TransformLine(position.line, [&](LineBuilder& options) {
     options.DeleteCharacters(position.column, amount);
@@ -180,9 +174,9 @@ void MutableLineSequence::DeleteCharactersFromLine(
 
 void MutableLineSequence::DeleteToLineEnd(LineColumn position,
                                           ObserverBehavior observer_behavior) {
-  if (position.column < at(position.line)->EndColumn()) {
+  if (position.column < at(position.line).EndColumn()) {
     return DeleteCharactersFromLine(
-        position, at(position.line)->EndColumn() - position.column,
+        position, at(position.line).EndColumn() - position.column,
         observer_behavior);
   }
 }
@@ -208,7 +202,7 @@ void MutableLineSequence::InsertCharacter(LineColumn position) {
 void MutableLineSequence::AppendToLine(LineNumber line, Line line_to_append,
                                        ObserverBehavior observer_behavior) {
   const LineColumn position = LineColumn(
-      std::min(line, EndLine()), at(std::min(line, EndLine()))->EndColumn());
+      std::min(line, EndLine()), at(std::min(line, EndLine())).EndColumn());
   TransformLine(position.line, [&](LineBuilder& options) {
     options.Append(LineBuilder(std::move(line_to_append)));
   });
@@ -233,9 +227,7 @@ void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
       Lines::Append(Lines::Prefix(lines_.get_shared(), first.read()),
                     Lines::Suffix(lines_.get_shared(), last.read())),
       [](NonNull<Lines::Ptr> value) { return value; },
-      [] {
-        return Lines::PushBack(nullptr, NonNull<std::shared_ptr<Line>>());
-      });
+      [] { return Lines::PushBack(nullptr, Line()); });
 
   if (observer_behavior == ObserverBehavior::kHide) {
     return;
@@ -244,13 +236,13 @@ void MutableLineSequence::EraseLines(LineNumber first, LineNumber last,
 }
 
 bool MutableLineSequence::MaybeEraseEmptyFirstLine() {
-  if (EndLine() == LineNumber(0) || !at(LineNumber())->empty()) return false;
+  if (EndLine() == LineNumber(0) || !at(LineNumber()).empty()) return false;
   EraseLines(LineNumber(0), LineNumber(1));
   return true;
 }
 
 void MutableLineSequence::SplitLine(LineColumn position) {
-  LineBuilder builder(at(position.line).value());
+  LineBuilder builder(at(position.line));
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   insert_line(position.line + LineNumberDelta(1), std::move(builder).Build(),
               ObserverBehavior::kHide);
@@ -284,8 +276,8 @@ void MutableLineSequence::FoldNextLine(LineNumber position) {
     return;
   }
 
-  ColumnNumber initial_size = at(position)->EndColumn();
-  AppendToLine(position, at(next_line).value(), ObserverBehavior::kHide);
+  ColumnNumber initial_size = at(position).EndColumn();
+  AppendToLine(position, at(next_line), ObserverBehavior::kHide);
   EraseLines(next_line, position + LineNumberDelta(2), ObserverBehavior::kHide);
   observer_->FoldedLine(LineColumn(position, initial_size));
 }
@@ -296,12 +288,11 @@ void MutableLineSequence::push_back(std::wstring str) {
     wchar_t c = str[i.read()];
     CHECK_GE(i, start);
     if (c == '\n') {
-      push_back(MakeNonNullShared<const Line>(
-          str.substr(start.read(), (i - start).read())));
+      push_back(Line(str.substr(start.read(), (i - start).read())));
       start = i + ColumnNumberDelta(1);
     }
   }
-  push_back(MakeNonNullShared<const Line>(str.substr(start.read())));
+  push_back(Line(str.substr(start.read())));
 }
 
 namespace {
@@ -336,7 +327,7 @@ const bool push_back_wstring_tests_registration = tests::Register(
     });
 }
 
-void MutableLineSequence::push_back(NonNull<std::shared_ptr<const Line>> line,
+void MutableLineSequence::push_back(Line line,
                                     ObserverBehavior observer_behavior) {
   LineNumber position = EndLine();
   lines_ = Lines::PushBack(lines_.get_shared(), line);
@@ -356,7 +347,7 @@ void MutableLineSequence::pop_back() {
 LineColumn MutableLineSequence::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(size(), LineNumberDelta(0));
   position.line = std::min(position.line, EndLine());
-  position.column = std::min(at(position.line)->EndColumn(), position.column);
+  position.column = std::min(at(position.line).EndColumn(), position.column);
   return position;
 }
 
@@ -407,12 +398,12 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
   output.push_back(
       Call(std::function<void(LineColumn)>([this](LineColumn position) {
         position.line = LineNumber(position.line % size());
-        auto line = at(position.line);
-        if (line->empty()) {
+        const Line& line = at(position.line);
+        if (line.empty()) {
           position.column = ColumnNumber(0);
         } else {
           position.column = ColumnNumber(position.column.ToDelta() %
-                                         line->EndColumn().ToDelta());
+                                         line.EndColumn().ToDelta());
         }
         SplitLine(position);
       })));

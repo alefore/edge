@@ -354,8 +354,7 @@ LazyString BuildHistoryLine(EditorState& editor, LazyString input) {
   return Concatenate(std::move(line_for_history));
 }
 
-NonNull<std::shared_ptr<Line>> ColorizeLine(
-    LazyString line, std::vector<TokenAndModifiers> tokens) {
+Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
   sort(tokens.begin(), tokens.end(),
        [](const TokenAndModifiers& a, const TokenAndModifiers& b) {
          return a.token.begin < b.token.begin;
@@ -381,7 +380,7 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
 
 struct FilterSortHistorySyncOutput {
   std::vector<Error> errors;
-  std::vector<NonNull<std::shared_ptr<const Line>>> lines;
+  std::vector<Line> lines;
 };
 
 FilterSortHistorySyncOutput FilterSortHistorySync(
@@ -396,23 +395,21 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   std::unordered_map<math::naive_bayes::Event, std::vector<Token>>
       history_prompt_tokens;
   std::vector<Token> filter_tokens = TokenizeBySpaces(NewLazyString(filter));
-  history_contents.EveryLine([&](LineNumber,
-                                 const NonNull<std::shared_ptr<const Line>>&
-                                     line) {
-    VLOG(8) << "Considering line: " << line->ToString();
+  history_contents.EveryLine([&](LineNumber, const Line& line) {
+    VLOG(8) << "Considering line: " << line.ToString();
     auto warn_if = [&](bool condition, Error error) {
       if (condition) {
         // We don't use AugmentError because we'd rather append to the
         // end of the description, not the beginning.
-        error = Error(error.read() + L": " + line->contents().ToString());
+        error = Error(error.read() + L": " + line.contents().ToString());
         VLOG(5) << "Found error: " << error;
         output.errors.push_back(error);
       }
       return condition;
     };
-    if (line->empty()) return true;
+    if (line.empty()) return true;
     ValueOrError<std::unordered_multimap<std::wstring, LazyString>>
-        line_keys_or_error = ParseHistoryLine(line->contents());
+        line_keys_or_error = ParseHistoryLine(line.contents());
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
     if (line_keys == nullptr) {
       output.errors.push_back(std::get<Error>(line_keys_or_error));
@@ -454,18 +451,18 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
                   nullptr;
               if (filter_tokens.empty()) {
                 VLOG(6) << "Accepting value (empty filters): "
-                        << line->contents();
+                        << line.contents();
                 features_output = &history_data[event_key];
               } else if (auto match =
                              FindFilterPositions(filter_tokens, line_tokens);
                          match.has_value()) {
                 VLOG(5) << "Accepting value, produced a match: "
-                        << line->contents();
+                        << line.contents();
                 features_output = &history_data[event_key];
                 history_prompt_tokens.insert(
                     {event_key, std::move(match.value())});
               } else {
-                VLOG(6) << "Ignoring value, no match: " << line->contents();
+                VLOG(6) << "Ignoring value, no match: " << line.contents();
                 return;
               }
               math::naive_bayes::FeaturesSet current_features;
@@ -539,7 +536,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                 LineSequence::ForTests({L"prompt:\"foo\\\\nbardo\""}),
                 features);
             CHECK_EQ(output.lines.size(), 1ul);
-            const Line& line = output.lines[0].value();
+            const Line& line = output.lines[0];
             CHECK(line.ToString() == L"foo\\nbardo");
 
             const std::map<ColumnNumber, LineModifierSet> modifiers =
@@ -578,7 +575,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                      L"prompt:\"foo\n bar\"", L"prompt:\"foo \\o bar \\\""}),
                 features);
             CHECK_EQ(output.lines.size(), 1ul);
-            CHECK(output.lines[0]->ToString() == L"foo");
+            CHECK(output.lines[0].ToString() == L"foo");
           }},
      {.name = L"HistoryWithRawNewLine",
       .callback =
@@ -726,8 +723,8 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   void InitializePromptBuffer(OpenBuffer& buffer) const {
     buffer.Set(buffer_variables::contents_type, options_.prompt_contents_type);
     buffer.ApplyToCursors(transformation::Insert(
-        {.contents_to_insert = LineSequence::WithLine(
-             MakeNonNullShared<Line>(options_.initial_value))}));
+        {.contents_to_insert =
+             LineSequence::WithLine(Line(options_.initial_value))}));
   }
 
   // status_buffer is the buffer with the contents of the prompt. tokens_future
@@ -735,7 +732,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   // between the time when `ColorizePrompt` is executed and the time when the
   // tokens become available.
   void ColorizePrompt(DeleteNotification::Value abort_value,
-                      const NonNull<std::shared_ptr<const Line>>& original_line,
+                      const Line& original_line,
                       ColorizePromptOptions options) {
     CHECK_EQ(prompt_buffer_.ptr()->lines_size(), LineNumberDelta(1));
     if (IsGone()) {
@@ -755,8 +752,8 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     }
 
     CHECK_EQ(prompt_buffer_.ptr()->lines_size(), LineNumberDelta(1));
-    auto line = prompt_buffer_.ptr()->LineAt(LineNumber(0));
-    if (original_line->ToString() != line->ToString()) {
+    std::optional<Line> line = prompt_buffer_.ptr()->LineAt(LineNumber(0));
+    if (original_line.ToString() != line->ToString()) {
       LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
       return;
     }
@@ -842,8 +839,7 @@ NonNull<std::unique_ptr<ProgressChannel>> PromptState::NewProgressChannel(
 }
 
 futures::Value<EmptyValue> PromptState::OnModify() {
-  NonNull<std::shared_ptr<const Line>> line =
-      prompt_buffer_.ptr()->contents().at(LineNumber());
+  Line line = prompt_buffer_.ptr()->contents().at(LineNumber());
 
   auto status_value_viewer = MakeNonNullShared<StatusVersionAdapter>(
       NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()));
@@ -857,7 +853,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
 
   return JoinValues(
              FilterHistory(editor_state(), history(), abort_notification_value,
-                           line->ToString())
+                           line.ToString())
                  .Transform([status_value_viewer](
                                 gc::Root<OpenBuffer> filtered_history) {
                    LOG(INFO) << "Propagating history information to status.";
@@ -875,7 +871,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
                  }),
              options()
                  .colorize_options_provider(
-                     line->contents(), NewProgressChannel(status_value_viewer),
+                     line.contents(), NewProgressChannel(status_value_viewer),
                      abort_notification_value)
                  .Transform([shared_this = shared_from_this(),
                              abort_notification_value, line](
@@ -892,8 +888,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
  public:
   HistoryScrollBehavior(
       futures::ListenableValue<gc::Root<OpenBuffer>> filtered_history,
-      NonNull<std::shared_ptr<const Line>> original_input,
-      NonNull<std::shared_ptr<PromptState>> prompt_state)
+      Line original_input, NonNull<std::shared_ptr<PromptState>> prompt_state)
       : filtered_history_(std::move(filtered_history)),
         original_input_(std::move(original_input)),
         prompt_state_(std::move(prompt_state)),
@@ -939,43 +934,40 @@ class HistoryScrollBehavior : public ScrollBehavior {
       ReplaceContents(buffer, LineSequence());
       return;
     }
-    filtered_history_.AddListener(
-        [delta, buffer_root = buffer.NewRoot(), &buffer,
-         original_input = original_input_, prompt_state = prompt_state_,
-         previous_context =
-             previous_context_](gc::Root<OpenBuffer> history_root) {
-          std::shared_ptr<const Line> line_to_insert;
-          OpenBuffer& history = history_root.ptr().value();
-          if (history.contents().size() > LineNumberDelta(1) ||
-              !history.LineAt(LineNumber())->empty()) {
-            LineColumn position = history.position();
-            position.line = std::min(position.line.PlusHandlingOverflow(delta),
-                                     LineNumber() + history.contents().size());
-            history.set_position(position);
-            if (position.line < LineNumber(0) + history.contents().size()) {
-              prompt_state->status().set_context(history_root);
-              VisitPointer(
-                  history.CurrentLineOrNull(),
-                  [&line_to_insert](NonNull<std::shared_ptr<const Line>> line) {
-                    line_to_insert = line.get_shared();
-                  },
-                  [] {});
-            } else if (prompt_state->status().context() != previous_context) {
-              prompt_state->status().set_context(previous_context);
-              line_to_insert = original_input.get_shared();
-            }
-          }
-          LineBuilder line_builder;
+    filtered_history_.AddListener([delta, buffer_root = buffer.NewRoot(),
+                                   &buffer, original_input = original_input_,
+                                   prompt_state = prompt_state_,
+                                   previous_context = previous_context_](
+                                      gc::Root<OpenBuffer> history_root) {
+      std::optional<Line> line_to_insert;
+      OpenBuffer& history = history_root.ptr().value();
+      if (history.contents().size() > LineNumberDelta(1) ||
+          !history.LineAt(LineNumber())->empty()) {
+        LineColumn position = history.position();
+        position.line = std::min(position.line.PlusHandlingOverflow(delta),
+                                 LineNumber() + history.contents().size());
+        history.set_position(position);
+        if (position.line < LineNumber(0) + history.contents().size()) {
+          prompt_state->status().set_context(history_root);
           VisitPointer(
-              line_to_insert,
-              [&](NonNull<std::shared_ptr<const Line>> line) {
-                VLOG(5) << "Inserting line: " << line->ToString();
-                line_builder.Append(LineBuilder(line.value()));
-              },
-              [] {});
-          ReplaceContents(
-              buffer, LineSequence::WithLine(std::move(line_builder).Build()));
-        });
+              history.CurrentLineOrNull(),
+              [&line_to_insert](Line line) { line_to_insert = line; }, [] {});
+        } else if (prompt_state->status().context() != previous_context) {
+          prompt_state->status().set_context(previous_context);
+          line_to_insert = original_input;
+        }
+      }
+      LineBuilder line_builder;
+      VisitPointer(
+          line_to_insert,
+          [&](Line line) {
+            VLOG(5) << "Inserting line: " << line.ToString();
+            line_builder.Append(LineBuilder(line));
+          },
+          [] {});
+      ReplaceContents(buffer,
+                      LineSequence::WithLine(std::move(line_builder).Build()));
+    });
   }
 
   static void ReplaceContents(OpenBuffer& buffer,
@@ -993,7 +985,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
   }
 
   const futures::ListenableValue<gc::Root<OpenBuffer>> filtered_history_;
-  const NonNull<std::shared_ptr<const Line>> original_input_;
+  const Line original_input_;
   const NonNull<std::shared_ptr<PromptState>> prompt_state_;
   const std::optional<gc::Root<OpenBuffer>> previous_context_;
 };
@@ -1008,13 +1000,12 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
       DeleteNotification::Value abort_value) override {
     OpenBuffer& buffer = prompt_state_->prompt_buffer().ptr().value();
     CHECK_GT(buffer.lines_size(), LineNumberDelta(0));
-    NonNull<std::shared_ptr<const Line>> input =
-        buffer.contents().at(LineNumber(0));
+    Line input = buffer.contents().at(LineNumber(0));
     return futures::Past(MakeNonNullUnique<HistoryScrollBehavior>(
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),
                           prompt_state_->history(), abort_value,
-                          input->ToString())
+                          input.ToString())
                 .Transform([](gc::Root<OpenBuffer> history_filtered) {
                   history_filtered.ptr()->set_current_position_line(
                       LineNumber(0) +
@@ -1062,10 +1053,10 @@ class LinePromptCommand : public Command {
       editor_state_.ResetStructure();
       VisitPointer(
           buffer->ptr()->CurrentLineOrNull(),
-          [&](NonNull<std::shared_ptr<const Line>> line) {
+          [&](Line line) {
             AddLineToHistory(editor_state_, options.history_file,
-                             line->contents());
-            options.handler(line->contents());
+                             line.contents());
+            options.handler(line.contents());
           },
           [] {});
     } else {
@@ -1131,7 +1122,7 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .new_line_handler =
           [prompt_state](OpenBuffer& buffer) {
-            LazyString input = buffer.CurrentLine()->contents();
+            LazyString input = buffer.CurrentLine().contents();
             AddLineToHistory(prompt_state->editor_state(),
                              prompt_state->options().history_file, input);
             auto ensure_survival_of_current_closure =
@@ -1141,7 +1132,7 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .start_completion =
           [prompt_state](OpenBuffer& buffer) {
-            LazyString input = buffer.CurrentLine()->contents();
+            LazyString input = buffer.CurrentLine().contents();
             LOG(INFO) << "Triggering predictions from: " << input;
             CHECK(prompt_state->status().prompt_extra_information() != nullptr);
             auto status_version_value =

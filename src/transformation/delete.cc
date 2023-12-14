@@ -69,7 +69,7 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
   gc::Root<OpenBuffer> delete_buffer = OpenBuffer::New(
       {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
   for (LineNumber i = range.begin().line; i <= range.end().line; ++i) {
-    LineBuilder line_options(buffer.contents().at(i).value());
+    LineBuilder line_options(buffer.contents().at(i));
     if (i == range.end().line) {
       line_options.DeleteSuffix(range.end().column);
     }
@@ -88,7 +88,7 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
 void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
                         OpenBuffer& buffer) {
   std::vector<std::function<void()>> observers;
-  std::shared_ptr<const Line> first_line_contents;
+  std::optional<Line> first_line_contents;
   for (LineColumn delete_position = range.begin();
        delete_position.line < range.end().line;
        delete_position = LineColumn(delete_position.line.next())) {
@@ -101,11 +101,10 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
     LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
               << adapter.contents().size();
 
-    NonNull<std::shared_ptr<const Line>> line_contents =
-        adapter.contents().at(position.line);
-    DVLOG(5) << "Erasing line: " << line_contents->ToString();
+    Line line_contents = adapter.contents().at(position.line);
+    DVLOG(5) << "Erasing line: " << line_contents.ToString();
     VisitPointer(
-        buffer.CurrentLine()->outgoing_link(),
+        buffer.CurrentLine().outgoing_link(),
         [&](const OutgoingLink& outgoing_link) {
           if (auto it = buffer.editor().buffers()->find(
                   BufferName(outgoing_link.path));
@@ -118,11 +117,10 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
           }
         },
         [] {});
-    std::function<void()> f = line_contents->explicit_delete_observer();
+    std::function<void()> f = line_contents.explicit_delete_observer();
     if (f == nullptr) continue;
     observers.push_back(f);
-    if (first_line_contents == nullptr)
-      first_line_contents = line_contents.get_shared();
+    if (!first_line_contents.has_value()) first_line_contents = line_contents;
   }
   if (observers.empty()) return;
   // TODO(easy, 2022-06-05): Get rid of ToString.
@@ -140,8 +138,7 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
             } else {
               // TODO: insert it again?  Actually, only let it
               // be erased in the other case?
-              buffer.ptr()->status().SetInformationText(
-                  MakeNonNullShared<Line>(L"Ignored."));
+              buffer.ptr()->status().SetInformationText(Line(L"Ignored."));
             }
             return futures::Past(EmptyValue());
           },

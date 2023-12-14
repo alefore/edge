@@ -30,11 +30,6 @@ using ::operator<<;
 namespace {
 static const ColumnNumberDelta kQueryLength = ColumnNumberDelta(2);
 
-NonNull<std::shared_ptr<const Line>> GetLine(const LineColumn& position,
-                                             const LineSequence& contents) {
-  return contents.at(position.line);
-}
-
 std::vector<LineColumn> FindPositions(const std::wstring& query,
                                       const OpenBuffer& buffer) {
   std::vector<LineColumn> output;
@@ -44,15 +39,14 @@ std::vector<LineColumn> FindPositions(const std::wstring& query,
   if (view_size == std::nullopt) return output;
   LineNumber end_line = view_start.line + view_size->line;
   while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
-    NonNull<std::shared_ptr<const Line>> line =
-        GetLine(view_start, buffer.contents().snapshot());
+    Line line = buffer.contents().snapshot().at(view_start.line);
     while (view_start.column + std::max(kQueryLength + ColumnNumberDelta(1),
                                         ColumnNumberDelta(query.size())) <=
-           line->EndColumn()) {
+           line.EndColumn()) {
       bool match = true;
       for (size_t i = 0; i < query.size() && match; i++) {
         match = std::tolower(static_cast<wchar_t>(
-                    line->get(view_start.column + ColumnNumberDelta(i)))) ==
+                    line.get(view_start.column + ColumnNumberDelta(i)))) ==
                 std::tolower(query[i]);
       }
       if (match) output.push_back(view_start);
@@ -74,11 +68,11 @@ bool FindSyntheticIdentifier(LineColumn position, const LineSequence& contents,
                              PositionIdentifierMap& output) {
   static const std::wstring kIdentifiers =
       L"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  NonNull<std::shared_ptr<const Line>> line = GetLine(position, contents);
+  const Line& line = contents.at(position.line);
   const Identifier first_identifier =
-      std::tolower(line->get(position.column + ColumnNumberDelta(1)));
+      std::tolower(line.get(position.column + ColumnNumberDelta(1)));
   const Identifier desired_identifier =
-      line->get(position.column + ColumnNumberDelta(2));
+      line.get(position.column + ColumnNumberDelta(2));
   size_t start_position = kIdentifiers.find_first_of(desired_identifier);
   for (size_t i = 0; i < kIdentifiers.size(); i++) {
     Identifier candidate =
@@ -102,10 +96,10 @@ PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
   // different position. This lets us bias towards reducing the number of
   // "invented" identifiers.
   for (LineColumn position : matches) {
-    NonNull<std::shared_ptr<const Line>> line = GetLine(position, contents);
+    Line line = contents.at(position.line);
     const Identifier desired_identifier =
-        line->get(position.column + kQueryLength);
-    if (!output[std::tolower(line->get(position.column + ColumnNumberDelta(1)))]
+        line.get(position.column + kQueryLength);
+    if (!output[std::tolower(line.get(position.column + ColumnNumberDelta(1)))]
              .insert({desired_identifier, position})
              .second)
       pending.push_back(position);
@@ -182,12 +176,11 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     for (std::pair<Identifier, LineColumn> match : group.second) {
       static const VisualOverlayPriority kPriority = VisualOverlayPriority(1);
       static const VisualOverlayKey kKey = VisualOverlayKey(L"bisect");
-      NonNull<std::shared_ptr<const Line>> line =
-          GetLine(match.second, input.buffer.contents().snapshot());
+      Line line = input.buffer.contents().snapshot().at(match.second.line);
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
           afc::infrastructure::screen::VisualOverlay{
-              .content = line->Substring(match.second.column, kQueryLength),
+              .content = line.Substring(match.second.column, kQueryLength),
               .modifiers = {LineModifier::kUnderline}}));
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second + kQueryLength,

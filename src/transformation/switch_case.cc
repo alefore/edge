@@ -33,13 +33,12 @@ futures::Value<CompositeTransformation::Output> SwitchCaseTransformation::Apply(
           << input.modifiers << ": Range: " << input.range;
   LineColumn i = input.range.begin();
   while (i < input.range.end()) {
-    NonNull<std::shared_ptr<const Line>> line =
-        input.buffer.contents().at(i.line);
-    if (i.column >= line->EndColumn()) {  // Switch to the next line.
-      contents_to_insert.push_back(NonNull<std::shared_ptr<Line>>());
+    Line line = input.buffer.contents().at(i.line);
+    if (i.column >= line.EndColumn()) {  // Switch to the next line.
+      contents_to_insert.push_back(Line());
       i = LineColumn(i.line + LineNumberDelta(1));
     } else {
-      wchar_t c = line->get(i.column);
+      wchar_t c = line.get(i.column);
       contents_to_insert.AppendToLine(
           contents_to_insert.EndLine(),
           Line(std::wstring(1, iswupper(c) ? towlower(c) : towupper(c))));

@@ -55,19 +55,16 @@ const bool tests_registration =
       auto Build = [](LineWithCursor::Generator::Vector rows) {
         std::vector<std::wstring> output;
         for (auto& g : rows.lines)
-          output.push_back(g.generate().line->ToString());
+          output.push_back(g.generate().line.ToString());
         return output;
       };
       return std::vector<tests::Test>{
           {.name = L"TwoRowsShort", .callback = [&] {
              auto output = Build(
-                 RepeatLine(
-                     LineWithCursor{.line = MakeNonNullShared<Line>(L"top")},
-                     LineNumberDelta(2))
-                     .Append(RepeatLine(
-                         LineWithCursor{.line =
-                                            MakeNonNullShared<Line>(L"bottom")},
-                         LineNumberDelta(2))));
+                 RepeatLine(LineWithCursor{.line = Line(L"top")},
+                            LineNumberDelta(2))
+                     .Append(RepeatLine(LineWithCursor{.line = Line(L"bottom")},
+                                        LineNumberDelta(2))));
              CHECK_EQ(output.size(), 4ul);
              CHECK(output[0] == L"top");
              CHECK(output[1] == L"top");
@@ -101,7 +98,7 @@ LineWithCursor::Generator::Vector RepeatLine(LineWithCursor line,
           times.read(),
           LineWithCursor::Generator{.inputs_hash = {},
                                     .generate = [line] { return line; }}),
-      .width = line.line->contents().size()};
+      .width = line.line.contents().size()};
 }
 
 /* static */
@@ -217,6 +214,6 @@ LineWithCursor LineWithCursor::View(
 namespace std {
 std::size_t hash<afc::editor::LineWithCursor>::operator()(
     const afc::editor::LineWithCursor& line) const {
-  return afc::language::compute_hash(line.line.value(), line.cursor);
+  return afc::language::compute_hash(line.line, line.cursor);
 }
 }  // namespace std

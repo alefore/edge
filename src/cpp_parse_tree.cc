@@ -206,7 +206,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     CHECK_GT(result->position().column, original_position.column);
     auto length = result->position().column - original_position.column;
     LazyString str =
-        Substring(result->buffer().at(original_position.line)->contents(),
+        Substring(result->buffer().at(original_position.line).contents(),
                   original_position.column, length);
     LineModifierSet modifiers;
     // TODO(2022-04-22): Avoid the call to ToString?

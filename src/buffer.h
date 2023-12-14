@@ -178,19 +178,14 @@ class OpenBuffer {
   // Sort `length` lines starting at `start` according to a compare function.
   // `start` + `length` must be at most lines_size(). The line at position
   // `start` + `length` (if it exists) is not affected.
-  void SortContents(
-      language::text::LineNumber start, language::text::LineNumberDelta length,
-      std::function<bool(
-          const language::NonNull<std::shared_ptr<const language::text::Line>>&,
-          const language::NonNull<
-              std::shared_ptr<const language::text::Line>>&)>
-          compare);
-  void SortAllContents(
-      std::function<bool(
-          const language::NonNull<std::shared_ptr<const language::text::Line>>&,
-          const language::NonNull<
-              std::shared_ptr<const language::text::Line>>&)>
-          compare);
+  void SortContents(language::text::LineNumber start,
+                    language::text::LineNumberDelta length,
+                    std::function<bool(const language::text::Line&,
+                                       const language::text::Line&)>
+                        compare);
+  void SortAllContents(std::function<bool(const language::text::Line&,
+                                          const language::text::Line&)>
+                           compare);
   void SortAllContentsIgnoringCase();
 
   language::text::LineNumberDelta lines_size() const;
@@ -206,9 +201,8 @@ class OpenBuffer {
                   language::text::LineNumber last);
 
   // Inserts a new line into the buffer at a given position.
-  void InsertLine(
-      language::text::LineNumber line_position,
-      language::NonNull<std::shared_ptr<language::text::Line>> line);
+  void InsertLine(language::text::LineNumber line_position,
+                  language::text::Line line);
 
   // Can handle \n characters, breaking it into lines.
   void AppendLazyString(language::lazy_string::LazyString input);
@@ -221,24 +215,20 @@ class OpenBuffer {
 
   // Insert a line at the end of the buffer.
   void AppendRawLine(
-      language::NonNull<std::shared_ptr<language::text::Line>> line,
+      language::text::Line line,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::kShow);
 
   void AppendToLastLine(language::lazy_string::LazyString str);
-  void AppendToLastLine(
-      language::NonNull<std::shared_ptr<const language::text::Line>> line);
+  void AppendToLastLine(language::text::Line line);
 
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
-  void StartNewLine(
-      language::NonNull<std::shared_ptr<const language::text::Line>> line);
+  void StartNewLine(language::text::Line line);
   // Equivalent to calling StartNewLine repeatedly, but significantly more
   // efficient.
   void AppendLines(
-      std::vector<
-          language::NonNull<std::shared_ptr<const language::text::Line>>>
-          lines,
+      std::vector<language::text::Line> lines,
       language::text::MutableLineSequence::ObserverBehavior observer_behavior =
           language::text::MutableLineSequence::ObserverBehavior::kShow);
 
@@ -412,13 +402,13 @@ class OpenBuffer {
 
   // If the line is past the end of the file, returns the last available line
   // (as if MaybeAdjustPositionCol had been called).
-  language::NonNull<std::shared_ptr<const language::text::Line>> CurrentLine()
-      const;
+  language::text::Line CurrentLine() const;
 
   // May return nullptr if the current_cursor is at the end of file.
-  std::shared_ptr<const language::text::Line> CurrentLineOrNull() const;
+  // TODO(trivial, 2023-12-14): Rename to CurrentLineOptional.
+  std::optional<language::text::Line> CurrentLineOrNull() const;
 
-  std::shared_ptr<const language::text::Line> LineAt(
+  std::optional<language::text::Line> LineAt(
       language::text::LineNumber line_number) const;
 
   // We deliberately provide only a read view into our contents. All
@@ -564,9 +554,7 @@ class OpenBuffer {
   void SignalEndOfFile();
 
   // TODO(P1, 2023-11-24): Remove this? Just use `AppendLines`?
-  void InsertLines(
-      std::vector<
-          language::NonNull<std::shared_ptr<const language::text::Line>>>);
+  void InsertLines(std::vector<language::text::Line>);
 
   SeekInput NewSeekInput(Structure structure, Direction direction,
                          language::text::LineColumn* position) const;

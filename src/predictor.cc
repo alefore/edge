@@ -80,25 +80,23 @@ ValueOrError<PredictResults> BuildResults(
 
   std::optional<std::wstring> common_prefix;
   predictor_output.contents.sorted_lines().lines().EveryLine(
-      [&common_prefix, &abort_value](
-          LineNumber,
-          const language::NonNull<std::shared_ptr<const Line>>& line) {
+      [&common_prefix, &abort_value](LineNumber, const Line& line) {
         if (abort_value.has_value()) return false;
-        if (line->empty()) {
+        if (line.empty()) {
           return true;
         }
-        VLOG(5) << "Considering prediction: " << line->ToString()
-                << " (end column: " << line->EndColumn() << ")";
+        VLOG(5) << "Considering prediction: " << line.ToString()
+                << " (end column: " << line.EndColumn() << ")";
         if (!common_prefix.has_value()) {
-          common_prefix = line->ToString();
+          common_prefix = line.ToString();
           return true;
         }
 
         ColumnNumberDelta current_size =
             std::min(ColumnNumberDelta(common_prefix.value().size()),
-                     line->EndColumn().ToDelta());
+                     line.EndColumn().ToDelta());
         std::wstring current =
-            line->Substring(ColumnNumber(0), current_size).ToString();
+            line.Substring(ColumnNumber(0), current_size).ToString();
 
         auto prefix_end =
             mismatch(common_prefix->begin(), common_prefix->end(),
@@ -122,7 +120,7 @@ ValueOrError<PredictResults> BuildResults(
         !predictor_output.contents.sorted_lines()
              .lines()
              .at(LineNumber())
-             ->empty());
+             .empty());
   auto predictions_buffer = OpenBuffer::New(
       OpenBuffer::Options{.editor = editor, .name = PredictionsBufferName()});
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
@@ -140,7 +138,7 @@ ValueOrError<PredictResults> BuildResults(
                          predictor_output.contents.sorted_lines()
                              .lines()
                              .at(LineNumber())
-                             ->empty()
+                             .empty()
                      ? 0
                      : predictions_buffer.ptr()->lines_size().read(),
       .predictor_output = predictor_output};
@@ -536,14 +534,12 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
   // future instead.
   SortedLineSequenceUniqueLines contents(
       SortedLineSequence(dictionary_root.ptr()->contents().snapshot(),
-                         [](const NonNull<std::shared_ptr<const Line>>& a,
-                            const NonNull<std::shared_ptr<const Line>>& b) {
-                           return a->ToString() < b->ToString();
+                         [](const Line& a, const Line& b) {
+                           return a.ToString() < b.ToString();
                          }));
 
   return [contents](PredictorInput input) {
-    NonNull<std::shared_ptr<Line>> input_line =
-        LineBuilder(input.input).Build();
+    Line input_line = LineBuilder(input.input).Build();
     LineNumber line = contents.sorted_lines().upper_bound(input_line);
 
     // TODO(2023-12-02): Find a way to do this without `ToString`.
@@ -554,9 +550,8 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).
     while (line < contents.sorted_lines().lines().EndLine()) {
-      NonNull<std::shared_ptr<const Line>> line_contents =
-          contents.sorted_lines().lines().at(line);
-      auto line_str = line_contents->ToString();
+      const Line& line_contents = contents.sorted_lines().lines().at(line);
+      auto line_str = line_contents.ToString();
       auto result =
           mismatch(input_str.begin(), input_str.end(), line_str.begin());
       if (result.first != input_str.end()) {
@@ -618,9 +613,8 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
   // TODO(2023-11-26, Ranges): Add a method to Buffer that takes the range
   // directly, to avoid the need to call MaterializeVector.
   dictionary.ptr()->AppendLines(container::MaterializeVector(
-      words | std::views::transform([](std::wstring word) {
-        return MakeNonNullShared<const Line>(Line(word));
-      })));
+      words |
+      std::views::transform([](std::wstring word) { return Line(word); })));
   return DictionaryPredictor(gc::Root<const OpenBuffer>(std::move(dictionary)))(
       input);
 }

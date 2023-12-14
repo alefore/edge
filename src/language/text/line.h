@@ -61,18 +61,17 @@ class Line {
 
   const std::map<language::lazy_string::ColumnNumber,
                  afc::infrastructure::screen::LineModifierSet>&
-  modifiers() const {
-    return data_.modifiers;
-  }
-  afc::infrastructure::screen::LineModifierSet end_of_line_modifiers() const {
-    return data_.end_of_line_modifiers;
-  }
+  modifiers() const;
+
+  afc::infrastructure::screen::LineModifierSet end_of_line_modifiers() const;
 
   std::function<void()> explicit_delete_observer() const;
 
   std::optional<OutgoingLink> outgoing_link() const;
 
   size_t hash() const { return hash_; }
+
+  Line& operator=(const Line&) = default;
 
  private:
   struct Data {
@@ -106,8 +105,8 @@ class Line {
   explicit Line(Data data);
   static std::size_t ComputeHash(const Line::Data& data);
 
-  const Data data_;
-  const size_t hash_;
+  language::NonNull<std::shared_ptr<const Data>> data_;
+  size_t hash_;
 };
 
 std::ostream& operator<<(std::ostream& os, const afc::language::text::Line&);

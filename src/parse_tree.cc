@@ -270,7 +270,7 @@ class WordsTreeParser : public TreeParser {
   ParseTree FindChildren(const LineSequence& buffer, Range range) override {
     ParseTree output(range);
     range.ForEachLine([&](LineNumber line) {
-      const Line& contents = buffer.at(line).value();
+      const Line& contents = buffer.at(line);
 
       ColumnNumber line_end = contents.EndColumn();
       if (line == range.end().line) {
@@ -331,13 +331,13 @@ class LineTreeParser : public TreeParser {
     ParseTree output(range);
     range.ForEachLine([&](LineNumber line) {
       auto contents = buffer.at(line);
-      if (contents->empty()) {
+      if (contents.empty()) {
         return;
       }
 
       output.PushChild(delegate_->FindChildren(
           buffer, Range(LineColumn(line),
-                        std::min(LineColumn(line, contents->EndColumn()),
+                        std::min(LineColumn(line, contents.EndColumn()),
                                  range.end()))));
     });
     return output;

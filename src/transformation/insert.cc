@@ -98,7 +98,7 @@ std::wstring ToStringBase(const Insert& options) {
   std::wstring output = L"InsertTransformationBuilder()";
   output += L".set_text(" +
             vm::EscapedString::FromString(
-                options.contents_to_insert.at(LineNumber(0))->contents())
+                options.contents_to_insert.at(LineNumber(0)).contents())
                 .CppRepresentation() +
             L")";
   output += L".set_modifiers(" + options.modifiers.Serialize() + L")";
@@ -131,13 +131,12 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
                  ++i) {
               if (text[i.read()] == L'\n') {
                 VLOG(8) << "Adding line from " << line_start << " to " << i;
-                output.push_back(MakeNonNullShared<Line>(text.substr(
+                output.push_back(Line(text.substr(
                     line_start.read(), (ColumnNumber(i) - line_start).read())));
                 line_start = ColumnNumber(i) + ColumnNumberDelta(1);
               }
             }
-            output.push_back(
-                MakeNonNullShared<Line>(text.substr(line_start.read())));
+            output.push_back(Line(text.substr(line_start.read())));
             output.EraseLines(LineNumber(), LineNumber(1),
                               MutableLineSequence::ObserverBehavior::kHide);
             options->contents_to_insert = output.snapshot();

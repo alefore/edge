@@ -21,9 +21,7 @@ class RegularFileAdapter : public FileAdapter {
  public:
   struct Options {
     concurrent::ThreadPoolWithWorkQueue& thread_pool;
-    std::function<void(std::vector<language::NonNull<
-                           std::shared_ptr<const language::text::Line>>>)>
-        insert_lines;
+    std::function<void(std::vector<language::text::Line>)> insert_lines;
   };
 
  private:

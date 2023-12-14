@@ -469,7 +469,7 @@ class ForkEditorCommand : public Command {
       }
       VisitPointer(
           buffer->ptr()->CurrentLineOrNull(),
-          [&](NonNull<std::shared_ptr<const Line>> current_line) {
+          [&](const Line& current_line) {
             std::visit(
                 overload{
                     [&](EscapedString line) {
@@ -484,7 +484,7 @@ class ForkEditorCommand : public Command {
                       }
                     },
                     [&](Error error) { editor_state_.status().Set(error); }},
-                EscapedString::Parse(current_line->contents()));
+                EscapedString::Parse(current_line.contents()));
           },
           [] {});
     } else {

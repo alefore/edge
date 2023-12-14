@@ -60,7 +60,7 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
     for (std::string line_str; std::getline(iss, line_str);) {
       delete_buffer->AppendToLastLine(
           LineBuilder(NewLazyString(FromByteString(line_str))).Build());
-      delete_buffer->AppendRawLine(MakeNonNullShared<Line>());
+      delete_buffer->AppendRawLine(Line());
     }
   }
 }
@@ -129,7 +129,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         if (input.delete_buffer != nullptr) {
           input.delete_buffer->AppendToLastLine(
               LineBuilder(NewLazyString(error.read())).Build());
-          input.delete_buffer->AppendRawLine(MakeNonNullShared<Line>());
+          input.delete_buffer->AppendRawLine(Line());
           output.added_to_paste_buffer = true;
         }
         return futures::Past(std::move(output));
@@ -240,19 +240,18 @@ ContentStats AnalyzeContent(const LineSequence& contents,
     output.words = 0;
     output.alnums = 0;
     output.characters = 0;
-    contents.ForEach(
-        [&output](const NonNull<std::shared_ptr<const Line>>& line) {
-          ColumnNumber i;
-          output.characters = *output.characters + line->EndColumn().read();
-          while (i < line->EndColumn()) {
-            while (i < line->EndColumn() && !isalnum(line->get(i))) ++i;
-            if (i < line->EndColumn()) ++*output.words;
-            while (i < line->EndColumn() && isalnum(line->get(i))) {
-              ++i;
-              ++*output.alnums;
-            }
-          }
-        });
+    contents.ForEach([&output](const Line& line) {
+      ColumnNumber i;
+      output.characters = *output.characters + line.EndColumn().read();
+      while (i < line.EndColumn()) {
+        while (i < line.EndColumn() && !isalnum(line.get(i))) ++i;
+        if (i < line.EndColumn()) ++*output.words;
+        while (i < line.EndColumn() && isalnum(line.get(i))) {
+          ++i;
+          ++*output.alnums;
+        }
+      }
+    });
   }
   VLOG(7) << "AnalyzeContent: Output: " << ToString(output);
   return output;
@@ -346,7 +345,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                     [](Error) { return futures::Past(EmptyValue()); })
                 .Transform([input, output, contents](EmptyValue) {
                   if (input.mode == Input::Mode::kPreview &&
-                      input.buffer.status().text()->empty()) {
+                      input.buffer.status().text().empty()) {
                     input.buffer.status().SetInformationText(
                         LineBuilder(ToString(AnalyzeContent(
                                         contents,

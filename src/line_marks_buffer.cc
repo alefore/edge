@@ -38,7 +38,7 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
   struct MarkView {
     bool expired;
     LineColumn target;
-    NonNull<std::shared_ptr<const Line>> text;
+    Line text;
   };
   std::map<BufferName, std::vector<MarkView>> marks_by_source;
   for (const std::pair<const LineColumn, LineMarks::Mark>& data :
@@ -52,7 +52,7 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
              data.second.source_line <
                  LineNumber(0) + source->second.ptr()->contents().size())
                 ? source->second.ptr()->contents().at(data.second.source_line)
-                : MakeNonNullShared<const Line>(L"(dead mark)")});
+                : Line(L"(dead mark)")});
   }
   for (const std::pair<const LineColumn, LineMarks::ExpiredMark>& data :
        marks.GetExpiredMarksForTargetBuffer(name))
@@ -65,13 +65,11 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
     output.push_back(L"");
     output.push_back(L"### Source: " + data.first.read());
     output.append_back(std::move(data.second) |
-                       std::views::transform(
-                           [](MarkView mark) -> NonNull<std::shared_ptr<Line>> {
-                             LineBuilder line_output(NewLazyString(L"* "));
-                             line_output.Append(
-                                 LineBuilder(std::move(mark.text.value())));
-                             return std::move(line_output).Build();
-                           }));
+                       std::views::transform([](MarkView mark) -> Line {
+                         LineBuilder line_output(NewLazyString(L"* "));
+                         line_output.Append(LineBuilder(std::move(mark.text)));
+                         return std::move(line_output).Build();
+                       }));
   }
   return output.snapshot();
 }
@@ -79,8 +77,7 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
 futures::Value<PossibleError> GenerateContents(const EditorState& editor,
                                                OpenBuffer& buffer) {
   LOG(INFO) << "LineMarksBuffer: Generate contents";
-  MutableLineSequence output =
-      MutableLineSequence::WithLine(MakeNonNullShared<Line>(L"# Marks"));
+  MutableLineSequence output = MutableLineSequence::WithLine(Line(L"# Marks"));
 
   output.push_back(L"");
 

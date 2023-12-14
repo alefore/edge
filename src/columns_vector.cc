@@ -151,7 +151,7 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
               cursor = initial_column + column_data.cursor.value().ToDelta();
             }
 
-            current_modifiers = column_data.line->end_of_line_modifiers();
+            current_modifiers = column_data.line.end_of_line_modifiers();
 
             if (columns_vector->columns.at(i).width.has_value()) {
               // TODO: respect columns_[i].width.
@@ -159,10 +159,10 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
             } else {
               i = line_input.size();  // Stop the iteration.
             }
-            auto str = column_data.line->ToString();
+            auto str = column_data.line.ToString();
             columns_shown += ColumnNumberDelta(
                 std::max(0, wcswidth(str.c_str(), str.size())));
-            options.Append(LineBuilder(std::move(column_data.line.value())));
+            options.Append(LineBuilder(std::move(column_data.line)));
           }
           return LineWithCursor{.line = std::move(options).Build(),
                                 .cursor = cursor};
@@ -180,15 +180,14 @@ const bool buffer_tests_registration = tests::Register(
             ColumnsVector columns_vector;
             for (int i = 0; i < 5; i++)
               columns_vector.push_back(
-                  {.lines =
-                       RepeatLine({.line = MakeNonNullShared<Line>(L"foo bar")},
-                                  LineNumberDelta(5)),
+                  {.lines = RepeatLine({.line = Line(L"foo bar")},
+                                       LineNumberDelta(5)),
                    .width = ColumnNumberDelta(10)});
             LineWithCursor::Generator::Vector produce =
                 OutputFromColumnsVector(std::move(columns_vector));
             columns_vector.columns = {};
             CHECK_EQ(produce.size(), LineNumberDelta(5));
-            CHECK(produce.lines[0].generate().line->ToString() ==
+            CHECK(produce.lines[0].generate().line.ToString() ==
                   L"foo bar   "
                   L"foo bar   "
                   L"foo bar   "
@@ -200,27 +199,26 @@ const bool buffer_tests_registration = tests::Register(
           [] {
             ColumnsVector columns_vector;
             columns_vector.push_back(
-                {.lines = RepeatLine({.line = MakeNonNullShared<Line>(L"foo")},
-                                     LineNumberDelta(1)),
+                {.lines =
+                     RepeatLine({.line = Line(L"foo")}, LineNumberDelta(1)),
                  .width = ColumnNumberDelta(3)});
             columns_vector.push_back(
-                {.lines = RepeatLine({.line = MakeNonNullShared<Line>(L"bar")},
-                                     LineNumberDelta(10)),
+                {.lines =
+                     RepeatLine({.line = Line(L"bar")}, LineNumberDelta(10)),
                  .width = ColumnNumberDelta(10)});
             LineWithCursor::Generator::Vector output =
                 OutputFromColumnsVector(std::move(columns_vector));
             CHECK_EQ(output.size(), LineNumberDelta(10));
-            CHECK(output.lines[0].generate().line->ToString() == L"foobar");
-            CHECK(output.lines[1].generate().line->ToString() == L"   bar");
-            CHECK(output.lines[9].generate().line->ToString() == L"   bar");
+            CHECK(output.lines[0].generate().line.ToString() == L"foobar");
+            CHECK(output.lines[1].generate().line.ToString() == L"   bar");
+            CHECK(output.lines[9].generate().line.ToString() == L"   bar");
           }},
      {.name = L"ShortPadding", .callback = [] {
         ColumnsVector columns_vector;
         columns_vector.push_back(
             ColumnsVector::Column{.lines = {}, .width = ColumnNumberDelta(5)});
         columns_vector.push_back(ColumnsVector::Column{
-            .lines = RepeatLine({.line = MakeNonNullShared<Line>(L"bar")},
-                                LineNumberDelta(10)),
+            .lines = RepeatLine({.line = Line(L"bar")}, LineNumberDelta(10)),
             .padding = {std::vector<std::optional<ColumnsVector::Padding>>(
                 5, ColumnsVector::Padding{.modifiers = {},
                                           .head = EmptyString(),

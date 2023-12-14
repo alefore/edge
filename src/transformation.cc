@@ -29,7 +29,7 @@ class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
     const std::wstring& superfluous_characters =
         input.buffer.Read(buffer_variables::line_suffix_superfluous_characters);
     const auto line = input.buffer.LineAt(input.position.line);
-    if (line == nullptr) return futures::Past(Output());
+    if (!line.has_value()) return futures::Past(Output());
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
            superfluous_characters.find(line->get(

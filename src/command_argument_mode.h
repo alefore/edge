@@ -114,8 +114,7 @@ class CommandArgumentMode : public EditorMode {
   futures::Value<language::EmptyValue> Transform(
       CommandArgumentModeApplyMode apply_mode, Argument argument) {
     options_.editor_state.status().SetInformationText(
-        language::MakeNonNullShared<language::text::Line>(
-            options_.status_factory(argument)));
+        language::text::Line(options_.status_factory(argument)));
     return options_.apply(apply_mode, std::move(argument));
   }
 

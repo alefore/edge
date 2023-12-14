@@ -135,12 +135,11 @@ LineSequence TransformLines(const LazyString& input, const Token& token,
 
   LineBuilder tail(input);
   tail.DeleteCharacters(ColumnNumber(), token.end.ToDelta());
-  return lines.Map([&](const NonNull<std::shared_ptr<const Line>>& expansion)
-                       -> NonNull<std::shared_ptr<const Line>> {
-    if (expansion->empty()) return expansion;
+  return lines.Map([&](const Line& expansion) -> Line {
+    if (expansion.empty()) return expansion;
     LineBuilder output;
     output.Append(head.Copy());
-    output.Append(LineBuilder(expansion.value()));
+    output.Append(LineBuilder(expansion));
     output.Append(tail.Copy());
     return std::move(output).Build();
   });

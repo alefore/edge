@@ -23,8 +23,7 @@ struct FrameOutputProducerOptions {
   std::wstring prefix = L"";
 };
 
-language::NonNull<std::shared_ptr<language::text::Line>> FrameLine(
-    FrameOutputProducerOptions options);
+language::text::Line FrameLine(FrameOutputProducerOptions options);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_FRAME_OUTPUT_PRODUCER_H__

@@ -159,7 +159,7 @@ const VersionPropertyReceiver* Status::prompt_extra_information() const {
   return data_->extra_information.get();
 }
 
-NonNull<std::shared_ptr<Line>> Status::prompt_extra_information_line() const {
+Line Status::prompt_extra_information_line() const {
   static const auto dim = LineModifierSet{LineModifier::kDim};
   static const auto empty = LineModifierSet{};
 
@@ -204,9 +204,9 @@ NonNull<std::shared_ptr<Line>> Status::prompt_extra_information_line() const {
   return std::move(options).Build();
 }
 
-void Status::SetInformationText(NonNull<std::shared_ptr<Line>> text) {
+void Status::SetInformationText(Line text) {
   ValidatePreconditions();
-  LOG(INFO) << "SetInformationText: " << text.value();
+  LOG(INFO) << "SetInformationText: " << text;
   if (data_->prompt_buffer.has_value()) {
     return;
   }
@@ -221,7 +221,7 @@ struct StatusExpirationControl {
 
 std::unique_ptr<StatusExpirationControl,
                 std::function<void(StatusExpirationControl*)>>
-Status::SetExpiringInformationText(NonNull<std::shared_ptr<Line>> text) {
+Status::SetExpiringInformationText(Line text) {
   ValidatePreconditions();
   SetInformationText(text);
   ValidatePreconditions();
@@ -236,7 +236,7 @@ Status::SetExpiringInformationText(NonNull<std::shared_ptr<Line>> text) {
         VisitPointer(
             status_expiration_control->data,
             [](NonNull<std::shared_ptr<Status::Data>> data) {
-              data->text = MakeNonNullShared<Line>();
+              data->text = Line();
             },
             [] {});
         delete status_expiration_control;
@@ -285,13 +285,13 @@ void Status::Bell() {
 
   LineBuilder output;
   if (FindFirstColumnWithPredicate(
-          data_->text->contents(), [&](ColumnNumber, const wchar_t& c) {
+          data_->text.contents(), [&](ColumnNumber, const wchar_t& c) {
             return c != L'🎼' && c != L'…' && c != L' ' &&
                    std::find(notes.begin(), notes.end(), c) == notes.end();
           }) != std::nullopt) {
     output.AppendString(NewLazyString(L"🎼"));
   } else {
-    LineBuilder previous = LineBuilder(std::move(data_->text.value()));
+    LineBuilder previous = LineBuilder(std::move(data_->text));
     if (previous.contents().size() > kMaxLength) {
       previous.DeleteCharacters(ColumnNumber(),
                                 previous.contents().size() - kMaxLength);
@@ -314,7 +314,7 @@ void Status::Bell() {
   data_->text = std::move(output).Build();
 }
 
-NonNull<std::shared_ptr<Line>> Status::text() const {
+const Line& Status::text() const {
   ValidatePreconditions();
   return data_->text;
 }

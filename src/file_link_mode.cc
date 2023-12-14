@@ -117,8 +117,8 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
     return;
   }
   if (S_ISDIR(stat_buffer.st_mode)) {
-    buffer.status().SetInformationText(MakeNonNullShared<Line>(
-        L"🌷Directory changed in disk since last read."));
+    buffer.status().SetInformationText(
+        Line(L"🌷Directory changed in disk since last read."));
   } else {
     buffer.status().InsertError(
         Error(L"🌷File changed in disk since last read."));
@@ -210,10 +210,9 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
               << ": SaveContentsToOpenFile: writing contents: " << path;
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
     std::optional<PossibleError> error;
-    contents.EveryLine([&](LineNumber position,
-                           const NonNull<std::shared_ptr<const Line>>& line) {
+    contents.EveryLine([&](LineNumber position, const Line& line) {
       std::string str = (position == LineNumber(0) ? "" : "\n") +
-                        ToByteString(line->ToString());
+                        ToByteString(line.ToString());
       if (write(fd.read(), str.c_str(), str.size()) == -1) {
         Error write_error(path.read() + L": write failed: " +
                           std::to_wstring(fd.read()) + L": " +
@@ -530,7 +529,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                  },
                  [&buffer](Error error) {
                    buffer.ptr()->status().SetInformationText(
-                       MakeNonNullShared<Line>(error.read()));
+                       Line(error.read()));
                  }},
         GetNextMatch(options.editor_state.modifiers().direction, search_options,
                      buffer.ptr()->contents().snapshot()));
@@ -653,28 +652,27 @@ class TestDriver {
                                .path = ValueOrDie(Path::FromString(path)),
                                .use_search_paths = true})
         .Transform([expected_content](gc::Root<OpenBuffer> buffer) {
-          return buffer.ptr()->WaitForEndOfFile().Transform([expected_content,
-                                                             buffer](
-                                                                EmptyValue) {
-            buffer.ptr()->contents().ForEach(
-                [](std::wstring line) { LOG(INFO) << "Read line: " << line; });
-            if (expected_content.has_value()) {
-              LOG(INFO) << "Validating, length: " << expected_content->size();
-              CHECK_EQ(buffer.ptr()->lines_size(), expected_content->size());
-              CHECK(buffer.ptr()->contents().snapshot().EveryLine(
-                  [expected_content](
-                      LineNumber i,
-                      const language::NonNull<std::shared_ptr<const Line>>&
-                          line) {
-                    CHECK_EQ(
-                        ToByteString(line->contents().ToString()),
-                        ToByteString(
-                            expected_content->at(i)->contents().ToString()));
-                    return true;
-                  }));
-            }
-            return futures::Past(Success(buffer));
-          });
+          return buffer.ptr()->WaitForEndOfFile().Transform(
+              [expected_content, buffer](EmptyValue) {
+                buffer.ptr()->contents().ForEach([](std::wstring line) {
+                  LOG(INFO) << "Read line: " << line;
+                });
+                if (expected_content.has_value()) {
+                  LOG(INFO)
+                      << "Validating, length: " << expected_content->size();
+                  CHECK_EQ(buffer.ptr()->lines_size(),
+                           expected_content->size());
+                  CHECK(buffer.ptr()->contents().snapshot().EveryLine(
+                      [expected_content](LineNumber i, const Line& line) {
+                        CHECK_EQ(
+                            ToByteString(line.contents().ToString()),
+                            ToByteString(
+                                expected_content->at(i).contents().ToString()));
+                        return true;
+                      }));
+                }
+                return futures::Past(Success(buffer));
+              });
         });
   }
 

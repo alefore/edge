@@ -141,14 +141,13 @@ namespace afc::editor {
 namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
-std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
-    OpenBuffer& buffer,
-    std::vector<NonNull<std::shared_ptr<const Line>>> lines) {
+std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
+                                     std::vector<Line> lines) {
   if (buffer.Read(buffer_variables::vm_lines_evaluation)) return lines;
 
   TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
-  for (NonNull<std::shared_ptr<const Line>>& line : lines)
-    if (line->metadata() == std::nullopt && !line->empty())
+  for (Line& line : lines)
+    if (line.metadata() == std::nullopt && !line.empty())
       std::visit(
           overload{
               [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
@@ -166,7 +165,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
                     description += L" ...";
                     if (compilation_result.first->Types() ==
                         std::vector<vm::Type>({vm::types::Void{}})) {
-                      LineBuilder line_builder(std::move(line.value()));
+                      LineBuilder line_builder(std::move(line));
                       line_builder.SetMetadata(std::nullopt);
                       line = std::move(line_builder).Build();
                     }
@@ -194,14 +193,14 @@ std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
                     break;
                 }
 
-                LineBuilder line_builder(std::move(line.value()));
+                LineBuilder line_builder(std::move(line));
                 line_builder.SetMetadata(language::text::LineMetadataEntry{
                     .initial_value = NewLazyString(description),
                     .value = std::move(metadata_value)});
                 line = std::move(line_builder).Build();
               },
               IgnoreErrors{}},
-          buffer.CompileString(line->contents().ToString()));
+          buffer.CompileString(line.contents().ToString()));
   return lines;
 }
 
@@ -284,7 +283,7 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
   }
 
   void AddError(Error error) override {
-    buffer_.status().SetInformationText(MakeNonNullShared<Line>(error.read()));
+    buffer_.status().SetInformationText(Line(error.read()));
   }
 
  private:
@@ -562,7 +561,7 @@ void OpenBuffer::ClearContents() {
 
 void OpenBuffer::AppendEmptyLine() {
   auto follower = GetEndPositionFollower();
-  contents_.push_back(NonNull<std::shared_ptr<Line>>());
+  contents_.push_back(Line());
 }
 
 void OpenBuffer::SignalEndOfFile() {
@@ -596,7 +595,7 @@ void OpenBuffer::SignalEndOfFile() {
 void OpenBuffer::SendEndOfFileToProcess() {
   if (fd() == nullptr) {
     status().SetInformationText(
-        MakeNonNullShared<Line>(L"No active subprocess for current buffer."));
+        Line(L"No active subprocess for current buffer."));
     return;
   }
   if (Read(buffer_variables::pts)) {
@@ -608,7 +607,7 @@ void OpenBuffer::SendEndOfFileToProcess() {
               .Build());
       return;
     }
-    status().SetInformationText(MakeNonNullShared<Line>(L"EOF sent"));
+    status().SetInformationText(Line(L"EOF sent"));
   } else {
     if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
       status().SetInformationText(
@@ -617,7 +616,7 @@ void OpenBuffer::SendEndOfFileToProcess() {
               .Build());
       return;
     }
-    status().SetInformationText(MakeNonNullShared<Line>(L"shutdown sent"));
+    status().SetInformationText(Line(L"shutdown sent"));
   }
 }
 
@@ -776,14 +775,14 @@ void OpenBuffer::MaybeStartUpdatingSyntaxTrees() {
   buffer_syntax_parser_.Parse(contents_.snapshot());
 }
 
-void OpenBuffer::StartNewLine(NonNull<std::shared_ptr<const Line>> line) {
+void OpenBuffer::StartNewLine(Line line) {
   static Tracker tracker(L"OpenBuffer::StartNewLine");
   auto tracker_call = tracker.Call();
   AppendLines({std::move(line)});
 }
 
 void OpenBuffer::AppendLines(
-    std::vector<NonNull<std::shared_ptr<const Line>>> lines,
+    std::vector<Line> lines,
     language::text::MutableLineSequence::ObserverBehavior observer_behavior) {
   static Tracker top_tracker(L"OpenBuffer::AppendLines");
   auto top_tracker_call = top_tracker.Call();
@@ -805,7 +804,7 @@ void OpenBuffer::AppendLines(
              &editor = editor()](ResolvePathOptions<EmptyValue> options) {
               for (LineNumberDelta i; i < lines_added; ++i) {
                 auto source_line = LineNumber() + start_new_section + i;
-                options.path = contents.at(source_line)->ToString();
+                options.path = contents.at(source_line).ToString();
                 ResolvePath(options).Transform(
                     [&editor, buffer_name,
                      source_line](ResolvePathOutput<EmptyValue> results) {
@@ -1006,26 +1005,21 @@ void OpenBuffer::AppendLazyString(LazyString input) {
 
 void OpenBuffer::SortContents(
     LineNumber start, LineNumberDelta length,
-    std::function<bool(const NonNull<std::shared_ptr<const Line>>&,
-                       const NonNull<std::shared_ptr<const Line>>&)>
-        compare) {
+    std::function<bool(const Line&, const Line&)> compare) {
   CHECK_GE(length, LineNumberDelta());
   CHECK_LE((start + length).ToDelta(), lines_size());
   contents_.sort(start, length, compare);
 }
 
 void OpenBuffer::SortAllContents(
-    std::function<bool(const NonNull<std::shared_ptr<const Line>>&,
-                       const NonNull<std::shared_ptr<const Line>>&)>
-        compare) {
+    std::function<bool(const Line&, const Line&)> compare) {
   CHECK_GT(lines_size(), LineNumberDelta());
   SortContents(LineNumber(), lines_size(), std::move(compare));
 }
 
 void OpenBuffer::SortAllContentsIgnoringCase() {
-  SortAllContents([](const NonNull<std::shared_ptr<const Line>>& a,
-                     const NonNull<std::shared_ptr<const Line>>& b) {
-    return LowerCase(a->contents()) < LowerCase(b->contents());
+  SortAllContents([](const Line& a, const Line& b) {
+    return LowerCase(a.contents()) < LowerCase(b.contents());
   });
 }
 
@@ -1051,8 +1045,7 @@ void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
   contents_.EraseLines(first, last);
 }
 
-void OpenBuffer::InsertLine(LineNumber line_position,
-                            NonNull<std::shared_ptr<Line>> line) {
+void OpenBuffer::InsertLine(LineNumber line_position, Line line) {
   contents_.insert_line(line_position,
                         UpdateLineMetadata(*this, {std::move(line)})[0]);
 }
@@ -1067,7 +1060,7 @@ void OpenBuffer::AppendLine(LazyString str) {
   }
 
   if (contents_.size() == LineNumberDelta(1) &&
-      contents_.back()->EndColumn().IsZero()) {
+      contents_.back().EndColumn().IsZero()) {
     if (str.ToString() == L"EDGE PARSER v1.0") {
       reading_from_parser_ = true;
       return;
@@ -1083,8 +1076,7 @@ void OpenBuffer::AppendRawLine(
 }
 
 void OpenBuffer::AppendRawLine(
-    NonNull<std::shared_ptr<Line>> line,
-    MutableLineSequence::ObserverBehavior observer_behavior) {
+    Line line, MutableLineSequence::ObserverBehavior observer_behavior) {
   auto follower = GetEndPositionFollower();
   contents_.append_back(UpdateLineMetadata(*this, {std::move(line)}),
                         observer_behavior);
@@ -1094,12 +1086,12 @@ void OpenBuffer::AppendToLastLine(LazyString str) {
   AppendToLastLine(LineBuilder(std::move(str)).Build());
 }
 
-void OpenBuffer::AppendToLastLine(NonNull<std::shared_ptr<const Line>> line) {
+void OpenBuffer::AppendToLastLine(Line line) {
   static Tracker tracker(L"OpenBuffer::AppendToLastLine");
   auto tracker_call = tracker.Call();
   auto follower = GetEndPositionFollower();
-  LineBuilder options(contents_.back().value());
-  options.Append(LineBuilder(std::move(line).value()));
+  LineBuilder options(contents_.back());
+  options.Append(LineBuilder(std::move(line)));
   AppendRawLine(std::move(options).Build(),
                 MutableLineSequence::ObserverBehavior::kHide);
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
@@ -1213,10 +1205,10 @@ LineColumn OpenBuffer::InsertInPosition(
   LineColumn position = input_position;
   if (position.line > contents_.EndLine()) {
     position.line = contents_.EndLine();
-    position.column = contents_.at(position.line)->EndColumn();
+    position.column = contents_.at(position.line).EndColumn();
   }
-  if (position.column > contents_.at(position.line)->EndColumn()) {
-    position.column = contents_.at(position.line)->EndColumn();
+  if (position.column > contents_.at(position.line).EndColumn()) {
+    position.column = contents_.at(position.line).EndColumn();
   }
   contents_.SplitLine(position);
   contents_.insert(position.line.next(), contents_to_insert, modifiers);
@@ -1227,7 +1219,7 @@ LineColumn OpenBuffer::InsertInPosition(
       position.line + contents_to_insert.size() - LineNumberDelta(1);
   CHECK_LE(last_line, EndLine());
   auto line = LineAt(last_line);
-  CHECK(line != nullptr);
+  CHECK(line.has_value());
   ColumnNumber column = line->EndColumn();
 
   contents_.FoldNextLine(last_line);
@@ -1243,23 +1235,20 @@ LineColumn OpenBuffer::AdjustLineColumn(LineColumn position) const {
 void OpenBuffer::MaybeAdjustPositionCol() {
   VisitPointer(
       CurrentLineOrNull(),
-      [&](NonNull<std::shared_ptr<const Line>> line) {
-        set_current_position_col(
-            std::min(position().column, line->EndColumn()));
+      [&](Line line) {
+        set_current_position_col(std::min(position().column, line.EndColumn()));
       },
       [] {});
 }
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
   CHECK_LE(position.line, contents_.EndLine());
-  NonNull<std::shared_ptr<const Line>> line = contents_.at(position.line);
-  if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
-    return;
-  }
+  const Line& line = contents_.at(position.line);
+  if (line.EndColumn() > position.column + ColumnNumberDelta(1)) return;
 
-  LineBuilder options(line.value());
+  LineBuilder options(line);
   options.Append(LineBuilder(Padding(
-      position.column - line->EndColumn() + ColumnNumberDelta(1), L' ')));
+      position.column - line.EndColumn() + ColumnNumberDelta(1), L' ')));
   contents_.set_line(position.line, std::move(options).Build());
 }
 
@@ -1417,7 +1406,7 @@ void OpenBuffer::CreateCursor() {
       range.set_begin(tmp_first);
     }
   }
-  status_.SetInformationText(MakeNonNullShared<Line>(L"Cursor created."));
+  status_.SetInformationText(Line(L"Cursor created."));
 }
 
 LineColumn OpenBuffer::FindNextCursor(LineColumn position,
@@ -1662,23 +1651,19 @@ double OpenBuffer::lines_read_rate() const {
   return lines_read_rate_.GetEventsPerSecond();
 }
 
-language::NonNull<std::shared_ptr<const language::text::Line>>
-OpenBuffer::CurrentLine() const {
+Line OpenBuffer::CurrentLine() const {
   LineNumber line = AdjustLineColumn(position()).line;
   CHECK_LE(line, contents().EndLine());
-  return language::NonNull<std::shared_ptr<const language::text::Line>>::Unsafe(
-      LineAt(line));
+  return LineAt(line).value();
 }
 
-std::shared_ptr<const Line> OpenBuffer::CurrentLineOrNull() const {
+std::optional<Line> OpenBuffer::CurrentLineOrNull() const {
   return LineAt(position().line);
 }
 
-std::shared_ptr<const Line> OpenBuffer::LineAt(LineNumber line_number) const {
-  if (line_number > contents_.EndLine()) {
-    return nullptr;
-  }
-  return contents_.at(line_number).get_shared();
+std::optional<Line> OpenBuffer::LineAt(LineNumber line_number) const {
+  if (line_number > contents_.EndLine()) return std::nullopt;
+  return contents_.at(line_number);
 }
 
 wstring OpenBuffer::ToString() const { return contents_.snapshot().ToString(); }
@@ -1688,8 +1673,7 @@ const struct timespec OpenBuffer::time_last_exit() const {
 }
 
 void OpenBuffer::PushSignal(UnixSignal signal) {
-  status_.SetInformationText(
-      MakeNonNullShared<Line>(std::to_wstring(signal.read())));
+  status_.SetInformationText(Line(std::to_wstring(signal.read())));
   if (file_adapter_->WriteSignal(signal)) return;
 
   switch (signal.read()) {
@@ -1764,8 +1748,7 @@ BufferName OpenBuffer::name() const {
   return BufferName(Read(buffer_variables::name));
 }
 
-void OpenBuffer::InsertLines(
-    std::vector<NonNull<std::shared_ptr<const Line>>> lines_to_insert) {
+void OpenBuffer::InsertLines(std::vector<Line> lines_to_insert) {
   // These changes don't count: they come from disk.
   auto disk_state_freezer = FreezeDiskState();
 
@@ -2116,7 +2099,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
 
 LineColumn OpenBuffer::end_position() const {
   CHECK_GT(contents_.size(), LineNumberDelta(0));
-  return LineColumn(contents_.EndLine(), contents_.back()->EndColumn());
+  return LineColumn(contents_.EndLine(), contents_.back().EndColumn());
 }
 
 std::unique_ptr<OpenBuffer::DiskState,

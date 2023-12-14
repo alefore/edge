@@ -102,8 +102,8 @@ class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
   futures::Value<Output> Apply(Input input) const override {
     const ColumnNumber column = input.position.column;
-    auto line = input.buffer.LineAt(input.position.line);
-    if (line == nullptr) return futures::Past(Output());
+    std::optional<Line> line = input.buffer.LineAt(input.position.line);
+    if (!line.has_value()) return futures::Past(Output());
     if (input.buffer.Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
       return futures::Past(Output());
@@ -174,9 +174,9 @@ class TestsHelper {
     gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor_.value());
     OpenBuffer& buffer = buffer_root.ptr().value();
     buffer.AppendToLastLine(NewLazyString(L"foobarhey"));
-    buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  foxbarnowl")));
-    buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  aaaaa ")));
-    buffer.AppendRawLine(MakeNonNullShared<Line>(Line(L"  alejo forero ")));
+    buffer.AppendRawLine(Line(L"  foxbarnowl"));
+    buffer.AppendRawLine(Line(L"  aaaaa "));
+    buffer.AppendRawLine(Line(L"  alejo forero "));
     return buffer_root;
   }();
 
@@ -429,8 +429,7 @@ class InsertMode : public InputReceiver {
             [options = options_, old_literal](OpenBuffer& buffer) {
               if (buffer.fd() != nullptr) {
                 if (old_literal) {
-                  buffer.status().SetInformationText(
-                      MakeNonNullShared<Line>(L"ESC"));
+                  buffer.status().SetInformationText(Line(L"ESC"));
                 } else {
                   buffer.status().Reset();
                 }
@@ -569,7 +568,7 @@ class InsertMode : public InputReceiver {
           DLOG(INFO) << "Set literal.";
           status_expiration_for_literal_ =
               options_.editor_state.status().SetExpiringInformationText(
-                  MakeNonNullShared<Line>(Line(L"<literal>")));
+                  Line(L"<literal>"));
           return;
         }
         break;
@@ -706,8 +705,7 @@ class InsertMode : public InputReceiver {
                 VLOG(6) << "Inserting text: [" << value << "]";
                 TRACK_OPERATION(InsertMode_ProcessInput_Regular_ApplyToCursors);
                 return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
-                    .contents_to_insert =
-                        LineSequence::WithLine(MakeNonNullShared<Line>(value)),
+                    .contents_to_insert = LineSequence::WithLine(Line(value)),
                     .modifiers = {
                         .insertion =
                             options.editor_state.modifiers().insertion}});
@@ -812,8 +810,7 @@ class InsertMode : public InputReceiver {
               break;
             case Modifiers::ModifyMode::kOverwrite:
               stack.PushBack(transformation::Insert{
-                  .contents_to_insert =
-                      LineSequence::WithLine(MakeNonNullShared<Line>(L" ")),
+                  .contents_to_insert = LineSequence::WithLine(Line(L" ")),
                   .final_position =
                       direction == Direction::kBackwards
                           ? transformation::Insert::FinalPosition::kStart
@@ -826,7 +823,7 @@ class InsertMode : public InputReceiver {
         });
     switch (direction) {
       case Direction::kBackwards:
-        if (current_insertion_->back()->empty()) {
+        if (current_insertion_->back().empty()) {
           StartNewInsertion();
         } else {
           current_insertion_->DeleteToLineEnd(
@@ -933,14 +930,13 @@ class InsertMode : public InputReceiver {
 
   static Range GetTokenRange(OpenBuffer& buffer) {
     const LineColumn position = buffer.AdjustLineColumn(buffer.position());
-    const NonNull<std::shared_ptr<const Line>> line =
-        buffer.contents().at(position.line);
+    const Line line = buffer.contents().at(position.line);
 
     ColumnNumber start = position.column;
-    CHECK_LE(start.ToDelta(), line->contents().size());
+    CHECK_LE(start.ToDelta(), line.contents().size());
     while (!start.IsZero() &&
-           (std::isalpha(line->get(start - ColumnNumberDelta(1))) ||
-            line->get(start - ColumnNumberDelta(1)) == L'\''))
+           (std::isalpha(line.get(start - ColumnNumberDelta(1))) ||
+            line.get(start - ColumnNumberDelta(1)) == L'\''))
       --start;
     return Range::InLine(position.line, start, position.column - start);
   }
@@ -948,7 +944,7 @@ class InsertMode : public InputReceiver {
   static CompletionModelManager::CompressedText GetCompletionToken(
       const LineSequence& buffer_contents, Range token_range) {
     CompletionModelManager::CompressedText output = LowerCase(
-        Substring(buffer_contents.at(token_range.begin().line)->contents(),
+        Substring(buffer_contents.at(token_range.begin().line).contents(),
                   token_range.begin().column,
                   token_range.end().column - token_range.begin().column));
     VLOG(6) << "Found completion token: " << output;
@@ -987,17 +983,16 @@ class InsertMode : public InputReceiver {
       return output;
     }
 
-    const NonNull<std::shared_ptr<const Line>> line =
-        buffer.value.contents().at(position.line);
+    const Line line = buffer.value.contents().at(position.line);
 
     auto buffer_root = buffer.value.NewRoot();
     if (token_range.IsEmpty()) {
       VLOG(5) << "Unable to rewind for completion token.";
       static const wchar_t kCompletionDisableSuffix = L'-';
       if (token_range.end().column >= ColumnNumber(2) &&
-          line->get(token_range.end().column - ColumnNumberDelta(1)) ==
+          line.get(token_range.end().column - ColumnNumberDelta(1)) ==
               kCompletionDisableSuffix &&
-          line->get(token_range.end().column - ColumnNumberDelta(2)) != L' ') {
+          line.get(token_range.end().column - ColumnNumberDelta(2)) != L' ') {
         return std::move(output).Transform([buffer_root, position](EmptyValue) {
           VLOG(3) << "Found completion disabling suffix; removing it.";
           transformation::Stack stack;
@@ -1068,7 +1063,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   }
   for (OpenBuffer& buffer : options.buffers.value() | gc::view::Value)
     buffer.status().SetInformationText(
-        MakeNonNullShared<Line>(buffer.fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
+        Line(buffer.fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
   options.editor_state.set_keyboard_redirect(
       std::make_unique<InsertMode>(options));
 
@@ -1159,7 +1154,7 @@ void EnterInsertMode(InsertModeOptions options) {
         for (gc::Root<OpenBuffer>& buffer_root :
              shared_options->buffers.value()) {
           VisitPointer(
-              buffer_root.ptr()->CurrentLine()->outgoing_link(),
+              buffer_root.ptr()->CurrentLine().outgoing_link(),
               [&](const OutgoingLink& link) {
                 if (auto it = buffer_root.ptr()->editor().buffers()->find(
                         BufferName(link.path));

@@ -33,7 +33,7 @@ const bool line_tests_registration = tests::Register(
           [] {
             LineBuilder options;
             options.insert_end_of_line_modifiers({LineModifier::kRed});
-            CHECK(std::move(options).Build()->end_of_line_modifiers().contains(
+            CHECK(std::move(options).Build().end_of_line_modifiers().contains(
                 LineModifier::kRed));
           }},
      {.name = L"CopyOfEmptyPreservesEndOfLine",
@@ -41,9 +41,8 @@ const bool line_tests_registration = tests::Register(
           [] {
             LineBuilder options;
             options.insert_end_of_line_modifiers({LineModifier::kRed});
-            NonNull<std::shared_ptr<Line>> initial_line =
-                std::move(options).Build();
-            Line final_line(std::move(initial_line.value()));
+            Line initial_line = std::move(options).Build();
+            Line final_line(std::move(initial_line));
             CHECK(final_line.end_of_line_modifiers().contains(
                 LineModifier::kRed));
           }},
@@ -51,30 +50,26 @@ const bool line_tests_registration = tests::Register(
       .callback =
           [] {
             LineBuilder options;
-            size_t initial_hash =
-                std::hash<Line>{}(options.Copy().Build().value());
+            size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
             options.insert_end_of_line_modifiers({LineModifier::kRed});
-            size_t final_hash =
-                std::hash<Line>{}(std::move(options).Build().value());
+            size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
      {.name = L"ContentChangesHash",
       .callback =
           [] {
             CHECK(std::hash<Line>{}(
-                      LineBuilder(NewLazyString(L"alejo")).Build().value()) !=
+                      LineBuilder(NewLazyString(L"alejo")).Build()) !=
                   std::hash<Line>{}(
-                      LineBuilder(NewLazyString(L"Xlejo")).Build().value()));
+                      LineBuilder(NewLazyString(L"Xlejo")).Build()));
           }},
      {.name = L"ModifiersChangesHash",
       .callback =
           [] {
             LineBuilder options(NewLazyString(L"alejo"));
-            size_t initial_hash =
-                std::hash<Line>{}(options.Copy().Build().value());
+            size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
             options.InsertModifier(ColumnNumber(2), LineModifier::kRed);
-            size_t final_hash =
-                std::hash<Line>{}(std::move(options).Build().value());
+            size_t final_hash = std::hash<Line>{}(std::move(options).Build());
             CHECK(initial_hash != final_hash);
           }},
      {.name = L"MetadataBecomesAvailable", .callback = [] {
@@ -83,14 +78,14 @@ const bool line_tests_registration = tests::Register(
         builder.SetMetadata(
             LineMetadataEntry{.initial_value = NewLazyString(L"Foo"),
                               .value = std::move(future.value)});
-        NonNull<std::shared_ptr<Line>> line = std::move(builder).Build();
-        CHECK(line->metadata()->ToString() == L"Foo");
+        Line line = std::move(builder).Build();
+        CHECK(*line.metadata() == NewLazyString(L"Foo"));
         std::move(future.consumer)(NewLazyString(L"Bar"));
-        CHECK(line->metadata()->ToString() == L"Bar");
+        CHECK(*line.metadata() == NewLazyString(L"Bar"));
       }}});
 }
 
-LineBuilder::LineBuilder(const Line& line) : data_(line.data_) {}
+LineBuilder::LineBuilder(const Line& line) : data_(line.data_.value()) {}
 
 LineBuilder::LineBuilder(language::lazy_string::LazyString input_contents)
     : data_(Line::Data{.contents = std::move(input_contents)}) {}
@@ -99,9 +94,7 @@ LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 
 LineBuilder LineBuilder::Copy() const { return LineBuilder(data_); }
 
-NonNull<std::shared_ptr<Line>> LineBuilder::Build() && {
-  return MakeNonNullShared<Line>(Line(std::move(data_)));
-}
+Line LineBuilder::Build() && { return Line(std::move(data_)); }
 
 ColumnNumber LineBuilder::EndColumn() const {
   // TODO: Compute this separately, taking the width of characters into

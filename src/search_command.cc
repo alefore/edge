@@ -387,8 +387,7 @@ class SearchCommand : public Command {
       Range range =
           buffer.FindPartialRange(editor.modifiers(), buffer.position());
       if (range.IsEmpty()) {
-        buffer.status().SetInformationText(
-            MakeNonNullShared<Line>(L"Unable to extract region."));
+        buffer.status().SetInformationText(Line(L"Unable to extract region."));
         return std::nullopt;
       }
       CHECK_LE(range.begin(), range.end());

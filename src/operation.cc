@@ -954,7 +954,7 @@ class OperationMode : public EditorMode {
 
   void AppendStatusForCommandsAvailable(LineBuilder& output) {
     output.AppendString(L"    ", std::nullopt);
-    output.Append(LineBuilder(GetGlobalKeyCommandsMap().SummaryLine().value()));
+    output.Append(LineBuilder(GetGlobalKeyCommandsMap().SummaryLine()));
   }
 
   KeyCommandsMap ReceiveInputTopCommand(TopCommand top_command) {

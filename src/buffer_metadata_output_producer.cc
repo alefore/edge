@@ -128,7 +128,7 @@ std::wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
 struct MetadataLine {
   wchar_t info_char;
   LineModifier modifier;
-  NonNull<std::shared_ptr<const Line>> suffix;
+  Line suffix;
   enum class Type {
     kDefault,
     kMark,
@@ -141,11 +141,10 @@ struct MetadataLine {
 ColumnNumberDelta width(const Line& prefix, MetadataLine& line) {
   return std::max(ColumnNumberDelta(1),
                   ColumnNumberDelta(prefix.contents().size())) +
-         line.suffix->contents().size();
+         line.suffix.contents().size();
 }
 
-LineWithCursor::Generator NewGenerator(
-    NonNull<std::shared_ptr<Line>> input_prefix, MetadataLine line) {
+LineWithCursor::Generator NewGenerator(Line input_prefix, MetadataLine line) {
   return LineWithCursor::Generator::New(CaptureAndHash(
       [](wchar_t info_char, LineModifier modifier, const Line& suffix,
          const Line& prefix) {
@@ -158,8 +157,8 @@ LineWithCursor::Generator NewGenerator(
         options.Append(LineBuilder(std::move(suffix)));
         return LineWithCursor{.line = std::move(options).Build()};
       },
-      line.info_char, line.modifier, std::move(line.suffix).value(),
-      std::move(input_prefix).value()));
+      line.info_char, line.modifier, std::move(line.suffix),
+      std::move(input_prefix)));
 }
 }  // namespace
 
@@ -336,8 +335,8 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   return line_options;
 }
 
-NonNull<std::shared_ptr<Line>> GetDefaultInformation(
-    const BufferMetadataOutputOptions& options, LineNumber line) {
+Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
+                           LineNumber line) {
   static Tracker tracker(L"BufferMetadataOutput::GetDefaultInformation");
   auto call = tracker.Call();
 
@@ -385,13 +384,12 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   auto top_call = top_tracker.Call();
 
   std::list<MetadataLine> output;
-  NonNull<std::shared_ptr<const Line>> contents =
-      options.buffer.contents().at(range.begin().line);
+  const Line& contents = options.buffer.contents().at(range.begin().line);
   std::optional<gc::Root<OpenBuffer>> target_buffer_dummy;
   NonNull<const OpenBuffer*> target_buffer =
       NonNull<const OpenBuffer*>::AddressOf(options.buffer);
   VisitPointer(
-      contents->outgoing_link(),
+      contents.outgoing_link(),
       [&](const OutgoingLink& link) {
         if (auto it =
                 options.buffer.editor().buffers()->find(BufferName(link.path));
@@ -421,7 +419,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   }
 
   VisitPointer(
-      contents->metadata(),
+      contents.metadata(),
       [&output](LazyString metadata) {
         static Tracker tracker(
             L"BufferMetadataOutput::Prepare:VisitContentsMetadata");
@@ -458,12 +456,13 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
          mark.source_line <
              LineNumber(0) + source->second.ptr()->contents().size())
             ? source->second.ptr()->contents().at(mark.source_line)
-            : MakeNonNullShared<const Line>(L"(dead mark)"),
+            : Line(L"(dead mark)"),
         MetadataLine::Type::kMark});
   }
 
   // When an expired mark appears again, no need to show it redundantly (as
   // expired). We use `marks_strings` to detect this.
+  // TODO(easy, 2023-12-14): This should use Line directly?
   std::set<std::wstring> marks_strings;
   for (const auto& mark : marks) {
     if (auto source =
@@ -472,7 +471,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         mark.source_line <
             LineNumber(0) + source->second.ptr()->contents().size()) {
       marks_strings.insert(
-          source->second.ptr()->contents().at(mark.source_line)->ToString());
+          source->second.ptr()->contents().at(mark.source_line).ToString());
     }
   }
 
@@ -482,10 +481,9 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     auto call = tracker.Call();
     if (auto mark_contents = mark.source_line_content.ToString();
         !marks_strings.contains(mark_contents)) {
-      output.push_back(
-          MetadataLine{'!', LineModifier::kRed,
-                       MakeNonNullShared<Line>(L"👻 " + mark_contents),
-                       MetadataLine::Type::kMark});
+      output.push_back(MetadataLine{'!', LineModifier::kRed,
+                                    Line(L"👻 " + mark_contents),
+                                    MetadataLine::Type::kMark});
     }
   }
 
@@ -879,10 +877,9 @@ ColumnsVector::Column BufferMetadataOutput(
     CHECK(!metadata_by_line[source].empty());
     MetadataLine& metadata_line = metadata_by_line[source].front();
 
-    NonNull<std::shared_ptr<Line>> prefix =
-        std::move(prefix_lines[i.read()]).Build();
+    Line prefix = std::move(prefix_lines[i.read()]).Build();
     output.lines.width =
-        std::max(output.lines.width, width(prefix.value(), metadata_line));
+        std::max(output.lines.width, width(prefix, metadata_line));
     output.lines.lines.push_back(
         NewGenerator(std::move(prefix), std::move(metadata_line)));
     output.padding.push_back(

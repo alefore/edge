@@ -10,8 +10,8 @@ LineSequence FilterLines(
     const std::function<FilterPredicateResult(const language::text::Line&)>&
         predicate) {
   MutableLineSequence builder;
-  input.ForEach([&](const NonNull<std::shared_ptr<const Line>>& line) {
-    switch (predicate(line.value())) {
+  input.ForEach([&](const Line& line) {
+    switch (predicate(line)) {
       case FilterPredicateResult::kKeep:
         builder.push_back(line);
         break;

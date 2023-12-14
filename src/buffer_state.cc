@@ -37,14 +37,14 @@ LineSequence AddVariables(std::wstring type_name,
                           const EdgeStructInstance<VariableType>& values) {
   MutableLineSequence contents;
   contents.push_back(L"// Variables: " + type_name);
-  // TODO(2023-11-26, ranges): Extend const-tree to be able to receive the
-  // range directly. This is tricky because the iterators in the range
-  // need to support operator+.
+  // TODO(2023-11-26, ranges): Extend const-tree to be able to receive the range
+  // directly. This is tricky because the iterators in the range need to support
+  // operator+.
   contents.append_back(language::container::MaterializeVector(
       variables.variables() | std::views::transform([&](const auto& variable) {
-        return MakeNonNullShared<const Line>(
-            Line(L"buffer.set_" + variable.first + L"(" +
-                 SerializeValue(values.Get(&variable.second.value())) + L");"));
+        return Line(L"buffer.set_" + variable.first + L"(" +
+                    SerializeValue(values.Get(&variable.second.value())) +
+                    L");");
       })));
   contents.push_back(L"");
   return contents.snapshot();

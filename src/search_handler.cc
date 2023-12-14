@@ -95,9 +95,8 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
   }
 
   std::vector<LineColumn> positions;
-  contents.EveryLine([&](LineNumber position,
-                         const NonNull<std::shared_ptr<const Line>>& line) {
-    auto matches = GetMatches(line->ToString(), pattern);
+  contents.EveryLine([&](LineNumber position, const Line& line) {
+    auto matches = GetMatches(line.ToString(), pattern);
     size_t initial_size = positions.size();
     std::ranges::copy(
         matches | std::views::transform([position](ColumnNumber column) {
@@ -186,9 +185,8 @@ futures::Value<PredictorOutput> SearchHandlerPredictor(PredictorInput input) {
     SearchInBuffer(input, search_buffer, kMatchesLimit, matches);
   MutableLineSequence output_contents;
   std::ranges::copy(
-      std::move(matches) | std::views::transform([](std::wstring match) {
-        return MakeNonNullShared<Line>(Line(match));
-      }),
+      std::move(matches) |
+          std::views::transform([](std::wstring match) { return Line(match); }),
       std::back_inserter(output_contents));
   output_contents.MaybeEraseEmptyFirstLine();
   TRACK_OPERATION(SearchHandlerPredictor_sort);
@@ -401,8 +399,7 @@ void HandleSearchResults(
   }
 
   if (results->empty()) {
-    buffer.status().SetInformationText(
-        MakeNonNullShared<Line>(L"🔍 No results."));
+    buffer.status().SetInformationText(Line(L"🔍 No results."));
     audio::BeepFrequencies(buffer.editor().audio_player(), 0.1,
                            {audio::Frequency(659.25), audio::Frequency(440.0),
                             audio::Frequency(440.0)});
@@ -418,8 +415,7 @@ void HandleSearchResults(
 
   size_t size = results->size();
   if (size == 1) {
-    buffer.status().SetInformationText(
-        MakeNonNullShared<Line>(L"🔍 1 result."));
+    buffer.status().SetInformationText(Line(L"🔍 1 result."));
   } else {
     // TODO(easy, 2023-09-08): Convert `results_prefix` to use Padding?
     std::wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');

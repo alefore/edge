@@ -51,7 +51,7 @@ Seek::Result Seek::ToNextLine() const {
       return UNABLE_TO_ADVANCE;
     }
     next_position.line = position_->line.previous();
-    next_position.column = contents_.at(next_position.line)->EndColumn();
+    next_position.column = contents_.at(next_position.line).EndColumn();
   }
 
   if (!range_.Contains(next_position)) {
@@ -165,7 +165,7 @@ Seek::Result Seek::UntilNextCharNotIn(const std::wstring& word_char) const {
 Seek::Result Seek::ToEndOfLine() const {
   auto original_position = *position_;
   CHECK_LE(position_->line, contents_.EndLine());
-  position_->column = contents_.at(position_->line)->EndColumn();
+  position_->column = contents_.at(position_->line).EndColumn();
   *position_ = std::min(range_.end(), *position_);
   return *position_ > original_position ? DONE : UNABLE_TO_ADVANCE;
 }
@@ -179,9 +179,9 @@ Seek::Result Seek::UntilLine(
     }
     advance = true;
 
-    if (predicate(contents_.at(position_->line).value())) {
+    if (predicate(contents_.at(position_->line))) {
       if (direction_ == Direction::kBackwards) {
-        position_->column = contents_.at(position_->line)->EndColumn();
+        position_->column = contents_.at(position_->line).EndColumn();
       }
       return DONE;
     }
@@ -241,7 +241,7 @@ bool Seek::Advance(LineColumn* position) const {
     case Direction::kForwards:
       if (*position >= range_.end()) {
         return false;
-      } else if (position->column < contents_.at(position->line)->EndColumn()) {
+      } else if (position->column < contents_.at(position->line).EndColumn()) {
         ++position->column;
       } else if (!wrapping_lines_) {
         return false;
@@ -264,7 +264,7 @@ bool Seek::Advance(LineColumn* position) const {
       } else {
         position->line =
             std::min(position->line.previous(), contents_.EndLine());
-        position->column = contents_.at(position->line)->EndColumn();
+        position->column = contents_.at(position->line).EndColumn();
       }
       return true;
   }

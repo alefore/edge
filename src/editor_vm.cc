@@ -367,8 +367,7 @@ gc::Root<Environment> BuildEditorEnvironment(
       L"SetStatus",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](EditorState& editor_arg, std::wstring s) {
-                        editor_arg.status().SetInformationText(
-                            MakeNonNullShared<Line>(s));
+                        editor_arg.status().SetInformationText(Line(s));
                       })
           .ptr());
 

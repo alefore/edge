@@ -101,7 +101,7 @@ std::optional<CompletionModelManager::Text> FindCompletionInModel(
 
   if (line > contents.lines().EndLine()) return std::nullopt;
 
-  LazyString line_contents = contents.lines().at(line)->contents();
+  LazyString line_contents = contents.lines().at(line).contents();
   // TODO(easy, 2023-09-01): Avoid calls to ToString, ugh.
   VLOG(5) << "Check: " << compressed_text.ToString()
           << " against: " << line_contents.ToString();
@@ -128,7 +128,7 @@ std::optional<CompletionModelManager::Text> FindCompletionInModel(
             return parsed_line.text;
           },
           [](Error) { return std::optional<CompletionModelManager::Text>(); }},
-      Parse(contents.lines().at(line)->contents()));
+      Parse(contents.lines().at(line).contents()));
 }
 
 const bool find_completion_tests_registration = tests::Register(
@@ -245,14 +245,14 @@ CompletionModelManager::FindCompletionWithIndex(
 }
 /* static */ void CompletionModelManager::UpdateReverseTable(
     Data& data, const Path& path, const LineSequence& contents) {
-  contents.ForEach([&](const NonNull<std::shared_ptr<const Line>>& line) {
+  contents.ForEach([&](const Line& line) {
     std::visit(overload{[&path, &data](const ParsedLine& entry) {
                           if (entry.text != entry.compressed_text)
                             data.reverse_table[entry.text.ToString()].insert(
                                 {path, entry.compressed_text});
                         },
                         IgnoreErrors{}},
-               Parse(line->contents()));
+               Parse(line.contents()));
   });
 }
 

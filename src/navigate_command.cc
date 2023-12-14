@@ -314,7 +314,7 @@ NavigateState InitialState(EditorState& editor_state) {
     };
   } else {
     editor_state.status().SetInformationText(
-        MakeNonNullShared<Line>(L"Navigate not handled for current mode."));
+        Line(L"Navigate not handled for current mode."));
   }
   return initial_state;
 }

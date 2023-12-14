@@ -140,30 +140,24 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
   return server_address;
 }
 
-NonNull<std::shared_ptr<Line>> GetGreetingMessage() {
-  static const std::vector<NonNull<std::shared_ptr<Line>>> errors({
-      MakeNonNullShared<Line>(L"Welcome to Edge!"),
-      MakeNonNullShared<Line>(L"Edge, your favorite text editor."),
-      MakeNonNullShared<Line>(
-          L"📎 It looks like you're writing a letter. Would you like help?"),
-      MakeNonNullShared<Line>(L"Edge, a text editor."),
-      MakeNonNullShared<Line>(L"All modules are now active."),
-      MakeNonNullShared<Line>(L"Booting up Edge. . . . . . . . . . . . . DONE"),
-      MakeNonNullShared<Line>(L"What are you up to today?"),
-      MakeNonNullShared<Line>(
-          L"Stop trying to calm the storm. Calm yourself, the storm "
-          L"will pass."),
-      MakeNonNullShared<Line>(
-          L"Learn to be indifferent to what makes no difference."),
-      MakeNonNullShared<Line>(
-          L"Whatever can happen at any time can happen today."),
-      MakeNonNullShared<Line>(L"The trouble is, you think you have time."),
-      MakeNonNullShared<Line>(L"Happiness is here, and now."),
-      MakeNonNullShared<Line>(
-          L"The journey of a thousand miles begins with a single step."),
-      MakeNonNullShared<Line>(L"Every moment is a fresh beginning."),
-      MakeNonNullShared<Line>(
-          L"Action is the foundational key to all success."),
+const Line& GetGreetingMessage() {
+  static const std::vector<Line> errors({
+      Line(L"Welcome to Edge!"),
+      Line(L"Edge, your favorite text editor."),
+      Line(L"📎 It looks like you're writing a letter. Would you like help?"),
+      Line(L"Edge, a text editor."),
+      Line(L"All modules are now active."),
+      Line(L"Booting up Edge. . . . . . . . . . . . . DONE"),
+      Line(L"What are you up to today?"),
+      Line(L"Stop trying to calm the storm. Calm yourself, the storm will "
+           L"pass."),
+      Line(L"Learn to be indifferent to what makes no difference."),
+      Line(L"Whatever can happen at any time can happen today."),
+      Line(L"The trouble is, you think you have time."),
+      Line(L"Happiness is here, and now."),
+      Line(L"The journey of a thousand miles begins with a single step."),
+      Line(L"Every moment is a fresh beginning."),
+      Line(L"Action is the foundational key to all success."),
   });
   return errors.at(rand() % errors.size());
 }

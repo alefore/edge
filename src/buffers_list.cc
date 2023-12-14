@@ -153,7 +153,7 @@ std::wstring GetOutputComponentsForTesting(std::wstring path,
               ValueOrDie(ValueOrDie(Path::FromString(path)).DirectorySplit()),
               columns, LineModifierSet{}, LineModifierSet{}, LineModifierSet{}))
           .Build()
-          ->contents()
+          .contents()
           .ToString();
   LOG(INFO) << "GetOutputComponentsForTesting: " << path << " -> " << output;
   return output;
@@ -421,14 +421,14 @@ enum class SelectionState { kReceivingInput, kIdle, kExcludedByFilter };
 
 LineBuilder GetBufferContents(const LineSequence& contents,
                               ColumnNumberDelta columns) {
-  NonNull<std::shared_ptr<const Line>> line = contents.at(LineNumber(0));
+  Line line = contents.at(LineNumber(0));
   LineBuilder output;
-  if ((line->EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
-    ColumnNumberDelta padding = (columns - line->EndColumn().ToDelta()) / 2;
+  if ((line.EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
+    ColumnNumberDelta padding = (columns - line.EndColumn().ToDelta()) / 2;
     output.AppendString(Padding(padding, L' '));
   }
 
-  LineBuilder line_without_suffix(line.value());
+  LineBuilder line_without_suffix(line);
   line_without_suffix.DeleteSuffix(ColumnNumber() + columns);
   output.Append(std::move(line_without_suffix));
   output.ClearModifiers();

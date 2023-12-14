@@ -139,8 +139,7 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
 }
 #endif
 
-NonNull<std::shared_ptr<const Line>> ShowLine(EditorState& editor,
-                                              const dirent& entry) {
+Line ShowLine(EditorState& editor, const dirent& entry) {
   enum class SizeBehavior { kShow, kSkip };
 
   struct FileType {

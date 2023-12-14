@@ -20,12 +20,12 @@ Seek StartSeekToLimit(const SeekInput& input) {
   input.position->line =
       std::min(input.contents.EndLine(), input.position->line);
   if (input.position->column >=
-      input.contents.at(input.position->line)->EndColumn()) {
+      input.contents.at(input.position->line).EndColumn()) {
     // if (buffer .Read(buffer_variables::extend_lines)) {
     //   MaybeExtendLine(*position);
     //} else {
     input.position->column =
-        input.contents.at(input.position->line)->EndColumn();
+        input.contents.at(input.position->line).EndColumn();
     //}
   }
   return Seek(input.contents, input.position);
@@ -278,7 +278,7 @@ bool SeekToLimit(SeekInput input) {
       switch (input.direction) {
         case Direction::kForwards:
           input.position->column =
-              input.contents.at(input.position->line)->EndColumn();
+              input.contents.at(input.position->line).EndColumn();
           return true;
         case Direction::kBackwards:
           input.position->column = ColumnNumber(0);
@@ -365,7 +365,7 @@ bool SeekToLimit(SeekInput input) {
         if (seek.ToNextLine() == Seek::UNABLE_TO_ADVANCE) {
           return false;
         }
-        if (input.contents.at(input.position->line)->EndColumn() ==
+        if (input.contents.at(input.position->line).EndColumn() ==
             ColumnNumber(0)) {
           if (input.direction == Direction::kForwards) {
             return false;

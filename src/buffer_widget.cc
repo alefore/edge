@@ -137,7 +137,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
         .generate = [original_generator = buffer_output.lines.back().generate] {
           LineWithCursor output = original_generator();
           LineBuilder line_options;
-          line_options.AppendString(output.line->contents(),
+          line_options.AppendString(output.line.contents(),
                                     LineModifierSet{LineModifier::kDim});
           output.line = std::move(line_options).Build();
           return output;
@@ -151,9 +151,9 @@ LineWithCursor::Generator::Vector LinesSpanView(
           .inputs_hash = line.inputs_hash,
           .generate = [width, original_generator = std::move(line.generate)] {
             LineWithCursor output = original_generator();
-            if (output.line->EndColumn().ToDelta() >= width) return output;
+            if (output.line.EndColumn().ToDelta() >= width) return output;
             const ColumnNumberDelta padding_size =
-                (width - output.line->EndColumn().ToDelta() +
+                (width - output.line.EndColumn().ToDelta() +
                  ColumnNumberDelta(1)) /
                 2;
             LineBuilder line_options;
@@ -161,7 +161,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
             if (output.cursor.has_value()) {
               output.cursor = *output.cursor + padding_size;
             }
-            line_options.Append(LineBuilder(std::move(output.line.value())));
+            line_options.Append(LineBuilder(std::move(output.line)));
             output.line = std::move(line_options).Build();
             return output;
           }};

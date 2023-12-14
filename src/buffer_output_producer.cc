@@ -55,7 +55,7 @@ LineWithCursor::Generator ApplyVisualOverlay(
   return LineWithCursor::Generator{
       std::nullopt, [overlays = std::move(overlays), generator]() {
         LineWithCursor output = generator.generate();
-        output.line = ApplyVisualOverlayMap(overlays, output.line.value());
+        output.line = ApplyVisualOverlayMap(overlays, output.line);
         return output;
       }};
 }
@@ -65,7 +65,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
   return LineWithCursor::Generator{
       std::nullopt, [generator]() {
         auto output = generator.generate();
-        LineBuilder line_options(output.line.value());
+        LineBuilder line_options(output.line);
         std::map<language::lazy_string::ColumnNumber, LineModifierSet>
             new_modifiers;
         new_modifiers.insert({ColumnNumber(0), {}});
@@ -87,7 +87,7 @@ LineWithCursor::Generator ParseTreeHighlighter(
   return LineWithCursor::Generator{
       std::nullopt, [=]() {
         LineWithCursor output = generator.generate();
-        LineBuilder line_options(output.line.value());
+        LineBuilder line_options(output.line);
         std::map<language::lazy_string::ColumnNumber, LineModifierSet>
             modifiers = line_options.modifiers();
         modifiers.erase(modifiers.lower_bound(begin),
@@ -141,7 +141,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
                    std::hash<LineRange>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
     LineWithCursor input = generator.generate();
-    LineBuilder options(input.line.value());
+    LineBuilder options(input.line);
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
     GetSyntaxModifiersForLine(range, root.value(), {}, syntax_modifiers);
@@ -215,7 +215,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
       continue;
     }
 
-    std::shared_ptr<const Line> line_contents = buffer.LineAt(line);
+    std::optional<const Line> line_contents = buffer.LineAt(line);
     std::shared_ptr<InputReceiver> editor_keyboard_redirect =
         buffer.editor().keyboard_redirect();
     LineWithCursor::Generator generator =
@@ -223,7 +223,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
             [](ColumnNumberDelta size_columns,
                Widget::OutputProducerOptions::MainCursorDisplay
                    main_cursor_display,
-               WithHash<std::shared_ptr<const Line>> line_contents_with_hash,
+               WithHash<std::optional<const Line>> line_contents_with_hash,
                BufferContentsViewLayout::Line screen_line_inner,
                bool atomic_lines, bool multiple_cursors, LineColumn position,
                EditorMode::CursorMode cursor_mode) {

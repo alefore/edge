@@ -73,7 +73,7 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
     const std::wstring& line_prefix_characters =
         buffer.Read(buffer_variables::line_prefix_characters);
     const auto& line = buffer.LineAt(position.line);
-    if (line == nullptr) return std::nullopt;
+    if (!line.has_value()) return std::nullopt;
     ColumnNumber start =
         FindFirstColumnWithPredicate(line->contents(), [&](ColumnNumber,
                                                            wchar_t c) {

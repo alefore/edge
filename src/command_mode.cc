@@ -358,7 +358,7 @@ class ActivateLink : public Command {
         editor_state_.current_buffer(),
         [&](gc::Root<OpenBuffer> buffer) {
           VisitPointer(
-              buffer.ptr()->CurrentLine()->outgoing_link(),
+              buffer.ptr()->CurrentLine().outgoing_link(),
               [&](OutgoingLink outgoing_link) {
                 if (auto it = buffer.ptr()->editor().buffers()->find(
                         BufferName(outgoing_link.path));
@@ -429,8 +429,7 @@ class ResetStateCommand : public Command {
     editor_state_.ForEachActiveBuffer([](OpenBuffer& buffer) {
       buffer.work_queue()->DeleteLater(
           AddSeconds(Now(), 0.2),
-          buffer.status().SetExpiringInformationText(
-              MakeNonNullShared<Line>(Line(L"❌ ESC"))));
+          buffer.status().SetExpiringInformationText(Line(L"❌ ESC")));
       return futures::Past(EmptyValue());
     });
     editor_state_.set_modifiers(Modifiers());

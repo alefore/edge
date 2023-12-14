@@ -15,9 +15,8 @@ class SortedLineSequenceUniqueLines;
 
 class SortedLineSequence {
  public:
-  using Compare = std::function<bool(
-      const language::NonNull<std::shared_ptr<const language::text::Line>>&,
-      const language::NonNull<std::shared_ptr<const language::text::Line>>&)>;
+  using Compare = std::function<bool(const language::text::Line&,
+                                     const language::text::Line&)>;
 
   SortedLineSequence(const SortedLineSequence&) = default;
   SortedLineSequence(SortedLineSequence&&) = default;
@@ -29,9 +28,7 @@ class SortedLineSequence {
   const LineSequence& lines() const;
 
   // Returns the first element such that key < element.
-  language::text::LineNumber upper_bound(
-      const language::NonNull<std::shared_ptr<const language::text::Line>>& key)
-      const;
+  language::text::LineNumber upper_bound(const language::text::Line& key) const;
 
   SortedLineSequence FilterLines(
       const std::function<FilterPredicateResult(const language::text::Line&)>&

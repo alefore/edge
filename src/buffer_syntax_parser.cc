@@ -81,8 +81,8 @@ std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(
 namespace {
 std::wstring GetSymbol(const Range& range, const LineSequence& contents) {
   return contents.at(range.begin().line)
-      ->Substring(range.begin().column,
-                  range.end().column - range.begin().column)
+      .Substring(range.begin().column,
+                 range.end().column - range.begin().column)
       .ToString();
 }
 

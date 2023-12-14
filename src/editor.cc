@@ -615,8 +615,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
               }
             }
             LOG(INFO) << "Terminating.";
-            status().SetInformationText(MakeNonNullShared<Line>(
-                L"Exit: All buffers closed, shutting down."));
+            status().SetInformationText(
+                Line(L"Exit: All buffers closed, shutting down."));
             exit_value_ = data->exit_value;
             return futures::Past(EmptyValue());
           }
@@ -884,9 +884,9 @@ void EditorState::PushPosition(LineColumn position) {
                     });
 
       std::move(future_positions_buffer)
-          .Transform([line_to_insert = MakeNonNullShared<Line>(
-                          position.ToString() + L" " +
-                          buffer->ptr()->Read(buffer_variables::name))](
+          .Transform([line_to_insert =
+                          Line(position.ToString() + L" " +
+                               buffer->ptr()->Read(buffer_variables::name))](
                          gc::Root<OpenBuffer> positions_buffer_root) {
             OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
             positions_buffer.CheckPosition();
@@ -940,7 +940,7 @@ BufferPosition EditorState::ReadPositionsStack() {
   CHECK(HasPositionsInStack());
   gc::Ptr<OpenBuffer> buffer =
       buffers_.find(PositionsBufferName())->second.ptr();
-  return PositionFromLine(buffer->CurrentLine()->ToString());
+  return PositionFromLine(buffer->CurrentLine().ToString());
 }
 
 bool EditorState::MovePositionsStack(Direction direction) {

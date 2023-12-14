@@ -36,7 +36,8 @@ using lazy_string::NewLazyString;
 Line::Line(std::wstring x)
     : Line(Data{.contents = NewLazyString(std::move(x))}) {}
 
-Line::Line(const Line& line) : data_(line.data_), hash_(ComputeHash(data_)) {}
+Line::Line(const Line& line)
+    : data_(line.data_), hash_(ComputeHash(data_.value())) {}
 
 /* static */
 size_t Line::ComputeHash(const Line::Data& data) {
@@ -51,17 +52,17 @@ size_t Line::ComputeHash(const Line::Data& data) {
       MakeHashableIteratorRange(data.end_of_line_modifiers), data.metadata);
 }
 
-LazyString Line::contents() const { return data_.contents; }
+LazyString Line::contents() const { return data_->contents; }
 
 ColumnNumber Line::EndColumn() const {
-  return ColumnNumber(0) + data_.contents.size();
+  return ColumnNumber(0) + data_->contents.size();
 }
 
 bool Line::empty() const { return EndColumn().IsZero(); }
 
 wint_t Line::get(ColumnNumber column) const {
   CHECK_LT(column, EndColumn());
-  return data_.contents.get(column);
+  return data_->contents.get(column);
 }
 
 LazyString Line::Substring(ColumnNumber column, ColumnNumberDelta delta) const {
@@ -73,7 +74,7 @@ LazyString Line::Substring(ColumnNumber column) const {
 }
 
 std::optional<LazyString> Line::metadata() const {
-  if (const auto& metadata = data_.metadata; metadata.has_value())
+  if (const auto& metadata = data_->metadata; metadata.has_value())
     return metadata->value.get_copy().value_or(metadata->initial_value);
 
   return std::nullopt;
@@ -81,31 +82,43 @@ std::optional<LazyString> Line::metadata() const {
 
 language::ValueOrError<futures::ListenableValue<LazyString>>
 Line::metadata_future() const {
-  if (const auto& metadata = data_.metadata; metadata.has_value()) {
+  if (const auto& metadata = data_->metadata; metadata.has_value()) {
     return metadata.value().value;
   }
   return Error(L"Line has no value.");
 }
 
+const std::map<language::lazy_string::ColumnNumber,
+               afc::infrastructure::screen::LineModifierSet>&
+Line::modifiers() const {
+  return data_->modifiers;
+}
+
+afc::infrastructure::screen::LineModifierSet Line::end_of_line_modifiers()
+    const {
+  return data_->end_of_line_modifiers;
+}
+
 std::function<void()> Line::explicit_delete_observer() const {
-  return data_.explicit_delete_observer;
+  return data_->explicit_delete_observer;
 }
 
 std::optional<OutgoingLink> Line::outgoing_link() const {
-  return data_.outgoing_link;
+  return data_->outgoing_link;
 }
 
 Line::Line(Line::Data data)
-    : data_(std::move(data)), hash_(ComputeHash(data_)) {
-  for (auto& m : data_.modifiers) {
+    : data_(MakeNonNullShared<Line::Data>(std::move(data))),
+      hash_(ComputeHash(data_.value())) {
+  for (auto& m : data_->modifiers) {
     CHECK_LE(m.first, EndColumn()) << "Modifiers found past end of line.";
     CHECK(!m.second.contains(LineModifier::kReset));
   }
 #if 0
   static Tracker tracker(L"Line::ValidateInvariants");
   auto call = tracker.Call();
-  ForEachColumn(Pointer(data_.contents).Reference(),
-                [&contents = data_.contents](ColumnNumber, wchar_t c) {
+  ForEachColumn(Pointer(data_->contents).Reference(),
+                [&contents = data_->contents](ColumnNumber, wchar_t c) {
                   CHECK(c != L'\n')
                       << "Line has newline character: " << contents->ToString();
                 });

@@ -57,7 +57,7 @@ LazyString GetToken(const CompositeTransformation::Input& input,
   if (input.position.column < ColumnNumber(2)) return EmptyString();
   const ColumnNumber end = input.position.column.previous().previous();
   const LazyString line =
-      input.buffer.contents().snapshot().at(input.position.line)->contents();
+      input.buffer.contents().snapshot().at(input.position.line).contents();
 
   std::wstring chars_str = input.buffer.Read(characters_variable);
   ColumnNumber symbol_start = VisitOptional(
@@ -137,9 +137,8 @@ class PredictorTransformation : public CompositeTransformation {
           CHECK_GT(text.size(), ColumnNumberDelta());
           output.Push(DeleteLastCharacters(text.size()));
           output.Push(transformation::Insert{
-              .contents_to_insert =
-                  LineSequence::WithLine(MakeNonNullShared<Line>(
-                      results.value().common_prefix.value()))});
+              .contents_to_insert = LineSequence::WithLine(
+                  Line(results.value().common_prefix.value()))});
           return output;
         });
   }
@@ -305,8 +304,8 @@ class Execute : public CompositeTransformation {
           Output output;
           if (value.ptr()->IsString()) {
             output.Push(transformation::Insert{
-                .contents_to_insert = LineSequence::WithLine(
-                    MakeNonNullShared<Line>(value.ptr()->get_string()))});
+                .contents_to_insert =
+                    LineSequence::WithLine(Line(value.ptr()->get_string()))});
           }
           return futures::Past(Success(std::move(output)));
         })

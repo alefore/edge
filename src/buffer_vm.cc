@@ -122,7 +122,7 @@ void RegisterBufferFields(
 gc::Root<OpenBuffer> MaybeFollowOutgoingLink(gc::Root<OpenBuffer> buffer) {
   if (buffer.ptr()->editor().structure() == Structure::kLine) {
     return VisitPointer(
-        buffer.ptr()->CurrentLine()->outgoing_link(),
+        buffer.ptr()->CurrentLine().outgoing_link(),
         [&](const OutgoingLink& link) {
           if (auto it =
                   buffer.ptr()->editor().buffers()->find(BufferName(link.path));
@@ -164,7 +164,7 @@ std::pair<LineNumber, LineNumberDelta> GetBoundariesForTransformation(
     // Skip the tail of empty lines.
     while (!output.second.IsZero() &&
            buffer.at(output.first + output.second - LineNumberDelta(1))
-               ->contents()
+               .contents()
                .size()
                .IsZero())
       --output.second;
@@ -218,8 +218,7 @@ void DefineSortLinesByKey(
             NonNull<std::shared_ptr<std::vector<LineNumber>>> inputs;
             data->buffer.ptr()->contents().snapshot().ForEachLine(
                 boundaries.first, boundaries.second,
-                [&inputs](LineNumber number,
-                          const NonNull<std::shared_ptr<const Line>>&) {
+                [&inputs](LineNumber number, const Line&) {
                   inputs->push_back(number);
                   return true;
                 });
@@ -238,13 +237,13 @@ void DefineSortLinesByKey(
                                             -> ValueOrError<
                                                 futures::
                                                     IterationControlCommand> {
-                               auto line = data->buffer.ptr()->contents().at(
+                               Line line = data->buffer.ptr()->contents().at(
                                    line_number);
-                               VLOG(9) << "Value for line: " << line.value()
-                                       << ": " << get_key(output.ptr().value());
+                               VLOG(9) << "Value for line: " << line << ": "
+                                       << get_key(output.ptr().value());
                                ASSIGN_OR_RETURN(auto key_value,
                                                 get_key(output.ptr().value()));
-                               data->keys.insert({line->ToString(), key_value});
+                               data->keys.insert({line.ToString(), key_value});
                                return Success(
                                    futures::IterationControlCommand::kContinue);
                              })
@@ -264,22 +263,19 @@ void DefineSortLinesByKey(
                           [data, boundaries](EmptyValue) {
                             data->buffer.ptr()->SortContents(
                                 boundaries.first, boundaries.second,
-                                [data](const language::NonNull<std::shared_ptr<
-                                           const language::text::Line>>& a,
-                                       const language::NonNull<std::shared_ptr<
-                                           const language::text::Line>>& b) {
+                                [data](const Line& a, const Line& b) {
                                   auto it_a =
-                                      data->keys.find(a->contents().ToString());
+                                      data->keys.find(a.contents().ToString());
                                   auto it_b =
-                                      data->keys.find(b->contents().ToString());
+                                      data->keys.find(b.contents().ToString());
                                   CHECK(it_a != data->keys.end());
                                   CHECK(it_b != data->keys.end());
-                                  VLOG(10) << "Sort key: "
-                                           << a->contents().ToString() << ": "
-                                           << it_a->second;
-                                  VLOG(10) << "Sort key: "
-                                           << b->contents().ToString() << ": "
-                                           << it_b->second;
+                                  VLOG(10)
+                                      << "Sort key: " << a.contents().ToString()
+                                      << ": " << it_a->second;
+                                  VLOG(10)
+                                      << "Sort key: " << b.contents().ToString()
+                                      << ": " << it_b->second;
                                   return it_a->second < it_b->second;
                                 });
                             return Success(
@@ -316,8 +312,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       L"SetStatus",
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](gc::Root<OpenBuffer> buffer, std::wstring s) {
-                        buffer.ptr()->status().SetInformationText(
-                            MakeNonNullShared<Line>(s));
+                        buffer.ptr()->status().SetInformationText(Line(s));
                       })
           .ptr());
 
@@ -399,7 +394,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                             LineNumber(std::max(line_input, 0)),
                             LineNumber(0) + buffer.ptr()->lines_size() -
                                 LineNumberDelta(1));
-                        return buffer.ptr()->contents().at(line)->ToString();
+                        return buffer.ptr()->contents().at(line).ToString();
                       })
           .ptr());
 
@@ -587,23 +582,21 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           [](gc::Root<OpenBuffer> buffer) {
             buffer.ptr()->AppendLines(container::MaterializeVector(
                 Tracker::GetData() |
-                std::views::transform(
-                    [](Tracker::Data data)
-                        -> NonNull<std::shared_ptr<const Line>> {
-                      return LineBuilder(
-                                 Append(Append(NewLazyString(L"\""),
-                                               NewLazyString(data.name),
-                                               NewLazyString(L"\","),
-                                               NewLazyString(std::to_wstring(
-                                                   data.executions))),
-                                        Append(NewLazyString(L","),
-                                               NewLazyString(std::to_wstring(
-                                                   data.seconds)),
-                                               NewLazyString(L","),
-                                               NewLazyString(std::to_wstring(
-                                                   data.longest_seconds)))))
-                          .Build();
-                    })));
+                std::views::transform([](Tracker::Data data) -> const Line {
+                  return LineBuilder(
+                             Append(Append(NewLazyString(L"\""),
+                                           NewLazyString(data.name),
+                                           NewLazyString(L"\","),
+                                           NewLazyString(std::to_wstring(
+                                               data.executions))),
+                                    Append(NewLazyString(L","),
+                                           NewLazyString(
+                                               std::to_wstring(data.seconds)),
+                                           NewLazyString(L","),
+                                           NewLazyString(std::to_wstring(
+                                               data.longest_seconds)))))
+                      .Build();
+                })));
           })
           .ptr());
 
@@ -627,10 +620,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
       L"LineMetadataString",
       vm::NewCallback(pool, PurityType::kPure,
                       [](gc::Root<OpenBuffer> buffer, int line_number) {
-                        language::NonNull<std::shared_ptr<const Line>> line =
-                            buffer.ptr()->contents().at(
-                                LineNumber(line_number));
-                        return ToFuture(line->metadata_future())
+                        return ToFuture(buffer.ptr()
+                                            ->contents()
+                                            .at(LineNumber(line_number))
+                                            .metadata_future())
                             .Transform([](LazyString str_value) {
                               return Success(str_value.ToString());
                             });

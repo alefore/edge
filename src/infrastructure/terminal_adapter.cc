@@ -260,7 +260,7 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
 
       case 'C':
         VLOG(9) << "Terminal: cuf1: non-destructive space (move right 1 space)";
-        if (data_->position.column < current_line->EndColumn()) {
+        if (data_->position.column < current_line.EndColumn()) {
           data_->position.column++;
           data_->receiver->JumpToPosition(data_->position);
         }
@@ -358,7 +358,7 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
         VLOG(9) << "Terminal: P";
         ColumnNumberDelta chars_to_erase(atoi(sequence.c_str()));
         ColumnNumber end_column =
-            data_->receiver->contents().at(data_->position.line)->EndColumn();
+            data_->receiver->contents().at(data_->position.line).EndColumn();
         if (data_->position.column < end_column) {
           data_->contents.DeleteCharactersFromLine(
               data_->position,

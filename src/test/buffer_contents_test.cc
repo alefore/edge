@@ -239,8 +239,7 @@ class TestObserver : public afc::language::text::MutableLineSequenceObserver {
 void TestCursorsMove() {
   std::vector<TestObserver::Message> messages;
   MutableLineSequence contents(MakeNonNullUnique<TestObserver>(messages));
-  contents.set_line(LineNumber(0),
-                    MakeNonNullShared<Line>(L"aleandro forero cuervo"));
+  contents.set_line(LineNumber(0), Line(L"aleandro forero cuervo"));
   CHECK_EQ(messages.size(), 0ul);
   contents.InsertCharacter(LineColumn(LineNumber(0), ColumnNumber(3)));
   CHECK_EQ(messages.size(), 1ul);

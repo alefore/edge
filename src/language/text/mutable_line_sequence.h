@@ -31,8 +31,7 @@ class NullMutableLineSequenceObserver : public MutableLineSequenceObserver {
 
 class MutableLineSequence : public tests::fuzz::FuzzTestable {
  public:
-  using value_type =
-      language::NonNull<std::shared_ptr<const language::text::Line>>;
+  using value_type = language::text::Line;
 
  private:
   using Lines =
@@ -50,8 +49,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   MutableLineSequence(const MutableLineSequence&) = delete;
   MutableLineSequence& operator=(MutableLineSequence&&) = default;
 
-  static MutableLineSequence WithLine(
-      language::NonNull<std::shared_ptr<const language::text::Line>> line);
+  static MutableLineSequence WithLine(value_type line);
 
   virtual ~MutableLineSequence() = default;
 
@@ -69,19 +67,14 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   // This is dirt cheap. The updates listener isn't copied.
   language::NonNull<std::unique_ptr<MutableLineSequence>> copy() const;
 
-  language::NonNull<std::shared_ptr<const language::text::Line>> at(
-      language::text::LineNumber line_number) const {
+  const value_type& at(language::text::LineNumber line_number) const {
     CHECK_LT(line_number, language::text::LineNumber(0) + size());
     return lines_->Get(line_number.read());
   }
 
-  language::NonNull<std::shared_ptr<const language::text::Line>> back() const {
-    return at(EndLine());
-  }
+  const value_type& back() const { return at(EndLine()); }
 
-  language::NonNull<std::shared_ptr<const language::text::Line>> front() const {
-    return at(language::text::LineNumber(0));
-  }
+  const value_type& front() const { return at(language::text::LineNumber(0)); }
 
   // Iterates: runs the callback on every line in the buffer, passing as the
   // first argument the line count (starts counting at 0). Stops the iteration
@@ -99,16 +92,13 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   enum class ObserverBehavior { kShow, kHide };
 
   void insert_line(
-      language::text::LineNumber line_position,
-      language::NonNull<std::shared_ptr<const language::text::Line>> line,
+      language::text::LineNumber line_position, value_type line,
       ObserverBehavior observer_behavior = ObserverBehavior::kShow);
 
   // Does not call observer_! That should be done by the caller. Avoid
   // calling this in general: prefer calling the other functions (that have more
   // semantic information about what you're doing).
-  void set_line(
-      language::text::LineNumber position,
-      language::NonNull<std::shared_ptr<const language::text::Line>> line);
+  void set_line(language::text::LineNumber position, language::text::Line line);
 
   template <class C>
   void sort(language::text::LineNumber start,
@@ -117,15 +107,11 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
 
     // TODO: Only append to `lines` the actual range [start, start + length),
     // and then just Append to prefix/suffix.
-    std::vector<language::NonNull<std::shared_ptr<const language::text::Line>>>
-        lines;
-    Lines::Every(
-        lines_.get_shared(),
-        [&lines](language::NonNull<std::shared_ptr<const language::text::Line>>
-                     line) {
-          lines.push_back(line);
-          return true;
-        });
+    std::vector<value_type> lines;
+    Lines::Every(lines_.get_shared(), [&lines](value_type line) {
+      lines.push_back(line);
+      return true;
+    });
     CHECK(!lines.empty());  // This is is implied by lines_ being NonNull.
 
     std::sort(lines.begin() + start.read(),
@@ -188,9 +174,8 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
   void FoldNextLine(language::text::LineNumber line);
 
   void push_back(std::wstring str);
-  void push_back(
-      language::NonNull<std::shared_ptr<const language::text::Line>> line,
-      ObserverBehavior observer_behavior = ObserverBehavior::kShow);
+  void push_back(value_type line,
+                 ObserverBehavior observer_behavior = ObserverBehavior::kShow);
 
   template <std::ranges::range R>
   void append_back(
@@ -229,7 +214,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
         L"MutableLineSequence::TransformLine");
     auto tracker_call = tracker.Call();
     CHECK_LE(line_number, EndLine());
-    language::text::LineBuilder options(at(line_number).value());
+    language::text::LineBuilder options(at(line_number));
     callback(options);
     set_line(line_number, std::move(options).Build());
   }

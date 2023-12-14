@@ -86,7 +86,7 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
               std::ostringstream oss;
               oss << "Evaluation result: " << value.ptr().value();
               buffer.ptr()->status().SetInformationText(
-                  MakeNonNullShared<Line>(FromByteString(oss.str())));
+                  Line(FromByteString(oss.str())));
               return Success();
             })
             .ConsumeErrors([](Error) { return futures::Past(EmptyValue()); });

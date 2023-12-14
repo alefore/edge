@@ -8,11 +8,9 @@ using afc::language::lazy_string::LowerCase;
 
 namespace afc::language::text {
 SortedLineSequence::SortedLineSequence(LineSequence input)
-    : SortedLineSequence(
-          input, [](const NonNull<std::shared_ptr<const Line>>& a,
-                    const NonNull<std::shared_ptr<const Line>>& b) {
-            return LowerCase(a->contents()) < LowerCase(b->contents());
-          }) {}
+    : SortedLineSequence(input, [](const Line& a, const Line& b) {
+        return LowerCase(a.contents()) < LowerCase(b.contents());
+      }) {}
 
 SortedLineSequence::SortedLineSequence(LineSequence input,
                                        SortedLineSequence::Compare compare)
@@ -21,14 +19,9 @@ SortedLineSequence::SortedLineSequence(LineSequence input,
           [&] {
             if (input.empty()) return input;
             TRACK_OPERATION(SortedLineSequence_sort);
-            std::vector<
-                language::NonNull<std::shared_ptr<const language::text::Line>>>
-                lines;
+            std::vector<Line> lines;
             input.ForEach(
-                [&lines](const language::NonNull<
-                         std::shared_ptr<const language::text::Line>>& line) {
-                  lines.push_back(line);
-                });
+                [&lines](const Line& line) { lines.push_back(line); });
             std::sort(lines.begin(), lines.end(), compare);
             MutableLineSequence builder;
             builder.append_back(std::move(lines));
@@ -44,16 +37,13 @@ SortedLineSequence::SortedLineSequence(TrustedConstructorTag,
 
 const LineSequence& SortedLineSequence::lines() const { return lines_; }
 
-language::text::LineNumber SortedLineSequence::upper_bound(
-    const language::NonNull<std::shared_ptr<const language::text::Line>>& key)
-    const {
-  return language::text::LineNumber(LineSequence::Lines::UpperBound(
-      lines_.lines_.get_shared(), key, compare_));
+LineNumber SortedLineSequence::upper_bound(const Line& key) const {
+  return LineNumber(LineSequence::Lines::UpperBound(lines_.lines_.get_shared(),
+                                                    key, compare_));
 }
 
 SortedLineSequence SortedLineSequence::FilterLines(
-    const std::function<FilterPredicateResult(const language::text::Line&)>&
-        predicate) const {
+    const std::function<FilterPredicateResult(const Line&)>& predicate) const {
   return SortedLineSequence(TrustedConstructorTag(),
                             text::FilterLines(lines_, predicate), compare_);
 }
@@ -82,8 +72,8 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
           } else if (b_line.ToDelta() == b_lines.size()) {
             advance(a_lines, a_line);
           } else {
-            NonNull<std::shared_ptr<const Line>> a_str = a_lines.at(a_line);
-            NonNull<std::shared_ptr<const Line>> b_str = b_lines.at(b_line);
+            const Line& a_str = a_lines.at(a_line);
+            const Line& b_str = b_lines.at(b_line);
             if (a.sorted_lines_.compare_(a_str, b_str)) {
               advance(a_lines, a_line);
             } else if (a.sorted_lines_.compare_(b_str, a_str)) {
