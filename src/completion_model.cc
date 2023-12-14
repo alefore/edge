@@ -3,7 +3,6 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lowercase.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/text/line_sequence_functional.h"
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/language/text/sorted_line_sequence.h"
@@ -28,7 +27,6 @@ using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::NewLazyString;
-using afc::language::lazy_string::Substring;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -51,9 +49,9 @@ ValueOrError<ParsedLine> Parse(LazyString line) {
       [&line](ColumnNumber first_space) -> ValueOrError<ParsedLine> {
         return ParsedLine{
             .compressed_text = CompletionModelManager::CompressedText(
-                Substring(line, ColumnNumber(), first_space.ToDelta())),
+                line.Substring(ColumnNumber(), first_space.ToDelta())),
             .text = CompletionModelManager::Text(
-                Substring(line, first_space + ColumnNumberDelta(1)))};
+                line.Substring(first_space + ColumnNumberDelta(1)))};
       },
       [] { return ValueOrError<ParsedLine>(Error(L"No space found.")); },
       FindFirstColumnWithPredicate(

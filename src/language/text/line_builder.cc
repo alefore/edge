@@ -11,7 +11,6 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
@@ -116,11 +115,9 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
     data_.contents =
         lazy_string::Append(std::move(data_.contents), std::move(str));
   } else {
-    LazyString suffix =
-        lazy_string::Substring(data_.contents, column + ColumnNumberDelta(1));
+    LazyString suffix = data_.contents.Substring(column + ColumnNumberDelta(1));
     data_.contents = lazy_string::Append(
-        lazy_string::Substring(std::move(data_.contents), ColumnNumber(0),
-                               column.ToDelta()),
+        std::move(data_.contents).Substring(ColumnNumber(0), column.ToDelta()),
         std::move(str), std::move(suffix));
   }
 
@@ -246,8 +243,8 @@ const bool line_set_character_tests_registration = tests::Register(
 void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
   set_contents(lazy_string::Append(
-      lazy_string::Substring(data_.contents, ColumnNumber(0), column.ToDelta()),
-      NewLazyString(L" "), lazy_string::Substring(data_.contents, column)));
+      data_.contents.Substring(ColumnNumber(0), column.ToDelta()),
+      NewLazyString(L" "), data_.contents.Substring(column)));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   for (auto& m : data_.modifiers) {
@@ -346,8 +343,8 @@ LineBuilder& LineBuilder::DeleteCharacters(ColumnNumber column,
   CHECK_LE(column + delta, EndColumn());
 
   data_.contents = lazy_string::Append(
-      lazy_string::Substring(data_.contents, ColumnNumber(0), column.ToDelta()),
-      lazy_string::Substring(data_.contents, column + delta));
+      data_.contents.Substring(ColumnNumber(0), column.ToDelta()),
+      data_.contents.Substring(column + delta));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   // TODO: We could optimize this to only set it once (rather than for every

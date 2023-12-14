@@ -474,12 +474,11 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
                      output_name.get(ColumnNumber(0)) == L'$' &&
                      output_name.get(ColumnNumber(1)) == L' ') {
                    output_name = TrimLeft(
-                       Substring(std::move(output_name), ColumnNumber(1)),
-                       L" ");
+                       std::move(output_name).Substring(ColumnNumber(1)), L" ");
                  }
                  output.AppendString(
-                     SubstringWithRangeChecks(std::move(output_name),
-                                              ColumnNumber(0), columns),
+                     std::move(output_name)
+                         .SubstringWithRangeChecks(ColumnNumber(0), columns),
                      modifiers);
                  CHECK_LE(output.size(), columns);
                },

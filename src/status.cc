@@ -10,7 +10,6 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
@@ -31,7 +30,6 @@ using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
-using afc::language::lazy_string::Substring;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 

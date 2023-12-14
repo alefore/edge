@@ -19,6 +19,25 @@ class EmptyStringImpl : public LazyStringImpl {
   }
   ColumnNumberDelta size() const override { return ColumnNumberDelta(0); }
 };
+
+class SubstringImpl : public LazyStringImpl {
+ public:
+  SubstringImpl(NonNull<std::shared_ptr<const LazyStringImpl>> buffer,
+                ColumnNumber column, ColumnNumberDelta delta)
+      : buffer_(std::move(buffer)), column_(column), delta_(delta) {}
+
+  wchar_t get(ColumnNumber pos) const override {
+    return buffer_->get(column_ + pos.ToDelta());
+  }
+
+  ColumnNumberDelta size() const override { return delta_; }
+
+ private:
+  const NonNull<std::shared_ptr<const LazyStringImpl>> buffer_;
+  // First column to read from.
+  const ColumnNumber column_;
+  const ColumnNumberDelta delta_;
+};
 }  // namespace
 
 std::wstring LazyString::ToString() const {
@@ -28,6 +47,26 @@ std::wstring LazyString::ToString() const {
   ForEachColumn(*this,
                 [&output](ColumnNumber i, wchar_t c) { output[i.read()] = c; });
   return output;
+}
+
+LazyString LazyString::Substring(ColumnNumber column) const {
+  return Substring(column, size() - column.ToDelta());
+}
+
+LazyString LazyString::Substring(ColumnNumber column,
+                                 ColumnNumberDelta delta) const {
+  if (column.IsZero() && delta == ColumnNumberDelta(size()))
+    return LazyString(data_);  // Optimization.
+  CHECK_GE(delta, ColumnNumberDelta(0));
+  CHECK_LE(column, ColumnNumber(0) + size());
+  CHECK_LE(column + delta, ColumnNumber(0) + size());
+  return LazyString(MakeNonNullShared<SubstringImpl>(data_, column, delta));
+}
+
+LazyString LazyString::SubstringWithRangeChecks(ColumnNumber column,
+                                                ColumnNumberDelta delta) const {
+  column = std::min(column, ColumnNumber(0) + size());
+  return Substring(column, std::min(delta, size() - column.ToDelta()));
 }
 
 bool LazyString::operator<(const LazyString& x) {

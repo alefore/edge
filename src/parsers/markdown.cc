@@ -6,7 +6,6 @@
 
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/lowercase.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/text/line_builder.h"
 #include "src/language/text/line_sequence.h"
 #include "src/parse_tools.h"
@@ -20,7 +19,6 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::Substring;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -110,9 +108,10 @@ class MarkdownParser : public LineOrientedTreeParser {
             while (!seek.AtRangeEnd() && IsSymbol(seek.read())) seek.Once();
             ColumnNumberDelta length =
                 result->position().column - original_position.column;
-            LazyString str = Substring(
-                result->buffer().at(original_position.line).contents(),
-                original_position.column, length);
+            LazyString str = result->buffer()
+                                 .at(original_position.line)
+                                 .contents()
+                                 .Substring(original_position.column, length);
             result->PushAndPop(length, IsTypo(str)
                                            ? LineModifierSet{LineModifier::kRed}
                                            : LineModifierSet{});

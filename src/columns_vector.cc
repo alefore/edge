@@ -11,7 +11,6 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/padding.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
@@ -65,7 +64,7 @@ LineBuilder GeneratePadding(const ColumnsVector::Padding padding,
   while (contents.size() < size) {
     contents = Append(std::move(contents), padding.body);
   }
-  options.AppendString(Substring(std::move(contents), ColumnNumber(), size),
+  options.AppendString(std::move(contents).Substring(ColumnNumber(), size),
                        padding.modifiers);
   return options;
 }

@@ -7,7 +7,6 @@
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/text/line.h"
 #include "src/language/wstring.h"
 

@@ -10,7 +10,6 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
@@ -66,11 +65,11 @@ wint_t Line::get(ColumnNumber column) const {
 }
 
 LazyString Line::Substring(ColumnNumber column, ColumnNumberDelta delta) const {
-  return lazy_string::Substring(contents(), column, delta);
+  return contents().Substring(column, delta);
 }
 
 LazyString Line::Substring(ColumnNumber column) const {
-  return lazy_string::Substring(contents(), column);
+  return contents().Substring(column);
 }
 
 std::optional<LazyString> Line::metadata() const {

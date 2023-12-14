@@ -38,7 +38,6 @@ extern "C" {
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/padding.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/observers_gc.h"
 #include "src/language/once_only_function.h"
 #include "src/language/overload.h"
@@ -996,11 +995,11 @@ void OpenBuffer::AppendLazyString(LazyString input) {
   ForEachColumn(input, [&](ColumnNumber i, wchar_t c) {
     CHECK_GE(i, start);
     if (c == '\n') {
-      AppendLine(Substring(input, start, i - start));
+      AppendLine(input.Substring(start, i - start));
       start = i + ColumnNumberDelta(1);
     }
   });
-  AppendLine(Substring(input, start));
+  AppendLine(input.Substring(start));
 }
 
 void OpenBuffer::SortContents(
@@ -1054,7 +1053,7 @@ void OpenBuffer::AppendLine(LazyString str) {
   if (reading_from_parser_) {
     switch (str.get(ColumnNumber(0))) {
       case 'E':
-        return AppendRawLine(Substring(str, ColumnNumber(1)));
+        return AppendRawLine(str.Substring(ColumnNumber(1)));
     }
     return;
   }

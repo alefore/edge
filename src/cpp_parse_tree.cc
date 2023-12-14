@@ -4,7 +4,6 @@
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/lazy_string/functional.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/lru_cache.h"
 #include "src/parse_tools.h"
@@ -205,9 +204,10 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     CHECK_EQ(original_position.line, result->position().line);
     CHECK_GT(result->position().column, original_position.column);
     auto length = result->position().column - original_position.column;
-    LazyString str =
-        Substring(result->buffer().at(original_position.line).contents(),
-                  original_position.column, length);
+    LazyString str = result->buffer()
+                         .at(original_position.line)
+                         .contents()
+                         .Substring(original_position.column, length);
     LineModifierSet modifiers;
     // TODO(2022-04-22): Avoid the call to ToString?
     if (keywords_.find(str.ToString()) != keywords_.end()) {

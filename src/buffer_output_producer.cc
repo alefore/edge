@@ -13,7 +13,6 @@
 #include "src/infrastructure/screen/visual_overlay.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 #include "src/parse_tree.h"

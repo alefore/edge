@@ -31,7 +31,6 @@ extern "C" {
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_builder.h"
@@ -944,9 +943,10 @@ class InsertMode : public InputReceiver {
   static CompletionModelManager::CompressedText GetCompletionToken(
       const LineSequence& buffer_contents, Range token_range) {
     CompletionModelManager::CompressedText output = LowerCase(
-        Substring(buffer_contents.at(token_range.begin().line).contents(),
-                  token_range.begin().column,
-                  token_range.end().column - token_range.begin().column));
+        buffer_contents.at(token_range.begin().line)
+            .contents()
+            .Substring(token_range.begin().column,
+                       token_range.end().column - token_range.begin().column));
     VLOG(6) << "Found completion token: " << output;
     return output;
   }

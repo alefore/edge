@@ -1,6 +1,5 @@
 #include "src/infrastructure/regular_file_adapter.h"
 
-#include "src/language/lazy_string/substring.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
 
@@ -47,7 +46,7 @@ std::vector<Line> CreateLineInstances(LazyString contents,
 
       LineBuilder line_options;
       line_options.set_contents(
-          Substring(contents, line_start, ColumnNumber(i) - line_start));
+          contents.Substring(line_start, ColumnNumber(i) - line_start));
       line_options.set_modifiers(ColumnNumber(0), modifiers);
       lines_to_insert.emplace_back(std::move(line_options).Build());
 
@@ -58,7 +57,7 @@ std::vector<Line> CreateLineInstances(LazyString contents,
   VLOG(8) << "Adding last line from " << line_start << " to "
           << contents.size();
   LineBuilder line_options;
-  line_options.set_contents(Substring(contents, line_start));
+  line_options.set_contents(contents.Substring(line_start));
   line_options.set_modifiers(ColumnNumber(0), modifiers);
   lines_to_insert.emplace_back(std::move(line_options).Build());
   return lines_to_insert;

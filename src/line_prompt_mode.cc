@@ -298,7 +298,7 @@ ParseHistoryLine(const LazyString& line) {
     ++value_start;
     --value_end;
     output.insert({token.value.substr(0, colon),
-                   Substring(line, value_start, value_end - value_start)});
+                   line.Substring(value_start, value_end - value_start)});
   }
 
   std::unordered_multimap<std::wstring, LazyString> synthetic_features =
@@ -366,7 +366,7 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
     if (end <= position) return;
     VLOG(8) << "Adding substring with modifiers: " << position << ", "
             << modifiers;
-    options.AppendString(Substring(line, position, end - position),
+    options.AppendString(line.Substring(position, end - position),
                          std::move(modifiers));
     position = end;
   };

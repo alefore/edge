@@ -3,7 +3,6 @@
 #include <glog/logging.h>
 
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/tests/tests.h"
 
@@ -70,7 +69,7 @@ void PushIfNonEmpty(const LazyString& source, Token token,
   CHECK_LE(token.begin, token.end);
   if (token.begin < token.end) {
     token.value =
-        Substring(source, token.begin, token.end - token.begin).ToString();
+        source.Substring(token.begin, token.end - token.begin).ToString();
     output.push_back(std::move(token));
   }
 }
@@ -156,7 +155,7 @@ std::vector<Token> ExtendTokensToEndOfString(LazyString str,
   std::vector<Token> output;
   output.reserve(tokens.size());
   for (auto& token : tokens) {
-    output.push_back(Token{.value = Substring(str, token.begin).ToString(),
+    output.push_back(Token{.value = str.Substring(token.begin).ToString(),
                            .begin = token.begin,
                            .end = ColumnNumber() + str.size()});
   }

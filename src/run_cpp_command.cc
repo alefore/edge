@@ -14,7 +14,6 @@
 #include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
 #include "src/line_prompt_mode.h"

@@ -32,7 +32,6 @@ extern "C" {
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/once_only_function.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"

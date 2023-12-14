@@ -7,7 +7,6 @@
 
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
@@ -22,7 +21,6 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
-using afc::language::lazy_string::Substring;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;

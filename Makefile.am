@@ -170,8 +170,6 @@ src/language/lazy_string/lowercase.cc \
 src/language/lazy_string/lowercase.h \
 src/language/lazy_string/padding.cc \
 src/language/lazy_string/padding.h \
-src/language/lazy_string/substring.cc \
-src/language/lazy_string/substring.h \
 src/language/lazy_string/tokenize.cc \
 src/language/lazy_string/tokenize.h \
 src/language/lazy_string/tokenize_test.cc \

@@ -7,7 +7,6 @@
 
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/wstring.h"

@@ -69,8 +69,8 @@ LazyString GetToken(const CompositeTransformation::Input& input,
           line, std::unordered_set<wchar_t>(chars_str.begin(), chars_str.end()),
           end));
 
-  return Substring(line, symbol_start,
-                   end - symbol_start + ColumnNumberDelta(1));
+  return line.Substring(symbol_start,
+                        end - symbol_start + ColumnNumberDelta(1));
 }
 
 transformation::Delete DeleteLastCharacters(ColumnNumberDelta characters) {
@@ -119,9 +119,8 @@ class PredictorTransformation : public CompositeTransformation {
               ColumnNumberDelta(results->common_prefix.value().size()) <
                   text.size()) {
             CHECK_LE(results->predictor_output.longest_prefix, text.size());
-            LazyString prefix =
-                Substring(text, ColumnNumber(0),
-                          results->predictor_output.longest_prefix);
+            LazyString prefix = text.Substring(
+                ColumnNumber(0), results->predictor_output.longest_prefix);
             if (!prefix.size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
               buffer.status().SetInformationText(

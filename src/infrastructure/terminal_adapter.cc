@@ -11,7 +11,6 @@ extern "C" {
 
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
@@ -126,7 +125,7 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
     LazyString str, ColumnNumber read_index, LineModifierSet* modifiers) {
   if (str.size() <= read_index.ToDelta()) {
     LOG(INFO) << "Unhandled character sequence: "
-              << Substring(str, read_index).ToString() << ")\n";
+              << str.Substring(read_index).ToString() << ")\n";
     return read_index;
   }
   switch (str.get(read_index)) {
@@ -141,7 +140,7 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
       break;
     default:
       LOG(INFO) << "Unhandled character sequence: "
-                << Substring(str, read_index).ToString();
+                << str.Substring(read_index).ToString();
   }
   ++read_index;
   CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());

@@ -28,7 +28,6 @@
 #include "src/insert_mode.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/overload.h"
 #include "src/language/text/line_column.h"
 #include "src/language/wstring.h"

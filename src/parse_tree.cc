@@ -9,7 +9,6 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/language/hash.h"
-#include "src/language/lazy_string/substring.h"
 #include "src/language/text/line_column_vm.h"
 #include "src/url.h"
 #include "src/vm/container.h"
@@ -297,10 +296,11 @@ class WordsTreeParser : public TreeParser {
 
         CHECK_GT(keyword_range.end().column, keyword_range.begin().column);
         // TODO(2022-04-22): Find a way to avoid the call to ToString?
-        auto keyword =
-            Substring(contents.contents(), keyword_range.begin().column,
-                      keyword_range.end().column - keyword_range.begin().column)
-                .ToString();
+        auto keyword = contents.contents()
+                           .Substring(keyword_range.begin().column,
+                                      keyword_range.end().column -
+                                          keyword_range.begin().column)
+                           .ToString();
         ParseTree child = delegate_->FindChildren(buffer, keyword_range);
         if (typos_.find(keyword) != typos_.end()) {
           child.InsertModifier(LineModifier::kRed);
