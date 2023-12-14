@@ -24,7 +24,6 @@ class LineBuilder {
  public:
   LineBuilder() : LineBuilder(language::lazy_string::EmptyString()) {}
 
-  explicit LineBuilder(Line&&);
   explicit LineBuilder(const Line&);
   explicit LineBuilder(language::lazy_string::LazyString input_contents);
 

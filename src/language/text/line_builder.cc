@@ -85,8 +85,6 @@ const bool line_tests_registration = tests::Register(
       }}});
 }
 
-LineBuilder::LineBuilder(Line&& line) : data_(std::move(line.data_)) {}
-
 LineBuilder::LineBuilder(const Line& line) : data_(line.data_) {}
 
 LineBuilder::LineBuilder(language::lazy_string::LazyString input_contents)
