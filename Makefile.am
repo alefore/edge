@@ -185,6 +185,7 @@ src/language/text/delegating_mutable_line_sequence_observer.cc \
 src/language/text/delegating_mutable_line_sequence_observer.h \
 src/language/text/line.cc \
 src/language/text/line.h \
+src/language/text/line_builder.cc \
 src/language/text/line_builder.h \
 src/language/text/line_column.cc \
 src/language/text/line_column.h \
