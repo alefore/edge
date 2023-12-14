@@ -34,6 +34,7 @@ extern "C" {
 #include "src/language/lazy_string/substring.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"

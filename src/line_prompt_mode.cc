@@ -25,6 +25,7 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 #include "src/math/naive_bayes.h"
 #include "src/predictor.h"

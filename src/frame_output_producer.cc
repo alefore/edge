@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "src/language/lazy_string/padding.h"
+#include "src/language/text/line_builder.h"
 
 namespace afc::editor {
 using infrastructure::screen::LineModifier;

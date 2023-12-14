@@ -9,8 +9,10 @@
 #include "src/language/lazy_string/padding.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/text/line_column.h"
 #include "src/tests/tests.h"
+
 namespace afc::editor {
 using ::operator<<;
 

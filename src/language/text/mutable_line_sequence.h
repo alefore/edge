@@ -5,6 +5,7 @@
 #include "src/language/const_tree.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence_observer.h"

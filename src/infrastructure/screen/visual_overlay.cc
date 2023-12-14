@@ -1,5 +1,7 @@
 #include "src/infrastructure/screen/visual_overlay.h"
 
+#include "src/language/text/line_builder.h"
+
 namespace afc::infrastructure::screen {
 using language::MakeNonNullShared;
 using language::NonNull;

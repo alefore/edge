@@ -10,6 +10,7 @@
 #include "src/language/lazy_string/substring.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/text/line.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 

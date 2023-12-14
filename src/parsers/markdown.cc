@@ -7,6 +7,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/substring.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/text/line_sequence.h"
 #include "src/parse_tools.h"
 #include "src/parsers/util.h"

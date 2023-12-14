@@ -12,6 +12,7 @@
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/substring.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
