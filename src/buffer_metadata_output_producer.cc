@@ -144,9 +144,11 @@ ColumnNumberDelta width(const Line& prefix, MetadataLine& line) {
          line.suffix->contents().size();
 }
 
-LineWithCursor::Generator NewGenerator(Line input_prefix, MetadataLine line) {
+LineWithCursor::Generator NewGenerator(
+    NonNull<std::shared_ptr<Line>> input_prefix, MetadataLine line) {
   return LineWithCursor::Generator::New(CaptureAndHash(
-      [](wchar_t info_char, LineModifier modifier, Line suffix, Line prefix) {
+      [](wchar_t info_char, LineModifier modifier, const Line& suffix,
+         const Line& prefix) {
         LineBuilder options;
         if (prefix.empty()) {
           options.AppendCharacter(info_char, {modifier});
@@ -154,11 +156,10 @@ LineWithCursor::Generator NewGenerator(Line input_prefix, MetadataLine line) {
           options.Append(LineBuilder(std::move(prefix)));
         }
         options.Append(LineBuilder(std::move(suffix)));
-        return LineWithCursor{
-            .line = MakeNonNullShared<Line>(std::move(options).Build())};
+        return LineWithCursor{.line = std::move(options).Build()};
       },
       line.info_char, line.modifier, std::move(line.suffix).value(),
-      std::move(input_prefix)));
+      std::move(input_prefix).value()));
 }
 }  // namespace
 
@@ -362,7 +363,7 @@ NonNull<std::shared_ptr<Line>> GetDefaultInformation(
           std::nullopt);
     }
   }
-  return MakeNonNullShared<Line>(std::move(line_options).Build());
+  return std::move(line_options).Build();
 }
 
 template <typename MarkType>
@@ -408,9 +409,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   if (target_buffer.get() != &options.buffer) {
     output.push_back(MetadataLine{
         info_char, info_char_modifier,
-        MakeNonNullShared<const Line>(
-            LineBuilder(OpenBuffer::FlagsToString(target_buffer->Flags()))
-                .Build()),
+        LineBuilder(OpenBuffer::FlagsToString(target_buffer->Flags())).Build(),
         MetadataLine::Type::kFlags});
 #if 0
   } else if (contents.modified()) {
@@ -432,11 +431,9 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         ForEachColumn(metadata, [](ColumnNumber, wchar_t c) {
           CHECK(c != L'\n') << "Metadata has invalid newline character.";
         });
-        output.push_back(
-            MetadataLine{L'>', LineModifier::kGreen,
-                         MakeNonNullShared<const Line>(
-                             LineBuilder(std::move(metadata)).Build()),
-                         MetadataLine::Type::kLineContents});
+        output.push_back(MetadataLine{L'>', LineModifier::kGreen,
+                                      LineBuilder(std::move(metadata)).Build(),
+                                      MetadataLine::Type::kLineContents});
       },
       [] {});
 
@@ -882,9 +879,10 @@ ColumnsVector::Column BufferMetadataOutput(
     CHECK(!metadata_by_line[source].empty());
     MetadataLine& metadata_line = metadata_by_line[source].front();
 
-    Line prefix = std::move(prefix_lines[i.read()]).Build();
+    NonNull<std::shared_ptr<Line>> prefix =
+        std::move(prefix_lines[i.read()]).Build();
     output.lines.width =
-        std::max(output.lines.width, width(prefix, metadata_line));
+        std::max(output.lines.width, width(prefix.value(), metadata_line));
     output.lines.lines.push_back(
         NewGenerator(std::move(prefix), std::move(metadata_line)));
     output.padding.push_back(

@@ -29,8 +29,8 @@ LineWithCursor::Generator::Vector SectionBrackets(
     if (output.size() < lines)
       output.lines.push_back(LineWithCursor::Generator{
           std::hash<std::wstring>{}(c), [c]() {
-            return LineWithCursor{.line = MakeNonNullShared<Line>(
-                                      LineBuilder(NewLazyString(c)).Build())};
+            return LineWithCursor{.line =
+                                      LineBuilder(NewLazyString(c)).Build()};
           }});
   };
   push(section_brackets_side == SectionBracketsSide::kLeft ? L"╭" : L"╮");

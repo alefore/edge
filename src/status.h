@@ -56,7 +56,8 @@ class Status {
   // Returns nullptr if the status type isn't kPrompt.
   const concurrent::VersionPropertyReceiver* prompt_extra_information() const;
 
-  language::text::Line prompt_extra_information_line() const;
+  language::NonNull<std::shared_ptr<language::text::Line>>
+  prompt_extra_information_line() const;
 
   void SetInformationText(
       language::NonNull<std::shared_ptr<language::text::Line>>);

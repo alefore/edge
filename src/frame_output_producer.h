@@ -5,6 +5,7 @@
 #include <string>
 
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
 
@@ -22,7 +23,8 @@ struct FrameOutputProducerOptions {
   std::wstring prefix = L"";
 };
 
-language::text::Line FrameLine(FrameOutputProducerOptions options);
+language::NonNull<std::shared_ptr<language::text::Line>> FrameLine(
+    FrameOutputProducerOptions options);
 }  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_FRAME_OUTPUT_PRODUCER_H__

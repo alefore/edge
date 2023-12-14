@@ -376,7 +376,7 @@ NonNull<std::shared_ptr<Line>> ColorizeLine(
     push_to_position(t.token.end, t.modifiers);
   }
   push_to_position(ColumnNumber() + line.size(), {});
-  return MakeNonNullShared<Line>(std::move(options).Build());
+  return std::move(options).Build();
 }
 
 struct FilterSortHistorySyncOutput {
@@ -627,9 +627,8 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
           editor_state.work_queue()->DeleteLater(
               AddSeconds(Now(), 1.0),
               editor_state.status().SetExpiringInformationText(
-                  MakeNonNullShared<Line>(
-                      LineBuilder(NewLazyString(output.errors.front().read()))
-                          .Build())));
+                  LineBuilder(NewLazyString(output.errors.front().read()))
+                      .Build()));
         }
         if (!abort_value.has_value()) {
           filter_buffer.AppendLines(std::move(output.lines));
@@ -940,43 +939,43 @@ class HistoryScrollBehavior : public ScrollBehavior {
       ReplaceContents(buffer, LineSequence());
       return;
     }
-    filtered_history_.AddListener([delta, buffer_root = buffer.NewRoot(),
-                                   &buffer, original_input = original_input_,
-                                   prompt_state = prompt_state_,
-                                   previous_context = previous_context_](
-                                      gc::Root<OpenBuffer> history_root) {
-      std::shared_ptr<const Line> line_to_insert;
-      OpenBuffer& history = history_root.ptr().value();
-      if (history.contents().size() > LineNumberDelta(1) ||
-          !history.LineAt(LineNumber())->empty()) {
-        LineColumn position = history.position();
-        position.line = std::min(position.line.PlusHandlingOverflow(delta),
-                                 LineNumber() + history.contents().size());
-        history.set_position(position);
-        if (position.line < LineNumber(0) + history.contents().size()) {
-          prompt_state->status().set_context(history_root);
+    filtered_history_.AddListener(
+        [delta, buffer_root = buffer.NewRoot(), &buffer,
+         original_input = original_input_, prompt_state = prompt_state_,
+         previous_context =
+             previous_context_](gc::Root<OpenBuffer> history_root) {
+          std::shared_ptr<const Line> line_to_insert;
+          OpenBuffer& history = history_root.ptr().value();
+          if (history.contents().size() > LineNumberDelta(1) ||
+              !history.LineAt(LineNumber())->empty()) {
+            LineColumn position = history.position();
+            position.line = std::min(position.line.PlusHandlingOverflow(delta),
+                                     LineNumber() + history.contents().size());
+            history.set_position(position);
+            if (position.line < LineNumber(0) + history.contents().size()) {
+              prompt_state->status().set_context(history_root);
+              VisitPointer(
+                  history.CurrentLineOrNull(),
+                  [&line_to_insert](NonNull<std::shared_ptr<const Line>> line) {
+                    line_to_insert = line.get_shared();
+                  },
+                  [] {});
+            } else if (prompt_state->status().context() != previous_context) {
+              prompt_state->status().set_context(previous_context);
+              line_to_insert = original_input.get_shared();
+            }
+          }
+          LineBuilder line_builder;
           VisitPointer(
-              history.CurrentLineOrNull(),
-              [&line_to_insert](NonNull<std::shared_ptr<const Line>> line) {
-                line_to_insert = line.get_shared();
+              line_to_insert,
+              [&](NonNull<std::shared_ptr<const Line>> line) {
+                VLOG(5) << "Inserting line: " << line->ToString();
+                line_builder.Append(LineBuilder(line.value()));
               },
               [] {});
-        } else if (prompt_state->status().context() != previous_context) {
-          prompt_state->status().set_context(previous_context);
-          line_to_insert = original_input.get_shared();
-        }
-      }
-      LineBuilder line_builder;
-      VisitPointer(
-          line_to_insert,
-          [&](NonNull<std::shared_ptr<const Line>> line) {
-            VLOG(5) << "Inserting line: " << line->ToString();
-            line_builder.Append(LineBuilder(line.value()));
-          },
-          [] {});
-      ReplaceContents(buffer, LineSequence::WithLine(MakeNonNullShared<Line>(
-                                  std::move(line_builder).Build())));
-    });
+          ReplaceContents(
+              buffer, LineSequence::WithLine(std::move(line_builder).Build()));
+        });
   }
 
   static void ReplaceContents(OpenBuffer& buffer,
@@ -1193,9 +1192,8 @@ InsertModeOptions PromptState::insert_mode_options() {
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Insert(
-                            {.contents_to_insert =
-                                 LineSequence::WithLine(MakeNonNullShared<Line>(
-                                     LineBuilder(std::move(line)).Build()))}));
+                            {.contents_to_insert = LineSequence::WithLine(
+                                 LineBuilder(std::move(line)).Build())}));
                     prompt_state->OnModify();
                     return EmptyValue();
                   }

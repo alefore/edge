@@ -166,11 +166,11 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
     output.lines.push_back(
         {.inputs_hash = {}, .generate = [children_skipped] {
            return LineWithCursor{
-               .line = MakeNonNullShared<Line>(FrameLine(
+               .line = FrameLine(
                    {.title = L"Additional files: " +
                              std::to_wstring(children_skipped),
                     .active_state =
-                        FrameOutputProducerOptions::ActiveState::kActive}))};
+                        FrameOutputProducerOptions::ActiveState::kActive})};
          }});
   }
 

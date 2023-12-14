@@ -88,8 +88,7 @@ void MutableLineSequence::insert(
           LineBuilder builder(line.value());
           builder.SetAllModifiers(modifiers);
           prefix =
-              Lines::PushBack(
-                  prefix, MakeNonNullShared<Line>(std::move(builder).Build()))
+              Lines::PushBack(std::move(prefix), std::move(builder).Build())
                   .get_shared();
         });
       },
@@ -253,8 +252,7 @@ bool MutableLineSequence::MaybeEraseEmptyFirstLine() {
 void MutableLineSequence::SplitLine(LineColumn position) {
   LineBuilder builder(at(position.line).value());
   builder.DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
-  insert_line(position.line + LineNumberDelta(1),
-              MakeNonNullShared<Line>(std::move(builder).Build()),
+  insert_line(position.line + LineNumberDelta(1), std::move(builder).Build(),
               ObserverBehavior::kHide);
   observer_->SplitLine(position);
   DeleteToLineEnd(position, ObserverBehavior::kHide);
@@ -380,19 +378,15 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
-        insert_line(
-            line_number,
-            MakeNonNullShared<const Line>(
-                LineBuilder(NewLazyString(std::move(text.value))).Build()));
+        insert_line(line_number,
+                    LineBuilder(NewLazyString(std::move(text.value))).Build());
       })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
-        set_line(
-            line_number,
-            MakeNonNullShared<const Line>(
-                LineBuilder(NewLazyString(std::move(text.value))).Build()));
+        set_line(line_number,
+                 LineBuilder(NewLazyString(std::move(text.value))).Build());
       })));
 
   // TODO: Call sort.

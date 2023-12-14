@@ -821,8 +821,7 @@ class OperationMode : public EditorMode {
     output.AppendString(L":", LineModifierSet{LineModifier::kDim});
     state_.AppendStatusString(output);
     AppendStatusForCommandsAvailable(output);
-    editor_state_.status().SetInformationText(
-        MakeNonNullShared<Line>(std::move(output).Build()));
+    editor_state_.status().SetInformationText(std::move(output).Build());
     if (state_.top_command().show_help) {
       LineSequence help = GetGlobalKeyCommandsMap().Help();
       state_.GetHelpBuffer().Transform(
@@ -955,7 +954,7 @@ class OperationMode : public EditorMode {
 
   void AppendStatusForCommandsAvailable(LineBuilder& output) {
     output.AppendString(L"    ", std::nullopt);
-    output.Append(LineBuilder(GetGlobalKeyCommandsMap().SummaryLine()));
+    output.Append(LineBuilder(GetGlobalKeyCommandsMap().SummaryLine().value()));
   }
 
   KeyCommandsMap ReceiveInputTopCommand(TopCommand top_command) {

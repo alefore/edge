@@ -168,8 +168,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
                         std::vector<vm::Type>({vm::types::Void{}})) {
                       LineBuilder line_builder(std::move(line.value()));
                       line_builder.SetMetadata(std::nullopt);
-                      line = MakeNonNullShared<const Line>(
-                          std::move(line_builder).Build());
+                      line = std::move(line_builder).Build();
                     }
                     NonNull<std::shared_ptr<vm::Expression>> expr =
                         std::move(compilation_result.first);
@@ -199,9 +198,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> UpdateLineMetadata(
                 line_builder.SetMetadata(language::text::LineMetadataEntry{
                     .initial_value = NewLazyString(description),
                     .value = std::move(metadata_value)});
-
-                line = MakeNonNullShared<const Line>(
-                    std::move(line_builder).Build());
+                line = std::move(line_builder).Build();
               },
               IgnoreErrors{}},
           buffer.CompileString(line->contents().ToString()));
@@ -605,19 +602,19 @@ void OpenBuffer::SendEndOfFileToProcess() {
   if (Read(buffer_variables::pts)) {
     char str[1] = {4};
     if (write(fd()->fd().read(), str, sizeof(str)) == -1) {
-      status().SetInformationText(MakeNonNullShared<Line>(
+      status().SetInformationText(
           LineBuilder(Append(NewLazyString(L"Sending EOF failed: "),
                              NewLazyString(FromByteString(strerror(errno)))))
-              .Build()));
+              .Build());
       return;
     }
     status().SetInformationText(MakeNonNullShared<Line>(L"EOF sent"));
   } else {
     if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
-      status().SetInformationText(MakeNonNullShared<Line>(
+      status().SetInformationText(
           LineBuilder(Append(NewLazyString(L"shutdown(SHUT_WR) failed: "),
                              NewLazyString(FromByteString(strerror(errno)))))
-              .Build()));
+              .Build());
       return;
     }
     status().SetInformationText(MakeNonNullShared<Line>(L"shutdown sent"));
@@ -1082,8 +1079,7 @@ void OpenBuffer::AppendLine(LazyString str) {
 
 void OpenBuffer::AppendRawLine(
     LazyString str, MutableLineSequence::ObserverBehavior observer_behavior) {
-  AppendRawLine(MakeNonNullShared<Line>(LineBuilder(std::move(str)).Build()),
-                observer_behavior);
+  AppendRawLine(LineBuilder(std::move(str)).Build(), observer_behavior);
 }
 
 void OpenBuffer::AppendRawLine(
@@ -1098,13 +1094,13 @@ void OpenBuffer::AppendToLastLine(LazyString str) {
   AppendToLastLine(LineBuilder(std::move(str)).Build());
 }
 
-void OpenBuffer::AppendToLastLine(Line line) {
+void OpenBuffer::AppendToLastLine(NonNull<std::shared_ptr<const Line>> line) {
   static Tracker tracker(L"OpenBuffer::AppendToLastLine");
   auto tracker_call = tracker.Call();
   auto follower = GetEndPositionFollower();
   LineBuilder options(contents_.back().value());
-  options.Append(LineBuilder(std::move(line)));
-  AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()),
+  options.Append(LineBuilder(std::move(line).value()));
+  AppendRawLine(std::move(options).Build(),
                 MutableLineSequence::ObserverBehavior::kHide);
   contents_.EraseLines(contents_.EndLine() - LineNumberDelta(1),
                        contents_.EndLine(),
@@ -1264,8 +1260,7 @@ void OpenBuffer::MaybeExtendLine(LineColumn position) {
   LineBuilder options(line.value());
   options.Append(LineBuilder(Padding(
       position.column - line->EndColumn() + ColumnNumberDelta(1), L' ')));
-  contents_.set_line(position.line,
-                     MakeNonNullShared<Line>(std::move(options).Build()));
+  contents_.set_line(position.line, std::move(options).Build());
 }
 
 void OpenBuffer::CheckPosition() {
@@ -1331,11 +1326,11 @@ void OpenBuffer::ToggleActiveCursors() {
 
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
-  status_.SetInformationText(MakeNonNullShared<Line>(
+  status_.SetInformationText(
       LineBuilder(Append(NewLazyString(L"cursors stack ("),
                          NewLazyString(std::to_wstring(stack_size)),
                          NewLazyString(L"): +")))
-          .Build()));
+          .Build());
 }
 
 void OpenBuffer::PopActiveCursors() {
@@ -1344,11 +1339,11 @@ void OpenBuffer::PopActiveCursors() {
     status_.InsertError(Error(L"cursors stack: -: Stack is empty!"));
     return;
   }
-  status_.SetInformationText(MakeNonNullShared<Line>(
+  status_.SetInformationText(
       LineBuilder(Append(NewLazyString(L"cursors stack ("),
                          NewLazyString(std::to_wstring(stack_size - 1)),
                          NewLazyString(L"): -")))
-          .Build()));
+          .Build());
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
@@ -1700,11 +1695,11 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
   switch (signal.read()) {
     case SIGINT:
       if (child_pid_ != std::nullopt) {
-        status_.SetInformationText(MakeNonNullShared<Line>(
+        status_.SetInformationText(
             LineBuilder(
                 Append(NewLazyString(L"SIGINT >> pid:"),
                        NewLazyString(std::to_wstring(child_pid_->read()))))
-                .Build()));
+                .Build());
         file_system_driver().Kill(child_pid_.value(), signal);
         return;
       }
@@ -1775,7 +1770,7 @@ void OpenBuffer::InsertLines(
   auto disk_state_freezer = FreezeDiskState();
 
   auto follower = GetEndPositionFollower();
-  AppendToLastLine((*lines_to_insert.begin()).value());
+  AppendToLastLine(lines_to_insert.front());
   // TODO: Avoid the linear complexity operation in the next line. However,
   // according to `tracker_erase`, it doesn't seem to matter much.
   static Tracker tracker_erase(L"FileDescriptorReader::InsertLines::Erase");
@@ -2059,11 +2054,9 @@ OpenBuffer::OpenBufferForCurrentPosition(
                            editor.work_queue()->DeleteLater(
                                AddSeconds(Now(), 1.0),
                                editor.status().SetExpiringInformationText(
-                                   MakeNonNullShared<Line>(
-                                       LineBuilder(
-                                           Append(NewLazyString(L"Open: "),
-                                                  url.ToString()))
-                                           .Build())));
+                                   LineBuilder(Append(NewLazyString(L"Open: "),
+                                                      url.ToString()))
+                                       .Build()));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to
                            // std::wstring from the URL's LazyString.

@@ -78,8 +78,7 @@ gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
                                     range.begin().column.ToDelta());
       delete_buffer.ptr()->AppendToLastLine(std::move(line_options).Build());
     } else {
-      delete_buffer.ptr()->AppendRawLine(
-          MakeNonNullShared<Line>(std::move(line_options).Build()));
+      delete_buffer.ptr()->AppendRawLine(std::move(line_options).Build());
     }
   }
 

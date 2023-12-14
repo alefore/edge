@@ -153,7 +153,7 @@ std::wstring GetOutputComponentsForTesting(std::wstring path,
               ValueOrDie(ValueOrDie(Path::FromString(path)).DirectorySplit()),
               columns, LineModifierSet{}, LineModifierSet{}, LineModifierSet{}))
           .Build()
-          .contents()
+          ->contents()
           .ToString();
   LOG(INFO) << "GetOutputComponentsForTesting: " << path << " -> " << output;
   return output;
@@ -727,8 +727,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             }
             start += columns_width[j];
           }
-          return LineWithCursor{.line = MakeNonNullShared<Line>(
-                                    std::move(line_options_output).Build())};
+          return LineWithCursor{.line = std::move(line_options_output).Build()};
         }});
     index += options->buffers_per_line;
   }

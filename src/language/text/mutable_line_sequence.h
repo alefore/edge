@@ -231,9 +231,7 @@ class MutableLineSequence : public tests::fuzz::FuzzTestable {
     CHECK_LE(line_number, EndLine());
     language::text::LineBuilder options(at(line_number).value());
     callback(options);
-    set_line(line_number,
-             language::MakeNonNullShared<const language::text::Line>(
-                 std::move(options).Build()));
+    set_line(line_number, std::move(options).Build());
   }
 
   NonNull<Lines::Ptr> lines_ = Lines::PushBack(nullptr, {});

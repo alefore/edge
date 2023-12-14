@@ -281,8 +281,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
       continue;
     }
     output_lines.push_back(
-        MakeNonNullShared<Line>(
-            LineBuilder(NewLazyString(std::move(full_path))).Build()),
+        LineBuilder(NewLazyString(std::move(full_path))).Build(),
         MutableLineSequence::ObserverBehavior::kHide);
     ++*matches;
     if (*matches % 100 == 0)
@@ -440,8 +439,7 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
       if (auto result =
               mismatch(input_str.begin(), input_str.end(), (*it).first.begin());
           result.first == input_str.end()) {
-        output_contents.push_back(
-            MakeNonNullShared<Line>(LineBuilder(it->second).Build()));
+        output_contents.push_back(LineBuilder(it->second).Build());
       } else {
         break;
       }
@@ -544,9 +542,8 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
                          }));
 
   return [contents](PredictorInput input) {
-    auto input_line =
-        MakeNonNullShared<const Line>(LineBuilder(input.input).Build());
-
+    NonNull<std::shared_ptr<Line>> input_line =
+        LineBuilder(input.input).Build();
     LineNumber line = contents.sorted_lines().upper_bound(input_line);
 
     // TODO(2023-12-02): Find a way to do this without `ToString`.

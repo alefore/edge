@@ -51,10 +51,10 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
   if (value.IsVoid()) return;
   std::ostringstream oss;
   oss << value;
-  buffer.status().SetInformationText(MakeNonNullShared<Line>(
+  buffer.status().SetInformationText(
       LineBuilder(Append(NewLazyString(L"Value: "),
                          NewLazyString(FromByteString(oss.str()))))
-          .Build()));
+          .Build());
   if (delete_buffer != nullptr) {
     std::istringstream iss(oss.str());
     for (std::string line_str; std::getline(iss, line_str);) {
@@ -80,10 +80,10 @@ futures::Value<PossibleError> PreviewCppExpression(
             return Success();
           })
           .ConsumeErrors([&buffer](Error error) {
-            buffer.status().SetInformationText(MakeNonNullShared<Line>(
+            buffer.status().SetInformationText(
                 LineBuilder(
                     Append(NewLazyString(L"E: "), NewLazyString(error.read())))
-                    .Build()));
+                    .Build());
             return futures::Past(EmptyValue());
           })
           .Transform([](EmptyValue) { return futures::Past(Success()); });
@@ -348,14 +348,12 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                   if (input.mode == Input::Mode::kPreview &&
                       input.buffer.status().text()->empty()) {
                     input.buffer.status().SetInformationText(
-                        MakeNonNullShared<Line>(
-                            LineBuilder(
-                                ToString(AnalyzeContent(
-                                    contents,
-                                    LineNumberDelta(input.buffer.Read(
-                                        buffer_variables::
-                                            analyze_content_lines_limit)))))
-                                .Build()));
+                        LineBuilder(ToString(AnalyzeContent(
+                                        contents,
+                                        LineNumberDelta(input.buffer.Read(
+                                            buffer_variables::
+                                                analyze_content_lines_limit)))))
+                            .Build());
                   }
                   return futures::Past(std::move(*output));
                 });

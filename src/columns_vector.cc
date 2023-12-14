@@ -164,9 +164,8 @@ LineWithCursor::Generator::Vector OutputFromColumnsVector(
                 std::max(0, wcswidth(str.c_str(), str.size())));
             options.Append(LineBuilder(std::move(column_data.line.value())));
           }
-          return LineWithCursor{
-              .line = MakeNonNullShared<Line>(std::move(options).Build()),
-              .cursor = cursor};
+          return LineWithCursor{.line = std::move(options).Build(),
+                                .cursor = cursor};
         }});
   }
   return output;

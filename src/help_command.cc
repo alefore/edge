@@ -33,7 +33,7 @@ using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 
 namespace afc::editor {
-Line DescribeSequence(const std::vector<ExtendedChar>& input) {
+LineBuilder DescribeSequence(const std::vector<ExtendedChar>& input) {
   LineBuilder output;
   for (const ExtendedChar& c : input)
     std::visit(overload{[&](wchar_t regular_c) {
@@ -109,16 +109,16 @@ Line DescribeSequence(const std::vector<ExtendedChar>& input) {
                           }
                         }},
                c);
-  return std::move(output).Build();
+  return output;
 }
 
-Line DescribeSequenceWithQuotes(
+LineBuilder DescribeSequenceWithQuotes(
     const std::vector<infrastructure::ExtendedChar>& input) {
   LineBuilder output;
   output.AppendString(L"`", LineModifierSet{LineModifier::kDim});
-  output.Append(LineBuilder(DescribeSequence(input)));
+  output.Append(DescribeSequence(input));
   output.AppendString(L"`", LineModifierSet{LineModifier::kDim});
-  return std::move(output).Build();
+  return output;
 }
 
 namespace {
@@ -211,9 +211,9 @@ class HelpCommand : public Command {
       for (const auto& [input, command] : category.second) {
         LineBuilder line;
         line.AppendString(L"* ", std::nullopt);
-        line.Append(LineBuilder(DescribeSequenceWithQuotes(input)));
+        line.Append(DescribeSequenceWithQuotes(input));
         line.AppendString(L" - " + command->Description(), std::nullopt);
-        output.push_back(MakeNonNullShared<Line>(std::move(line).Build()));
+        output.push_back(std::move(line).Build());
       }
       output.push_back(L"");
     }
@@ -245,12 +245,12 @@ class HelpCommand : public Command {
                                  ? 0
                                  : kPaddingSize - field_name.size(),
                              L' ');
-        output.push_back(MakeNonNullShared<Line>(
+        output.push_back(
             LineBuilder(Append(NewLazyString(L"* `"), NewLazyString(field_name),
                                NewLazyString(L"`" + std::move(padding) + L"`"),
                                NewLazyString(
                                    FromByteString(value_stream.str()) + L"`")))
-                .Build()));
+                .Build());
       });
       output.push_back(L"");
     });
@@ -272,12 +272,12 @@ class HelpCommand : public Command {
       std::stringstream value_stream;
       value_stream << value.value();
 
-      output.push_back(MakeNonNullShared<Line>(
+      output.push_back(
           LineBuilder(
               Append(NewLazyString(L"* `"), NewLazyString(name),
                      NewLazyString(L"`" + std::move(padding) + L"`"),
                      NewLazyString(FromByteString(value_stream.str()) + L"`")))
-              .Build()));
+              .Build());
     });
     output.push_back(L"");
   }
@@ -289,23 +289,22 @@ class HelpCommand : public Command {
                                 EdgeStruct<T>* variables, C print) {
     StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {
-      output.push_back(MakeNonNullShared<Line>(
+      output.push_back(
           LineBuilder(Append(NewLazyString(L"#### "),
                              NewLazyString(variable.second->name())))
-              .Build()));
+              .Build());
       output.push_back(L"");
       output.push_back(variable.second->description());
       output.push_back(L"");
-      output.push_back(MakeNonNullShared<Line>(
-          LineBuilder(Append(NewLazyString(L"* Value: "),
-                             NewLazyString(
-                                 print(source.Read(&variable.second.value())))))
-              .Build()));
-      output.push_back(MakeNonNullShared<Line>(
+      output.push_back(LineBuilder(Append(NewLazyString(L"* Value: "),
+                                          NewLazyString(print(source.Read(
+                                              &variable.second.value())))))
+                           .Build());
+      output.push_back(
           LineBuilder(
               Append(NewLazyString(L"* Default: "),
                      NewLazyString(print(variable.second->default_value()))))
-              .Build()));
+              .Build());
 
       if (!variable.second->key().empty()) {
         output.push_back(L"* Related commands: `v" + variable.second->key() +

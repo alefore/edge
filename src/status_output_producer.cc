@@ -196,7 +196,8 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     LineBuilder suffix(contents.value());
     suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
     output.Append(std::move(suffix));
-    output.Append(LineBuilder(options.status.prompt_extra_information_line()));
+    output.Append(
+        LineBuilder(options.status.prompt_extra_information_line().value()));
   } else {
     VLOG(6) << "Not setting status cursor.";
     output.Append(LineBuilder(options.status.text().value()));
@@ -209,9 +210,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       }
     }
   }
-  return LineWithCursor{
-      .line = MakeNonNullShared<Line>(std::move(output).Build()),
-      .cursor = cursor};
+  return LineWithCursor{.line = std::move(output).Build(), .cursor = cursor};
 }
 
 LineNumberDelta context_lines(const StatusOutputOptions& options) {

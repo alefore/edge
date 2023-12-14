@@ -12,9 +12,9 @@
 #include "src/language/text/line.h"
 
 namespace afc::editor {
-language::text::Line DescribeSequence(
+language::text::LineBuilder DescribeSequence(
     const std::vector<infrastructure::ExtendedChar>& input);
-language::text::Line DescribeSequenceWithQuotes(
+language::text::LineBuilder DescribeSequenceWithQuotes(
     const std::vector<infrastructure::ExtendedChar>& input);
 
 language::gc::Root<Command> NewHelpCommand(

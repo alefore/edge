@@ -167,10 +167,9 @@ futures::Value<PossibleError> Save(
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
                   buffer.ptr()->status().SetInformationText(
-                      MakeNonNullShared<Line>(
-                          LineBuilder(Append(NewLazyString(L"🖫 Saved: "),
-                                             NewLazyString(path.read())))
-                              .Build()));
+                      LineBuilder(Append(NewLazyString(L"🖫 Saved: "),
+                                         NewLazyString(path.read())))
+                          .Build());
                   // TODO(easy): Move this to the caller, for symmetry with
                   // kBackup case.
                   // TODO: Since the save is async, what if the contents have

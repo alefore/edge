@@ -85,8 +85,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
           line_options.AppendString(
               Append(padding, NewLazyString(number + L":")),
               modifiers.container);
-          return LineWithCursor{
-              .line = MakeNonNullShared<Line>(std::move(line_options).Build())};
+          return LineWithCursor{.line = std::move(line_options).Build()};
         },
         screen_line.range, output.width,
         HashableContainer<LineModifierSet>(

@@ -37,8 +37,7 @@ using language::text::MutableLineSequence;
 void TestMutableLineSequenceSnapshot() {
   MutableLineSequence contents;
   for (auto& s : {L"alejandro", L"forero", L"cuervo"}) {
-    contents.push_back(
-        MakeNonNullShared<Line>(LineBuilder(NewLazyString(s)).Build()));
+    contents.push_back(LineBuilder(NewLazyString(s)).Build());
   }
   auto copy = contents.copy();
   CHECK_EQ("\nalejandro\nforero\ncuervo",
@@ -58,17 +57,13 @@ void TestBufferInsertModifiers() {
   LineBuilder options(NewLazyString(L"alejo"));
   options.set_modifiers(ColumnNumber(0), LineModifierSet{LineModifier::kCyan});
 
-  contents.push_back(
-      MakeNonNullShared<Line>(options.Copy().Build()));  // LineNumber(1).
-  contents.push_back(
-      MakeNonNullShared<Line>(options.Copy().Build()));  // LineNumber(2).
+  contents.push_back(options.Copy().Build());  // LineNumber(1).
+  contents.push_back(options.Copy().Build());  // LineNumber(2).
   options.set_modifiers(ColumnNumber(2), {LineModifier::kBold});
-  contents.push_back(
-      MakeNonNullShared<Line>(options.Copy().Build()));  // LineNumber(3).
+  contents.push_back(options.Copy().Build());  // LineNumber(3).
   LineBuilder new_line(contents.at(LineNumber(1)).value());
   new_line.SetAllModifiers(LineModifierSet({LineModifier::kDim}));
-  contents.push_back(
-      MakeNonNullShared<Line>(std::move(new_line).Build()));  // LineNumber(4).
+  contents.push_back(std::move(new_line).Build());  // LineNumber(4).
 
   for (int i = 0; i < 2; i++) {
     LOG(INFO) << "Start iteration: " << i;

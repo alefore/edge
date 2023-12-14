@@ -87,13 +87,13 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
 
 void StartDeleteFile(EditorState& editor_state, std::wstring path) {
   int result = unlink(ToByteString(path).c_str());
-  editor_state.status().SetInformationText(MakeNonNullShared<Line>(
+  editor_state.status().SetInformationText(
       LineBuilder(Append(NewLazyString(path), NewLazyString(L": unlink: "),
                          NewLazyString(result == 0 ? L"done"
                                                    : L"ERROR: " +
                                                          FromByteString(
                                                              strerror(errno)))))
-          .Build()));
+          .Build());
 }
 
 #if 0
@@ -171,7 +171,7 @@ NonNull<std::shared_ptr<const Line>> ShowLine(EditorState& editor,
   line_options.SetExplicitDeleteObserver(
       [&editor, path] { StartDeleteFile(editor, path); });
 
-  return MakeNonNullShared<Line>(std::move(line_options).Build());
+  return std::move(line_options).Build();
 }
 
 LineSequence ShowFiles(EditorState& editor, std::wstring name,
@@ -182,11 +182,10 @@ LineSequence ShowFiles(EditorState& editor, std::wstring name,
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  MutableLineSequence output =
-      MutableLineSequence::WithLine(MakeNonNullShared<Line>(
-          LineBuilder(NewLazyString(L"## " + name + L" (" +
-                                    std::to_wstring(entries.size()) + L")"))
-              .Build()));
+  MutableLineSequence output = MutableLineSequence::WithLine(
+      LineBuilder(NewLazyString(L"## " + name + L" (" +
+                                std::to_wstring(entries.size()) + L")"))
+          .Build());
   output.append_back(std::move(entries) | std::views::transform(std::bind_front(
                                               ShowLine, std::ref(editor))));
   output.push_back(L"");

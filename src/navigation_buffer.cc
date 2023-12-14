@@ -69,7 +69,7 @@ void AppendLine(OpenBuffer& source, LazyString padding, LineColumn position,
   options.SetOutgoingLink(
       OutgoingLink{.path = source.name().read(), .line_column = position});
   AddContents(source, *source.LineAt(position.line), &options);
-  target.AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()));
+  target.AppendRawLine(std::move(options).Build());
 }
 
 void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
@@ -97,7 +97,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
       options.SetOutgoingLink(OutgoingLink{
           .path = source.name().read(), .line_column = child.range().begin()});
 
-      target.AppendRawLine(MakeNonNullShared<Line>(std::move(options).Build()));
+      target.AppendRawLine(std::move(options).Build());
       continue;
     }
 

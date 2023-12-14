@@ -9,14 +9,16 @@
 #include "src/language/lazy_string/padding.h"
 #include "src/language/text/line_builder.h"
 
-namespace afc::editor {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::Line;
-using language::text::LineBuilder;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 
-Line FrameLine(FrameOutputProducerOptions options) {
+namespace afc::editor {
+
+NonNull<std::shared_ptr<Line>> FrameLine(FrameOutputProducerOptions options) {
   LineModifierSet line_modifiers =
       options.active_state == FrameOutputProducerOptions::ActiveState::kInactive
           ? LineModifierSet({LineModifier::kDim})

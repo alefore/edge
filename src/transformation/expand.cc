@@ -124,11 +124,11 @@ class PredictorTransformation : public CompositeTransformation {
                           results->predictor_output.longest_prefix);
             if (!prefix.size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
-              buffer.status().SetInformationText(MakeNonNullShared<Line>(
+              buffer.status().SetInformationText(
                   LineBuilder(Append(NewLazyString(L"No matches found. Longest "
                                                    L"prefix with matches: \""),
                                      prefix, NewLazyString(L"\"")))
-                      .Build()));
+                      .Build());
             }
             return Output();
           }

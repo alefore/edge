@@ -59,20 +59,19 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
     marks_by_source[data.second.source_buffer].push_back(
         MarkView{.expired = true,
                  .target = data.first,
-                 .text = MakeNonNullShared<Line>(
-                     LineBuilder(data.second.source_line_content).Build())});
+                 .text = LineBuilder(data.second.source_line_content).Build()});
   for (std::pair<const BufferName, std::vector<MarkView>> data :
        std::move(marks_by_source)) {
     output.push_back(L"");
     output.push_back(L"### Source: " + data.first.read());
-    output.append_back(
-        std::move(data.second) |
-        std::views::transform(
-            [](MarkView mark) -> NonNull<std::shared_ptr<Line>> {
-              LineBuilder line_output(NewLazyString(L"* "));
-              line_output.Append(LineBuilder(std::move(mark.text.value())));
-              return MakeNonNullShared<Line>(std::move(line_output).Build());
-            }));
+    output.append_back(std::move(data.second) |
+                       std::views::transform(
+                           [](MarkView mark) -> NonNull<std::shared_ptr<Line>> {
+                             LineBuilder line_output(NewLazyString(L"* "));
+                             line_output.Append(
+                                 LineBuilder(std::move(mark.text.value())));
+                             return std::move(line_output).Build();
+                           }));
   }
   return output.snapshot();
 }

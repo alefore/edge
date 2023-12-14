@@ -25,7 +25,6 @@ using afc::futures::DeleteNotification;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
-using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::Append;
@@ -89,28 +88,27 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
   const HistoryFile history_file(L"values");
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
-    Prompt(
-        {.editor_state = editor_state,
-         .prompt = Append(NewLazyString(name), NewLazyString(L" := ")),
-         .history_file = history_file,
-         .initial_value = active_buffers[0].ptr()->Read(var),
-         .handler =
-             [&editor_state, var](LazyString input) {
-               editor_state.ResetRepetitions();
-               return editor_state.ForEachActiveBuffer(
-                   [var, input](OpenBuffer& buffer) {
-                     // TODO(easy, 2022-06-05): Get rid of calls to ToString.
-                     buffer.Set(var, input.ToString());
-                     buffer.status().SetInformationText(MakeNonNullShared<Line>(
-                         LineBuilder(Append(NewLazyString(var->name()),
-                                            NewLazyString(L" := "), input))
-                             .Build()));
-                     return futures::Past(EmptyValue());
-                   });
-             },
-         .cancel_handler = []() { /* Nothing. */ },
-         .predictor = var->predictor(),
-         .status = PromptOptions::Status::kBuffer});
+    Prompt({.editor_state = editor_state,
+            .prompt = Append(NewLazyString(name), NewLazyString(L" := ")),
+            .history_file = history_file,
+            .initial_value = active_buffers[0].ptr()->Read(var),
+            .handler =
+                [&editor_state, var](LazyString input) {
+                  editor_state.ResetRepetitions();
+                  return editor_state.ForEachActiveBuffer(
+                      [var, input](OpenBuffer& buffer) {
+                        // TODO(easy, 2022-06-05): Get rid of calls to ToString.
+                        buffer.Set(var, input.ToString());
+                        buffer.status().SetInformationText(
+                            LineBuilder(Append(NewLazyString(var->name()),
+                                               NewLazyString(L" := "), input))
+                                .Build());
+                        return futures::Past(EmptyValue());
+                      });
+                },
+            .cancel_handler = []() { /* Nothing. */ },
+            .predictor = var->predictor(),
+            .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
 
@@ -118,11 +116,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
       var != nullptr) {
     editor_state.toggle_bool_variable(var);
     editor_state.ResetRepetitions();
-    editor_state.status().SetInformationText(MakeNonNullShared<Line>(
+    editor_state.status().SetInformationText(
         LineBuilder(
             Append(NewLazyString(editor_state.Read(var) ? L"🗸 " : L"⛶ "),
                    NewLazyString(name)))
-            .Build()));
+            .Build());
     return futures::Past(EmptyValue());
   }
   if (auto var = editor_variables::DoubleStruct()->find_variable(name);
@@ -156,11 +154,11 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     return editor_state
         .ForEachActiveBuffer([var, name](OpenBuffer& buffer) {
           buffer.toggle_bool_variable(var);
-          buffer.status().SetInformationText(MakeNonNullShared<Line>(
+          buffer.status().SetInformationText(
               LineBuilder(
                   Append(NewLazyString((buffer.Read(var) ? L"🗸 " : L"⛶ ")),
                          NewLazyString(name)))
-                  .Build()));
+                  .Build());
           return futures::Past(EmptyValue());
         })
         .Transform([&editor_state](EmptyValue) {

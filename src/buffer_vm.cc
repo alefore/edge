@@ -587,21 +587,23 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           [](gc::Root<OpenBuffer> buffer) {
             buffer.ptr()->AppendLines(container::MaterializeVector(
                 Tracker::GetData() |
-                std::views::transform([](Tracker::Data data) {
-                  return MakeNonNullShared<const Line>(
-                      LineBuilder(Append(Append(NewLazyString(L"\""),
-                                                NewLazyString(data.name),
-                                                NewLazyString(L"\","),
-                                                NewLazyString(std::to_wstring(
-                                                    data.executions))),
-                                         Append(NewLazyString(L","),
-                                                NewLazyString(std::to_wstring(
-                                                    data.seconds)),
-                                                NewLazyString(L","),
-                                                NewLazyString(std::to_wstring(
-                                                    data.longest_seconds)))))
-                          .Build());
-                })));
+                std::views::transform(
+                    [](Tracker::Data data)
+                        -> NonNull<std::shared_ptr<const Line>> {
+                      return LineBuilder(
+                                 Append(Append(NewLazyString(L"\""),
+                                               NewLazyString(data.name),
+                                               NewLazyString(L"\","),
+                                               NewLazyString(std::to_wstring(
+                                                   data.executions))),
+                                        Append(NewLazyString(L","),
+                                               NewLazyString(std::to_wstring(
+                                                   data.seconds)),
+                                               NewLazyString(L","),
+                                               NewLazyString(std::to_wstring(
+                                                   data.longest_seconds)))))
+                          .Build();
+                    })));
           })
           .ptr());
 

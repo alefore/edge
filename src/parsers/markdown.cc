@@ -129,8 +129,8 @@ class MarkdownParser : public LineOrientedTreeParser {
 
   bool IsTypo(LazyString symbol) const {
     if (dictionary_.lines().range().IsEmpty()) return false;
-    LineNumber line = dictionary_.upper_bound(
-        MakeNonNullShared<const Line>(LineBuilder(LowerCase(symbol)).Build()));
+    LineNumber line =
+        dictionary_.upper_bound(LineBuilder(LowerCase(symbol)).Build());
     if (line.IsZero()) return false;
 
     --line;

@@ -58,8 +58,7 @@ LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
                   LineBuilder options;
                   options.AppendString(Padding(ColumnNumberDelta(80), L'█'),
                                        LineModifierSet{m});
-                  return LineWithCursor{.line = MakeNonNullShared<Line>(
-                                            std::move(options).Build())};
+                  return LineWithCursor{.line = std::move(options).Build()};
                 },
                 modifier));
           }))};

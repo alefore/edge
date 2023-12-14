@@ -55,8 +55,7 @@ LineWithCursor::Generator ApplyVisualOverlay(
   return LineWithCursor::Generator{
       std::nullopt, [overlays = std::move(overlays), generator]() {
         LineWithCursor output = generator.generate();
-        output.line = MakeNonNullShared<Line>(
-            ApplyVisualOverlayMap(overlays, output.line.value()));
+        output.line = ApplyVisualOverlayMap(overlays, output.line.value());
         return output;
       }};
 }
@@ -78,7 +77,7 @@ LineWithCursor::Generator LineHighlighter(LineWithCursor::Generator generator) {
           new_modifiers[m.first] = m.second;
         }
         line_options.set_modifiers(std::move(new_modifiers));
-        output.line = MakeNonNullShared<Line>(std::move(line_options).Build());
+        output.line = std::move(line_options).Build();
         return output;
       }};
 }
@@ -95,7 +94,7 @@ LineWithCursor::Generator ParseTreeHighlighter(
                         modifiers.lower_bound(end));
         modifiers[begin] = {LineModifier::kBlue};
         line_options.set_modifiers(std::move(modifiers));
-        output.line = MakeNonNullShared<Line>(std::move(line_options).Build());
+        output.line = std::move(line_options).Build();
         return output;
       }};
 }
@@ -186,7 +185,7 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     }
     options.set_modifiers(std::move(merged_modifiers));
 
-    input.line = MakeNonNullShared<Line>(std::move(options).Build());
+    input.line = std::move(options).Build();
     return input;
   };
   return generator;

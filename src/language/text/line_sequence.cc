@@ -53,11 +53,8 @@ LineSequence LineSequence::ViewRange(Range range) const {
   if (range.end().column < output->Get(output->size() - 1)->EndColumn()) {
     LineBuilder replacement(output->Get(output->size() - 1).value());
     replacement.DeleteSuffix(range.end().column);
-    output =
-        output
-            ->Replace(output->size() - 1,
-                      MakeNonNullShared<Line>(std::move(replacement).Build()))
-            .get_shared();
+    output = output->Replace(output->size() - 1, std::move(replacement).Build())
+                 .get_shared();
   }
 
   if (!range.begin().column.IsZero()) {
@@ -65,10 +62,7 @@ LineSequence LineSequence::ViewRange(Range range) const {
     replacement.DeleteCharacters(
         ColumnNumber(0),
         std::min(output->Get(0)->EndColumn(), range.begin().column).ToDelta());
-    output = output
-                 ->Replace(
-                     0, MakeNonNullShared<Line>(std::move(replacement).Build()))
-                 .get_shared();
+    output = output->Replace(0, std::move(replacement).Build()).get_shared();
   }
 
   return VisitPointer(

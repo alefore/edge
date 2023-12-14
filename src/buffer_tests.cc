@@ -126,8 +126,7 @@ const bool buffer_tests_registration = tests::Register(
                options.SetMetadata(language::text::LineMetadataEntry{
                    .initial_value = NewLazyString(L"bar"),
                    .value = futures::Past(NewLazyString(L"quux"))});
-               buffer.ptr()->AppendRawLine(
-                   MakeNonNullShared<Line>(std::move(options).Build()));
+               buffer.ptr()->AppendRawLine(std::move(options).Build());
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();
                CHECK(buffer.ptr()->contents().back()->metadata()->ToString() ==

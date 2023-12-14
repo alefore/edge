@@ -423,11 +423,11 @@ void HandleSearchResults(
   } else {
     // TODO(easy, 2023-09-08): Convert `results_prefix` to use Padding?
     std::wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');
-    buffer.status().SetInformationText(MakeNonNullShared<Line>(
+    buffer.status().SetInformationText(
         LineBuilder(Append(NewLazyString(results_prefix),
                            NewLazyString(L" Results: "),
                            NewLazyString(std::to_wstring(size))))
-            .Build()));
+            .Build());
   }
   std::vector<audio::Frequency> frequencies = {
       audio::Frequency(440.0), audio::Frequency(440.0),

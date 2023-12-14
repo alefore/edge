@@ -127,11 +127,11 @@ Status::Type Status::GetType() const {
 
 void Status::set_prompt(LazyString text, gc::Root<OpenBuffer> buffer) {
   ValidatePreconditions();
-  data_ = MakeNonNullShared<Data>(Data{
-      .type = Status::Type::kPrompt,
-      .text = MakeNonNullShared<Line>(LineBuilder(std::move(text)).Build()),
-      .prompt_buffer = std::move(buffer),
-      .extra_information = std::make_unique<VersionPropertyReceiver>()});
+  data_ = MakeNonNullShared<Data>(
+      Data{.type = Status::Type::kPrompt,
+           .text = LineBuilder(std::move(text)).Build(),
+           .prompt_buffer = std::move(buffer),
+           .extra_information = std::make_unique<VersionPropertyReceiver>()});
   ValidatePreconditions();
 }
 
@@ -159,7 +159,7 @@ const VersionPropertyReceiver* Status::prompt_extra_information() const {
   return data_->extra_information.get();
 }
 
-Line Status::prompt_extra_information_line() const {
+NonNull<std::shared_ptr<Line>> Status::prompt_extra_information_line() const {
   static const auto dim = LineModifierSet{LineModifier::kDim};
   static const auto empty = LineModifierSet{};
 
@@ -255,8 +255,7 @@ void Status::Set(Error error) {
   text.AppendString(NewLazyString(std::move(error.read())),
                     LineModifierSet({LineModifier::kRed, LineModifier::kBold}));
   data_ = MakeNonNullShared<Data>(
-      Data{.type = Type::kWarning,
-           .text = MakeNonNullShared<Line>(std::move(text).Build())});
+      Data{.type = Type::kWarning, .text = std::move(text).Build()});
 
   ValidatePreconditions();
 }
@@ -312,7 +311,7 @@ void Status::Bell() {
              NewLazyString(std::wstring(1ul, notes.at(rand() % notes.size())))),
       LineModifierSet{colors.at(rand() % colors.size()),
                       effects.at(rand() % effects.size())});
-  data_->text = MakeNonNullShared<Line>(std::move(output).Build());
+  data_->text = std::move(output).Build();
 }
 
 NonNull<std::shared_ptr<Line>> Status::text() const {

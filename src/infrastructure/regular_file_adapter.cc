@@ -49,8 +49,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
       line_options.set_contents(
           Substring(contents, line_start, ColumnNumber(i) - line_start));
       line_options.set_modifiers(ColumnNumber(0), modifiers);
-      lines_to_insert.emplace_back(
-          MakeNonNullShared<const Line>(std::move(line_options).Build()));
+      lines_to_insert.emplace_back(std::move(line_options).Build());
 
       line_start = ColumnNumber(i) + ColumnNumberDelta(1);
     }
@@ -61,8 +60,7 @@ std::vector<NonNull<std::shared_ptr<const Line>>> CreateLineInstances(
   LineBuilder line_options;
   line_options.set_contents(Substring(contents, line_start));
   line_options.set_modifiers(ColumnNumber(0), modifiers);
-  lines_to_insert.emplace_back(
-      MakeNonNullShared<Line>(std::move(line_options).Build()));
+  lines_to_insert.emplace_back(std::move(line_options).Build());
   return lines_to_insert;
 }
 

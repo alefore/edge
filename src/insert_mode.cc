@@ -123,8 +123,7 @@ class NewLineTransformation : public CompositeTransformation {
       LineBuilder line_without_suffix(*line);
       line_without_suffix.DeleteSuffix(prefix_end);
       MutableLineSequence contents_to_insert;
-      contents_to_insert.push_back(
-          MakeNonNullShared<Line>(std::move(line_without_suffix).Build()));
+      contents_to_insert.push_back(std::move(line_without_suffix).Build());
       output.Push(transformation::Insert{.contents_to_insert =
                                              contents_to_insert.snapshot()});
     }
@@ -662,9 +661,7 @@ class InsertMode : public InputReceiver {
                         return buffer_input.value.ApplyToCursors(
                             transformation::Insert{
                                 .contents_to_insert = LineSequence::WithLine(
-                                    MakeNonNullShared<Line>(
-                                        LineBuilder(NewLazyString(L" "))
-                                            .Build())),
+                                    LineBuilder(NewLazyString(L" ")).Build()),
                                 .modifiers = {.insertion = modify_mode}});
                       }},
                   GetPasteModeVariant(buffer));
@@ -964,11 +961,11 @@ class InsertMode : public InputReceiver {
       CompletionModelManager::Text text) {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
-        buffer.status().SetExpiringInformationText(MakeNonNullShared<Line>(
+        buffer.status().SetExpiringInformationText(
             LineBuilder(Append(NewLazyString(L"`"), compressed_text,
                                Append(NewLazyString(L"` is an alias for `"),
                                       text, NewLazyString(L"`"))))
-                .Build())));
+                .Build()));
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
@@ -980,12 +977,10 @@ class InsertMode : public InputReceiver {
     const LineColumn position =
         buffer.value.AdjustLineColumn(buffer.value.position());
     Range token_range = GetTokenRange(buffer.value);
-    futures::Value<EmptyValue> output =
-        buffer.value.ApplyToCursors(transformation::Insert{
-            .contents_to_insert =
-                LineSequence::WithLine(MakeNonNullShared<Line>(
-                    LineBuilder(NewLazyString(L" ")).Build())),
-            .modifiers = {.insertion = modify_mode}});
+    futures::Value<EmptyValue> output = buffer.value.ApplyToCursors(
+        transformation::Insert{.contents_to_insert = LineSequence::WithLine(
+                                   LineBuilder(NewLazyString(L" ")).Build()),
+                               .modifiers = {.insertion = modify_mode}});
 
     if (model_paths->empty()) {
       VLOG(5) << "No tokens found in buffer_variables::completion_model_paths.";
@@ -1039,9 +1034,8 @@ class InsertMode : public InputReceiver {
                 const ColumnNumberDelta completion_text_size =
                     completion_text.size();
                 stack.PushBack(transformation::Insert{
-                    .contents_to_insert =
-                        LineSequence::WithLine(MakeNonNullShared<Line>(
-                            LineBuilder(std::move(completion_text)).Build())),
+                    .contents_to_insert = LineSequence::WithLine(
+                        LineBuilder(std::move(completion_text)).Build()),
                     .modifiers = {.insertion = modify_mode},
                     .position = position_start});
                 stack.PushBack(transformation::SetPosition(

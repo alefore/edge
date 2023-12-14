@@ -54,8 +54,8 @@ VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
 // Returns a copy of Line after applying all overlays. The LineColumn.line
 // values in the keys will be ignored: all overlays in the map will be applied,
 // regardless of the line they declare.
-language::text::Line ApplyVisualOverlayMap(const VisualOverlayMap& overlays,
-                                           language::text::Line& line);
+language::NonNull<std::shared_ptr<language::text::Line>> ApplyVisualOverlayMap(
+    const VisualOverlayMap& overlays, language::text::Line& line);
 
 }  // namespace afc::infrastructure::screen
 #endif  // __AFC_INFRASTRUCTURE_SCREEN_VISUAL_OVERLAY_H__

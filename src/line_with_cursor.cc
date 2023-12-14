@@ -210,8 +210,7 @@ LineWithCursor LineWithCursor::View(
     line_with_cursor.cursor = ColumnNumber() + line_output.contents().size();
   }
 
-  line_with_cursor.line =
-      MakeNonNullShared<Line>(std::move(line_output).Build());
+  line_with_cursor.line = std::move(line_output).Build();
   return line_with_cursor;
 }
 }  // namespace afc::editor

@@ -521,11 +521,11 @@ std::optional<LazyString> EditorState::GetExitNotice() const {
 }
 
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
-  status().SetInformationText(MakeNonNullShared<Line>(
+  status().SetInformationText(
       LineBuilder(Append(NewLazyString(L"Exit: Preparing to close buffers ("),
                          NewLazyString(std::to_wstring(buffers_.size())),
                          NewLazyString(L")")))
-          .Build()));
+          .Build());
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
     if (auto buffers_with_problems =
@@ -635,13 +635,13 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             }
             count++;
           }
-          status().SetInformationText(MakeNonNullShared<Line>(
+          status().SetInformationText(
               LineBuilder(
                   Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
                          NewLazyString(
                              std::to_wstring(data->pending_buffers.size())),
                          NewLazyString(extra)))
-                  .Build()));
+                  .Build());
           return futures::Past(EmptyValue());
         });
 }

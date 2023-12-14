@@ -226,7 +226,8 @@ class OpenBuffer {
           language::text::MutableLineSequence::ObserverBehavior::kShow);
 
   void AppendToLastLine(language::lazy_string::LazyString str);
-  void AppendToLastLine(language::text::Line line);
+  void AppendToLastLine(
+      language::NonNull<std::shared_ptr<const language::text::Line>> line);
 
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
