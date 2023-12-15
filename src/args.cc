@@ -16,6 +16,7 @@ extern "C" {
 
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -23,18 +24,21 @@ extern "C" {
 #include "src/tests/benchmarks.h"
 #include "src/vm/escape.h"
 
-namespace afc::editor {
-using infrastructure::Path;
-using infrastructure::PathComponent;
-using language::Error;
-using language::FromByteString;
-using language::IgnoreErrors;
-using language::overload;
-using language::Success;
-using language::ValueOrDie;
-using language::ValueOrError;
-using language::lazy_string::NewLazyString;
+using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::IgnoreErrors;
+using afc::language::NewError;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrDie;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::Concatenate;
+using afc::language::lazy_string::Intersperse;
+using afc::language::lazy_string::NewLazyString;
 
+namespace afc::editor {
 namespace {
 static Path GetHomeDirectory() {
   char* env = getenv("HOME");
@@ -215,19 +219,20 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Set<std::wstring>(
               &CommandLineValues::benchmark,
               [](std::wstring input) -> ValueOrError<std::wstring> {
-                auto benchmarks = tests::BenchmarkNames();
+                std::vector<std::wstring> benchmarks = tests::BenchmarkNames();
                 if (std::find(benchmarks.begin(), benchmarks.end(), input) !=
                     benchmarks.end()) {
                   return input;
                 }
-                std::wstring error = L"Invalid value (valid values: ";
-                std::wstring sep;
-                for (auto& b : benchmarks) {
-                  error += sep + b;
-                  sep = L", ";
-                }
-                error += L")";
-                return Error(error);
+                return NewError(
+                    Append(NewLazyString(L"Invalid value (valid values: "),
+                           Concatenate(
+                               benchmarks |
+                               std::views::transform([](const std::wstring& b) {
+                                 return NewLazyString(b);
+                               }) |
+                               Intersperse(NewLazyString(L", "))),
+                           NewLazyString(L")")));
               }),
 
       Handler<CommandLineValues>({L"view"}, L"Widget mode")
