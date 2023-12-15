@@ -41,8 +41,7 @@ using afc::language::lazy_string::NewLazyString;
 namespace afc::editor {
 namespace {
 static Path GetHomeDirectory() {
-  char* env = getenv("HOME");
-  if (env != nullptr) {
+  if (char* env = getenv("HOME"); env != nullptr) {
     return std::visit(overload{[&](Error error) {
                                  LOG(FATAL) << "Invalid home directory (from "
                                                "`HOME` environment variable): "
@@ -52,13 +51,11 @@ static Path GetHomeDirectory() {
                                [](Path path) { return path; }},
                       Path::FromString(FromByteString(env)));
   }
-  struct passwd* entry = getpwuid(getuid());
-  if (entry != nullptr) {
+  if (struct passwd* entry = getpwuid(getuid()); entry != nullptr) {
     return std::visit(
         overload{[&](Error error) {
                    LOG(FATAL)
-                       << "Invalid home directory (from `getpwuid`): " << error
-                       << ": " << env;
+                       << "Invalid home directory (from `getpwuid`): " << error;
                    return Path::Root();
                  },
                  [](Path path) { return path; }},
