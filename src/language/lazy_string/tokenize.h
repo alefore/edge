@@ -14,6 +14,7 @@ struct Token {
   language::lazy_string::ColumnNumber begin;
   // `end` is the first column that isn't part of the token.
   language::lazy_string::ColumnNumber end;
+  bool has_quotes = false;
 };
 
 bool operator==(const Token& a, const Token& b);

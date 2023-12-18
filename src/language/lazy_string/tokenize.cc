@@ -34,6 +34,7 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
     }
     token.value = L"";
     token.begin = ++end;
+    token.has_quotes = false;
   };
 
   for (ColumnNumber i; i.ToDelta() < command.size(); ++i) {
@@ -42,6 +43,7 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
       push(i);
     } else if (c == '\"') {
       ++i;
+      token.has_quotes = true;
       while (i.ToDelta() < command.size() && command.get(i) != '\"') {
         if (command.get(i) == L'\\') {
           ++i;
@@ -53,6 +55,7 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
       }
     } else if (c == '\\') {
       ++i;
+      token.has_quotes = true;
       if (i.ToDelta() < command.size()) {
         token.value.push_back(command.get(i));
       }
