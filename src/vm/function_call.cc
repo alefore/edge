@@ -373,6 +373,7 @@ futures::ValueOrError<gc::Root<Value>> Call(
     gc::Pool& pool, const Value& func, std::vector<gc::Root<Value>> args,
     std::function<void(OnceOnlyFunction<void()>)> yield_callback) {
   CHECK(std::holds_alternative<types::Function>(func.type));
+  CHECK_EQ(std::get<types::Function>(func.type).inputs.size(), args.size());
   return Evaluate(
       NewFunctionCall(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
