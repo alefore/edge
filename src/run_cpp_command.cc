@@ -20,6 +20,7 @@
 #include "src/tests/tests.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/function_call.h"
+#include "src/vm/natural.h"
 #include "src/vm/value.h"
 
 namespace container = afc::language::container;
@@ -95,8 +96,8 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
 
 struct ParsedCommand {
   std::vector<Token> tokens;
-  gc::Root<vm::Value> function;
-  std::vector<NonNull<std::shared_ptr<vm::Expression>>> function_inputs;
+  // Should be a function of zero arguments.
+  NonNull<std::shared_ptr<vm::Expression>> expression;
 };
 
 ValueOrError<ParsedCommand> Parse(
@@ -105,6 +106,13 @@ ValueOrError<ParsedCommand> Parse(
     std::unordered_set<vm::Type> accepted_return_types,
     const SearchNamespaces& search_namespaces) {
   std::vector<Token> output_tokens = TokenizeBySpaces(command);
+  if (ValueOrError<NonNull<std::shared_ptr<vm::Expression>>> parse =
+          vm::natural::Compile(command, environment, pool);
+      !IsError(parse)) {
+    return ParsedCommand{.tokens = std::move(output_tokens),
+                         .expression = ValueOrDie(std::move(parse))};
+  }
+
   if (output_tokens.empty()) {
     // Deliberately empty so as to not trigger a status update.
     return Error(L"");
@@ -198,9 +206,11 @@ ValueOrError<ParsedCommand> Parse(
   } else {
     return Error(L"No definition found: " + output_tokens[0].value);
   }
-  return ParsedCommand{.tokens = std::move(output_tokens),
-                       .function = output_function.value(),
-                       .function_inputs = std::move(output_function_inputs)};
+  return ParsedCommand{
+      .tokens = std::move(output_tokens),
+      .expression = NewFunctionCall(
+          NewConstantExpression(std::move(output_function.value())),
+          std::move(output_function_inputs))};
 }
 
 ValueOrError<ParsedCommand> Parse(gc::Pool& pool, LazyString command,
@@ -254,20 +264,17 @@ bool tests_parse_registration = tests::Register(
             pool, NewLazyString(L"foo"), environment.ptr().value(),
             EmptyString(), std::unordered_set<vm::Type>({vm::types::String{}}),
             SearchNamespaces(buffer.ptr().value()));
-        CHECK(std::holds_alternative<Error>(output));
+        CHECK(!std::holds_alternative<Error>(output));
       }}});
 }
 
 futures::ValueOrError<gc::Root<vm::Value>> Execute(
     OpenBuffer& buffer, ParsedCommand parsed_command) {
-  NonNull<std::unique_ptr<vm::Expression>> expression =
-      vm::NewFunctionCall(vm::NewConstantExpression(parsed_command.function),
-                          std::move(parsed_command.function_inputs));
-  if (expression->Types().empty()) {
+  if (parsed_command.expression->Types().empty()) {
     // TODO: Show the error.
     return futures::Past(Error(L"Unable to compile (type mismatch)."));
   }
-  return buffer.EvaluateExpression(std::move(expression),
+  return buffer.EvaluateExpression(std::move(parsed_command.expression),
                                    buffer.environment().ToRoot());
 }
 
