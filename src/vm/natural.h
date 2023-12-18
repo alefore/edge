@@ -11,7 +11,7 @@
 namespace afc::vm::natural {
 language::ValueOrError<language::NonNull<std::shared_ptr<Expression>>> Compile(
     const language::lazy_string::LazyString& input,
-    language::gc::Ptr<Environment> environment);
+    const Environment& environment, language::gc::Pool& pool);
 }  // namespace afc::vm::natural
 
 #endif
