@@ -358,6 +358,8 @@ src/vm/expression.cc \
 src/vm/expression.h \
 src/vm/lambda.cc \
 src/vm/lambda.h \
+src/vm/natural.cc \
+src/vm/natural.h \
 src/vm/numbers.cc \
 src/vm/numbers.h \
 src/vm/vm.cc \
