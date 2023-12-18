@@ -94,12 +94,13 @@ class ParseState {
         container::MaterializeVector(
             candidates_ |
             std::views::transform(
-                [](Tree& tree) -> std::shared_ptr<Expression> {
+                [this](Tree& tree) -> std::shared_ptr<Expression> {
                   return CompileTree(tree);
                 }) |
             std::views::filter([](const std::shared_ptr<Expression>& value) {
               return value != nullptr;
             }));
+    LOG(INFO) << "Natural results: " << valid_outputs.size();
     if (valid_outputs.size() > 1) return Error(L"Ambiguous parses found.");
     if (valid_outputs.empty())
       return Error(L"No valid parses found (post compilation).");
@@ -109,7 +110,7 @@ class ParseState {
   }
 
  private:
-  static std::shared_ptr<Expression> CompileTree(const Tree& tree) {
+  std::shared_ptr<Expression> CompileTree(const Tree& tree) {
     const types::Function* function_type =
         std::get_if<types::Function>(&tree.type);
     if (function_type == nullptr) return tree.value.get_shared();
@@ -117,7 +118,7 @@ class ParseState {
         container::MaterializeVector(
             tree.children |
             std::views::transform(
-                [](const NonNull<std::shared_ptr<Tree>>& argument) {
+                [this](const NonNull<std::shared_ptr<Tree>>& argument) {
                   return CompileTree(argument.value());
                 }));
 
@@ -125,6 +126,14 @@ class ParseState {
                             [](auto& value) { return value == nullptr; }))
       return nullptr;
 
+    while (children_arguments.size() < function_type->inputs.size()) {
+      if (std::holds_alternative<types::String>(
+              function_type->inputs[children_arguments.size()]))
+        children_arguments.push_back(
+            NewConstantExpression(Value::NewString(pool_, L"")).get_unique());
+      else
+        return nullptr;
+    }
     return NewFunctionCall(
                tree.value,
                container::MaterializeVector(
@@ -192,7 +201,7 @@ class ParseState {
   std::vector<gc::Root<Value>> LookUp(const Token& token) {
     static const vm::Namespace kEmptyNamespace;
     std::vector<language::gc::Root<Value>> output;
-    environment_.PolyLookup(kEmptyNamespace, token.value, &output);
+    environment_.CaseInsensitiveLookup(kEmptyNamespace, token.value, &output);
     return output;
   }
 };
@@ -250,6 +259,32 @@ bool tests_registration = tests::Register(
                          .ptr()
                          ->get_string() == L"quux");
              }},
+        {.name = L"MissingArguments",
+         .callback =
+             [] {
+               gc::Pool pool({});
+               language::gc::Root<Environment> environment =
+                   afc::vm::NewDefaultEnvironment(pool);
+               environment.ptr()->Define(
+                   L"Moo", vm::NewCallback(pool, PurityType::kPure,
+                                           [](std::wstring a, std::wstring b,
+                                              std::wstring c) -> std::wstring {
+                                             return L">" + a + L")" + b + L"]" +
+                                                    c;
+                                           }));
+               NonNull<std::shared_ptr<Expression>> expression =
+                   ValueOrDie(Compile(NewLazyString(L"Moo Moo"),
+                                      environment.ptr().value(), pool));
+               LOG(INFO) << "Evaluating.";
+               // TODO(2023-12-18): Why the fuck do we need ToByteString here?
+               CHECK_EQ(ToByteString(ValueOrDie(Evaluate(expression, pool,
+                                                         environment, nullptr)
+                                                    .Get()
+                                                    .value())
+                                         .ptr()
+                                         ->get_string()),
+                        ">>)])]");
+             }},
         {.name = L"SimpleFunctionTwoArguments",
          .callback =
              [] {
@@ -289,6 +324,7 @@ bool tests_registration = tests::Register(
            NonNull<std::shared_ptr<Expression>> expression =
                ValueOrDie(Compile(NewLazyString(L"foo foo foo \"bar\" "),
                                   environment.ptr().value(), pool));
+           // TODO(2023-12-18): Why the fuck do we need ToByteString here?
            CHECK_EQ(ToByteString(ValueOrDie(Evaluate(expression, pool,
                                                      environment, nullptr)
                                                 .Get()
