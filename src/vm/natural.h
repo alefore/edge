@@ -6,12 +6,14 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
+#include "src/vm/environment.h"
 #include "src/vm/expression.h"
 
 namespace afc::vm::natural {
 language::ValueOrError<language::NonNull<std::shared_ptr<Expression>>> Compile(
     const language::lazy_string::LazyString& input,
-    const Environment& environment, language::gc::Pool& pool);
+    const Environment& environment,
+    const std::vector<Namespace>& search_namespaces, language::gc::Pool& pool);
 }  // namespace afc::vm::natural
 
 #endif

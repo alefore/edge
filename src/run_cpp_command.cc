@@ -107,7 +107,8 @@ ValueOrError<ParsedCommand> Parse(
     const SearchNamespaces& search_namespaces) {
   std::vector<Token> output_tokens = TokenizeBySpaces(command);
   if (ValueOrError<NonNull<std::shared_ptr<vm::Expression>>> parse =
-          vm::natural::Compile(command, environment, pool);
+          vm::natural::Compile(command, environment,
+                               search_namespaces.namespaces, pool);
       !IsError(parse)) {
     return ParsedCommand{.tokens = std::move(output_tokens),
                          .expression = ValueOrDie(std::move(parse))};
