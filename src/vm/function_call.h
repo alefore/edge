@@ -13,13 +13,11 @@
 namespace afc {
 namespace vm {
 
-using std::unique_ptr;
-
 class Expression;
 struct Compilation;
 
 language::NonNull<std::unique_ptr<Expression>> NewFunctionCall(
-    language::NonNull<std::unique_ptr<Expression>> func,
+    language::NonNull<std::shared_ptr<Expression>> func,
     std::vector<language::NonNull<std::shared_ptr<Expression>>> args);
 
 std::unique_ptr<Expression> NewFunctionCall(

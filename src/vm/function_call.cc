@@ -191,7 +191,7 @@ class FunctionCall : public Expression {
 }  // namespace
 
 NonNull<std::unique_ptr<Expression>> NewFunctionCall(
-    NonNull<std::unique_ptr<Expression>> func,
+    NonNull<std::shared_ptr<Expression>> func,
     std::vector<NonNull<std::shared_ptr<Expression>>> args) {
   return MakeNonNullUnique<FunctionCall>(
       std::move(func),
