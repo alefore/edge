@@ -1,6 +1,7 @@
 #include "src/vm/natural.h"
 
 #include "src/language/container.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"  // For tests.
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/wstring.h"
@@ -19,6 +20,9 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::Append;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
 
@@ -67,6 +71,7 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
 class ParseState {
   gc::Pool& pool_;
   const std::vector<Token>& tokens_;
+  const LazyString& function_name_prefix_;
   const Environment& environment_;
   const std::vector<vm::Namespace>& search_namespaces_;
 
@@ -74,14 +79,17 @@ class ParseState {
 
  public:
   ParseState(gc::Pool& pool, const std::vector<Token>& tokens,
+             const LazyString& function_name_prefix,
              const Environment& environment,
              const std::vector<vm::Namespace>& search_namespaces)
       : pool_(pool),
         tokens_(tokens),
+        function_name_prefix_(function_name_prefix),
         environment_(environment),
         search_namespaces_(search_namespaces) {}
 
   ValueOrError<NonNull<std::shared_ptr<Expression>>> Evaluate() {
+    bool first_token = true;
     for (auto& token : tokens_) {
       VLOG(5) << "Consume token: " << token.value
               << ", candidates: " << candidates_.size();
@@ -91,8 +99,13 @@ class ParseState {
         ReceiveValue(Value::NewNumber(
             pool_,
             math::numbers::FromInt(atoi(ToByteString(token.value).c_str()))));
-      for (gc::Root<Value> value : LookUp(token)) ReceiveValue(value);
+      for (gc::Root<Value> value :
+           LookUp(first_token ? Append(NewLazyString(token.value),
+                                       function_name_prefix_)
+                              : NewLazyString(token.value)))
+        ReceiveValue(value);
       if (candidates_.empty()) return Error(L"No valid parses found.");
+      first_token = false;
     }
 
     std::vector<std::shared_ptr<Expression>> valid_outputs =
@@ -203,28 +216,31 @@ class ParseState {
                                [](wchar_t c) { return std::iswdigit(c); });
   }
 
-  std::vector<gc::Root<Value>> LookUp(const Token& token) {
+  std::vector<gc::Root<Value>> LookUp(const LazyString& symbol) {
     std::vector<language::gc::Root<Value>> output;
     for (auto& search_namespace : search_namespaces_)
-      environment_.CaseInsensitiveLookup(search_namespace, token.value,
+      environment_.CaseInsensitiveLookup(search_namespace, symbol.ToString(),
                                          &output);
     return output;
   }
 };
 
 ValueOrError<NonNull<std::shared_ptr<Expression>>> CompileTokens(
-    const std::vector<Token>& tokens, const Environment& environment,
+    const std::vector<Token>& tokens, const LazyString& function_name_prefix,
+    const Environment& environment,
     const std::vector<vm::Namespace>& search_namespaces, gc::Pool& pool) {
-  return ParseState(pool, tokens, environment, search_namespaces).Evaluate();
+  return ParseState(pool, tokens, function_name_prefix, environment,
+                    search_namespaces)
+      .Evaluate();
 }
 }  // namespace
 
 language::ValueOrError<language::NonNull<std::shared_ptr<Expression>>> Compile(
-    const language::lazy_string::LazyString& input,
+    const LazyString& input, const LazyString& function_name_prefix,
     const Environment& environment,
     const std::vector<vm::Namespace>& search_namespaces, gc::Pool& pool) {
-  return CompileTokens(TokenizeBySpaces(input), environment, search_namespaces,
-                       pool);
+  return CompileTokens(TokenizeBySpaces(input), function_name_prefix,
+                       environment, search_namespaces, pool);
 }
 
 namespace {
@@ -241,8 +257,8 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(NewLazyString(L"\"foo\""), environment.ptr().value(),
-                           {kEmptyNamespace}, pool));
+                   Compile(NewLazyString(L"\"foo\""), EmptyString(),
+                           environment.ptr().value(), {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
                                     .value())
@@ -260,7 +276,7 @@ bool tests_registration = tests::Register(
                    vm::NewCallback(pool, PurityType::kPure,
                                    []() -> std::wstring { return L"quux"; }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(NewLazyString(L"SomeFunction"),
+                   Compile(NewLazyString(L"SomeFunction"), EmptyString(),
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
@@ -282,8 +298,8 @@ bool tests_registration = tests::Register(
                                                     c;
                                            }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(NewLazyString(L"Moo Moo"), environment.ptr().value(),
-                           {kEmptyNamespace}, pool));
+                   Compile(NewLazyString(L"Moo Moo"), EmptyString(),
+                           environment.ptr().value(), {kEmptyNamespace}, pool));
                LOG(INFO) << "Evaluating.";
                // TODO(2023-12-18): Why the fuck do we need ToByteString here?
                CHECK_EQ(ToByteString(ValueOrDie(Evaluate(expression, pool,
@@ -311,7 +327,8 @@ bool tests_registration = tests::Register(
                        }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                    Compile(NewLazyString(L"SomeFunction \"bar\" \"foo\""),
-                           environment.ptr().value(), {kEmptyNamespace}, pool));
+                           EmptyString(), environment.ptr().value(),
+                           {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
                                     .value())
@@ -331,7 +348,7 @@ bool tests_registration = tests::Register(
                                  return L"[" + a + L"]";
                                }));
            NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-               Compile(NewLazyString(L"foo foo foo \"bar\" "),
+               Compile(NewLazyString(L"foo foo foo \"bar\" "), EmptyString(),
                        environment.ptr().value(), {kEmptyNamespace}, pool));
            // TODO(2023-12-18): Why the fuck do we need ToByteString here?
            CHECK_EQ(ToByteString(ValueOrDie(Evaluate(expression, pool,
