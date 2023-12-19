@@ -1,3 +1,83 @@
+// `DeleteNotification` is used to support cancellation.
+//
+// Suppose you have a consumer of an abstract value `LineSequence` (there is
+// nothing specific about `LineSequence`, we're using it simply as an example),
+// which is produced asynchronously. Assume that sometimes the consumer wants to
+// explicitly signal that the value no longer needs to be produced (e.g.,
+// because some underlying data has changed, so the `LineSequence` being
+// produced is no longer relevant). The consumer may want to signal this
+// explicitly in order to conserve resources.
+//
+// The consumer creates a `DeleteNotification` instance and retains it as long
+// as it remains interested in the value being produced. When starting the
+// asynchronous production of the `LineSequence`, the consumer calls
+// `DeleteNotification::listenable_value` and pass the resulting
+// `DeleteNotification::Value` to the producer. The producer holds the Value and
+// can use it to detect that the consumer has lost interest in the
+// `LineSequence` being produced (and thus the asynchronous computation should
+// be aborted).
+//
+// For example:
+//
+// struct Cancelled {};
+//
+// template <typename Value>
+// using CancelledOr<Value> = std::variant<Cancelled, Value>;
+//
+// // Asynchronous producer, applying `ProcessInput` to each input element and
+// // appending the outputs.
+// futures::Value<CancelledOr<LineSequence>> ReadLines(
+//     FileDescriptor input, ThreadPoolWithWorkQueue& thread_pool,
+//     ListenableValue<EmptyValue> cancel_notification) {
+//   return thread_pool.Run(
+//       [input, cancel_notification]
+//           -> futures::Value<CancelledOr<LineSequence>> {
+//         MutableLineSequence output;
+//         while (!input.EndOfFile()) {
+//           if (cancel_notification.has_value())
+//             return futures::Past(Cancelled{});
+//           output.push_back(input.ReadNextLine());
+//         }
+//         return output.snapshot();
+//       });
+// }
+//
+// In this example, the produce polls the delete notification object directly.
+// Obviously, the producer could also add a callback to the `ListenableValue`.
+//
+// Typically this is used something like this:
+//
+// class State {
+//  public:
+//   void ReceiveInput(std::string value) {
+//     // Aborts any previous asynchronous processing and prepares to kick off
+//     // a new call (to `ProcessNewValue`):
+//     delete_notification = MakeNonNullUnique<DeleteNotification>();
+//
+//     // Kick off heavy processing and display results when they are ready.
+//     ProcessNewvalue(value, delete_notification.listenable_value())
+//         .Transform([](CancelledOr<Output> output) {
+//           if (auto* output_value = std::get_if<Output>(&output);
+//               output_value != nullptr) {
+//             DisplayResults(output_value);
+//           }
+//           return futures::Past(EmptyResult());
+//         });
+//   }
+//
+//  private:
+//   futures::Value<CancelledOr<Output>> ProcessNewValue(
+//       std::string value,
+//       futures::ListenableValue<EmptyValue> cancel_notification) {
+//     // Asynchronous processing of `value`, to produce some `Output` value.
+//     // Should use `cancel_notification` to abort early.
+//     ...
+//   }
+//
+//   NonNull<std::unique_ptr<DeleteNotification>> delete_notification;
+//   std::string input;
+// };
+
 #ifndef __AFC_FUTURES_DELETE_NOTIFICATION_H__
 #define __AFC_FUTURES_DELETE_NOTIFICATION_H__
 
@@ -6,12 +86,6 @@
 #include "src/language/error/value_or_error.h"
 
 namespace afc::futures {
-// Useful to support cancellation. A consumer of an abstract value creates an
-// instance and kicks off producers, passing them a `Value` as returned by
-// `listenable_value`. The value will be notified when the `DeleteNotification`
-// instance is deleted. So the consumer just needs to keep the
-// `DeleteNotification` object alive for as long as it is interested in the
-// original value.
 class DeleteNotification {
  public:
   using Value = ListenableValue<language::EmptyValue>;
