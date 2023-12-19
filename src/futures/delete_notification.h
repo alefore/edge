@@ -11,7 +11,7 @@
 // The consumer creates a `DeleteNotification` instance and retains it as long
 // as it remains interested in the value being produced. When starting the
 // asynchronous production of the `LineSequence`, the consumer calls
-// `DeleteNotification::listenable_value` and pass the resulting
+// `DeleteNotification::listenable_value` and passes the resulting
 // `DeleteNotification::Value` to the producer. The producer holds the Value and
 // can use it to detect that the consumer has lost interest in the
 // `LineSequence` being produced (and thus the asynchronous computation should
@@ -23,29 +23,6 @@
 //
 // template <typename Value>
 // using CancelledOr<Value> = std::variant<Cancelled, Value>;
-//
-// // Asynchronous producer, applying `ProcessInput` to each input element and
-// // appending the outputs.
-// futures::Value<CancelledOr<LineSequence>> ReadLines(
-//     FileDescriptor input, ThreadPoolWithWorkQueue& thread_pool,
-//     ListenableValue<EmptyValue> cancel_notification) {
-//   return thread_pool.Run(
-//       [input, cancel_notification]
-//           -> futures::Value<CancelledOr<LineSequence>> {
-//         MutableLineSequence output;
-//         while (!input.EndOfFile()) {
-//           if (cancel_notification.has_value())
-//             return futures::Past(Cancelled{});
-//           output.push_back(input.ReadNextLine());
-//         }
-//         return output.snapshot();
-//       });
-// }
-//
-// In this example, the produce polls the delete notification object directly.
-// Obviously, the producer could also add a callback to the `ListenableValue`.
-//
-// Typically this is used something like this:
 //
 // class State {
 //  public:
@@ -85,7 +62,6 @@
 //   }
 //
 //   NonNull<std::unique_ptr<DeleteNotification>> delete_notification;
-//   std::string input;
 // };
 
 #ifndef __AFC_FUTURES_DELETE_NOTIFICATION_H__
