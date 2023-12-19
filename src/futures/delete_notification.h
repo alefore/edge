@@ -70,8 +70,18 @@
 //       std::string value,
 //       futures::ListenableValue<EmptyValue> cancel_notification) {
 //     // Asynchronous processing of `value`, to produce some `Output` value.
-//     // Should use `cancel_notification` to abort early.
+//     ProcessId child_pid = LaunchChildProcess(value);
+//
+//     // If `cancel_notification`, kill the process early:
+//     cancel_notification.AddListener(
+//         [child_pid](EmptyValue&) {
+//           file_system_driver->Kill(child_pid, SIGTERM);
+//         });
+//
 //     ...
+//
+//     return file_system_driver->WaitPid(child_pid, 0)
+//         .Transform([...](WaitPidOutput output) { return ReadInput(...); });
 //   }
 //
 //   NonNull<std::unique_ptr<DeleteNotification>> delete_notification;
