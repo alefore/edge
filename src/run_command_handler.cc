@@ -434,7 +434,8 @@ class ForkEditorCommand : public Command {
               .base_command = std::nullopt,
               .context_command_callback =
                   original_buffer->ptr()->environment()->Lookup(
-                      pool, kEmptyNamespace, L"GetShellPromptContextProgram",
+                      pool, kEmptyNamespace,
+                      vm::Identifier(L"GetShellPromptContextProgram"),
                       vm::types::Function{
                           .output = vm::Type{vm::types::String{}},
                           .inputs = {vm::types::String{}}})});
@@ -577,12 +578,12 @@ void ForkCommandOptions::Register(gc::Pool& pool,
       VMTypeMapper<
           NonNull<std::shared_ptr<ForkCommandOptions>>>::object_type_name);
 
-  environment.Define(L"ForkCommandOptions",
+  environment.Define(vm::Identifier(L"ForkCommandOptions"),
                      NewCallback(pool, vm::PurityType::kPure,
                                  MakeNonNullShared<ForkCommandOptions>));
 
   fork_command_options.ptr()->AddField(
-      L"set_command",
+      vm::Identifier(L"set_command"),
       NewCallback(
           pool, vm::PurityType::kUnknown,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
@@ -592,7 +593,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           .ptr());
 
   fork_command_options.ptr()->AddField(
-      L"set_name",
+      vm::Identifier(L"set_name"),
       NewCallback(
           pool, vm::PurityType::kUnknown,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
@@ -604,7 +605,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           .ptr());
 
   fork_command_options.ptr()->AddField(
-      L"set_insertion_type",
+      vm::Identifier(L"set_insertion_type"),
       NewCallback(
           pool, vm::PurityType::kUnknown,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
@@ -623,7 +624,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           .ptr());
 
   fork_command_options.ptr()->AddField(
-      L"set_children_path",
+      vm::Identifier(L"set_children_path"),
       NewCallback(
           pool, vm::PurityType::kUnknown,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,

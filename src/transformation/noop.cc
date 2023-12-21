@@ -5,18 +5,19 @@
 #include "src/transformation/vm.h"
 #include "src/vm/types.h"
 
-namespace afc::editor {
-using language::MakeNonNullUnique;
-using language::NonNull;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+
+namespace afc::editor {
 namespace transformation {
 namespace {
 class Noop : public CompositeTransformation {
  public:
   static void Register(language::gc::Pool& pool, vm::Environment& environment) {
     environment.Define(
-        L"NoopTransformation",
+        vm::Identifier(L"NoopTransformation"),
         vm::NewCallback(pool, vm::PurityType::kPure, []() {
           return MakeNonNullShared<Variant>(NewNoopTransformation());
         }));

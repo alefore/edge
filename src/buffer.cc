@@ -710,12 +710,12 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   UpdateTreeParser();
 
-  environment_->Define(L"buffer",
+  environment_->Define(Identifier(L"buffer"),
                        VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
                            editor().gc_pool(), NewRoot()));
 
   environment_->Define(
-      L"sleep",
+      Identifier(L"sleep"),
       vm::NewCallback(editor().gc_pool(), PurityType::kReader,
                       [weak_this](double delay_seconds) {
                         return VisitPointer(

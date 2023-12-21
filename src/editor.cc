@@ -190,7 +190,7 @@ EditorState::EditorState(CommandLineValues args,
             gc_pool_,
             MakeNonNullUnique<FileSystemDriver>(thread_pool_.value()));
         output.ptr()->Define(
-            L"editor",
+            vm::Identifier(L"editor"),
             vm::Value::NewObject(
                 gc_pool_,
                 vm::VMTypeMapper<editor::EditorState>::object_type_name,

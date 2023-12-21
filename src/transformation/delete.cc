@@ -264,12 +264,14 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
       pool, VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name);
 
   environment.Define(
-      VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name.read(),
+      vm::Identifier(
+          VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name
+              .read()),
       vm::NewCallback(pool, PurityType::kPure,
                       MakeNonNullShared<transformation::Delete>));
 
   builder.ptr()->AddField(
-      L"set_modifiers",
+      vm::Identifier(L"set_modifiers"),
       vm::NewCallback(pool, vm::PurityTypeWriter,
                       [](NonNull<std::shared_ptr<Delete>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
@@ -279,7 +281,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      L"set_line_end_behavior",
+      vm::Identifier(L"set_line_end_behavior"),
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
           [](NonNull<std::shared_ptr<Delete>> options, std::wstring value) {
@@ -292,16 +294,17 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
           })
           .ptr());
   builder.ptr()->AddField(
-      L"set_range", vm::NewCallback(pool, vm::PurityTypeWriter,
-                                    [](NonNull<std::shared_ptr<Delete>> options,
-                                       Range range) {
-                                      options->range = range;
-                                      return options;
-                                    })
-                        .ptr());
+      vm::Identifier(L"set_range"),
+      vm::NewCallback(
+          pool, vm::PurityTypeWriter,
+          [](NonNull<std::shared_ptr<Delete>> options, Range range) {
+            options->range = range;
+            return options;
+          })
+          .ptr());
 
   builder.ptr()->AddField(
-      L"build",
+      vm::Identifier(L"build"),
       vm::NewCallback(pool, PurityType::kPure,
                       [](NonNull<std::shared_ptr<Delete>> options) {
                         return MakeNonNullShared<Variant>(options.value());

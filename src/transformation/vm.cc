@@ -87,7 +87,7 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   environment.Define(
-      L"FunctionTransformation",
+      vm::Identifier(L"FunctionTransformation"),
       vm::Value::NewFunction(
           pool, PurityType::kPure,
           GetVMType<NonNull<std::shared_ptr<editor::transformation::Variant>>>::

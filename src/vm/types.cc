@@ -213,12 +213,12 @@ std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> ObjectType::Expand()
 
 ObjectType::ObjectType(const Type& type, ConstructorAccessKey) : type_(type) {}
 
-void ObjectType::AddField(const std::wstring& name, gc::Ptr<Value> field) {
+void ObjectType::AddField(const Identifier& name, gc::Ptr<Value> field) {
   fields_.insert({name, std::move(field)});
 }
 
 std::vector<NonNull<Value*>> ObjectType::LookupField(
-    const std::wstring& name) const {
+    const Identifier& name) const {
   auto range = fields_.equal_range(name);
   return container::MaterializeVector(
       std::ranges::subrange(range.first, range.second) |
@@ -228,12 +228,12 @@ std::vector<NonNull<Value*>> ObjectType::LookupField(
 }
 
 void ObjectType::ForEachField(
-    std::function<void(const std::wstring&, Value&)> callback) {
+    std::function<void(const Identifier&, Value&)> callback) {
   for (auto& it : fields_) callback(it.first, it.second.value());
 }
 
 void ObjectType::ForEachField(
-    std::function<void(const std::wstring&, const Value&)> callback) const {
+    std::function<void(const Identifier&, const Value&)> callback) const {
   for (const auto& it : fields_) callback(it.first, it.second.value());
 }
 

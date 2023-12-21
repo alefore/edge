@@ -219,8 +219,10 @@ class ParseState {
   std::vector<gc::Root<Value>> LookUp(const LazyString& symbol) {
     std::vector<language::gc::Root<Value>> output;
     for (auto& search_namespace : search_namespaces_)
-      environment_.CaseInsensitiveLookup(search_namespace, symbol.ToString(),
-                                         &output);
+      // TODO(easy, 2023-12-22): Don't convert to identifier here; do it in the
+      // caller.
+      environment_.CaseInsensitiveLookup(
+          search_namespace, Identifier(symbol.ToString()), &output);
     return output;
   }
 };
@@ -272,7 +274,7 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   L"SomeFunction",
+                   Identifier(L"SomeFunction"),
                    vm::NewCallback(pool, PurityType::kPure,
                                    []() -> std::wstring { return L"quux"; }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
@@ -291,12 +293,12 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   L"Moo", vm::NewCallback(pool, PurityType::kPure,
-                                           [](std::wstring a, std::wstring b,
-                                              std::wstring c) -> std::wstring {
-                                             return L">" + a + L")" + b + L"]" +
-                                                    c;
-                                           }));
+                   Identifier(L"Moo"),
+                   vm::NewCallback(pool, PurityType::kPure,
+                                   [](std::wstring a, std::wstring b,
+                                      std::wstring c) -> std::wstring {
+                                     return L">" + a + L")" + b + L"]" + c;
+                                   }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                    Compile(NewLazyString(L"Moo Moo"), EmptyString(),
                            environment.ptr().value(), {kEmptyNamespace}, pool));
@@ -317,7 +319,7 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   L"SomeFunction",
+                   Identifier(L"SomeFunction"),
                    vm::NewCallback(
                        pool, PurityType::kPure,
                        [](std::wstring a, std::wstring b) -> std::wstring {
@@ -341,7 +343,7 @@ bool tests_registration = tests::Register(
                afc::vm::NewDefaultEnvironment(pool);
            size_t calls = 0;
            environment.ptr()->Define(
-               L"foo",
+               Identifier(L"foo"),
                vm::NewCallback(pool, PurityType::kPure,
                                [&calls](std::wstring a) -> std::wstring {
                                  calls++;

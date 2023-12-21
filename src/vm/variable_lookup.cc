@@ -24,8 +24,12 @@ namespace afc::vm {
 namespace {
 
 class VariableLookup : public Expression {
+  const Namespace symbol_namespace_;
+  const Identifier symbol_;
+  const std::vector<Type> types_;
+
  public:
-  VariableLookup(Namespace symbol_namespace, std::wstring symbol,
+  VariableLookup(Namespace symbol_namespace, Identifier symbol,
                  std::vector<Type> types)
       : symbol_namespace_(std::move(symbol_namespace)),
         symbol_(std::move(symbol)),
@@ -48,14 +52,10 @@ class VariableLookup : public Expression {
           return Success(EvaluationOutput::New(std::move(value)));
         },
         [this]() {
-          return Error(L"Unexpected: variable value is null: " + symbol_);
+          return Error(L"Unexpected: variable value is null: " +
+                       symbol_.read());
         }));
   }
-
- private:
-  const Namespace symbol_namespace_;
-  const std::wstring symbol_;
-  const std::vector<Type> types_;
 };
 
 }  // namespace
@@ -64,10 +64,12 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
                                               std::list<std::wstring> symbols) {
   CHECK(!symbols.empty());
 
-  auto symbol = std::move(symbols.back());
+  // TODO(2023-12-22, trivial): Don't convert to Identifier here; do it in the
+  // caller.
+  auto symbol = Identifier(std::move(symbols.back()));
   symbols.pop_back();
   Namespace symbol_namespace(
-      std::vector<std::wstring>(symbols.begin(), symbols.end()));
+      std::vector<Identifier>(symbols.begin(), symbols.end()));
 
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know
@@ -75,7 +77,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
   std::vector<gc::Root<Value>> result;
   compilation.environment.ptr()->PolyLookup(symbol_namespace, symbol, &result);
   if (result.empty()) {
-    compilation.AddError(Error(L"Unknown variable: `" + symbol + L"`"));
+    compilation.AddError(Error(L"Unknown variable: `" + symbol.read() + L"`"));
     return nullptr;
   }
 

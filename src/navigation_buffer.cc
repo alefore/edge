@@ -42,7 +42,7 @@ using afc::math::numbers::ToSizeT;
 namespace afc::editor {
 namespace {
 
-const std::wstring kDepthSymbol = L"navigation_buffer_depth";
+const vm::Identifier kDepthSymbol(L"navigation_buffer_depth");
 
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,

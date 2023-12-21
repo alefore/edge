@@ -237,19 +237,21 @@ class HelpCommand : public Command {
     environment->ForEachType([&](const vm::types::ObjectName& name,
                                  vm::ObjectType& type) {
       StartSection(L"#### " + name.read(), output);
-      type.ForEachField([&](const std::wstring& field_name, vm::Value& value) {
+      type.ForEachField([&](const vm::Identifier& field_name,
+                            vm::Value& value) {
         std::stringstream value_stream;
         value_stream << value;
         const static int kPaddingSize = 40;
-        std::wstring padding(field_name.size() > kPaddingSize
+        std::wstring padding(field_name.read().size() > kPaddingSize
                                  ? 0
-                                 : kPaddingSize - field_name.size(),
+                                 : kPaddingSize - field_name.read().size(),
                              L' ');
         output.push_back(
-            LineBuilder(Append(NewLazyString(L"* `"), NewLazyString(field_name),
-                               NewLazyString(L"`" + std::move(padding) + L"`"),
-                               NewLazyString(
-                                   FromByteString(value_stream.str()) + L"`")))
+            LineBuilder(
+                Append(
+                    NewLazyString(L"* `"), NewLazyString(field_name.read()),
+                    NewLazyString(L"`" + std::move(padding) + L"`"),
+                    NewLazyString(FromByteString(value_stream.str()) + L"`")))
                 .Build());
       });
       output.push_back(L"");
@@ -263,18 +265,20 @@ class HelpCommand : public Command {
         L"associated with your buffer, and thus available to extensions.");
     output.push_back(L"");
 
-    environment->ForEach([&output](const std::wstring& name,
+    environment->ForEach([&output](const vm::Identifier& name,
                                    const gc::Ptr<vm::Value>& value) {
       const static int kPaddingSize = 40;
-      std::wstring padding(
-          name.size() >= kPaddingSize ? 1 : kPaddingSize - name.size(), L' ');
+      std::wstring padding(name.read().size() >= kPaddingSize
+                               ? 1
+                               : kPaddingSize - name.read().size(),
+                           L' ');
 
       std::stringstream value_stream;
       value_stream << value.value();
 
       output.push_back(
           LineBuilder(
-              Append(NewLazyString(L"* `"), NewLazyString(name),
+              Append(NewLazyString(L"* `"), NewLazyString(name.read()),
                      NewLazyString(L"`" + std::move(padding) + L"`"),
                      NewLazyString(FromByteString(value_stream.str()) + L"`")))
               .Build());

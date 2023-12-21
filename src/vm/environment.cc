@@ -64,22 +64,22 @@ const ObjectType* Environment::LookupObjectType(
   return nullptr;
 }
 
-const Type* Environment::LookupType(const std::wstring& symbol) const {
-  if (symbol == L"void") {
+const Type* Environment::LookupType(const Identifier& symbol) const {
+  if (symbol == Identifier(L"void")) {
     static Type output = types::Void{};
     return &output;
-  } else if (symbol == L"bool") {
+  } else if (symbol == Identifier(L"bool")) {
     static Type output = types::Bool{};
     return &output;
-  } else if (symbol == L"number") {
+  } else if (symbol == Identifier(L"number")) {
     static Type output = types::Number{};
     return &output;
-  } else if (symbol == L"string") {
+  } else if (symbol == Identifier(L"string")) {
     static Type output = types::String{};
     return &output;
   }
 
-  auto object_type = LookupObjectType(types::ObjectName(symbol));
+  auto object_type = LookupObjectType(types::ObjectName(symbol.read()));
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 
@@ -102,7 +102,7 @@ Environment::Environment(ConstructorAccessTag,
     : parent_environment_(std::move(parent_environment)) {}
 
 /* static */ gc::Root<Environment> Environment::NewNamespace(
-    gc::Ptr<Environment> parent, std::wstring name) {
+    gc::Ptr<Environment> parent, Identifier name) {
   // TODO(thread-safety, 2023-10-13): There's actually a race condition here.
   // Multiple concurrent calls could trigger failures.
   if (std::optional<gc::Root<Environment>> previous =
@@ -158,8 +158,8 @@ void Environment::DefineType(gc::Ptr<ObjectType> value) {
 }
 
 std::optional<gc::Root<Value>> Environment::Lookup(
-    gc::Pool& pool, const Namespace& symbol_namespace,
-    const std::wstring& symbol, Type expected_type) const {
+    gc::Pool& pool, const Namespace& symbol_namespace, const Identifier& symbol,
+    Type expected_type) const {
   std::vector<gc::Root<Value>> values;
   PolyLookup(symbol_namespace, symbol, &values);
   for (Value& value : values | gc::view::Value)
@@ -170,7 +170,7 @@ std::optional<gc::Root<Value>> Environment::Lookup(
 }
 
 void Environment::PolyLookup(const Namespace& symbol_namespace,
-                             const std::wstring& symbol,
+                             const Identifier& symbol,
                              std::vector<gc::Root<Value>>* output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
@@ -191,18 +191,16 @@ void Environment::PolyLookup(const Namespace& symbol_namespace,
 }
 
 void Environment::CaseInsensitiveLookup(
-    const Namespace& symbol_namespace, const std::wstring& symbol,
+    const Namespace& symbol_namespace, const Identifier& symbol,
     std::vector<gc::Root<Value>>* output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
-      for (auto& item : data.table) {
-        if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
-          for (const gc::Ptr<Value>& entry : item.second | std::views::values) {
+      for (auto& item : data.table)
+        if (wcscasecmp(item.first.read().c_str(), symbol.read().c_str()) == 0)
+          // TODO(trivial, 2023-12-22): Use std::ranges::copy.
+          for (const gc::Ptr<Value>& entry : item.second | std::views::values)
             output->push_back(entry.ToRoot());
-          }
-        }
-      }
     });
   }
   // Deliverately ignoring `environment`:
@@ -212,14 +210,14 @@ void Environment::CaseInsensitiveLookup(
   }
 }
 
-void Environment::Define(const std::wstring& symbol, gc::Root<Value> value) {
+void Environment::Define(const Identifier& symbol, gc::Root<Value> value) {
   Type type = value.ptr()->type;
   data_.lock([&](Data& data) {
     data.table[symbol].insert_or_assign(type, value.ptr());
   });
 }
 
-void Environment::Assign(const std::wstring& symbol, gc::Root<Value> value) {
+void Environment::Assign(const Identifier& symbol, gc::Root<Value> value) {
   data_.lock([&](Data& data) {
     if (auto it = data.table.find(symbol); it != data.table.end()) {
       it->second.insert_or_assign(value.ptr()->type, value.ptr());
@@ -235,7 +233,7 @@ void Environment::Assign(const std::wstring& symbol, gc::Root<Value> value) {
   });
 }
 
-void Environment::Remove(const std::wstring& symbol, Type type) {
+void Environment::Remove(const Identifier& symbol, Type type) {
   data_.lock([&](Data& data) {
     if (auto it = data.table.find(symbol); it != data.table.end())
       it->second.erase(type);
@@ -254,7 +252,7 @@ void Environment::ForEachType(
 }
 
 void Environment::ForEach(
-    std::function<void(const std::wstring&, const gc::Ptr<Value>&)> callback)
+    std::function<void(const Identifier&, const gc::Ptr<Value>&)> callback)
     const {
   if (parent_environment_.has_value()) {
     (*parent_environment_)->ForEach(callback);
@@ -263,7 +261,7 @@ void Environment::ForEach(
 }
 
 void Environment::ForEachNonRecursive(
-    std::function<void(const std::wstring&, const gc::Ptr<Value>&)> callback)
+    std::function<void(const Identifier&, const gc::Ptr<Value>&)> callback)
     const {
   data_.lock([&](const Data& data) {
     for (const auto& symbol_entry : data.table) {
@@ -284,7 +282,7 @@ Environment::Expand() const {
     output.push_back(parent_environment()->object_metadata());
   }
   ForEachNonRecursive(
-      [&output](const std::wstring&, const gc::Ptr<Value>& value) {
+      [&output](const Identifier&, const gc::Ptr<Value>& value) {
         output.push_back(value.object_metadata());
       });
   data_.lock([&output](const Data& data) {

@@ -14,6 +14,12 @@
 #include "src/language/wstring.h"
 
 namespace afc::vm {
+// Represents a single VM identifier within a namespace (e.g., `Buffer` or
+// `lib`).
+//
+// TODO(easy, 2023-12-21): Find a way to assert that it only contains
+// alphanumeric characters and that it isn't empty.
+GHOST_TYPE(Identifier, std::wstring);
 
 class ObjectType;
 
@@ -115,14 +121,14 @@ class ObjectType {
   const Type& type() const { return type_; }
   std::wstring ToString() const { return vm::ToString(type_); }
 
-  void AddField(const std::wstring& name, language::gc::Ptr<Value> field);
+  void AddField(const Identifier& name, language::gc::Ptr<Value> field);
 
   std::vector<language::NonNull<Value*>> LookupField(
-      const std::wstring& name) const;
+      const Identifier& name) const;
 
-  void ForEachField(std::function<void(const std::wstring&, Value&)> callback);
+  void ForEachField(std::function<void(const Identifier&, Value&)> callback);
   void ForEachField(
-      std::function<void(const std::wstring&, const Value&)> callback) const;
+      std::function<void(const Identifier&, const Value&)> callback) const;
 
   std::vector<afc::language::NonNull<
       std::shared_ptr<afc::language::gc::ObjectMetadata>>>
@@ -130,7 +136,7 @@ class ObjectType {
 
  private:
   Type type_;
-  std::multimap<std::wstring, language::gc::Ptr<Value>> fields_;
+  std::multimap<Identifier, language::gc::Ptr<Value>> fields_;
 };
 
 }  // namespace afc::vm

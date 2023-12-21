@@ -6,24 +6,25 @@
 #include "src/transformation/type.h"
 #include "src/transformation/vm.h"
 
-namespace afc::editor::transformation {
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::text::LineColumn;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::text::LineColumn;
+using afc::vm::Identifier;
 
+namespace afc::editor::transformation {
 void RegisterSetPosition(language::gc::Pool& pool,
                          vm::Environment& environment) {
   using vm::PurityType;
   environment.Define(
-      L"SetColumnTransformation",
+      Identifier(L"SetColumnTransformation"),
       vm::NewCallback(pool, PurityType::kPure, [](size_t column_number) {
         return MakeNonNullShared<Variant>(
             SetPosition(ColumnNumber(column_number)));
       }));
 
   environment.Define(
-      L"SetPositionTransformation",
+      Identifier(L"SetPositionTransformation"),
       vm::NewCallback(pool, PurityType::kPure, [](LineColumn position) {
         return MakeNonNullShared<Variant>(SetPosition(position));
       }));

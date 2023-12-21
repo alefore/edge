@@ -27,16 +27,16 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   RegisterTimeType(pool, environment_value);
   gc::Root<ObjectType> bool_type = ObjectType::New(pool, types::Bool{});
   bool_type.ptr()->AddField(
-      L"tostring", NewCallback(pool, PurityType::kPure,
-                               std::function<std::wstring(bool)>([](bool v) {
-                                 return v ? L"true" : L"false";
-                               }))
-                       .ptr());
+      Identifier(L"tostring"),
+      NewCallback(pool, PurityType::kPure,
+                  std::function<std::wstring(bool)>(
+                      [](bool v) { return v ? L"true" : L"false"; }))
+          .ptr());
   environment_value.DefineType(bool_type.ptr());
 
   gc::Root<ObjectType> number_type = ObjectType::New(pool, types::Number{});
   number_type.ptr()->AddField(
-      L"tostring",
+      Identifier(L"tostring"),
       NewCallback(pool, PurityType::kPure,
                   /*std::function<std::wstring(Number)>*/ ([](Number value) {
                     return futures::Past(ToString(value, 5));
@@ -45,7 +45,7 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   environment_value.DefineType(number_type.ptr());
 
   environment_value.Define(
-      L"Error",
+      Identifier(L"Error"),
       NewCallback(pool, PurityType::kPure, [](std::wstring description) {
         return futures::Past(PossibleError(Error(description)));
       }));

@@ -8,15 +8,15 @@
 #include "src/transformation/type.h"
 #include "src/transformation/vm.h"
 
+namespace gc = afc::language::gc;
+
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::text::LineColumn;
+
 namespace afc {
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::text::LineColumn;
-
-namespace gc = language::gc;
-
 namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
@@ -125,7 +125,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
                 editor::CompositeTransformation::Input>>>::object_type_name);
 
   input_type.ptr()->AddField(
-      L"position",
+      vm::Identifier(L"position"),
       vm::NewCallback(
           pool, PurityType::kPure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
@@ -133,7 +133,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
           })
           .ptr());
   input_type.ptr()->AddField(
-      L"range",
+      vm::Identifier(L"range"),
       vm::NewCallback(
           pool, PurityType::kPure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
@@ -142,7 +142,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
           .ptr());
 
   input_type.ptr()->AddField(
-      L"final_mode",
+      vm::Identifier(L"final_mode"),
       vm::NewCallback(
           pool, PurityType::kPure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
@@ -156,13 +156,15 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
                 editor::CompositeTransformation::Output>>>::object_type_name);
 
   environment.Define(
-      VMTypeMapper<NonNull<std::shared_ptr<
-          editor::CompositeTransformation::Output>>>::object_type_name.read(),
+      vm::Identifier(
+          VMTypeMapper<NonNull<std::shared_ptr<
+              editor::CompositeTransformation::Output>>>::object_type_name
+              .read()),
       vm::NewCallback(pool, PurityType::kPure,
                       MakeNonNullShared<CompositeTransformation::Output>));
 
   output_type.ptr()->AddField(
-      L"push",
+      vm::Identifier(L"push"),
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](NonNull<std::shared_ptr<CompositeTransformation::Output>> output,

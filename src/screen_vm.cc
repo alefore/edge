@@ -17,25 +17,26 @@
 #include "src/vm/environment.h"
 #include "src/vm/value.h"
 
+namespace gc = afc::language::gc;
+
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::screen::ModifierFromString;
+using afc::infrastructure::screen::Screen;
+using afc::language::Error;
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineColumnDelta;
+using afc::language::text::LineNumberDelta;
+using afc::vm::Identifier;
+
 namespace afc {
-using infrastructure::FileDescriptor;
-using infrastructure::screen::ModifierFromString;
-using infrastructure::screen::Screen;
-using language::Error;
-using language::NonNull;
-using language::PossibleError;
-using language::Success;
-using language::ValueOrError;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
-using language::text::LineColumn;
-using language::text::LineColumnDelta;
-using language::text::LineNumberDelta;
-
-namespace gc = language::gc;
-
 namespace vm {
 template <>
 const types::ObjectName
@@ -135,7 +136,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
 
   // Constructors.
   environment.Define(
-      L"RemoteScreen",
+      Identifier(L"RemoteScreen"),
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [&editor](Path path)
@@ -151,14 +152,14 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
 
   // Methods for Screen.
   screen_type.ptr()->AddField(
-      L"Flush", vm::NewCallback(pool, PurityType::kUnknown,
-                                [](NonNull<std::shared_ptr<Screen>> screen) {
-                                  screen->Flush();
-                                })
-                    .ptr());
+      Identifier(L"Flush"),
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](NonNull<std::shared_ptr<Screen>> screen) { screen->Flush(); })
+          .ptr());
 
   screen_type.ptr()->AddField(
-      L"HardRefresh",
+      Identifier(L"HardRefresh"),
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen) {
                         screen->HardRefresh();
@@ -166,21 +167,21 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      L"Refresh", vm::NewCallback(pool, PurityType::kUnknown,
-                                  [](NonNull<std::shared_ptr<Screen>> screen) {
-                                    screen->Refresh();
-                                  })
-                      .ptr());
+      Identifier(L"Refresh"),
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](NonNull<std::shared_ptr<Screen>> screen) { screen->Refresh(); })
+          .ptr());
 
   screen_type.ptr()->AddField(
-      L"Clear", vm::NewCallback(pool, PurityType::kUnknown,
-                                [](NonNull<std::shared_ptr<Screen>> screen) {
-                                  screen->Clear();
-                                })
-                    .ptr());
+      Identifier(L"Clear"),
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](NonNull<std::shared_ptr<Screen>> screen) { screen->Clear(); })
+          .ptr());
 
   screen_type.ptr()->AddField(
-      L"SetCursorVisibility",
+      Identifier(L"SetCursorVisibility"),
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen,
                          std::wstring cursor_visibility) {
@@ -191,14 +192,14 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      L"Move",
+      Identifier(L"Move"),
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen,
                          LineColumn position) { screen->Move(position); })
           .ptr());
 
   screen_type.ptr()->AddField(
-      L"WriteString",
+      Identifier(L"WriteString"),
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
@@ -209,7 +210,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      L"SetModifier",
+      Identifier(L"SetModifier"),
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
@@ -218,7 +219,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      L"set_size",
+      Identifier(L"set_size"),
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen,
@@ -239,11 +240,12 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      L"size", vm::NewCallback(pool, PurityType::kReader,
-                               [](NonNull<std::shared_ptr<Screen>> screen) {
-                                 return screen->size();
-                               })
-                   .ptr());
+      Identifier(L"size"),
+      vm::NewCallback(pool, PurityType::kReader,
+                      [](NonNull<std::shared_ptr<Screen>> screen) {
+                        return screen->size();
+                      })
+          .ptr());
 
   environment.DefineType(screen_type.ptr());
 }

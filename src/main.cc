@@ -45,6 +45,7 @@ namespace {
 
 using namespace afc::editor;
 namespace audio = afc::infrastructure::audio;
+namespace vm = afc::vm;
 
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileDescriptor;
@@ -199,7 +200,8 @@ void RedrawScreens(const CommandLineValues& args,
     static const afc::vm::Namespace kEmptyNamespace;
     std::optional<gc::Root<afc::vm::Value>> value =
         buffer.environment()->Lookup(editor_state().gc_pool(), kEmptyNamespace,
-                                     L"screen", GetScreenVmType());
+                                     vm::Identifier(L"screen"),
+                                     GetScreenVmType());
     if (!value.has_value() ||
         value.value().ptr()->type != afc::vm::Type{GetScreenVmType()}) {
       continue;
@@ -275,7 +277,7 @@ int main(int argc, const char** argv) {
       screen_curses,
       [](NonNull<std::shared_ptr<Screen>> input_screen_curses) {
         editor_state().environment().ptr()->Define(
-            L"screen",
+            vm::Identifier(L"screen"),
             afc::vm::Value::NewObject(editor_state().gc_pool(),
                                       GetScreenVmType(), input_screen_curses));
       },

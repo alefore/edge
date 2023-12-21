@@ -25,6 +25,7 @@
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
+
 using afc::concurrent::VersionPropertyKey;
 using afc::futures::DeleteNotification;
 using afc::infrastructure::screen::LineModifier;
@@ -47,6 +48,7 @@ using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
+using afc::vm::Identifier;
 using afc::vm::TypesToString;
 using afc::vm::VMTypeMapper;
 
@@ -61,7 +63,7 @@ struct SearchNamespaces {
           auto var = NewLazyString(
               buffer.Read(buffer_variables::cpp_prompt_namespaces));
           for (auto& token : TokenizeBySpaces(var)) {
-            output.push_back(vm::Namespace({token.value}));
+            output.push_back(vm::Namespace({Identifier(token.value)}));
           }
           return output;
         }()) {}
@@ -125,8 +127,9 @@ ValueOrError<ParsedCommand> Parse(
   for (const auto& n : search_namespaces.namespaces) {
     environment.CaseInsensitiveLookup(
         n,
-        Append(function_name_prefix, NewLazyString(output_tokens[0].value))
-            .ToString(),
+        Identifier(
+            Append(function_name_prefix, NewLazyString(output_tokens[0].value))
+                .ToString()),
         &functions);
     if (!functions.empty()) break;
   }
@@ -261,7 +264,8 @@ bool tests_parse_registration = tests::Register(
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         gc::Pool pool({});
         gc::Root<vm::Environment> environment = vm::Environment::New(pool);
-        environment.ptr()->Define(L"foo", vm::Value::NewString(pool, L"bar"));
+        environment.ptr()->Define(Identifier(L"foo"),
+                                  vm::Value::NewString(pool, L"bar"));
         ValueOrError<ParsedCommand> output = Parse(
             pool, NewLazyString(L"foo"), environment.ptr().value(),
             EmptyString(), std::unordered_set<vm::Type>({vm::types::String{}}),
@@ -429,18 +433,20 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
 std::vector<std::wstring> GetCppTokens(
     std::optional<gc::Root<OpenBuffer>> buffer) {
   std::vector<std::wstring> output;
-  std::set<std::wstring> output_set;  // Avoid duplicates.
+  std::set<Identifier> output_set;  // Avoid duplicates.
   if (buffer.has_value())
-    buffer->ptr()->environment()->ForEach([&output, &output_set](
-                                              std::wstring name,
-                                              const gc::Ptr<vm::Value>& value) {
-      // TODO(easy, 2023-09-16): Would be good to filter more stringently.
-      VLOG(10) << "Checking symbol: " << name;
-      if (value->IsFunction()) {
-        std::transform(name.begin(), name.end(), name.begin(), std::towlower);
-        if (output_set.insert(name).second) output.push_back(name);
-      }
-    });
+    buffer->ptr()->environment()->ForEach(
+        [&output, &output_set](Identifier name,
+                               const gc::Ptr<vm::Value>& value) {
+          // TODO(easy, 2023-09-16): Would be good to filter more stringently.
+          VLOG(10) << "Checking symbol: " << name;
+          if (value->IsFunction()) {
+            std::wstring name_str = name.read();
+            std::transform(name_str.begin(), name_str.end(), name_str.begin(),
+                           std::towlower);
+            if (output_set.insert(name).second) output.push_back(name_str);
+          }
+        });
   VLOG(4) << "Found tokens: " << output.size();
   return output;
 }

@@ -32,6 +32,7 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
+using afc::vm::Identifier;
 
 namespace afc::vm {
 template <>
@@ -381,7 +382,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
                 NonNull<std::shared_ptr<const ParseTree>>>::object_type_name);
 
   parse_tree_object_type.ptr()->AddField(
-      L"children",
+      Identifier(L"children"),
       vm::NewCallback(
           pool, PurityType::kReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
@@ -401,7 +402,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           .ptr());
 
   parse_tree_object_type.ptr()->AddField(
-      L"range",
+      Identifier(L"range"),
       vm::NewCallback(pool, PurityType::kReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return tree->range();
@@ -409,7 +410,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           .ptr());
 
   parse_tree_object_type.ptr()->AddField(
-      L"properties",
+      Identifier(L"properties"),
       vm::NewCallback(pool, PurityType::kReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return MakeNonNullShared<std::set<std::wstring>>(

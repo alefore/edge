@@ -39,7 +39,7 @@ void StartClassDeclaration(Compilation& compilation,
 
 namespace {
 gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
-                            std::wstring field_name) {
+                            Identifier field_name) {
   gc::Root<Value> output = Value::NewFunction(
       pool, PurityType::kUnknown, class_type, {class_type, field_type},
       [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
@@ -59,7 +59,7 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
 }
 
 gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
-                            std::wstring field_name) {
+                            Identifier field_name) {
   gc::Root<Value> output = Value::NewFunction(
       pool, PurityType::kPure, field_type, {class_type},
       [&pool, class_type, field_name, field_type](
@@ -74,7 +74,7 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
             [](gc::Root<Value> value) { return Success(std::move(value)); },
             [&]() {
               return Error(L"Unexpected: variable value is null: " +
-                           field_name);
+                           field_name.read());
             }));
       });
   std::get<types::Function>(output.ptr()->type).function_purity =
@@ -102,12 +102,12 @@ PossibleError FinishClassDeclaration(
       class_environment.ptr()->parent_environment()->ToRoot();
 
   class_environment.ptr()->ForEachNonRecursive(
-      [&class_object_type, class_type, &pool](std::wstring name,
+      [&class_object_type, class_type, &pool](Identifier name,
                                               const gc::Ptr<Value>& value) {
         class_object_type.ptr()->AddField(
             name, BuildGetter(pool, class_type, value->type, name).ptr());
         class_object_type.ptr()->AddField(
-            L"set_" + name,
+            Identifier(L"set_" + name.read()),
             BuildSetter(pool, class_type, value->type, name).ptr());
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
@@ -149,7 +149,8 @@ PossibleError FinishClassDeclaration(
   std::get<types::Function>(constructor.ptr()->type).function_purity = purity;
 
   compilation.environment.ptr()->Define(
-      std::get<types::ObjectName>(class_type).read(), std::move(constructor));
+      Identifier(std::get<types::ObjectName>(class_type).read()),
+      std::move(constructor));
   return Success();
 }
 

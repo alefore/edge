@@ -206,14 +206,15 @@ void FindBoundariesBezier(
 }
 
 void InitShapes(language::gc::Pool& pool, vm::Environment& environment) {
+  using vm::Identifier;
   using vm::PurityType;
-  environment.Define(L"ShapesReflow",
+  environment.Define(Identifier(L"ShapesReflow"),
                      vm::NewCallback(pool, PurityType::kUnknown, Justify));
   environment.Define(
-      L"FindBoundariesLine",
+      Identifier(L"FindBoundariesLine"),
       vm::NewCallback(pool, PurityType::kUnknown, FindBoundariesLine));
   environment.Define(
-      L"FindBoundariesBezier",
+      Identifier(L"FindBoundariesBezier"),
       vm::NewCallback(pool, PurityType::kUnknown, FindBoundariesBezier));
 }
 

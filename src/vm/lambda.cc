@@ -52,6 +52,8 @@ class LambdaExpression : public Expression {
 
   LambdaExpression(
       Type type,
+      // TODO(easy, 2023-12-21): Use std::vector<Identifier> rather than
+      // converting explicitly inside `BuildValue`.
       NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body,
       std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
@@ -91,7 +93,7 @@ class LambdaExpression : public Expression {
           gc::Root<Environment> environment =
               Environment::New(parent_environment);
           for (size_t i = 0; i < args.size(); i++) {
-            environment.ptr()->Define(argument_names->at(i),
+            environment.ptr()->Define(Identifier(argument_names->at(i)),
                                       std::move(args.at(i)));
           }
           auto original_trampoline = trampoline;
@@ -127,8 +129,10 @@ std::unique_ptr<UserFunction> UserFunction::New(
   if (args == nullptr) {
     return nullptr;
   }
+  // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
+  // caller.
   const Type* return_type_def =
-      compilation.environment.ptr()->LookupType(return_type);
+      compilation.environment.ptr()->LookupType(Identifier(return_type));
   if (return_type_def == nullptr) {
     compilation.AddError(
         Error(L"Unknown return type: \"" + return_type + L"\""));
@@ -154,14 +158,17 @@ std::unique_ptr<UserFunction> UserFunction::New(
 
   if (name.has_value()) {
     output->name = name.value();
+    // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
+    // caller.
     compilation.environment.ptr()->Define(
-        name.value(), Value::New(compilation.pool, output->type));
+        Identifier(name.value()), Value::New(compilation.pool, output->type));
   }
   compilation.environment = Environment::New(compilation.environment.ptr());
-  for (const std::pair<Type, std::wstring>& arg : *args) {
+  for (const std::pair<Type, std::wstring>& arg : *args)
+    // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
+    // caller.
     compilation.environment.ptr()->Define(
-        arg.second, Value::New(compilation.pool, arg.first));
-  }
+        Identifier(arg.second), Value::New(compilation.pool, arg.first));
   return output;
 }
 
@@ -204,7 +211,8 @@ UserFunction::BuildExpression(Compilation& compilation,
 void UserFunction::Abort(Compilation& compilation) {
   Done(compilation);
   if (name.has_value()) {
-    compilation.environment.ptr()->Remove(name.value(), type);
+    // TODO(easy, 2023-12-22): Don't convert to Identifier here.
+    compilation.environment.ptr()->Remove(Identifier(name.value()), type);
   }
 }
 

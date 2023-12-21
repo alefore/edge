@@ -14,7 +14,7 @@ void RegisterFileSystemFunctions(
     language::NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
     Environment& environment) {
   environment.Define(
-      L"Unlink",
+      Identifier(L"Unlink"),
       vm::NewCallback(pool, PurityType::kUnknown,
                       [file_system_driver](Path target_path)
                           -> futures::ValueOrError<EmptyValue> {

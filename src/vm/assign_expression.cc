@@ -27,7 +27,13 @@ class AssignExpression : public Expression {
  public:
   enum class AssignmentType { kDefine, kAssign };
 
-  AssignExpression(AssignmentType assignment_type, std::wstring symbol,
+ private:
+  const AssignmentType assignment_type_;
+  const Identifier symbol_;
+  const NonNull<std::shared_ptr<Expression>> value_;
+
+ public:
+  AssignExpression(AssignmentType assignment_type, Identifier symbol,
                    NonNull<std::shared_ptr<Expression>> value)
       : assignment_type_(assignment_type),
         symbol_(std::move(symbol)),
@@ -68,11 +74,6 @@ class AssignExpression : public Expression {
               return error;
             });
   }
-
- private:
-  const AssignmentType assignment_type_;
-  const std::wstring symbol_;
-  const NonNull<std::shared_ptr<Expression>> value_;
 };
 }  // namespace
 
@@ -88,7 +89,9 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
     }
     type_def = default_type.value();
   } else {
-    auto type_ptr = compilation.environment.ptr()->LookupType(type);
+    // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
+    // caller.
+    auto type_ptr = compilation.environment.ptr()->LookupType(Identifier(type));
     if (type_ptr == nullptr) {
       compilation.AddError(Error(L"Unknown type: `" + type + L"` for symbol `" +
                                  symbol + L"`."));
@@ -96,7 +99,9 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
     }
     type_def = *type_ptr;
   }
-  compilation.environment.ptr()->Define(symbol,
+  // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
+  // caller.
+  compilation.environment.ptr()->Define(Identifier(symbol),
                                         Value::New(compilation.pool, type_def));
   return type_def;
 }
@@ -127,8 +132,10 @@ std::unique_ptr<Expression> NewDefineExpression(
               TypesToString(value->Types())));
     return nullptr;
   }
+  // TODO(easy, 2023-12-22): Don't convert to Identifier here, do it in the
+  // caller.
   return std::make_unique<AssignExpression>(
-      AssignExpression::AssignmentType::kDefine, std::move(symbol),
+      AssignExpression::AssignmentType::kDefine, Identifier(std::move(symbol)),
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
 }
 
@@ -140,12 +147,16 @@ std::unique_ptr<Expression> NewAssignExpression(
   }
   std::vector<gc::Root<Value>> variables;
   static const vm::Namespace kEmptyNamespace;
-  compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol,
+  // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
+  // caller.
+  compilation.environment.ptr()->PolyLookup(kEmptyNamespace, Identifier(symbol),
                                             &variables);
   for (Value& v : variables | gc::view::Value)
     if (value->SupportsType(v.type))
+      // TODO(easy, 2023-12-22): Don't convert to Identifier here but in the
+      // caller.
       return std::make_unique<AssignExpression>(
-          AssignExpression::AssignmentType::kAssign, symbol,
+          AssignExpression::AssignmentType::kAssign, Identifier(symbol),
           NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
 
   if (variables.empty()) {

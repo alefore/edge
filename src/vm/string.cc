@@ -40,7 +40,7 @@ const types::ObjectName VMTypeMapper<
     types::ObjectName(L"SetString");
 
 template <typename Callable>
-void AddMethod(const std::wstring& name, language::gc::Pool& pool,
+void AddMethod(const Identifier& name, language::gc::Pool& pool,
                Callable callback, gc::Root<ObjectType>& string_type) {
   string_type.ptr()->AddField(
       name, NewCallback(pool, PurityType::kPure, callback).ptr());
@@ -49,10 +49,10 @@ void AddMethod(const std::wstring& name, language::gc::Pool& pool,
 void RegisterStringType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> string_type = ObjectType::New(pool, types::String{});
   AddMethod(
-      L"size", pool, [](const std::wstring& str) { return str.size(); },
-      string_type);
+      Identifier(L"size"), pool,
+      [](const std::wstring& str) { return str.size(); }, string_type);
   AddMethod(
-      L"toint", pool,
+      Identifier(L"toint"), pool,
       [](const std::wstring& str) -> futures::ValueOrError<int> {
         try {
           return futures::Past(Success(std::stoi(str)));
@@ -66,25 +66,26 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      L"empty", pool, [](const std::wstring& str) { return str.empty(); },
-      string_type);
+      Identifier(L"empty"), pool,
+      [](const std::wstring& str) { return str.empty(); }, string_type);
   AddMethod(
-      L"tolower", pool,
+      Identifier(L"tolower"), pool,
       [](std::wstring str) {
         for (auto& i : str) i = std::tolower(i, std::locale(""));
         return str;
       },
       string_type);
   AddMethod(
-      L"toupper", pool,
+      Identifier(L"toupper"), pool,
       [](std::wstring str) {
         for (auto& i : str) i = std::toupper(i, std::locale(""));
         return str;
       },
       string_type);
-  AddMethod(L"shell_escape", pool, language::ShellEscape, string_type);
+  AddMethod(Identifier(L"shell_escape"), pool, language::ShellEscape,
+            string_type);
   AddMethod(
-      L"substr", pool,
+      Identifier(L"substr"), pool,
       [](const std::wstring& str, size_t pos,
          size_t len) -> futures::ValueOrError<std::wstring> {
         if (static_cast<size_t>(pos + len) > str.size()) {
@@ -95,7 +96,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      L"starts_with", pool,
+      Identifier(L"starts_with"), pool,
       [](const std::wstring& str, const std::wstring& prefix) {
         return prefix.size() <= str.size() &&
                (std::mismatch(prefix.begin(), prefix.end(), str.begin())
@@ -103,7 +104,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      L"find", pool,
+      Identifier(L"find"), pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find(pattern, start_pos);
@@ -111,7 +112,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      L"find_last_of", pool,
+      Identifier(L"find_last_of"), pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_last_of(pattern, start_pos);
@@ -119,7 +120,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      L"find_last_not_of", pool,
+      Identifier(L"find_last_not_of"), pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_last_not_of(pattern, start_pos);
@@ -127,7 +128,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      L"find_first_of", pool,
+      Identifier(L"find_first_of"), pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_first_of(pattern, start_pos);
@@ -135,7 +136,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      L"find_first_not_of", pool,
+      Identifier(L"find_first_not_of"), pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_first_not_of(pattern, start_pos);

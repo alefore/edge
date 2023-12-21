@@ -14,17 +14,17 @@ namespace afc::vm {
 namespace gc = language::gc;
 
 void RegisterNumberFunctions(gc::Pool& pool, Environment& environment) {
-  auto add = [&](std::wstring name, std::function<double(double)> func) {
+  auto add = [&](Identifier name, std::function<double(double)> func) {
     environment.Define(
         name, NewCallback(pool, PurityType::kPure,
                           [func](double input) { return func(input); }));
   };
-  add(L"log", log);
-  add(L"log2", log2);
-  add(L"log10", log10);
-  add(L"exp", exp);
-  add(L"exp2", exp2);
-  environment.Define(L"pow",
+  add(Identifier(L"log"), log);
+  add(Identifier(L"log2"), log2);
+  add(Identifier(L"log10"), log10);
+  add(Identifier(L"exp"), exp);
+  add(Identifier(L"exp2"), exp2);
+  environment.Define(Identifier(L"pow"),
                      NewCallback(pool, PurityType::kPure,
                                  std::function<double(double, double)>(pow)));
 }

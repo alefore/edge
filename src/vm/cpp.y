@@ -140,8 +140,8 @@ statement(OUT) ::= function_declaration_params(FUNC)
             IgnoreErrors{},
             [&](gc::Root<Value> value) {
               CHECK(func->name.has_value());
-              compilation->environment.ptr()->Define(func->name.value(),
-                                                     std::move(value));
+              compilation->environment.ptr()->Define(
+                  Identifier(func->name.value()), std::move(value));
               OUT = NewVoidExpression(compilation->pool).get_unique().release();
             }},
         compilation->RegisterErrors(func->BuildValue(
@@ -320,7 +320,8 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
   const Type* type_def = compilation->environment.ptr()->LookupType(
-      type->value().ptr()->get_symbol());
+      // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
+      Identifier(type->value().ptr()->get_symbol()));
   if (type_def == nullptr) {
     compilation->AddError(
         Error(L"Unknown type: \"" + type->value().ptr()->get_symbol() + L"\""));
@@ -343,7 +344,8 @@ non_empty_function_declaration_arguments(OUT) ::=
     OUT = nullptr;
   } else {
     const Type* type_def = compilation->environment.ptr()->LookupType(
-        type->value().ptr()->get_symbol());
+        // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
+        Identifier(type->value().ptr()->get_symbol()));
     if (type_def == nullptr) {
       compilation->AddError(Error(
           L"Unknown type: \"" + type->value().ptr()->get_symbol() + L"\""));
