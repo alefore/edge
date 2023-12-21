@@ -3,48 +3,50 @@
 
 ## 1. Introduction
 
-Edge is a terminal-based text editor for GNU/Linux.
-
-This document describes the use of Edge. In Edge, key sequences are bond to
-specific commands. These sequences are given in this document between quotes.
-
-Edge uses *buffers* to represent an open file or a process, which might still be
-running and which may or may not have a full terminal (pts).
+Edge is a modal terminal-based text editor for GNU/Linux.
+This document describes the use of Edge.
 
 The following are a few characteristics of Edge:
 
-* Always responsive. Edge is implemented with the philosophy that the user
-  should never be forced to wait for the completion of operations they initiate
-  (such as loading a file, running a shell command and collecting its output, or
-  compiling the program in the current directory). More accurately, the editor
-  should never cease to respond to user commands simply because it is executing
-  an action.
+* Always responsive.
+  Edge should always respond to user commands,
+  even while executing user-initiated operations
+  (such as reading/writing a file that is taking a while;
+  executing some complicated autocomplete logic,
+  or executing the compiler and progressively reading its output).
 
-  * Edge reads buffers asynchronously and never blocks while performing IO
-    operations (modulo a few infrequent operations). You can start editing a
-    file while Edge is loading it or saving it - a save operation will ignore
-    any changes you apply after you start the save operation, saving the file
-    exactly as it was.
+  * IO operations never block the main threads.
+    Edge only performs blocking IO operations on dedicated threads.
+    This isn't currently 100% true, but ... we're getting there.
+    This means that you can start editing a file
+    while Edge is still reading/writing it;
+    save operations happen on a snapshot of the contents,
+    not blocking any follow up changes (which will not be saved).
 
-  * Edge doesn't block while executing extension commands. Changes are shown to
-    the buffer as they are applied (unless extensions explicitly bundle changes
-    together so that they get applied atomically) and the user can continue to
-    interact with the buffer (or switch to other buffers) even if an extension
-    runs a loop that never returns.
+  * Edge doesn't block while executing extension commands.
+    Content changes are displayed gradually as they are applied
+    (unless extensions explicitly bundle changes together
+    so that they get applied atomically).
+    The user can continue to interact with the buffer
+    (or switch to other buffers)
+    even if an extension runs a loop that never returns.
 
 * Extensibility:
 
-  * Edge uses a simplified version of C++ as its extension language. Extensions
-    are interpreted (type errors are detected statically) and memory is
-    managed automatically.
-    [zk.cc](https://github.com/alefore/edge/blob/master/rc/editor_commands/lib/zk.cc)
-    shows you how it looks.
+  * Edge uses a simplified version of C++ as its extension language.
+    Extensions are interpreted (though type errors are detected statically)
+    and memory is managed automatically.
+    These are a few examples:
+    [zk.cc](https://github.com/alefore/edge/blob/master/rc/editor_commands/lib/zk.cc),
+    [start.cc](https://github.com/alefore/edge/blob/master/rc/hooks/start.cc),
+    [buffer-save.cc](https://github.com/alefore/edge/blob/master/rc/hooks/buffer-save.cc).
 
-  * All buffers have *variables* that control their behavior. For example,
-    variable `scrollbar` controls whether the scrollbar should be shown in the
-    current buffer. In the extension language, this can be set with
-    `buffer.set_scrollbar(!buffer.scrollbar());` (and the binding `vS` will
-    toggle its value).
+  * All buffers have *variables* that control their behavior.
+    For example, variable `scrollbar` controls
+    whether the scrollbar should be shown in the current buffer.
+    In the extension language, this can be set with
+    `buffer.set_scrollbar(!buffer.scrollbar());`
+    (and the keyboard binding `vS` will toggle its value).
 
 * Shell commands (external processes):
 
@@ -126,7 +128,11 @@ TODO: Document the list of dependencies.
 
 ### 2.1. Basic commands
 
-In a file view, the following are some basic commands:
+Edge uses *buffers* to represent an open file or a process.
+A process may still be running and may have a full terminal/pts
+(e.g., a nested shell running within Edge).
+
+In a buffer view, the following are some basic commands:
 
 * `?` - Help information for the current buffer ([like this](/help.md)).
 
