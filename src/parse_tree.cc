@@ -10,6 +10,7 @@ extern "C" {
 
 #include "src/language/hash.h"
 #include "src/language/text/line_column_vm.h"
+#include "src/seek.h"
 #include "src/url.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
@@ -30,6 +31,7 @@ using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineRange;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
 using afc::vm::Identifier;
@@ -280,29 +282,17 @@ class WordsTreeParser : public TreeParser {
       ColumnNumber column =
           line == range.begin().line ? range.begin().column : ColumnNumber(0);
       while (column < line_end) {
-        Range keyword_range;
-        while (column < line_end && IsSpace(contents, column)) {
-          column++;
-        }
-        keyword_range.begin() = LineColumn(line, column);
+        while (column < line_end && IsSpace(contents, column)) ++column;
+        ColumnNumber begin = column;
 
-        while (column < line_end && !IsSpace(contents, column)) {
-          column++;
-        }
-        keyword_range.set_end(LineColumn(line, column));
+        while (column < line_end && !IsSpace(contents, column)) ++column;
+        if (begin == column) return;
 
-        if (keyword_range.IsEmpty()) {
-          return;
-        }
-
-        CHECK_GT(keyword_range.end().column, keyword_range.begin().column);
         // TODO(2022-04-22): Find a way to avoid the call to ToString?
-        auto keyword = contents.contents()
-                           .Substring(keyword_range.begin().column,
-                                      keyword_range.end().column -
-                                          keyword_range.begin().column)
-                           .ToString();
-        ParseTree child = delegate_->FindChildren(buffer, keyword_range);
+        auto keyword =
+            contents.contents().Substring(begin, column - begin).ToString();
+        ParseTree child = delegate_->FindChildren(
+            buffer, LineRange(LineColumn(line, begin), column - begin).value);
         if (typos_.find(keyword) != typos_.end()) {
           child.InsertModifier(LineModifier::kRed);
         }
