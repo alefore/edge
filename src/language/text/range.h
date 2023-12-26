@@ -17,13 +17,6 @@ struct Range {
   Range() = default;
   Range(LineColumn input_begin, LineColumn input_end);
 
-  static Range InLine(LineColumn start,
-                      afc::language::lazy_string::ColumnNumberDelta size);
-
-  static Range InLine(LineNumber line,
-                      afc::language::lazy_string::ColumnNumber column,
-                      afc::language::lazy_string::ColumnNumberDelta size);
-
   template <typename Callback>
   void ForEachLine(Callback callback) {
     for (LineNumber line = begin_.line; line <= end_.line; ++line)
@@ -49,12 +42,12 @@ struct Range {
   LineColumn begin() const;
   void set_begin(LineColumn value);
   void set_begin_line(LineNumber value);
-  void set_begin_column(afc::language::lazy_string::ColumnNumber value);
+  void set_begin_column(lazy_string::ColumnNumber value);
 
   LineColumn end() const;
   void set_end(LineColumn value);
   void set_end_line(LineNumber value);
-  void set_end_column(afc::language::lazy_string::ColumnNumber value);
+  void set_end_column(lazy_string::ColumnNumber value);
 
  private:
   LineColumn begin_;
@@ -71,10 +64,13 @@ bool operator<(const Range& a, const Range& b);
 struct LineRange {
   static language::ValueOrError<LineRange> New(Range input);
 
-  LineRange(LineColumn start,
-            afc::language::lazy_string::ColumnNumberDelta size);
+  LineRange(LineColumn start, lazy_string::ColumnNumberDelta size);
 
   LineNumber line() const;
+
+  bool IsEmpty() const;
+  lazy_string::ColumnNumber begin_column() const;
+  lazy_string::ColumnNumber end_column() const;
 
   const Range value;
 };

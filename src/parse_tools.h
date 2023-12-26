@@ -32,7 +32,7 @@ void Execute(const Action& action, std::vector<ParseTree>* trees,
 
 struct ParseResults {
   std::vector<size_t> states_stack;
-  std::vector<Action> actions;
+  std::vector<Action> actions = {};
 };
 
 class ParseData {

@@ -74,7 +74,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
         [](LineRange range, ColumnNumberDelta width,
            HashableContainer<LineModifierSet> modifiers) {
           std::wstring number =
-              range.value.begin().column.IsZero()
+              range.begin_column().IsZero()
                   ? to_wstring(range.line() + LineNumberDelta(1))
                   : L"↪";
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);

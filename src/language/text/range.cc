@@ -11,18 +11,6 @@ Range::Range(LineColumn input_begin, LineColumn input_end)
   CHECK_LE(begin_, end_);
 }
 
-/* static */ Range Range::InLine(
-    LineColumn start, afc::language::lazy_string::ColumnNumberDelta size) {
-  CHECK_GE(size, ColumnNumberDelta(0));
-  return Range(start, LineColumn(start.line, start.column + size));
-}
-
-/* static */ Range Range::InLine(LineNumber line, ColumnNumber column,
-                                 ColumnNumberDelta size) {
-  CHECK_GE(size, ColumnNumberDelta(0));
-  return InLine(LineColumn(line, column), size);
-}
-
 bool Range::Contains(const Range& subset) const {
   return begin() <= subset.begin() && subset.end() <= end();
 }
@@ -109,6 +97,10 @@ LineRange::LineRange(LineColumn begin, ColumnNumberDelta size)
                          : begin.column + size))) {}
 
 LineNumber LineRange::line() const { return value.begin().line; }
+
+bool LineRange::IsEmpty() const { return value.IsEmpty(); }
+ColumnNumber LineRange::begin_column() const { return value.begin().column; }
+ColumnNumber LineRange::end_column() const { return value.end().column; }
 
 std::ostream& operator<<(std::ostream& os, const Range& range) {
   os << "[" << range.begin() << ", " << range.end() << ")";

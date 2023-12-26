@@ -86,6 +86,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineRange;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::OutgoingLink;
@@ -711,7 +712,8 @@ class InsertMode : public InputReceiver {
               })
               .Transform([buffer_root, completion_model_supplier](EmptyValue) {
                 TRACK_OPERATION(InsertMode_ProcessInput_Regular_ShowCompletion);
-                Range token_range = GetTokenRange(buffer_root.ptr().value());
+                LineRange token_range =
+                    GetTokenRange(buffer_root.ptr().value());
                 if (token_range.IsEmpty()) return futures::Past(EmptyValue{});
                 CompletionModelManager::CompressedText token =
                     GetCompletionToken(buffer_root.ptr()->contents().snapshot(),
@@ -927,7 +929,7 @@ class InsertMode : public InputReceiver {
         })));
   }
 
-  static Range GetTokenRange(OpenBuffer& buffer) {
+  static LineRange GetTokenRange(OpenBuffer& buffer) {
     const LineColumn position = buffer.AdjustLineColumn(buffer.position());
     const Line line = buffer.contents().at(position.line);
 
@@ -937,16 +939,16 @@ class InsertMode : public InputReceiver {
            (std::isalpha(line.get(start - ColumnNumberDelta(1))) ||
             line.get(start - ColumnNumberDelta(1)) == L'\''))
       --start;
-    return Range::InLine(position.line, start, position.column - start);
+    return LineRange(LineColumn(position.line, start), position.column - start);
   }
 
   static CompletionModelManager::CompressedText GetCompletionToken(
-      const LineSequence& buffer_contents, Range token_range) {
+      const LineSequence& buffer_contents, LineRange token_range) {
     CompletionModelManager::CompressedText output = LowerCase(
-        buffer_contents.at(token_range.begin().line)
+        buffer_contents.at(token_range.line())
             .contents()
-            .Substring(token_range.begin().column,
-                       token_range.end().column - token_range.begin().column));
+            .Substring(token_range.begin_column(),
+                       token_range.end_column() - token_range.begin_column()));
     VLOG(6) << "Found completion token: " << output;
     return output;
   }
@@ -972,7 +974,7 @@ class InsertMode : public InputReceiver {
     const auto model_paths = CompletionModelPaths(buffer.value);
     const LineColumn position =
         buffer.value.AdjustLineColumn(buffer.value.position());
-    Range token_range = GetTokenRange(buffer.value);
+    LineRange token_range = GetTokenRange(buffer.value);
     futures::Value<EmptyValue> output = buffer.value.ApplyToCursors(
         transformation::Insert{.contents_to_insert = LineSequence::WithLine(
                                    LineBuilder(NewLazyString(L" ")).Build()),
@@ -989,17 +991,19 @@ class InsertMode : public InputReceiver {
     if (token_range.IsEmpty()) {
       VLOG(5) << "Unable to rewind for completion token.";
       static const wchar_t kCompletionDisableSuffix = L'-';
-      if (token_range.end().column >= ColumnNumber(2) &&
-          line.get(token_range.end().column - ColumnNumberDelta(1)) ==
+      if (token_range.end_column() >= ColumnNumber(2) &&
+          line.get(token_range.end_column() - ColumnNumberDelta(1)) ==
               kCompletionDisableSuffix &&
-          line.get(token_range.end().column - ColumnNumberDelta(2)) != L' ') {
+          line.get(token_range.end_column() - ColumnNumberDelta(2)) != L' ') {
         return std::move(output).Transform([buffer_root, position](EmptyValue) {
           VLOG(3) << "Found completion disabling suffix; removing it.";
           transformation::Stack stack;
           stack.PushBack(transformation::Delete{
-              .range = Range::InLine(position.line,
-                                     position.column - ColumnNumberDelta(1),
-                                     ColumnNumberDelta(1)),
+              .range =
+                  LineRange(LineColumn(position.line,
+                                       position.column - ColumnNumberDelta(1)),
+                            ColumnNumberDelta(1))
+                      .value,
               .initiator = transformation::Delete::Initiator::kInternal});
           stack.PushBack(transformation::SetPosition(position.column));
           return buffer_root.ptr()->ApplyToCursors(std::move(stack));
@@ -1018,13 +1022,13 @@ class InsertMode : public InputReceiver {
           ->Query(std::move(model_paths.value()), token)
           .Transform(VisitCallback(overload{
               [buffer_root, token,
-               position_start =
+               token_range = LineRange(
                    LineColumn(position.line, position.column - token.size()),
-               length = token.size(),
+                   token.size()),
                modify_mode](CompletionModelManager::Text completion_text) {
                 transformation::Stack stack;
                 stack.PushBack(transformation::Delete{
-                    .range = Range::InLine(position_start, length),
+                    .range = token_range.value,
                     .initiator = transformation::Delete::Initiator::kInternal});
                 const ColumnNumberDelta completion_text_size =
                     completion_text.size();
@@ -1032,9 +1036,9 @@ class InsertMode : public InputReceiver {
                     .contents_to_insert = LineSequence::WithLine(
                         LineBuilder(std::move(completion_text)).Build()),
                     .modifiers = {.insertion = modify_mode},
-                    .position = position_start});
+                    .position = token_range.value.begin()});
                 stack.PushBack(transformation::SetPosition(
-                    position_start.column + completion_text_size +
+                    token_range.begin_column() + completion_text_size +
                     ColumnNumberDelta(1)));
                 return buffer_root.ptr()->ApplyToCursors(std::move(stack));
               },

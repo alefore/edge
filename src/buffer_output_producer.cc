@@ -111,7 +111,7 @@ void GetSyntaxModifiersForLine(
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
     if (tree_position.line != range.line()) return;
     auto column = tree_position.column.MinusHandlingOverflow(
-        range.value.begin().column.ToDelta());
+        range.begin_column().ToDelta());
     output[column] = syntax_modifiers;
   };
 
@@ -228,11 +228,10 @@ LineWithCursor::Generator::Vector ProduceBufferView(
                EditorMode::CursorMode cursor_mode) {
               LineWithCursor::ViewOptions options{
                   .line = *line_contents_with_hash.value,
-                  .initial_column =
-                      screen_line_inner.range.value.begin().column,
+                  .initial_column = screen_line_inner.range.begin_column(),
                   .width = size_columns,
-                  .input_width = screen_line_inner.range.value.end().column -
-                                 screen_line_inner.range.value.begin().column};
+                  .input_width = screen_line_inner.range.end_column() -
+                                 screen_line_inner.range.begin_column()};
               if (!atomic_lines) {
                 options.inactive_cursor_columns =
                     screen_line_inner.current_cursors;
