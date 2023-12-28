@@ -53,9 +53,9 @@ namespace afc::vm {
 }
 
 /* static */ gc::Root<Value> Value::NewSymbol(gc::Pool& pool,
-                                              std::wstring value) {
+                                              Identifier value) {
   gc::Root<Value> output = New(pool, types::Symbol{});
-  output.ptr()->value_ = Symbol{.symbol_value = std::move(value)};
+  output.ptr()->value_ = std::move(value);
   return output;
 }
 
@@ -135,9 +135,9 @@ const std::wstring& Value::get_string() const {
   return std::get<std::wstring>(value_);
 }
 
-const std::wstring& Value::get_symbol() const {
+const Identifier& Value::get_symbol() const {
   CHECK(IsSymbol());
-  return std::get<Symbol>(value_).symbol_value;
+  return std::get<Identifier>(value_);
 }
 
 gc::Root<gc::ValueWithFixedDependencies<Value::Callback>>

@@ -8,7 +8,7 @@
 namespace afc::vm {
 struct Compilation;
 void StartNamespaceDeclaration(Compilation& compilation,
-                               const std::wstring& name);
+                               const Identifier& name);
 
 std::unique_ptr<Expression> NewNamespaceExpression(
     Compilation& compilation, std::unique_ptr<Expression> body);

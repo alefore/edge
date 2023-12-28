@@ -14,18 +14,17 @@ class Expression;
 
 // Declares a new variable of a given type.
 std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
-                                            std::wstring type,
-                                            std::wstring symbol,
+                                            Identifier type, Identifier symbol,
                                             std::optional<Type> default_type);
 
 // Declares a new variable of a given type and gives it an initial value.
 std::unique_ptr<Expression> NewDefineExpression(
-    Compilation& compilation, std::wstring type, std::wstring symbol,
+    Compilation& compilation, Identifier type, Identifier symbol,
     std::unique_ptr<Expression> value);
 
 // Returns an expression that assigns a given value to an existing variable.
 std::unique_ptr<Expression> NewAssignExpression(
-    Compilation& compilation, std::wstring symbol,
+    Compilation& compilation, Identifier symbol,
     std::unique_ptr<Expression> value);
 
 }  // namespace afc::vm

@@ -218,7 +218,7 @@ std::unique_ptr<Expression> NewFunctionCall(
 
 std::unique_ptr<Expression> NewMethodLookup(
     Compilation& compilation, std::unique_ptr<Expression> object_ptr,
-    std::wstring method_name) {
+    Identifier method_name) {
   return VisitPointer(
       std::move(object_ptr),
       [&compilation, &method_name](NonNull<std::unique_ptr<Expression>> object)
@@ -238,10 +238,8 @@ std::unique_ptr<Expression> NewMethodLookup(
             continue;
           }
 
-          // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in
-          // the caller.
           std::vector<NonNull<Value*>> fields =
-              object_type->LookupField(Identifier(method_name));
+              object_type->LookupField(method_name);
           for (auto& field : fields) {
             CHECK_GE(std::get<types::Function>(field->type).inputs.size(), 1ul);
             CHECK(std::get<types::Function>(field->type).inputs[0] == type);
@@ -252,11 +250,11 @@ std::unique_ptr<Expression> NewMethodLookup(
                 [&](const Identifier& name, const Value&) {
                   alternatives.push_back(name);
                 });
-            std::vector<Identifier> close_alternatives = FilterSimilarNames(
-                Identifier(method_name), std::move(alternatives));
+            std::vector<Identifier> close_alternatives =
+                FilterSimilarNames(method_name, std::move(alternatives));
             errors.push_back(
                 Error(L"Unknown method: \"" + object_type->ToString() + L"::" +
-                      method_name + L"\"" +
+                      method_name.read() + L"\"" +
                       (close_alternatives.empty()
                            ? L""
                            : (L" (did you mean \"" +

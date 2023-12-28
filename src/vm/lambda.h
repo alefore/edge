@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "src/language/gc.h"
+#include "src/language/safe_types.h"
 #include "src/vm/compilation.h"
 #include "src/vm/expression.h"
 
@@ -14,9 +15,9 @@ namespace afc::vm {
 // `Build` once the body of the expression becomes known.
 struct UserFunction {
   static std::unique_ptr<UserFunction> New(
-      Compilation& compilation, std::wstring return_type,
-      std::optional<std::wstring> name,
-      std::unique_ptr<std::vector<std::pair<Type, std::wstring>>> args);
+      Compilation& compilation, Identifier return_type,
+      std::optional<Identifier> name,
+      std::unique_ptr<std::vector<std::pair<Type, Identifier>>> args);
 
   language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
   BuildExpression(Compilation& compilation,
@@ -29,9 +30,9 @@ struct UserFunction {
   void Abort(Compilation& compilation);
   void Done(Compilation& compilation);
 
-  std::optional<std::wstring> name;
+  std::optional<Identifier> name;
   Type type;
-  language::NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names;
+  language::NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names;
 };
 }  // namespace afc::vm
 

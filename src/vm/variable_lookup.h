@@ -5,6 +5,8 @@
 #include <memory>
 #include <string>
 
+#include "src/vm/types.h"
+
 namespace afc::vm {
 struct Compilation;
 class Expression;
@@ -12,7 +14,7 @@ class Expression;
 // Symbols is a list of tokens, including namespace or class prefixes. The last
 // item will be the final symbol to look up.
 std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
-                                              std::list<std::wstring> symbols);
+                                              std::list<Identifier> symbols);
 
 }  // namespace afc::vm
 

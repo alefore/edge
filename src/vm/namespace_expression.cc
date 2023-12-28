@@ -57,9 +57,8 @@ class NamespaceExpression : public Expression {
 }  // namespace
 
 void StartNamespaceDeclaration(Compilation& compilation,
-                               const std::wstring& name) {
-  // TODO(easy, 2023-12-22): Don't convert to Identifier here but in the caller.
-  compilation.current_namespace.push_back(Identifier(name));
+                               const Identifier& name) {
+  compilation.current_namespace.push_back(name);
   compilation.environment = Environment::NewNamespace(
       compilation.environment.ptr(), Identifier(name));
 }

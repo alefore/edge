@@ -24,7 +24,7 @@ class LambdaExpression : public Expression {
  public:
   static ValueOrError<NonNull<std::unique_ptr<LambdaExpression>>> New(
       Type lambda_type,
-      NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
+      NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body) {
     auto& lambda_function_type = std::get<types::Function>(lambda_type);
     lambda_function_type.function_purity = body->purity();
@@ -52,9 +52,7 @@ class LambdaExpression : public Expression {
 
   LambdaExpression(
       Type type,
-      // TODO(easy, 2023-12-21): Use std::vector<Identifier> rather than
-      // converting explicitly inside `BuildValue`.
-      NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names,
+      NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names,
       NonNull<std::shared_ptr<Expression>> body,
       std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
           promotion_function)
@@ -93,7 +91,7 @@ class LambdaExpression : public Expression {
           gc::Root<Environment> environment =
               Environment::New(parent_environment);
           for (size_t i = 0; i < args.size(); i++) {
-            environment.ptr()->Define(Identifier(argument_names->at(i)),
+            environment.ptr()->Define(argument_names->at(i),
                                       std::move(args.at(i)));
           }
           auto original_trampoline = trampoline;
@@ -115,7 +113,7 @@ class LambdaExpression : public Expression {
 
  private:
   Type type_;
-  const NonNull<std::shared_ptr<std::vector<std::wstring>>> argument_names_;
+  const NonNull<std::shared_ptr<std::vector<Identifier>>> argument_names_;
   const NonNull<std::shared_ptr<Expression>> body_;
   const std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
       promotion_function_;
@@ -123,19 +121,15 @@ class LambdaExpression : public Expression {
 }  // namespace
 
 std::unique_ptr<UserFunction> UserFunction::New(
-    Compilation& compilation, std::wstring return_type,
-    std::optional<std::wstring> name,
-    std::unique_ptr<std::vector<std::pair<Type, std::wstring>>> args) {
-  if (args == nullptr) {
-    return nullptr;
-  }
-  // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
-  // caller.
+    Compilation& compilation, Identifier return_type,
+    std::optional<Identifier> name,
+    std::unique_ptr<std::vector<std::pair<Type, Identifier>>> args) {
+  if (args == nullptr) return nullptr;
   const Type* return_type_def =
-      compilation.environment.ptr()->LookupType(Identifier(return_type));
+      compilation.environment.ptr()->LookupType(return_type);
   if (return_type_def == nullptr) {
     compilation.AddError(
-        Error(L"Unknown return type: \"" + return_type + L"\""));
+        Error(L"Unknown return type: \"" + return_type.read() + L"\""));
     return nullptr;
   }
 
@@ -144,31 +138,27 @@ std::unique_ptr<UserFunction> UserFunction::New(
       .inputs = container::MaterializeVector(
           *args |
           std::views::transform(
-              [](const std::pair<Type, std::wstring>& a) { return a.first; }))};
+              [](const std::pair<Type, Identifier>& a) { return a.first; }))};
 
   auto output = std::make_unique<UserFunction>(UserFunction{
       .name = std::nullopt,
       .type = std::move(function_type),
-      .argument_names = MakeNonNullShared<std::vector<std::wstring>>(
+      .argument_names = MakeNonNullShared<std::vector<Identifier>>(
           container::MaterializeVector(
               *args |
-              std::views::transform([](const std::pair<Type, std::wstring>& a) {
+              std::views::transform([](const std::pair<Type, Identifier>& a) {
                 return a.second;
               })))});
 
   if (name.has_value()) {
     output->name = name.value();
-    // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
-    // caller.
     compilation.environment.ptr()->Define(
-        Identifier(name.value()), Value::New(compilation.pool, output->type));
+        name.value(), Value::New(compilation.pool, output->type));
   }
   compilation.environment = Environment::New(compilation.environment.ptr());
-  for (const std::pair<Type, std::wstring>& arg : *args)
-    // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
-    // caller.
+  for (const std::pair<Type, Identifier>& arg : *args)
     compilation.environment.ptr()->Define(
-        Identifier(arg.second), Value::New(compilation.pool, arg.first));
+        arg.second, Value::New(compilation.pool, arg.first));
   return output;
 }
 
@@ -210,10 +200,8 @@ UserFunction::BuildExpression(Compilation& compilation,
 
 void UserFunction::Abort(Compilation& compilation) {
   Done(compilation);
-  if (name.has_value()) {
-    // TODO(easy, 2023-12-22): Don't convert to Identifier here.
-    compilation.environment.ptr()->Remove(Identifier(name.value()), type);
-  }
+  if (name.has_value())
+    compilation.environment.ptr()->Remove(name.value(), type);
 }
 
 void UserFunction::Done(Compilation& compilation) {

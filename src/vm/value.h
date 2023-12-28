@@ -43,7 +43,7 @@ class Value {
   static language::gc::Root<Value> NewString(language::gc::Pool& pool,
                                              std::wstring value);
   static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
-                                             std::wstring value);
+                                             Identifier value);
   static language::gc::Root<Value> NewObject(
       language::gc::Pool& pool, types::ObjectName name,
       language::NonNull<std::shared_ptr<void>> value,
@@ -82,7 +82,7 @@ class Value {
   language::ValueOrError<int64_t> get_int() const;
   const math::numbers::Number& get_number() const;
   const std::wstring& get_string() const;
-  const std::wstring& get_symbol() const;
+  const Identifier& get_symbol() const;
 
   template <typename T>
   language::NonNull<std::shared_ptr<T>> get_user_value(
@@ -114,13 +114,10 @@ class Value {
  private:
   language::gc::Pool& pool_;
 
-  struct Symbol {
-    std::wstring symbol_value;
-  };
   struct ObjectInstance {
     language::NonNull<std::shared_ptr<void>> value;
   };
-  std::variant<bool, math::numbers::Number, std::wstring, Symbol,
+  std::variant<bool, math::numbers::Number, std::wstring, Identifier,
                ObjectInstance, Callback>
       value_;
 

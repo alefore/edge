@@ -109,7 +109,7 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 
   StartClassDeclaration(
       *compilation,
-      types::ObjectName(std::move(name)->value().ptr()->get_symbol()));
+      types::ObjectName(std::move(name)->value().ptr()->get_symbol().read()));
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
@@ -241,8 +241,8 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
     OUT = nullptr;
   } else {
     CHECK(func->name.has_value());
-    std::optional<Type> result =
-        NewDefineTypeExpression(*compilation, L"auto", *func->name, func->type);
+    std::optional<Type> result = NewDefineTypeExpression(
+        *compilation, Identifier(L"auto"), *func->name, func->type);
     if (result == std::nullopt) {
       OUT = nullptr;
       func->Abort(*compilation);
@@ -286,7 +286,7 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
     function_declaration_arguments(ARGS) RPAREN . {
   std::unique_ptr<std::optional<gc::Root<Value>>> return_type(RETURN_TYPE);
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
-  std::unique_ptr<std::vector<std::pair<Type, wstring>>> args(ARGS);
+  std::unique_ptr<std::vector<std::pair<Type, Identifier>>> args(ARGS);
 
   CHECK(return_type->value().ptr()->IsSymbol());
   CHECK(name->value().ptr()->IsSymbol());
@@ -298,11 +298,11 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
 
 // Arguments in the declaration of a function
 
-%type function_declaration_arguments { vector<pair<Type, wstring>>* }
+%type function_declaration_arguments { vector<pair<Type, Identifier>>* }
 %destructor function_declaration_arguments { delete $$; }
 
 function_declaration_arguments(OUT) ::= . {
-  OUT = new vector<pair<Type, wstring>>();
+  OUT = new vector<pair<Type, Identifier>>();
 }
 
 function_declaration_arguments(OUT) ::=
@@ -311,7 +311,7 @@ function_declaration_arguments(OUT) ::=
 }
 
 %type non_empty_function_declaration_arguments {
-  vector<pair<Type, wstring>>*
+  vector<pair<Type, Identifier>>*
 }
 %destructor non_empty_function_declaration_arguments { delete $$; }
 
@@ -323,11 +323,12 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
       // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
       Identifier(type->value().ptr()->get_symbol()));
   if (type_def == nullptr) {
-    compilation->AddError(
-        Error(L"Unknown type: \"" + type->value().ptr()->get_symbol() + L"\""));
+    compilation->AddError(Error(L"Unknown type: \"" +
+                                type->value().ptr()->get_symbol().read() +
+                                L"\""));
     OUT = nullptr;
   } else {
-    OUT = new std::vector<std::pair<Type, std::wstring>>();
+    OUT = new std::vector<std::pair<Type, Identifier>>();
     OUT->push_back(
         std::make_pair(*type_def, name->value().ptr()->get_symbol()));
   }
@@ -336,7 +337,7 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
 non_empty_function_declaration_arguments(OUT) ::=
     non_empty_function_declaration_arguments(LIST) COMMA SYMBOL(TYPE)
     SYMBOL(NAME). {
-  std::unique_ptr<vector<pair<Type, wstring>>> list(LIST);
+  std::unique_ptr<vector<pair<Type, Identifier>>> list(LIST);
   std::unique_ptr<std::optional<gc::Root<Value>>> type(TYPE);
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
@@ -347,8 +348,9 @@ non_empty_function_declaration_arguments(OUT) ::=
         // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
         Identifier(type->value().ptr()->get_symbol()));
     if (type_def == nullptr) {
-      compilation->AddError(Error(
-          L"Unknown type: \"" + type->value().ptr()->get_symbol() + L"\""));
+    compilation->AddError(Error(L"Unknown type: \"" +
+                                type->value().ptr()->get_symbol().read() +
+                                L"\""));
       OUT = nullptr;
     } else {
       OUT = list.release();
@@ -365,7 +367,7 @@ non_empty_function_declaration_arguments(OUT) ::=
 lambda_declaration_params(OUT) ::= LBRACE RBRACE
     LPAREN function_declaration_arguments(ARGS) RPAREN
     MINUS GREATER_THAN SYMBOL(RETURN_TYPE) . {
-  std::unique_ptr<std::vector<std::pair<Type, wstring>>> args(ARGS);
+  std::unique_ptr<std::vector<std::pair<Type, Identifier>>> args(ARGS);
   std::unique_ptr<std::optional<gc::Root<Value>>> return_type(RETURN_TYPE);
 
   CHECK(return_type->value().ptr()->IsSymbol());
@@ -979,13 +981,13 @@ expr(OUT) ::= non_empty_symbols_list(N) . {
   delete N;
 }
 
-%type non_empty_symbols_list { std::list<std::wstring>* }
+%type non_empty_symbols_list { std::list<Identifier>* }
 %destructor non_empty_symbols_list { delete $$; }
 
 non_empty_symbols_list(OUT) ::= SYMBOL(S). {
   CHECK(
       std::holds_alternative<types::Symbol>(S->value().ptr()->type));
-  OUT = new std::list<std::wstring>(
+  OUT = new std::list<Identifier>(
       {std::move(S->value().ptr()->get_symbol())});
   delete S;
 }

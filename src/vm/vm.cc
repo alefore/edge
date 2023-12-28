@@ -280,7 +280,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
                  (iswalnum(str.at(pos)) || str.at(pos) == '_')) {
             pos++;
           }
-          wstring symbol = str.substr(start, pos - start);
+          std::wstring symbol = str.substr(start, pos - start);
           if (symbol == L"include") {
             HandleInclude(compilation, parser, str, &pos);
           } else {
@@ -541,7 +541,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
           }
         } else {
           token = SYMBOL;
-          input = Value::NewSymbol(compilation.pool, symbol);
+          input = Value::NewSymbol(compilation.pool, Identifier(symbol));
         }
       } break;
 
@@ -573,7 +573,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
     if (token == SYMBOL || token == STRING) {
       CHECK(input.has_value()) << "No input with token: " << token;
       if (input.value().ptr()->IsSymbol())
-        compilation.last_token = input.value().ptr()->get_symbol();
+        compilation.last_token = input.value().ptr()->get_symbol().read();
       else if (input.value().ptr()->IsString())
         compilation.last_token = input.value().ptr()->get_string();
       else

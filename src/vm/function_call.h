@@ -32,7 +32,7 @@ futures::ValueOrError<language::gc::Root<Value>> Call(
 
 std::unique_ptr<Expression> NewMethodLookup(Compilation& compilation,
                                             std::unique_ptr<Expression> object,
-                                            std::wstring method_name);
+                                            Identifier method_name);
 
 }  // namespace vm
 }  // namespace afc

@@ -61,12 +61,10 @@ class VariableLookup : public Expression {
 }  // namespace
 
 std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
-                                              std::list<std::wstring> symbols) {
+                                              std::list<Identifier> symbols) {
   CHECK(!symbols.empty());
 
-  // TODO(2023-12-22, trivial): Don't convert to Identifier here; do it in the
-  // caller.
-  auto symbol = Identifier(std::move(symbols.back()));
+  auto symbol = std::move(symbols.back());
   symbols.pop_back();
   Namespace symbol_namespace(
       std::vector<Identifier>(symbols.begin(), symbols.end()));

@@ -78,46 +78,43 @@ class AssignExpression : public Expression {
 }  // namespace
 
 std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
-                                            std::wstring type,
-                                            std::wstring symbol,
+                                            Identifier type, Identifier symbol,
                                             std::optional<Type> default_type) {
   Type type_def;
-  if (type == L"auto") {
+  // TODO(2023-12-28, trivial): Reuse a public definition of `auto`.
+  if (type == Identifier(L"auto")) {
     if (default_type == std::nullopt) {
       compilation.AddError(Error(L"Unable to deduce type."));
       return std::nullopt;
     }
     type_def = default_type.value();
   } else {
-    // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
-    // caller.
-    auto type_ptr = compilation.environment.ptr()->LookupType(Identifier(type));
+    auto type_ptr = compilation.environment.ptr()->LookupType(type);
     if (type_ptr == nullptr) {
-      compilation.AddError(Error(L"Unknown type: `" + type + L"` for symbol `" +
-                                 symbol + L"`."));
+      compilation.AddError(Error(L"Unknown type: `" + type.read() +
+                                 L"` for symbol `" + symbol.read() + L"`."));
       return std::nullopt;
     }
     type_def = *type_ptr;
   }
-  // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
-  // caller.
-  compilation.environment.ptr()->Define(Identifier(symbol),
+  compilation.environment.ptr()->Define(symbol,
                                         Value::New(compilation.pool, type_def));
   return type_def;
 }
 
 std::unique_ptr<Expression> NewDefineExpression(
-    Compilation& compilation, std::wstring type, std::wstring symbol,
+    Compilation& compilation, Identifier type, Identifier symbol,
     std::unique_ptr<Expression> value) {
   if (value == nullptr) {
     return nullptr;
   }
   std::optional<Type> default_type;
-  if (type == L"auto") {
+  // TODO(trivial, 2023-12-28): Define a public identifier for this.
+  if (type == Identifier(L"auto")) {
     auto types = value->Types();
     if (types.size() != 1) {
-      compilation.AddError(
-          Error(L"Unable to deduce type for symbol: `" + symbol + L"`."));
+      compilation.AddError(Error(L"Unable to deduce type for symbol: `" +
+                                 symbol.read() + L"`."));
       return nullptr;
     }
     default_type = *types.cbegin();
@@ -132,35 +129,31 @@ std::unique_ptr<Expression> NewDefineExpression(
               TypesToString(value->Types())));
     return nullptr;
   }
-  // TODO(easy, 2023-12-22): Don't convert to Identifier here, do it in the
-  // caller.
   return std::make_unique<AssignExpression>(
-      AssignExpression::AssignmentType::kDefine, Identifier(std::move(symbol)),
+      AssignExpression::AssignmentType::kDefine, std::move(symbol),
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
 }
 
 std::unique_ptr<Expression> NewAssignExpression(
-    Compilation& compilation, std::wstring symbol,
+    Compilation& compilation, Identifier symbol,
     std::unique_ptr<Expression> value) {
   if (value == nullptr) {
     return nullptr;
   }
   std::vector<gc::Root<Value>> variables;
   static const vm::Namespace kEmptyNamespace;
-  // TODO(easy, 2023-12-22): Don't convert to Identifier here; do it in the
-  // caller.
-  compilation.environment.ptr()->PolyLookup(kEmptyNamespace, Identifier(symbol),
+  compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol,
                                             &variables);
+  // TODO(trivial, 2023-12-28): Remove explicit `for` loop.
   for (Value& v : variables | gc::view::Value)
     if (value->SupportsType(v.type))
-      // TODO(easy, 2023-12-22): Don't convert to Identifier here but in the
-      // caller.
       return std::make_unique<AssignExpression>(
-          AssignExpression::AssignmentType::kAssign, Identifier(symbol),
+          AssignExpression::AssignmentType::kAssign, symbol,
           NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
 
   if (variables.empty()) {
-    compilation.AddError(Error(L"Variable not found: \"" + symbol + L"\""));
+    compilation.AddError(
+        Error(L"Variable not found: \"" + symbol.read() + L"\""));
     return nullptr;
   }
 
