@@ -123,6 +123,10 @@ class RootValueRange
   explicit RootValueRange(R&& range) : range_(std::forward<R>(range)) {}
 
  public:
+  using value_type =
+      RootValueIterator<Adapter, decltype(std::begin(
+                                     std::declval<Range>()))>::value_type;
+
   auto begin() { return RootValueIterator(Adapter{}, std::begin(range_)); }
   auto begin() const {
     return RootValueIterator(Adapter{}, std::begin(range_));
@@ -150,7 +154,7 @@ inline constexpr RootValueViewAdapter<GetObjectMetadata> ObjectMetadata{};
 
 // Overload the pipe operator for range and RootValueViewAdapter
 template <typename Adapter, typename Range>
-auto operator|(Range&& r, RootValueViewAdapter<Adapter> const& adapter) {
+auto operator|(Range&& r, const RootValueViewAdapter<Adapter>& adapter) {
   return adapter(std::forward<Range>(r));
 }
 }  // namespace view
