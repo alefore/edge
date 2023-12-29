@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/infrastructure/tracker.h"
+#include "src/language/const_tree.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
 
@@ -40,6 +41,39 @@ class SubstringImpl : public LazyStringImpl {
 };
 }  // namespace
 
+// Why isn't this in the anonymous namespace? We need to make it public so that
+// we can declare it as friend of LazyString (so that it can get access to the
+// `data_` field.
+class AppendImpl : public LazyStringImpl {
+ public:
+  using Tree = ConstTree<VectorBlock<wchar_t, 64>, 64>;
+
+  AppendImpl(Tree::Ptr tree) : tree_(std::move(tree)) {}
+
+  wchar_t get(ColumnNumber pos) const { return tree_->Get(pos.read()); }
+
+  ColumnNumberDelta size() const {
+    return ColumnNumberDelta(Tree::Size(tree_));
+  }
+
+  const Tree::Ptr& tree() const { return tree_; }
+
+  static AppendImpl::Tree::Ptr TreeFrom(LazyString a) {
+    if (auto a_cast = dynamic_cast<const AppendImpl*>(a.data_.get().get());
+        a_cast != nullptr) {
+      return a_cast->tree();
+    }
+    AppendImpl::Tree::Ptr output;
+    ForEachColumn(a, [&output](ColumnNumber, wchar_t c) {
+      output = AppendImpl::Tree::PushBack(output, c).get_shared();
+    });
+    return output;
+  }
+
+ private:
+  const Tree::Ptr tree_;
+};
+
 std::wstring LazyString::ToString() const {
   static Tracker tracker(L"LazyString::ToString");
   auto call = tracker.Call();
@@ -67,6 +101,13 @@ LazyString LazyString::SubstringWithRangeChecks(ColumnNumber column,
                                                 ColumnNumberDelta delta) const {
   column = std::min(column, ColumnNumber(0) + size());
   return Substring(column, std::min(delta, size() - column.ToDelta()));
+}
+
+LazyString LazyString::Append(LazyString suffix) const {
+  if (IsEmpty()) return suffix;
+  if (suffix.IsEmpty()) return *this;
+  return LazyString(MakeNonNullShared<AppendImpl>(AppendImpl::Tree::Append(
+      AppendImpl::TreeFrom(*this), AppendImpl::TreeFrom(suffix))));
 }
 
 bool LazyString::operator<(const LazyString& x) {

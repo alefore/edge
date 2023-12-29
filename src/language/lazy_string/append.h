@@ -10,6 +10,8 @@
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
+// TODO(trivial, 2023-12-29): Remove these functions; replace with methods in
+// LazyString.
 LazyString Append(LazyString a, LazyString b);
 LazyString Append(LazyString a, LazyString b, LazyString c);
 LazyString Append(LazyString a, LazyString b, LazyString c, LazyString d);
@@ -19,7 +21,7 @@ LazyString Concatenate(R&& inputs) {
   // TODO: There's probably a faster way to do this. Not sure it matters.
   return container::Fold(
       [](LazyString fragment, LazyString total) {
-        return Append(std::move(total), fragment);
+        return std::move(total).Append(fragment);
       },
       EmptyString(), inputs);
 }

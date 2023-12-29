@@ -35,6 +35,7 @@ class LazyString {
 
   wchar_t get(ColumnNumber pos) const { return data_->get(pos); }
   ColumnNumberDelta size() const { return data_->size(); }
+  bool IsEmpty() const { return data_->size().IsZero(); }
 
   std::wstring ToString() const;
 
@@ -58,6 +59,8 @@ class LazyString {
   // Example: Substring("carla", 2, 30) := "rla"
   LazyString SubstringWithRangeChecks(ColumnNumber column,
                                       ColumnNumberDelta delta) const;
+
+  LazyString Append(LazyString) const;
 
   bool operator<(const LazyString& x);
 };
