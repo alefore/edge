@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <list>
+#include <optional>
 #include <ranges>
 #include <set>
 #include <type_traits>
@@ -88,6 +89,15 @@ std::set<typename Container::key_type> GetSetWithKeys(
 }
 
 namespace container {
+template <typename Range, typename Predicate>
+std::optional<typename Range::value_type> FindFirstIf(Range&& range,
+                                                      Predicate pred) {
+  if (auto it = std::ranges::find_if(range, pred);
+      it != std::ranges::end(range))
+    return *it;
+  return std::nullopt;
+}
+
 // Convenience function. Hopefully we'll be able to do this with native C++
 // soon, and then we can just get rid of this.
 template <typename Container>
