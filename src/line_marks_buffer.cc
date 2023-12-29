@@ -59,7 +59,7 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
     marks_by_source[data.second.source_buffer].push_back(
         MarkView{.expired = true,
                  .target = data.first,
-                 .text = LineBuilder(data.second.source_line_content).Build()});
+                 .text = data.second.source_line_content});
   for (std::pair<const BufferName, std::vector<MarkView>> data :
        std::move(marks_by_source)) {
     output.push_back(L"");

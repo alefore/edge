@@ -41,8 +41,7 @@ struct LineMarks {
     const BufferName source_buffer = BufferName(L"");
 
     // The contents in the source (and line) that created this mark.
-    // TODO(trivial, 2023-12-08): Turn into Line.
-    const language::lazy_string::LazyString source_line_content;
+    const language::text::Line source_line_content;
 
     // What buffer does this mark identify?
     const BufferName target_buffer = BufferName(L"");
