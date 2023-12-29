@@ -17,6 +17,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Success;
+using afc::language::VisitOptional;
 
 namespace afc::vm {
 namespace {
@@ -144,12 +145,6 @@ std::unique_ptr<Expression> NewAssignExpression(
   static const vm::Namespace kEmptyNamespace;
   compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol,
                                             &variables);
-  // TODO(trivial, 2023-12-28): Remove explicit `for` loop.
-  for (Value& v : variables | gc::view::Value)
-    if (value->SupportsType(v.type))
-      return std::make_unique<AssignExpression>(
-          AssignExpression::AssignmentType::kAssign, symbol,
-          NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
 
   if (variables.empty()) {
     compilation.AddError(
@@ -157,14 +152,25 @@ std::unique_ptr<Expression> NewAssignExpression(
     return nullptr;
   }
 
-  compilation.AddError(
-      Error(L"Unable to assign a value to a variable supporting types: \"" +
+  return VisitOptional(
+      [&value, &symbol](const Value&) {
+        return std::make_unique<AssignExpression>(
+            AssignExpression::AssignmentType::kAssign, symbol,
+            NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
+      },
+      [&] {
+        compilation.AddError(Error(
+            L"Unable to assign a value to a variable supporting types: \"" +
             TypesToString(value->Types()) + L"\". Value types: " +
             TypesToString(container::MaterializeVector(
                 std::move(variables) | gc::view::Value |
                 std::views::transform([](Value v) { return v.type; })))));
 
-  return nullptr;
+        return nullptr;
+      },
+      container::FindFirstIf(variables | gc::view::Value, [&value](Value& v) {
+        return value->SupportsType(v.type);
+      }));
 }
 
 }  // namespace afc::vm
