@@ -23,6 +23,14 @@ concept Addable = requires(
   { a + n } -> std::convertible_to<Iterator>;
 };
 
+class GetPtrRoot {
+ public:
+  template <typename Iterator>
+  static auto Adjust(const Iterator& iterator) {
+    return (*iterator).ToRoot();
+  }
+};
+
 class GetRootValue {
  public:
   template <typename Iterator>
@@ -150,6 +158,7 @@ class RootValueViewAdapter {
 
 // Global instance of the adapters:
 inline constexpr RootValueViewAdapter<GetRootValue> Value{};
+inline constexpr RootValueViewAdapter<GetPtrRoot> Root{};
 inline constexpr RootValueViewAdapter<GetObjectMetadata> ObjectMetadata{};
 
 // Overload the pipe operator for range and RootValueViewAdapter
