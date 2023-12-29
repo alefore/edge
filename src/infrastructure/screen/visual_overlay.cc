@@ -12,10 +12,10 @@ using language::lazy_string::LazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
-using language::text::Range;
+using language::text::LineRange;
 
 VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
-                                const Range& screen_line_range) {
+                                const LineRange& screen_line_range) {
   VisualOverlayMap output;
   for (const std::pair<const VisualOverlayPriority,
                        std::map<VisualOverlayKey,
@@ -27,15 +27,15 @@ VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
          priority_entry.second) {
       DVLOG(5) << "Visiting overlay key: " << key_entry.first;
       if (auto overlay_it =
-              key_entry.second.lower_bound(screen_line_range.begin());
+              key_entry.second.lower_bound(screen_line_range.value.begin());
           overlay_it != key_entry.second.end() &&
-          overlay_it->first < screen_line_range.end()) {
+          overlay_it->first < screen_line_range.value.end()) {
         while (overlay_it != key_entry.second.end() &&
-               overlay_it->first < screen_line_range.end()) {
-          CHECK_EQ(overlay_it->first.line, screen_line_range.end().line);
-          CHECK_GE(overlay_it->first.column, screen_line_range.begin().column);
+               overlay_it->first < screen_line_range.value.end()) {
+          CHECK_EQ(overlay_it->first.line, screen_line_range.line());
+          CHECK_GE(overlay_it->first.column, screen_line_range.begin_column());
           output[priority_entry.first][key_entry.first].insert(std::make_pair(
-              overlay_it->first - screen_line_range.begin().column.ToDelta(),
+              overlay_it->first - screen_line_range.begin_column().ToDelta(),
               overlay_it->second));
           ++overlay_it;
         }

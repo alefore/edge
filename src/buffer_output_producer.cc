@@ -307,9 +307,8 @@ LineWithCursor::Generator::Vector ProduceBufferView(
       generator = LineHighlighter(std::move(generator));
     }
 
-    // TODO(2023-12-08, trivial): Stay with LineRange.
-    if (VisualOverlayMap overlays = FilterOverlays(buffer.visual_overlay_map(),
-                                                   screen_line.range.value);
+    if (VisualOverlayMap overlays =
+            FilterOverlays(buffer.visual_overlay_map(), screen_line.range);
         !overlays.empty())
       generator = ApplyVisualOverlay(std::move(overlays), std::move(generator));
 

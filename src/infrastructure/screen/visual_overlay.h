@@ -48,8 +48,9 @@ GHOST_TYPE_CONTAINER(VisualOverlayMap, VisualOverlayMapInternal);
 
 // Returns a copy of visual_overlay_map that only contains overlays that
 // intersect screen_line_range.
-VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
-                                const language::text::Range& screen_line_range);
+VisualOverlayMap FilterOverlays(
+    const VisualOverlayMap& visual_overlay_map,
+    const language::text::LineRange& screen_line_range);
 
 // Returns a copy of Line after applying all overlays. The LineColumn.line
 // values in the keys will be ignored: all overlays in the map will be applied,
