@@ -1411,7 +1411,7 @@ void OpenBuffer::CreateCursor() {
 LineColumn OpenBuffer::FindNextCursor(LineColumn position,
                                       const Modifiers& modifiers) {
   LOG(INFO) << "Visiting next cursor: " << modifiers;
-  auto direction = modifiers.direction;
+  Direction direction = modifiers.direction;
   CursorsSet& cursors = active_cursors();
   CHECK(!cursors.empty());
 
