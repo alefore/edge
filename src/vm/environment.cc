@@ -198,9 +198,8 @@ void Environment::CaseInsensitiveLookup(
     environment->data_.lock([&output, &symbol](const Data& data) {
       for (auto& item : data.table)
         if (wcscasecmp(item.first.read().c_str(), symbol.read().c_str()) == 0)
-          // TODO(trivial, 2023-12-22): Use std::ranges::copy.
-          for (const gc::Ptr<Value>& entry : item.second | std::views::values)
-            output->push_back(entry.ToRoot());
+          std::ranges::copy(item.second | std::views::values | gc::view::Root,
+                            std::back_inserter(*output));
     });
   }
   // Deliverately ignoring `environment`:
