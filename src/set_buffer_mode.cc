@@ -18,6 +18,8 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -43,7 +45,7 @@ struct Operation {
   };
   Type type;
   size_t number = 0;
-  std::wstring text_input = L"";
+  LazyString text_input = EmptyString();
 };
 
 struct Data {
@@ -138,13 +140,15 @@ bool CharConsumer(ExtendedChar c, Data& data) {
         CHECK(!data.operations.empty());
         CHECK(data.operations.back().type == Operation::Type::kFilter ||
               data.operations.back().type == Operation::Type::kSearch);
-        if (data.operations.back().text_input.empty()) {
+        if (data.operations.back().text_input.IsEmpty()) {
           data.operations.pop_back();
         }
         return true;
       } else if (wchar_t* regular_char = std::get_if<wchar_t>(&c);
                  regular_char != nullptr) {
-        data.operations.back().text_input.push_back(*regular_char);
+        data.operations.back().text_input =
+            data.operations.back().text_input.Append(
+                NewLazyString(ColumnNumberDelta(1), *regular_char));
         return true;
       } else {
         return false;
@@ -177,7 +181,8 @@ std::wstring BuildStatus(const Data& data) {
         output += std::to_wstring(operation.number);
         break;
       case Operation::Type::kFilter:
-        output += L" w:" + operation.text_input;
+        // TODO(trivial, 2023-12-29): Avoid `ToString`.
+        output += L" w:" + operation.text_input.ToString();
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingFilter) {
           output += L"…";
@@ -187,7 +192,8 @@ std::wstring BuildStatus(const Data& data) {
         output += L" !";
         break;
       case Operation::Type::kSearch:
-        output += L" /:" + operation.text_input;
+        // TODO(trivial, 2023-12-29): Avoid `ToString`.
+        output += L" /:" + operation.text_input.ToString();
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingSearch) {
           output += L"…";
@@ -332,8 +338,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
       case Operation::Type::kFilter:
         state_future =
             std::move(state_future)
-                .Transform([filter = TokenizeBySpaces(
-                                NewLazyString(operation.text_input)),
+                .Transform([filter = TokenizeBySpaces(operation.text_input),
                             &buffers_list](State state) {
                   Indices new_indices;
                   for (auto& index : state.indices) {
@@ -374,14 +379,11 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                         editor.thread_pool()
                             .Run(std::bind_front(
                                 SearchHandler, Direction::kForwards,
-                                // TODO(trivial, 2023-10-06): Get rid of
-                                // NewLazyString.
-                                SearchOptions{
-                                    .search_query = NewLazyString(text_input),
-                                    .required_positions = 1,
-                                    .case_sensitive =
-                                        buffer.Read(buffer_variables::
-                                                        search_case_sensitive)},
+                                SearchOptions{.search_query = text_input,
+                                              .required_positions = 1,
+                                              .case_sensitive = buffer.Read(
+                                                  buffer_variables::
+                                                      search_case_sensitive)},
                                 buffer.contents().snapshot()))
                             .Transform([new_state, index](
                                            std::vector<LineColumn> results) {
