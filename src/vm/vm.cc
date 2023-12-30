@@ -279,21 +279,16 @@ void CompileLine(Compilation& compilation, void* parser,
         {
           ColumnNumber start = pos;
           while (pos.ToDelta() < str.size() &&
-                 (iswalnum(str.get(pos)) || str.get(pos) == '_')) {
-            pos++;
-          }
-          // TODO(trivial, 2023-12-30): Check if it can be converted to
-          // Identifier, or handle error otherwise.
-          Identifier symbol =
-              Identifier(str.Substring(start, pos - start).ToString());
-          // TODO(trivial, 2023-12-30): Use IdentifierInclude.
-          if (symbol == Identifier(L"include")) {
+                 (iswalnum(str.get(pos)) || str.get(pos) == '_'))
+            ++pos;
+          LazyString symbol_contents = str.Substring(start, pos - start);
+          if (IdentifierOrError(symbol_contents) ==
+              Success(IdentifierInclude()))
             HandleInclude(compilation, parser, str, &pos);
-          } else {
+          else
             compilation.AddError(
                 NewError(NewLazyString(L"Invalid preprocessing directive #")
-                             .Append(NewLazyString(symbol.read()))));
-          }
+                             .Append(symbol_contents)));
           continue;
         }
         break;
