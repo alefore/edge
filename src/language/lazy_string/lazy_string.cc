@@ -136,6 +136,11 @@ bool operator==(const LazyString& a, const LazyString& b) {
           }).has_value();
 }
 
+const LazyString& operator+=(LazyString& a, const LazyString& b) {
+  a = std::move(a).Append(b);
+  return a;
+}
+
 std::ostream& operator<<(std::ostream& os,
                          const afc::language::lazy_string::LazyString& obj) {
   // TODO(P2): Find another way to implement this.
