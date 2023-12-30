@@ -14,8 +14,10 @@
 namespace container = afc::language::container;
 
 using afc::language::GetValueOrDie;
+using afc::language::NewError;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 
 namespace std {
@@ -70,8 +72,19 @@ using language::overload;
 
 namespace gc = language::gc;
 
+language::ValueOrError<Identifier> IdentifierOrError(LazyString input) {
+  if (input.IsEmpty()) return NewError(NewLazyString(L"Identifier is empty"));
+  // TODO(trivial, 2023-12-30): Start checking characters (e.g., only alnum).
+  return Identifier(input.ToString());
+}
+
 const Identifier& IdentifierAuto() {
   static const auto output = new Identifier(L"auto");
+  return *output;
+}
+
+const Identifier& IdentifierInclude() {
+  static const auto output = new Identifier(L"include");
   return *output;
 }
 

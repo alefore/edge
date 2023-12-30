@@ -8,8 +8,10 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 
@@ -21,8 +23,13 @@ namespace afc::vm {
 // alphanumeric characters and that it isn't empty.
 GHOST_TYPE(Identifier, std::wstring);
 
+language::ValueOrError<Identifier> IdentifierOrError(
+    language::lazy_string::LazyString);
+
 // Return the identifier for "auto".
 const Identifier& IdentifierAuto();
+// Return the identifier for "include".
+const Identifier& IdentifierInclude();
 
 class ObjectType;
 
