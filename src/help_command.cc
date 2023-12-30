@@ -19,11 +19,13 @@ using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
+using afc::language::EmptyValue;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -134,31 +136,38 @@ class HelpCommand : public Command {
   std::wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(ExtendedChar) override {
-    auto original_buffer = editor_state_.current_buffer();
-    const BufferName name(L"- help: " + mode_description_);
-
-    // TODO(easy, 2023-12-08): Use generate_contents for the contents.
-    auto buffer_root = OpenBuffer::New({.editor = editor_state_, .name = name});
-    OpenBuffer& buffer = buffer_root.ptr().value();
-    buffer.Set(buffer_variables::tree_parser, L"md");
-    buffer.Set(buffer_variables::wrap_from_content, true);
-    buffer.Set(buffer_variables::allow_dirty_delete, true);
-
-    // TODO(easy, 2022-05-15): Why is the following check safe?
-    CHECK(original_buffer.has_value());
-    buffer.InsertInPosition(
-        GenerateContents(commands_, original_buffer->ptr().value()),
-        LineColumn(), {});
-    buffer.set_current_position_line(LineNumber(0));
-    buffer.ResetMode();
-
-    editor_state_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
-    editor_state_.buffers()->insert_or_assign(name, std::move(buffer_root));
-    editor_state_.ResetRepetitions();
+    VisitOptional(
+        [&](gc::Root<OpenBuffer> original_buffer) {
+          const BufferName name(L"- help: " + mode_description_);
+          auto buffer_root = OpenBuffer::New(OpenBuffer::Options{
+              .editor = editor_state_,
+              .name = name,
+              .generate_contents = std::bind_front(
+                  GenerateContents, std::ref(commands_), original_buffer)});
+          buffer_root.ptr()->Reload();
+          editor_state_.AddBuffer(buffer_root,
+                                  BuffersList::AddBufferType::kVisit);
+          editor_state_.buffers()->insert_or_assign(name,
+                                                    std::move(buffer_root));
+          editor_state_.ResetRepetitions();
+        },
+        [] {}, editor_state_.current_buffer());
   }
 
-  static LineSequence GenerateContents(const MapModeCommands& commands,
-                                       const OpenBuffer& buffer) {
+  static futures::Value<language::PossibleError> GenerateContents(
+      const MapModeCommands& commands, gc::Root<OpenBuffer> input,
+      OpenBuffer& output) {
+    output.Set(buffer_variables::tree_parser, L"md");
+    output.Set(buffer_variables::wrap_from_content, true);
+    output.Set(buffer_variables::allow_dirty_delete, true);
+    output.InsertInPosition(GenerateLines(commands, input.ptr().value()),
+                            LineColumn(), {});
+    output.set_current_position_line(LineNumber(0));
+    return futures::Past(EmptyValue());
+  }
+
+  static LineSequence GenerateLines(const MapModeCommands& commands,
+                                    const OpenBuffer& buffer) {
     LOG(INFO) << "Generating help contents.";
     MutableLineSequence output;
     output.AppendToLine(LineNumber(), Line(L"# Edge - Help"));
@@ -362,8 +371,8 @@ const bool buffer_registration = tests::Register(
                auto buffer = NewBufferForTests(editor.value());
                gc::Root<MapModeCommands> commands =
                    MapModeCommands::New(buffer.ptr()->editor());
-               HelpCommand::GenerateContents(commands.ptr().value(),
-                                             buffer.ptr().value());
+               HelpCommand::GenerateLines(commands.ptr().value(),
+                                          buffer.ptr().value());
              }},
     });
 }  // namespace
