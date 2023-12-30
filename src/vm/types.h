@@ -159,5 +159,6 @@ struct hash<afc::vm::Type> {
 }  // namespace std
 
 GHOST_TYPE_TOP_LEVEL(afc::vm::types::ObjectName);
+GHOST_TYPE_TOP_LEVEL(afc::vm::Identifier);
 
 #endif  // __AFC_VM_PUBLIC_TYPES_H__
