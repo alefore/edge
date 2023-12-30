@@ -97,10 +97,15 @@ class ParseState {
         ReceiveValue(Value::NewNumber(
             pool_,
             math::numbers::FromInt(atoi(ToByteString(token.value).c_str()))));
-      for (gc::Root<Value> value :
-           LookUp(first_token
-                      ? NewLazyString(token.value).Append(function_name_prefix_)
-                      : NewLazyString(token.value)))
+      // TODO(easy, 2023-12-30): Before adding validation to Identifier,
+      // validate here that the input can be correctly converted to an
+      // Identifier. Otherwise this can crash if there's a mismatch. It should,
+      // instead, just fail (return an error).
+      for (gc::Root<Value> value : LookUp(
+               first_token ? Identifier(NewLazyString(token.value)
+                                            .Append(function_name_prefix_)
+                                            .ToString())
+                           : Identifier(NewLazyString(token.value).ToString())))
         ReceiveValue(value);
       if (candidates_.empty()) return Error(L"No valid parses found.");
       first_token = false;
@@ -214,13 +219,10 @@ class ParseState {
                                [](wchar_t c) { return std::iswdigit(c); });
   }
 
-  std::vector<gc::Root<Value>> LookUp(const LazyString& symbol) {
+  std::vector<gc::Root<Value>> LookUp(const Identifier& symbol) {
     std::vector<language::gc::Root<Value>> output;
     for (auto& search_namespace : search_namespaces_)
-      // TODO(easy, 2023-12-22): Don't convert to identifier here; do it in the
-      // caller.
-      environment_.CaseInsensitiveLookup(
-          search_namespace, Identifier(symbol.ToString()), &output);
+      environment_.CaseInsensitiveLookup(search_namespace, symbol, &output);
     return output;
   }
 };
