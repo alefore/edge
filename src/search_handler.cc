@@ -11,6 +11,7 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/padding.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
@@ -31,8 +32,10 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::Padding;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -412,17 +415,14 @@ void HandleSearchResults(
   buffer.ResetMode();
 
   size_t size = results->size();
-  if (size == 1) {
-    buffer.status().SetInformationText(Line(L"🔍 1 result."));
-  } else {
-    // TODO(easy, 2023-09-08): Convert `results_prefix` to use Padding?
-    std::wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');
-    buffer.status().SetInformationText(
-        LineBuilder(NewLazyString(results_prefix)
-                        .Append(NewLazyString(L" Results: "))
-                        .Append(NewLazyString(std::to_wstring(size))))
-            .Build());
-  }
+  buffer.status().SetInformationText(
+      size == 1 ? Line(L"🔍 1 result.")
+                : LineBuilder(Padding(ColumnNumberDelta(
+                                          1 + static_cast<size_t>(log2(size))),
+                                      L'🔍')
+                                  .Append(NewLazyString(L" Results: "))
+                                  .Append(NewLazyString(std::to_wstring(size))))
+                      .Build());
   std::vector<audio::Frequency> frequencies = {
       audio::Frequency(440.0), audio::Frequency(440.0),
       audio::Frequency(493.88), audio::Frequency(523.25),
