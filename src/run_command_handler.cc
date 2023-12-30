@@ -506,11 +506,12 @@ class ForkEditorCommand : public Command {
     EditorState& editor = prompt_state.original_buffer.ptr()->editor();
     language::gc::Pool& pool = editor.gc_pool();
     CHECK(editor.status().GetType() == Status::Type::kPrompt);
-    NonNull<std::unique_ptr<vm::Expression>> expression = vm::NewFunctionCall(
-        vm::NewConstantExpression(*prompt_state.context_command_callback),
-        {vm::NewConstantExpression(
-            vm::Value::NewString(pool, line.ToString()))});
-    if (expression->Types().empty()) {
+    NonNull<std::unique_ptr<vm::Expression>> context_command_expression =
+        vm::NewFunctionCall(
+            vm::NewConstantExpression(*prompt_state.context_command_callback),
+            {vm::NewConstantExpression(
+                vm::Value::NewString(pool, line.ToString()))});
+    if (context_command_expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(
           Error(L"Unable to compile (type mismatch)."));
@@ -519,11 +520,13 @@ class ForkEditorCommand : public Command {
     }
     return prompt_state.original_buffer.ptr()
         ->EvaluateExpression(
-            std::move(expression),
+            std::move(context_command_expression),
             prompt_state.original_buffer.ptr()->environment().ToRoot())
-        .Transform([&prompt_state, &editor](gc::Root<vm::Value> value)
+        .Transform([&prompt_state,
+                    &editor](gc::Root<vm::Value> context_command_output)
                        -> ValueOrError<ColorizePromptOptions> {
-          const std::wstring& base_command = value.ptr()->get_string();
+          const std::wstring& base_command =
+              context_command_output.ptr()->get_string();
           if (prompt_state.base_command == base_command) {
             return ColorizePromptOptions{};
           }
@@ -537,12 +540,13 @@ class ForkEditorCommand : public Command {
           prompt_state.base_command = base_command;
           ForkCommandOptions options;
           options.command = base_command;
-          options.name = BufferName(L"- help: " + base_command);
+          options.name = BufferName(L"- preview: " + base_command);
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
           gc::Root<OpenBuffer> help_buffer_root = ForkCommand(editor, options);
           OpenBuffer& help_buffer = help_buffer_root.ptr().value();
           help_buffer.Set(buffer_variables::follow_end_of_file, false);
           help_buffer.Set(buffer_variables::show_in_buffers_list, false);
+          help_buffer.Set(buffer_variables::allow_dirty_delete, true);
           help_buffer.set_position({});
           return ColorizePromptOptions{.context =
                                            ColorizePromptOptions::ContextBuffer{
