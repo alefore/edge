@@ -21,6 +21,9 @@ namespace afc::vm {
 // alphanumeric characters and that it isn't empty.
 GHOST_TYPE(Identifier, std::wstring);
 
+// Return the identifier for "auto".
+const Identifier& IdentifierAuto();
+
 class ObjectType;
 
 enum class PurityType {

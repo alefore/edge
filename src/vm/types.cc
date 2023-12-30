@@ -70,6 +70,11 @@ using language::overload;
 
 namespace gc = language::gc;
 
+const Identifier& IdentifierAuto() {
+  static const auto output = new Identifier(L"auto");
+  return *output;
+}
+
 PurityType CombinePurityType(const std::vector<PurityType>& types) {
   // We don't use `container::Fold` to enable early return.
   PurityType output = PurityType::kPure;
