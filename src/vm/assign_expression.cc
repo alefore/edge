@@ -82,8 +82,7 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
                                             Identifier type, Identifier symbol,
                                             std::optional<Type> default_type) {
   Type type_def;
-  // TODO(2023-12-28, trivial): Reuse a public definition of `auto`.
-  if (type == Identifier(L"auto")) {
+  if (type == IdentifierAuto()) {
     if (default_type == std::nullopt) {
       compilation.AddError(Error(L"Unable to deduce type."));
       return std::nullopt;
@@ -110,8 +109,7 @@ std::unique_ptr<Expression> NewDefineExpression(
     return nullptr;
   }
   std::optional<Type> default_type;
-  // TODO(trivial, 2023-12-28): Define a public identifier for this.
-  if (type == Identifier(L"auto")) {
+  if (type == IdentifierAuto()) {
     auto types = value->Types();
     if (types.size() != 1) {
       compilation.AddError(Error(L"Unable to deduce type for symbol: `" +
