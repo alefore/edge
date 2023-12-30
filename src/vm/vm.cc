@@ -509,41 +509,39 @@ void CompileLine(Compilation& compilation, void* parser,
         ColumnNumber start = pos;
         while (pos.ToDelta() < str.size() &&
                (iswalnum(str.get(pos)) || str.get(pos) == '_' ||
-                str.get(pos) == '~')) {
-          pos++;
-        }
-        // TODO(trivial, 2023-12-30): Avoid call to ToString.
-        wstring symbol = str.Substring(start, pos - start).ToString();
+                str.get(pos) == '~'))
+          ++pos;
+        Identifier symbol =
+            ValueOrDie(IdentifierOrError(str.Substring(start, pos - start)));
         struct Keyword {
           int token;
           std::function<gc::Root<Value>()> value_supplier = nullptr;
         };
         static const auto* const keywords =
-            new std::unordered_map<std::wstring, Keyword>(
-                {{L"true",
+            new std::unordered_map<Identifier, Keyword>(
+                {{Identifier(L"true"),
                   {.token = BOOL,
                    .value_supplier =
                        [&pool = compilation.pool] {
                          return Value::NewBool(pool, true);
                        }}},
-                 {L"false",
+                 {Identifier(L"false"),
                   {.token = BOOL,
                    .value_supplier =
                        [&pool = compilation.pool] {
                          return Value::NewBool(pool, false);
                        }}},
-                 {L"while", {.token = WHILE}},
-                 {L"for", {.token = FOR}},
-                 {L"if", {.token = IF}},
-                 {L"else", {.token = ELSE}},
-                 {L"return", {.token = RETURN}},
-                 {L"namespace", {.token = NAMESPACE}},
-                 {L"class", {.token = CLASS}}});
+                 {Identifier(L"while"), {.token = WHILE}},
+                 {Identifier(L"for"), {.token = FOR}},
+                 {Identifier(L"if"), {.token = IF}},
+                 {Identifier(L"else"), {.token = ELSE}},
+                 {Identifier(L"return"), {.token = RETURN}},
+                 {Identifier(L"namespace"), {.token = NAMESPACE}},
+                 {Identifier(L"class"), {.token = CLASS}}});
         if (auto it = keywords->find(symbol); it != keywords->end()) {
           token = it->second.token;
-          if (auto supplier = it->second.value_supplier; supplier != nullptr) {
+          if (auto supplier = it->second.value_supplier; supplier != nullptr)
             input = supplier();
-          }
         } else {
           token = SYMBOL;
           input = Value::NewSymbol(compilation.pool, Identifier(symbol));
