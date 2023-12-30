@@ -13,6 +13,7 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
@@ -42,6 +43,7 @@ using afc::language::Error;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
@@ -51,6 +53,8 @@ using afc::language::ToUniquePtr;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
 
 namespace afc {
 namespace vm {
@@ -69,14 +73,14 @@ namespace numbers = math::numbers;
 #include "src/vm/cpp.h"
 }
 
-void CompileLine(Compilation& compilation, void* parser, const wstring& str);
+void CompileLine(Compilation& compilation, void* parser, const LazyString& str);
 
 void CompileStream(std::wistream& stream, Compilation& compilation,
                    void* parser) {
   std::wstring line;
   while (compilation.errors().empty() && std::getline(stream, line)) {
     VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
-    CompileLine(compilation, parser, line);
+    CompileLine(compilation, parser, NewLazyString(std::move(line)));
     compilation.IncrementLine();
   }
 }
@@ -99,38 +103,36 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
 
 // It is the responsibility of the caller to register errors to compilation.
 PossibleError HandleInclude(Compilation& compilation, void* parser,
-                            const wstring& str, size_t* pos_output) {
+                            const LazyString& str, ColumnNumber* pos_output) {
   CHECK(compilation.errors().empty());
 
   VLOG(6) << "Processing #include directive.";
-  size_t pos = *pos_output;
-  while (pos < str.size() && str[pos] == ' ') {
-    pos++;
-  }
-  if (pos >= str.size() || (str[pos] != '\"' && str[pos] != '<')) {
+  ColumnNumber pos = *pos_output;
+  while (pos.ToDelta() < str.size() && str.get(pos) == ' ') ++pos;
+  if (pos.ToDelta() >= str.size() ||
+      (str.get(pos) != '\"' && str.get(pos) != '<')) {
     VLOG(5) << "Processing #include failed: Expected opening delimiter";
-    return Error(L"#include expects \"FILENAME\" or <FILENAME>; in line: " +
-                 str);
+    return NewError(
+        NewLazyString(L"#include expects \"FILENAME\" or <FILENAME>; in line: ")
+            .Append(str));
   }
-  wchar_t delimiter = str[pos] == L'<' ? L'>' : L'\"';
-  pos++;
-  size_t start = pos;
-  while (pos < str.size() && str[pos] != delimiter) {
-    pos++;
-  }
-  if (pos >= str.size()) {
+  wchar_t delimiter = str.get(pos) == L'<' ? L'>' : L'\"';
+  ++pos;
+  ColumnNumber start = pos;
+  while (pos.ToDelta() < str.size() && str.get(pos) != delimiter) ++pos;
+  if (pos.ToDelta() >= str.size()) {
     VLOG(5) << "Processing #include failed: Expected closing delimiter";
-    return Error(
-        L"#include expects \"FILENAME\" or <FILENAME>, failed to find closing "
-        L"character; in line: " +
-        str);
+    return NewError(
+        NewLazyString(L"#include expects \"FILENAME\" or <FILENAME>, failed to "
+                      L"find closing character; in line: ")
+            .Append(str));
   }
 
   ASSIGN_OR_RETURN(
       Path path,
-      AugmentErrors(L"#include was unable to extract path; in line: " + str +
-                        L"; error: ",
-                    Path::FromString(str.substr(start, pos - start))));
+      AugmentErrors(L"#include was unable to extract path; in line: " +
+                        str.ToString() + L"; error: ",
+                    Path::FromString(str.Substring(start, pos - start))));
 
   if (delimiter == '\"' && path.GetRootType() == Path::RootType::kRelative &&
       compilation.current_source_path().has_value()) {
@@ -145,38 +147,38 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
   }
 
   CompileFile(path, compilation, parser);
-  *pos_output = pos + 1;
+  *pos_output = pos.next();
   VLOG(5) << path << ": Done compiling.";
   return Success();
 }
 
-numbers::Number ConsumeDecimal(const wstring& str, size_t* pos) {
+numbers::Number ConsumeDecimal(const LazyString& str, ColumnNumber* pos) {
   numbers::Number output = numbers::FromInt(0);
-  while (*pos < str.size() && isdigit(str.at(*pos))) {
+  while (pos->ToDelta() < str.size() && isdigit(str.get(*pos))) {
     output *= numbers::FromInt(10);
-    output += numbers::FromInt(str.at(*pos) - '0');
-    (*pos)++;
+    output += numbers::FromInt(str.get(*pos) - '0');
+    ++(*pos);
   }
   return output;
 }
 
-void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
+void CompileLine(Compilation& compilation, void* parser,
+                 const LazyString& str) {
   CHECK(compilation.errors().empty());
-  // TODO(trivial, 2023-10-30): Convert to ColumnNumber.
-  size_t pos = 0;
+  ColumnNumber pos;
   int token;
-  while (compilation.errors().empty() && pos < str.size()) {
-    compilation.SetSourceColumnInLine(ColumnNumber(pos));
-    VLOG(5) << L"Compiling from character: " << std::wstring(1, str.at(pos));
+  while (compilation.errors().empty() && pos.ToDelta() < str.size()) {
+    compilation.SetSourceColumnInLine(pos);
+    VLOG(5) << L"Compiling from character: " << std::wstring(1, str.get(pos));
     std::optional<gc::Root<Value>> input;
-    switch (str.at(pos)) {
+    switch (str.get(pos)) {
       case '/':
-        if (pos + 1 < str.size() && str.at(pos + 1) == '/') {
-          pos = str.size();
+        if (pos.next().ToDelta() < str.size() && str.get(pos.next()) == L'/') {
+          pos = ColumnNumber() + str.size();
           continue;
         } else {
           pos++;
-          if (pos < str.size() && str.at(pos) == '=') {
+          if (pos.ToDelta() < str.size() && str.get(pos) == L'=') {
             pos++;
             token = DIVIDE_EQ;
           } else {
@@ -187,7 +189,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       case '!':
         pos++;
-        if (pos < str.size() && str.at(pos) == '=') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == L'=') {
           pos++;
           token = NOT_EQUALS;
           break;
@@ -197,7 +199,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       case '=':
         pos++;
-        if (pos < str.size() && str.at(pos) == '=') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == '=') {
           pos++;
           token = EQUALS;
           break;
@@ -207,7 +209,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       case '&':
         pos++;
-        if (pos < str.size() && str.at(pos) == '&') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == '&') {
           pos++;
           token = AND;
           break;
@@ -227,7 +229,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       case '|':
         pos++;
-        if (pos < str.size() && str.at(pos) == '|') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == '|') {
           pos++;
           token = OR;
           break;
@@ -238,7 +240,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
       case '<':
         token = LESS_THAN;
         pos++;
-        if (pos < str.size() && str.at(pos) == '=') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == '=') {
           pos++;
           token = LESS_OR_EQUAL;
         }
@@ -247,7 +249,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
       case '>':
         token = GREATER_THAN;
         pos++;
-        if (pos < str.size() && str.at(pos) == '=') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == '=') {
           pos++;
           token = GREATER_OR_EQUAL;
         }
@@ -261,7 +263,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
       case ':':
         token = COLON;
         pos++;
-        if (pos < str.size() && str.at(pos) == ':') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == ':') {
           pos++;
           token = DOUBLECOLON;
         }
@@ -275,17 +277,22 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
       case '#':
         pos++;
         {
-          size_t start = pos;
-          while (pos < str.size() &&
-                 (iswalnum(str.at(pos)) || str.at(pos) == '_')) {
+          ColumnNumber start = pos;
+          while (pos.ToDelta() < str.size() &&
+                 (iswalnum(str.get(pos)) || str.get(pos) == '_')) {
             pos++;
           }
-          std::wstring symbol = str.substr(start, pos - start);
-          if (symbol == L"include") {
+          // TODO(trivial, 2023-12-30): Check if it can be converted to
+          // Identifier, or handle error otherwise.
+          Identifier symbol =
+              Identifier(str.Substring(start, pos - start).ToString());
+          // TODO(trivial, 2023-12-30): Use IdentifierInclude.
+          if (symbol == Identifier(L"include")) {
             HandleInclude(compilation, parser, str, &pos);
           } else {
             compilation.AddError(
-                Error(L"Invalid preprocessing directive #" + symbol));
+                NewError(NewLazyString(L"Invalid preprocessing directive #")
+                             .Append(NewLazyString(symbol.read()))));
           }
           continue;
         }
@@ -303,10 +310,10 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       case '+':
         pos++;
-        if (pos < str.size() && str.at(pos) == '=') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == '=') {
           pos++;
           token = PLUS_EQ;
-        } else if (pos < str.size() && str.at(pos) == '+') {
+        } else if (pos.ToDelta() < str.size() && str.get(pos) == '+') {
           pos++;
           token = PLUS_PLUS;
         } else {
@@ -316,10 +323,10 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       case '-':
         pos++;
-        if (pos < str.size() && str.at(pos) == '=') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == '=') {
           pos++;
           token = MINUS_EQ;
-        } else if (pos < str.size() && str.at(pos) == '-') {
+        } else if (pos.ToDelta() < str.size() && str.get(pos) == '-') {
           pos++;
           token = MINUS_MINUS;
         } else {
@@ -329,7 +336,7 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
 
       case '*':
         pos++;
-        if (pos < str.size() && str.at(pos) == '=') {
+        if (pos.ToDelta() < str.size() && str.get(pos) == '=') {
           pos++;
           token = TIMES_EQ;
         } else {
@@ -349,24 +356,25 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
       case '9': {
         token = NUMBER;
         numbers::Number value = numbers::Number(ConsumeDecimal(str, &pos));
-        if (pos < str.size() && (str.at(pos) == '.' || str.at(pos) == 'e')) {
-          if (str.at(pos) == '.') {
+        if (pos.ToDelta() < str.size() &&
+            (str.get(pos) == '.' || str.get(pos) == 'e')) {
+          if (str.get(pos) == '.') {
             pos++;
             numbers::Number decimal_numerator = numbers::FromInt(0);
             numbers::Number decimal_denominator = numbers::FromInt(1);
-            while (pos < str.size() && isdigit(str.at(pos))) {
+            while (pos.ToDelta() < str.size() && isdigit(str.get(pos))) {
               decimal_numerator *= numbers::FromInt(10);
               decimal_denominator *= numbers::FromInt(10);
-              decimal_numerator += numbers::FromInt(str.at(pos) - L'0');
+              decimal_numerator += numbers::FromInt(str.get(pos) - L'0');
               pos++;
             }
             value += decimal_numerator / decimal_denominator;
           }
-          if (pos < str.size() && str.at(pos) == 'e') {
+          if (pos.ToDelta() < str.size() && str.get(pos) == 'e') {
             pos++;
             bool positive = true;
-            if (pos < str.size()) {
-              switch (str.at(pos)) {
+            if (pos.ToDelta() < str.size()) {
+              switch (str.get(pos)) {
                 case '+':
                   pos++;
                   break;
@@ -407,20 +415,20 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
         token = STRING;
         std::wstring output_string;
         pos++;
-        for (; pos < str.size(); pos++) {
-          if (str.at(pos) == '"') {
+        for (; pos.ToDelta() < str.size(); pos++) {
+          if (str.get(pos) == '"') {
             break;
           }
-          if (str.at(pos) != '\\') {
-            output_string.push_back(str.at(pos));
+          if (str.get(pos) != '\\') {
+            output_string.push_back(str.get(pos));
             ;
             continue;
           }
           pos++;
-          if (pos >= str.size()) {
+          if (pos.ToDelta() >= str.size()) {
             continue;
           }
-          switch (str.at(pos)) {
+          switch (str.get(pos)) {
             case 'n':
               output_string.push_back('\n');
               break;
@@ -431,10 +439,10 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
               output_string.push_back('"');
               break;
             default:
-              output_string.push_back(str.at(pos));
+              output_string.push_back(str.get(pos));
           }
         }
-        if (pos == str.size()) {
+        if (pos.ToDelta() == str.size()) {
           compilation.AddError(Error(L"Missing terminating \" character."));
           return;
         }
@@ -503,12 +511,14 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
       case 'z':
       case '_':
       case '~': {
-        size_t start = pos;
-        while (pos < str.size() && (iswalnum(str.at(pos)) ||
-                                    str.at(pos) == '_' || str.at(pos) == '~')) {
+        ColumnNumber start = pos;
+        while (pos.ToDelta() < str.size() &&
+               (iswalnum(str.get(pos)) || str.get(pos) == '_' ||
+                str.get(pos) == '~')) {
           pos++;
         }
-        wstring symbol = str.substr(start, pos - start);
+        // TODO(trivial, 2023-12-30): Avoid call to ToString.
+        wstring symbol = str.Substring(start, pos - start).ToString();
         struct Keyword {
           int token;
           std::function<gc::Root<Value>()> value_supplier = nullptr;
@@ -566,8 +576,11 @@ void CompileLine(Compilation& compilation, void* parser, const wstring& str) {
         break;
 
       default:
-        compilation.AddError(Error(L"Unhandled character at position: " +
-                                   std::to_wstring(pos) + L" in line: " + str));
+        compilation.AddError(
+            NewError(NewLazyString(L"Unhandled character at position: ")
+                         .Append(NewLazyString(std::to_wstring(pos.read())))
+                         .Append(NewLazyString(L" in line: "))
+                         .Append(str)));
         return;
     }
     if (token == SYMBOL || token == STRING) {
