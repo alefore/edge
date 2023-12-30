@@ -25,11 +25,11 @@ using afc::language::EraseIf;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
@@ -384,9 +384,7 @@ ValueOrError<LineColumn> GetNextMatch(Direction direction,
       results.has_value() && !results->empty())
     return results->at(0);
 
-  // TODO(easy, 2023-09-09): Get rid of ToString.
-  return Error(
-      Append(NewLazyString(L"No matches: "), options.search_query).ToString());
+  return NewError(NewLazyString(L"No matches: ").Append(options.search_query));
 }
 
 void HandleSearchResults(
@@ -420,9 +418,9 @@ void HandleSearchResults(
     // TODO(easy, 2023-09-08): Convert `results_prefix` to use Padding?
     std::wstring results_prefix(1 + static_cast<size_t>(log2(size)), L'🔍');
     buffer.status().SetInformationText(
-        LineBuilder(Append(NewLazyString(results_prefix),
-                           NewLazyString(L" Results: "),
-                           NewLazyString(std::to_wstring(size))))
+        LineBuilder(NewLazyString(results_prefix)
+                        .Append(NewLazyString(L" Results: "))
+                        .Append(NewLazyString(std::to_wstring(size))))
             .Build());
   }
   std::vector<audio::Frequency> frequencies = {

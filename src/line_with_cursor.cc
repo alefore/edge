@@ -189,8 +189,8 @@ LineWithCursor LineWithCursor::View(
         VLOG(8) << "Print character: " << c;
         output_column += ColumnNumberDelta(wcwidth(c));
         if (output_column.ToDelta() <= options.width)
-          line_output.set_contents(Append(line_output.contents(),
-                                          NewLazyString(std::wstring(1, c))));
+          line_output.set_contents(
+              line_output.contents().Append(NewLazyString(std::wstring(1, c))));
     }
   }
 

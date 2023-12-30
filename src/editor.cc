@@ -62,6 +62,7 @@ using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language ::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::Observers;
 using afc::language::OnceOnlyFunction;
@@ -74,7 +75,6 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::error::FromOptional;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
@@ -509,21 +509,22 @@ void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 
 std::optional<LazyString> EditorState::GetExitNotice() const {
   if (dirty_buffers_saved_to_backup_.empty()) return std::nullopt;
-  return Append(NewLazyString(L"Dirty contents backed up (in "),
-                NewLazyString(edge_path()[0].read()), NewLazyString(L"):\n"),
-                Concatenate(dirty_buffers_saved_to_backup_ |
-                            std::views::transform([](const BufferName& name) {
-                              return Append(NewLazyString(L"  "),
-                                            NewLazyString(name.read()),
-                                            NewLazyString(L"\n"));
-                            })));
+  return NewLazyString(L"Dirty contents backed up (in ")
+      .Append(NewLazyString(edge_path()[0].read()))
+      .Append(NewLazyString(L"):\n"))
+      .Append(Concatenate(dirty_buffers_saved_to_backup_ |
+                          std::views::transform([](const BufferName& name) {
+                            return NewLazyString(L"  ")
+                                .Append(NewLazyString(name.read()))
+                                .Append(NewLazyString(L"\n"));
+                          })));
 }
 
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   status().SetInformationText(
-      LineBuilder(Append(NewLazyString(L"Exit: Preparing to close buffers ("),
-                         NewLazyString(std::to_wstring(buffers_.size())),
-                         NewLazyString(L")")))
+      LineBuilder(NewLazyString(L"Exit: Preparing to close buffers (")
+                      .Append(NewLazyString(std::to_wstring(buffers_.size())))
+                      .Append(NewLazyString(L")")))
           .Build());
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
@@ -538,15 +539,15 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             });
         !buffers_with_problems.empty()) {
       switch (status_.InsertError(
-          Error(Append(NewLazyString(L"🖝  Dirty buffers (pre):"),
-                       Concatenate(container::MaterializeVector(
-                           buffers_with_problems |
-                           std::views::transform([](const NonNull<OpenBuffer*>&
-                                                        buffer) -> LazyString {
-                             return NewLazyString(
-                                 L" " + buffer->Read(buffer_variables::name));
-                           }))))
-                    .ToString()),
+          NewError(
+              NewLazyString(L"🖝  Dirty buffers (pre):")
+                  .Append(Concatenate(container::MaterializeVector(
+                      buffers_with_problems |
+                      std::views::transform(
+                          [](const NonNull<OpenBuffer*>& buffer) -> LazyString {
+                            return NewLazyString(
+                                L" " + buffer->Read(buffer_variables::name));
+                          }))))),
           30)) {
         case error::Log::InsertResult::kInserted:
           return;
@@ -596,16 +597,15 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             LOG(INFO) << "Checking buffers state for termination.";
             if (!data->buffers_with_problems.empty()) {
               switch (status_.InsertError(
-                  Error(Append(NewLazyString(L"🖝  Dirty buffers (post):"),
-                               Concatenate(
+                  NewError(NewLazyString(L"🖝  Dirty buffers (post):")
+                               .Append(Concatenate(
                                    std::move(data->buffers_with_problems) |
                                    gc::view::Value |
                                    std::views::transform(
                                        [](const OpenBuffer& b) -> LazyString {
                                          return NewLazyString(L" " +
                                                               b.name().read());
-                                       })))
-                            .ToString()),
+                                       })))),
                   5)) {
                 case error::Log::InsertResult::kInserted:
                   return futures::Past(EmptyValue());
@@ -635,11 +635,10 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             count++;
           }
           status().SetInformationText(
-              LineBuilder(
-                  Append(NewLazyString(L"Exit: Closing buffers: Remaining: "),
-                         NewLazyString(
-                             std::to_wstring(data->pending_buffers.size())),
-                         NewLazyString(extra)))
+              LineBuilder(NewLazyString(L"Exit: Closing buffers: Remaining: ")
+                              .Append(NewLazyString(std::to_wstring(
+                                  data->pending_buffers.size())))
+                              .Append(NewLazyString(extra)))
                   .Build());
           return futures::Past(EmptyValue());
         });

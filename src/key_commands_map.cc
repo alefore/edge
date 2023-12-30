@@ -4,7 +4,6 @@
 
 #include "src/help_command.h"
 #include "src/infrastructure/screen/line_modifier.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/padding.h"
 #include "src/language/text/line.h"
@@ -17,7 +16,6 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;

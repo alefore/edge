@@ -112,13 +112,13 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
   auto str = NewLazyString(std::wstring(1, c));
   if (column >= EndColumn()) {
     column = EndColumn();
-    data_.contents =
-        lazy_string::Append(std::move(data_.contents), std::move(str));
+    data_.contents = std::move(data_.contents).Append(std::move(str));
   } else {
     LazyString suffix = data_.contents.Substring(column + ColumnNumberDelta(1));
-    data_.contents = lazy_string::Append(
-        std::move(data_.contents).Substring(ColumnNumber(0), column.ToDelta()),
-        std::move(str), std::move(suffix));
+    data_.contents = std::move(data_.contents)
+                         .Substring(ColumnNumber(0), column.ToDelta())
+                         .Append(std::move(str))
+                         .Append(std::move(suffix));
   }
 
   data_.metadata = std::nullopt;
@@ -242,9 +242,9 @@ const bool line_set_character_tests_registration = tests::Register(
 
 void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
-  set_contents(lazy_string::Append(
-      data_.contents.Substring(ColumnNumber(0), column.ToDelta()),
-      NewLazyString(L" "), data_.contents.Substring(column)));
+  set_contents(data_.contents.Substring(ColumnNumber(0), column.ToDelta())
+                   .Append(NewLazyString(L" "))
+                   .Append(data_.contents.Substring(column)));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   for (auto& m : data_.modifiers) {
@@ -261,8 +261,8 @@ void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(!modifier.contains(LineModifier::kReset));
   data_.modifiers[ColumnNumber(0) + data_.contents.size()] = modifier;
-  data_.contents = lazy_string::Append(std::move(data_.contents),
-                                       NewLazyString(std::wstring(1, c)));
+  data_.contents =
+      std::move(data_.contents).Append(NewLazyString(std::wstring(1, c)));
   SetMetadata(std::nullopt);
   ValidateInvariants();
 }
@@ -293,8 +293,8 @@ void LineBuilder::Append(LineBuilder line) {
   data_.end_of_line_modifiers = std::move(line.data_.end_of_line_modifiers);
   if (line.EndColumn().IsZero()) return;
   ColumnNumberDelta original_length = EndColumn().ToDelta();
-  data_.contents = lazy_string::Append(std::move(data_.contents),
-                                       std::move(line.data_.contents));
+  data_.contents =
+      std::move(data_.contents).Append(std::move(line.data_.contents));
   SetMetadata(std::nullopt);
 
   auto initial_modifier =
@@ -342,9 +342,8 @@ LineBuilder& LineBuilder::DeleteCharacters(ColumnNumber column,
   CHECK_LE(column, EndColumn());
   CHECK_LE(column + delta, EndColumn());
 
-  data_.contents = lazy_string::Append(
-      data_.contents.Substring(ColumnNumber(0), column.ToDelta()),
-      data_.contents.Substring(column + delta));
+  data_.contents = data_.contents.Substring(ColumnNumber(0), column.ToDelta())
+                       .Append(data_.contents.Substring(column + delta));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   // TODO: We could optimize this to only set it once (rather than for every

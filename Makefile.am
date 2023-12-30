@@ -158,7 +158,6 @@ src/language/gc_util.h \
 src/language/gc_view.h \
 src/language/hash.cc \
 src/language/hash.h \
-src/language/lazy_string/append.cc \
 src/language/lazy_string/append.h \
 src/language/lazy_string/char_buffer.cc \
 src/language/lazy_string/char_buffer.h \

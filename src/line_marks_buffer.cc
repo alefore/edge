@@ -4,7 +4,6 @@
 #include "src/infrastructure/extended_char.h"
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 
@@ -18,7 +17,6 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;

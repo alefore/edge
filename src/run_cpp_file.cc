@@ -8,7 +8,6 @@
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/language/gc.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/line_prompt_mode.h"
 
@@ -62,7 +61,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
                  }),
              [buffer, input](Error error) {
                buffer->ptr()->status().InsertError(NewError(
-                   Append(NewLazyString(L"🗱  File not found: "), input)));
+                   NewLazyString(L"🗱  File not found: ").Append(input)));
                return futures::Past(error);
              })
       .Transform([buffer, &editor_state,

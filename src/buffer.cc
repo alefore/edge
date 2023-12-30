@@ -601,8 +601,9 @@ void OpenBuffer::SendEndOfFileToProcess() {
     char str[1] = {4};
     if (write(fd()->fd().read(), str, sizeof(str)) == -1) {
       status().SetInformationText(
-          LineBuilder(Append(NewLazyString(L"Sending EOF failed: "),
-                             NewLazyString(FromByteString(strerror(errno)))))
+          LineBuilder(
+              NewLazyString(L"Sending EOF failed: ")
+                  .Append(NewLazyString(FromByteString(strerror(errno)))))
               .Build());
       return;
     }
@@ -610,8 +611,9 @@ void OpenBuffer::SendEndOfFileToProcess() {
   } else {
     if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
       status().SetInformationText(
-          LineBuilder(Append(NewLazyString(L"shutdown(SHUT_WR) failed: "),
-                             NewLazyString(FromByteString(strerror(errno)))))
+          LineBuilder(
+              NewLazyString(L"shutdown(SHUT_WR) failed: ")
+                  .Append(NewLazyString(FromByteString(strerror(errno)))))
               .Build());
       return;
     }
@@ -1315,9 +1317,9 @@ void OpenBuffer::ToggleActiveCursors() {
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
   status_.SetInformationText(
-      LineBuilder(Append(NewLazyString(L"cursors stack ("),
-                         NewLazyString(std::to_wstring(stack_size)),
-                         NewLazyString(L"): +")))
+      LineBuilder(NewLazyString(L"cursors stack (")
+                      .Append(NewLazyString(std::to_wstring(stack_size)))
+                      .Append(NewLazyString(L"): +")))
           .Build());
 }
 
@@ -1328,9 +1330,9 @@ void OpenBuffer::PopActiveCursors() {
     return;
   }
   status_.SetInformationText(
-      LineBuilder(Append(NewLazyString(L"cursors stack ("),
-                         NewLazyString(std::to_wstring(stack_size - 1)),
-                         NewLazyString(L"): -")))
+      LineBuilder(NewLazyString(L"cursors stack (")
+                      .Append(NewLazyString(std::to_wstring(stack_size - 1)))
+                      .Append(NewLazyString(L"): -")))
           .Build());
 }
 
@@ -1680,8 +1682,8 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
       if (child_pid_ != std::nullopt) {
         status_.SetInformationText(
             LineBuilder(
-                Append(NewLazyString(L"SIGINT >> pid:"),
-                       NewLazyString(std::to_wstring(child_pid_->read()))))
+                NewLazyString(L"SIGINT >> pid:")
+                    .Append(NewLazyString(std::to_wstring(child_pid_->read()))))
                 .Build());
         file_system_driver().Kill(child_pid_.value(), signal);
         return;
@@ -2036,8 +2038,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
                            editor.work_queue()->DeleteLater(
                                AddSeconds(Now(), 1.0),
                                editor.status().SetExpiringInformationText(
-                                   LineBuilder(Append(NewLazyString(L"Open: "),
-                                                      url.ToString()))
+                                   LineBuilder(NewLazyString(L"Open: ").Append(
+                                                   url.ToString()))
                                        .Build()));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to

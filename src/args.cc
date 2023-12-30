@@ -222,14 +222,14 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                   return input;
                 }
                 return NewError(
-                    Append(NewLazyString(L"Invalid value (valid values: "),
-                           Concatenate(
-                               benchmarks |
-                               std::views::transform([](const std::wstring& b) {
-                                 return NewLazyString(b);
-                               }) |
-                               Intersperse(NewLazyString(L", "))),
-                           NewLazyString(L")")));
+                    NewLazyString(L"Invalid value (valid values: ")
+                        .Append(Concatenate(
+                            benchmarks |
+                            std::views::transform([](const std::wstring& b) {
+                              return NewLazyString(b);
+                            }) |
+                            Intersperse(NewLazyString(L", "))))
+                        .Append(NewLazyString(L")")));
               }),
 
       Handler<CommandLineValues>({L"view"}, L"Widget mode")

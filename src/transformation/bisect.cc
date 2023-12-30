@@ -3,7 +3,6 @@
 #include "src/buffer.h"
 #include "src/buffer_display_data.h"
 #include "src/buffer_variables.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
@@ -11,7 +10,6 @@
 namespace afc::editor::transformation {
 using afc::language::NonNull;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;

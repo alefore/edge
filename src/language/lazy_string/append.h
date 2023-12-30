@@ -10,12 +10,6 @@
 #include "src/language/safe_types.h"
 
 namespace afc::language::lazy_string {
-// TODO(trivial, 2023-12-29): Remove these functions; replace with methods in
-// LazyString.
-LazyString Append(LazyString a, LazyString b);
-LazyString Append(LazyString a, LazyString b, LazyString c);
-LazyString Append(LazyString a, LazyString b, LazyString c, LazyString d);
-
 template <std::ranges::range R>
 LazyString Concatenate(R&& inputs) {
   // TODO: There's probably a faster way to do this. Not sure it matters.
@@ -31,7 +25,7 @@ LazyString Concatenate(R&& inputs) {
 //
 // For example:
 //
-//     std::vector<LazyString inputs = ...;
+//     std::vector<LazyString> inputs = ...;
 //     LazyString output =
 //         Concatenate(inputs | Intersperse(NewLazyString(L", ")))
 inline auto Intersperse(LazyString separator) {

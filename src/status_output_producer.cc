@@ -146,8 +146,8 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     if (!flags.empty()) {
-      output.AppendString(Append(NewLazyString(L"  "),
-                                 OpenBuffer::FlagsToString(std::move(flags))));
+      output.AppendString(NewLazyString(L"  ").Append(
+          OpenBuffer::FlagsToString(std::move(flags))));
     }
 
     if (options.status.text().empty()) {

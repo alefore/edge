@@ -22,7 +22,6 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/file_system_driver.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
@@ -124,9 +123,10 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
   }
   if (close(tmp_fd) != 0) {
     std::string failure = strerror(errno);
-    return NewError(Append(NewLazyString(L"close("), path_str,
-                           NewLazyString(L"): "),
-                           NewLazyString(FromByteString(failure))));
+    return NewError(NewLazyString(L"close(")
+                        .Append(path_str)
+                        .Append(NewLazyString(L"): "))
+                        .Append(NewLazyString(FromByteString(failure))));
   }
   DECLARE_OR_RETURN(Path input_path, Path::FromString(path_str));
   std::string command =

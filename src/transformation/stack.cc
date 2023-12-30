@@ -28,7 +28,6 @@ using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ToByteString;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::EmptyString;
@@ -52,8 +51,8 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
   std::ostringstream oss;
   oss << value;
   buffer.status().SetInformationText(
-      LineBuilder(Append(NewLazyString(L"Value: "),
-                         NewLazyString(FromByteString(oss.str()))))
+      LineBuilder(NewLazyString(L"Value: ")
+                      .Append(NewLazyString(FromByteString(oss.str()))))
           .Build());
   if (delete_buffer != nullptr) {
     std::istringstream iss(oss.str());
@@ -82,7 +81,7 @@ futures::Value<PossibleError> PreviewCppExpression(
           .ConsumeErrors([&buffer](Error error) {
             buffer.status().SetInformationText(
                 LineBuilder(
-                    Append(NewLazyString(L"E: "), NewLazyString(error.read())))
+                    NewLazyString(L"E: ").Append(NewLazyString(error.read())))
                     .Build());
             return futures::Past(EmptyValue());
           })
@@ -223,8 +222,8 @@ LazyString ToString(const ContentStats& stats) {
   LazyString output = EmptyString();
   auto key = [&output](std::wstring s, std::optional<size_t> value) {
     if (value)
-      output = Append(std::move(output),
-                      NewLazyString(L" " + s + std::to_wstring(*value)));
+      output = std::move(output).Append(
+          NewLazyString(L" " + s + std::to_wstring(*value)));
   };
   key(L"🌳", stats.lines);
   key(L" 🍀", stats.words);
@@ -458,12 +457,12 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
 }
 
 std::wstring ToStringBase(const Stack& stack) {
-  return Append(NewLazyString(L"Stack("),
-                Concatenate(stack.stack | std::views::transform([](auto& v) {
-                              return NewLazyString(ToString(v));
-                            }) |
-                            Intersperse(NewLazyString(L", "))),
-                NewLazyString(L")"))
+  return NewLazyString(L"Stack(")
+      .Append(Concatenate(stack.stack | std::views::transform([](auto& v) {
+                            return NewLazyString(ToString(v));
+                          }) |
+                          Intersperse(NewLazyString(L", "))))
+      .Append(NewLazyString(L")"))
       .ToString();
 }
 

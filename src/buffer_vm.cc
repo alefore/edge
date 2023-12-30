@@ -587,18 +587,17 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
             buffer.ptr()->AppendLines(container::MaterializeVector(
                 Tracker::GetData() |
                 std::views::transform([](Tracker::Data data) -> const Line {
-                  return LineBuilder(
-                             Append(Append(NewLazyString(L"\""),
-                                           NewLazyString(data.name),
-                                           NewLazyString(L"\","),
-                                           NewLazyString(std::to_wstring(
-                                               data.executions))),
-                                    Append(NewLazyString(L","),
-                                           NewLazyString(
-                                               std::to_wstring(data.seconds)),
-                                           NewLazyString(L","),
-                                           NewLazyString(std::to_wstring(
-                                               data.longest_seconds)))))
+                  return LineBuilder(NewLazyString(L"\"")
+                                         .Append(NewLazyString(data.name))
+                                         .Append(NewLazyString(L"\","))
+                                         .Append(NewLazyString(
+                                             std::to_wstring(data.executions)))
+                                         .Append(NewLazyString(L","))
+                                         .Append(NewLazyString(
+                                             std::to_wstring(data.seconds)))
+                                         .Append(NewLazyString(L","))
+                                         .Append(NewLazyString(std::to_wstring(
+                                             data.longest_seconds))))
                       .Build();
                 })));
           })

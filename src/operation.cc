@@ -11,7 +11,6 @@
 #include "src/futures/serializer.h"
 #include "src/goto_command.h"
 #include "src/key_commands_map.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
@@ -46,7 +45,6 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::VisitOptional;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;

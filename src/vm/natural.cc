@@ -1,7 +1,6 @@
 #include "src/vm/natural.h"
 
 #include "src/language/container.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"  // For tests.
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/wstring.h"
@@ -20,7 +19,6 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
@@ -100,9 +98,9 @@ class ParseState {
             pool_,
             math::numbers::FromInt(atoi(ToByteString(token.value).c_str()))));
       for (gc::Root<Value> value :
-           LookUp(first_token ? Append(NewLazyString(token.value),
-                                       function_name_prefix_)
-                              : NewLazyString(token.value)))
+           LookUp(first_token
+                      ? NewLazyString(token.value).Append(function_name_prefix_)
+                      : NewLazyString(token.value)))
         ReceiveValue(value);
       if (candidates_.empty()) return Error(L"No valid parses found.");
       first_token = false;

@@ -53,7 +53,7 @@ void AddContents(const OpenBuffer& source, const Line& input,
   auto characters_trimmed =
       ColumnNumberDelta(input.contents().size() - trim.size());
   auto initial_length = line_options->EndColumn().ToDelta();
-  line_options->set_contents(Append(line_options->contents(), trim));
+  line_options->set_contents(line_options->contents().Append(trim));
   for (auto& m : input.modifiers()) {
     if (m.first >= ColumnNumber(0) + characters_trimmed) {
       line_options->set_modifiers(m.first + initial_length - characters_trimmed,
@@ -82,13 +82,11 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
       LineBuilder options;
       options.set_contents(padding);
       AddContents(source, *source.LineAt(child.range().begin().line), &options);
-      if (child.range().begin().line + LineNumberDelta(1) <
-          child.range().end().line) {
-        options.set_contents(
-            Append(options.contents(), NewLazyString(L" ... ")));
-      } else {
-        options.set_contents(Append(options.contents(), NewLazyString(L" ")));
-      }
+      options.set_contents(options.contents().Append(
+          child.range().begin().line + LineNumberDelta(1) <
+                  child.range().end().line
+              ? NewLazyString(L" ... ")
+              : NewLazyString(L" ")));
       if (i + 1 >= tree.children().size() ||
           child.range().end().line !=
               tree.children()[i + 1].range().begin().line) {
@@ -104,7 +102,7 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
     AppendLine(source, padding, child.range().begin(), target);
     if (depth_left > 0) {
       DisplayTree(source, depth_left - 1, child,
-                  Append(NewLazyString(L"  "), padding), target);
+                  NewLazyString(L"  ").Append(padding), target);
     }
     if (i + 1 >= tree.children().size() ||
         child.range().end().line !=

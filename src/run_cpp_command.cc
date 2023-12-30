@@ -128,7 +128,7 @@ ValueOrError<ParsedCommand> Parse(
     environment.CaseInsensitiveLookup(
         n,
         Identifier(
-            Append(function_name_prefix, NewLazyString(output_tokens[0].value))
+            function_name_prefix.Append(NewLazyString(output_tokens[0].value))
                 .ToString()),
         &functions);
     if (!functions.empty()) break;

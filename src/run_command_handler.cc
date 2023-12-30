@@ -25,7 +25,6 @@ extern "C" {
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/file_descriptor_reader.h"
 #include "src/infrastructure/time.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -56,7 +55,6 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
@@ -443,13 +441,12 @@ class ForkEditorCommand : public Command {
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       Prompt(PromptOptions{
           .editor_state = editor_state_,
-          .prompt =
-              Append(std::visit(overload{[](Error) { return EmptyString(); },
-                                         [](Path path) -> LazyString {
-                                           return NewLazyString(path.read());
-                                         }},
-                                children_path),
-                     NewLazyString(L"$ ")),
+          .prompt = std::visit(overload{[](Error) { return EmptyString(); },
+                                        [](Path path) -> LazyString {
+                                          return NewLazyString(path.read());
+                                        }},
+                               children_path)
+                        .Append(NewLazyString(L"$ ")),
           .history_file = HistoryFileCommands(),
           .colorize_options_provider =
               prompt_state->context_command_callback.has_value()

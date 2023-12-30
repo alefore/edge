@@ -61,9 +61,8 @@ LineBuilder GeneratePadding(const ColumnsVector::Padding padding,
   LineBuilder options;
   CHECK(!padding.body.size().IsZero());
   LazyString contents = padding.head;
-  while (contents.size() < size) {
-    contents = Append(std::move(contents), padding.body);
-  }
+  while (contents.size() < size)
+    contents = std::move(contents).Append(padding.body);
   options.AppendString(std::move(contents).Substring(ColumnNumber(), size),
                        padding.modifiers);
   return options;

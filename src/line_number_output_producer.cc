@@ -83,7 +83,7 @@ LineWithCursor::Generator::Vector LineNumberOutput(
 
           LineBuilder line_options;
           line_options.AppendString(
-              Append(padding, NewLazyString(number + L":")),
+              padding.Append(NewLazyString(number + L":")),
               modifiers.container);
           return LineWithCursor{.line = std::move(line_options).Build()};
         },

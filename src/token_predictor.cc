@@ -5,7 +5,6 @@
 #include <ranges>
 #include <vector>
 
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/text/line.h"
@@ -16,7 +15,6 @@
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::VisitOptional;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;

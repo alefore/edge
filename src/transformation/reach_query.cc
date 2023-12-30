@@ -4,7 +4,6 @@
 #include "src/buffer_display_data.h"
 #include "src/buffer_variables.h"
 #include "src/infrastructure/screen/visual_overlay.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/wstring.h"
 
@@ -15,7 +14,6 @@ using afc::infrastructure::screen::VisualOverlayMap;
 using afc::infrastructure::screen::VisualOverlayPriority;
 using afc::language::NonNull;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;

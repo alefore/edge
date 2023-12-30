@@ -7,7 +7,6 @@
 #include "src/editor.h"
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/line_prompt_mode.h"
@@ -33,7 +32,6 @@ using afc::language::Observers;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
@@ -88,11 +86,12 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
 void StartDeleteFile(EditorState& editor_state, std::wstring path) {
   int result = unlink(ToByteString(path).c_str());
   editor_state.status().SetInformationText(
-      LineBuilder(Append(NewLazyString(path), NewLazyString(L": unlink: "),
-                         NewLazyString(result == 0 ? L"done"
-                                                   : L"ERROR: " +
-                                                         FromByteString(
-                                                             strerror(errno)))))
+      LineBuilder(
+          NewLazyString(path)
+              .Append(NewLazyString(L": unlink: "))
+              .Append(NewLazyString(
+                  result == 0 ? L"done"
+                              : L"ERROR: " + FromByteString(strerror(errno)))))
           .Build());
 }
 

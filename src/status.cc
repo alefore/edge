@@ -6,7 +6,6 @@
 #include <memory>
 
 #include "src/infrastructure/screen/line_modifier.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -23,7 +22,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::EmptyString;
@@ -304,11 +302,10 @@ void Status::Bell() {
       LineModifier::kWhite};
   static const std::vector<LineModifier> effects = {
       LineModifier::kBold, LineModifier::kItalic, LineModifier::kReverse};
-  output.AppendString(
-      Append(NewLazyString(L" "),
-             NewLazyString(std::wstring(1ul, notes.at(rand() % notes.size())))),
-      LineModifierSet{colors.at(rand() % colors.size()),
-                      effects.at(rand() % effects.size())});
+  output.AppendString(NewLazyString(L" ").Append(NewLazyString(
+                          std::wstring(1ul, notes.at(rand() % notes.size())))),
+                      LineModifierSet{colors.at(rand() % colors.size()),
+                                      effects.at(rand() % effects.size())});
   data_->text = std::move(output).Build();
 }
 

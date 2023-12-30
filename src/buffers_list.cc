@@ -660,10 +660,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             LazyString number_prefix =
                 NewLazyString(std::to_wstring(index + j + 1));
             line_options_output.AppendString(
-                Append(Padding(
-                           prefix_width - number_prefix.size() - kProgressWidth,
-                           L' '),
-                       number_prefix),
+                Padding(prefix_width - number_prefix.size() - kProgressWidth,
+                        L' ')
+                    .Append(number_prefix),
                 GetNumberModifiers(options.value(), buffer, filter_result));
 
             CHECK_EQ(line_options_output.contents().size(),

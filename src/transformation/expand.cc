@@ -34,7 +34,6 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::EmptyString;
@@ -124,9 +123,11 @@ class PredictorTransformation : public CompositeTransformation {
             if (!prefix.size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
               buffer.status().SetInformationText(
-                  LineBuilder(Append(NewLazyString(L"No matches found. Longest "
-                                                   L"prefix with matches: \""),
-                                     prefix, NewLazyString(L"\"")))
+                  LineBuilder(
+                      NewLazyString(
+                          L"No matches found. Longest prefix with matches: \"")
+                          .Append(prefix)
+                          .Append(NewLazyString(L"\"")))
                       .Build());
             }
             return Output();

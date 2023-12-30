@@ -28,7 +28,6 @@ extern "C" {
 #include "src/language/container.h"
 #include "src/language/gc_container.h"
 #include "src/language/gc_view.h"
-#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/tokenize.h"
@@ -74,7 +73,6 @@ using afc::language::overload;
 using afc::language::ToByteString;
 using afc::language::VisitOptionalCallback;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::Append;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -960,9 +958,11 @@ class InsertMode : public InputReceiver {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
         buffer.status().SetExpiringInformationText(
-            LineBuilder(Append(NewLazyString(L"`"), compressed_text,
-                               Append(NewLazyString(L"` is an alias for `"),
-                                      text, NewLazyString(L"`"))))
+            LineBuilder(NewLazyString(L"`")
+                            .Append(compressed_text)
+                            .Append(NewLazyString(L"` is an alias for `"))
+                            .Append(text)
+                            .Append(NewLazyString(L"`")))
                 .Build()));
   }
 
