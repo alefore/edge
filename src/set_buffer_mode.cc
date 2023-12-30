@@ -159,49 +159,49 @@ bool CharConsumer(ExtendedChar c, Data& data) {
 }
 
 std::wstring BuildStatus(const Data& data) {
-  static constexpr auto initial_value = L"set-buffer";
-  std::wstring output = initial_value;
+  static const auto initial_value = NewLazyString(L"set-buffer");
+  LazyString output = initial_value;
+  // TODO(trivial, 2023-12-30): Avoid explicit for loop, Concatenate.
   for (size_t i = 0; i < data.operations.size(); ++i) {
     const auto& operation = data.operations[i];
-    output += L" ";
+    output += NewLazyString(L" ");
     switch (operation.type) {
       case Operation::Type::kForward:
-        output += L"⮞";
+        output += NewLazyString(L"⮞");
         break;
       case Operation::Type::kBackward:
-        output += L"⮜";
+        output += NewLazyString(L"⮜");
         break;
       case Operation::Type::kPrevious:
-        output += L"⮝";
+        output += NewLazyString(L"⮝");
         break;
       case Operation::Type::kNext:
-        output += L"⮟";
+        output += NewLazyString(L"⮟");
         break;
       case Operation::Type::kNumber:
-        output += std::to_wstring(operation.number);
+        output += NewLazyString(std::to_wstring(operation.number));
         break;
       case Operation::Type::kFilter:
-        // TODO(trivial, 2023-12-29): Avoid `ToString`.
-        output += L" w:" + operation.text_input.ToString();
+        output += NewLazyString(L" w:").Append(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingFilter) {
-          output += L"…";
+          output += NewLazyString(L"…");
         }
         break;
       case Operation::Type::kWarningFilter:
-        output += L" !";
+        output += NewLazyString(L" !");
         break;
       case Operation::Type::kSearch:
-        // TODO(trivial, 2023-12-29): Avoid `ToString`.
-        output += L" /:" + operation.text_input.ToString();
+        output += NewLazyString(L" /:").Append(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingSearch) {
-          output += L"…";
+          output += NewLazyString(L"…");
         }
         break;
     }
   }
-  return output;
+  // TODO(trivial, 2023-12-30): Avoid ToString.
+  return output.ToString();
 }
 
 futures::Value<EmptyValue> Apply(EditorState& editor,
