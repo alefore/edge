@@ -106,6 +106,9 @@ class OpenBuffer {
         };
   };
 
+  // Calling `New` doesn't load the contents of the buffer; the customer must
+  // call `Reload` explicitly on the returned buffer (perhaps after setting some
+  // variables).
   static language::gc::Root<OpenBuffer> New(Options options);
   OpenBuffer(ConstructorAccessTag, Options options,
              language::gc::Ptr<MapModeCommands> default_commands,
