@@ -387,7 +387,9 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
         buffer->ptr()->Read(buffer_variables::path);
   }
-  name += L" " + EscapedString::FromString(input).EscapedRepresentation();
+  // TODO(trivial, 2023-12-31): Avoid ToString:
+  name += L" " +
+          EscapedString::FromString(input).EscapedRepresentation().ToString();
   RunCommand(BufferName(name), environment, editor_state, children_path, input);
   return futures::Past(EmptyValue());
 }

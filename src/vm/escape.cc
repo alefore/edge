@@ -52,32 +52,32 @@ namespace afc::vm {
 }
 
 // Returns an escaped representation.
-std::wstring EscapedString::EscapedRepresentation() const {
-  std::wstring output;
-  output.reserve(input_.size().read() * 2);
+LazyString EscapedString::EscapedRepresentation() const {
+  LazyString output = EmptyString();
   ForEachColumn(input_, [&output](ColumnNumber, wchar_t c) {
     switch (c) {
       case '\n':
-        output += L"\\n";
+        output += NewLazyString(L"\\n");
         break;
       case '"':
-        output += L"\\\"";
+        output += NewLazyString(L"\\\"");
         break;
       case '\\':
-        output += L"\\\\";
+        output += NewLazyString(L"\\\\");
         break;
       case '\'':
-        output += L"\\'";
+        output += NewLazyString(L"\\'");
         break;
       default:
-        output += c;
+        output += NewLazyString(std::wstring(1, c));
     }
   });
   return output;
 }
 
 std::wstring EscapedString::CppRepresentation() const {
-  return L"\"" + EscapedRepresentation() + L"\"";
+  // TODO(trivial, 2023-12-31): Get rid of ToString.
+  return L"\"" + EscapedRepresentation().ToString() + L"\"";
 }
 
 // Returns the original (unescaped) string.
@@ -93,9 +93,9 @@ bool cpp_unescape_string_tests_registration =
         return tests::Test{
             .name = name, .callback = [input] {
               std::wstring output =
-                  ValueOrDie(EscapedString::Parse(NewLazyString(
+                  ValueOrDie(EscapedString::Parse(
                                  EscapedString::FromString(NewLazyString(input))
-                                     .EscapedRepresentation())))
+                                     .EscapedRepresentation()))
                       .OriginalString()
                       .ToString();
               LOG(INFO) << "Comparing: " << input << " to " << output;
