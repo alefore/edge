@@ -16,6 +16,8 @@ namespace afc {
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
+using language::lazy_string::LazyString;
+using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineColumn;
 using language::text::LineNumber;
@@ -95,17 +97,23 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
 }
 
 std::wstring ToStringBase(const Insert& options) {
-  std::wstring output = L"InsertTransformationBuilder()";
-  output += L".set_text(" +
-            vm::EscapedString::FromString(
-                options.contents_to_insert.at(LineNumber(0)).contents())
-                .CppRepresentation() +
-            L")";
-  output += L".set_modifiers(" + options.modifiers.Serialize() + L")";
+  LazyString output =
+      NewLazyString(L"InsertTransformationBuilder()")
+          .Append(NewLazyString(L".set_text(")
+                      .Append(vm::EscapedString::FromString(
+                                  options.contents_to_insert.at(LineNumber(0))
+                                      .contents())
+                                  .CppRepresentation())
+                      .Append(NewLazyString(L")")))
+          .Append(NewLazyString(L".set_modifiers(")
+                      .Append(NewLazyString(options.modifiers.Serialize()))
+                      .Append(NewLazyString(L")")));
   if (options.position.has_value()) {
-    output += L".set_position(" + options.position.value().Serialize() + L")";
+    output += NewLazyString(L".set_position(")
+                  .Append(NewLazyString(options.position.value().Serialize()))
+                  .Append(NewLazyString(L")"));
   }
-  return output;
+  return output.ToString();
 }
 
 Insert OptimizeBase(Insert transformation) { return transformation; }

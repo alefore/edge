@@ -290,13 +290,15 @@ int main(int argc, const char** argv) {
     editor_state().ExecutePendingWork();
   }
 
+  // TODO(trivial, 2023-12-31): Convert commands_to_run to LazyString.
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
       commands_to_run +=
           L"editor.SendExitTo(" +
           afc::vm::EscapedString::FromString(NewLazyString(server_path.read()))
-              .CppRepresentation() +
+              .CppRepresentation()
+              .ToString() +
           L");";
     }
 

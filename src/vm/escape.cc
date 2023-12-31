@@ -75,9 +75,10 @@ LazyString EscapedString::EscapedRepresentation() const {
   return output;
 }
 
-std::wstring EscapedString::CppRepresentation() const {
-  // TODO(trivial, 2023-12-31): Get rid of ToString.
-  return L"\"" + EscapedRepresentation().ToString() + L"\"";
+LazyString EscapedString::CppRepresentation() const {
+  return NewLazyString(L"\"")
+      .Append(EscapedRepresentation())
+      .Append(NewLazyString(L"\""));
 }
 
 // Returns the original (unescaped) string.

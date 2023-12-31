@@ -18,7 +18,7 @@ class EscapedString {
       language::lazy_string::LazyString input);
 
   language::lazy_string::LazyString EscapedRepresentation() const;
-  std::wstring CppRepresentation() const;
+  language::lazy_string::LazyString CppRepresentation() const;
 
   // Returns the original (unescaped) string.
   language::lazy_string::LazyString OriginalString() const;

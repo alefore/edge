@@ -124,9 +124,11 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                                  L"Load a file with VM commands")
           .Require(L"path", L"Path to file containing VM commands to run")
           .Transform([](std::wstring value) {
+            // TODO(easy, 2023-12-31): Avoid ToString.
             return L"buffer.EvaluateFile(" +
                    vm::EscapedString::FromString(NewLazyString(value))
-                       .CppRepresentation() +
+                       .CppRepresentation()
+                       .ToString() +
                    L");";
           })
           .AppendTo(&CommandLineValues::commands_to_run),
@@ -293,6 +295,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
 
 std::wstring CommandsToRun(CommandLineValues args) {
   using afc::vm::EscapedString;
+  // TODO(trivial, 2023-12-31): Convert to LazyString.
   std::wstring commands_to_run = args.commands_to_run;
   std::vector<std::wstring> buffers_to_watch;
   for (auto& path : args.naked_arguments) {
@@ -316,7 +319,8 @@ std::wstring CommandsToRun(CommandLineValues args) {
     }
     commands_to_run += L"editor.OpenFile(" +
                        EscapedString::FromString(NewLazyString(full_path))
-                           .CppRepresentation() +
+                           .CppRepresentation()
+                           .ToString() +
                        L", true);\n";
     buffers_to_watch.push_back(full_path);
   }
@@ -325,7 +329,8 @@ std::wstring CommandsToRun(CommandLineValues args) {
         L"ForkCommandOptions options = ForkCommandOptions();\n"
         L"options.set_command(" +
         EscapedString::FromString(NewLazyString(command_to_fork))
-            .CppRepresentation() +
+            .CppRepresentation()
+            .ToString() +
         L");\noptions.set_insertion_type(\"" +
         (args.background ? L"skip" : L"search_or_create") +
         L"\");\neditor.ForkCommand(options);";
@@ -344,17 +349,19 @@ std::wstring CommandsToRun(CommandLineValues args) {
         L"Screen screen = RemoteScreen(" +
         EscapedString::FromString(
             NewLazyString(FromByteString(getenv(kEdgeParentAddress))))
-            .CppRepresentation() +
+            .CppRepresentation()
+            .ToString() +
         L");\n";
   } else if (!buffers_to_watch.empty() &&
              args.nested_edge_behavior ==
                  CommandLineValues::NestedEdgeBehavior::kWaitForClose) {
     commands_to_run += L"SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
-      commands_to_run +=
-          L"buffers_to_watch.insert(" +
-          EscapedString::FromString(NewLazyString(block)).CppRepresentation() +
-          L");\n";
+      commands_to_run += L"buffers_to_watch.insert(" +
+                         EscapedString::FromString(NewLazyString(block))
+                             .CppRepresentation()
+                             .ToString() +
+                         L");\n";
     }
     commands_to_run += L"editor.WaitForClose(buffers_to_watch);\n";
   }

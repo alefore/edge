@@ -22,7 +22,9 @@ using afc::vm::EscapedString;
 namespace afc::editor {
 namespace {
 std::wstring SerializeValue(std::wstring input) {
-  return EscapedString::FromString(NewLazyString(input)).CppRepresentation();
+  return EscapedString::FromString(NewLazyString(input))
+      .CppRepresentation()
+      .ToString();
 }
 
 std::wstring SerializeValue(int input) { return std::to_wstring(input); }

@@ -80,10 +80,12 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 PossibleError SendPathToServer(FileDescriptor server_fd,
                                const Path& input_path) {
   LOG(INFO) << "Sending path to server: " << input_path;
+  // TODO(trivial, 2023-12-31): Remove call to ToString.
   std::string command =
       "editor.ConnectTo(" +
       ToByteString(EscapedString::FromString(NewLazyString(input_path.read()))
-                       .CppRepresentation()) +
+                       .CppRepresentation()
+                       .ToString()) +
       ");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(server_fd.read(), command.c_str(), command.size()) == -1) {
@@ -106,11 +108,12 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
   LazyString path_str = NewLazyString(FromByteString(path));
   free(path);
 
-  commands_to_run =
-      commands_to_run + "\n;Unlink(" +
-      ToByteString(
-          vm::EscapedString::FromString(path_str).CppRepresentation()) +
-      ");\n";
+  // TODO(trivial, 2023-12-31): Remove call to ToString.
+  commands_to_run = commands_to_run + "\n;Unlink(" +
+                    ToByteString(vm::EscapedString::FromString(path_str)
+                                     .CppRepresentation()
+                                     .ToString()) +
+                    ");\n";
   LOG(INFO) << "Sending commands to fd: " << server_fd << " through path "
             << path_str.ToString() << ": " << commands_to_run;
   while (pos < commands_to_run.size()) {
