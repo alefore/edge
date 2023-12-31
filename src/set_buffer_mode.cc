@@ -19,7 +19,6 @@ using afc::language::overload;
 using afc::language::Success;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -45,7 +44,7 @@ struct Operation {
   };
   Type type;
   size_t number = 0;
-  LazyString text_input = EmptyString();
+  LazyString text_input = LazyString();
 };
 
 struct Data {

@@ -19,7 +19,7 @@ struct FrameOutputProducerOptions {
   enum class ActiveState { kActive, kInactive };
   ActiveState active_state = ActiveState::kInactive;
   language::lazy_string::LazyString extra_information =
-      language::lazy_string::EmptyString();
+      language::lazy_string::LazyString();
   std::wstring prefix = L"";
 };
 
