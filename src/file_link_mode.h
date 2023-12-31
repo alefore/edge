@@ -10,6 +10,7 @@
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line_sequence.h"
 #include "src/widget_list.h"
 
@@ -102,7 +103,7 @@ struct ResolvePathOutput {
   std::optional<language::text::LineColumn> position;
 
   // The pattern to jump to (after jumping to `position`).
-  std::optional<std::wstring> pattern;
+  std::optional<language::lazy_string::LazyString> pattern;
 
   ValidatorOutput validator_output;
 };
@@ -170,7 +171,7 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                         return input.validator(path_with_prefix)
                             .Transform([input, output, state, path_with_prefix](
                                            ValidatorOutput validator_output) {
-                              std::wstring output_pattern = L"";
+                              language::lazy_string::LazyString output_pattern;
                               std::optional<language::text::LineColumn>
                                   output_position;
                               for (size_t i = 0; i < 2; i++) {
@@ -186,7 +187,9 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                                 const std::wstring arg = input.path.substr(
                                     state->str_end, next_str_end);
                                 if (i == 0 && arg.size() > 0 && arg[0] == '/') {
-                                  output_pattern = arg.substr(1);
+                                  output_pattern =
+                                      language::lazy_string::NewLazyString(
+                                          arg.substr(1));
                                   break;
                                 } else {
                                   size_t value;

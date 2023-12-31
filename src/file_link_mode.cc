@@ -517,11 +517,10 @@ gc::Root<OpenBuffer> CreateBuffer(
 
   if (resolve_path_output.has_value() &&
       resolve_path_output->pattern.has_value() &&
-      !resolve_path_output->pattern->empty()) {
-    SearchOptions search_options = SearchOptions{
-        .starting_position = buffer.ptr()->position(),
-        // TODO(easy, 2023-10-06): Get rid of NewLazyString.
-        .search_query = NewLazyString(resolve_path_output->pattern.value())};
+      !resolve_path_output->pattern->IsEmpty()) {
+    SearchOptions search_options =
+        SearchOptions{.starting_position = buffer.ptr()->position(),
+                      .search_query = resolve_path_output->pattern.value()};
     std::visit(
         overload{[&](LineColumn position) {
                    buffer.ptr()->set_position(position);
