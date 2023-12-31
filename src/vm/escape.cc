@@ -1,25 +1,29 @@
 #include "src/vm/escape.h"
 
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-namespace afc::vm {
-using language::Error;
-using language::NonNull;
-using language::ValueOrDie;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
+using afc::language::Error;
+using afc::language::NewError;
+using afc::language::NonNull;
+using afc::language::ValueOrDie;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::ForEachColumn;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
 
+namespace afc::vm {
 /* static */ EscapedString EscapedString::FromString(LazyString input) {
-  // TODO(easy, 2022-06-10): Get rid of this call to ToString.
-  return EscapedString(input.ToString());
+  return EscapedString(input);
 }
 
 /* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
     language::lazy_string::LazyString input) {
-  std::wstring original_string;
+  LazyString original_string = EmptyString();
   for (ColumnNumber i; i.ToDelta() < input.size(); ++i) {
     switch (input.get(i)) {
       case '\\':
@@ -27,20 +31,21 @@ using language::lazy_string::NewLazyString;
           return Error(L"String ends in escape character.");
         switch (input.get(i)) {
           case 'n':
-            original_string += '\n';
+            original_string += NewLazyString(L"\n");
             break;
           case '"':
           case '\\':
           case '\'':
-            original_string += input.get(i);
+            original_string += input.Substring(i, ColumnNumberDelta(1));
             break;
           default:
-            return Error(L"Unknown escaped character: " +
-                         std::wstring(1, input.get(i)));
+            return NewError(
+                NewLazyString(L"Unknown escaped character: ")
+                    .Append(input.Substring(i, ColumnNumberDelta(1))));
         }
         break;
       default:
-        original_string += input.get(i);
+        original_string += input.Substring(i, ColumnNumberDelta(1));
     }
   }
   return EscapedString(original_string);
@@ -49,8 +54,8 @@ using language::lazy_string::NewLazyString;
 // Returns an escaped representation.
 std::wstring EscapedString::EscapedRepresentation() const {
   std::wstring output;
-  output.reserve(input_.size() * 2);
-  for (wchar_t c : input_) {
+  output.reserve(input_.size().read() * 2);
+  ForEachColumn(input_, [&output](ColumnNumber, wchar_t c) {
     switch (c) {
       case '\n':
         output += L"\\n";
@@ -67,7 +72,7 @@ std::wstring EscapedString::EscapedRepresentation() const {
       default:
         output += c;
     }
-  }
+  });
   return output;
 }
 
@@ -76,13 +81,9 @@ std::wstring EscapedString::CppRepresentation() const {
 }
 
 // Returns the original (unescaped) string.
-LazyString EscapedString::OriginalString() const {
-  // TODO(easy, 2022-11-26): Get rid of NewLazyString here; store the lazy
-  // string directly.
-  return NewLazyString(input_);
-}
+LazyString EscapedString::OriginalString() const { return input_; }
 
-EscapedString::EscapedString(std::wstring input) : input_(std::move(input)) {}
+EscapedString::EscapedString(LazyString input) : input_(std::move(input)) {}
 
 namespace {
 bool cpp_unescape_string_tests_registration =

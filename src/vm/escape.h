@@ -24,10 +24,10 @@ class EscapedString {
   language::lazy_string::LazyString OriginalString() const;
 
  private:
-  EscapedString(std::wstring original_string);
+  EscapedString(language::lazy_string::LazyString original_string);
 
   // The original (unescaped) string.
-  std::wstring input_;
+  language::lazy_string::LazyString input_;
 };
 }  // namespace afc::vm
 
