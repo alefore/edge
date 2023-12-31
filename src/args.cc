@@ -36,6 +36,7 @@ using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 
 namespace afc::editor {
@@ -295,8 +296,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
 
 std::wstring CommandsToRun(CommandLineValues args) {
   using afc::vm::EscapedString;
-  // TODO(trivial, 2023-12-31): Convert to LazyString.
-  std::wstring commands_to_run = args.commands_to_run;
+  // TODO(trivial, 2023-12-31): Avoid NewLazyString.
+  LazyString commands_to_run = NewLazyString(args.commands_to_run);
   std::vector<std::wstring> buffers_to_watch;
   for (auto& path : args.naked_arguments) {
     std::wstring full_path;
@@ -317,28 +318,28 @@ std::wstring CommandsToRun(CommandLineValues args) {
           full_path = path;
       }
     }
-    commands_to_run += L"editor.OpenFile(" +
+    commands_to_run += NewLazyString(L"editor.OpenFile(") +
                        EscapedString::FromString(NewLazyString(full_path))
-                           .CppRepresentation()
-                           .ToString() +
-                       L", true);\n";
+                           .CppRepresentation() +
+                       NewLazyString(L", true);\n");
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
-        L"ForkCommandOptions options = ForkCommandOptions();\n"
-        L"options.set_command(" +
+        NewLazyString(L"ForkCommandOptions options = ForkCommandOptions();\n") +
+        NewLazyString(L"options.set_command(") +
         EscapedString::FromString(NewLazyString(command_to_fork))
-            .CppRepresentation()
-            .ToString() +
-        L");\noptions.set_insertion_type(\"" +
-        (args.background ? L"skip" : L"search_or_create") +
-        L"\");\neditor.ForkCommand(options);";
+            .CppRepresentation() +
+        NewLazyString(L");\noptions.set_insertion_type(\"") +
+        NewLazyString(args.background ? L"skip" : L"search_or_create") +
+        NewLazyString(L"\");\n") +
+        NewLazyString(L"editor.ForkCommand(options);");
   }
   switch (args.view_mode) {
     case CommandLineValues::ViewMode::kAllBuffers:
-      commands_to_run += L"editor.set_multiple_buffers(true);\n";
-      commands_to_run += L"editor.SetHorizontalSplitsWithAllBuffers();\n";
+      commands_to_run +=
+          NewLazyString(L"editor.set_multiple_buffers(true);\n") +
+          NewLazyString(L"editor.SetHorizontalSplitsWithAllBuffers();\n");
       break;
     case CommandLineValues::ViewMode::kDefault:
       break;
@@ -346,37 +347,38 @@ std::wstring CommandsToRun(CommandLineValues args) {
   if (args.client.has_value()) {
     static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
     commands_to_run +=
-        L"Screen screen = RemoteScreen(" +
+        NewLazyString(L"Screen screen = RemoteScreen(") +
         EscapedString::FromString(
             NewLazyString(FromByteString(getenv(kEdgeParentAddress))))
-            .CppRepresentation()
-            .ToString() +
-        L");\n";
+            .CppRepresentation() +
+        NewLazyString(L");\n");
   } else if (!buffers_to_watch.empty() &&
              args.nested_edge_behavior ==
                  CommandLineValues::NestedEdgeBehavior::kWaitForClose) {
-    commands_to_run += L"SetString buffers_to_watch = SetString();\n";
+    commands_to_run +=
+        NewLazyString(L"SetString buffers_to_watch = SetString();\n");
     for (auto& block : buffers_to_watch) {
-      commands_to_run += L"buffers_to_watch.insert(" +
-                         EscapedString::FromString(NewLazyString(block))
-                             .CppRepresentation()
-                             .ToString() +
-                         L");\n";
+      commands_to_run +=
+          NewLazyString(L"buffers_to_watch.insert(") +
+          EscapedString::FromString(NewLazyString(block)).CppRepresentation() +
+          NewLazyString(L");\n");
     }
-    commands_to_run += L"editor.WaitForClose(buffers_to_watch);\n";
+    commands_to_run +=
+        NewLazyString(L"editor.WaitForClose(buffers_to_watch);\n");
   }
   if (args.prompt_for_path) {
-    commands_to_run += L"editor.PromptAndOpenFile();";
+    commands_to_run += NewLazyString(L"editor.PromptAndOpenFile();");
   }
-  if (commands_to_run.empty()) {
-    static const wchar_t* kDefaultCommandsToRun =
+  if (commands_to_run.IsEmpty()) {
+    static const LazyString kDefaultCommandsToRun = NewLazyString(
         L"ForkCommandOptions options = ForkCommandOptions();\n"
         L"options.set_command(\"sh -l\");\n"
         L"options.set_insertion_type(\"search_or_create\");\n"
         L"options.set_name(\"💻shell\");\n"
-        L"editor.ForkCommand(options);";
+        L"editor.ForkCommand(options);");
     commands_to_run = kDefaultCommandsToRun;
   }
-  return commands_to_run;
+  // TODO(trivial, 2023-12-31): Don't call ToString:
+  return commands_to_run.ToString();
 }
 }  // namespace afc::editor
