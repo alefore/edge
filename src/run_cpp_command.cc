@@ -77,11 +77,8 @@ futures::Value<EmptyValue> RunCppCommandLiteralHandler(
       editor_state.current_buffer(),
       [&](gc::Root<OpenBuffer> buffer) {
         buffer.ptr()->ResetMode();
-        // TODO(easy, 2022-06-05): Get rid of call to ToString.
-        return buffer
-            .ptr()
-
-            ->EvaluateString(name.ToString())
+        return buffer.ptr()
+            ->EvaluateString(name)
             .Transform([buffer](gc::Root<vm::Value> value) {
               if (value.ptr()->IsVoid()) return Success();
               std::ostringstream oss;

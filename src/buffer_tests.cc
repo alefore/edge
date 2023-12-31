@@ -138,14 +138,15 @@ const bool buffer_tests_registration = tests::Register(
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
                auto buffer = NewBufferForTests(editor.value());
 
-               gc::Root<vm::Value> result = ValueOrDie(
-                   buffer.ptr()
-                       ->EvaluateString(L"number F() { return "
-                                        L"\"foo\".find_last_of(\"o\", 3); }"
-                                        L" F() == F();")
-                       .Get()
-                       .value(),
-                   L"tests");
+               gc::Root<vm::Value> result =
+                   ValueOrDie(buffer.ptr()
+                                  ->EvaluateString(NewLazyString(
+                                      L"number F() { return "
+                                      L"\"foo\".find_last_of(\"o\", 3); }"
+                                      L" F() == F();"))
+                                  .Get()
+                                  .value(),
+                              L"tests");
                CHECK(result.ptr()->get_bool());
              }},
         {.name = L"NestedStatements",
@@ -155,7 +156,7 @@ const bool buffer_tests_registration = tests::Register(
                auto buffer = NewBufferForTests(editor.value());
                ValueOrError<gc::Root<vm::Value>> result =
                    buffer.ptr()
-                       ->EvaluateString(L"{ number v = 5; } v")
+                       ->EvaluateString(NewLazyString(L"{ number v = 5; } v"))
                        .Get()
                        .value();
                CHECK(IsError(result));

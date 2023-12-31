@@ -290,6 +290,7 @@ int main(int argc, const char** argv) {
     editor_state().ExecutePendingWork();
   }
 
+  // TODO(trivial, 2023-12-31): Remove NewLazyString.
   LazyString commands_to_run = NewLazyString(CommandsToRun(args));
   if (!commands_to_run.IsEmpty()) {
     if (connected_to_parent) {
@@ -311,8 +312,7 @@ int main(int argc, const char** argv) {
           editor_state().GetUnusedBufferName(L"- initial-commands");
       gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
           OpenBuffer::Options{.editor = editor_state(), .name = name});
-      // TODO(easy, 2023-12-31): Remove ToString:
-      buffer_root.ptr()->EvaluateString(commands_to_run.ToString());
+      buffer_root.ptr()->EvaluateString(commands_to_run);
       editor_state().buffers()->insert_or_assign(name, std::move(buffer_root));
     }
   }

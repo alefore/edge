@@ -378,7 +378,7 @@ class OpenBuffer {
       language::gc::Root<vm::Environment> environment);
 
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateString(
-      const std::wstring& str);
+      const language::lazy_string::LazyString& str);
   futures::ValueOrError<language::gc::Root<vm::Value>> EvaluateFile(
       const infrastructure::Path& path);
 

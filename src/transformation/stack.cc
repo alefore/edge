@@ -112,8 +112,9 @@ futures::Value<Result> HandleCommandCpp(Input input,
                        input.NewChild(delete_transformation->range->begin()));
         });
   }
-  // TODO(easy, 2023-09-10): Don't do ToString?
-  return input.buffer.EvaluateString(contents.ToString())
+  // TODO(2023-12-31, trivial): Avoid ToString; instead, convert from
+  // LineSequence to LazyString directly.
+  return input.buffer.EvaluateString(NewLazyString(contents.ToString()))
       .Transform([input](gc::Root<vm::Value> value) {
         ShowValue(input.buffer, input.delete_buffer, value.ptr().value());
         Result output(input.position);

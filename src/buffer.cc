@@ -1122,7 +1122,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateExpression(
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
-    const wstring& code) {
+    const LazyString& code) {
   LOG(INFO) << "Compiling code.";
   return std::visit(
       overload{[&](Error error) {
@@ -1138,7 +1138,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
                  LOG(INFO) << "Code compiled, evaluating.";
                  return EvaluateExpression(std::move(expression), environment);
                }},
-      CompileString(code));
+      // TODO(trivial, 2023-12-31): Remove call to ToString.
+      CompileString(code.ToString()));
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
@@ -1807,9 +1808,8 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
                     LazyString input, std::function<void()> done_callback) {
                   RegisterProgress();
                   if (Read(buffer_variables::vm_exec)) {
-                    LOG(INFO) << name()
-                              << ": Evaluating VM code: " << input.ToString();
-                    EvaluateString(input.ToString());
+                    LOG(INFO) << name() << ": Evaluating VM code: " << input;
+                    EvaluateString(input);
                   }
                   file_adapter_->ReceiveInput(std::move(input), modifiers)
                       .Transform([done_callback =
