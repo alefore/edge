@@ -30,7 +30,6 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
@@ -219,11 +218,9 @@ struct ContentStats {
 };
 
 LazyString ToString(const ContentStats& stats) {
-  LazyString output = EmptyString();
+  LazyString output;
   auto key = [&output](std::wstring s, std::optional<size_t> value) {
-    if (value)
-      output = std::move(output).Append(
-          NewLazyString(L" " + s + std::to_wstring(*value)));
+    if (value) output += NewLazyString(L" " + s + std::to_wstring(*value));
   };
   key(L"🌳", stats.lines);
   key(L" 🍀", stats.words);

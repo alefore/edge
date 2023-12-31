@@ -290,29 +290,29 @@ int main(int argc, const char** argv) {
     editor_state().ExecutePendingWork();
   }
 
-  // TODO(trivial, 2023-12-31): Convert commands_to_run to LazyString.
-  auto commands_to_run = CommandsToRun(args);
-  if (!commands_to_run.empty()) {
+  LazyString commands_to_run = NewLazyString(CommandsToRun(args));
+  if (!commands_to_run.IsEmpty()) {
     if (connected_to_parent) {
-      commands_to_run +=
-          L"editor.SendExitTo(" +
-          afc::vm::EscapedString::FromString(NewLazyString(server_path.read()))
-              .CppRepresentation()
-              .ToString() +
-          L");";
+      commands_to_run += NewLazyString(L"editor.SendExitTo(")
+                             .Append(afc::vm::EscapedString::FromString(
+                                         NewLazyString(server_path.read()))
+                                         .CppRepresentation())
+                             .Append(NewLazyString(L");"));
     }
 
     LOG(INFO) << "Sending commands.";
     if (remote_server_fd.has_value()) {
       CHECK_NE(remote_server_fd.value(), FileDescriptor(-1));
-      CHECK(!IsError(SyncSendCommandsToServer(remote_server_fd.value(),
-                                              ToByteString(commands_to_run))));
+      // TODO(easy, 2023-12-31): Remove ToString:
+      CHECK(!IsError(SyncSendCommandsToServer(
+          remote_server_fd.value(), ToByteString(commands_to_run.ToString()))));
     } else {
       BufferName name =
           editor_state().GetUnusedBufferName(L"- initial-commands");
       gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
           OpenBuffer::Options{.editor = editor_state(), .name = name});
-      buffer_root.ptr()->EvaluateString(commands_to_run);
+      // TODO(easy, 2023-12-31): Remove ToString:
+      buffer_root.ptr()->EvaluateString(commands_to_run.ToString());
       editor_state().buffers()->insert_or_assign(name, std::move(buffer_root));
     }
   }

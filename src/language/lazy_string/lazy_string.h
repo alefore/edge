@@ -67,9 +67,6 @@ class LazyString {
   bool operator<(const LazyString& x);
 };
 
-// TODO(trivial, 2023-12-31): Remove this. Just use LazyString().
-LazyString EmptyString();
-
 bool operator==(const LazyString& a, const LazyString& b);
 const LazyString& operator+=(LazyString& a, const LazyString& b);
 

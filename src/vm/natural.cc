@@ -19,7 +19,6 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
@@ -259,7 +258,7 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(NewLazyString(L"\"foo\""), EmptyString(),
+                   Compile(NewLazyString(L"\"foo\""), LazyString(),
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
@@ -278,7 +277,7 @@ bool tests_registration = tests::Register(
                    vm::NewCallback(pool, PurityType::kPure,
                                    []() -> std::wstring { return L"quux"; }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(NewLazyString(L"SomeFunction"), EmptyString(),
+                   Compile(NewLazyString(L"SomeFunction"), LazyString(),
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
@@ -300,7 +299,7 @@ bool tests_registration = tests::Register(
                                      return L">" + a + L")" + b + L"]" + c;
                                    }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(NewLazyString(L"Moo Moo"), EmptyString(),
+                   Compile(NewLazyString(L"Moo Moo"), LazyString(),
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                LOG(INFO) << "Evaluating.";
                // TODO(2023-12-18): Why the fuck do we need ToByteString here?
@@ -329,7 +328,7 @@ bool tests_registration = tests::Register(
                        }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                    Compile(NewLazyString(L"SomeFunction \"bar\" \"foo\""),
-                           EmptyString(), environment.ptr().value(),
+                           LazyString(), environment.ptr().value(),
                            {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
@@ -350,7 +349,7 @@ bool tests_registration = tests::Register(
                                  return L"[" + a + L"]";
                                }));
            NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-               Compile(NewLazyString(L"foo foo foo \"bar\" "), EmptyString(),
+               Compile(NewLazyString(L"foo foo foo \"bar\" "), LazyString(),
                        environment.ptr().value(), {kEmptyNamespace}, pool));
            // TODO(2023-12-18): Why the fuck do we need ToByteString here?
            CHECK_EQ(ToByteString(ValueOrDie(Evaluate(expression, pool,

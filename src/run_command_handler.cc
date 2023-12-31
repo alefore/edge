@@ -55,7 +55,6 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -443,7 +442,7 @@ class ForkEditorCommand : public Command {
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       Prompt(PromptOptions{
           .editor_state = editor_state_,
-          .prompt = std::visit(overload{[](Error) { return EmptyString(); },
+          .prompt = std::visit(overload{[](Error) { return LazyString(); },
                                         [](Path path) -> LazyString {
                                           return NewLazyString(path.read());
                                         }},

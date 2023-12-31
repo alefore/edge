@@ -17,7 +17,7 @@ LazyString Concatenate(R&& inputs) {
       [](LazyString fragment, LazyString total) {
         return std::move(total).Append(fragment);
       },
-      EmptyString(), inputs);
+      LazyString(), inputs);
 }
 
 // Returns a range transformation that can be used to intersperse a given

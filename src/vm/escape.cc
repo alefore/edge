@@ -11,7 +11,6 @@ using afc::language::NonNull;
 using afc::language::ValueOrDie;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
@@ -23,7 +22,7 @@ namespace afc::vm {
 
 /* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
     language::lazy_string::LazyString input) {
-  LazyString original_string = EmptyString();
+  LazyString original_string;
   for (ColumnNumber i; i.ToDelta() < input.size(); ++i) {
     switch (input.get(i)) {
       case '\\':
@@ -53,7 +52,7 @@ namespace afc::vm {
 
 // Returns an escaped representation.
 LazyString EscapedString::EscapedRepresentation() const {
-  LazyString output = EmptyString();
+  LazyString output;
   ForEachColumn(input_, [&output](ColumnNumber, wchar_t c) {
     switch (c) {
       case '\n':

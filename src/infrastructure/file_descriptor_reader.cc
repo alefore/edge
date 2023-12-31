@@ -17,7 +17,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -56,7 +55,7 @@ void FileDescriptorReader::Register(
              kLowBufferSize - low_buffer_length_);
     LOG(INFO) << "Read returns: " << characters_read;
     if (characters_read == -1) {
-      if (errno == EAGAIN) return options_->receive_data(EmptyString(), [] {});
+      if (errno == EAGAIN) return options_->receive_data(LazyString(), [] {});
       return std::move(options_->receive_end_of_file)();
     }
     CHECK_GE(characters_read, 0);

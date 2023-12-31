@@ -27,7 +27,6 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -137,8 +136,7 @@ futures::Value<PossibleError> GenerateContents(
       depth_value.has_value()) {
     FUTURES_ASSIGN_OR_RETURN(depth, ToSizeT(depth_value->ptr()->get_number()));
   }
-  DisplayTree(source->ptr().value(), depth, tree.value(), EmptyString(),
-              target);
+  DisplayTree(source->ptr().value(), depth, tree.value(), LazyString(), target);
   return futures::Past(Success());
 }
 

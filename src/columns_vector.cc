@@ -24,7 +24,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -219,7 +218,7 @@ const bool buffer_tests_registration = tests::Register(
             .lines = RepeatLine({.line = Line(L"bar")}, LineNumberDelta(10)),
             .padding = {std::vector<std::optional<ColumnsVector::Padding>>(
                 5, ColumnsVector::Padding{.modifiers = {},
-                                          .head = EmptyString(),
+                                          .head = LazyString(),
                                           .body = NewLazyString(L"Foo")})}});
         LineWithCursor::Generator::Vector output =
             OutputFromColumnsVector(std::move(columns_vector));

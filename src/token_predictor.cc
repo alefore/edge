@@ -16,7 +16,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
@@ -48,7 +47,7 @@ bool find_token_tests = tests::Register(
     {{.name = L"Empty",
       .callback =
           [] {
-            CHECK(!FindToken(TokenizeBySpaces(EmptyString()), ColumnNumber())
+            CHECK(!FindToken(TokenizeBySpaces(LazyString()), ColumnNumber())
                        .has_value());
           }},
      {.name = L"SpacesInTheMiddle",

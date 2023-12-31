@@ -127,8 +127,6 @@ bool LazyString::operator<(const LazyString& x) {
   return size() < x.size();
 }
 
-LazyString EmptyString() { return LazyString(); }
-
 bool operator==(const LazyString& a, const LazyString& b) {
   return a.size() == b.size() &&
          !FindFirstColumnWithPredicate(a, [&](ColumnNumber column, wchar_t c) {

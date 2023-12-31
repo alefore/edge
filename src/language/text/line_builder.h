@@ -22,7 +22,7 @@ namespace afc::language::text {
 
 class LineBuilder {
  public:
-  LineBuilder() : LineBuilder(language::lazy_string::EmptyString()) {}
+  LineBuilder() : LineBuilder(language::lazy_string::LazyString()) {}
 
   explicit LineBuilder(const Line&);
   explicit LineBuilder(language::lazy_string::LazyString input_contents);

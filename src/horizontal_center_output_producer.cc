@@ -14,7 +14,7 @@ namespace container = afc::language::container;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::EmptyString;
+using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 
 namespace afc::editor {
@@ -35,7 +35,7 @@ LineWithCursor::Generator::Vector CenterOutput(
                     std::views::transform(
                         [](LineModifier m) -> std::optional<V::Padding> {
                           return V::Padding{.modifiers = LineModifierSet{m},
-                                            .head = EmptyString(),
+                                            .head = LazyString(),
                                             .body = NewLazyString(L"█")};
                         })),
                 .width = lines.width});

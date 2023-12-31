@@ -70,7 +70,6 @@ using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
@@ -1116,7 +1115,7 @@ InsertModeOptions PromptState::insert_mode_options() {
               prompt_state->options().cancel_handler();
             } else {
               VLOG(5) << "Running handler on empty input.";
-              prompt_state->options().handler(EmptyString());
+              prompt_state->options().handler(LazyString());
             }
             prompt_state->editor_state().set_keyboard_redirect(nullptr);
           },

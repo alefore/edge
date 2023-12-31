@@ -33,7 +33,6 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -109,7 +108,7 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
   if (!callback.has_value()) {
     VLOG(5) << "Unable to find suitable GetPathMetadata definition";
     return {
-        .initial_value = EmptyString(),
+        .initial_value = LazyString(),
         .value = futures::Future<LazyString>().value};
   }
 

@@ -6,17 +6,17 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::NewLazyString;
+
 namespace afc::editor {
 namespace {
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::EmptyString;
-using language::lazy_string::NewLazyString;
 
 const bool tokenize_by_spaces_tests_registration = tests::Register(
     L"TokenizeBySpaces",
     {{.name = L"EmptyString",
-      .callback =
-          [] { CHECK_EQ(TokenizeBySpaces(EmptyString()).size(), 0ul); }},
+      .callback = [] { CHECK_EQ(TokenizeBySpaces(LazyString()).size(), 0ul); }},
      {.name = L"SingleToken",
       .callback =
           [] {

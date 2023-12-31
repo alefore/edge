@@ -42,7 +42,6 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::EmptyString;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
@@ -221,7 +220,7 @@ ValueOrError<ParsedCommand> Parse(
 ValueOrError<ParsedCommand> Parse(gc::Pool& pool, LazyString command,
                                   vm::Environment& environment,
                                   const SearchNamespaces& search_namespaces) {
-  return Parse(pool, std::move(command), environment, EmptyString(),
+  return Parse(pool, std::move(command), environment, LazyString(),
                {vm::types::Void{}, vm::types::String{}}, search_namespaces);
 }
 
@@ -236,7 +235,7 @@ bool tests_parse_registration = tests::Register(
             gc::Pool pool({});
             gc::Root<vm::Environment> environment = vm::Environment::New(pool);
             ValueOrError<ParsedCommand> output = Parse(
-                pool, EmptyString(), environment.ptr().value(), EmptyString(),
+                pool, LazyString(), environment.ptr().value(), LazyString(),
                 std::unordered_set<vm::Type>({vm::types::String{}}),
                 SearchNamespaces(buffer.ptr().value()));
             CHECK_EQ(std::get<Error>(output), Error(L""));
@@ -250,7 +249,7 @@ bool tests_parse_registration = tests::Register(
             gc::Root<vm::Environment> environment = vm::Environment::New(pool);
             ValueOrError<ParsedCommand> output =
                 Parse(pool, NewLazyString(L"foo"), environment.ptr().value(),
-                      EmptyString(),
+                      LazyString(),
                       std::unordered_set<vm::Type>({vm::types::String{}}),
                       SearchNamespaces(buffer.ptr().value()));
             Error error = std::get<Error>(output);
@@ -268,7 +267,7 @@ bool tests_parse_registration = tests::Register(
                                   vm::Value::NewString(pool, L"bar"));
         ValueOrError<ParsedCommand> output = Parse(
             pool, NewLazyString(L"foo"), environment.ptr().value(),
-            EmptyString(), std::unordered_set<vm::Type>({vm::types::String{}}),
+            LazyString(), std::unordered_set<vm::Type>({vm::types::String{}}),
             SearchNamespaces(buffer.ptr().value()));
         CHECK(!std::holds_alternative<Error>(output));
       }}});
