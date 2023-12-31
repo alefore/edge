@@ -29,6 +29,8 @@ class LazyString {
   friend LazyStringImpl;
 
  public:
+  LazyString();
+
   explicit LazyString(
       language::NonNull<std::shared_ptr<const LazyStringImpl>> data)
       : data_(std::move(data)) {}
@@ -65,6 +67,7 @@ class LazyString {
   bool operator<(const LazyString& x);
 };
 
+// TODO(trivial, 2023-12-31): Remove this. Just use LazyString().
 LazyString EmptyString();
 
 bool operator==(const LazyString& a, const LazyString& b);

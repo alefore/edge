@@ -74,6 +74,8 @@ class AppendImpl : public LazyStringImpl {
   const Tree::Ptr tree_;
 };
 
+LazyString::LazyString() : data_(NonNull<std::shared_ptr<EmptyStringImpl>>()) {}
+
 std::wstring LazyString::ToString() const {
   static Tracker tracker(L"LazyString::ToString");
   auto call = tracker.Call();
@@ -125,9 +127,7 @@ bool LazyString::operator<(const LazyString& x) {
   return size() < x.size();
 }
 
-LazyString EmptyString() {
-  return LazyString(NonNull<std::shared_ptr<EmptyStringImpl>>());
-}
+LazyString EmptyString() { return LazyString(); }
 
 bool operator==(const LazyString& a, const LazyString& b) {
   return a.size() == b.size() &&
