@@ -139,6 +139,10 @@ const LazyString& operator+=(LazyString& a, const LazyString& b) {
   return a;
 }
 
+LazyString operator+(const LazyString& a, const LazyString& b) {
+  return a.Append(b);
+}
+
 std::ostream& operator<<(std::ostream& os,
                          const afc::language::lazy_string::LazyString& obj) {
   // TODO(P2): Find another way to implement this.

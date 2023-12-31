@@ -69,6 +69,7 @@ class LazyString {
 
 bool operator==(const LazyString& a, const LazyString& b);
 const LazyString& operator+=(LazyString& a, const LazyString& b);
+LazyString operator+(const LazyString& a, const LazyString& b);
 
 std::ostream& operator<<(std::ostream& os,
                          const afc::language::lazy_string::LazyString& obj);
