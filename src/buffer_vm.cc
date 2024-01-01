@@ -40,7 +40,6 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -587,17 +586,14 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
             buffer.ptr()->AppendLines(container::MaterializeVector(
                 Tracker::GetData() |
                 std::views::transform([](Tracker::Data data) -> const Line {
-                  return LineBuilder(NewLazyString(L"\"")
-                                         .Append(NewLazyString(data.name))
-                                         .Append(NewLazyString(L"\","))
-                                         .Append(NewLazyString(
-                                             std::to_wstring(data.executions)))
-                                         .Append(NewLazyString(L","))
-                                         .Append(NewLazyString(
-                                             std::to_wstring(data.seconds)))
-                                         .Append(NewLazyString(L","))
-                                         .Append(NewLazyString(std::to_wstring(
-                                             data.longest_seconds))))
+                  return LineBuilder(
+                             LazyString{L"\""} + LazyString{data.name} +
+                             LazyString{L"\","} +
+                             LazyString{std::to_wstring(data.executions)} +
+                             LazyString{L","} +
+                             LazyString{std::to_wstring(data.seconds)} +
+                             LazyString{L","} +
+                             LazyString{std::to_wstring(data.longest_seconds)})
                       .Build();
                 })));
           })

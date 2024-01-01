@@ -18,7 +18,6 @@ using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -64,7 +63,7 @@ LineSequence ShowMarksForBuffer(const EditorState& editor,
     output.push_back(L"### Source: " + data.first.read());
     output.append_back(std::move(data.second) |
                        std::views::transform([](MarkView mark) -> Line {
-                         LineBuilder line_output(NewLazyString(L"* "));
+                         LineBuilder line_output(LazyString{L"* "});
                          line_output.Append(LineBuilder(std::move(mark.text)));
                          return std::move(line_output).Build();
                        }));

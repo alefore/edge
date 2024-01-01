@@ -18,7 +18,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Padding;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -31,20 +30,20 @@ namespace afc::editor::operation {
 /* static */ LazyString KeyCommandsMap::ToString(Category category) {
   switch (category) {
     case KeyCommandsMap::Category::kStringControl:
-      return NewLazyString(L"String");
+      return LazyString{L"String"};
     case KeyCommandsMap::Category::kRepetitions:
-      return NewLazyString(L"Repetitions");
+      return LazyString{L"Repetitions"};
     case KeyCommandsMap::Category::kDirection:
-      return NewLazyString(L"Direction");
+      return LazyString{L"Direction"};
     case KeyCommandsMap::Category::kStructure:
-      return NewLazyString(L"Structure");
+      return LazyString{L"Structure"};
     case KeyCommandsMap::Category::kNewCommand:
-      return NewLazyString(L"Command");
+      return LazyString{L"Command"};
     case KeyCommandsMap::Category::kTop:
-      return NewLazyString(L"Top");
+      return LazyString{L"Top"};
   }
   LOG(FATAL) << "Invalid category.";
-  return NewLazyString(L"");
+  return LazyString{};
 }
 
 void KeyCommandsMap::ExtractDescriptions(
@@ -105,7 +104,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
         Padding(longest_category - category_name.size(), L' '));
     category_line.AppendString(category_name,
                                LineModifierSet{LineModifier::kBold});
-    category_line.AppendString(NewLazyString(L":"));
+    category_line.AppendString(LazyString{L":"});
     // We use an inverted map to group commands with identical descriptions.
     std::map<Description, std::set<ExtendedChar>> inverted_map;
     for (const std::pair<const ExtendedChar, Description>& entry :
@@ -114,10 +113,10 @@ LineSequence KeyCommandsMapSequence::Help() const {
         inverted_map[entry.second].insert(entry.first);
     for (const std::pair<const Description, std::set<ExtendedChar>>& entry :
          inverted_map) {
-      category_line.AppendString(NewLazyString(L" "));
-      category_line.AppendString(NewLazyString(entry.first.read()),
+      category_line.AppendString(LazyString{L" "});
+      category_line.AppendString(LazyString{entry.first.read()},
                                  LineModifierSet{LineModifier::kCyan});
-      category_line.AppendString(NewLazyString(L":"),
+      category_line.AppendString(LazyString{L":"},
                                  LineModifierSet{LineModifier::kDim});
       for (ExtendedChar c : entry.second)
         category_line.Append(LineBuilder(DescribeSequence({c})));

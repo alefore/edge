@@ -56,7 +56,6 @@ using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -443,12 +442,12 @@ class ForkEditorCommand : public Command {
       ValueOrError<Path> children_path = GetChildrenPath(editor_state_);
       Prompt(PromptOptions{
           .editor_state = editor_state_,
-          .prompt = std::visit(overload{[](Error) { return LazyString(); },
+          .prompt = std::visit(overload{[](Error) { return LazyString{}; },
                                         [](Path path) -> LazyString {
-                                          return NewLazyString(path.read());
+                                          return LazyString{path.read()};
                                         }},
-                               children_path)
-                        .Append(NewLazyString(L"$ ")),
+                               children_path) +
+                    LazyString{L"$ "},
           .history_file = HistoryFileCommands(),
           .colorize_options_provider =
               prompt_state->context_command_callback.has_value()
@@ -688,10 +687,9 @@ futures::Value<EmptyValue> RunCommandHandler(
     EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
     LazyString input, LazyString name_suffix) {
   // TODO(easy, 2022-06-05): Avoid call to ToString.
-  RunCommand(
-      BufferName((NewLazyString(L"$ ") + input + name_suffix).ToString()),
-      environment, editor_state, OptionalFrom(GetChildrenPath(editor_state)),
-      input);
+  RunCommand(BufferName((LazyString{L"$ "} + input + name_suffix).ToString()),
+             environment, editor_state,
+             OptionalFrom(GetChildrenPath(editor_state)), input);
   return futures::Past(EmptyValue());
 }
 
@@ -699,15 +697,16 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
                                                       LazyString input) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
-        std::ranges::for_each(
-            buffer.contents().snapshot(),
-            [&editor_state, input](const Line& arg) {
-              // TODO(easy, 2024-01-01): Avoid call to ToString.
-              RunCommandHandler(editor_state,
-                                std::map<std::wstring, std::wstring>{
-                                    {L"ARG", arg.ToString()}},
-                                input, NewLazyString(L" ") + arg.contents());
-            });
+        std::ranges::for_each(buffer.contents().snapshot(),
+                              [&editor_state, input](const Line& arg) {
+                                // TODO(easy, 2024-01-01): Avoid call to
+                                // ToString.
+                                RunCommandHandler(
+                                    editor_state,
+                                    std::map<std::wstring, std::wstring>{
+                                        {L"ARG", arg.ToString()}},
+                                    input, LazyString{L" "} + arg.contents());
+                              });
         return futures::Past(EmptyValue());
       })
       .Transform([&editor_state](EmptyValue) {

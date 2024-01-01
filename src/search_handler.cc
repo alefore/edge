@@ -34,7 +34,6 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Padding;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -284,7 +283,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                                 .starting_position = LineColumn(
                                     contents.range().end().line,
                                     std::numeric_limits<ColumnNumber>::max()),
-                                .search_query = NewLazyString(L"xxxx"),
+                                .search_query = LazyString{L"xxxx"},
                                 .required_positions = std::nullopt,
                                 .case_sensitive = false},
                             contents))
@@ -299,7 +298,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                             .starting_position = LineColumn(
                                 contents.range().end().line,
                                 std::numeric_limits<ColumnNumber>::max()),
-                            .search_query = NewLazyString(L"rero"),
+                            .search_query = LazyString{L"rero"},
                             .required_positions = std::nullopt,
                             .case_sensitive = false},
                         contents)) ==
@@ -313,7 +312,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                   ValueOrDie(SearchHandler(
                       Direction::kForwards,
                       SearchOptions{.starting_position = contents.range().end(),
-                                    .search_query = NewLazyString(L"rero"),
+                                    .search_query = LazyString{L"rero"},
                                     .required_positions = std::nullopt,
                                     .case_sensitive = false},
                       contents)) ==
@@ -327,7 +326,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                         Direction::kBackwards,
                         SearchOptions{.starting_position = LineColumn(
                                           LineNumber(1), ColumnNumber(3)),
-                                      .search_query = NewLazyString(L"r"),
+                                      .search_query = LazyString{L"r"},
                                       .required_positions = std::nullopt,
                                       .case_sensitive = false},
                         contents)) ==
@@ -344,7 +343,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                         Direction::kForwards,
                         SearchOptions{.starting_position = LineColumn(
                                           LineNumber(0), ColumnNumber(7)),
-                                      .search_query = NewLazyString(L"ro"),
+                                      .search_query = LazyString{L"ro"},
                                       .required_positions = std::nullopt,
                                       .case_sensitive = false},
                         contents)) ==
@@ -359,7 +358,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                   Direction::kForwards,
                   SearchOptions{.starting_position =
                                     LineColumn(LineNumber(1), ColumnNumber(3)),
-                                .search_query = NewLazyString(L"."),
+                                .search_query = LazyString{L"."},
                                 .required_positions = 1,
                                 .case_sensitive = false},
                   contents)) == std::vector<LineColumn>({
@@ -387,7 +386,7 @@ ValueOrError<LineColumn> GetNextMatch(Direction direction,
       results.has_value() && !results->empty())
     return results->at(0);
 
-  return NewError(NewLazyString(L"No matches: ").Append(options.search_query));
+  return NewError(LazyString{L"No matches: "} + options.search_query);
 }
 
 void HandleSearchResults(
@@ -416,13 +415,13 @@ void HandleSearchResults(
 
   size_t size = results->size();
   buffer.status().SetInformationText(
-      size == 1 ? Line(L"🔍 1 result.")
-                : LineBuilder(Padding(ColumnNumberDelta(
-                                          1 + static_cast<size_t>(log2(size))),
-                                      L'🔍')
-                                  .Append(NewLazyString(L" Results: "))
-                                  .Append(NewLazyString(std::to_wstring(size))))
-                      .Build());
+      size == 1
+          ? Line(L"🔍 1 result.")
+          : LineBuilder(
+                Padding(ColumnNumberDelta(1 + static_cast<size_t>(log2(size))),
+                        L'🔍') +
+                LazyString{L" Results: "} + LazyString{std::to_wstring(size)})
+                .Build());
   std::vector<audio::Frequency> frequencies = {
       audio::Frequency(440.0), audio::Frequency(440.0),
       audio::Frequency(493.88), audio::Frequency(523.25),
