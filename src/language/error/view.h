@@ -5,8 +5,8 @@
 
 namespace afc::language::view {
 
-// View that removes errors from a range *and* unwraps `ValueOrError<T>` (into
-// just `T`).
+// View that removes errors from a range of `ValueOrError<T>` instances and
+// unwraps the values (into just `T`).
 inline constexpr auto SkipErrors =
     std::views::filter([](const auto& v) { return !IsError(v); }) |
     std::views::transform([](auto v) { return ValueOrDie(std::move(v)); });
