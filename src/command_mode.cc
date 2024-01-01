@@ -82,7 +82,7 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::OutgoingLink;
@@ -395,7 +395,7 @@ class ActivateLink : public Command {
                                   target.ptr()->Read(buffer_variables::path);
                               !path.empty())
                             AddLineToHistory(editor_state, HistoryFileFiles(),
-                                             NewLazyString(path));
+                                             LazyString{path});
                           editor_state.AddBuffer(
                               target, BuffersList::AddBufferType::kVisit);
                           return Success();
@@ -597,7 +597,7 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           [&editor_state] {
             return PromptOptions{
                 .editor_state = editor_state,
-                .prompt = NewLazyString(L"...$ "),
+                .prompt = LazyString{L"...$ "},
                 .history_file = HistoryFileCommands(),
                 .handler = std::bind_front(RunMultipleCommandsHandler,
                                            std::ref(editor_state))};

@@ -509,15 +509,13 @@ void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 
 std::optional<LazyString> EditorState::GetExitNotice() const {
   if (dirty_buffers_saved_to_backup_.empty()) return std::nullopt;
-  return NewLazyString(L"Dirty contents backed up (in ")
-      .Append(NewLazyString(edge_path()[0].read()))
-      .Append(NewLazyString(L"):\n"))
-      .Append(Concatenate(dirty_buffers_saved_to_backup_ |
-                          std::views::transform([](const BufferName& name) {
-                            return NewLazyString(L"  ")
-                                .Append(NewLazyString(name.read()))
-                                .Append(NewLazyString(L"\n"));
-                          })));
+  return LazyString{L"Dirty contents backed up (in "} +
+         LazyString{edge_path()[0].read()} + LazyString{L"):\n"} +
+         Concatenate(dirty_buffers_saved_to_backup_ |
+                     std::views::transform([](const BufferName& name) {
+                       return LazyString{L"  "} + LazyString{name.read()} +
+                              LazyString{L"\n"};
+                     }));
 }
 
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
@@ -635,10 +633,10 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             count++;
           }
           status().SetInformationText(
-              LineBuilder(NewLazyString(L"Exit: Closing buffers: Remaining: ")
-                              .Append(NewLazyString(std::to_wstring(
-                                  data->pending_buffers.size())))
-                              .Append(NewLazyString(extra)))
+              LineBuilder(
+                  LazyString{L"Exit: Closing buffers: Remaining: "} +
+                  LazyString{std::to_wstring(data->pending_buffers.size())} +
+                  LazyString{extra})
                   .Build());
           return futures::Past(EmptyValue());
         });
