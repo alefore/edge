@@ -93,8 +93,7 @@ LazyString NewCopyCharBuffer(const wchar_t* buffer) {
 }
 
 LazyString NewLazyString(std::wstring buffer) {
-  return LazyString(
-      MakeNonNullShared<StringFromContainer<std::wstring>>(std::move(buffer)));
+  return LazyString(std::move(buffer));
 }
 
 LazyString NewLazyString(std::vector<wchar_t> data) {

@@ -31,6 +31,8 @@ class LazyString {
  public:
   LazyString();
 
+  explicit LazyString(std::wstring input);
+
   explicit LazyString(
       language::NonNull<std::shared_ptr<const LazyStringImpl>> data)
       : data_(std::move(data)) {}

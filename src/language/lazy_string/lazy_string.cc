@@ -4,6 +4,7 @@
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/const_tree.h"
+#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
 
@@ -19,6 +20,22 @@ class EmptyStringImpl : public LazyStringImpl {
     return 0;
   }
   ColumnNumberDelta size() const override { return ColumnNumberDelta(0); }
+};
+
+template <typename Container>
+class StringFromContainer : public LazyStringImpl {
+ public:
+  StringFromContainer(Container data) : data_(std::move(data)) {}
+
+  wchar_t get(ColumnNumber pos) const {
+    CHECK_LT(pos, ColumnNumber(data_.size()));
+    return data_.at(pos.read());
+  }
+
+  ColumnNumberDelta size() const { return ColumnNumberDelta(data_.size()); }
+
+ protected:
+  const Container data_;
 };
 
 class SubstringImpl : public LazyStringImpl {
@@ -75,6 +92,10 @@ class AppendImpl : public LazyStringImpl {
 };
 
 LazyString::LazyString() : data_(NonNull<std::shared_ptr<EmptyStringImpl>>()) {}
+
+LazyString::LazyString(std::wstring input)
+    : data_(MakeNonNullShared<StringFromContainer<std::wstring>>(
+          std::move(input))) {}
 
 std::wstring LazyString::ToString() const {
   static Tracker tracker(L"LazyString::ToString");
