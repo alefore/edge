@@ -347,21 +347,21 @@ std::wstring CommandsToRun(CommandLineValues args) {
   if (args.client.has_value()) {
     static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
     commands_to_run +=
-        NewLazyString(L"Screen screen = RemoteScreen(") +
+        LazyString{L"Screen screen = RemoteScreen("} +
         EscapedString::FromString(
-            NewLazyString(FromByteString(getenv(kEdgeParentAddress))))
+            LazyString{FromByteString(getenv(kEdgeParentAddress))})
             .CppRepresentation() +
-        NewLazyString(L");\n");
+        LazyString{L");\n"};
   } else if (!buffers_to_watch.empty() &&
              args.nested_edge_behavior ==
                  CommandLineValues::NestedEdgeBehavior::kWaitForClose) {
     commands_to_run +=
-        NewLazyString(L"SetString buffers_to_watch = SetString();\n");
+        LazyString{L"SetString buffers_to_watch = SetString();\n"};
     for (auto& block : buffers_to_watch) {
       commands_to_run +=
-          NewLazyString(L"buffers_to_watch.insert(") +
+          LazyString{L"buffers_to_watch.insert("} +
           EscapedString::FromString(NewLazyString(block)).CppRepresentation() +
-          NewLazyString(L");\n");
+          LazyString{L");\n"};
     }
     commands_to_run +=
         NewLazyString(L"editor.WaitForClose(buffers_to_watch);\n");
