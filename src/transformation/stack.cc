@@ -237,7 +237,7 @@ ContentStats AnalyzeContent(const LineSequence& contents,
     output.words = 0;
     output.alnums = 0;
     output.characters = 0;
-    contents.ForEach([&output](const Line& line) {
+    std::ranges::for_each(contents, [&output](const Line& line) {
       ColumnNumber i;
       output.characters = *output.characters + line.EndColumn().read();
       while (i < line.EndColumn()) {
