@@ -1,5 +1,6 @@
 #include "src/completion_model.h"
 
+#include "src/language/error/view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lowercase.h"
@@ -44,7 +45,7 @@ struct ParsedLine {
   CompletionModelManager::Text text;
 };
 
-ValueOrError<ParsedLine> Parse(LazyString line) {
+ValueOrError<ParsedLine> Parse(const Line& line) {
   return VisitOptional(
       [&line](ColumnNumber first_space) -> ValueOrError<ParsedLine> {
         return ParsedLine{
@@ -55,7 +56,7 @@ ValueOrError<ParsedLine> Parse(LazyString line) {
       },
       [] { return ValueOrError<ParsedLine>(Error(L"No space found.")); },
       FindFirstColumnWithPredicate(
-          line, [](ColumnNumber, wchar_t c) { return c == L' '; }));
+          line.contents(), [](ColumnNumber, wchar_t c) { return c == L' '; }));
 }
 
 SortedLineSequence PrepareBuffer(LineSequence input) {
@@ -126,7 +127,7 @@ std::optional<CompletionModelManager::Text> FindCompletionInModel(
             return parsed_line.text;
           },
           [](Error) { return std::optional<CompletionModelManager::Text>(); }},
-      Parse(contents.lines().at(line).contents()));
+      Parse(contents.lines().at(line)));
 }
 
 const bool find_completion_tests_registration = tests::Register(
@@ -243,15 +244,15 @@ CompletionModelManager::FindCompletionWithIndex(
 }
 /* static */ void CompletionModelManager::UpdateReverseTable(
     Data& data, const Path& path, const LineSequence& contents) {
-  contents.ForEach([&](const Line& line) {
-    std::visit(overload{[&path, &data](const ParsedLine& entry) {
-                          if (entry.text != entry.compressed_text)
-                            data.reverse_table[entry.text.ToString()].insert(
-                                {path, entry.compressed_text});
-                        },
-                        IgnoreErrors{}},
-               Parse(line.contents()));
-  });
+  std::ranges::for_each(contents | std::views::transform(Parse) |
+                            language::view::SkipErrors |
+                            std::views::filter([](const ParsedLine& entry) {
+                              return entry.text != entry.compressed_text;
+                            }),
+                        [&path, &data](const ParsedLine& entry) {
+                          data.reverse_table[entry.text.ToString()].insert(
+                              {path, entry.compressed_text});
+                        });
 }
 
 namespace {
