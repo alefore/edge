@@ -57,10 +57,6 @@ class OpenBuffer;
 language::gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                            const ForkCommandOptions& options);
 
-// Input must already be unescaped (e.g., contain `\n` rather than `\\n`).
-futures::Value<language::EmptyValue> RunCommandHandler(
-    language::lazy_string::LazyString input, EditorState& editor_state,
-    std::map<std::wstring, std::wstring> environment);
 futures::Value<language::EmptyValue> RunMultipleCommandsHandler(
     EditorState& editor_state, language::lazy_string::LazyString input);
 }  // namespace afc::editor

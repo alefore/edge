@@ -368,6 +368,7 @@ void RunCommand(const BufferName& name,
   ForkCommand(editor_state, options);
 }
 
+// Input must already be unescaped (e.g., contain `\n` rather than `\\n`).
 futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
                                              size_t i, size_t n,
                                              std::optional<Path> children_path,
