@@ -1,5 +1,6 @@
 #include "src/language/text/line_sequence_functional.h"
 
+#include "src/language/container.h"
 #include "src/language/text/mutable_line_sequence.h"
 
 namespace afc::language::text {
@@ -10,15 +11,10 @@ LineSequence FilterLines(
     const std::function<FilterPredicateResult(const language::text::Line&)>&
         predicate) {
   MutableLineSequence builder;
-  input.ForEach([&](const Line& line) {
-    switch (predicate(line)) {
-      case FilterPredicateResult::kKeep:
-        builder.push_back(line);
-        break;
-      case FilterPredicateResult::kErase:
-        break;
-    }
-  });
+  builder.append_back(container::MaterializeVector(
+      input | std::views::filter([&](const Line& line) {
+        return predicate(line) == FilterPredicateResult::kKeep;
+      })));
   if (builder.size() > LineNumberDelta(1))
     builder.EraseLines(LineNumber(), LineNumber(1));
   LOG(INFO) << "Output: [" << builder.snapshot().ToString() << "]";

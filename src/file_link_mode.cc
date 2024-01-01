@@ -27,6 +27,7 @@ extern "C" {
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/execution.h"
 #include "src/infrastructure/file_system_driver.h"
+#include "src/language/error/view.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -326,18 +327,17 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
                return GetSearchPathsBuffer(editor_state, edge_path)
                    .Transform([&editor_state, search_paths,
                                edge_path](gc::Root<OpenBuffer> buffer) {
-                     buffer.ptr()->contents().ForEach(
-                         [&editor_state, search_paths](std::wstring line) {
-                           std::visit(
-                               overload{[](Error) {},
-                                        [&](Path path) {
-                                          search_paths->push_back(
-                                              editor_state.expand_path(path));
-                                          LOG(INFO) << "Pushed search path: "
-                                                    << search_paths->back();
-                                        }},
-                               Path::FromString(line));
-                         });
+                     std::ranges::copy(
+                         buffer.ptr()->contents().snapshot() |
+                             std::views::transform([](const Line& line) {
+                               return Path::FromString(line.contents());
+                             }) |
+                             language::view::SkipErrors |
+                             std::views::transform(
+                                 [&editor_state](const Path& path) {
+                                   return editor_state.expand_path(path);
+                                 }),
+                         std::back_inserter(search_paths.value()));
                      return futures::IterationControlCommand::kContinue;
                    });
              })
