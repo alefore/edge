@@ -14,12 +14,16 @@
 namespace afc::language::text {
 class MutableLineSequence;
 class SortedLineSequence;
+class LineSequenceIterator;
+
 // TODO: Add more methods here.
 
 // This class is thread-compatible.
 class LineSequence {
  private:
   using Lines = language::ConstTree<language::VectorBlock<Line, 256>, 256>;
+
+  NonNull<Lines::Ptr> lines_ = Lines::PushBack(nullptr, Line());
 
  public:
   LineSequence() = default;
@@ -74,12 +78,90 @@ class LineSequence {
   language::text::LineColumn PositionAfter(
       language::text::LineColumn position) const;
 
+  LineSequenceIterator begin() const;
+  LineSequenceIterator end() const;
+
  private:
   friend class MutableLineSequence;
   friend class SortedLineSequence;
+  friend class LineSequenceIterator;
   LineSequence(NonNull<Lines::Ptr> lines) : lines_(lines) {}
-
-  NonNull<Lines::Ptr> lines_ = Lines::PushBack(nullptr, Line());
 };
+
+class LineSequenceIterator {
+ private:
+  struct Data {
+    LineSequence container;
+    LineNumber position;
+    bool operator==(const Data& other) const {
+      return container.lines_ == other.container.lines_ &&
+             position == other.position;
+    }
+  };
+  std::optional<Data> data_;
+
+ public:
+  LineSequenceIterator() {}
+  LineSequenceIterator(const LineSequenceIterator&) = default;
+  LineSequenceIterator(LineSequenceIterator&&) = default;
+  LineSequenceIterator& operator=(const LineSequenceIterator&) = default;
+  LineSequenceIterator& operator=(LineSequenceIterator&&) = default;
+
+  using iterator_category = std::random_access_iterator_tag;
+  using difference_type = int;
+  using value_type = Line;
+  using reference = value_type&;
+
+  LineSequenceIterator(LineSequence container, LineNumber position)
+      : data_(Data{.container = std::move(container), .position = position}) {}
+
+  Line operator*() const {
+    CHECK(data_.has_value());
+    return data_->container.at(data_->position);
+  }
+
+  bool operator!=(const LineSequenceIterator& other) const {
+    return !(*this == other);
+  }
+
+  bool operator==(const LineSequenceIterator& other) const {
+    if (IsAtEnd() || other.IsAtEnd()) return IsAtEnd() && other.IsAtEnd();
+    return data_.value() == other.data_.value();
+  }
+
+  LineSequenceIterator& operator++() {  // Prefix increment.
+    ++data_->position;
+    // TODO: If we get to the end, we must reset data_->container.
+    return *this;
+  }
+
+  LineSequenceIterator operator++(int) {  // Postfix increment.
+    LineSequenceIterator tmp = *this;
+    ++*this;
+    return tmp;
+  }
+
+  int operator-(const LineSequenceIterator& other) const {
+    CHECK(data_->container.lines_ == other.data_->container.lines_);
+    return (data_->position - other.data_->position).read();
+  }
+
+  LineSequenceIterator operator+(int n) const {
+    return LineSequenceIterator(data_->container,
+                                data_->position + LineNumberDelta(n));
+  }
+
+  LineSequenceIterator operator+(int n) {
+    return LineSequenceIterator(data_->container,
+                                data_->position + LineNumberDelta(n));
+  }
+
+ private:
+  bool IsAtEnd() const {
+    return data_ == std::nullopt ||
+           data_->position.ToDelta() >= data_->container.size();
+  }
+};
+
 }  // namespace afc::language::text
 #endif  // __AFC_LANGUAGE_TEXT_LINE_SEQUENCE_H__

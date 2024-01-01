@@ -384,6 +384,14 @@ LineColumn LineSequence::PositionAfter(LineColumn position) const {
   return position;
 }
 
+LineSequenceIterator LineSequence::begin() const {
+  return LineSequenceIterator(*this, LineNumber{});
+}
+
+LineSequenceIterator LineSequence::end() const {
+  return LineSequenceIterator(*this, LineNumber{} + size());
+}
+
 namespace {
 const bool position_after_tests_registration = tests::Register(
     L"LineSequence::PositionAfter",
