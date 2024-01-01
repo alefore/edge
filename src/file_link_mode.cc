@@ -65,6 +65,7 @@ using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
@@ -633,12 +634,14 @@ class TestDriver {
     paths_to_unlink_.push_back(path_str);
     free(path);
 
-    std::string separator;
-    contents.ForEach([tmp_fd, &separator](std::wstring line) {
-      std::string line_str = separator + ToByteString(line);
-      separator = "\n";
-      write(tmp_fd, line_str.c_str(), line_str.size());
-    });
+    std::ranges::for_each(
+        contents | std::views::transform([](const Line& line) {
+          return line.contents();
+        }) | Intersperse(NewLazyString(L"\n")),
+        [tmp_fd](LazyString line) {
+          std::string line_str = ToByteString(line.ToString());
+          write(tmp_fd, line_str.c_str(), line_str.size());
+        });
     close(tmp_fd);
 
     return path_str;
