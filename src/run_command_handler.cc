@@ -699,11 +699,15 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
                                                       LazyString input) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
-        buffer.contents().ForEach([&editor_state, input](wstring arg) {
-          RunCommandHandler(editor_state,
-                            std::map<std::wstring, std::wstring>{{L"ARG", arg}},
-                            input, NewLazyString(L" ") + NewLazyString(arg));
-        });
+        std::ranges::for_each(
+            buffer.contents().snapshot(),
+            [&editor_state, input](const Line& arg) {
+              // TODO(easy, 2024-01-01): Avoid call to ToString.
+              RunCommandHandler(editor_state,
+                                std::map<std::wstring, std::wstring>{
+                                    {L"ARG", arg.ToString()}},
+                                input, NewLazyString(L" ") + arg.contents());
+            });
         return futures::Past(EmptyValue());
       })
       .Transform([&editor_state](EmptyValue) {
