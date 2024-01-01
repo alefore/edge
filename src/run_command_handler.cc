@@ -686,10 +686,12 @@ gc::Root<Command> NewForkCommand(EditorState& editor_state) {
 
 futures::Value<EmptyValue> RunCommandHandler(
     EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
-    LazyString input) {
+    LazyString input, LazyString name_suffix) {
   // TODO(easy, 2022-06-05): Avoid call to ToString.
-  RunCommand(BufferName(L"$ " + input.ToString()), environment, editor_state,
-             OptionalFrom(GetChildrenPath(editor_state)), input);
+  RunCommand(
+      BufferName((NewLazyString(L"$ ") + input + name_suffix).ToString()),
+      environment, editor_state, OptionalFrom(GetChildrenPath(editor_state)),
+      input);
   return futures::Past(EmptyValue());
 }
 
@@ -698,10 +700,9 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
         buffer.contents().ForEach([&editor_state, input](wstring arg) {
-          std::map<std::wstring, std::wstring> environment = {{L"ARG", arg}};
-          RunCommand(BufferName(L"$ " + input.ToString() + L" " + arg),
-                     environment, editor_state,
-                     OptionalFrom(GetChildrenPath(editor_state)), input);
+          RunCommandHandler(editor_state,
+                            std::map<std::wstring, std::wstring>{{L"ARG", arg}},
+                            input, NewLazyString(L" ") + NewLazyString(arg));
         });
         return futures::Past(EmptyValue());
       })
