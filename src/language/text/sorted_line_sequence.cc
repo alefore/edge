@@ -19,9 +19,7 @@ SortedLineSequence::SortedLineSequence(LineSequence input,
           [&] {
             if (input.empty()) return input;
             TRACK_OPERATION(SortedLineSequence_sort);
-            std::vector<Line> lines;
-            input.ForEach(
-                [&lines](const Line& line) { lines.push_back(line); });
+            std::vector<Line> lines = container::MaterializeVector(input);
             std::sort(lines.begin(), lines.end(), compare);
             MutableLineSequence builder;
             builder.append_back(std::move(lines));
