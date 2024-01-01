@@ -26,7 +26,6 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 
@@ -247,7 +246,7 @@ void Status::Set(Error error) {
     return;
   }
   LineBuilder text;
-  text.AppendString(NewLazyString(std::move(error.read())),
+  text.AppendString(LazyString{std::move(error.read())},
                     LineModifierSet({LineModifier::kRed, LineModifier::kBold}));
   data_ = MakeNonNullShared<Data>(
       Data{.type = Type::kWarning, .text = std::move(text).Build()});
@@ -284,13 +283,13 @@ void Status::Bell() {
             return c != L'🎼' && c != L'…' && c != L' ' &&
                    std::find(notes.begin(), notes.end(), c) == notes.end();
           }) != std::nullopt) {
-    output.AppendString(NewLazyString(L"🎼"));
+    output.AppendString(LazyString{L"🎼"});
   } else {
     LineBuilder previous = LineBuilder(std::move(data_->text));
     if (previous.contents().size() > kMaxLength) {
       previous.DeleteCharacters(ColumnNumber(),
                                 previous.contents().size() - kMaxLength);
-      output.AppendString(NewLazyString(L"…"));
+      output.AppendString(LazyString{L"…"});
     }
     output.Append(std::move(previous));
   }
@@ -301,10 +300,11 @@ void Status::Bell() {
       LineModifier::kWhite};
   static const std::vector<LineModifier> effects = {
       LineModifier::kBold, LineModifier::kItalic, LineModifier::kReverse};
-  output.AppendString(NewLazyString(L" ").Append(NewLazyString(
-                          std::wstring(1ul, notes.at(rand() % notes.size())))),
-                      LineModifierSet{colors.at(rand() % colors.size()),
-                                      effects.at(rand() % effects.size())});
+  output.AppendString(
+      LazyString{L" "} +
+          LazyString{std::wstring(1ul, notes.at(rand() % notes.size()))},
+      LineModifierSet{colors.at(rand() % colors.size()),
+                      effects.at(rand() % effects.size())});
   data_->text = std::move(output).Build();
 }
 

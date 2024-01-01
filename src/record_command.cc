@@ -26,7 +26,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::VisitPointer;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 
 namespace afc::editor {

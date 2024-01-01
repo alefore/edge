@@ -25,7 +25,6 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::OutgoingLink;
 
 namespace afc::editor {
@@ -60,8 +59,8 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
                    return ResolvePath(std::move(options));
                  }),
              [buffer, input](Error error) {
-               buffer->ptr()->status().InsertError(NewError(
-                   NewLazyString(L"🗱  File not found: ").Append(input)));
+               buffer->ptr()->status().InsertError(
+                   NewError(LazyString{L"🗱  File not found: "} + input));
                return futures::Past(error);
              })
       .Transform([buffer, &editor_state,
@@ -106,7 +105,7 @@ class RunCppFileCommand : public Command {
     CHECK(buffer.has_value());
     Prompt(
         {.editor_state = editor_state_,
-         .prompt = NewLazyString(L"cmd "),
+         .prompt = LazyString{L"cmd "},
          .history_file = HistoryFile(L"editor_commands"),
          .initial_value =
              buffer->ptr()->Read(buffer_variables::editor_commands_path),

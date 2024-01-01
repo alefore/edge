@@ -20,7 +20,6 @@ using afc::language::Success;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::LineColumn;
 
@@ -158,43 +157,43 @@ bool CharConsumer(ExtendedChar c, Data& data) {
 }
 
 std::wstring BuildStatus(const Data& data) {
-  static const auto initial_value = NewLazyString(L"set-buffer");
+  static const LazyString initial_value{L"set-buffer"};
   LazyString output = initial_value;
   // TODO(trivial, 2023-12-30): Avoid explicit for loop, Concatenate.
   for (size_t i = 0; i < data.operations.size(); ++i) {
     const auto& operation = data.operations[i];
-    output += NewLazyString(L" ");
+    output += LazyString{L" "};
     switch (operation.type) {
       case Operation::Type::kForward:
-        output += NewLazyString(L"⮞");
+        output += LazyString{L"⮞"};
         break;
       case Operation::Type::kBackward:
-        output += NewLazyString(L"⮜");
+        output += LazyString{L"⮜"};
         break;
       case Operation::Type::kPrevious:
-        output += NewLazyString(L"⮝");
+        output += LazyString{L"⮝"};
         break;
       case Operation::Type::kNext:
-        output += NewLazyString(L"⮟");
+        output += LazyString{L"⮟"};
         break;
       case Operation::Type::kNumber:
-        output += NewLazyString(std::to_wstring(operation.number));
+        output += LazyString{std::to_wstring(operation.number)};
         break;
       case Operation::Type::kFilter:
-        output += NewLazyString(L" w:").Append(operation.text_input);
+        output += LazyString{L" w:"} + operation.text_input;
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingFilter) {
-          output += NewLazyString(L"…");
+          output += LazyString{L"…"};
         }
         break;
       case Operation::Type::kWarningFilter:
-        output += NewLazyString(L" !");
+        output += LazyString{L" !"};
         break;
       case Operation::Type::kSearch:
-        output += NewLazyString(L" /:").Append(operation.text_input);
+        output += LazyString{L" /:"} + operation.text_input;
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingSearch) {
-          output += NewLazyString(L"…");
+          output += LazyString{L"…"};
         }
         break;
     }
@@ -342,8 +341,8 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
                   Indices new_indices;
                   for (auto& index : state.indices) {
                     gc::Root<OpenBuffer> buffer = buffers_list.GetBuffer(index);
-                    if (LazyString str = NewLazyString(
-                            buffer.ptr()->Read(buffer_variables::name));
+                    if (LazyString str{
+                            buffer.ptr()->Read(buffer_variables::name)};
                         FindFilterPositions(
                             filter,
                             ExtendTokensToEndOfString(
