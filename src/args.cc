@@ -37,7 +37,6 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 
 namespace afc::editor {
 namespace {
@@ -127,7 +126,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Transform([](std::wstring value) {
             // TODO(easy, 2023-12-31): Avoid ToString.
             return L"buffer.EvaluateFile(" +
-                   vm::EscapedString::FromString(NewLazyString(value))
+                   vm::EscapedString::FromString(LazyString{value})
                        .CppRepresentation()
                        .ToString() +
                    L");";
@@ -224,15 +223,14 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                     benchmarks.end()) {
                   return input;
                 }
-                return NewError(
-                    NewLazyString(L"Invalid value (valid values: ")
-                        .Append(Concatenate(
-                            benchmarks |
-                            std::views::transform([](const std::wstring& b) {
-                              return NewLazyString(b);
-                            }) |
-                            Intersperse(NewLazyString(L", "))))
-                        .Append(NewLazyString(L")")));
+                return NewError(LazyString{L"Invalid value (valid values: "} +
+                                Concatenate(benchmarks |
+                                            std::views::transform(
+                                                [](const std::wstring& b) {
+                                                  return LazyString{b};
+                                                }) |
+                                            Intersperse(LazyString{L", "})) +
+                                LazyString{L")"});
               }),
 
       Handler<CommandLineValues>({L"view"}, L"Widget mode")
@@ -296,8 +294,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
 
 std::wstring CommandsToRun(CommandLineValues args) {
   using afc::vm::EscapedString;
-  // TODO(trivial, 2023-12-31): Avoid NewLazyString.
-  LazyString commands_to_run = NewLazyString(args.commands_to_run);
+  // TODO(trivial, 2023-12-31): Avoid LazyString.
+  LazyString commands_to_run = LazyString{args.commands_to_run};
   std::vector<std::wstring> buffers_to_watch;
   for (auto& path : args.naked_arguments) {
     std::wstring full_path;
@@ -318,28 +316,27 @@ std::wstring CommandsToRun(CommandLineValues args) {
           full_path = path;
       }
     }
-    commands_to_run += NewLazyString(L"editor.OpenFile(") +
-                       EscapedString::FromString(NewLazyString(full_path))
-                           .CppRepresentation() +
-                       NewLazyString(L", true);\n");
+    commands_to_run +=
+        LazyString{L"editor.OpenFile("} +
+        EscapedString::FromString(LazyString{full_path}).CppRepresentation() +
+        LazyString{L", true);\n"};
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
-        NewLazyString(L"ForkCommandOptions options = ForkCommandOptions();\n") +
-        NewLazyString(L"options.set_command(") +
-        EscapedString::FromString(NewLazyString(command_to_fork))
+        LazyString{L"ForkCommandOptions options = ForkCommandOptions();\n"} +
+        LazyString{L"options.set_command("} +
+        EscapedString::FromString(LazyString{command_to_fork})
             .CppRepresentation() +
-        NewLazyString(L");\noptions.set_insertion_type(\"") +
-        NewLazyString(args.background ? L"skip" : L"search_or_create") +
-        NewLazyString(L"\");\n") +
-        NewLazyString(L"editor.ForkCommand(options);");
+        LazyString{L");\noptions.set_insertion_type(\""} +
+        LazyString{args.background ? L"skip" : L"search_or_create"} +
+        LazyString{L"\");\n"} + LazyString{L"editor.ForkCommand(options);"};
   }
   switch (args.view_mode) {
     case CommandLineValues::ViewMode::kAllBuffers:
       commands_to_run +=
-          NewLazyString(L"editor.set_multiple_buffers(true);\n") +
-          NewLazyString(L"editor.SetHorizontalSplitsWithAllBuffers();\n");
+          LazyString{L"editor.set_multiple_buffers(true);\n"} +
+          LazyString{L"editor.SetHorizontalSplitsWithAllBuffers();\n"};
       break;
     case CommandLineValues::ViewMode::kDefault:
       break;
@@ -360,22 +357,21 @@ std::wstring CommandsToRun(CommandLineValues args) {
     for (auto& block : buffers_to_watch) {
       commands_to_run +=
           LazyString{L"buffers_to_watch.insert("} +
-          EscapedString::FromString(NewLazyString(block)).CppRepresentation() +
+          EscapedString::FromString(LazyString{block}).CppRepresentation() +
           LazyString{L");\n"};
     }
-    commands_to_run +=
-        NewLazyString(L"editor.WaitForClose(buffers_to_watch);\n");
+    commands_to_run += LazyString{L"editor.WaitForClose(buffers_to_watch);\n"};
   }
   if (args.prompt_for_path) {
-    commands_to_run += NewLazyString(L"editor.PromptAndOpenFile();");
+    commands_to_run += LazyString{L"editor.PromptAndOpenFile();"};
   }
   if (commands_to_run.IsEmpty()) {
-    static const LazyString kDefaultCommandsToRun = NewLazyString(
+    static const LazyString kDefaultCommandsToRun = LazyString{
         L"ForkCommandOptions options = ForkCommandOptions();\n"
         L"options.set_command(\"sh -l\");\n"
         L"options.set_insertion_type(\"search_or_create\");\n"
         L"options.set_name(\"💻shell\");\n"
-        L"editor.ForkCommand(options);");
+        L"editor.ForkCommand(options);"};
     commands_to_run = kDefaultCommandsToRun;
   }
   // TODO(trivial, 2023-12-31): Don't call ToString:
