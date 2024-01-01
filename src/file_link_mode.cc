@@ -67,7 +67,6 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -169,8 +168,8 @@ futures::Value<PossibleError> Save(
               switch (options.save_type) {
                 case OpenBuffer::Options::SaveType::kMainFile:
                   buffer.ptr()->status().SetInformationText(
-                      LineBuilder(NewLazyString(L"🖫 Saved: ")
-                                      .Append(NewLazyString(path.read())))
+                      LineBuilder(LazyString{L"🖫 Saved: "} +
+                                  LazyString{path.read()})
                           .Build());
                   // TODO(easy): Move this to the caller, for symmetry with
                   // kBackup case.
@@ -630,14 +629,14 @@ class TestDriver {
     char* path = strdup("/tmp/edge-tests-buffersave-simplesave-XXXXXX");
     int tmp_fd = mkstemp(path);
     CHECK(tmp_fd != -1) << path << ": " << strerror(errno);
-    LazyString path_str = NewLazyString(FromByteString(path));
+    LazyString path_str = LazyString{FromByteString(path)};
     paths_to_unlink_.push_back(path_str);
     free(path);
 
     std::ranges::for_each(
         contents | std::views::transform([](const Line& line) {
           return line.contents();
-        }) | Intersperse(NewLazyString(L"\n")),
+        }) | Intersperse(LazyString{L"\n"}),
         [tmp_fd](LazyString line) {
           std::string line_str = ToByteString(line.ToString());
           write(tmp_fd, line_str.c_str(), line_str.size());

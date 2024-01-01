@@ -17,7 +17,6 @@ using afc::language::NonNull;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -53,56 +52,56 @@ bool find_token_tests = tests::Register(
      {.name = L"SpacesInTheMiddle",
       .callback =
           [] {
-            CHECK(!FindToken(TokenizeBySpaces(NewLazyString(L"012    89")),
+            CHECK(!FindToken(TokenizeBySpaces(LazyString{L"012    89"}),
                              ColumnNumber(15))
                        .has_value());
           }},
      {.name = L"MiddleSecondToken",
       .callback =
           [] {
-            CHECK_EQ(FindToken(TokenizeBySpaces(
-                                   NewLazyString(L"01234 678901 345678")),
-                               ColumnNumber(8))
-                         .value(),
-                     Token({.value = L"678901",
-                            .begin = ColumnNumber(6),
-                            .end = ColumnNumber(12)}));
+            CHECK_EQ(
+                FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
+                          ColumnNumber(8))
+                    .value(),
+                Token({.value = L"678901",
+                       .begin = ColumnNumber(6),
+                       .end = ColumnNumber(12)}));
           }},
      {.name = L"EndSecondToken",
       .callback =
           [] {
-            CHECK_EQ(FindToken(TokenizeBySpaces(
-                                   NewLazyString(L"01234 678901 345678")),
-                               ColumnNumber(12))
-                         .value(),
-                     Token({.value = L"678901",
-                            .begin = ColumnNumber(6),
-                            .end = ColumnNumber(12)}));
+            CHECK_EQ(
+                FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
+                          ColumnNumber(12))
+                    .value(),
+                Token({.value = L"678901",
+                       .begin = ColumnNumber(6),
+                       .end = ColumnNumber(12)}));
           }},
      {.name = L"BeginThirdToken",
       .callback =
           [] {
-            CHECK_EQ(FindToken(TokenizeBySpaces(
-                                   NewLazyString(L"01234 678901 345678")),
-                               ColumnNumber(13))
-                         .value(),
-                     Token({.value = L"345678",
-                            .begin = ColumnNumber(13),
-                            .end = ColumnNumber(19)}));
+            CHECK_EQ(
+                FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
+                          ColumnNumber(13))
+                    .value(),
+                Token({.value = L"345678",
+                       .begin = ColumnNumber(13),
+                       .end = ColumnNumber(19)}));
           }},
      {.name = L"MiddleLastToken",
       .callback =
           [] {
-            CHECK_EQ(FindToken(TokenizeBySpaces(
-                                   NewLazyString(L"01234 678901 345678")),
-                               ColumnNumber(15))
-                         .value(),
-                     Token({.value = L"345678",
-                            .begin = ColumnNumber(13),
-                            .end = ColumnNumber(19)}));
+            CHECK_EQ(
+                FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
+                          ColumnNumber(15))
+                    .value(),
+                Token({.value = L"345678",
+                       .begin = ColumnNumber(13),
+                       .end = ColumnNumber(19)}));
           }},
      {.name = L"EndOfString", .callback = [] {
-        CHECK_EQ(FindToken(TokenizeBySpaces(NewLazyString(L"01234 678901")),
+        CHECK_EQ(FindToken(TokenizeBySpaces(LazyString{L"01234 678901"}),
                            ColumnNumber(12))
                      .value(),
                  Token({.value = L"678901",
@@ -146,7 +145,7 @@ bool transform_lines_tests = tests::Register(
       .callback =
           [] {
             LineSequence result = TransformLines(
-                NewLazyString(L"foo src/buf blah"),
+                LazyString{L"foo src/buf blah"},
                 Token{.value = L"src/buf",
                       .begin = ColumnNumber(4),
                       .end = ColumnNumber(11)},
@@ -159,7 +158,7 @@ bool transform_lines_tests = tests::Register(
       .callback =
           [] {
             LineSequence result = TransformLines(
-                NewLazyString(L"src/buf"),
+                LazyString{L"src/buf"},
                 Token{.value = L"src/buf",
                       .begin = ColumnNumber(0),
                       .end = ColumnNumber(7)},
@@ -172,7 +171,7 @@ bool transform_lines_tests = tests::Register(
       .callback =
           [] {
             LineSequence result =
-                TransformLines(NewLazyString(L"src/buf and again src/buf"),
+                TransformLines(LazyString{L"src/buf and again src/buf"},
                                Token{.value = L"src/buf",
                                      .begin = ColumnNumber(18),
                                      .end = ColumnNumber(25)},
@@ -183,7 +182,7 @@ bool transform_lines_tests = tests::Register(
           }},
      {.name = L"ExactMatchLinesSequence", .callback = [] {
         LineSequence result =
-            TransformLines(NewLazyString(L"foo src/buf blah"),
+            TransformLines(LazyString{L"foo src/buf blah"},
                            Token{.value = L"src/buf",
                                  .begin = ColumnNumber(4),
                                  .end = ColumnNumber(11)},
@@ -202,7 +201,7 @@ Predictor TokenPredictor(Predictor predictor) {
           input.input_column =
               input.input_column - token_to_expand.begin.ToDelta();
           LazyString original_input =
-              std::exchange(input.input, NewLazyString(token_to_expand.value));
+              std::exchange(input.input, LazyString{token_to_expand.value});
           return predictor(input).Transform(
               [original_input, token_to_expand](PredictorOutput output) {
                 return futures::Past(PredictorOutput{
