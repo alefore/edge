@@ -21,7 +21,7 @@ using infrastructure::screen::LineModifierSet;
 using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::NewLazyString;
+using language::lazy_string::LazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineNumberDelta;
@@ -189,8 +189,8 @@ LineWithCursor LineWithCursor::View(
         VLOG(8) << "Print character: " << c;
         output_column += ColumnNumberDelta(wcwidth(c));
         if (output_column.ToDelta() <= options.width)
-          line_output.set_contents(
-              line_output.contents().Append(NewLazyString(std::wstring(1, c))));
+          line_output.set_contents(line_output.contents() +
+                                   LazyString{std::wstring(1, c)});
     }
   }
 

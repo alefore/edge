@@ -40,7 +40,6 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 
@@ -260,7 +259,7 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
     auto source_buffers = editor.active_buffers();
     return PromptOptions{
         .editor_state = editor,
-        .prompt = NewLazyString(L"<"),
+        .prompt = LazyString{L"<"},
         .prompt_contents_type = L"path",
         .history_file = HistoryFileFiles(),
         .initial_value =

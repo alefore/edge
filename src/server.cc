@@ -48,7 +48,6 @@ using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::vm::EscapedString;
 
 namespace afc::editor {
@@ -83,7 +82,7 @@ PossibleError SendPathToServer(FileDescriptor server_fd,
   // TODO(trivial, 2023-12-31): Remove call to ToString.
   std::string command =
       "editor.ConnectTo(" +
-      ToByteString(EscapedString::FromString(NewLazyString(input_path.read()))
+      ToByteString(EscapedString::FromString(LazyString{input_path.read()})
                        .CppRepresentation()
                        .ToString()) +
       ");\n";
@@ -105,7 +104,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
   size_t pos = 0;
   char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
   int tmp_fd = mkstemp(path);
-  LazyString path_str = NewLazyString(FromByteString(path));
+  LazyString path_str = LazyString{FromByteString(path)};
   free(path);
 
   // TODO(trivial, 2023-12-31): Remove call to ToString.
@@ -126,10 +125,8 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
   }
   if (close(tmp_fd) != 0) {
     std::string failure = strerror(errno);
-    return NewError(NewLazyString(L"close(")
-                        .Append(path_str)
-                        .Append(NewLazyString(L"): "))
-                        .Append(NewLazyString(FromByteString(failure))));
+    return NewError(LazyString{L"close("} + path_str + LazyString{L"): "} +
+                    LazyString{FromByteString(failure)});
   }
   DECLARE_OR_RETURN(Path input_path, Path::FromString(path_str));
   std::string command =
