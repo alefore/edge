@@ -26,7 +26,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::VisitOptional;
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -255,14 +255,11 @@ class HelpCommand : public Command {
                                  ? 0
                                  : kPaddingSize - field_name.read().size(),
                              L' ');
-        output.push_back(
-            LineBuilder(
-                NewLazyString(L"* `")
-                    .Append(NewLazyString(field_name.read()))
-                    .Append(NewLazyString(L"`" + std::move(padding) + L"`"))
-                    .Append(NewLazyString(FromByteString(value_stream.str()) +
-                                          L"`")))
-                .Build());
+        output.push_back(LineBuilder{
+            LazyString{L"* `"} + LazyString{field_name.read()} +
+            LazyString{L"`"} + LazyString{std::move(padding)} +
+            LazyString{L"`"} + LazyString{FromByteString(value_stream.str())} +
+            LazyString{L"`"}}.Build());
       });
       output.push_back(L"");
     });
@@ -275,26 +272,23 @@ class HelpCommand : public Command {
         L"associated with your buffer, and thus available to extensions.");
     output.push_back(L"");
 
-    environment->ForEach([&output](const vm::Identifier& name,
-                                   const gc::Ptr<vm::Value>& value) {
-      const static int kPaddingSize = 40;
-      std::wstring padding(name.read().size() >= kPaddingSize
-                               ? 1
-                               : kPaddingSize - name.read().size(),
-                           L' ');
+    environment->ForEach(
+        [&output](const vm::Identifier& name, const gc::Ptr<vm::Value>& value) {
+          const static int kPaddingSize = 40;
+          std::wstring padding(name.read().size() >= kPaddingSize
+                                   ? 1
+                                   : kPaddingSize - name.read().size(),
+                               L' ');
 
-      std::stringstream value_stream;
-      value_stream << value.value();
+          std::stringstream value_stream;
+          value_stream << value.value();
 
-      output.push_back(
-          LineBuilder(
-              NewLazyString(L"* `")
-                  .Append(NewLazyString(name.read()))
-                  .Append(NewLazyString(L"`" + std::move(padding) + L"`"))
-                  .Append(
-                      NewLazyString(FromByteString(value_stream.str()) + L"`")))
-              .Build());
-    });
+          output.push_back(LineBuilder{
+              LazyString{L"* `"} + LazyString{name.read()} + LazyString{L"`"} +
+              LazyString{std::move(padding)} + LazyString{L"`"} +
+              LazyString{FromByteString(value_stream.str())} +
+              LazyString{L"`"}}.Build());
+        });
     output.push_back(L"");
   }
 
@@ -305,20 +299,20 @@ class HelpCommand : public Command {
                                 EdgeStruct<T>* variables, C print) {
     StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {
-      output.push_back(LineBuilder(NewLazyString(L"#### ").Append(
-                                       NewLazyString(variable.second->name())))
+      output.push_back(LineBuilder{LazyString{L"#### "} +
+                                   LazyString{variable.second->name()}}
                            .Build());
       output.push_back(L"");
       output.push_back(variable.second->description());
       output.push_back(L"");
-      output.push_back(LineBuilder(NewLazyString(L"* Value: ")
-                                       .Append(NewLazyString(print(source.Read(
-                                           &variable.second.value())))))
-                           .Build());
-      output.push_back(LineBuilder(NewLazyString(L"* Default: ")
-                                       .Append(NewLazyString(print(
-                                           variable.second->default_value()))))
-                           .Build());
+      output.push_back(
+          LineBuilder{LazyString{L"* Value: "} +
+                      LazyString{print(source.Read(&variable.second.value()))}}
+              .Build());
+      output.push_back(
+          LineBuilder{LazyString{L"* Default: "} +
+                      LazyString{print(variable.second->default_value())}}
+              .Build());
 
       if (!variable.second->key().empty()) {
         output.push_back(L"* Related commands: `v" + variable.second->key() +
