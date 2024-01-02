@@ -38,7 +38,6 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindLastNotOf;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -121,13 +120,10 @@ class PredictorTransformation : public CompositeTransformation {
                 ColumnNumber(0), results->predictor_output.longest_prefix);
             if (!prefix.size().IsZero()) {
               VLOG(5) << "Setting buffer status.";
-              buffer.status().SetInformationText(
-                  LineBuilder(
-                      NewLazyString(
-                          L"No matches found. Longest prefix with matches: \"")
-                          .Append(prefix)
-                          .Append(NewLazyString(L"\"")))
-                      .Build());
+              buffer.status().SetInformationText(LineBuilder{
+                  LazyString{
+                      L"No matches found. Longest prefix with matches: \""} +
+                  prefix + LazyString{L"\""}}.Build());
             }
             return Output();
           }
@@ -193,7 +189,7 @@ bool predictor_transformation_tests_register = tests::Register(
                     [&](PredictorInput) -> futures::Value<PredictorOutput> {
                       return std::move(inner_future.value);
                     },
-                    NewLazyString(L"foo")));
+                    LazyString{L"foo"}));
         LOG(INFO) << "Notifying inner future";
         CHECK(!final_value.has_value());
         std::move(inner_future.consumer)(
