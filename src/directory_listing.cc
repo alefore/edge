@@ -34,7 +34,6 @@ using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineSequence;
@@ -84,14 +83,11 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
 
 void StartDeleteFile(EditorState& editor_state, std::wstring path) {
   int result = unlink(ToByteString(path).c_str());
-  editor_state.status().SetInformationText(
-      LineBuilder(
-          NewLazyString(path)
-              .Append(NewLazyString(L": unlink: "))
-              .Append(NewLazyString(
-                  result == 0 ? L"done"
-                              : L"ERROR: " + FromByteString(strerror(errno)))))
-          .Build());
+  editor_state.status().SetInformationText(LineBuilder{
+      LazyString{path} + LazyString{L": unlink: "} +
+      LazyString{result == 0 ? L"done"
+                             : L"ERROR: " + FromByteString(strerror(errno))}}
+                                               .Build());
 }
 
 #if 0
@@ -117,8 +113,8 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
       {vm::Value::NewString(target.editor().gc_pool(), path)}));
   NonNull<std::unique_ptr<Expression>> expression = vm::NewFunctionCall(
       vm::NewConstantExpression(*callback), std::move(args));
-  return {
-      .initial_value = NewLazyString(L"…"),
+  return language::text::LineMetadataEntry{
+      .initial_value = LazyString{L"…"},
       .value =
           target
               .EvaluateExpression(std::move(expression),
@@ -127,12 +123,12 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
                              -> futures::ValueOrError<
                                  LazyString> {
                 VLOG(7) << "Evaluated result: " << value.ptr()->get_string();
-                return futures::Past(NewLazyString(value.ptr()->get_string()));
+                return futures::Past(LazyString{value.ptr()->get_string()});
               })
               .ConsumeErrors([](Error error) {
                 VLOG(7) << "Evaluation error: " << error;
                 return futures::Past(
-                    NewLazyString(L"E: " + std::move(error.read())));
+                    LazyString{L"E: "} + LazyString{std::move(error.read())});
               })};
 }
 #endif
@@ -158,7 +154,7 @@ Line ShowLine(EditorState& editor, const dirent& entry) {
   FileType type =
       GetValueOrDefault(types, entry.d_type, GetValueOrDie(types, DT_REG));
 
-  LineBuilder line_options(NewLazyString(path + type.description));
+  LineBuilder line_options{LazyString{path} + LazyString{type.description}};
   if (!type.modifiers.empty()) {
     line_options.set_modifiers(ColumnNumber(0), type.modifiers);
   }
@@ -179,10 +175,11 @@ LineSequence ShowFiles(EditorState& editor, std::wstring name,
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  MutableLineSequence output = MutableLineSequence::WithLine(
-      LineBuilder(NewLazyString(L"## " + name + L" (" +
-                                std::to_wstring(entries.size()) + L")"))
-          .Build());
+  // TODO(trivial, 2024-01-02): Receive `name` as LazyString.
+  MutableLineSequence output = MutableLineSequence::WithLine(LineBuilder{
+      LazyString{L"## "} + LazyString{name} + LazyString{L" ("} +
+      LazyString{std::to_wstring(entries.size())} +
+      LazyString{L")"}}.Build());
   output.append_back(std::move(entries) | std::views::transform(std::bind_front(
                                               ShowLine, std::ref(editor))));
   output.push_back(L"");
@@ -196,7 +193,8 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
   output.Set(buffer_variables::atomic_lines, true);
   output.Set(buffer_variables::allow_dirty_delete, true);
   output.Set(buffer_variables::tree_parser, L"md");
-  output.AppendToLastLine(NewLazyString(L"# 🗁  File listing: " + path.read()));
+  output.AppendToLastLine(LazyString{L"# 🗁  File listing: "} +
+                          LazyString{path.read()});
   output.AppendEmptyLine();
 
   return output.editor()
@@ -232,7 +230,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
       .ConsumeErrors([&output](Error error) {
         auto disk_state_freezer = output.FreezeDiskState();
         output.status().InsertError(error);
-        output.AppendLine(NewLazyString(std::move(error).read()));
+        output.AppendLine(LazyString{std::move(error).read()});
         return futures::Past(EmptyValue());
       });
 }
