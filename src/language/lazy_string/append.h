@@ -27,13 +27,13 @@ LazyString Concatenate(R&& inputs) {
 //
 //     std::vector<LazyString> inputs = ...;
 //     LazyString output =
-//         Concatenate(inputs | Intersperse(NewLazyString(L", ")))
+//         Concatenate(inputs | Intersperse(LazyString{L", "}))
 inline auto Intersperse(LazyString separator) {
   return std::views::transform([&](LazyString v) {
            return std::vector<LazyString>{separator, std::move(v)};
          }) |
          std::views::join |
-         // Remove the first element (", ").
+         // Remove the first separator element.
          std::views::drop(1);
 }
 }  // namespace afc::language::lazy_string

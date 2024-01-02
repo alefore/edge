@@ -13,7 +13,6 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 
@@ -86,7 +85,7 @@ const bool get_local_file_path_tests_registration = tests::Register(
       }}});
 }
 
-LazyString URL::ToString() const { return NewLazyString(value_); }
+LazyString URL::ToString() const { return LazyString{value_}; }
 
 std::vector<URL> GetLocalFileURLsWithExtensions(
     const LazyString& file_context_extensions, const URL& url) {

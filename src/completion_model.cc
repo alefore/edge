@@ -27,7 +27,6 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -137,7 +136,7 @@ const bool find_completion_tests_registration = tests::Register(
           [] {
             CHECK(FindCompletionInModel(SortedLineSequence(LineSequence()),
                                         CompletionModelManager::CompressedText(
-                                            NewLazyString(L"foo"))) ==
+                                            LazyString{L"foo"})) ==
                   std::nullopt);
           }},
      {.name = L"NoMatch",
@@ -145,21 +144,21 @@ const bool find_completion_tests_registration = tests::Register(
           [] {
             CHECK(FindCompletionInModel(CompletionModelForTests(),
                                         CompletionModelManager::CompressedText(
-                                            NewLazyString(L"foo"))) ==
+                                            LazyString{L"foo"})) ==
                   std::nullopt);
           }},
      {.name = L"Match",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                        CompletionModelManager::CompressedText(
-                                            NewLazyString(L"f")))
-                      .value() == NewLazyString(L"fox"));
+            CHECK(FindCompletionInModel(
+                      CompletionModelForTests(),
+                      CompletionModelManager::CompressedText(LazyString{L"f"}))
+                      .value() == LazyString{L"fox"});
           }},
      {.name = L"IdenticalMatch", .callback = [] {
         CHECK(FindCompletionInModel(CompletionModelForTests(),
                                     CompletionModelManager::CompressedText(
-                                        NewLazyString(L"i"))) == std::nullopt);
+                                        LazyString{L"i"})) == std::nullopt);
       }}});
 }  // namespace
 
@@ -281,7 +280,7 @@ const bool completion_model_manager_tests_registration =
               model_paths.push_back(ValueOrDie(Path::FromString(path)));
             return manager
                 ->Query(model_paths, CompletionModelManager::CompressedText(
-                                         NewLazyString(compressed_text)))
+                                         LazyString{compressed_text}))
                 .Get();
           };
       return std::vector<tests::Test>(
@@ -308,7 +307,7 @@ const bool completion_model_manager_tests_registration =
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
                   CHECK(std::get<CompletionModelManager::Text>(output) ==
-                        CompletionModelManager::Text(NewLazyString(L"fox")));
+                        CompletionModelManager::Text(LazyString{L"fox"}));
                 }},
            {.name = L"SimpleQueryWithReverseMatch",
             .callback =
@@ -317,10 +316,10 @@ const bool completion_model_manager_tests_registration =
                       TestQuery(GetManager(), {L"en"}, L"fox").value();
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
-                  CHECK(std::get<CompletionModelManager::Suggestion>(output)
-                            .compressed_text ==
-                        CompletionModelManager::CompressedText(
-                            NewLazyString(L"f")));
+                  CHECK(
+                      std::get<CompletionModelManager::Suggestion>(output)
+                          .compressed_text ==
+                      CompletionModelManager::CompressedText(LazyString{L"f"}));
                 }},
            {.name = L"RepeatedQuerySameModel",
             .callback =
@@ -330,7 +329,7 @@ const bool completion_model_manager_tests_registration =
                   for (int i = 0; i < 10; i++) {
                     CHECK(std::get<CompletionModelManager::CompressedText>(
                               TestQuery(manager, {L"en"}, L"f").value()) ==
-                          CompletionModelManager::Text(NewLazyString(L"fox")));
+                          CompletionModelManager::Text(LazyString{L"fox"}));
                   }
                   // The gist of the test is here:
                   CHECK_EQ(paths->size(), 1ul);
@@ -341,13 +340,13 @@ const bool completion_model_manager_tests_registration =
                   GetManager();
               CHECK(std::get<CompletionModelManager::CompressedText>(
                         TestQuery(manager, {L"en", L"en"}, L"f").value()) ==
-                    CompletionModelManager::Text(NewLazyString(L"fox")));
+                    CompletionModelManager::Text(LazyString{L"fox"}));
               CHECK(std::get<CompletionModelManager::CompressedText>(
                         TestQuery(manager, {L"en", L"es"}, L"f").value()) ==
-                    CompletionModelManager::Text(NewLazyString(L"fox")));
+                    CompletionModelManager::Text(LazyString{L"fox"}));
               CHECK(std::get<CompletionModelManager::CompressedText>(
                         TestQuery(manager, {L"en", L"es"}, L"p").value()) ==
-                    CompletionModelManager::Text(NewLazyString(L"perrito")));
+                    CompletionModelManager::Text(LazyString{L"perrito"}));
               CHECK(
                   std::holds_alternative<CompletionModelManager::NothingFound>(
                       TestQuery(manager, {L"en", L"es"}, L"rock").value()));

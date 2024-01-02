@@ -20,7 +20,6 @@ using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::NewCopyCharBuffer;
-using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 
@@ -75,11 +74,11 @@ void TestLineDeleteCharacters() {
 }
 
 void TestLineAppend() {
-  LineBuilder line(NewLazyString(L"abc"));
+  LineBuilder line(LazyString{L"abc"});
   line.modifiers().at(ColumnNumber(1)).insert(LineModifier::kRed);
   line.modifiers().at(ColumnNumber(2));
 
-  LineBuilder suffix(NewLazyString(L"def"));
+  LineBuilder suffix(LazyString{L"def"});
   suffix.InsertModifier(ColumnNumber(1), LineModifier::kBold);
   suffix.set_modifiers(ColumnNumber(2), {});
   line.Append(std::move(suffix));
@@ -94,7 +93,7 @@ void TestLineAppend() {
 }
 
 void TestLineAppendEmpty() {
-  LineBuilder line(NewLazyString(L"abc"));
+  LineBuilder line(LazyString{L"abc"});
   line.InsertModifier(ColumnNumber(0), LineModifier::kRed);
 
   line.Append(LineBuilder());
@@ -103,7 +102,7 @@ void TestLineAppendEmpty() {
   CHECK(line.modifiers().at(ColumnNumber(0)) ==
         LineModifierSet({LineModifier::kRed}));
 
-  line.Append(LineBuilder(NewLazyString(L"def")));
+  line.Append(LineBuilder{LazyString{L"def"}});
 
   CHECK_EQ(line.modifiers_size(), 2ul);
   CHECK(line.modifiers().at(ColumnNumber(0)) ==

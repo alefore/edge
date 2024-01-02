@@ -100,7 +100,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
     L"TokenizeGroupsAlnum",
     {{.name = L"SkipsEscapeCharacters", .callback = [] {
         std::vector<Token> output =
-            TokenizeGroupsAlnum(NewLazyString(L"a\\n\\n\\n\\nf"));
+            TokenizeGroupsAlnum(LazyString{L"a\\n\\n\\n\\nf"});
         CHECK_EQ(output.size(), 2ul);
         CHECK_EQ(output[0], (Token{.value = L"a",
                                    .begin = ColumnNumber(0),

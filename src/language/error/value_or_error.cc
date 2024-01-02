@@ -6,7 +6,7 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::language {
 Error NewError(lazy_string::LazyString error) {
@@ -22,9 +22,9 @@ Error MergeErrors(const std::vector<Error>& errors,
                   const std::wstring& separator) {
   CHECK(!errors.empty());
   return Error(Concatenate(errors | std::views::transform([](const Error& e) {
-                             return NewLazyString(e.read());
+                             return LazyString{e.read()};
                            }) |
-                           Intersperse(NewLazyString(separator)))
+                           Intersperse(LazyString{separator}))
                    .ToString());
 }
 

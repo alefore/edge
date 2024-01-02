@@ -14,7 +14,6 @@ namespace afc::language::text {
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
 
 namespace gc = language::gc;
 

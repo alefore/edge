@@ -58,7 +58,6 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -279,7 +278,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
       continue;
     }
     output_lines.push_back(
-        LineBuilder(NewLazyString(std::move(full_path))).Build(),
+        LineBuilder{LazyString{std::move(full_path)}}.Build(),
         MutableLineSequence::ObserverBehavior::kHide);
     ++*matches;
     if (*matches % 100 == 0)
@@ -423,7 +422,7 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
   for (const std::wstring& prediction_raw : predictions) {
     std::vector<std::wstring> variations;
     RegisterVariations(prediction_raw, separator, &variations);
-    const LazyString prediction = NewLazyString(prediction_raw);
+    const LazyString prediction{prediction_raw};
     for (auto& variation : variations) {
       contents->insert(make_pair(variation, prediction));
     }
@@ -464,7 +463,7 @@ const bool buffer_tests_registration =
             test_predictor(
                 PredictorInput{
                     .editor = editor.value(),
-                    .input = NewLazyString(input),
+                    .input = LazyString{input},
                     .input_column = ColumnNumber(input.size()),
                     .source_buffers = {},
                     .progress_channel =
@@ -482,7 +481,7 @@ const bool buffer_tests_registration =
         bool executed = false;
         Predict(test_predictor,
                 PredictorInput{.editor = editor.value(),
-                               .input = NewLazyString(input),
+                               .input = LazyString{input},
                                .input_column = ColumnNumber(input.size()),
                                .source_buffers = {}})
             .Transform([&](std::optional<PredictResults> predict_results) {

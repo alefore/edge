@@ -30,10 +30,8 @@ using language::NonNull;
 using lazy_string::ColumnNumber;
 using lazy_string::ColumnNumberDelta;
 using lazy_string::LazyString;
-using lazy_string::NewLazyString;
 
-Line::Line(std::wstring x)
-    : Line(Data{.contents = NewLazyString(std::move(x))}) {}
+Line::Line(std::wstring x) : Line(Data{.contents = LazyString{std::move(x)}}) {}
 
 Line::Line(const Line& line)
     : data_(line.data_), hash_(ComputeHash(data_.value())) {}

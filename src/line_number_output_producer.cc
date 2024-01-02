@@ -31,7 +31,6 @@ using language::HashableContainer;
 using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineNumberDelta;
@@ -73,18 +72,17 @@ LineWithCursor::Generator::Vector LineNumberOutput(
     output.lines.push_back(LineWithCursor::Generator::New(CaptureAndHash(
         [](LineRange range, ColumnNumberDelta width,
            HashableContainer<LineModifierSet> modifiers) {
-          std::wstring number =
+          LazyString number =
               range.begin_column().IsZero()
-                  ? to_wstring(range.line() + LineNumberDelta(1))
-                  : L"↪";
+                  ? LazyString{to_wstring(range.line() + LineNumberDelta(1))}
+                  : LazyString{L"↪"};
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
           LazyString padding =
               Padding(width - ColumnNumberDelta(number.size() + 1), L' ');
 
           LineBuilder line_options;
-          line_options.AppendString(
-              padding.Append(NewLazyString(number + L":")),
-              modifiers.container);
+          line_options.AppendString(padding + number + LazyString{L":"},
+                                    modifiers.container);
           return LineWithCursor{.line = std::move(line_options).Build()};
         },
         screen_line.range, output.width,

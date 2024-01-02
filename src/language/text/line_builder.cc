@@ -20,7 +20,6 @@ using afc::infrastructure::screen::LineModifierSet;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 
 namespace afc::language::text {
 
@@ -57,15 +56,14 @@ const bool line_tests_registration = tests::Register(
      {.name = L"ContentChangesHash",
       .callback =
           [] {
-            CHECK(std::hash<Line>{}(
-                      LineBuilder(NewLazyString(L"alejo")).Build()) !=
-                  std::hash<Line>{}(
-                      LineBuilder(NewLazyString(L"Xlejo")).Build()));
+            CHECK(
+                std::hash<Line>{}(LineBuilder(LazyString{L"alejo"}).Build()) !=
+                std::hash<Line>{}(LineBuilder(LazyString{L"Xlejo"}).Build()));
           }},
      {.name = L"ModifiersChangesHash",
       .callback =
           [] {
-            LineBuilder options(NewLazyString(L"alejo"));
+            LineBuilder options(LazyString{L"alejo"});
             size_t initial_hash = std::hash<Line>{}(options.Copy().Build());
             options.InsertModifier(ColumnNumber(2), LineModifier::kRed);
             size_t final_hash = std::hash<Line>{}(std::move(options).Build());
@@ -75,12 +73,12 @@ const bool line_tests_registration = tests::Register(
         futures::Future<LazyString> future;
         LineBuilder builder;
         builder.SetMetadata(
-            LineMetadataEntry{.initial_value = NewLazyString(L"Foo"),
+            LineMetadataEntry{.initial_value = LazyString{L"Foo"},
                               .value = std::move(future.value)});
         Line line = std::move(builder).Build();
-        CHECK(*line.metadata() == NewLazyString(L"Foo"));
-        std::move(future.consumer)(NewLazyString(L"Bar"));
-        CHECK(*line.metadata() == NewLazyString(L"Bar"));
+        CHECK(*line.metadata() == LazyString{L"Foo"});
+        std::move(future.consumer)(LazyString{L"Bar"});
+        CHECK(*line.metadata() == LazyString{L"Bar"});
       }}});
 }
 
@@ -109,7 +107,7 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
                                const LineModifierSet& c_modifiers) {
   ValidateInvariants();
   VLOG(4) << "Start SetCharacter: " << column;
-  auto str = NewLazyString(std::wstring(1, c));
+  auto str = LazyString{std::wstring(1, c)};
   if (column >= EndColumn()) {
     column = EndColumn();
     data_.contents = std::move(data_.contents).Append(std::move(str));
@@ -242,9 +240,8 @@ const bool line_set_character_tests_registration = tests::Register(
 
 void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
   ValidateInvariants();
-  set_contents(data_.contents.Substring(ColumnNumber(0), column.ToDelta())
-                   .Append(NewLazyString(L" "))
-                   .Append(data_.contents.Substring(column)));
+  set_contents(data_.contents.Substring(ColumnNumber(0), column.ToDelta()) +
+               LazyString{L" "} + data_.contents.Substring(column));
 
   std::map<ColumnNumber, LineModifierSet> new_modifiers;
   for (auto& m : data_.modifiers) {
@@ -261,8 +258,7 @@ void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(!modifier.contains(LineModifier::kReset));
   data_.modifiers[ColumnNumber(0) + data_.contents.size()] = modifier;
-  data_.contents =
-      std::move(data_.contents).Append(NewLazyString(std::wstring(1, c)));
+  data_.contents = std::move(data_.contents) + LazyString{std::wstring(1, c)};
   SetMetadata(std::nullopt);
   ValidateInvariants();
 }
@@ -283,9 +279,11 @@ void LineBuilder::AppendString(
   ValidateInvariants();
 }
 
+// TODO(trivial, 2024-01-02): Remove this conversion function, convert in
+// caller.
 void LineBuilder::AppendString(
     std::wstring suffix, std::optional<LineModifierSet> suffix_modifiers) {
-  AppendString(NewLazyString(std::move(suffix)), std::move(suffix_modifiers));
+  AppendString(LazyString{std::move(suffix)}, std::move(suffix_modifiers));
 }
 
 void LineBuilder::Append(LineBuilder line) {

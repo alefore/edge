@@ -26,7 +26,6 @@ using language::MakeNonNullUnique;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
@@ -37,7 +36,7 @@ using language::text::MutableLineSequence;
 void TestMutableLineSequenceSnapshot() {
   MutableLineSequence contents;
   for (auto& s : {L"alejandro", L"forero", L"cuervo"}) {
-    contents.push_back(LineBuilder(NewLazyString(s)).Build());
+    contents.push_back(LineBuilder{LazyString{s}}.Build());
   }
   auto copy = contents.copy();
   CHECK_EQ("\nalejandro\nforero\ncuervo",
@@ -54,7 +53,7 @@ void TestMutableLineSequenceSnapshot() {
 
 void TestBufferInsertModifiers() {
   MutableLineSequence contents;
-  LineBuilder options(NewLazyString(L"alejo"));
+  LineBuilder options(LazyString{L"alejo"});
   options.set_modifiers(ColumnNumber(0), LineModifierSet{LineModifier::kCyan});
 
   contents.push_back(options.Copy().Build());  // LineNumber(1).

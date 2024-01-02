@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
   MutableLineSequence contents;
   while (std::getline(ss, line, '\n')) {
     Line::Options options;
-    options.contents = NewLazyString(line);
+    options.contents = LazyString{line};
     contents.AppendToLastLine(Line(std::move(options)));
     contents.push_back(std::make_shared<Line>());
   }

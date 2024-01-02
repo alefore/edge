@@ -188,8 +188,8 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                                     state->str_end, next_str_end);
                                 if (i == 0 && arg.size() > 0 && arg[0] == '/') {
                                   output_pattern =
-                                      language::lazy_string::NewLazyString(
-                                          arg.substr(1));
+                                      language::lazy_string::LazyString{
+                                          arg.substr(1)};
                                   break;
                                 } else {
                                   size_t value;

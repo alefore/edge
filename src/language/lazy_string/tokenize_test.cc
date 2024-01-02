@@ -8,7 +8,6 @@
 
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 
 namespace afc::editor {
 namespace {
@@ -20,7 +19,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SingleToken",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(NewLazyString(L"alejandro"));
+            auto value = TokenizeBySpaces(LazyString{L"alejandro"});
             CHECK_EQ(value.size(), 1ul);
             // TODO: Why can't we use CHECK_EQ? Why can't the compiler find
             // the operator<<?
@@ -32,7 +31,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
       .callback =
           [] {
             auto value =
-                TokenizeBySpaces(NewLazyString(L"alejandro forero cuervo"));
+                TokenizeBySpaces(LazyString{L"alejandro forero cuervo"});
             CHECK_EQ(value.size(), 3ul);
 
             CHECK(value[0].value == LazyString{L"alejandro"});
@@ -50,7 +49,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SpaceSurroundedSingleToken",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(NewLazyString(L"  alejandro  "));
+            auto value = TokenizeBySpaces(LazyString{L"  alejandro  "});
             CHECK_EQ(value.size(), 1ul);
             CHECK(value[0].value == LazyString{L"alejandro"});
             CHECK_EQ(value[0].begin, ColumnNumber(2));
@@ -60,7 +59,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
       .callback =
           [] {
             auto value = TokenizeBySpaces(
-                NewLazyString(L"  alejandro   forero   cuervo   "));
+                LazyString{L"  alejandro   forero   cuervo   "});
             CHECK_EQ(value.size(), 3ul);
 
             CHECK(value[0].value == LazyString{L"alejandro"});
@@ -78,7 +77,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SingleQuotedString",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(NewLazyString(L"\"alejandro\""));
+            auto value = TokenizeBySpaces(LazyString{L"\"alejandro\""});
             CHECK_EQ(value.size(), 1ul);
 
             CHECK(value[0].value == LazyString{L"alejandro"});
@@ -88,7 +87,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SpaceSurroundedSingleQuotedString",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(NewLazyString(L"  \"alejandro\"  "));
+            auto value = TokenizeBySpaces(LazyString{L"  \"alejandro\"  "});
             CHECK_EQ(value.size(), 1ul);
 
             CHECK(value[0].value == LazyString{L"alejandro"});
@@ -99,7 +98,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
       .callback =
           [] {
             auto value =
-                TokenizeBySpaces(NewLazyString(L"\"alejandro forero cuervo\""));
+                TokenizeBySpaces(LazyString{L"\"alejandro forero cuervo\""});
             CHECK_EQ(value.size(), 1ul);
 
             CHECK(value[0].value == LazyString{L"alejandro forero cuervo"});
@@ -109,8 +108,8 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
      {.name = L"SeveralQuotedStrings",
       .callback =
           [] {
-            auto value = TokenizeBySpaces(NewLazyString(
-                L"\"a l e j a n d r o\"   \"f o r e r o\" cuervo"));
+            auto value = TokenizeBySpaces(
+                LazyString{L"\"a l e j a n d r o\"   \"f o r e r o\" cuervo"});
             CHECK_EQ(value.size(), 3ul);
 
             CHECK(value[0].value == LazyString{L"a l e j a n d r o"});
@@ -126,7 +125,7 @@ const bool tokenize_by_spaces_tests_registration = tests::Register(
             CHECK_EQ(value[2].end, ColumnNumber(42));
           }},
      {.name = L"RunawayQuote", .callback = [] {
-        auto value = TokenizeBySpaces(NewLazyString(L"alejandro for\"ero"));
+        auto value = TokenizeBySpaces(LazyString{L"alejandro for\"ero"});
         CHECK_EQ(value.size(), 2ul);
 
         CHECK(value[0].value == LazyString{L"alejandro"});
