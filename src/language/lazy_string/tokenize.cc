@@ -28,11 +28,11 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
   std::vector<Token> output;
   Token token;
   auto push = [&](ColumnNumber end) {
-    if (!token.value.empty()) {
+    if (!token.value.IsEmpty()) {
       token.end = end;
       output.push_back(std::move(token));
     }
-    token.value = L"";
+    token.value = LazyString{};
     token.begin = ++end;
     token.has_quotes = false;
   };
@@ -49,18 +49,17 @@ std::vector<Token> TokenizeBySpaces(const LazyString& command) {
           ++i;
         }
         if (i.ToDelta() < command.size()) {
-          token.value.push_back(command.get(i));
+          token.value += LazyString{std::wstring{command.get(i)}};
           ++i;
         }
       }
     } else if (c == '\\') {
       ++i;
       token.has_quotes = true;
-      if (i.ToDelta() < command.size()) {
-        token.value.push_back(command.get(i));
-      }
+      if (i.ToDelta() < command.size())
+        token.value += LazyString{std::wstring{command.get(i)}};
     } else {
-      token.value.push_back(c);
+      token.value += LazyString{std::wstring{c}};
     }
   }
   push(ColumnNumber() + command.size());
@@ -71,8 +70,7 @@ void PushIfNonEmpty(const LazyString& source, Token token,
                     std::vector<Token>& output) {
   CHECK_LE(token.begin, token.end);
   if (token.begin < token.end) {
-    token.value =
-        source.Substring(token.begin, token.end - token.begin).ToString();
+    token.value = source.Substring(token.begin, token.end - token.begin);
     output.push_back(std::move(token));
   }
 }
@@ -140,11 +138,14 @@ namespace {
 std::optional<Token> FindPrefixInTokens(std::wstring prefix,
                                         std::vector<Token> name_tokens) {
   for (auto& name_token : name_tokens) {
-    if (name_token.value.size() >= prefix.size() &&
+    // TODO(easy, 2024-01-02): Avoid conversion to string. Stay on LazyString.
+    std::wstring name_token_str = name_token.value.ToString();
+    if (name_token_str.size() >= prefix.size() &&
         std::equal(
-            prefix.begin(), prefix.end(), name_token.value.begin(),
+            prefix.begin(), prefix.end(), name_token_str.begin(),
             [](wchar_t a, wchar_t b) { return tolower(a) == tolower(b); })) {
-      return Token{.value = name_token.value.substr(0, prefix.size()),
+      return Token{.value = name_token.value.Substring(
+                       ColumnNumber(0), ColumnNumberDelta(prefix.size())),
                    .begin = name_token.begin,
                    .end = name_token.begin + ColumnNumberDelta(prefix.size())};
     }
@@ -158,7 +159,7 @@ std::vector<Token> ExtendTokensToEndOfString(LazyString str,
   std::vector<Token> output;
   output.reserve(tokens.size());
   for (auto& token : tokens) {
-    output.push_back(Token{.value = str.Substring(token.begin).ToString(),
+    output.push_back(Token{.value = str.Substring(token.begin),
                            .begin = token.begin,
                            .end = ColumnNumber() + str.size()});
   }
@@ -169,7 +170,8 @@ std::optional<std::vector<Token>> FindFilterPositions(
     const std::vector<Token>& filter, std::vector<Token> substrings) {
   std::vector<Token> output;
   for (auto& filter_token : filter) {
-    if (auto token = FindPrefixInTokens(filter_token.value, substrings);
+    if (auto token =
+            FindPrefixInTokens(filter_token.value.ToString(), substrings);
         token.has_value()) {
       output.push_back(std::move(token.value()));
     } else {

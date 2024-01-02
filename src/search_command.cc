@@ -124,7 +124,7 @@ ColorizePromptOptions SearchResultsModifiers(
                }},
       result_or_error);
 
-  return {.tokens = {{.token = {.value = L"",
+  return {.tokens = {{.token = {.value = LazyString{},
                                 .begin = ColumnNumber(0),
                                 .end = ColumnNumber(0) + line.size()},
                       .modifiers = std::move(modifiers)}}};

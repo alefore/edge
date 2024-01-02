@@ -91,20 +91,20 @@ class ParseState {
       VLOG(5) << "Consume token: " << token.value
               << ", candidates: " << candidates_.size();
       if (IsQuotedString(token))
-        ReceiveValue(Value::NewString(pool_, token.value));
+        ReceiveValue(Value::NewString(pool_, token.value.ToString()));
       else if (IsLiteralNumber(token))
         ReceiveValue(Value::NewNumber(
-            pool_,
-            math::numbers::FromInt(atoi(ToByteString(token.value).c_str()))));
+            pool_, math::numbers::FromInt(
+                       atoi(ToByteString(token.value.ToString()).c_str()))));
       // TODO(easy, 2023-12-30): Before adding validation to Identifier,
       // validate here that the input can be correctly converted to an
       // Identifier. Otherwise this can crash if there's a mismatch. It should,
       // instead, just fail (return an error).
-      for (gc::Root<Value> value : LookUp(
-               first_token ? Identifier(NewLazyString(token.value)
-                                            .Append(function_name_prefix_)
-                                            .ToString())
-                           : Identifier(NewLazyString(token.value).ToString())))
+      for (gc::Root<Value> value :
+           LookUp(first_token
+                      ? Identifier(
+                            (token.value + function_name_prefix_).ToString())
+                      : Identifier(token.value.ToString())))
         ReceiveValue(value);
       if (candidates_.empty()) return Error(L"No valid parses found.");
       first_token = false;
@@ -212,9 +212,11 @@ class ParseState {
   static bool IsQuotedString(const Token& token) { return token.has_quotes; }
 
   static bool IsLiteralNumber(const Token& token) {
-    CHECK(!token.value.empty());
+    CHECK(!token.value.IsEmpty());
     // TODO(2023-12-15, trivial): Handle `-` and `.`.
-    return std::ranges::all_of(token.value,
+    // TODO(2024-01-02, trivial): Don't convert to string. Define range on
+    // LazyString.
+    return std::ranges::all_of(token.value.ToString(),
                                [](wchar_t c) { return std::iswdigit(c); });
   }
 

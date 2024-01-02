@@ -36,6 +36,7 @@ using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
@@ -61,7 +62,8 @@ struct SearchNamespaces {
           auto var =
               LazyString{buffer.Read(buffer_variables::cpp_prompt_namespaces)};
           for (auto& token : TokenizeBySpaces(var)) {
-            output.push_back(vm::Namespace({Identifier(token.value)}));
+            output.push_back(
+                vm::Namespace({Identifier(token.value.ToString())}));
           }
           return output;
         }()) {}
@@ -130,8 +132,8 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   if (functions.empty()) {
-    Error error(L"Unknown symbol: " + function_name_prefix.ToString() +
-                output_tokens[0].value);
+    Error error = NewError(LazyString{L"Unknown symbol: "} +
+                           function_name_prefix + output_tokens[0].value);
     VLOG(5) << "Parse: " << error;
     return error;
   }
@@ -171,10 +173,11 @@ ValueOrError<ParsedCommand> Parse(
 
   if (function_vector.has_value()) {
     output_function = function_vector.value();
+    // TODO(2024-01-02, trivial): Convert to vector<LazyString>.
     auto argument_values = MakeNonNullShared<std::vector<std::wstring>>(
         container::MaterializeVector(
             output_tokens | std::views::drop(1) |
-            std::views::transform([](auto& v) { return v.value; })));
+            std::views::transform([](auto& v) { return v.value.ToString(); })));
 
     output_function_inputs.push_back(vm::NewConstantExpression(
         VMTypeMapper<NonNull<std::shared_ptr<std::vector<std::wstring>>>>::New(
@@ -186,14 +189,15 @@ ValueOrError<ParsedCommand> Parse(
         std::get<vm::types::Function>(output_function.value().ptr()->type);
     size_t expected_arguments = function_type.inputs.size();
     if (output_tokens.size() - 1 > expected_arguments) {
-      return Error(L"Too many arguments given for `" + output_tokens[0].value +
-                   L"` (expected: " + std::to_wstring(expected_arguments) +
-                   L")");
+      return NewError(LazyString{L"Too many arguments given for `"} +
+                      output_tokens[0].value + LazyString{L"` (expected: "} +
+                      LazyString{std::to_wstring(expected_arguments)} +
+                      LazyString{L")"});
     }
 
     for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it) {
-      output_function_inputs.push_back(
-          vm::NewConstantExpression(vm::Value::NewString(pool, it->value)));
+      output_function_inputs.push_back(vm::NewConstantExpression(
+          vm::Value::NewString(pool, it->value.ToString())));
     }
 
     while (output_function_inputs.size() < expected_arguments) {
@@ -201,10 +205,15 @@ ValueOrError<ParsedCommand> Parse(
           vm::NewConstantExpression(vm::Value::NewString(pool, L"")));
     }
   } else if (!all_types_found.empty()) {
-    return Error(L"Incompatible type found: " + output_tokens[0].value + L": " +
+    // TODO(2024-01-02, trivial): Avoid conversion to std::wstring. Use
+    // NewError.
+    return Error(L"Incompatible type found: " +
+                 output_tokens[0].value.ToString() + L": " +
                  TypesToString(all_types_found));
   } else {
-    return Error(L"No definition found: " + output_tokens[0].value);
+    // TODO(2024-01-02, trivial): Avoid conversion to std::wstring. Use
+    // NewError.
+    return Error(L"No definition found: " + output_tokens[0].value.ToString());
   }
   return ParsedCommand{
       .tokens = std::move(output_tokens),
@@ -304,7 +313,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                      {VersionPropertyKey(L"type"),
                       vm::TypesToString(compilation_result.first->Types())}}});
             ColorizePromptOptions output{
-                .tokens = {{.token = {.value = L"",
+                .tokens = {{.token = {.value = LazyString{},
                                       .begin = ColumnNumber(0),
                                       .end = ColumnNumber(0) + line.size()},
                             .modifiers = modifiers}}};
@@ -362,7 +371,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
   std::visit(overload{IgnoreErrors{},
                       [&](ParsedCommand) {
                         output->tokens.push_back(
-                            {.token = {.value = L"",
+                            {.token = {.value = LazyString{},
                                        .begin = ColumnNumber(0),
                                        .end = ColumnNumber() + line.size()},
                              .modifiers = {LineModifier::kCyan}});

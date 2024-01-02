@@ -63,7 +63,7 @@ bool find_token_tests = tests::Register(
                 FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
                           ColumnNumber(8))
                     .value(),
-                Token({.value = L"678901",
+                Token({.value = LazyString{L"678901"},
                        .begin = ColumnNumber(6),
                        .end = ColumnNumber(12)}));
           }},
@@ -74,7 +74,7 @@ bool find_token_tests = tests::Register(
                 FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
                           ColumnNumber(12))
                     .value(),
-                Token({.value = L"678901",
+                Token({.value = LazyString{L"678901"},
                        .begin = ColumnNumber(6),
                        .end = ColumnNumber(12)}));
           }},
@@ -85,7 +85,7 @@ bool find_token_tests = tests::Register(
                 FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
                           ColumnNumber(13))
                     .value(),
-                Token({.value = L"345678",
+                Token({.value = LazyString{L"345678"},
                        .begin = ColumnNumber(13),
                        .end = ColumnNumber(19)}));
           }},
@@ -96,7 +96,7 @@ bool find_token_tests = tests::Register(
                 FindToken(TokenizeBySpaces(LazyString{L"01234 678901 345678"}),
                           ColumnNumber(15))
                     .value(),
-                Token({.value = L"345678",
+                Token({.value = LazyString{L"345678"},
                        .begin = ColumnNumber(13),
                        .end = ColumnNumber(19)}));
           }},
@@ -104,7 +104,7 @@ bool find_token_tests = tests::Register(
         CHECK_EQ(FindToken(TokenizeBySpaces(LazyString{L"01234 678901"}),
                            ColumnNumber(12))
                      .value(),
-                 Token({.value = L"678901",
+                 Token({.value = LazyString{L"678901"},
                         .begin = ColumnNumber(6),
                         .end = ColumnNumber(12)}));
       }}});
@@ -146,7 +146,7 @@ bool transform_lines_tests = tests::Register(
           [] {
             LineSequence result = TransformLines(
                 LazyString{L"foo src/buf blah"},
-                Token{.value = L"src/buf",
+                Token{.value = LazyString{L"src/buf"},
                       .begin = ColumnNumber(4),
                       .end = ColumnNumber(11)},
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"}));
@@ -159,7 +159,7 @@ bool transform_lines_tests = tests::Register(
           [] {
             LineSequence result = TransformLines(
                 LazyString{L"src/buf"},
-                Token{.value = L"src/buf",
+                Token{.value = LazyString{L"src/buf"},
                       .begin = ColumnNumber(0),
                       .end = ColumnNumber(7)},
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"}));
@@ -172,7 +172,7 @@ bool transform_lines_tests = tests::Register(
           [] {
             LineSequence result =
                 TransformLines(LazyString{L"src/buf and again src/buf"},
-                               Token{.value = L"src/buf",
+                               Token{.value = LazyString{L"src/buf"},
                                      .begin = ColumnNumber(18),
                                      .end = ColumnNumber(25)},
                                LineSequence::ForTests({L"src/buffer.cc"}));
@@ -183,7 +183,7 @@ bool transform_lines_tests = tests::Register(
      {.name = L"ExactMatchLinesSequence", .callback = [] {
         LineSequence result =
             TransformLines(LazyString{L"foo src/buf blah"},
-                           Token{.value = L"src/buf",
+                           Token{.value = LazyString{L"src/buf"},
                                  .begin = ColumnNumber(4),
                                  .end = ColumnNumber(11)},
                            LineSequence::ForTests({L"src/buf"}));

@@ -280,7 +280,8 @@ ValueOrError<std::unordered_multimap<std::wstring, LazyString>>
 ParseHistoryLine(const LazyString& line) {
   std::unordered_multimap<std::wstring, LazyString> output;
   for (const Token& token : TokenizeBySpaces(line)) {
-    auto colon = token.value.find(':');
+    // TODO(trivial, 2024-01-02): Avoid conversion to std::wstring.
+    auto colon = token.value.ToString().find(':');
     if (colon == std::wstring::npos)
       return Error(L"Unable to parse prompt line (no colon found in token): " +
                    line.ToString());
@@ -296,7 +297,11 @@ ParseHistoryLine(const LazyString& line) {
     // Skip quotes:
     ++value_start;
     --value_end;
-    output.insert({token.value.substr(0, colon),
+    // TODO(easy, 2024-01-02): Avoid conversion to string.
+    output.insert({token.value
+                       .Substring(ColumnNumber{0},
+                                  ColumnNumberDelta{static_cast<int>(colon)})
+                       .ToString(),
                    line.Substring(value_start, value_end - value_start)});
   }
 
