@@ -28,7 +28,6 @@ using afc::language::Success;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -84,8 +83,8 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
       options.set_contents(options.contents().Append(
           child.range().begin().line + LineNumberDelta(1) <
                   child.range().end().line
-              ? NewLazyString(L" ... ")
-              : NewLazyString(L" ")));
+              ? LazyString{L" ... "}
+              : LazyString{L" "}));
       if (i + 1 >= tree.children().size() ||
           child.range().end().line !=
               tree.children()[i + 1].range().begin().line) {
@@ -100,8 +99,8 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
 
     AppendLine(source, padding, child.range().begin(), target);
     if (depth_left > 0) {
-      DisplayTree(source, depth_left - 1, child,
-                  NewLazyString(L"  ").Append(padding), target);
+      DisplayTree(source, depth_left - 1, child, LazyString{L"  "} + padding,
+                  target);
     }
     if (i + 1 >= tree.children().size() ||
         child.range().end().line !=
@@ -121,13 +120,13 @@ futures::Value<PossibleError> GenerateContents(
   }
   std::optional<gc::Root<OpenBuffer>> source = source_weak.Lock();
   if (!source.has_value()) {
-    target.AppendToLastLine(NewLazyString(L"Source buffer no longer loaded."));
+    target.AppendToLastLine(LazyString{L"Source buffer no longer loaded."});
     return futures::Past(Success());
   }
 
   auto tree = source->ptr()->simplified_parse_tree();
   target.AppendToLastLine(
-      NewLazyString(source->ptr()->Read(buffer_variables::name)));
+      LazyString{source->ptr()->Read(buffer_variables::name)});
   static const vm::Namespace kEmptyNamespace;
   size_t depth = 3ul;
   if (std::optional<gc::Root<vm::Value>> depth_value =

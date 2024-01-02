@@ -30,7 +30,6 @@ using afc::language::overload;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
@@ -272,7 +271,7 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
 
   if (output_column < ColumnNumber(0) + width) {
     functions.push_back(
-        [](Screen& screen) { screen.WriteString(NewLazyString(L"\n")); });
+        [](Screen& screen) { screen.WriteString(LazyString{L"\n"}); });
   }
   output.draw_callback = [functions = std::move(functions)](Screen& screen) {
     for (auto& f : functions) {
