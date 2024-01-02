@@ -36,12 +36,12 @@ std::wstring GetMetadata(std::wstring line) {
   buffer.ptr()->Set(buffer_variables::name, L"tests");
 
   // We add this so that tests can refer to it.
-  buffer.ptr()->AppendToLastLine(NewLazyString(L"5.0/2.0"));
+  buffer.ptr()->AppendToLastLine(LazyString{L"5.0/2.0"});
   buffer.ptr()->AppendEmptyLine();
-  buffer.ptr()->AppendToLastLine(NewLazyString(L"5.0/ does not compile"));
+  buffer.ptr()->AppendToLastLine(LazyString{L"5.0/ does not compile"});
   buffer.ptr()->AppendEmptyLine();
 
-  buffer.ptr()->AppendToLastLine(NewLazyString(line));
+  buffer.ptr()->AppendToLastLine(LazyString{line});
 
   // Gives it a chance to execute:
   buffer.ptr()->editor().work_queue()->Execute();
@@ -122,10 +122,10 @@ const bool buffer_tests_registration = tests::Register(
              [] {
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
                auto buffer = NewBufferForTests(editor.value());
-               LineBuilder options(NewLazyString(L"foo"));
+               LineBuilder options{LazyString{L"foo"}};
                options.SetMetadata(language::text::LineMetadataEntry{
-                   .initial_value = NewLazyString(L"bar"),
-                   .value = futures::Past(NewLazyString(L"quux"))});
+                   .initial_value = LazyString{L"bar"},
+                   .value = futures::Past(LazyString{L"quux"})});
                buffer.ptr()->AppendRawLine(std::move(options).Build());
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();
@@ -140,10 +140,10 @@ const bool buffer_tests_registration = tests::Register(
 
                gc::Root<vm::Value> result =
                    ValueOrDie(buffer.ptr()
-                                  ->EvaluateString(NewLazyString(
+                                  ->EvaluateString(LazyString{
                                       L"number F() { return "
                                       L"\"foo\".find_last_of(\"o\", 3); }"
-                                      L" F() == F();"))
+                                      L" F() == F();"})
                                   .Get()
                                   .value(),
                               L"tests");
@@ -156,7 +156,7 @@ const bool buffer_tests_registration = tests::Register(
                auto buffer = NewBufferForTests(editor.value());
                ValueOrError<gc::Root<vm::Value>> result =
                    buffer.ptr()
-                       ->EvaluateString(NewLazyString(L"{ number v = 5; } v"))
+                       ->EvaluateString(LazyString{L"{ number v = 5; } v"})
                        .Get()
                        .value();
                CHECK(IsError(result));

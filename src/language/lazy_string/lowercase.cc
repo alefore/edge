@@ -25,18 +25,18 @@ class LowerCaseImpl : public LazyStringImpl {
 };
 
 const bool lower_case_tests_registration = tests::Register(
-    L"LowerCaseTests",
-    {{.name = L"EmptyString",
-      .callback =
-          [] {
-            CHECK_EQ(LowerCaseImpl(LazyString()).size(), ColumnNumberDelta());
-          }},
-     {.name = L"SimpleString", .callback = [] {
-        // TODO: Why can't we use CHECK_EQ? Why can't the compiler find
-        // the operator<<?
-        CHECK(LowerCase(NewLazyString(L"Alejandro Forero")).ToString() ==
-              L"alejandro forero");
-      }}});
+    L"LowerCaseTests", {{.name = L"EmptyString",
+                         .callback =
+                             [] {
+                               CHECK_EQ(LowerCaseImpl(LazyString()).size(),
+                                        ColumnNumberDelta());
+                             }},
+                        {.name = L"SimpleString", .callback = [] {
+                           // TODO: Why can't we use CHECK_EQ? Why can't the
+                           // compiler find the operator<<?
+                           CHECK(LowerCase(LazyString{L"Alejandro Forero"}) ==
+                                 LazyString(L"alejandro forero"));
+                         }}});
 }  // namespace
 
 LazyString LowerCase(LazyString input) {

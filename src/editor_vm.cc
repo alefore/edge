@@ -39,7 +39,7 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::math::numbers::Number;
 using afc::math::numbers::ToInt;
@@ -203,8 +203,10 @@ gc::Root<Environment> BuildEditorEnvironment(
       Identifier(L"SetVariablePrompt"),
       vm::NewCallback(pool, PurityType::kUnknown,
                       [](EditorState& editor_arg, std::wstring variable) {
+                        // TODO(medium, 2024-01-02): Use a callbacks override
+                        // that operates direclty on LazyString.
                         SetVariableCommandHandler(editor_arg,
-                                                  NewLazyString(variable));
+                                                  LazyString{variable});
                       })
           .ptr());
 

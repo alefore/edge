@@ -9,7 +9,6 @@ using afc::language::Error;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ValueOrError;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
 

@@ -46,7 +46,6 @@ using afc::language::overload;
 using afc::language::Success;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;

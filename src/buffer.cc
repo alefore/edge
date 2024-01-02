@@ -122,7 +122,6 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::DelegatingMutableLineSequenceObserver;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;

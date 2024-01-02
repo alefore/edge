@@ -12,7 +12,7 @@
 using afc::infrastructure::Path;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
@@ -22,7 +22,8 @@ using afc::vm::EscapedString;
 namespace afc::editor {
 namespace {
 std::wstring SerializeValue(std::wstring input) {
-  return EscapedString::FromString(NewLazyString(input))
+  // TODO(trivial, 2024-01-02): Receive input already as LazyString.
+  return EscapedString::FromString(LazyString{input})
       .CppRepresentation()
       .ToString();
 }

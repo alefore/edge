@@ -34,7 +34,6 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -210,9 +209,7 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
     count++;
   }
 
-  if (count == 0) {
-    return LineBuilder(NewLazyString(L" "));
-  }
+  if (count == 0) return LineBuilder{LazyString{L" "}};
 
   std::wstring output_str = std::wstring(1, L'0' + count);
   LineModifierSet modifiers;
@@ -885,9 +882,9 @@ ColumnsVector::Column BufferMetadataOutput(
     output.padding.push_back(
         lines_referenced.contains(i)
             ? ColumnsVector::Padding{.modifiers = {LineModifier::kYellow},
-                                     .head = NewLazyString(L"  ←"),
-                                     .body = NewLazyString(L"-")}
-            : std::optional<ColumnsVector::Padding>());
+                                     .head = LazyString{L"  ←"},
+                                     .body = LazyString{L"-"}}
+            : std::optional<ColumnsVector::Padding>{});
     metadata_by_line[source].pop_front();
   }
   return output;
