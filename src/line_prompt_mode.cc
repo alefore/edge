@@ -71,7 +71,6 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -113,11 +112,9 @@ std::unordered_multimap<std::wstring, LazyString> GetCurrentFeatures(
        *editor.buffers() | std::views::values | gc::view::Value)
     if (buffer.Read(buffer_variables::show_in_buffers_list) &&
         editor.buffer_tree().GetBufferIndex(buffer).has_value())
-      output.insert(
-          {L"name", NewLazyString(buffer.Read(buffer_variables::name))});
+      output.insert({L"name", LazyString{buffer.Read(buffer_variables::name)}});
   editor.ForEachActiveBuffer([&output](OpenBuffer& buffer) {
-    output.insert(
-        {L"active", NewLazyString(buffer.Read(buffer_variables::name))});
+    output.insert({L"active", LazyString{buffer.Read(buffer_variables::name)}});
     return futures::Past(EmptyValue());
   });
   return output;
@@ -155,11 +152,11 @@ std::unordered_multimap<std::wstring, LazyString> GetSyntheticFeatures(
 
   VLOG(5) << "Generating features from directories.";
   for (auto& dir : directories)
-    output.insert({L"directory", NewLazyString(dir.read())});
+    output.insert({L"directory", LazyString{dir.read()}});
 
   VLOG(5) << "Generating features from extensions.";
   for (const std::wstring& extension : extensions)
-    output.insert({L"extension", NewLazyString(extension)});
+    output.insert({L"extension", LazyString{extension}});
 
   VLOG(5) << "Done generating synthetic features.";
   return output;
@@ -173,7 +170,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
       .callback =
           [] {
             std::unordered_multimap<std::wstring, LazyString> input;
-            input.insert({L"name", NewLazyString(L"foo.cc")});
+            input.insert({L"name", LazyString{L"foo.cc"}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
             CHECK(output.find(L"extension")->second.ToString() == L"cc");
@@ -182,8 +179,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
       .callback =
           [] {
             std::unordered_multimap<std::wstring, LazyString> input;
-            input.insert(
-                {L"name", NewLazyString(L"/home/alejo/src/edge/foo.cc")});
+            input.insert({L"name", LazyString{L"/home/alejo/src/edge/foo.cc"}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
             CHECK(output.find(L"extension")->second.ToString() == L"cc");
@@ -192,14 +188,10 @@ const bool get_synthetic_features_tests_registration = tests::Register(
       .callback =
           [] {
             std::unordered_multimap<std::wstring, LazyString> input;
-            input.insert({L"name", NewLazyString(L"/home/alejo/foo.cc")});
-            input.insert({L"name", NewLazyString(L"bar.cc")});
-            input.insert({L"name",
-
-                          NewLazyString(L"/home/alejo/buffer.h")});
-            input.insert({L"name",
-
-                          NewLazyString(L"/home/alejo/README.md")});
+            input.insert({L"name", LazyString{L"/home/alejo/foo.cc"}});
+            input.insert({L"name", LazyString{L"bar.cc"}});
+            input.insert({L"name", LazyString{L"/home/alejo/buffer.h"}});
+            input.insert({L"name", LazyString{L"/home/alejo/README.md"}});
             auto output = GetSyntheticFeatures(input);
             auto range = output.equal_range(L"extension");
             CHECK_EQ(std::distance(range.first, range.second), 3l);
@@ -213,7 +205,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
       .callback =
           [] {
             std::unordered_multimap<std::wstring, LazyString> input;
-            input.insert({L"name", NewLazyString(L"foo.cc")});
+            input.insert({L"name", LazyString{L"foo.cc"}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 0ul);
           }},
@@ -221,7 +213,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
       .callback =
           [] {
             std::unordered_multimap<std::wstring, LazyString> input;
-            input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
+            input.insert({L"name", LazyString{L"/home/alejo/edge/foo.cc"}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 1ul);
             CHECK(output.find(L"directory")->second.ToString() ==
@@ -229,9 +221,9 @@ const bool get_synthetic_features_tests_registration = tests::Register(
           }},
      {.name = L"DirectoryMultiple", .callback = [] {
         std::unordered_multimap<std::wstring, LazyString> input;
-        input.insert({L"name", NewLazyString(L"/home/alejo/edge/foo.cc")});
-        input.insert({L"name", NewLazyString(L"/home/alejo/edge/bar.cc")});
-        input.insert({L"name", NewLazyString(L"/home/alejo/btc/input.txt")});
+        input.insert({L"name", LazyString{L"/home/alejo/edge/foo.cc"}});
+        input.insert({L"name", LazyString{L"/home/alejo/edge/bar.cc"}});
+        input.insert({L"name", LazyString{L"/home/alejo/btc/input.txt"}});
         auto output = GetSyntheticFeatures(input);
         auto range = output.equal_range(L"directory");
         CHECK_EQ(std::distance(range.first, range.second), 2l);
@@ -316,12 +308,9 @@ auto parse_history_line_tests_registration = tests::Register(
     L"ParseHistoryLine",
     {{.name = L"BadQuote",
       .callback =
-          [] {
-            CHECK(IsError(ParseHistoryLine(NewLazyString(L"prompt:\""))));
-          }},
+          [] { CHECK(IsError(ParseHistoryLine(LazyString{L"prompt:\""}))); }},
      {.name = L"Empty", .callback = [] {
-        auto result =
-            ValueOrDie(ParseHistoryLine(NewLazyString(L"prompt:\"\"")));
+        auto result = ValueOrDie(ParseHistoryLine(LazyString{L"prompt:\"\""}));
         CHECK(result.find(L"prompt")->second.ToString() == L"");
       }}});
 
@@ -334,8 +323,8 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
   auto test = [](std::wstring name, std::wstring input,
                  std::wstring expected_output) {
     return tests::Test({.name = name, .callback = [=] {
-                          CHECK(QuoteString(NewLazyString(input)).ToString() ==
-                                expected_output);
+                          CHECK(QuoteString(LazyString{input}) ==
+                                LazyString(expected_output));
                         }});
   };
   return std::vector<tests::Test>(
@@ -349,10 +338,11 @@ auto quote_string_tests_registration = tests::Register(L"QuoteString", [] {
 
 LazyString BuildHistoryLine(EditorState& editor, LazyString input) {
   std::vector<LazyString> line_for_history;
-  line_for_history.emplace_back(NewLazyString(L"prompt:"));
+  line_for_history.emplace_back(LazyString{L"prompt:"});
   line_for_history.emplace_back(QuoteString(std::move(input)));
   for (auto& [name, feature] : GetCurrentFeatures(editor)) {
-    line_for_history.emplace_back(NewLazyString(L" " + name + L":"));
+    line_for_history.emplace_back(LazyString{L" "} + LazyString{name} +
+                                  LazyString{L":"});
     line_for_history.emplace_back(QuoteString(feature));
   }
   return Concatenate(std::move(line_for_history));
@@ -398,7 +388,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   // Tokens by parsing the `prompt` value in the history.
   std::unordered_map<math::naive_bayes::Event, std::vector<Token>>
       history_prompt_tokens;
-  std::vector<Token> filter_tokens = TokenizeBySpaces(NewLazyString(filter));
+  std::vector<Token> filter_tokens = TokenizeBySpaces(LazyString{filter});
   history_contents.EveryLine([&](LineNumber, const Line& line) {
     VLOG(8) << "Considering line: " << line.ToString();
     auto warn_if = [&](bool condition, Error error) {
@@ -498,7 +488,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   for (math::naive_bayes::Event& key :
        math::naive_bayes::Sort(history_data, current_features)) {
     output.lines.push_back(
-        ColorizeLine(NewLazyString(key.read()),
+        ColorizeLine(LazyString{key.read()},
                      container::MaterializeVector(
                          history_prompt_tokens[key] |
                          std::views::transform([](const Token& token) {
@@ -627,9 +617,8 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
         if (!output.errors.empty()) {
           editor_state.work_queue()->DeleteLater(
               AddSeconds(Now(), 1.0),
-              editor_state.status().SetExpiringInformationText(
-                  LineBuilder(NewLazyString(output.errors.front().read()))
-                      .Build()));
+              editor_state.status().SetExpiringInformationText(LineBuilder{
+                  LazyString{output.errors.front().read()}}.Build()));
         }
         if (!abort_value.has_value()) {
           filter_buffer.AppendLines(std::move(output.lines));
@@ -1182,13 +1171,12 @@ InsertModeOptions PromptState::insert_mode_options() {
                             .initiator =
                                 transformation::Delete::Initiator::kInternal});
 
-                    LazyString line =
-                        NewLazyString(results.value().common_prefix.value());
+                    LazyString line{results.value().common_prefix.value()};
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Insert(
                             {.contents_to_insert = LineSequence::WithLine(
-                                 LineBuilder(std::move(line)).Build())}));
+                                 LineBuilder{std::move(line)}.Build())}));
                     prompt_state->OnModify();
                     return EmptyValue();
                   }

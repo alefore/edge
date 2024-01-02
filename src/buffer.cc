@@ -180,11 +180,12 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                                 std::ostringstream oss;
                                 oss << value.ptr().value();
                                 return Success(LazyString(
-                                    NewLazyString(FromByteString(oss.str()))));
+                                    LazyString{FromByteString(oss.str())}));
                               })
                               .ConsumeErrors([](Error error) {
-                                return futures::Past(LazyString(NewLazyString(
-                                    L"E: " + std::move(error.read()))));
+                                return futures::Past(LazyString(
+                                    LazyString{L"E: "} +
+                                    LazyString{std::move(error.read())}));
                               });
                         });
                   } break;
@@ -194,7 +195,7 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
 
                 LineBuilder line_builder(std::move(line));
                 line_builder.SetMetadata(language::text::LineMetadataEntry{
-                    .initial_value = NewLazyString(description),
+                    .initial_value = LazyString{description},
                     .value = std::move(metadata_value)});
                 line = std::move(line_builder).Build();
               },
@@ -600,21 +601,19 @@ void OpenBuffer::SendEndOfFileToProcess() {
   if (Read(buffer_variables::pts)) {
     char str[1] = {4};
     if (write(fd()->fd().read(), str, sizeof(str)) == -1) {
-      status().SetInformationText(
-          LineBuilder(
-              NewLazyString(L"Sending EOF failed: ")
-                  .Append(NewLazyString(FromByteString(strerror(errno)))))
-              .Build());
+      status().SetInformationText(LineBuilder{
+          LazyString{L"Sending EOF failed: "} +
+          LazyString{FromByteString(
+              strerror(errno))}}.Build());
       return;
     }
     status().SetInformationText(Line(L"EOF sent"));
   } else {
     if (shutdown(fd()->fd().read(), SHUT_WR) == -1) {
-      status().SetInformationText(
-          LineBuilder(
-              NewLazyString(L"shutdown(SHUT_WR) failed: ")
-                  .Append(NewLazyString(FromByteString(strerror(errno)))))
-              .Build());
+      status().SetInformationText(LineBuilder{
+          LazyString{L"shutdown(SHUT_WR) failed: "} +
+          LazyString{FromByteString(
+              strerror(errno))}}.Build());
       return;
     }
     status().SetInformationText(Line(L"shutdown sent"));
@@ -1317,11 +1316,9 @@ void OpenBuffer::ToggleActiveCursors() {
 
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
-  status_.SetInformationText(
-      LineBuilder(NewLazyString(L"cursors stack (")
-                      .Append(NewLazyString(std::to_wstring(stack_size)))
-                      .Append(NewLazyString(L"): +")))
-          .Build());
+  status_.SetInformationText(LineBuilder{
+      LazyString{L"cursors stack ("} + LazyString{std::to_wstring(stack_size)} +
+      LazyString{L"): +"}}.Build());
 }
 
 void OpenBuffer::PopActiveCursors() {
@@ -1330,11 +1327,10 @@ void OpenBuffer::PopActiveCursors() {
     status_.InsertError(Error(L"cursors stack: -: Stack is empty!"));
     return;
   }
-  status_.SetInformationText(
-      LineBuilder(NewLazyString(L"cursors stack (")
-                      .Append(NewLazyString(std::to_wstring(stack_size - 1)))
-                      .Append(NewLazyString(L"): -")))
-          .Build());
+  status_.SetInformationText(LineBuilder{
+      LazyString{L"cursors stack ("} +
+      LazyString{std::to_wstring(stack_size - 1)} +
+      LazyString{L"): -"}}.Build());
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
@@ -1681,11 +1677,10 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
   switch (signal.read()) {
     case SIGINT:
       if (child_pid_ != std::nullopt) {
-        status_.SetInformationText(
-            LineBuilder(
-                NewLazyString(L"SIGINT >> pid:")
-                    .Append(NewLazyString(std::to_wstring(child_pid_->read()))))
-                .Build());
+        status_.SetInformationText(LineBuilder{
+            LazyString{L"SIGINT >> pid:"} +
+            LazyString{std::to_wstring(
+                child_pid_->read())}}.Build());
         file_system_driver().Kill(child_pid_.value(), signal);
         return;
       }
@@ -1947,7 +1942,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   }
 
   std::vector<URL> urls_with_extensions = GetLocalFileURLsWithExtensions(
-      NewLazyString(buffer.Read(buffer_variables::file_context_extensions)),
+      LazyString{buffer.Read(buffer_variables::file_context_extensions)},
       *initial_url);
 
   std::vector<Path> search_paths = {};
@@ -2038,8 +2033,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
                            editor.work_queue()->DeleteLater(
                                AddSeconds(Now(), 1.0),
                                editor.status().SetExpiringInformationText(
-                                   LineBuilder(NewLazyString(L"Open: ").Append(
-                                                   url.ToString()))
+                                   LineBuilder{LazyString{L"Open: "} +
+                                               url.ToString()}
                                        .Build()));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to
@@ -2208,9 +2203,9 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
 /* static */ LazyString OpenBuffer::FlagsToString(
     std::map<wstring, wstring> flags) {
   return Concatenate(flags | std::views::transform([](const auto& f) {
-                       return NewLazyString(f.first + f.second);
+                       return LazyString{f.first} + LazyString{f.second};
                      }) |
-                     Intersperse(NewLazyString(L"  ")));
+                     Intersperse(LazyString{L"  "}));
 }
 
 const bool& OpenBuffer::Read(const EdgeVariable<bool>* variable) const {
