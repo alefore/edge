@@ -12,16 +12,16 @@
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
-namespace afc::language::text {
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifierSet;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::NewLazyString;
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 
+namespace afc::language::text {
 void NullMutableLineSequenceObserver::LinesInserted(LineNumber,
                                                     LineNumberDelta) {}
 void NullMutableLineSequenceObserver::LinesErased(LineNumber, LineNumberDelta) {
@@ -369,14 +369,14 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
         insert_line(line_number,
-                    LineBuilder(NewLazyString(std::move(text.value))).Build());
+                    LineBuilder{LazyString{std::move(text.value)}}.Build());
       })));
 
   output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
       [this](LineNumber line_number, ShortRandomLine text) {
         line_number = LineNumber(line_number % size());
         set_line(line_number,
-                 LineBuilder(NewLazyString(std::move(text.value))).Build());
+                 LineBuilder{LazyString{std::move(text.value)}}.Build());
       })));
 
   // TODO: Call sort.

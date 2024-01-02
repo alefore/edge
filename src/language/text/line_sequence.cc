@@ -21,7 +21,7 @@ using language::MakeNonNullUnique;
 using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::NewLazyString;
+using language::lazy_string::LazyString;
 
 using ::operator<<;
 
@@ -193,7 +193,7 @@ std::wstring LineSequence::ToString() const {
 
 lazy_string::LazyString LineSequence::ToLazyString() const {
   // TODO(easy, 2023-09-11): Provide a more efficient implementation.
-  return NewLazyString(ToString());
+  return LazyString{ToString()};
 }
 
 LineNumberDelta LineSequence::size() const {
