@@ -33,7 +33,6 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::ForEachColumn;
 using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
@@ -70,22 +69,24 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       options.status.GetType() != Status::Type::kWarning) {
     if (options.buffer->current_position_line() >
         options.buffer->contents().EndLine()) {
-      output.AppendString(NewLazyString(L"🚀"));
+      output.AppendString(LazyString{L"🚀"});
     } else {
-      output.AppendString(NewLazyString(to_wstring(
-          options.buffer->current_position_line() + LineNumberDelta(1))));
+      output.AppendString(LazyString{to_wstring(
+          options.buffer->current_position_line() + LineNumberDelta(1))});
     }
-    output.AppendString(NewLazyString(L" of "), {{LineModifier::kDim}});
-    output.AppendString(NewLazyString(
-        to_wstring(options.buffer->contents().EndLine() + LineNumberDelta(1))));
-    output.AppendString(NewLazyString(L", "), {{LineModifier::kDim}});
-    output.AppendString(NewLazyString(to_wstring(
-        options.buffer->current_position_col() + ColumnNumberDelta(1))));
-    output.AppendString(NewLazyString(L" 🧭 "), {{LineModifier::kDim}});
+    output.AppendString(LazyString{L" of "}, {{LineModifier::kDim}});
+    output.AppendString(LazyString{
+        to_wstring(options.buffer->contents().EndLine() + LineNumberDelta(1))});
+    output.AppendString(LazyString{L", "}, {{LineModifier::kDim}});
+    output.AppendString(LazyString{to_wstring(
+        options.buffer->current_position_col() + ColumnNumberDelta(1))});
+    output.AppendString(LazyString{L" 🧭 "}, {{LineModifier::kDim}});
 
+    // TODO(trivial, 2024-01-02): Change GetLineMarks to return LazyString
+    // directly.
     auto marks_text = options.buffer->GetLineMarksText();
     if (!marks_text.empty()) {
-      output.AppendString(NewLazyString(marks_text));
+      output.AppendString(LazyString{marks_text});
       output.AppendCharacter(' ', {});
     }
 
@@ -146,13 +147,14 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     }
 
     if (!flags.empty()) {
-      output.AppendString(NewLazyString(L"  ").Append(
-          OpenBuffer::FlagsToString(std::move(flags))));
+      output.AppendString(LazyString{L"  "} +
+                          OpenBuffer::FlagsToString(std::move(flags)));
     }
 
     if (options.status.text().empty()) {
-      output.AppendString(
-          NewLazyString(L"  “" + GetBufferContext(*options.buffer) + L"” "));
+      output.AppendString(LazyString{L"  “"} +
+                          LazyString{GetBufferContext(*options.buffer)} +
+                          LazyString{L"” "});
     }
 
     int running = 0;
@@ -169,12 +171,14 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
       }
     }
     if (running > 0) {
-      output.AppendString(
-          NewLazyString(L"  🏃" + std::to_wstring(running) + L"  "));
+      output.AppendString(LazyString{L"  🏃"} +
+                          LazyString{std::to_wstring(running)} +
+                          LazyString{L"  "});
     }
     if (failed > 0) {
-      output.AppendString(
-          NewLazyString(L"  💥" + std::to_wstring(failed) + L"  "));
+      output.AppendString(LazyString{L"  💥"} +
+                          LazyString{std::to_wstring(failed)} +
+                          LazyString{L"  "});
     }
   }
 
@@ -202,8 +206,8 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     if (options.buffer != nullptr) {
       if (Line editor_status_text = options.buffer->editor().status().text();
           !editor_status_text.empty()) {
-        output.AppendString(NewLazyString(L" 🌼 "));
-        output.Append(LineBuilder(editor_status_text));
+        output.AppendString(LazyString{L" 🌼 "});
+        output.Append(LineBuilder{editor_status_text});
       }
     }
   }

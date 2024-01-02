@@ -76,7 +76,6 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -171,7 +170,7 @@ class TestsHelper {
   gc::Root<OpenBuffer> buffer_ = [this] {
     gc::Root<OpenBuffer> buffer_root = NewBufferForTests(editor_.value());
     OpenBuffer& buffer = buffer_root.ptr().value();
-    buffer.AppendToLastLine(NewLazyString(L"foobarhey"));
+    buffer.AppendToLastLine(LazyString{L"foobarhey"});
     buffer.AppendRawLine(Line(L"  foxbarnowl"));
     buffer.AppendRawLine(Line(L"  aaaaa "));
     buffer.AppendRawLine(Line(L"  alejo forero "));
@@ -658,7 +657,7 @@ class InsertMode : public InputReceiver {
                         return buffer_input.value.ApplyToCursors(
                             transformation::Insert{
                                 .contents_to_insert = LineSequence::WithLine(
-                                    LineBuilder(NewLazyString(L" ")).Build()),
+                                    LineBuilder{LazyString{L" "}}.Build()),
                                 .modifiers = {.insertion = modify_mode}});
                       }},
                   GetPasteModeVariant(buffer));
@@ -912,8 +911,8 @@ class InsertMode : public InputReceiver {
   static NonNull<std::shared_ptr<std::vector<Path>>> CompletionModelPaths(
       const OpenBuffer& buffer) {
     return MakeNonNullShared<std::vector<Path>>(container::MaterializeVector(
-        TokenizeBySpaces(NewLazyString(
-            buffer.Read(buffer_variables::completion_model_paths))) |
+        TokenizeBySpaces(
+            LazyString{buffer.Read(buffer_variables::completion_model_paths)}) |
         std::views::transform([](Token path_str) {
           return OptionalFrom(Path::FromString(path_str.value));
         }) |
@@ -957,13 +956,10 @@ class InsertMode : public InputReceiver {
       CompletionModelManager::Text text) {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
-        buffer.status().SetExpiringInformationText(
-            LineBuilder(NewLazyString(L"`")
-                            .Append(compressed_text)
-                            .Append(NewLazyString(L"` is an alias for `"))
-                            .Append(text)
-                            .Append(NewLazyString(L"`")))
-                .Build()));
+        buffer.status().SetExpiringInformationText(LineBuilder{
+            LazyString{L"`"} + compressed_text +
+            LazyString{L"` is an alias for `"} + text +
+            LazyString{L"`"}}.Build()));
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
@@ -977,7 +973,7 @@ class InsertMode : public InputReceiver {
     LineRange token_range = GetTokenRange(buffer.value);
     futures::Value<EmptyValue> output = buffer.value.ApplyToCursors(
         transformation::Insert{.contents_to_insert = LineSequence::WithLine(
-                                   LineBuilder(NewLazyString(L" ")).Build()),
+                                   LineBuilder{LazyString{L" "}}.Build()),
                                .modifiers = {.insertion = modify_mode}});
 
     if (model_paths->empty()) {

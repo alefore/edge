@@ -18,7 +18,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::ToByteString;
 using afc::language::lazy_string::ColumnNumber;
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 
@@ -135,15 +135,15 @@ bool tests_registration = tests::Register(
                 paste_buffer_root.ptr()->name(),
                 paste_buffer_root.ptr().ToRoot());
 
-            paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Foo"));
-            paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Bar"));
+            paste_buffer_root.ptr()->AppendLine(LazyString{L"Foo"});
+            paste_buffer_root.ptr()->AppendLine(LazyString{L"Bar"});
 
             gc::Root<OpenBuffer> buffer_root =
                 NewBufferForTests(editor.value());
             editor->AddBuffer(buffer_root, BuffersList::AddBufferType ::kVisit);
 
             OpenBuffer& buffer = buffer_root.ptr().value();
-            buffer.AppendLine(NewLazyString(L"Quux"));
+            buffer.AppendLine(LazyString{L"Quux"});
             buffer.set_position(LineColumn(LineNumber(1), ColumnNumber(2)));
 
             Paste(buffer.editor()).ProcessInput('x');
@@ -160,8 +160,8 @@ bool tests_registration = tests::Register(
         editor->buffers()->insert_or_assign(paste_buffer_root.ptr()->name(),
                                             paste_buffer_root.ptr().ToRoot());
 
-        paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Foo"));
-        paste_buffer_root.ptr()->AppendLine(NewLazyString(L"Bar"));
+        paste_buffer_root.ptr()->AppendLine(LazyString{L"Foo"});
+        paste_buffer_root.ptr()->AppendLine(LazyString{L"Bar"});
 
         int pipefd_out[2];
         CHECK(pipe2(pipefd_out, O_NONBLOCK) != -1);

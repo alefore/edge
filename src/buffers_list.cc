@@ -99,7 +99,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
     }
 
     if (columns == ColumnNumberDelta(1)) {
-      Add(NewLazyString(L"…"), dim);
+      Add(LazyString{L"…"}, dim);
     } else {
       ASSIGN_OR_RETURN(
           PathComponent path,
@@ -115,21 +115,21 @@ ValueOrError<LineBuilder> GetOutputComponents(
       if (output_items.empty())
         std::visit(
             overload{
-                [&](Error) { Add(NewLazyString(path.ToString()), modifiers); },
+                [&](Error) { Add(LazyString{path.ToString()}, modifiers); },
                 [&](const PathComponent& path_without_extension) {
                   if (std::optional<std::wstring> extension = path.extension();
                       extension.has_value()) {
-                    Add(NewLazyString(path_without_extension.ToString()), bold);
-                    Add(NewLazyString(L"."), dim);
-                    Add(NewLazyString(extension.value()), bold);
+                    Add(LazyString{path_without_extension.ToString()}, bold);
+                    Add(LazyString{L"."}, dim);
+                    Add(LazyString{extension.value()}, bold);
                   } else {
-                    Add(NewLazyString(path.ToString()), modifiers);
+                    Add(LazyString{path.ToString()}, modifiers);
                   }
                 }},
             path.remove_extension());
       else if (columns > ColumnNumberDelta(1)) {
-        Add(NewLazyString(path.ToString()), modifiers);
-        Add(path == path_full ? NewLazyString(L"/") : NewLazyString(L"…"), dim);
+        Add(LazyString{path.ToString()}, modifiers);
+        Add(path == path_full ? LazyString{L"/"} : LazyString{L"…"}, dim);
       }
     }
     output_items.push_front(std::move(current_output));
@@ -468,7 +468,7 @@ LineBuilder GetBufferVisibleString(const ColumnNumberDelta columns,
   std::visit(
       overload{[&](Error) {
                  std::replace(name.begin(), name.end(), L'\n', L' ');
-                 LazyString output_name = NewLazyString(std::move(name));
+                 LazyString output_name = LazyString{std::move(name)};
                  if (output_name.size() > ColumnNumberDelta(2) &&
                      output_name.get(ColumnNumber(0)) == L'$' &&
                      output_name.get(ColumnNumber(1)) == L' ') {
@@ -623,7 +623,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
         std::nullopt, [options, prefix_width, path_components, index]() {
           LineBuilder line_options_output;
 
-          static const LazyString kSeparator = NewLazyString(L" ");
+          static const LazyString kSeparator = LazyString{L" "};
           const std::vector<ColumnNumberDelta> columns_width =
               OptionalFrom(DivideLine(options->size.column, kSeparator.size(),
                                       options->buffers_per_line))
@@ -656,8 +656,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                     ? FilterResult::kIncluded
                     : FilterResult::kExcluded;
 
-            LazyString number_prefix =
-                NewLazyString(std::to_wstring(index + j + 1));
+            LazyString number_prefix{std::to_wstring(index + j + 1)};
             line_options_output.AppendString(
                 Padding(prefix_width - number_prefix.size() - kProgressWidth,
                         L' ')
@@ -667,6 +666,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width - kProgressWidth);
 
+            // TODO(easy, 2024-01-02): Conver to LazyString.
             std::wstring progress;
             LineModifierSet progress_modifier;
             if (!buffer.GetLineMarks().empty()) {
@@ -688,7 +688,7 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             if (columns_width[j] >= prefix_width)
               line_options_output.AppendString(
-                  NewLazyString(progress),
+                  LazyString{progress},
                   filter_result == FilterResult::kExcluded
                       ? LineModifierSet{LineModifier::kDim}
                       : progress_modifier);
