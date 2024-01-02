@@ -69,7 +69,6 @@ using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumnDelta;
 
@@ -293,11 +292,11 @@ int main(int argc, const char** argv) {
   LazyString commands_to_run = CommandsToRun(args);
   if (!commands_to_run.IsEmpty()) {
     if (connected_to_parent) {
-      commands_to_run += NewLazyString(L"editor.SendExitTo(")
-                             .Append(afc::vm::EscapedString::FromString(
-                                         NewLazyString(server_path.read()))
-                                         .CppRepresentation())
-                             .Append(NewLazyString(L");"));
+      commands_to_run +=
+          LazyString{L"editor.SendExitTo("} +
+          afc::vm::EscapedString::FromString(LazyString{server_path.read()})
+              .CppRepresentation() +
+          LazyString{L");"};
     }
 
     LOG(INFO) << "Sending commands.";

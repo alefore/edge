@@ -18,7 +18,6 @@ using afc::language::NewError;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 
 namespace std {
 template <>
@@ -73,7 +72,7 @@ using language::overload;
 namespace gc = language::gc;
 
 language::ValueOrError<Identifier> IdentifierOrError(LazyString input) {
-  if (input.IsEmpty()) return NewError(NewLazyString(L"Identifier is empty"));
+  if (input.IsEmpty()) return NewError(LazyString{L"Identifier is empty"});
   // TODO(trivial, 2023-12-30): Start checking characters (e.g., only alnum).
   return Identifier(input.ToString());
 }
@@ -178,9 +177,12 @@ std::ostream& operator<<(std::ostream& os, const Type& type) {
 
 std::wstring TypesToString(const std::vector<Type>& types) {
   return Concatenate(types | std::views::transform([](const Type& t) {
-                       return NewLazyString(L"\"" + ToString(t) + L"\"");
+                       // TODO(trivial, 2024-01-02): Change ToString to return a
+                       // LazyString directly.
+                       return LazyString{L"\""} + LazyString{ToString(t)} +
+                              LazyString{L"\""};
                      }) |
-                     Intersperse(NewLazyString(L", ")))
+                     Intersperse(LazyString{L", "}))
       .ToString();
 }
 
@@ -209,9 +211,11 @@ std::wstring ToString(const Type& type) {
                         L"<" + ToString(function_type.output.get()) + L"(" +
                         Concatenate(function_type.inputs |
                                     std::views::transform([](const Type& t) {
-                                      return NewLazyString(ToString(t));
+                                      // TODO(easy, 2024-01-02): Change ToString
+                                      // to directly return a LazyString.
+                                      return LazyString{ToString(t)};
                                     }) |
-                                    Intersperse(NewLazyString(L", ")))
+                                    Intersperse(LazyString{L", "}))
                             .ToString() +
                         L")>";
                }},

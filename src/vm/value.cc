@@ -14,7 +14,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
 using afc::math::numbers::ToDouble;
 using afc::math::numbers::ToString;
@@ -202,8 +202,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                             ToString(value.get_number(), kDefaultPrecision));
                },
                [&](const types::String&) {
-                 os << EscapedString::FromString(
-                           NewLazyString(value.get_string()))
+                 os << EscapedString::FromString(LazyString{value.get_string()})
                            .CppRepresentation();
                },
                [&](const types::Symbol&) { os << ToString(value.type); },

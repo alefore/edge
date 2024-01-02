@@ -13,7 +13,6 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 
 namespace afc::vm {
 /* static */ EscapedString EscapedString::FromString(LazyString input) {
@@ -30,7 +29,7 @@ namespace afc::vm {
           return Error(L"String ends in escape character.");
         switch (input.get(i)) {
           case 'n':
-            original_string += NewLazyString(L"\n");
+            original_string += LazyString{L"\n"};
             break;
           case '"':
           case '\\':
@@ -38,9 +37,8 @@ namespace afc::vm {
             original_string += input.Substring(i, ColumnNumberDelta(1));
             break;
           default:
-            return NewError(
-                NewLazyString(L"Unknown escaped character: ")
-                    .Append(input.Substring(i, ColumnNumberDelta(1))));
+            return NewError(LazyString{L"Unknown escaped character: "} +
+                            input.Substring(i, ColumnNumberDelta(1)));
         }
         break;
       default:
@@ -56,28 +54,26 @@ LazyString EscapedString::EscapedRepresentation() const {
   ForEachColumn(input_, [&output](ColumnNumber, wchar_t c) {
     switch (c) {
       case '\n':
-        output += NewLazyString(L"\\n");
+        output += LazyString{L"\\n"};
         break;
       case '"':
-        output += NewLazyString(L"\\\"");
+        output += LazyString{L"\\\""};
         break;
       case '\\':
-        output += NewLazyString(L"\\\\");
+        output += LazyString{L"\\\\"};
         break;
       case '\'':
-        output += NewLazyString(L"\\'");
+        output += LazyString{L"\\'"};
         break;
       default:
-        output += NewLazyString(std::wstring(1, c));
+        output += LazyString{std::wstring(1, c)};
     }
   });
   return output;
 }
 
 LazyString EscapedString::CppRepresentation() const {
-  return NewLazyString(L"\"")
-      .Append(EscapedRepresentation())
-      .Append(NewLazyString(L"\""));
+  return LazyString{L"\""} + EscapedRepresentation() + LazyString{L"\""};
 }
 
 // Returns the original (unescaped) string.
@@ -94,7 +90,7 @@ bool cpp_unescape_string_tests_registration =
             .name = name, .callback = [input] {
               std::wstring output =
                   ValueOrDie(EscapedString::Parse(
-                                 EscapedString::FromString(NewLazyString(input))
+                                 EscapedString::FromString(LazyString{input})
                                      .EscapedRepresentation()))
                       .OriginalString()
                       .ToString();
@@ -106,7 +102,7 @@ bool cpp_unescape_string_tests_registration =
         return tests::Test{.name = name, .callback = [input] {
                              LOG(INFO) << "Expecting failure from: " << input;
                              CHECK(std::holds_alternative<Error>(
-                                 EscapedString::Parse(NewLazyString(input))));
+                                 EscapedString::Parse(LazyString{input})));
                            }};
       };
       return std::vector<tests::Test>({
