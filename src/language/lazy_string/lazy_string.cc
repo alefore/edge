@@ -38,6 +38,24 @@ class StringFromContainer : public LazyStringImpl {
   const Container data_;
 };
 
+class RepeatedChar : public LazyStringImpl {
+ public:
+  RepeatedChar(ColumnNumberDelta times, wchar_t c) : times_(times), c_(c) {
+    CHECK_GE(times_, ColumnNumberDelta(0));
+  }
+
+  wchar_t get(ColumnNumber pos) const {
+    CHECK_LT(pos.ToDelta(), times_);
+    return c_;
+  }
+
+  ColumnNumberDelta size() const { return times_; }
+
+ protected:
+  const ColumnNumberDelta times_;
+  const wchar_t c_;
+};
+
 class SubstringImpl : public LazyStringImpl {
  public:
   SubstringImpl(NonNull<std::shared_ptr<const LazyStringImpl>> buffer,
@@ -96,6 +114,11 @@ LazyString::LazyString() : data_(NonNull<std::shared_ptr<EmptyStringImpl>>()) {}
 LazyString::LazyString(std::wstring input)
     : data_(MakeNonNullShared<StringFromContainer<std::wstring>>(
           std::move(input))) {}
+
+LazyString::LazyString(ColumnNumberDelta times, wchar_t c)
+    : data_(MakeNonNullShared<RepeatedChar>(times, c)) {
+  CHECK_EQ(size(), times);
+}
 
 std::wstring LazyString::ToString() const {
   static Tracker tracker(L"LazyString::ToString");

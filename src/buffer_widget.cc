@@ -20,7 +20,6 @@
 #include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/wstring.h"
 #include "src/line_number_output_producer.h"
 #include "src/section_brackets_producer.h"
@@ -39,7 +38,7 @@ using afc::language::NonNull;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::Padding;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -157,10 +156,9 @@ LineWithCursor::Generator::Vector LinesSpanView(
                  ColumnNumberDelta(1)) /
                 2;
             LineBuilder line_options;
-            line_options.AppendString(Padding(padding_size, L' '));
-            if (output.cursor.has_value()) {
+            line_options.AppendString(LazyString{padding_size, L' '});
+            if (output.cursor.has_value())
               output.cursor = *output.cursor + padding_size;
-            }
             line_options.Append(LineBuilder(std::move(output.line)));
             output.line = std::move(line_options).Build();
             return output;

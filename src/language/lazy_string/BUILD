@@ -50,17 +50,6 @@ cc_library(
 )
 
 cc_library(
-    name = "padding",
-    srcs = ["padding.cc"],
-    hdrs = ["padding.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":char_buffer",
-        ":lazy_string",
-    ],
-)
-
-cc_library(
     name = "substring",
     srcs = ["substring.cc"],
     hdrs = ["substring.h"],

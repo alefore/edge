@@ -18,7 +18,6 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/wstring.h"
 #include "src/widget.h"
 
@@ -77,9 +76,8 @@ LineWithCursor::Generator::Vector LineNumberOutput(
                   ? LazyString{to_wstring(range.line() + LineNumberDelta(1))}
                   : LazyString{L"↪"};
           CHECK_LE(ColumnNumberDelta(number.size() + 1), width);
-          LazyString padding =
-              Padding(width - ColumnNumberDelta(number.size() + 1), L' ');
-
+          LazyString padding{width - ColumnNumberDelta(number.size() + 1),
+                             L' '};
           LineBuilder line_options;
           line_options.AppendString(padding + number + LazyString{L":"},
                                     modifiers.container);

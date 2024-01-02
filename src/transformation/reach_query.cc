@@ -15,7 +15,7 @@ using afc::infrastructure::screen::VisualOverlayPriority;
 using afc::language::NonNull;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
@@ -183,7 +183,7 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second + kQueryLength,
           afc::infrastructure::screen::VisualOverlay{
-              .content = NewLazyString(ColumnNumberDelta(1), match.first),
+              .content = LazyString{ColumnNumberDelta{1}, match.first},
               .modifiers = LineModifierSet{LineModifier::kReverse,
                                            LineModifier::kWhite}}));
     }

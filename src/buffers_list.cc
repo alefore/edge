@@ -13,7 +13,6 @@
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/lazy_string/trim.h"
 #include "src/language/overload.h"
 #include "src/tests/tests.h"
@@ -43,7 +42,6 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::Padding;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumnDelta;
@@ -423,7 +421,7 @@ LineBuilder GetBufferContents(const LineSequence& contents,
   LineBuilder output;
   if ((line.EndColumn() + ColumnNumberDelta(1)).ToDelta() < columns) {
     ColumnNumberDelta padding = (columns - line.EndColumn().ToDelta()) / 2;
-    output.AppendString(Padding(padding, L' '));
+    output.AppendString(LazyString{padding, L' '});
   }
 
   LineBuilder line_without_suffix(line);
@@ -638,8 +636,9 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
                 options->buffers.at(index + j).ptr().value();
             CHECK_GE(start.ToDelta(), line_options_output.contents().size());
             line_options_output.AppendString(
-                Padding(start.ToDelta() - line_options_output.contents().size(),
-                        L' '),
+                LazyString{
+                    start.ToDelta() - line_options_output.contents().size(),
+                    L' '},
                 LineModifierSet());
 
             if (j > 0) {
@@ -657,8 +656,8 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
 
             LazyString number_prefix{std::to_wstring(index + j + 1)};
             line_options_output.AppendString(
-                Padding(prefix_width - number_prefix.size() - kProgressWidth,
-                        L' ')
+                LazyString{prefix_width - number_prefix.size() - kProgressWidth,
+                           L' '}
                     .Append(number_prefix),
                 GetNumberModifiers(options.value(), buffer, filter_result));
 

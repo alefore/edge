@@ -4,7 +4,6 @@
 #include "src/buffer_variables.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/container.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/safe_types.h"
 #include "src/line_with_cursor.h"
 #include "src/path_flags.h"
@@ -16,7 +15,7 @@ using afc::language::CaptureAndHash;
 using afc::language::GetValueOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::Padding;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 
@@ -56,7 +55,7 @@ LineWithCursor::Generator::Vector BufferFlagLines(const OpenBuffer& buffer) {
             return LineWithCursor::Generator::New(CaptureAndHash(
                 [](LineModifier m) {
                   LineBuilder options;
-                  options.AppendString(Padding(ColumnNumberDelta(80), L'█'),
+                  options.AppendString(LazyString{ColumnNumberDelta(80), L'█'},
                                        LineModifierSet{m});
                   return LineWithCursor{.line = std::move(options).Build()};
                 },

@@ -5,7 +5,6 @@
 #include "src/help_command.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence.h"
@@ -18,7 +17,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::Padding;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
@@ -101,7 +99,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
     LineBuilder category_line;
     LazyString category_name = KeyCommandsMap::ToString(category_entry.first);
     category_line.AppendString(
-        Padding(longest_category - category_name.size(), L' '));
+        LazyString{longest_category - category_name.size(), L' '});
     category_line.AppendString(category_name,
                                LineModifierSet{LineModifier::kBold});
     category_line.AppendString(LazyString{L":"});

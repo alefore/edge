@@ -6,7 +6,6 @@
 #include "src/language/hash.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
@@ -179,7 +178,7 @@ LineWithCursor LineWithCursor::View(
             ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8;
         VLOG(8) << "Handling TAB character at position: " << output_column
                 << ", target: " << target;
-        line_output.AppendString(Padding(target - output_column, L' '),
+        line_output.AppendString(LazyString{target - output_column, L' '},
                                  std::nullopt);
         output_column = target;
         break;

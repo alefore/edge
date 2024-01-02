@@ -13,7 +13,6 @@
 #include "src/language/hash.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/line_marks.h"
 #include "src/line_with_cursor.h"
 #include "src/parse_tree.h"
@@ -721,10 +720,9 @@ std::vector<LineBuilder> ComputePrefixLines(
       ColumnNumberDelta padding_size = target.size() < *indents
                                            ? *indents - target.size()
                                            : ColumnNumberDelta();
-      target.AppendString(
-          std::wstring(padding_size.read(), padding_dash ? L'─' : L' ') +
-              std::wstring(1, c),
-          boxes[index].modifiers);
+      target.AppendString(LazyString{padding_size, padding_dash ? L'─' : L' '} +
+                              LazyString{ColumnNumberDelta{1}, c},
+                          boxes[index].modifiers);
       *indents = target.size() - ColumnNumberDelta(1);
     };
 
@@ -784,14 +782,14 @@ std::vector<LineBuilder> ComputePrefixLines(
       LineBuilder& target = output[(b.position + l).read()];
       CHECK_LE(target.size(), indents);
       target.AppendString(
-          Padding(
+          LazyString{
               indents - target.size(),
               target.size().IsZero() ||
                       std::wstring(L"╮│╯").find_first_of(target.contents().get(
                           ColumnNumber() + target.contents().size() -
                           ColumnNumberDelta(1))) != std::wstring::npos
                   ? L' '
-                  : L'─'),
+                  : L'─'},
           b.modifiers);
     }
     // Add the wrappings around the box.

@@ -11,7 +11,6 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
@@ -34,7 +33,6 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::Padding;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -417,10 +415,11 @@ void HandleSearchResults(
   buffer.status().SetInformationText(
       size == 1
           ? Line(L"🔍 1 result.")
-          : LineBuilder(
-                Padding(ColumnNumberDelta(1 + static_cast<size_t>(log2(size))),
-                        L'🔍') +
-                LazyString{L" Results: "} + LazyString{std::to_wstring(size)})
+          : LineBuilder{LazyString{ColumnNumberDelta(
+                                       1 + static_cast<size_t>(log2(size))),
+                                   L'🔍'} +
+                        LazyString{L" Results: "} +
+                        LazyString{std::to_wstring(size)}}
                 .Build());
   std::vector<audio::Frequency> frequencies = {
       audio::Frequency(440.0), audio::Frequency(440.0),

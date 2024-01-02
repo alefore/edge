@@ -9,22 +9,6 @@
 
 namespace afc::language::lazy_string {
 namespace {
-class RepeatedChar : public LazyStringImpl {
- public:
-  RepeatedChar(ColumnNumberDelta times, wchar_t c) : times_(times), c_(c) {}
-
-  wchar_t get(ColumnNumber pos) const {
-    CHECK_LT(pos.ToDelta(), times_);
-    return c_;
-  }
-
-  ColumnNumberDelta size() const { return times_; }
-
- protected:
-  const ColumnNumberDelta times_;
-  const wchar_t c_;
-};
-
 template <typename Container>
 class StringFromContainer : public LazyStringImpl {
  public:
@@ -96,10 +80,6 @@ LazyString NewLazyString(std::vector<wchar_t> data) {
   return LazyString(
       MakeNonNullShared<StringFromContainer<std::vector<wchar_t>>>(
           std::move(data)));
-}
-
-LazyString NewLazyString(ColumnNumberDelta times, wchar_t c) {
-  return LazyString(MakeNonNullShared<RepeatedChar>(times, c));
 }
 
 }  // namespace afc::language::lazy_string

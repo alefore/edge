@@ -6,13 +6,13 @@
 #include <cctype>
 #include <iostream>
 
-#include "src/language/lazy_string/padding.h"
 #include "src/language/text/line_builder.h"
 
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 
@@ -51,7 +51,8 @@ Line FrameLine(FrameOutputProducerOptions options) {
   }
 
   output.AppendString(
-      Padding(options.width - ColumnNumberDelta(output.modifiers_size()), L'─'),
+      LazyString{options.width - ColumnNumberDelta(output.modifiers_size()),
+                 L'─'},
       line_modifiers);
 
   return std::move(output).Build();

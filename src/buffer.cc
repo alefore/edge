@@ -37,7 +37,6 @@ extern "C" {
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/lowercase.h"
-#include "src/language/lazy_string/padding.h"
 #include "src/language/observers_gc.h"
 #include "src/language/once_only_function.h"
 #include "src/language/overload.h"
@@ -1247,8 +1246,8 @@ void OpenBuffer::MaybeExtendLine(LineColumn position) {
   if (line.EndColumn() > position.column + ColumnNumberDelta(1)) return;
 
   LineBuilder options(line);
-  options.Append(LineBuilder(Padding(
-      position.column - line.EndColumn() + ColumnNumberDelta(1), L' ')));
+  options.Append(LineBuilder{LazyString{
+      position.column - line.EndColumn() + ColumnNumberDelta(1), L' '}});
   contents_.set_line(position.line, std::move(options).Build());
 }
 

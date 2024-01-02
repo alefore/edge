@@ -146,7 +146,7 @@ bool CharConsumer(ExtendedChar c, Data& data) {
                  regular_char != nullptr) {
         data.operations.back().text_input =
             data.operations.back().text_input.Append(
-                NewLazyString(ColumnNumberDelta(1), *regular_char));
+                LazyString{ColumnNumberDelta{1}, *regular_char});
         return true;
       } else {
         return false;
