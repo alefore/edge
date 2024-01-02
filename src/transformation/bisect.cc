@@ -12,7 +12,7 @@ using afc::language::NonNull;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
-using afc::language::lazy_string::NewLazyString;
+using afc::language::lazy_string::LazyString;
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::VisualOverlayKey;
 using infrastructure::screen::VisualOverlayMap;
@@ -250,12 +250,12 @@ futures::Value<CompositeTransformation::Output> Bisect::Apply(
         overlays[kPriority][kKey].insert(
             {range.value().begin(),
              afc::infrastructure::screen::VisualOverlay{
-                 .content = NewLazyString(L"⟦"),
+                 .content = LazyString{L"⟦"},
                  .modifiers = {LineModifier::kReverse}}});
       if (range.value().end() != center)
         overlays[kPriority][kKey].insert(
             {range.value().end(), afc::infrastructure::screen::VisualOverlay{
-                                      .content = NewLazyString(L"⟧"),
+                                      .content = LazyString{L"⟧"},
                                       .modifiers = {LineModifier::kReverse}}});
       output.Push(VisualOverlay{.visual_overlay_map = std::move(overlays)});
       break;
