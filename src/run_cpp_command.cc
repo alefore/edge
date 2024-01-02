@@ -43,7 +43,6 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -59,8 +58,8 @@ struct SearchNamespaces {
       : namespaces([&] {
           static const vm::Namespace kEmptyNamespace;
           std::vector<vm::Namespace> output = {kEmptyNamespace};
-          auto var = NewLazyString(
-              buffer.Read(buffer_variables::cpp_prompt_namespaces));
+          auto var =
+              LazyString{buffer.Read(buffer_variables::cpp_prompt_namespaces)};
           for (auto& token : TokenizeBySpaces(var)) {
             output.push_back(vm::Namespace({Identifier(token.value)}));
           }
@@ -124,7 +123,7 @@ ValueOrError<ParsedCommand> Parse(
     environment.CaseInsensitiveLookup(
         n,
         Identifier(
-            function_name_prefix.Append(NewLazyString(output_tokens[0].value))
+            function_name_prefix.Append(LazyString{output_tokens[0].value})
                 .ToString()),
         &functions);
     if (!functions.empty()) break;
@@ -245,7 +244,7 @@ bool tests_parse_registration = tests::Register(
             gc::Pool pool({});
             gc::Root<vm::Environment> environment = vm::Environment::New(pool);
             ValueOrError<ParsedCommand> output =
-                Parse(pool, NewLazyString(L"foo"), environment.ptr().value(),
+                Parse(pool, LazyString{L"foo"}, environment.ptr().value(),
                       LazyString(),
                       std::unordered_set<vm::Type>({vm::types::String{}}),
                       SearchNamespaces(buffer.ptr().value()));
@@ -263,8 +262,8 @@ bool tests_parse_registration = tests::Register(
         environment.ptr()->Define(Identifier(L"foo"),
                                   vm::Value::NewString(pool, L"bar"));
         ValueOrError<ParsedCommand> output = Parse(
-            pool, NewLazyString(L"foo"), environment.ptr().value(),
-            LazyString(), std::unordered_set<vm::Type>({vm::types::String{}}),
+            pool, LazyString{L"foo"}, environment.ptr().value(), LazyString(),
+            std::unordered_set<vm::Type>({vm::types::String{}}),
             SearchNamespaces(buffer.ptr().value()));
         CHECK(!std::holds_alternative<Error>(output));
       }}});
@@ -416,7 +415,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                 }},
             buffer.has_value()
                 ? Parse(editor.gc_pool(), line, environment,
-                        NewLazyString(L"Preview"),
+                        LazyString{L"Preview"},
                         {vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()},
                         search_namespaces)
                 : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
@@ -523,7 +522,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
         }
         return PromptOptions{
             .editor_state = editor_state,
-            .prompt = NewLazyString(prompt + L" "),
+            .prompt = LazyString{prompt} + LazyString{L" "},
             .history_file =
                 prompt == L":" ? HistoryFile(L"colon") : HistoryFile(prompt),
             .colorize_options_provider = std::move(colorize_options_provider),

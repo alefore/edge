@@ -16,7 +16,7 @@
 namespace afc::editor {
 using language::MakeNonNullShared;
 using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::NewLazyString;
+using language::lazy_string::LazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineNumberDelta;
@@ -29,8 +29,7 @@ LineWithCursor::Generator::Vector SectionBrackets(
     if (output.size() < lines)
       output.lines.push_back(LineWithCursor::Generator{
           std::hash<std::wstring>{}(c), [c]() {
-            return LineWithCursor{.line =
-                                      LineBuilder(NewLazyString(c)).Build()};
+            return LineWithCursor{.line = LineBuilder{LazyString{c}}.Build()};
           }});
   };
   push(section_brackets_side == SectionBracketsSide::kLeft ? L"╭" : L"╮");

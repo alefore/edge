@@ -29,7 +29,6 @@ using afc::language::Observers;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -116,7 +115,8 @@ std::vector<tests::fuzz::Handler> TerminalAdapter::FuzzHandlers() {
 
   output.push_back(Call(
       std::function<void(ShortRandomString)>([this](ShortRandomString input) {
-        return ReceiveInput(NewLazyString(std::move(input.value)), {});
+        // TODO(easy, 2024-01-02): Remove call to LazyString.
+        return ReceiveInput(LazyString{std::move(input.value)}, {});
       })));
   return output;
 }

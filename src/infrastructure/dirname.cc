@@ -25,7 +25,6 @@ using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 
 namespace afc::infrastructure {
 ValueOrError<PathComponent> PathComponent::FromString(std::wstring component) {
@@ -199,7 +198,7 @@ const bool path_join_tests_registration = tests::Register(
       }}});
 
 ValueOrError<Path> Path::FromString(std::wstring path) {
-  return Path::FromString(NewLazyString(std::move(path)));
+  return Path::FromString(LazyString{std::move(path)});
 }
 
 ValueOrError<Path> Path::FromString(LazyString path) {

@@ -30,7 +30,6 @@ using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumberDelta;
@@ -206,7 +205,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
             using ::operator<<;
             DVLOG(5) << "Writing string: " << str;
-            screen->WriteString(NewLazyString(std::move(str)));
+            screen->WriteString(LazyString{std::move(str)});
           })
           .ptr());
 

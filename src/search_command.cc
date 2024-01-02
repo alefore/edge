@@ -33,7 +33,6 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
@@ -256,7 +255,7 @@ class SearchCommand : public Command {
 
     Prompt(
         {.editor_state = editor_state_,
-         .prompt = NewLazyString(L"🔎 "),
+         .prompt = LazyString{L"🔎 "},
          .history_file = HistoryFile(L"search"),
          .colorize_options_provider =
              [&editor_state = editor_state_,

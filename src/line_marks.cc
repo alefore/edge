@@ -12,7 +12,6 @@
 #include "src/language/wstring.h"
 
 namespace container = afc::language::container;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
