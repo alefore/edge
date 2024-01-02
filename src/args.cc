@@ -292,7 +292,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
   return handlers;
 }
 
-std::wstring CommandsToRun(CommandLineValues args) {
+LazyString CommandsToRun(CommandLineValues args) {
   using afc::vm::EscapedString;
   // TODO(trivial, 2023-12-31): Avoid LazyString.
   LazyString commands_to_run = LazyString{args.commands_to_run};
@@ -374,7 +374,6 @@ std::wstring CommandsToRun(CommandLineValues args) {
         L"editor.ForkCommand(options);"};
     commands_to_run = kDefaultCommandsToRun;
   }
-  // TODO(trivial, 2023-12-31): Don't call ToString:
-  return commands_to_run.ToString();
+  return commands_to_run;
 }
 }  // namespace afc::editor

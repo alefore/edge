@@ -290,8 +290,7 @@ int main(int argc, const char** argv) {
     editor_state().ExecutePendingWork();
   }
 
-  // TODO(trivial, 2023-12-31): Remove NewLazyString.
-  LazyString commands_to_run = NewLazyString(CommandsToRun(args));
+  LazyString commands_to_run = CommandsToRun(args);
   if (!commands_to_run.IsEmpty()) {
     if (connected_to_parent) {
       commands_to_run += NewLazyString(L"editor.SendExitTo(")

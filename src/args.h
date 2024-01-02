@@ -79,7 +79,7 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&
 CommandLineArgs();
 
-std::wstring CommandsToRun(CommandLineValues args);
+language::lazy_string::LazyString CommandsToRun(CommandLineValues args);
 
 }  // namespace afc::editor
 
