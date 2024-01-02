@@ -92,10 +92,6 @@ LazyString NewCopyCharBuffer(const wchar_t* buffer) {
                                                                wcslen(buffer)));
 }
 
-LazyString NewLazyString(std::wstring buffer) {
-  return LazyString(std::move(buffer));
-}
-
 LazyString NewLazyString(std::vector<wchar_t> data) {
   return LazyString(
       MakeNonNullShared<StringFromContainer<std::vector<wchar_t>>>(
