@@ -33,7 +33,6 @@ using language::NonNull;
 using language::VisitPointer;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::LazyString;
-using language::lazy_string::NewLazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
@@ -129,11 +128,12 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
                              : L" files: " + std::to_wstring(observers.size());
   Prompt(PromptOptions{
       .editor_state = buffer.editor(),
-      .prompt = NewLazyString(L"unlink " + details + L"? [yes/no] "),
+      .prompt = LazyString{L"unlink "} + LazyString{details} +
+                LazyString{L"? [yes/no] "},
       .history_file = HistoryFile(L"confirmation"),
       .handler =
           [buffer = buffer.NewRoot(), observers](LazyString input) {
-            if (input == NewLazyString(L"yes")) {
+            if (input == LazyString{L"yes"}) {
               for (auto& o : observers) o();
             } else {
               // TODO: insert it again?  Actually, only let it

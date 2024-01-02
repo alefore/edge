@@ -98,20 +98,16 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
 
 std::wstring ToStringBase(const Insert& options) {
   LazyString output =
-      NewLazyString(L"InsertTransformationBuilder()")
-          .Append(NewLazyString(L".set_text(")
-                      .Append(vm::EscapedString::FromString(
-                                  options.contents_to_insert.at(LineNumber(0))
-                                      .contents())
-                                  .CppRepresentation())
-                      .Append(NewLazyString(L")")))
-          .Append(NewLazyString(L".set_modifiers(")
-                      .Append(NewLazyString(options.modifiers.Serialize()))
-                      .Append(NewLazyString(L")")));
+      LazyString{L"InsertTransformationBuilder()"} + LazyString{L".set_text("} +
+      vm::EscapedString::FromString(
+          options.contents_to_insert.at(LineNumber(0)).contents())
+          .CppRepresentation() +
+      LazyString{L")"} + LazyString{L".set_modifiers("} +
+      LazyString{options.modifiers.Serialize()} + LazyString{L")"};
   if (options.position.has_value()) {
-    output += NewLazyString(L".set_position(")
-                  .Append(NewLazyString(options.position.value().Serialize()))
-                  .Append(NewLazyString(L")"));
+    output += LazyString{L".set_position("} +
+              LazyString{options.position.value().Serialize()} +
+              LazyString{L")"};
   }
   return output.ToString();
 }
