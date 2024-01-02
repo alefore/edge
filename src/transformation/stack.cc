@@ -32,7 +32,6 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
-using afc::language::lazy_string::NewLazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -49,15 +48,15 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
   if (value.IsVoid()) return;
   std::ostringstream oss;
   oss << value;
-  buffer.status().SetInformationText(
-      LineBuilder(NewLazyString(L"Value: ")
-                      .Append(NewLazyString(FromByteString(oss.str()))))
-          .Build());
+  buffer.status().SetInformationText(LineBuilder{
+      LazyString{L"Value: "} +
+      LazyString{
+          FromByteString(oss.str())}}.Build());
   if (delete_buffer != nullptr) {
     std::istringstream iss(oss.str());
     for (std::string line_str; std::getline(iss, line_str);) {
       delete_buffer->AppendToLastLine(
-          LineBuilder(NewLazyString(FromByteString(line_str))).Build());
+          LineBuilder{LazyString{FromByteString(line_str)}}.Build());
       delete_buffer->AppendRawLine(Line());
     }
   }
@@ -78,10 +77,9 @@ futures::Value<PossibleError> PreviewCppExpression(
             return Success();
           })
           .ConsumeErrors([&buffer](Error error) {
-            buffer.status().SetInformationText(
-                LineBuilder(
-                    NewLazyString(L"E: ").Append(NewLazyString(error.read())))
-                    .Build());
+            buffer.status().SetInformationText(LineBuilder{
+                LazyString{L"E: "} +
+                LazyString{error.read()}}.Build());
             return futures::Past(EmptyValue());
           })
           .Transform([](EmptyValue) { return futures::Past(Success()); });
@@ -114,7 +112,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
   }
   // TODO(2023-12-31, trivial): Avoid ToString; instead, convert from
   // LineSequence to LazyString directly.
-  return input.buffer.EvaluateString(NewLazyString(contents.ToString()))
+  return input.buffer.EvaluateString(LazyString{contents.ToString()})
       .Transform([input](gc::Root<vm::Value> value) {
         ShowValue(input.buffer, input.delete_buffer, value.ptr().value());
         Result output(input.position);
@@ -127,7 +125,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         input.buffer.status().Set(error);
         if (input.delete_buffer != nullptr) {
           input.delete_buffer->AppendToLastLine(
-              LineBuilder(NewLazyString(error.read())).Build());
+              LineBuilder{LazyString{error.read()}}.Build());
           input.delete_buffer->AppendRawLine(Line());
           output.added_to_paste_buffer = true;
         }
@@ -221,7 +219,9 @@ struct ContentStats {
 LazyString ToString(const ContentStats& stats) {
   LazyString output;
   auto key = [&output](std::wstring s, std::optional<size_t> value) {
-    if (value) output += NewLazyString(L" " + s + std::to_wstring(*value));
+    if (value)
+      output += LazyString{L" "} + LazyString{s} +
+                LazyString{std::to_wstring(*value)};
   };
   key(L"🌳", stats.lines);
   key(L" 🍀", stats.words);
@@ -455,12 +455,12 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
 }
 
 std::wstring ToStringBase(const Stack& stack) {
-  return NewLazyString(L"Stack(")
-      .Append(Concatenate(stack.stack | std::views::transform([](auto& v) {
-                            return NewLazyString(ToString(v));
-                          }) |
-                          Intersperse(NewLazyString(L", "))))
-      .Append(NewLazyString(L")"))
+  return (LazyString{L"Stack("} +
+          Concatenate(stack.stack | std::views::transform([](auto& v) {
+                        return LazyString{ToString(v)};
+                      }) |
+                      Intersperse(LazyString{L", "})) +
+          LazyString{L")"})
       .ToString();
 }
 
