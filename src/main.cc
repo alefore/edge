@@ -186,9 +186,12 @@ void RedrawScreens(const CommandLineValues& args,
         LOG(INFO) << "Sending screen size update to server.";
         CHECK(!IsError(SyncSendCommandsToServer(
             remote_server_fd.value(),
-            "screen.set_size(" + std::to_string(screen_size.column.read()) +
-                "," + std::to_string(screen_size.line.read()) + ");" +
-                "editor.set_screen_needs_hard_redraw(true);\n")));
+            LazyString{L"screen.set_size("} +
+                LazyString{std::to_wstring(screen_size.column.read())} +
+                LazyString{L","} +
+                LazyString{std::to_wstring(screen_size.line.read())} +
+                LazyString{L");"} +
+                LazyString{L"editor.set_screen_needs_hard_redraw(true);\n"})));
         *last_screen_size = screen_size;
       }
     }
@@ -303,8 +306,8 @@ int main(int argc, const char** argv) {
     if (remote_server_fd.has_value()) {
       CHECK_NE(remote_server_fd.value(), FileDescriptor(-1));
       // TODO(easy, 2023-12-31): Remove ToString:
-      CHECK(!IsError(SyncSendCommandsToServer(
-          remote_server_fd.value(), ToByteString(commands_to_run.ToString()))));
+      CHECK(!IsError(
+          SyncSendCommandsToServer(remote_server_fd.value(), commands_to_run)));
     } else {
       BufferName name =
           editor_state().GetUnusedBufferName(L"- initial-commands");
@@ -388,8 +391,10 @@ int main(int argc, const char** argv) {
                                   regular_c != nullptr)
                                 CHECK(!IsError(SyncSendCommandsToServer(
                                     remote_server_fd.value(),
-                                    "ProcessInput(" +
-                                        std::to_string(*regular_c) + ");\n")));
+                                    LazyString{L"ProcessInput("} +
+                                        LazyString{
+                                            std::to_wstring(*regular_c)} +
+                                        LazyString{L");\n"})));
                             }
                           else
                             editor_state().ProcessInput(std::move(input));

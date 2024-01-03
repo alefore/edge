@@ -17,7 +17,8 @@ void Daemonize(
 
 // These methods block. You may want to call them in a background thread.
 language::PossibleError SyncSendCommandsToServer(
-    infrastructure::FileDescriptor server_fd, std::string commands_to_run);
+    infrastructure::FileDescriptor server_fd,
+    language::lazy_string::LazyString commands_to_run);
 language::ValueOrError<infrastructure::FileDescriptor> SyncConnectToServer(
     const infrastructure::Path& address);
 language::ValueOrError<infrastructure::FileDescriptor>

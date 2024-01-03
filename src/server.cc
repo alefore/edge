@@ -47,6 +47,8 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::vm::EscapedString;
 
@@ -96,32 +98,31 @@ PossibleError SendPathToServer(FileDescriptor server_fd,
 }  // namespace
 
 PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
-                                       std::string commands_to_run) {
+                                       LazyString commands_to_run) {
   // We write the command to a temporary file and then instruct the server to
   // load the file. Otherwise, if the command is too long, it may not fit in the
   // size limit that the reader uses.
-  CHECK_NE(server_fd, FileDescriptor(-1));
-  size_t pos = 0;
+  CHECK_NE(server_fd, FileDescriptor{-1});
+  ColumnNumber pos{0};
   char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
   int tmp_fd = mkstemp(path);
   LazyString path_str = LazyString{FromByteString(path)};
   free(path);
 
-  // TODO(trivial, 2023-12-31): Remove call to ToString.
-  commands_to_run = commands_to_run + "\n;Unlink(" +
-                    ToByteString(vm::EscapedString::FromString(path_str)
-                                     .CppRepresentation()
-                                     .ToString()) +
-                    ");\n";
+  commands_to_run +=
+      LazyString{L"\n;Unlink("} +
+      vm::EscapedString::FromString(path_str).CppRepresentation() +
+      LazyString{L");\n"};
   LOG(INFO) << "Sending commands to fd: " << server_fd << " through path "
             << path_str.ToString() << ": " << commands_to_run;
-  while (pos < commands_to_run.size()) {
-    VLOG(5) << commands_to_run.substr(pos);
-    int bytes_written = write(tmp_fd, commands_to_run.c_str() + pos,
-                              commands_to_run.size() - pos);
+  while (pos.ToDelta() < commands_to_run.size()) {
+    VLOG(5) << commands_to_run.Substring(pos);
+    int bytes_written =
+        write(tmp_fd, commands_to_run.Substring(pos).ToString().c_str(),
+              (commands_to_run.size() - pos.ToDelta()).read());
     if (bytes_written == -1)
       return Error(L"write: " + FromByteString(strerror(errno)));
-    pos += bytes_written;
+    pos += ColumnNumberDelta(bytes_written);
   }
   if (close(tmp_fd) != 0) {
     std::string failure = strerror(errno);
@@ -289,7 +290,8 @@ bool server_tests_registration = tests::Register(
                         FileDescriptor client_fd =
                             ValueOrDie(SyncConnectToServer(server_address));
                         CHECK(!IsError(SyncSendCommandsToServer(
-                            client_fd, "editor.set_exit_value(567);")));
+                            client_fd,
+                            LazyString{L"editor.set_exit_value(567);"})));
                       }
                       iteration++;
                     }})

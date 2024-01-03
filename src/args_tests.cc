@@ -50,12 +50,8 @@ bool server_tests_registration = tests::Register(
                             if (iteration == 0) {
                               FileDescriptor client_fd = ValueOrDie(
                                   SyncConnectToServer(server_address));
-                              // TODO(trivial, 2024-01-02): Avoid conversion to
-                              // string.
                               CHECK(!IsError(SyncSendCommandsToServer(
-                                  client_fd,
-                                  ToByteString(
-                                      CommandsToRun(args()).ToString()))));
+                                  client_fd, CommandsToRun(args()))));
                             }
                             iteration++;
                             CHECK_LT(iteration, 1000ul);
