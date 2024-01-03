@@ -10,10 +10,12 @@ namespace gc = afc::language::gc;
 
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
 using afc::math::numbers::ToInt;
 
@@ -134,9 +136,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
         })));
   }
 
-  compilation.AddError(Error(L"Unable to add types: " +
-                             TypesToString(a->Types()) + L" + " +
-                             TypesToString(b->Types())));
+  compilation.AddError(NewError(LazyString{L"Unable to add types: "} +
+                                TypesToString(a->Types()) + LazyString{L" + "} +
+                                TypesToString(b->Types())));
   return nullptr;
 }
 

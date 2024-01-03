@@ -24,6 +24,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::overload;
@@ -31,6 +32,7 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::LazyString;
 using afc::language::view::SkipErrors;
 
 namespace afc::vm {
@@ -42,7 +44,8 @@ PossibleError CheckFunctionArguments(
     const std::vector<NonNull<std::shared_ptr<Expression>>>& args) {
   const types::Function* function_type = std::get_if<types::Function>(&type);
   if (function_type == nullptr) {
-    return Error(L"Expected function but found: `" + ToString(type) + L"`.");
+    return NewError(LazyString{L"Expected function but found: `"} +
+                    ToString(type) + LazyString{L"`."});
   }
 
   if (function_type->inputs.size() != args.size()) {
@@ -53,11 +56,11 @@ PossibleError CheckFunctionArguments(
 
   for (size_t argument = 0; argument < args.size(); argument++) {
     if (!args[argument]->SupportsType(function_type->inputs[argument])) {
-      return Error(
-          L"Type mismatch in argument " + std::to_wstring(argument) +
-          L": Expected " +
+      return NewError(
+          LazyString{L"Type mismatch in argument "} +
+          LazyString{std::to_wstring(argument)} + LazyString{L": Expected "} +
           TypesToString(std::vector({function_type->inputs[argument]})) +
-          L" but found " + TypesToString(args[argument]->Types()));
+          LazyString{L" but found "} + TypesToString(args[argument]->Types()));
     }
   }
 
@@ -233,8 +236,8 @@ std::unique_ptr<Expression> NewMethodLookup(
               compilation.environment.ptr()->LookupObjectType(object_type_name);
 
           if (object_type == nullptr) {
-            errors.push_back(
-                Error(L"Unknown type: \"" + ToString(type) + L"\""));
+            errors.push_back(NewError(LazyString{L"Unknown type: \""} +
+                                      ToString(type) + LazyString{L"\""}));
             continue;
           }
 
@@ -252,13 +255,15 @@ std::unique_ptr<Expression> NewMethodLookup(
                 });
             std::vector<Identifier> close_alternatives =
                 FilterSimilarNames(method_name, std::move(alternatives));
-            errors.push_back(
-                Error(L"Unknown method: \"" + object_type->ToString() + L"::" +
-                      method_name.read() + L"\"" +
-                      (close_alternatives.empty()
-                           ? L""
-                           : (L" (did you mean \"" +
-                              close_alternatives[0].read() + L"\"?)"))));
+            errors.push_back(NewError(
+                LazyString{L"Unknown method: \""} +
+                LazyString{object_type->ToString()} + LazyString{L"::"} +
+                LazyString{method_name.read()} + LazyString{L"\""} +
+                (close_alternatives.empty()
+                     ? LazyString{}
+                     : (LazyString{L" (did you mean \""} +
+                        LazyString{close_alternatives[0].read()} +
+                        LazyString{L"\"?)"}))));
             continue;
           }
 

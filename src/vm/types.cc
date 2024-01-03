@@ -175,49 +175,45 @@ std::ostream& operator<<(std::ostream& os, const Type& type) {
   return os;
 }
 
-std::wstring TypesToString(const std::vector<Type>& types) {
+LazyString TypesToString(const std::vector<Type>& types) {
   return Concatenate(types | std::views::transform([](const Type& t) {
-                       // TODO(trivial, 2024-01-02): Change ToString to return a
-                       // LazyString directly.
-                       return LazyString{L"\""} + LazyString{ToString(t)} +
+                       return LazyString{L"\""} + ToString(t) +
                               LazyString{L"\""};
                      }) |
-                     Intersperse(LazyString{L", "}))
-      .ToString();
+                     Intersperse(LazyString{L", "}));
 }
 
-std::wstring TypesToString(const std::unordered_set<Type>& types) {
+LazyString TypesToString(const std::unordered_set<Type>& types) {
   return TypesToString(std::vector<Type>(types.cbegin(), types.cend()));
 }
 
-std::wstring ToString(const Type& type) {
+LazyString ToString(const Type& type) {
   return std::visit(
-      overload{[](const types::Void&) -> std::wstring { return L"void"; },
-               [](const types::Bool&) -> std::wstring { return L"bool"; },
-               [](const types::Number&) -> std::wstring { return L"number"; },
-               [](const types::String&) -> std::wstring { return L"string"; },
-               [](const types::Symbol&) -> std::wstring { return L"symbol"; },
-               [](const types::ObjectName& object) -> std::wstring {
-                 return object.read();
+      overload{[](const types::Void&) { return LazyString{L"void"}; },
+               [](const types::Bool&) { return LazyString{L"bool"}; },
+               [](const types::Number&) { return LazyString{L"number"}; },
+               [](const types::String&) { return LazyString{L"string"}; },
+               [](const types::Symbol&) { return LazyString{L"symbol"}; },
+               [](const types::ObjectName& object) {
+                 return LazyString{object.read()};
                },
-               [](const types::Function& function_type) -> std::wstring {
-                 const std::unordered_map<PurityType, std::wstring>
+               [](const types::Function& function_type) {
+                 const std::unordered_map<PurityType, LazyString>
                      function_purity_types = {
-                         {PurityType::kPure, L"function"},
-                         {PurityType::kReader, L"Function"},
-                         {PurityType::kUnknown, L"FUNCTION"}};
+                         {PurityType::kPure, LazyString{L"function"}},
+                         {PurityType::kReader, LazyString{L"Function"}},
+                         {PurityType::kUnknown, LazyString{L"FUNCTION"}}};
                  return GetValueOrDie(function_purity_types,
                                       function_type.function_purity) +
-                        L"<" + ToString(function_type.output.get()) + L"(" +
+                        LazyString{L"<"} +
+                        ToString(function_type.output.get()) +
+                        LazyString{L"("} +
                         Concatenate(function_type.inputs |
                                     std::views::transform([](const Type& t) {
-                                      // TODO(easy, 2024-01-02): Change ToString
-                                      // to directly return a LazyString.
-                                      return LazyString{ToString(t)};
+                                      return ToString(t);
                                     }) |
-                                    Intersperse(LazyString{L", "}))
-                            .ToString() +
-                        L")>";
+                                    Intersperse(LazyString{L", "})) +
+                        LazyString{L")>"};
                }},
       type);
 }

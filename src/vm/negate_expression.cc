@@ -6,17 +6,19 @@
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
+namespace gc = afc::language::gc;
+
+using afc::language::Error;
 using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
+using afc::language::NonNull;
+using afc::language::Success;
+using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
 
 namespace afc::vm {
 namespace {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
-
-namespace gc = language::gc;
 
 class NegateExpression : public Expression {
  public:
@@ -55,8 +57,9 @@ std::unique_ptr<Expression> NewNegateExpression(
     return nullptr;
   }
   if (!expr->SupportsType(expected_type)) {
-    compilation.AddError(Error(L"Can't negate an expression of type: \"" +
-                               TypesToString(expr->Types()) + L"\""));
+    compilation.AddError(
+        NewError(LazyString{L"Can't negate an expression of type: \""} +
+                 TypesToString(expr->Types()) + LazyString{L"\""}));
     return nullptr;
   }
   return std::make_unique<NegateExpression>(

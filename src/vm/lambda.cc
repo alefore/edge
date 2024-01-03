@@ -13,10 +13,12 @@ namespace container = afc::language::container;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::vm {
 namespace {
@@ -34,16 +36,17 @@ class LambdaExpression : public Expression {
       deduced_types.insert(types::Void{});
     }
     if (deduced_types.size() > 1) {
-      return Error(L"Found multiple return types: " +
-                   TypesToString(deduced_types));
+      return NewError(LazyString{L"Found multiple return types: "} +
+                      TypesToString(deduced_types));
     }
     std::function<gc::Root<Value>(gc::Pool&, gc::Root<Value>)>
         promotion_function =
             GetImplicitPromotion(*deduced_types.begin(), expected_return_type);
     if (promotion_function == nullptr) {
-      return Error(L"Expected a return type of `" +
-                   ToString(expected_return_type) + L"` but found `" +
-                   ToString(*deduced_types.cbegin()) + L"`.");
+      return NewError(LazyString{L"Expected a return type of `"} +
+                      ToString(expected_return_type) +
+                      LazyString{L"` but found `"} +
+                      ToString(*deduced_types.cbegin()) + LazyString{L"`."});
     }
     return MakeNonNullUnique<LambdaExpression>(
         std::move(lambda_type), std::move(argument_names), std::move(body),

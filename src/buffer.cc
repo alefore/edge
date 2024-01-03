@@ -103,6 +103,7 @@ using afc::language::GetSetWithKeys;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::ObservableValue;
 using afc::language::Observers;
@@ -153,9 +154,12 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                 futures::ListenableValue<LazyString> metadata_value(
                     futures::Future<LazyString>().value);
 
+                // TODO(trivial, 2024-01-03): Remove call to ToString, use
+                // LazyString.
                 std::wstring description =
                     L"C++: " +
-                    vm::TypesToString(compilation_result.first->Types());
+                    vm::TypesToString(compilation_result.first->Types())
+                        .ToString();
                 switch (compilation_result.first->purity()) {
                   case vm::PurityType::kPure:
                   case vm::PurityType::kReader: {
@@ -1730,9 +1734,9 @@ bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
       function_type == nullptr || function_type->inputs.size() != 1 ||
       !std::holds_alternative<vm::types::String>(function_type->output.get()) ||
       !std::holds_alternative<vm::types::String>(function_type->inputs[0])) {
-    status_.InsertError(
-        Error(L": Unexpected type for keyboard text transformer: " +
-              vm::ToString(transformer.ptr()->type)));
+    status_.InsertError(NewError(
+        LazyString{L": Unexpected type for keyboard text transformer: "} +
+        vm::ToString(transformer.ptr()->type)));
     return false;
   }
   keyboard_text_transformers_.push_back(std::move(transformer));

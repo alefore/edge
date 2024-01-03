@@ -5,13 +5,16 @@
 #include "src/vm/compilation.h"
 #include "src/vm/value.h"
 
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
+using afc::language::NonNull;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::vm {
 namespace {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
-using language::ValueOrError;
 
 class IfExpression : public Expression {
  public:
@@ -78,17 +81,20 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
   }
 
   if (!condition->IsBool()) {
-    Error error(
-        L"Expected bool value for condition of \"if\" expression but found " +
-        TypesToString(condition->Types()) + L".");
+    Error error =
+        NewError(LazyString{L"Expected bool value for condition of \"if\" "
+                            L"expression but found "} +
+                 TypesToString(condition->Types()) + LazyString{L"."});
     compilation.AddError(error);
     return error;
   }
 
   if (!(true_case->Types() == false_case->Types())) {
-    Error error(L"Type mismatch between branches of conditional expression: " +
-                TypesToString(true_case->Types()) + L" and " +
-                TypesToString(false_case->Types()) + L".");
+    Error error = NewError(
+        LazyString{
+            L"Type mismatch between branches of conditional expression: "} +
+        TypesToString(true_case->Types()) + LazyString{L" and "} +
+        TypesToString(false_case->Types()) + LazyString{L"."});
     compilation.AddError(error);
     return error;
   }

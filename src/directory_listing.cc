@@ -167,7 +167,7 @@ Line ShowLine(EditorState& editor, const dirent& entry) {
   return std::move(line_options).Build();
 }
 
-LineSequence ShowFiles(EditorState& editor, std::wstring name,
+LineSequence ShowFiles(EditorState& editor, LazyString name,
                        std::vector<dirent> entries) {
   if (entries.empty()) return LineSequence();
   std::sort(entries.begin(), entries.end(),
@@ -175,9 +175,8 @@ LineSequence ShowFiles(EditorState& editor, std::wstring name,
               return strcmp(a.d_name, b.d_name) < 0;
             });
 
-  // TODO(trivial, 2024-01-02): Receive `name` as LazyString.
   MutableLineSequence output = MutableLineSequence::WithLine(LineBuilder{
-      LazyString{L"## "} + LazyString{name} + LazyString{L" ("} +
+      LazyString{L"## "} + name + LazyString{L" ("} +
       LazyString{std::to_wstring(entries.size())} +
       LazyString{L")"}}.Build());
   output.append_back(std::move(entries) | std::views::transform(std::bind_front(
@@ -208,16 +207,17 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
         TRACK_OPERATION(GenerateDirectoryListing_BuildingMarkdown);
         MutableLineSequence builder;
         builder.insert(builder.EndLine(),
-                       ShowFiles(editor, L"🗁  Directories",
+                       ShowFiles(editor, LazyString{L"🗁  Directories"},
                                  std::move(results.directories)),
                        {});
-        builder.insert(
-            builder.EndLine(),
-            ShowFiles(editor, L"🗀  Files", std::move(results.regular_files)),
-            {});
-        builder.insert(
-            builder.EndLine(),
-            ShowFiles(editor, L"🗐  Noise", std::move(results.noise)), {});
+        builder.insert(builder.EndLine(),
+                       ShowFiles(editor, LazyString{L"🗀  Files"},
+                                 std::move(results.regular_files)),
+                       {});
+        builder.insert(builder.EndLine(),
+                       ShowFiles(editor, LazyString{L"🗐  Noise"},
+                                 std::move(results.noise)),
+                       {});
         return Success(builder.snapshot());
       })
       .Transform([&output, path](LineSequence contents) {

@@ -8,15 +8,18 @@
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::VisitCallback;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::vm {
 namespace {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ValueOrError;
-using language::VisitCallback;
 
 class WhileExpression : public Expression {
  public:
@@ -97,9 +100,10 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
     return Error(L"Input missing.");
   }
   if (!condition->IsBool()) {
-    Error error(
-        L"Expected bool value for condition of \"while\" loop but found: " +
-        TypesToString(condition->Types()) + L".");
+    Error error =
+        NewError(LazyString{L"Expected bool value for condition of \"while\" "
+                            L"loop but found: "} +
+                 TypesToString(condition->Types()) + LazyString{L"."});
     compilation.AddError(error);
     return error;
   }

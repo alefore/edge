@@ -15,9 +15,11 @@ namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::VisitOptional;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::vm {
 namespace {
@@ -122,10 +124,10 @@ std::unique_ptr<Expression> NewDefineExpression(
       NewDefineTypeExpression(compilation, type, symbol, default_type);
   if (vmtype == std::nullopt) return nullptr;
   if (!value->SupportsType(*vmtype)) {
-    compilation.AddError(
-        Error(L"Unable to assign a value to a variable of type \"" +
-              ToString(*vmtype) + L"\". Value types: " +
-              TypesToString(value->Types())));
+    compilation.AddError(NewError(
+        LazyString{L"Unable to assign a value to a variable of type \""} +
+        ToString(*vmtype) + LazyString{L"\". Value types: "} +
+        TypesToString(value->Types())));
     return nullptr;
   }
   return std::make_unique<AssignExpression>(
@@ -157,9 +159,10 @@ std::unique_ptr<Expression> NewAssignExpression(
             NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
       },
       [&] {
-        compilation.AddError(Error(
-            L"Unable to assign a value to a variable supporting types: \"" +
-            TypesToString(value->Types()) + L"\". Value types: " +
+        compilation.AddError(NewError(
+            LazyString{L"Unable to assign a value to a variable supporting "
+                       L"types: \""} +
+            TypesToString(value->Types()) + LazyString{L"\". Value types: "} +
             TypesToString(container::MaterializeVector(
                 std::move(variables) | gc::view::Value |
                 std::views::transform([](Value v) { return v.type; })))));

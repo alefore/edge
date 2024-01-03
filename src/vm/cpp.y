@@ -532,8 +532,8 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
                       .get_unique()))
               .release();
   } else {
-    compilation->AddError(
-        Error(L"++: Type not supported: " + TypesToString(var->Types())));
+    compilation->AddError(NewError(
+        LazyString{L"++: Type not supported: "} + TypesToString(var->Types())));
     OUT = nullptr;
   }
 }
@@ -562,8 +562,8 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
                       .get_unique()))
               .release();
   } else {
-    compilation->AddError(
-        Error(L"--: Type not supported: " + TypesToString(var->Types())));
+    compilation->AddError(NewError(
+        LazyString{L"--: Type not supported: "} + TypesToString(var->Types())));
     OUT = nullptr;
   }
 }
@@ -669,9 +669,11 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
                   })))
               .release();
   } else {
-    compilation->AddError(Error(L"Unable to compare types: " +
-                                TypesToString(a->Types()) + L" == " +
-                                TypesToString(b->Types()) + L"."));
+    compilation->AddError(NewError(LazyString{L"Unable to compare types: "} +
+                                   TypesToString(a->Types()) +
+                                   LazyString{L" == "} +
+                                   TypesToString(b->Types()) +
+                                   LazyString{L"."}));
     OUT = nullptr;
   }
 }
@@ -711,9 +713,11 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
                   })))
               .release();
   } else {
-    compilation->AddError(Error(L"Unable to compare types: " +
-                                TypesToString(a->Types()) + L" == " +
-                                TypesToString(b->Types()) + L"."));
+    compilation->AddError(NewError(LazyString{L"Unable to compare types: "} +
+                                   TypesToString(a->Types()) +
+                                   LazyString{L" == "} +
+                                   TypesToString(b->Types()) +
+                                   LazyString{L"."}));
     OUT = nullptr;
   }
 }
@@ -741,9 +745,10 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
                   })))
               .release();
   } else {
-    compilation->AddError(Error(L"Unable to compare types: " +
-                                TypesToString(a->Types()) + L" <= " +
-                                TypesToString(b->Types()) + L"."));
+    compilation->AddError(NewError(LazyString{L"Unable to compare types: "} +
+                                TypesToString(a->Types()) +
+                                LazyString{L" <= "} +
+                                TypesToString(b->Types()) + LazyString{L"."}));
     OUT = nullptr;
   }
 }
@@ -771,9 +776,10 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
                   })))
               .release();
   } else {
-    compilation->AddError(Error(L"Unable to compare types: " +
-                                TypesToString(a->Types()) + L" <= " +
-                                TypesToString(b->Types()) + L"."));
+    compilation->AddError(NewError(LazyString{L"Unable to compare types: "} +
+                                TypesToString(a->Types()) +
+                                LazyString{L" <= "} +
+                                TypesToString(b->Types()) + LazyString{L"."}));
     OUT = nullptr;
   }
 }
@@ -801,9 +807,11 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
                   })))
               .release();
   } else {
-    compilation->AddError(Error(L"Unable to compare types: " +
-                                TypesToString(a->Types()) + L" <= " +
-                                TypesToString(b->Types()) + L"."));
+    compilation->AddError(NewError(LazyString{L"Unable to compare types: "} +
+                                   TypesToString(a->Types()) +
+                                   LazyString{L" <= "} +
+                                   TypesToString(b->Types()) +
+                                   LazyString{L"."}));
     OUT = nullptr;
   }
 }
@@ -831,9 +839,11 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
                   })))
               .release();
   } else {
-    compilation->AddError(Error(L"Unable to compare types: " +
-                                TypesToString(a->Types()) + L" <= " +
-                                TypesToString(b->Types()) + L"."));
+    compilation->AddError(NewError(LazyString{L"Unable to compare types: "} +
+                                   TypesToString(a->Types()) +
+                                   LazyString{L" <= "} +
+                                   TypesToString(b->Types()) +
+                                   LazyString{L"."}));
     OUT = nullptr;
   }
 }
@@ -890,8 +900,8 @@ expr(OUT) ::= MINUS expr(A). {
   } else if (a->IsNumber()) {
     OUT = NewNegateExpressionNumber(*compilation, std::move(a)).release();
   } else {
-    compilation->AddError(Error(
-        L"Invalid expression: -: " + TypesToString(a->Types())));
+    compilation->AddError(NewError(
+        LazyString{L"Invalid expression: -: "} + TypesToString(a->Types())));
     OUT = nullptr;
   }
 }

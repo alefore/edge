@@ -205,11 +205,9 @@ ValueOrError<ParsedCommand> Parse(
           vm::NewConstantExpression(vm::Value::NewString(pool, L"")));
     }
   } else if (!all_types_found.empty()) {
-    // TODO(2024-01-02, trivial): Avoid conversion to std::wstring. Use
-    // NewError.
-    return Error(L"Incompatible type found: " +
-                 output_tokens[0].value.ToString() + L": " +
-                 TypesToString(all_types_found));
+    return NewError(LazyString{L"Incompatible type found: "} +
+                    output_tokens[0].value + LazyString{L": "} +
+                    TypesToString(all_types_found));
   } else {
     // TODO(2024-01-02, trivial): Avoid conversion to std::wstring. Use
     // NewError.
@@ -311,7 +309,9 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
             progress_channel->Push(
                 {.values = {
                      {VersionPropertyKey(L"type"),
-                      vm::TypesToString(compilation_result.first->Types())}}});
+                      // TODO(easy, 2024-01-03): Avoid call to ToString.
+                      vm::TypesToString(compilation_result.first->Types())
+                          .ToString()}}});
             ColorizePromptOptions output{
                 .tokens = {{.token = {.value = LazyString{},
                                       .begin = ColumnNumber(0),

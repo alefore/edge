@@ -109,10 +109,11 @@ struct Function {
 
 types::ObjectName NameForType(Type variant_type);
 
-std::wstring ToString(const Type&);
+language::lazy_string::LazyString ToString(const Type&);
 
-std::wstring TypesToString(const std::vector<Type>& types);
-std::wstring TypesToString(const std::unordered_set<Type>& types);
+language::lazy_string::LazyString TypesToString(const std::vector<Type>& types);
+language::lazy_string::LazyString TypesToString(
+    const std::unordered_set<Type>& types);
 
 std::ostream& operator<<(std::ostream& os, const Type& value);
 
@@ -129,7 +130,9 @@ class ObjectType {
                                             Type type_name);
 
   const Type& type() const { return type_; }
-  std::wstring ToString() const { return vm::ToString(type_); }
+  language::lazy_string::LazyString ToString() const {
+    return vm::ToString(type_);
+  }
 
   void AddField(const Identifier& name, language::gc::Ptr<Value> field);
 

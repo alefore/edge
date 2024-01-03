@@ -8,13 +8,16 @@
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
+using afc::language::NonNull;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::vm {
 namespace {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
-using language::ValueOrError;
 
 class LogicalExpression : public Expression {
  public:
@@ -69,14 +72,14 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewLogicalExpression(
     return Error(L"Missing inputs");
   }
   if (!a->IsBool()) {
-    Error error(L"Expected `bool` value but found: " +
-                TypesToString(a->Types()));
+    Error error = NewError(LazyString{L"Expected `bool` value but found: "} +
+                           TypesToString(a->Types()));
     compilation.AddError(error);
     return error;
   }
   if (!b->IsBool()) {
-    Error error(L"Expected `bool` value but found: " +
-                TypesToString(b->Types()));
+    Error error = NewError(LazyString{L"Expected `bool` value but found: "} +
+                           TypesToString(b->Types()));
     compilation.AddError(error);
     return error;
   }
