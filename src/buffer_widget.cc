@@ -463,7 +463,8 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
 
         if (options_.position_in_parent.has_value()) {
           FrameOutputProducerOptions frame_options;
-          frame_options.title = buffer.ptr()->Read(buffer_variables::name);
+          frame_options.title =
+              LazyString{buffer.ptr()->Read(buffer_variables::name)};
 
           frame_options.position_in_parent =
               options_.position_in_parent.value();
@@ -482,8 +483,9 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
               !buffer.ptr()->Read(buffer_variables::paste_mode);
 
           frame_options.prefix =
-              (options.size.line > kTopFrameLines && add_left_frame) ? L"╭"
-                                                                     : L"─";
+              (options.size.line > kTopFrameLines && add_left_frame)
+                  ? LazyString{L"╭"}
+                  : LazyString{L"─"};
 
           auto frame_lines =
               RepeatLine({.line = FrameLine(std::move(frame_options))},

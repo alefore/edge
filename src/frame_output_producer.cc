@@ -31,8 +31,9 @@ Line FrameLine(FrameOutputProducerOptions options) {
   LineBuilder output;
   output.AppendString(options.prefix, line_modifiers);
   output.AppendString(L"──", line_modifiers);
-  if (!options.title.empty()) {
-    output.AppendString(L" " + options.title + L" ", title_modifiers);
+  if (!options.title.IsEmpty()) {
+    output.AppendString(LazyString{L" "} + options.title + LazyString{L" "},
+                        title_modifiers);
   }
   if (options.position_in_parent.has_value()) {
     output.AppendString(L"─(", line_modifiers);

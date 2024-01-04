@@ -26,6 +26,7 @@ namespace container = afc::language::container;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineNumberDelta;
 
@@ -167,8 +168,8 @@ LineWithCursor::Generator::Vector WidgetListHorizontal::CreateOutput(
         {.inputs_hash = {}, .generate = [children_skipped] {
            return LineWithCursor{
                .line = FrameLine(
-                   {.title = L"Additional files: " +
-                             std::to_wstring(children_skipped),
+                   {.title = LazyString{L"Additional files: "} +
+                             LazyString{std::to_wstring(children_skipped)},
                     .active_state =
                         FrameOutputProducerOptions::ActiveState::kActive})};
          }});

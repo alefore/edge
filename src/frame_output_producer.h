@@ -14,13 +14,14 @@ namespace afc::editor {
 struct FrameOutputProducerOptions {
   language::lazy_string::ColumnNumberDelta width =
       language::lazy_string::ColumnNumberDelta();
-  std::wstring title;
+  language::lazy_string::LazyString title;
   std::optional<size_t> position_in_parent = std::nullopt;
   enum class ActiveState { kActive, kInactive };
   ActiveState active_state = ActiveState::kInactive;
   language::lazy_string::LazyString extra_information =
       language::lazy_string::LazyString();
-  std::wstring prefix = L"";
+  language::lazy_string::LazyString prefix =
+      language::lazy_string::LazyString{};
 };
 
 language::text::Line FrameLine(FrameOutputProducerOptions options);
