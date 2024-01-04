@@ -48,20 +48,20 @@ class LazyString {
   //
   // Equivalent to:
   //
-  //     Substring(input, pos, input.size() - pos);
+  //     Substring(pos, size() - pos);
   LazyString Substring(ColumnNumber column) const;
 
   // Returns the contents in [pos, pos + len).
   //
   // pos and len must be in the correct range (or else we'll crash).
   //
-  // Example: Substring("alejo", 1, 2) := "le"
+  // Example: LazyString{L"alejo"}.Substring(1, 2) := "le"
   LazyString Substring(ColumnNumber column, ColumnNumberDelta delta) const;
 
   // Similar to the other versions, but performs checks on the bounds; instead
   // of crashing on invalid bounds, returns a shorter string.
   //
-  // Example: Substring("carla", 2, 30) := "rla"
+  // Example: LazyString{L"alejo"}.SubstringWithRangeChecks(2, 30) := "ejo"
   LazyString SubstringWithRangeChecks(ColumnNumber column,
                                       ColumnNumberDelta delta) const;
 
