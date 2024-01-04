@@ -25,6 +25,7 @@ extern "C" {
 #include "src/futures/delete_notification.h"
 #include "src/infrastructure/file_descriptor_reader.h"
 #include "src/infrastructure/time.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -55,6 +56,7 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -77,9 +79,9 @@ struct CommandData {
   time_t time_end = 0;
 };
 
-std::map<std::wstring, std::wstring> LoadEnvironmentVariables(
+std::map<std::wstring, LazyString> LoadEnvironmentVariables(
     const std::vector<Path>& path, const std::wstring& full_command,
-    std::map<std::wstring, std::wstring> environment) {
+    std::map<std::wstring, LazyString> environment) {
   static const std::wstring whitespace = L"\t ";
   size_t start = full_command.find_first_not_of(whitespace);
   if (start == full_command.npos) {
@@ -90,41 +92,41 @@ std::map<std::wstring, std::wstring> LoadEnvironmentVariables(
     return environment;
   }
   std::wstring command = full_command.substr(start, end - start);
-  std::visit(overload{IgnoreErrors{},
-                      [&](PathComponent command_component) {
-                        auto environment_local_path = Path::Join(
-                            ValueOrDie(PathComponent::FromString(L"commands")),
-                            Path::Join(command_component,
-                                       ValueOrDie(PathComponent::FromString(
-                                           L"environment"))));
-                        for (auto dir : path) {
-                          Path full_path =
-                              Path::Join(dir, environment_local_path);
-                          std::ifstream infile(ToByteString(full_path.read()));
-                          if (!infile.is_open()) {
-                            continue;
-                          }
-                          std::string line;
-                          while (std::getline(infile, line)) {
-                            if (line == "") {
-                              continue;
-                            }
-                            size_t equals = line.find('=');
-                            if (equals == line.npos) {
-                              continue;
-                            }
-                            environment.insert(make_pair(
-                                FromByteString(line.substr(0, equals)),
-                                FromByteString(line.substr(equals + 1))));
-                          }
-                        }
-                      }},
-             PathComponent::FromString(command));
+  std::visit(
+      overload{IgnoreErrors{},
+               [&](PathComponent command_component) {
+                 auto environment_local_path = Path::Join(
+                     ValueOrDie(PathComponent::FromString(L"commands")),
+                     Path::Join(command_component,
+                                ValueOrDie(PathComponent::FromString(
+                                    L"environment"))));
+                 for (auto dir : path) {
+                   Path full_path = Path::Join(dir, environment_local_path);
+                   std::ifstream infile(ToByteString(full_path.read()));
+                   if (!infile.is_open()) {
+                     continue;
+                   }
+                   std::string line;
+                   while (std::getline(infile, line)) {
+                     if (line == "") {
+                       continue;
+                     }
+                     size_t equals = line.find('=');
+                     if (equals == line.npos) {
+                       continue;
+                     }
+                     environment.insert(make_pair(
+                         FromByteString(line.substr(0, equals)),
+                         LazyString{FromByteString(line.substr(equals + 1))}));
+                   }
+                 }
+               }},
+      PathComponent::FromString(command));
   return environment;
 }
 
 futures::Value<PossibleError> GenerateContents(
-    EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
+    EditorState& editor_state, std::map<std::wstring, LazyString> environment,
     NonNull<std::shared_ptr<CommandData>> data, OpenBuffer& target) {
   int pipefd_out[2];
   int pipefd_err[2];
@@ -207,12 +209,13 @@ futures::Value<PossibleError> GenerateContents(
       std::wstring entry = FromByteString(environ[index]);
       size_t eq = entry.find_first_of(L"=");
       if (eq == std::wstring::npos) {
-        environment.insert({entry, L""});
+        environment.insert({entry, LazyString{}});
       } else {
-        environment.insert({entry.substr(0, eq), entry.substr(eq + 1)});
+        environment.insert(
+            {entry.substr(0, eq), LazyString{entry.substr(eq + 1)}});
       }
     }
-    environment[L"TERM"] = L"screen";
+    environment[L"TERM"] = LazyString{L"screen"};
     environment = LoadEnvironmentVariables(
         editor_state.edge_path(), target.Read(buffer_variables::command),
         environment);
@@ -220,8 +223,9 @@ futures::Value<PossibleError> GenerateContents(
     char** envp =
         static_cast<char**>(calloc(environment.size() + 1, sizeof(char*)));
     size_t position = 0;
-    for (const auto& it : environment) {
-      std::string str = ToByteString(it.first) + "=" + ToByteString(it.second);
+    for (const std::pair<const std::wstring, LazyString>& entry : environment) {
+      std::string str = ToByteString(entry.first) + "=" +
+                        ToByteString(entry.second.ToString());
       CHECK_LT(position, environment.size());
       envp[position++] = strdup(str.c_str());
     }
@@ -340,7 +344,7 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
 }
 
 void RunCommand(const BufferName& name,
-                std::map<std::wstring, std::wstring> environment,
+                std::map<std::wstring, LazyString> environment,
                 EditorState& editor_state, std::optional<Path> children_path,
                 LazyString input) {
   auto buffer = editor_state.current_buffer();
@@ -372,24 +376,29 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
                                              size_t i, size_t n,
                                              std::optional<Path> children_path,
                                              LazyString input) {
-  std::map<std::wstring, std::wstring> environment = {
-      {L"EDGE_RUN", std::to_wstring(i)}, {L"EDGE_RUNS", std::to_wstring(n)}};
-  std::wstring name =
-      (children_path.has_value() ? children_path->read() : L"") + L"$";
+  std::map<std::wstring, LazyString> environment = {
+      {L"EDGE_RUN", LazyString{std::to_wstring(i)}},
+      {L"EDGE_RUNS", LazyString{std::to_wstring(n)}}};
+  LazyString name =
+      (children_path.has_value() ? LazyString{children_path->read()}
+                                 : LazyString{}) +
+      LazyString{L"$"};
   if (n > 1) {
-    for (auto& it : environment) {
-      name += L" " + it.first + L"=" + it.second;
-    }
+    name += Concatenate(environment | std::views::transform([](auto it) {
+                          return LazyString{L" "} + LazyString{it.first} +
+                                 LazyString{L"="} + it.second;
+                        }));
   }
   auto buffer = editor_state.current_buffer();
   if (buffer.has_value()) {
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
-        buffer->ptr()->Read(buffer_variables::path);
+        LazyString{buffer->ptr()->Read(buffer_variables::path)};
   }
+  name += LazyString{L" "} +
+          EscapedString::FromString(input).EscapedRepresentation();
   // TODO(trivial, 2023-12-31): Avoid ToString:
-  name += L" " +
-          EscapedString::FromString(input).EscapedRepresentation().ToString();
-  RunCommand(BufferName(name), environment, editor_state, children_path, input);
+  RunCommand(BufferName(name.ToString()), environment, editor_state,
+             children_path, input);
   return futures::Past(EmptyValue());
 }
 
@@ -684,7 +693,7 @@ gc::Root<Command> NewForkCommand(EditorState& editor_state) {
 }
 
 futures::Value<EmptyValue> RunCommandHandler(
-    EditorState& editor_state, std::map<std::wstring, std::wstring> environment,
+    EditorState& editor_state, std::map<std::wstring, LazyString> environment,
     LazyString input, LazyString name_suffix) {
   // TODO(easy, 2022-06-05): Avoid call to ToString.
   RunCommand(BufferName((LazyString{L"$ "} + input + name_suffix).ToString()),
@@ -697,16 +706,14 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
                                                       LazyString input) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
-        std::ranges::for_each(buffer.contents().snapshot(),
-                              [&editor_state, input](const Line& arg) {
-                                // TODO(easy, 2024-01-01): Avoid call to
-                                // ToString.
-                                RunCommandHandler(
-                                    editor_state,
-                                    std::map<std::wstring, std::wstring>{
-                                        {L"ARG", arg.ToString()}},
-                                    input, LazyString{L" "} + arg.contents());
-                              });
+        std::ranges::for_each(
+            buffer.contents().snapshot(),
+            [&editor_state, input](const Line& arg) {
+              RunCommandHandler(
+                  editor_state,
+                  std::map<std::wstring, LazyString>{{L"ARG", arg.contents()}},
+                  input, LazyString{L" "} + arg.contents());
+            });
         return futures::Past(EmptyValue());
       })
       .Transform([&editor_state](EmptyValue) {

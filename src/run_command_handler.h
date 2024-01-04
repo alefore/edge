@@ -31,7 +31,7 @@ struct ForkCommandOptions {
   std::optional<BufferName> name = std::nullopt;
 
   // Additional environment variables (e.g. getenv) to give to the command.
-  std::map<std::wstring, std::wstring> environment = {};
+  std::map<std::wstring, language::lazy_string::LazyString> environment = {};
 
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;
