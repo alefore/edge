@@ -115,11 +115,12 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
       LazyString{L");\n"};
   LOG(INFO) << "Sending commands to fd: " << server_fd << " through path "
             << path_str.ToString() << ": " << commands_to_run;
-  while (pos.ToDelta() < commands_to_run.size()) {
-    VLOG(5) << commands_to_run.Substring(pos);
-    int bytes_written =
-        write(tmp_fd, commands_to_run.Substring(pos).ToString().c_str(),
-              (commands_to_run.size() - pos.ToDelta()).read());
+  const std::string commands_to_run_str =
+      ToByteString(commands_to_run.ToString());
+  while (pos.ToDelta() < ColumnNumberDelta(commands_to_run_str.size())) {
+    VLOG(5) << commands_to_run_str.substr(pos.read());
+    int bytes_written = write(tmp_fd, commands_to_run_str.c_str() + pos.read(),
+                              commands_to_run_str.size() - pos.read());
     if (bytes_written == -1)
       return Error(L"write: " + FromByteString(strerror(errno)));
     pos += ColumnNumberDelta(bytes_written);
