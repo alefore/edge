@@ -14,6 +14,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
@@ -21,18 +22,22 @@ using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
-std::wstring SerializeValue(std::wstring input) {
+LazyString SerializeValue(std::wstring input) {
   // TODO(trivial, 2024-01-02): Receive input already as LazyString.
-  return EscapedString::FromString(LazyString{input})
-      .CppRepresentation()
-      .ToString();
+  return EscapedString::FromString(LazyString{input}).CppRepresentation();
 }
 
-std::wstring SerializeValue(int input) { return std::to_wstring(input); }
+LazyString SerializeValue(int input) {
+  return LazyString{std::to_wstring(input)};
+}
 
-std::wstring SerializeValue(bool input) { return input ? L"true" : L"false"; }
+LazyString SerializeValue(bool input) {
+  return input ? LazyString{L"true"} : LazyString{L"false"};
+}
 
-std::wstring SerializeValue(LineColumn input) { return input.ToCppString(); }
+LazyString SerializeValue(LineColumn input) {
+  return LazyString{input.ToCppString()};
+}
 
 template <typename VariableType>
 LineSequence AddVariables(std::wstring type_name,
@@ -45,9 +50,12 @@ LineSequence AddVariables(std::wstring type_name,
   // operator+.
   contents.append_back(language::container::MaterializeVector(
       variables.variables() | std::views::transform([&](const auto& variable) {
-        return Line(L"buffer.set_" + variable.first + L"(" +
-                    SerializeValue(values.Get(&variable.second.value())) +
-                    L");");
+        return LineBuilder{
+            LazyString{L"buffer.set_"} + LazyString{variable.first} +
+            LazyString{L"("} +
+            SerializeValue(values.Get(&variable.second.value())) +
+            LazyString{L");"}}
+            .Build();
       })));
   contents.push_back(L"");
   return contents.snapshot();
