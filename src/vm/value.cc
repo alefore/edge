@@ -46,9 +46,10 @@ namespace afc::vm {
 }
 
 /* static */ gc::Root<Value> Value::NewString(gc::Pool& pool,
-                                              std::wstring value) {
+                                              LazyString value) {
   gc::Root<Value> output = New(pool, types::String{});
-  output.ptr()->value_ = std::move(value);
+  // TODO(easy, 2024-01-05): Store it directly as a LazyString.
+  output.ptr()->value_ = std::move(value).ToString();
   return output;
 }
 

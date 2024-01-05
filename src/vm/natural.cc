@@ -90,7 +90,7 @@ class ParseState {
       VLOG(5) << "Consume token: " << token.value
               << ", candidates: " << candidates_.size();
       if (IsQuotedString(token))
-        ReceiveValue(Value::NewString(pool_, token.value.ToString()));
+        ReceiveValue(Value::NewString(pool_, token.value));
       else if (IsLiteralNumber(token))
         ReceiveValue(Value::NewNumber(
             pool_, math::numbers::FromInt(
@@ -149,7 +149,8 @@ class ParseState {
       if (std::holds_alternative<types::String>(
               function_type->inputs[children_arguments.size()]))
         children_arguments.push_back(
-            NewConstantExpression(Value::NewString(pool_, L"")).get_unique());
+            NewConstantExpression(Value::NewString(pool_, LazyString{}))
+                .get_unique());
       else
         return nullptr;
     }

@@ -105,7 +105,8 @@ std::unique_ptr<Expression> NewBinaryExpression(
           DECLARE_OR_RETURN(
               std::wstring value,
               str_operator(value_a.get_string(), value_b.get_string()));
-          return Value::NewString(pool, std::move(value));
+          // TODO(2024-01-05): Declare value as LazyString.
+          return Value::NewString(pool, LazyString{std::move(value)});
         })));
   }
 
@@ -132,7 +133,8 @@ std::unique_ptr<Expression> NewBinaryExpression(
           DECLARE_OR_RETURN(
               std::wstring value,
               str_int_operator(a_value.get_string(), b_value_int));
-          return Value::NewString(pool, std::move(value));
+          // TODO(2024-01-05): Remove LazyString{}.
+          return Value::NewString(pool, LazyString{std::move(value)});
         })));
   }
 

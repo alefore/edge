@@ -102,8 +102,7 @@ struct VMTypeMapper<language::lazy_string::LazyString> {
   }
   static language::gc::Root<Value> New(
       language::gc::Pool& pool, language::lazy_string::LazyString value) {
-    // TODO(2024-01-05, easy): Avoid call to ToString.
-    return Value::NewString(pool, value.ToString());
+    return Value::NewString(pool, value);
   }
   static const Type vmtype;
 };
@@ -125,7 +124,7 @@ struct VMTypeMapper<std::wstring> {
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool,
                                        const std::wstring& value) {
-    return Value::NewString(pool, value);
+    return Value::NewString(pool, language::lazy_string::LazyString{value});
   }
   static const Type vmtype;
 };

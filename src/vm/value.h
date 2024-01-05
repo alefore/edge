@@ -40,8 +40,8 @@ class Value {
                                            bool value);
   static language::gc::Root<Value> NewNumber(language::gc::Pool& pool,
                                              math::numbers::Number value);
-  static language::gc::Root<Value> NewString(language::gc::Pool& pool,
-                                             std::wstring value);
+  static language::gc::Root<Value> NewString(
+      language::gc::Pool& pool, language::lazy_string::LazyString value);
   static language::gc::Root<Value> NewSymbol(language::gc::Pool& pool,
                                              Identifier value);
   static language::gc::Root<Value> NewObject(

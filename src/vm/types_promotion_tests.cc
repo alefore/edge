@@ -7,6 +7,7 @@
 namespace gc = afc::language::gc;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 using afc::math::numbers::FromInt;
 
 namespace afc::vm {
@@ -70,7 +71,7 @@ const bool tests_registration = tests::Register(
                    .yield_callback = nullptr});
                futures::ValueOrError<gc::Root<Value>> output =
                    promoted_function.ptr()->LockCallback().ptr()->value(
-                       {Value::NewString(pool, L"alejo"),
+                       {Value::NewString(pool, LazyString{L"alejo"}),
                         Value::NewBool(pool, true)},
                        trampoline);
                CHECK(ValueOrDie(ToString(

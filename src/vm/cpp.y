@@ -980,8 +980,8 @@ string(OUT) ::= string(A) STRING(B). {
   CHECK(std::holds_alternative<types::String>(A->ptr()->type));
   CHECK(std::holds_alternative<types::String>(B->value().ptr()->type));
   OUT = std::make_unique<gc::Root<Value>>(Value::NewString(compilation->pool,
-      std::move(A->ptr()->get_string())
-      + std::move(B->value().ptr()->get_string()))).release();
+      LazyString{std::move(A->ptr()->get_string())}
+      + LazyString{std::move(B->value().ptr()->get_string())})).release();
   delete A;
   delete B;
 }

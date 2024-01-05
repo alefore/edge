@@ -519,8 +519,7 @@ class ForkEditorCommand : public Command {
     NonNull<std::unique_ptr<vm::Expression>> context_command_expression =
         vm::NewFunctionCall(
             vm::NewConstantExpression(*prompt_state.context_command_callback),
-            {vm::NewConstantExpression(
-                vm::Value::NewString(pool, line.ToString()))});
+            {vm::NewConstantExpression(vm::Value::NewString(pool, line))});
     if (context_command_expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(

@@ -285,9 +285,9 @@ void CompileLine(Compilation& compilation, void* parser,
               Success(IdentifierInclude()))
             HandleInclude(compilation, parser, str, &pos);
           else
-            compilation.AddError(NewError(LazyString {
-              L"Invalid preprocessing directive #"
-            } + symbol_contents));
+            compilation.AddError(
+                NewError(LazyString{L"Invalid preprocessing directive #"} +
+                         symbol_contents));
           continue;
         }
         break;
@@ -440,7 +440,8 @@ void CompileLine(Compilation& compilation, void* parser,
           compilation.AddError(Error(L"Missing terminating \" character."));
           return;
         }
-        input = Value::NewString(compilation.pool, std::move(output_string));
+        input = Value::NewString(compilation.pool,
+                                 LazyString{std::move(output_string)});
         pos++;
       } break;
 

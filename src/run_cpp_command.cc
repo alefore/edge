@@ -196,13 +196,13 @@ ValueOrError<ParsedCommand> Parse(
     }
 
     for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it) {
-      output_function_inputs.push_back(vm::NewConstantExpression(
-          vm::Value::NewString(pool, it->value.ToString())));
+      output_function_inputs.push_back(
+          vm::NewConstantExpression(vm::Value::NewString(pool, it->value)));
     }
 
     while (output_function_inputs.size() < expected_arguments) {
       output_function_inputs.push_back(
-          vm::NewConstantExpression(vm::Value::NewString(pool, L"")));
+          vm::NewConstantExpression(vm::Value::NewString(pool, LazyString{})));
     }
   } else if (!all_types_found.empty()) {
     return NewError(LazyString{L"Incompatible type found: "} +
@@ -266,8 +266,8 @@ bool tests_parse_registration = tests::Register(
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
         gc::Pool pool({});
         gc::Root<vm::Environment> environment = vm::Environment::New(pool);
-        environment.ptr()->Define(Identifier(L"foo"),
-                                  vm::Value::NewString(pool, L"bar"));
+        environment.ptr()->Define(
+            Identifier(L"foo"), vm::Value::NewString(pool, LazyString{L"bar"}));
         ValueOrError<ParsedCommand> output = Parse(
             pool, LazyString{L"foo"}, environment.ptr().value(), LazyString(),
             std::unordered_set<vm::Type>({vm::types::String{}}),

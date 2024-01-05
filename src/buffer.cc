@@ -1696,6 +1696,7 @@ FileSystemDriver& OpenBuffer::file_system_driver() const {
 futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
     std::wstring input) {
   TRACK_OPERATION(OpenBuffer_TransformKeyboardText);
+  // TODO(2024-01-05): Turn to LazyString.
   auto input_shared = std::make_shared<std::wstring>(std::move(input));
   return futures::ForEach(
              keyboard_text_transformers_.begin(),
@@ -1703,7 +1704,8 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
              [this, input_shared](const gc::Root<Value>& t) {
                std::vector<gc::Root<Value>> args;
                gc::Pool& pool = editor().gc_pool();
-               args.push_back(Value::NewString(pool, std::move(*input_shared)));
+               args.push_back(Value::NewString(
+                   pool, LazyString{std::move(*input_shared)}));
                return Call(pool, t.ptr().value(), std::move(args),
                            [work_queue = work_queue()](
                                OnceOnlyFunction<void()> callback) {
