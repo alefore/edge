@@ -32,6 +32,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
@@ -311,16 +312,17 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
   buffer_object_type.ptr()->AddField(
       Identifier(L"SetStatus"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer, std::wstring s) {
-                        buffer.ptr()->status().SetInformationText(Line(s));
+                      [](gc::Root<OpenBuffer> buffer, LazyString s) {
+                        buffer.ptr()->status().SetInformationText(
+                            LineBuilder{s}.Build());
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"SetWarningStatus"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer, std::wstring s) {
-                        buffer.ptr()->status().InsertError(Error(s));
+                      [](gc::Root<OpenBuffer> buffer, LazyString s) {
+                        buffer.ptr()->status().InsertError(NewError(s));
                       })
           .ptr());
 
@@ -545,7 +547,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
           pool, vm::PurityTypeWriter,
           [](gc::Root<OpenBuffer> buffer,
              NonNull<std::shared_ptr<std::vector<ExtendedChar>>> keys,
-             std::wstring path) {
+             LazyString path) {
             LOG(INFO) << "AddBindingToFile: " << path;
             buffer.ptr()->default_commands()->Add(
                 keys.value(),
@@ -557,7 +559,8 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                           buffer.ptr()->editor().thread_pool()))
                       .Transform([buffer, path](
                                      ResolvePathOptions<EmptyValue> options) {
-                        options.path = path;
+                        // TODO(easy, 2024-01-05): Avoid call to ToString.
+                        options.path = path.ToString();
                         return futures::OnError(
                             ResolvePath(std::move(options))
                                 .Transform(
@@ -568,13 +571,18 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                                     }),
                             [buffer, path](Error error) {
                               buffer.ptr()->status().Set(
-                                  AugmentError(L"Unable to resolve: " + path,
-                                               std::move(error)));
+                                  // TODO(2024-01-05): Avoid call to ToString.
+                                  AugmentError(
+                                      (LazyString{L"Unable to resolve: "} +
+                                       path)
+                                          .ToString(),
+                                      std::move(error)));
                               return futures::Past(Success());
                             });
                       });
                 },
-                L"Load file: " + path);
+                // TODO(2024-01-05): Avoid call to ToString.
+                (LazyString{L"Load file: "} + path).ToString());
           })
           .ptr());
 
