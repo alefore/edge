@@ -62,6 +62,7 @@ using afc::language::IgnoreErrors;
 using afc::language::InsertOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
@@ -275,17 +276,17 @@ ParseHistoryLine(const LazyString& line) {
     // TODO(trivial, 2024-01-02): Avoid conversion to std::wstring.
     auto colon = token.value.ToString().find(':');
     if (colon == std::wstring::npos)
-      return Error(L"Unable to parse prompt line (no colon found in token): " +
-                   line.ToString());
+      return NewError(
+          LazyString{
+              L"Unable to parse prompt line (no colon found in token): "} +
+          line);
     ColumnNumber value_start = token.begin + ColumnNumberDelta(colon);
     ++value_start;  // Skip the colon.
     ColumnNumber value_end = token.end;
     if (value_end <= value_start + ColumnNumberDelta(1) ||
-        line.get(value_start) != '\"' ||
-        line.get(value_end.previous()) != '\"') {
-      return Error(L"Unable to parse prompt line (expected quote): " +
-                   line.ToString());
-    }
+        line.get(value_start) != '\"' || line.get(value_end.previous()) != '\"')
+      return NewError(
+          LazyString{L"Unable to parse prompt line (expected quote): "} + line);
     // Skip quotes:
     ++value_start;
     --value_end;
