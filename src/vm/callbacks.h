@@ -96,6 +96,19 @@ struct VMTypeMapper<double> {
 };
 
 template <>
+struct VMTypeMapper<language::lazy_string::LazyString> {
+  static language::lazy_string::LazyString get(Value& value) {
+    return language::lazy_string::LazyString{value.get_string()};
+  }
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool, language::lazy_string::LazyString value) {
+    // TODO(2024-01-05, easy): Avoid call to ToString.
+    return Value::NewString(pool, value.ToString());
+  }
+  static const Type vmtype;
+};
+
+template <>
 struct VMTypeMapper<math::numbers::Number> {
   static math::numbers::Number get(Value& value) { return value.get_number(); }
   static language::gc::Root<Value> New(language::gc::Pool& pool,
