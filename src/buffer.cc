@@ -154,16 +154,13 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                 futures::ListenableValue<LazyString> metadata_value(
                     futures::Future<LazyString>().value);
 
-                // TODO(trivial, 2024-01-03): Remove call to ToString, use
-                // LazyString.
-                std::wstring description =
-                    L"C++: " +
-                    vm::TypesToString(compilation_result.first->Types())
-                        .ToString();
+                LazyString description =
+                    LazyString{L"C++: "} +
+                    vm::TypesToString(compilation_result.first->Types());
                 switch (compilation_result.first->purity()) {
                   case vm::PurityType::kPure:
                   case vm::PurityType::kReader: {
-                    description += L" ...";
+                    description += LazyString{L" ..."};
                     if (compilation_result.first->Types() ==
                         std::vector<vm::Type>({vm::types::Void{}})) {
                       LineBuilder line_builder(std::move(line));
@@ -197,7 +194,7 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
 
                 LineBuilder line_builder(std::move(line));
                 line_builder.SetMetadata(language::text::LineMetadataEntry{
-                    .initial_value = LazyString{description},
+                    .initial_value = description,
                     .value = std::move(metadata_value)});
                 line = std::move(line_builder).Build();
               },
@@ -2140,7 +2137,8 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
 
   if (ShouldDisplayProgress()) {
     output.insert({ProgressString(Read(buffer_variables::progress),
-                                  OverflowBehavior::kModulo),
+                                  OverflowBehavior::kModulo)
+                       .ToString(),
                    L""});
   }
 

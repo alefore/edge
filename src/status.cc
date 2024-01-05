@@ -57,8 +57,7 @@ size_t HandleOverflow(size_t counter, OverflowBehavior overflow_behavior,
   return counter;
 }
 
-std::wstring ProgressString(size_t counter,
-                            OverflowBehavior overflow_behavior) {
+LazyString ProgressString(size_t counter, OverflowBehavior overflow_behavior) {
   static const std::vector<wchar_t> values = {
       // From the top left, to the bottom right.
       Braille(0x80),
@@ -88,23 +87,22 @@ std::wstring ProgressString(size_t counter,
 
   static const size_t kLargestValue = values.size();
 
-  return std::wstring(
-      1, values[HandleOverflow(counter, overflow_behavior, kLargestValue)]);
+  return LazyString{
+      ColumnNumberDelta{1},
+      values[HandleOverflow(counter, overflow_behavior, kLargestValue)]};
 }
 
-std::wstring ProgressStringFillUp(size_t lines,
-                                  OverflowBehavior overflow_behavior) {
+LazyString ProgressStringFillUp(size_t lines,
+                                OverflowBehavior overflow_behavior) {
   if (lines <= 1) {
-    return L"∅";
+    return LazyString{L"∅"};
   }
   std::wstring output = L" _▁▂▃▄▅▆▇█";
   size_t kInitial = 32;
-  if (lines < kInitial) {
-    return L" ";
-  }
+  if (lines < kInitial) return LazyString{L" "};
   int index = HandleOverflow(floor(log2(lines / kInitial)), overflow_behavior,
                              output.size());
-  return {output[index]};
+  return LazyString{ColumnNumberDelta{1}, output[index]};
 }
 
 Status::Status(infrastructure::audio::Player& audio_player)

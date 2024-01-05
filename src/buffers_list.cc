@@ -674,10 +674,12 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
               progress = L"!";
             } else if (buffer.ShouldDisplayProgress()) {
               progress = ProgressString(buffer.Read(buffer_variables::progress),
-                                        OverflowBehavior::kModulo);
+                                        OverflowBehavior::kModulo)
+                             .ToString();
             } else {
               progress = ProgressStringFillUp(buffer.lines_size().read(),
-                                              OverflowBehavior::kModulo);
+                                              OverflowBehavior::kModulo)
+                             .ToString();
               progress_modifier.insert(LineModifier::kDim);
             }
             // If we ever make ProgressString return more than a single
