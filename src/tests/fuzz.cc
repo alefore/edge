@@ -7,10 +7,13 @@
 #include <unordered_set>
 
 #include "glog/logging.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
 
+using afc::language::FromByteString;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::tests::fuzz {
-using language::FromByteString;
 
 std::optional<size_t> Reader<size_t>::Read(Stream& input_stream) {
   size_t high = abs(input_stream.get());
@@ -26,7 +29,7 @@ std::optional<ShortRandomLine> Reader<ShortRandomLine>::Read(
   if (!input_stream.getline(buffer, std::min(256, static_cast<int>(len)))) {
     return std::nullopt;
   }
-  return ShortRandomLine{FromByteString(output)};
+  return ShortRandomLine{LazyString{FromByteString(output)}};
 }
 
 std::optional<ShortRandomString> Reader<ShortRandomString>::Read(
@@ -37,9 +40,9 @@ std::optional<ShortRandomString> Reader<ShortRandomString>::Read(
   for (size_t i = 0; i < len; i++) {
     buffer[i] = input_stream.get();
   }
-  return input_stream.eof()
-             ? std::optional<ShortRandomString>()
-             : ShortRandomString{FromByteString(std::string(buffer, len))};
+  return input_stream.eof() ? std::optional<ShortRandomString>()
+                            : ShortRandomString{LazyString{
+                                  FromByteString(std::string(buffer, len))}};
 }
 
 Handler Call(std::function<void()> callback) {

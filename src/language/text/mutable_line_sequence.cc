@@ -415,7 +415,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
       })));
 
   output.push_back(Call(std::function<void(ShortRandomLine)>(
-      [this](ShortRandomLine s) { push_back(s.value); })));
+      [this](ShortRandomLine s) { push_back(LineBuilder{s.value}.Build()); })));
 
   return output;
 }

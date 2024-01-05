@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
 #include "src/tests/fuzz_testable.h"
 
@@ -14,11 +15,11 @@ namespace afc::tests::fuzz {
 
 // value will never include '\n'.
 struct ShortRandomLine {
-  std::wstring value;
+  language::lazy_string::LazyString value;
 };
 
 struct ShortRandomString {
-  std::wstring value;
+  language::lazy_string::LazyString value;
 };
 
 template <class T>

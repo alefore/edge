@@ -6,6 +6,7 @@
 using afc::language::Error;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
 
 namespace afc::vm {
@@ -15,6 +16,7 @@ const Type VMTypeMapper<int>::vmtype = types::Number{};
 const Type VMTypeMapper<size_t>::vmtype = types::Number{};
 const Type VMTypeMapper<double>::vmtype = types::Number{};
 const Type VMTypeMapper<std::wstring>::vmtype = types::String{};
+const Type VMTypeMapper<LazyString>::vmtype = types ::String{};
 
 namespace {
 bool tests_extract_first_error = tests::Register(
