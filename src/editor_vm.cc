@@ -41,6 +41,7 @@ using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::math::numbers::Number;
 using afc::math::numbers::ToInt;
 using afc::vm::Environment;
@@ -202,11 +203,8 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"SetVariablePrompt"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](EditorState& editor_arg, std::wstring variable) {
-                        // TODO(medium, 2024-01-02): Use a callbacks override
-                        // that operates direclty on LazyString.
-                        SetVariableCommandHandler(editor_arg,
-                                                  LazyString{variable});
+                      [](EditorState& editor_arg, LazyString variable) {
+                        SetVariableCommandHandler(editor_arg, variable);
                       })
           .ptr());
 
@@ -352,8 +350,9 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"SendExitTo"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](EditorState&, std::wstring args) {
-                        int fd = open(ToByteString(args).c_str(), O_WRONLY);
+                      [](EditorState&, LazyString args) {
+                        int fd = open(ToByteString(args.ToString()).c_str(),
+                                      O_WRONLY);
                         std::string command = "editor.Exit(0);\n";
                         write(fd, command.c_str(), command.size());
                         close(fd);
@@ -370,8 +369,9 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"SetStatus"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](EditorState& editor_arg, std::wstring s) {
-                        editor_arg.status().SetInformationText(Line(s));
+                      [](EditorState& editor_arg, LazyString s) {
+                        editor_arg.status().SetInformationText(
+                            LineBuilder{s}.Build());
                       })
           .ptr());
 
@@ -425,7 +425,7 @@ gc::Root<Environment> BuildEditorEnvironment(
       Identifier(L"OpenFile"),
       vm::NewCallback(
           pool, PurityType::kUnknown,
-          [](EditorState& editor_arg, std::wstring path_str,
+          [](EditorState& editor_arg, LazyString path_str,
              bool visit) -> futures::ValueOrError<gc::Root<OpenBuffer>> {
             return OpenOrCreateFile(OpenFileOptions{
                 .editor_state = editor_arg,
