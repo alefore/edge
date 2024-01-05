@@ -2194,9 +2194,8 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
         {L"exit-status", std::to_wstring(child_exit_status_.value())});
   }
 
-  auto marks = GetLineMarksText();
-  if (!marks.empty()) {
-    output.insert({marks, L""});  // TODO: Show better?
+  if (LazyString marks = GetLineMarksText(); !marks.IsEmpty()) {
+    output.insert({marks.ToString(), L""});  // TODO: Show better?
   }
 
   return output;
@@ -2486,14 +2485,15 @@ OpenBuffer::GetExpiredLineMarks() const {
   return editor().line_marks().GetExpiredMarksForTargetBuffer(name());
 }
 
-wstring OpenBuffer::GetLineMarksText() const {
+LazyString OpenBuffer::GetLineMarksText() const {
   size_t marks = GetLineMarks().size();
   size_t expired_marks = GetExpiredLineMarks().size();
-  wstring output;
+  LazyString output;
   if (marks > 0 || expired_marks > 0) {
-    output = L"marks:" + std::to_wstring(marks);
+    output = LazyString{L"marks:"} + LazyString{std::to_wstring(marks)};
     if (expired_marks > 0) {
-      output += L"(" + std::to_wstring(expired_marks) + L")";
+      output += LazyString{L"("} + LazyString{std::to_wstring(expired_marks)} +
+                LazyString{L")"};
     }
   }
   return output;

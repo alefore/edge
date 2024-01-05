@@ -82,11 +82,9 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
         options.buffer->current_position_col() + ColumnNumberDelta(1))});
     output.AppendString(LazyString{L" 🧭 "}, {{LineModifier::kDim}});
 
-    // TODO(trivial, 2024-01-02): Change GetLineMarks to return LazyString
-    // directly.
-    auto marks_text = options.buffer->GetLineMarksText();
-    if (!marks_text.empty()) {
-      output.AppendString(LazyString{marks_text});
+    if (LazyString marks_text = options.buffer->GetLineMarksText();
+        !marks_text.IsEmpty()) {
+      output.AppendString(marks_text);
       output.AppendCharacter(' ', {});
     }
 
