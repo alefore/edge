@@ -440,7 +440,7 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
                 NewVariableLookup(*compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value),
-                [](wstring a, wstring b) { return Success(a + b); },
+                [](LazyString a, LazyString b) { return Success(a + b); },
                 [](numbers::Number a, numbers::Number b) { return a + b; },
                 nullptr))
             .release();
@@ -474,16 +474,14 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
                 [](numbers::Number a, numbers::Number b) { return a * b; },
-                [](wstring a, int b) -> language::ValueOrError<wstring> {
-                  wstring output;
+                [](LazyString a, int b) -> language::ValueOrError<LazyString> {
+                  LazyString output;
                   for (int i = 0; i < b; i++) {
                     try {
                       output += a;
                     } catch (const std::bad_alloc& e) {
-                      output = L"";
                       return Error(L"Bad Alloc");
                     } catch (const std::length_error& e) {
-                      output = L"";
                       return Error(L"Length Error");
                     }
                   }
@@ -872,7 +870,9 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
 
   OUT = NewBinaryExpression(
             *compilation, std::move(a), std::move(b),
-            [](wstring a_str, wstring b_str) { return Success(a_str + b_str); },
+            [](LazyString a_str, LazyString b_str) {
+              return Success(a_str + b_str);
+            },
             [](numbers::Number a_number, numbers::Number b_number) {
               return a_number + b_number;
             },
@@ -915,8 +915,9 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
             [](numbers::Number a_number, numbers::Number b_number) {
               return a_number * b_number;
             },
-            [](wstring a_str, int b_int) -> language::ValueOrError<wstring> {
-              wstring output;
+            [](LazyString a_str, int b_int)
+                -> language::ValueOrError<LazyString> {
+              LazyString output;
               for (int i = 0; i < b_int; i++) {
                 try {
                   output += a_str;

@@ -82,13 +82,12 @@ futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
 std::unique_ptr<Expression> NewBinaryExpression(
     Compilation& compilation, std::unique_ptr<Expression> a_raw,
     std::unique_ptr<Expression> b_raw,
-    std::function<language::ValueOrError<std::wstring>(std::wstring,
-                                                       std::wstring)>
+    std::function<language::ValueOrError<LazyString>(LazyString, LazyString)>
         str_operator,
     std::function<language::ValueOrError<math::numbers::Number>(
         math::numbers::Number, math::numbers::Number)>
         number_operator,
-    std::function<language::ValueOrError<std::wstring>(std::wstring, int)>
+    std::function<language::ValueOrError<LazyString>(LazyString, int)>
         str_int_operator) {
   if (a_raw == nullptr || b_raw == nullptr) {
     return nullptr;
@@ -102,12 +101,10 @@ std::unique_ptr<Expression> NewBinaryExpression(
         std::move(a), std::move(b), types::String{},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
-          DECLARE_OR_RETURN(std::wstring value,
-                            // TODO(2024-01-24): Avoid calls to ToString.
-                            str_operator(value_a.get_string().ToString(),
-                                         value_b.get_string().ToString()));
-          // TODO(2024-01-05): Declare value as LazyString.
-          return Value::NewString(pool, LazyString{std::move(value)});
+          DECLARE_OR_RETURN(
+              LazyString value,
+              str_operator(value_a.get_string(), value_b.get_string()));
+          return Value::NewString(pool, std::move(value));
         })));
   }
 
@@ -132,11 +129,9 @@ std::unique_ptr<Expression> NewBinaryExpression(
             const Value& b_value) -> ValueOrError<gc::Root<Value>> {
           DECLARE_OR_RETURN(int b_value_int, ToInt(b_value.get_number()));
           DECLARE_OR_RETURN(
-              std::wstring value,
-              // TODO(2024-01-24): Avoid ToString.
-              str_int_operator(a_value.get_string().ToString(), b_value_int));
-          // TODO(2024-01-05): Remove LazyString{}.
-          return Value::NewString(pool, LazyString{std::move(value)});
+              LazyString value,
+              str_int_operator(a_value.get_string(), b_value_int));
+          return Value::NewString(pool, std::move(value));
         })));
   }
 
