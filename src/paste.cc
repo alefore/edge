@@ -29,8 +29,8 @@ class Paste : public Command {
  public:
   Paste(EditorState& editor_state) : editor_state_(editor_state) {}
 
-  std::wstring Description() const override {
-    return L"pastes the last deleted text";
+  LazyString Description() const override {
+    return LazyString{L"pastes the last deleted text"};
   }
   std::wstring Category() const override { return L"Edit"; }
 

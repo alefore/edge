@@ -95,15 +95,15 @@ class UndoCommand : public Command {
   UndoCommand(EditorState& editor_state, std::optional<Direction> direction)
       : editor_state_(editor_state), direction_(direction) {}
 
-  std::wstring Description() const override {
+  LazyString Description() const override {
     switch (direction_.value_or(Direction::kForwards)) {
       case Direction::kBackwards:
-        return L"re-does the last change to the current buffer";
+        return LazyString{L"re-does the last change to the current buffer"};
       case Direction::kForwards:
-        return L"un-does the last change to the current buffer";
+        return LazyString{L"un-does the last change to the current buffer"};
     }
     LOG(FATAL) << "Invalid direction value.";
-    return L"";
+    return LazyString{};
   }
 
   std::wstring Category() const override { return L"Edit"; }
@@ -139,8 +139,8 @@ class GotoPreviousPositionCommand : public Command {
   GotoPreviousPositionCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  std::wstring Description() const override {
-    return L"go back to previous position";
+  LazyString Description() const override {
+    return LazyString{L"go back to previous position"};
   }
   std::wstring Category() const override { return L"Navigate"; }
 
@@ -200,7 +200,9 @@ class EnterInsertModeCommand : public Command {
                          std::optional<Modifiers> modifiers)
       : editor_state_(editor_state), modifiers_(std::move(modifiers)) {}
 
-  std::wstring Description() const override { return L"enters insert mode"; }
+  LazyString Description() const override {
+    return LazyString{L"enters insert mode"};
+  }
   std::wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(ExtendedChar) override {
@@ -225,8 +227,9 @@ class InsertionModifierCommand : public Command {
   InsertionModifierCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  std::wstring Description() const override {
-    return L"activates replace modifier (overwrites text on insertions)";
+  LazyString Description() const override {
+    return LazyString{
+        L"activates replace modifier (overwrites text on insertions)"};
   }
   std::wstring Category() const override { return L"Modifiers"; }
 
@@ -258,10 +261,11 @@ class SetStructureCommand : public Command {
   SetStructureCommand(EditorState& editor_state, Structure structure)
       : editor_state_(editor_state), structure_(structure) {}
 
-  std::wstring Description() const override {
+  LazyString Description() const override {
     std::ostringstream os;
     os << structure_;
-    return L"sets the structure: " + language::FromByteString(os.str());
+    return LazyString{L"sets the structure: "} +
+           LazyString{language::FromByteString(os.str())};
   }
   std::wstring Category() const override { return L"Modifiers"; }
 
@@ -292,7 +296,9 @@ class SetStrengthCommand : public Command {
  public:
   SetStrengthCommand(EditorState& editor_state) : editor_state_(editor_state) {}
 
-  std::wstring Description() const override { return L"Toggles the strength."; }
+  LazyString Description() const override {
+    return LazyString{L"Toggles the strength."};
+  }
   std::wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(ExtendedChar) override {
@@ -318,12 +324,16 @@ class SetStrengthCommand : public Command {
 };
 
 class NumberMode : public Command {
+  EditorState& editor_state_;
+  const LazyString description_;
+
  public:
   NumberMode(EditorState& editor_state) : NumberMode(editor_state, L"") {}
+  // TODO(2024-01-24): Get rid of LazyString{}.
   NumberMode(EditorState& editor_state, const std::wstring& description)
-      : editor_state_(editor_state), description_(description) {}
+      : editor_state_(editor_state), description_(LazyString{description}) {}
 
-  std::wstring Description() const override { return description_; }
+  LazyString Description() const override { return description_; }
   std::wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(ExtendedChar c) override {
@@ -338,17 +348,13 @@ class NumberMode : public Command {
       const override {
     return {};
   }
-
- private:
-  EditorState& editor_state_;
-  const std::wstring description_;
 };
 
 class ActivateLink : public Command {
  public:
   ActivateLink(EditorState& editor_state) : editor_state_(editor_state) {}
-  std::wstring Description() const override {
-    return L"activates the current link (if any)";
+  LazyString Description() const override {
+    return LazyString{L"activates the current link (if any)"};
   }
   std::wstring Category() const override { return L"Navigate"; }
 
@@ -418,8 +424,8 @@ class ActivateLink : public Command {
 class ResetStateCommand : public Command {
  public:
   ResetStateCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  std::wstring Description() const override {
-    return L"Resets the state of the editor.";
+  LazyString Description() const override {
+    return LazyString{L"Resets the state of the editor."};
   }
   std::wstring Category() const override { return L"Editor"; }
 
@@ -446,7 +452,9 @@ class ResetStateCommand : public Command {
 class HardRedrawCommand : public Command {
  public:
   HardRedrawCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  std::wstring Description() const override { return L"Redraws the screen"; }
+  LazyString Description() const override {
+    return LazyString{L"Redraws the screen"};
+  }
   std::wstring Category() const override { return L"View"; }
 
   void ProcessInput(ExtendedChar) override {

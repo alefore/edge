@@ -49,8 +49,7 @@ class CommandFromFunction : public Command {
   CommandFromFunction(gc::Ptr<Callback> callback, LazyString description)
       : callback_(std::move(callback)), description_(std::move(description)) {}
 
-  // TODO(2024-01-24): Avoid call to ToString.
-  std::wstring Description() const override { return description_.ToString(); }
+  LazyString Description() const override { return description_; }
   std::wstring Category() const override {
     return L"C++ Functions (Extensions)";
   }

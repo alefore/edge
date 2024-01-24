@@ -144,8 +144,8 @@ class NavigationBufferCommand : public Command {
   NavigationBufferCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  std::wstring Description() const override {
-    return L"displays a navigation view of the current buffer";
+  LazyString Description() const override {
+    return LazyString{L"displays a navigation view of the current buffer"};
   }
   std::wstring Category() const override { return L"Navigate"; }
 

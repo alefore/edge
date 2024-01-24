@@ -12,6 +12,7 @@ using afc::infrastructure::ExtendedChar;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 namespace {
@@ -19,9 +20,9 @@ class QuitCommand : public Command {
  public:
   QuitCommand(EditorState& editor_state, int exit_value)
       : editor_state_(editor_state), exit_value_(exit_value) {}
-  std::wstring Description() const override {
-    return L"Quits Edge (with an exit value of " +
-           std::to_wstring(exit_value_) + L").";
+  LazyString Description() const override {
+    return LazyString{L"Quits Edge (with an exit value of "} +
+           LazyString{std::to_wstring(exit_value_)} + LazyString{L")."};
   }
   std::wstring Category() const override { return L"Editor"; }
 

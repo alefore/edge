@@ -18,6 +18,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 namespace {
@@ -49,6 +50,13 @@ std::wstring GetCategoryString(std::wstring code) {
 }
 
 class CppCommand : public Command {
+  EditorState& editor_state_;
+  const NonNull<std::shared_ptr<vm::Expression>> expression_;
+  const std::wstring code_;
+  const LazyString description_;
+  const std::wstring category_;
+  const gc::Ptr<vm::Environment> environment_;
+
  public:
   CppCommand(EditorState& editor_state,
              NonNull<std::unique_ptr<afc::vm::Expression>> expression,
@@ -56,11 +64,12 @@ class CppCommand : public Command {
       : editor_state_(editor_state),
         expression_(std::move(expression)),
         code_(std::move(code)),
-        description_(GetDescriptionString(code_)),
+        // TODO(2024-01-24): Get rid of LazyString{}.
+        description_(LazyString{GetDescriptionString(code_)}),
         category_(GetCategoryString(code_)),
         environment_(std::move(environment)) {}
 
-  std::wstring Description() const override { return description_; }
+  LazyString Description() const override { return description_; }
   std::wstring Category() const override { return category_; }
 
   void ProcessInput(ExtendedChar) override {
@@ -77,14 +86,6 @@ class CppCommand : public Command {
       const override {
     return {environment_.object_metadata()};
   }
-
- private:
-  EditorState& editor_state_;
-  const NonNull<std::shared_ptr<vm::Expression>> expression_;
-  const std::wstring code_;
-  const std::wstring description_;
-  const std::wstring category_;
-  const gc::Ptr<vm::Environment> environment_;
 };
 
 }  // namespace

@@ -24,6 +24,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
@@ -160,8 +161,8 @@ class GotoCommand : public Command {
   GotoCommand(EditorState& editor_state, size_t calls)
       : editor_state_(editor_state), calls_(calls % 4) {}
 
-  std::wstring Description() const override {
-    return L"goes to Rth structure from the beginning";
+  LazyString Description() const override {
+    return LazyString{L"goes to Rth structure from the beginning"};
   }
   std::wstring Category() const override { return L"Navigate"; }
 

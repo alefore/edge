@@ -26,6 +26,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 
 namespace afc::editor {
@@ -33,9 +34,10 @@ class RecordCommand : public Command {
  public:
   RecordCommand(EditorState& editor_state) : editor_state_(editor_state) {}
 
-  std::wstring Description() const override {
-    return L"starts/stops recording a transformation";
+  LazyString Description() const override {
+    return LazyString{L"starts/stops recording a transformation"};
   }
+
   std::wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(ExtendedChar) override {

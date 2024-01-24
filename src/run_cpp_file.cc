@@ -92,8 +92,8 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
 class RunCppFileCommand : public Command {
  public:
   RunCppFileCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  std::wstring Description() const override {
-    return L"runs a command from a file";
+  LazyString Description() const override {
+    return LazyString{L"runs a command from a file"};
   }
   std::wstring Category() const override { return L"Extensions"; }
 

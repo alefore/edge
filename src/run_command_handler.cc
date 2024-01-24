@@ -423,8 +423,9 @@ class ForkEditorCommand : public Command {
  public:
   ForkEditorCommand(EditorState& editor_state) : editor_state_(editor_state) {}
 
-  std::wstring Description() const override {
-    return L"Prompts for a command and creates a new buffer running it.";
+  LazyString Description() const override {
+    return LazyString{
+        L"Prompts for a command and creates a new buffer running it."};
   }
   std::wstring Category() const override { return L"Buffers"; }
 

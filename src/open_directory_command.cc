@@ -9,6 +9,7 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
 
 namespace gc = afc::language::gc;
@@ -19,6 +20,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 namespace {
@@ -28,8 +30,8 @@ class OpenDirectoryCommand : public Command {
   OpenDirectoryCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
 
-  std::wstring Description() const override {
-    return L"opens a view of the current directory";
+  LazyString Description() const override {
+    return LazyString{L"opens a view of the current directory"};
   }
   std::wstring Category() const override { return L"Buffers"; }
 

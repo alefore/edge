@@ -132,7 +132,9 @@ class HelpCommand : public Command {
         commands_(commands),
         mode_description_(mode_description) {}
 
-  std::wstring Description() const override { return L"Shows documentation."; }
+  LazyString Description() const override {
+    return LazyString{L"Shows documentation."};
+  }
   std::wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(ExtendedChar) override {
@@ -221,7 +223,8 @@ class HelpCommand : public Command {
         LineBuilder line;
         line.AppendString(L"* ", std::nullopt);
         line.Append(DescribeSequenceWithQuotes(input));
-        line.AppendString(L" - " + command->Description(), std::nullopt);
+        line.AppendString(LazyString{L" - "} + command->Description(),
+                          std::nullopt);
         output.push_back(std::move(line).Build());
       }
       output.push_back(L"");

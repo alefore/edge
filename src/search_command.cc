@@ -198,8 +198,8 @@ class ProgressAggregator {
 class SearchCommand : public Command {
  public:
   SearchCommand(EditorState& editor_state) : editor_state_(editor_state) {}
-  std::wstring Description() const override {
-    return L"Searches for a string.";
+  LazyString Description() const override {
+    return LazyString{L"Searches for a string."};
   }
   std::wstring Category() const override { return L"Navigate"; }
 

@@ -13,6 +13,7 @@ namespace gc = afc::language::gc;
 using afc::infrastructure::ExtendedChar;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 namespace {
@@ -22,7 +23,10 @@ class SetModeCommand : public Command {
       : options_(std::move(options)) {}
 
   std::wstring Category() const override { return options_.category; }
-  std::wstring Description() const override { return options_.description; }
+  LazyString Description() const override {
+    // TODO(2024-01-24): Remove LazyString{}.
+    return LazyString{options_.description};
+  }
   void ProcessInput(ExtendedChar) override {
     options_.editor_state.set_keyboard_redirect(options_.factory());
   }

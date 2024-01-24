@@ -1017,7 +1017,7 @@ class LinePromptCommand : public Command {
   struct ConstructorAccessTag {};
 
   EditorState& editor_state_;
-  const std::wstring description_;
+  const LazyString description_;
   const std::function<PromptOptions()> options_supplier_;
 
  public:
@@ -1033,10 +1033,11 @@ class LinePromptCommand : public Command {
                     std::wstring description,
                     std::function<PromptOptions()> options_supplier)
       : editor_state_(editor_state),
-        description_(std::move(description)),
+        // TODO(2024-01-24): Avoid call to LazyString.
+        description_(LazyString{std::move(description)}),
         options_supplier_(std::move(options_supplier)) {}
 
-  std::wstring Description() const override { return description_; }
+  LazyString Description() const override { return description_; }
   std::wstring Category() const override { return L"Prompt"; }
 
   void ProcessInput(ExtendedChar) override {

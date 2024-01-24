@@ -293,8 +293,8 @@ class FindCompletionCommand : public Command {
  public:
   FindCompletionCommand(EditorState& editor_state)
       : editor_state_(editor_state) {}
-  std::wstring Description() const override {
-    return L"Autocompletes the current word.";
+  LazyString Description() const override {
+    return LazyString{L"Autocompletes the current word."};
   }
   std::wstring Category() const override { return L"Edit"; }
 

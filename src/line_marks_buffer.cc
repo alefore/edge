@@ -95,7 +95,9 @@ class Impl : public Command {
  public:
   Impl(EditorState& editor) : editor_(editor) {}
 
-  std::wstring Description() const override { return L"Shows Line Marks."; }
+  LazyString Description() const override {
+    return LazyString{L"Shows Line Marks."};
+  }
   std::wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(ExtendedChar) override {
