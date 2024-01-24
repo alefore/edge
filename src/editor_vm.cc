@@ -454,7 +454,8 @@ gc::Root<Environment> BuildEditorEnvironment(
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             editor_arg.default_commands().ptr()->Add(
                 VMTypeMapper<VS>::get(args[1].ptr().value()).value(),
-                args[2].ptr()->get_string(), std::move(args[3]),
+                // TODO(2024-01-24): Remove call to LazyString.
+                LazyString{args[2].ptr()->get_string()}, std::move(args[3]),
                 editor_arg.environment().ptr());
             return vm::Value::NewVoid(pool);
           })
@@ -474,7 +475,8 @@ gc::Root<Environment> BuildEditorEnvironment(
                 VMTypeMapper<EditorState>::get(args[0].ptr().value());
             editor_arg.default_commands().ptr()->Add(
                 VectorExtendedChar(args[1].ptr()->get_string()),
-                args[2].ptr()->get_string(), std::move(args[3]),
+                // TODO(2024-01-24): Remove call to LazyString.
+                LazyString{args[2].ptr()->get_string()}, std::move(args[3]),
                 editor_arg.environment().ptr());
             return vm::Value::NewVoid(pool);
           })

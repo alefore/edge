@@ -33,6 +33,7 @@ using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::overload;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::LazyString;
 using afc::vm::Expression;
 using afc::vm::Type;
 using afc::vm::Value;
@@ -42,13 +43,14 @@ namespace {
 template <typename Callback>
 class CommandFromFunction : public Command {
   gc::Ptr<Callback> callback_;
-  const std::wstring description_;
+  const LazyString description_;
 
  public:
-  CommandFromFunction(gc::Ptr<Callback> callback, std::wstring description)
+  CommandFromFunction(gc::Ptr<Callback> callback, LazyString description)
       : callback_(std::move(callback)), description_(std::move(description)) {}
 
-  std::wstring Description() const override { return description_; }
+  // TODO(2024-01-24): Avoid call to ToString.
+  std::wstring Description() const override { return description_.ToString(); }
   std::wstring Category() const override {
     return L"C++ Functions (Extensions)";
   }
@@ -64,7 +66,7 @@ class CommandFromFunction : public Command {
 template <typename Callback>
 gc::Root<Command> MakeCommandFromFunction(gc::Pool& pool,
                                           gc::Ptr<Callback> callback,
-                                          std::wstring description) {
+                                          LazyString description) {
   return pool.NewRoot(MakeNonNullUnique<CommandFromFunction<Callback>>(
       std::move(callback), std::move(description)));
 }
@@ -123,7 +125,7 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
 }
 
 void MapModeCommands::Add(std::vector<ExtendedChar> name,
-                          std::wstring description, gc::Root<Value> value,
+                          LazyString description, gc::Root<Value> value,
                           gc::Ptr<vm::Environment> environment) {
   const auto& value_type = std::get<vm::types::Function>(value.ptr()->type);
   CHECK(std::holds_alternative<vm::types::Void>(value_type.output.get()));
@@ -156,7 +158,7 @@ void MapModeCommands::Add(std::vector<ExtendedChar> name,
 
 void MapModeCommands::Add(std::vector<ExtendedChar> name,
                           std::function<void()> callback,
-                          std::wstring description) {
+                          LazyString description) {
   Add(name,
       MakeCommandFromFunction(
           editor_state_.gc_pool(),
@@ -224,7 +226,8 @@ const bool map_mode_commands_tests_registration = tests::Register(
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                bool executed = false;
                editor->default_commands().ptr()->Add(
-                   VectorExtendedChar(L"X"), L"Activates something.",
+                   VectorExtendedChar(L"X"),
+                   LazyString{L"Activates something."},
                    vm::NewCallback(editor->gc_pool(), vm::PurityType::kUnknown,
                                    [&executed]() { executed = true; }),
                    editor->environment().ptr());
@@ -242,7 +245,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                LOG(INFO) << "Adding handler.";
                editor->default_commands().ptr()->Add(
                    {ExtendedChar(L'A'), ExtendedChar(ControlChar::kPageDown)},
-                   L"Activates something.",
+                   LazyString{L"Activates something."},
                    vm::NewCallback(editor->gc_pool(), vm::PurityType::kUnknown,
                                    [&executed]() {
                                      LOG(INFO) << "Executed!";
@@ -255,5 +258,5 @@ const bool map_mode_commands_tests_registration = tests::Register(
                CHECK(executed);
              }},
     });
-}
+}  // namespace
 }  // namespace afc::editor

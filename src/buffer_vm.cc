@@ -233,21 +233,25 @@ void DefineSortLinesByKey(
                                      data->trampoline.pool(),
                                      numbers::FromSizeT(line_number.read()))},
                                  data->trampoline)
-                             .Transform([data, get_key, line_number](
-                                            gc::Root<vm::Value> output)
-                                            -> ValueOrError<
-                                                futures::
-                                                    IterationControlCommand> {
-                               Line line = data->buffer.ptr()->contents().at(
-                                   line_number);
-                               VLOG(9) << "Value for line: " << line << ": "
-                                       << get_key(output.ptr().value());
-                               ASSIGN_OR_RETURN(auto key_value,
-                                                get_key(output.ptr().value()));
-                               data->keys.insert({line.ToString(), key_value});
-                               return Success(
-                                   futures::IterationControlCommand::kContinue);
-                             })
+                             .Transform(
+                                 [data, get_key,
+                                  line_number](gc::Root<vm::Value> output)
+                                     -> ValueOrError<
+                                         futures::IterationControlCommand> {
+                                   Line line =
+                                       data->buffer.ptr()->contents().at(
+                                           line_number);
+                                   VLOG(9) << "Value for line: " << line << ": "
+                                           << get_key(output.ptr().value());
+                                   ASSIGN_OR_RETURN(
+                                       auto key_value,
+                                       get_key(output.ptr().value()));
+                                   data->keys.insert(
+                                       {line.ToString(), key_value});
+                                   return Success(
+                                       futures::IterationControlCommand::
+                                           kContinue);
+                                 })
                              .ConsumeErrors([data](Error error_input) {
                                data->possible_error = error_input;
                                return futures::Past(
@@ -535,7 +539,8 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                     args[0].ptr().value());
             buffer.ptr()->default_commands()->Add(
                 VectorExtendedChar(args[1].ptr()->get_string()),
-                args[2].ptr()->get_string(), std::move(args[3]),
+                // TODO(2024-01-24): Avoid call to LazyString.
+                LazyString{args[2].ptr()->get_string()}, std::move(args[3]),
                 buffer.ptr()->environment());
             return vm::Value::NewVoid(pool);
           })
@@ -581,8 +586,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                             });
                       });
                 },
-                // TODO(2024-01-05): Avoid call to ToString.
-                (LazyString{L"Load file: "} + path).ToString());
+                LazyString{L"Load file: "} + path);
           })
           .ptr());
 

@@ -55,10 +55,12 @@ class MapModeCommands {
   void Add(std::vector<infrastructure::ExtendedChar> name,
            language::gc::Ptr<Command> value);
   void Add(std::vector<infrastructure::ExtendedChar> name,
-           std::wstring description, language::gc::Root<vm::Value> value,
+           language::lazy_string::LazyString description,
+           language::gc::Root<vm::Value> value,
            language::gc::Ptr<vm::Environment> environment);
   void Add(std::vector<infrastructure::ExtendedChar> name,
-           std::function<void()> value, std::wstring description);
+           std::function<void()> value,
+           language::lazy_string::LazyString description);
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
