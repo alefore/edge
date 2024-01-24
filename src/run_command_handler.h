@@ -26,7 +26,7 @@ struct ForkCommandOptions {
   static void Register(language::gc::Pool& pool, vm::Environment& environment);
 
   // The command to run.
-  std::wstring command;
+  language::lazy_string::LazyString command;
 
   std::optional<BufferName> name = std::nullopt;
 

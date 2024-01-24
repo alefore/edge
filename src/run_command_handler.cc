@@ -357,18 +357,19 @@ void RunCommand(const BufferName& name,
     return;
   }
 
-  ForkCommandOptions options;
-  // TODO(easy, 2022-06-05): Avoid call to ToString.
-  options.command = input.ToString();
-  options.name = name;
-  options.insertion_type =
-      buffer.has_value() &&
-              buffer->ptr()->Read(buffer_variables::commands_background_mode)
-          ? BuffersList::AddBufferType::kIgnore
-          : BuffersList::AddBufferType::kVisit;
-  options.children_path = children_path;
-  options.environment = std::move(environment);
-  ForkCommand(editor_state, options);
+  ForkCommand(editor_state,
+              ForkCommandOptions{
+                  .command = input,
+                  .name = name,
+                  .environment = std::move(environment),
+                  .insertion_type =
+                      buffer.has_value() &&
+                              buffer->ptr()->Read(
+                                  buffer_variables::commands_background_mode)
+                          ? BuffersList::AddBufferType::kIgnore
+                          : BuffersList::AddBufferType::kVisit,
+                  .children_path = children_path,
+              });
 }
 
 // Input must already be unescaped (e.g., contain `\n` rather than `\\n`).
@@ -546,8 +547,7 @@ class ForkEditorCommand : public Command {
 
           prompt_state.base_command = base_command;
           ForkCommandOptions options;
-          // TODO(2024-01-24): Avoid call to ToString.
-          options.command = base_command.ToString();
+          options.command = base_command;
           // TODO(2024-01-24): Avoid call to ToString.
           options.name = BufferName(
               (LazyString{L"- preview: "} + base_command).ToString());
@@ -600,7 +600,9 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
                              std::wstring)>(
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring value) { options->command = std::move(value); }))
+                 std::wstring value) {
+                options->command = LazyString{std::move(value)};
+              }))
           .ptr());
 
   fork_command_options.ptr()->AddField(
@@ -652,7 +654,8 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 
 gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                  const ForkCommandOptions& options) {
-  BufferName name = options.name.value_or(BufferName(L"$ " + options.command));
+  BufferName name =
+      options.name.value_or(BufferName(L"$ " + options.command.ToString()));
   if (options.existing_buffer_behavior ==
       ForkCommandOptions::ExistingBufferBehavior::kReuse) {
     if (auto it = editor_state.buffers()->find(name);
@@ -679,7 +682,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   buffer.ptr()->Set(
       buffer_variables::children_path,
       options.children_path.has_value() ? options.children_path->read() : L"");
-  buffer.ptr()->Set(buffer_variables::command, options.command);
+  buffer.ptr()->Set(buffer_variables::command, options.command.ToString());
   buffer.ptr()->Reload();
 
   editor_state.buffers()->insert_or_assign(name, buffer.ptr()->NewRoot());

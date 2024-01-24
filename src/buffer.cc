@@ -2043,9 +2043,9 @@ OpenBuffer::OpenBufferForCurrentPosition(
                            ForkCommand(
                                editor,
                                ForkCommandOptions{
-                                   .command =
-                                       L"xdg-open " +
-                                       ShellEscape(url.ToString().ToString()),
+                                   .command = LazyString{L"xdg-open "} +
+                                              LazyString{ShellEscape(
+                                                  url.ToString().ToString())},
                                    .insertion_type =
                                        BuffersList::AddBufferType::kIgnore,
                                });
