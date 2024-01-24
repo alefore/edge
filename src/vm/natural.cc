@@ -266,7 +266,7 @@ bool tests_registration = tests::Register(
                                     .Get()
                                     .value())
                          .ptr()
-                         ->get_string() == L"foo");
+                         ->get_string() == LazyString{L"foo"});
              }},
         {.name = L"FunctionNoArguments",
          .callback =
@@ -285,7 +285,7 @@ bool tests_registration = tests::Register(
                                     .Get()
                                     .value())
                          .ptr()
-                         ->get_string() == L"quux");
+                         ->get_string() == LazyString{L"quux"});
              }},
         {.name = L"MissingArguments",
          .callback =
@@ -310,7 +310,8 @@ bool tests_registration = tests::Register(
                                                     .Get()
                                                     .value())
                                          .ptr()
-                                         ->get_string()),
+                                         ->get_string()
+                                         .ToString()),
                         ">>)])]");
              }},
         {.name = L"SimpleFunctionTwoArguments",
@@ -336,7 +337,7 @@ bool tests_registration = tests::Register(
                                     .Get()
                                     .value())
                          .ptr()
-                         ->get_string() == L"quux");
+                         ->get_string() == LazyString{L"quux"});
              }},
         {.name = L"NestingFunctions", .callback = [] {
            gc::Pool pool({});
@@ -359,7 +360,8 @@ bool tests_registration = tests::Register(
                                                 .Get()
                                                 .value())
                                      .ptr()
-                                     ->get_string()),
+                                     ->get_string()
+                                     .ToString()),
                     "[[[bar]]]");
            CHECK_EQ(calls, 3ul);
          }}});

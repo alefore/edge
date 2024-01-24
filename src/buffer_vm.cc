@@ -412,7 +412,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
 
   DefineSortLinesByKey<std::wstring>(
       pool, buffer_object_type, vm::types::String{},
-      [](const vm::Value& value) { return Success(value.get_string()); });
+      [](const vm::Value& value) {
+        // TODO(2024-01-24): Get rid of call to ToString.
+        return Success(value.get_string().ToString());
+      });
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"tree"), vm::NewCallback(pool, PurityType::kReader,
@@ -539,8 +542,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                     args[0].ptr().value());
             buffer.ptr()->default_commands()->Add(
                 VectorExtendedChar(args[1].ptr()->get_string()),
-                // TODO(2024-01-24): Avoid call to LazyString.
-                LazyString{args[2].ptr()->get_string()}, std::move(args[3]),
+                args[2].ptr()->get_string(), std::move(args[3]),
                 buffer.ptr()->environment());
             return vm::Value::NewVoid(pool);
           })

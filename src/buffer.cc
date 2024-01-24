@@ -1713,7 +1713,7 @@ futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
                                  .callback = std::move(callback)});
                            })
                    .Transform([input_shared](const gc::Root<Value>& value) {
-                     *input_shared = value.ptr()->get_string();
+                     *input_shared = value.ptr()->get_string().ToString();
                      return Success(IterationControlCommand::kContinue);
                    })
                    .ConsumeErrors([](Error) {

@@ -416,7 +416,7 @@ class ForkEditorCommand : public Command {
   // Holds information about the current state of the prompt.
   struct PromptState {
     const gc::Root<OpenBuffer> original_buffer;
-    std::optional<std::wstring> base_command;
+    std::optional<LazyString> base_command;
     std::optional<gc::Root<afc::vm::Value>> context_command_callback;
   };
 
@@ -534,13 +534,10 @@ class ForkEditorCommand : public Command {
         .Transform([&prompt_state,
                     &editor](gc::Root<vm::Value> context_command_output)
                        -> ValueOrError<ColorizePromptOptions> {
-          const std::wstring& base_command =
-              context_command_output.ptr()->get_string();
-          if (prompt_state.base_command == base_command) {
+          LazyString base_command = context_command_output.ptr()->get_string();
+          if (prompt_state.base_command == base_command)
             return ColorizePromptOptions{};
-          }
-
-          if (base_command.empty()) {
+          if (base_command.IsEmpty()) {
             prompt_state.base_command = std::nullopt;
             return ColorizePromptOptions{
                 .context = ColorizePromptOptions::ContextClear()};
@@ -548,8 +545,11 @@ class ForkEditorCommand : public Command {
 
           prompt_state.base_command = base_command;
           ForkCommandOptions options;
-          options.command = base_command;
-          options.name = BufferName(L"- preview: " + base_command);
+          // TODO(2024-01-24): Avoid call to ToString.
+          options.command = base_command.ToString();
+          // TODO(2024-01-24): Avoid call to ToString.
+          options.name = BufferName(
+              (LazyString{L"- preview: "} + base_command).ToString());
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
           gc::Root<OpenBuffer> help_buffer_root = ForkCommand(editor, options);
           OpenBuffer& help_buffer = help_buffer_root.ptr().value();

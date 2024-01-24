@@ -98,7 +98,7 @@ struct VMTypeMapper<double> {
 template <>
 struct VMTypeMapper<language::lazy_string::LazyString> {
   static language::lazy_string::LazyString get(Value& value) {
-    return language::lazy_string::LazyString{value.get_string()};
+    return value.get_string();
   }
   static language::gc::Root<Value> New(
       language::gc::Pool& pool, language::lazy_string::LazyString value) {
@@ -117,10 +117,11 @@ struct VMTypeMapper<math::numbers::Number> {
   static const Type vmtype;
 };
 
+// TODO(2024-01-24): Remove this override, standardize customers on LazyString.
 template <>
 struct VMTypeMapper<std::wstring> {
-  static const std::wstring& get(const Value& value) {
-    return value.get_string();
+  static std::wstring get(const Value& value) {
+    return value.get_string().ToString();
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool,
                                        const std::wstring& value) {
@@ -204,9 +205,10 @@ struct VMTypeMapperResolver {
 };
 
 template <typename Callable, std::size_t Index, typename ArgsVector>
-auto ProcessArg(const ArgsVector& args) -> typename ArgTupleMaker<
-    decltype(VMTypeMapperResolver<Callable, Index>::type::get(
-        args.at(Index).ptr().value()))>::type {
+auto ProcessArg(const ArgsVector& args) ->
+    typename ArgTupleMaker<
+        decltype(VMTypeMapperResolver<Callable, Index>::type::get(
+            args.at(Index).ptr().value()))>::type {
   return VMTypeMapperResolver<Callable, Index>::type::get(
       args.at(Index).ptr().value());
 }

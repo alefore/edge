@@ -81,7 +81,7 @@ class Value {
   language::ValueOrError<int32_t> get_int32() const;
   language::ValueOrError<int64_t> get_int() const;
   const math::numbers::Number& get_number() const;
-  const std::wstring& get_string() const;
+  const language::lazy_string::LazyString& get_string() const;
   const Identifier& get_symbol() const;
 
   template <typename T>
@@ -117,8 +117,8 @@ class Value {
   struct ObjectInstance {
     language::NonNull<std::shared_ptr<void>> value;
   };
-  std::variant<bool, math::numbers::Number, std::wstring, Identifier,
-               ObjectInstance, Callback>
+  std::variant<bool, math::numbers::Number, language::lazy_string::LazyString,
+               Identifier, ObjectInstance, Callback>
       value_;
 
   ExpandCallback expand_callback;

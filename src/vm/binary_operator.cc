@@ -102,9 +102,10 @@ std::unique_ptr<Expression> NewBinaryExpression(
         std::move(a), std::move(b), types::String{},
         [str_operator](gc::Pool& pool, const Value& value_a,
                        const Value& value_b) -> ValueOrError<gc::Root<Value>> {
-          DECLARE_OR_RETURN(
-              std::wstring value,
-              str_operator(value_a.get_string(), value_b.get_string()));
+          DECLARE_OR_RETURN(std::wstring value,
+                            // TODO(2024-01-24): Avoid calls to ToString.
+                            str_operator(value_a.get_string().ToString(),
+                                         value_b.get_string().ToString()));
           // TODO(2024-01-05): Declare value as LazyString.
           return Value::NewString(pool, LazyString{std::move(value)});
         })));
@@ -132,7 +133,8 @@ std::unique_ptr<Expression> NewBinaryExpression(
           DECLARE_OR_RETURN(int b_value_int, ToInt(b_value.get_number()));
           DECLARE_OR_RETURN(
               std::wstring value,
-              str_int_operator(a_value.get_string(), b_value_int));
+              // TODO(2024-01-24): Avoid ToString.
+              str_int_operator(a_value.get_string().ToString(), b_value_int));
           // TODO(2024-01-05): Remove LazyString{}.
           return Value::NewString(pool, LazyString{std::move(value)});
         })));

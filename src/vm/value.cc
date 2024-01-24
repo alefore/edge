@@ -48,8 +48,7 @@ namespace afc::vm {
 /* static */ gc::Root<Value> Value::NewString(gc::Pool& pool,
                                               LazyString value) {
   gc::Root<Value> output = New(pool, types::String{});
-  // TODO(easy, 2024-01-05): Store it directly as a LazyString.
-  output.ptr()->value_ = std::move(value).ToString();
+  output.ptr()->value_ = std::move(value);
   return output;
 }
 
@@ -130,10 +129,9 @@ const math::numbers::Number& Value::get_number() const {
   return std::get<Number>(value_);
 }
 
-// TODO(easy, 2022-06-10): Embrace LazyString.
-const std::wstring& Value::get_string() const {
+const LazyString& Value::get_string() const {
   CHECK(IsString());
-  return std::get<std::wstring>(value_);
+  return std::get<LazyString>(value_);
 }
 
 const Identifier& Value::get_symbol() const {
@@ -267,5 +265,5 @@ bool value_gc_tests_registration = tests::Register(
         pool.FullCollect();
         CHECK(nested_weak.lock() == nullptr);
       }}});
-}
+}  // namespace
 }  // namespace afc::vm

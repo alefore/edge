@@ -580,7 +580,8 @@ void CompileLine(Compilation& compilation, void* parser,
       if (input.value().ptr()->IsSymbol())
         compilation.last_token = input.value().ptr()->get_symbol().read();
       else if (input.value().ptr()->IsString())
-        compilation.last_token = input.value().ptr()->get_string();
+        // TODO(2024-01-24): Avoid ToString.
+        compilation.last_token = input.value().ptr()->get_string().ToString();
       else
         LOG(FATAL) << "Invalid input.";
     }
