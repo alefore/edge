@@ -209,9 +209,8 @@ ValueOrError<ParsedCommand> Parse(
                     output_tokens[0].value + LazyString{L": "} +
                     TypesToString(all_types_found));
   } else {
-    // TODO(2024-01-02, trivial): Avoid conversion to std::wstring. Use
-    // NewError.
-    return Error(L"No definition found: " + output_tokens[0].value.ToString());
+    return NewError(LazyString{L"No definition found: "} +
+                    output_tokens[0].value);
   }
   return ParsedCommand{
       .tokens = std::move(output_tokens),
@@ -223,7 +222,7 @@ ValueOrError<ParsedCommand> Parse(
 ValueOrError<ParsedCommand> Parse(gc::Pool& pool, LazyString command,
                                   vm::Environment& environment,
                                   const SearchNamespaces& search_namespaces) {
-  return Parse(pool, std::move(command), environment, LazyString(),
+  return Parse(pool, std::move(command), environment, LazyString{},
                {vm::types::Void{}, vm::types::String{}}, search_namespaces);
 }
 
@@ -274,7 +273,7 @@ bool tests_parse_registration = tests::Register(
             SearchNamespaces(buffer.ptr().value()));
         CHECK(!std::holds_alternative<Error>(output));
       }}});
-}
+}  // namespace
 
 futures::ValueOrError<gc::Root<vm::Value>> Execute(
     OpenBuffer& buffer, ParsedCommand parsed_command) {
