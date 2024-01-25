@@ -250,7 +250,7 @@ bool tests_parse_registration = tests::Register(
             gc::Pool pool({});
             gc::Root<vm::Environment> environment = vm::Environment::New(pool);
             ValueOrError<ParsedCommand> output =
-                Parse(pool, LazyString{L"foo"}, environment.ptr().value(),
+                Parse(pool, LazyString{L"foo bar"}, environment.ptr().value(),
                       LazyString(),
                       std::unordered_set<vm::Type>({vm::types::String{}}),
                       SearchNamespaces(buffer.ptr().value()));

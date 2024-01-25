@@ -30,12 +30,13 @@ using vm::operator<<;
 struct Tree {
   vm::Type type;
   NonNull<std::shared_ptr<Expression>> value;
-  std::vector<NonNull<std::shared_ptr<Tree>>> children = {};
+  std::vector<Tree> children = {};
 
   size_t DepthRightBranch() const {
     size_t output = 0;
     for (NonNull<const Tree*> tree = NonNull<const Tree*>::Unsafe(this);
-         !tree->children.empty(); tree = tree->children.back().get())
+         !tree->children.empty();
+         tree = NonNull<const Tree*>::AddressOf(tree->children.back()))
       ++output;
     return output;
   }
@@ -45,7 +46,7 @@ struct Tree {
     NonNull<Tree*> tree = NonNull<Tree*>::Unsafe(this);
     while (depth > 0) {
       CHECK(!tree->children.empty()) << "Invalid depth.";
-      tree = tree->children.back().get();
+      tree = NonNull<Tree*>::AddressOf(tree->children.back());
       --depth;
     }
     return tree.value();
@@ -56,8 +57,8 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   std::wstring separator = L"";
   os << L"[";
   os << tree.type;
-  for (const NonNull<std::shared_ptr<Tree>>& c : tree.children) {
-    os << separator << c.value();
+  for (const Tree& c : tree.children) {
+    os << separator << c;
     separator = L", ";
   }
   os << "]";
@@ -89,12 +90,14 @@ class ParseState {
     for (auto& token : tokens_) {
       VLOG(5) << "Consume token: " << token.value
               << ", candidates: " << candidates_.size();
-      if (IsQuotedString(token))
-        ReceiveValue(Value::NewString(pool_, token.value));
-      else if (IsLiteralNumber(token))
-        ReceiveValue(Value::NewNumber(
-            pool_, math::numbers::FromInt(
-                       atoi(ToByteString(token.value.ToString()).c_str()))));
+      for (auto& c : candidates_) VLOG(6) << "Candidate: " << c;
+      std::vector<Tree> extended_candidates;
+      if (IsLiteralNumber(token))
+        PushValue(
+            Value::NewNumber(
+                pool_, math::numbers::FromInt(
+                           atoi(ToByteString(token.value.ToString()).c_str()))),
+            extended_candidates);
       // TODO(easy, 2023-12-30): Before adding validation to Identifier,
       // validate here that the input can be correctly converted to an
       // Identifier. Otherwise this can crash if there's a mismatch. It should,
@@ -104,9 +107,12 @@ class ParseState {
                       ? Identifier(
                             (token.value + function_name_prefix_).ToString())
                       : Identifier(token.value.ToString())))
-        ReceiveValue(value);
-      if (candidates_.empty()) return Error(L"No valid parses found.");
+        PushValue(value, extended_candidates);
+      PushValue(Value::NewString(pool_, token.value), extended_candidates);
+      if (extended_candidates.empty()) return Error(L"No valid parses found.");
       first_token = false;
+      candidates_ = std::move(extended_candidates);
+      for (auto& c : candidates_) VLOG(6) << "Extended Candidate: " << c;
     }
 
     std::vector<std::shared_ptr<Expression>> valid_outputs =
@@ -120,7 +126,6 @@ class ParseState {
               return value != nullptr;
             }));
     LOG(INFO) << "Natural results: " << valid_outputs.size();
-    if (valid_outputs.size() > 1) return Error(L"Ambiguous parses found.");
     if (valid_outputs.empty())
       return Error(L"No valid parses found (post compilation).");
 
@@ -135,11 +140,9 @@ class ParseState {
     if (function_type == nullptr) return tree.value.get_shared();
     std::vector<std::shared_ptr<Expression>> children_arguments =
         container::MaterializeVector(
-            tree.children |
-            std::views::transform(
-                [this](const NonNull<std::shared_ptr<Tree>>& argument) {
-                  return CompileTree(argument.value());
-                }));
+            tree.children | std::views::transform([this](const Tree& argument) {
+              return CompileTree(argument);
+            }));
 
     if (std::ranges::any_of(children_arguments,
                             [](auto& value) { return value == nullptr; }))
@@ -165,48 +168,54 @@ class ParseState {
         .get_unique();
   }
 
-  void ReceiveValue(gc::Root<Value> value_root) {
+  void PushValue(gc::Root<Value> value_root, std::vector<Tree>& output) const {
     vm::Type type = value_root.ptr()->type;
+    VLOG(8) << "Receive value type: " << type;
     NonNull<std::shared_ptr<Expression>> value =
         NewConstantExpression(std::move(value_root));
     CHECK(!value->Types().empty());
     if (candidates_.empty())
-      candidates_ = {Tree{.type = value->Types().front(), .value = value}};
+      output.push_back(Tree{.type = value->Types().front(), .value = value});
     else
-      for (auto& tree : std::exchange(candidates_, std::vector<Tree>{}))
-        ExtendTree(type, value, tree, 0);
+      for (const Tree& tree : candidates_)
+        ExtendTree(type, value, tree, output);
   }
 
-  void ExtendTree(const vm::Type& type,
-                  const NonNull<std::shared_ptr<Expression>>& value, Tree tree,
-                  size_t insertion_depth) {
-    if (insertion_depth > tree.DepthRightBranch()) return;
-    ExtendTree(type, value, tree, insertion_depth + 1);
-    if (Insert(type, value, tree, insertion_depth)) candidates_.push_back(tree);
+  static void ExtendTree(const vm::Type& type,
+                         const NonNull<std::shared_ptr<Expression>>& value,
+                         Tree tree, std::vector<Tree>& output) {
+    for (size_t child_insertion_depth = tree.DepthRightBranch() + 1;
+         child_insertion_depth > 0; --child_insertion_depth)
+      if (std::optional<Tree> new_tree =
+              Insert(type, value, tree, child_insertion_depth - 1);
+          new_tree.has_value())
+        output.push_back(new_tree.value());
   }
 
   // insertion_depth is the depth of the parent to which we'll add `value` as a
   // child.
-  bool Insert(const vm::Type& type,
-              const NonNull<std::shared_ptr<Expression>>& value, Tree& tree,
-              size_t insertion_depth) {
+  static std::optional<Tree> Insert(
+      const vm::Type& type, const NonNull<std::shared_ptr<Expression>>& value,
+      Tree tree, size_t insertion_depth) {
     Tree& parent_tree = tree.RightBranchTreeAtDepth(insertion_depth);
     const types::Function* parent_function_type =
         std::get_if<types::Function>(&parent_tree.type);
+    VLOG(7) << "Attempt insert at depth " << insertion_depth
+            << " to parent_tree.type:" << parent_tree.type;
     if (parent_function_type == nullptr ||
         parent_function_type->inputs.size() <= parent_tree.children.size())
-      return false;
+      return std::nullopt;
     const types::Function* value_function_type =
         std::get_if<types::Function>(&type);
     if (parent_function_type->inputs[parent_tree.children.size()] == type ||
         (value_function_type != nullptr &&
          parent_function_type->inputs[parent_tree.children.size()] ==
              value_function_type->output.get())) {
-      parent_tree.children.push_back(
-          MakeNonNullUnique<Tree>(Tree{.type = type, .value = value}));
-      return true;
+      parent_tree.children.push_back(Tree{.type = type, .value = value});
+      VLOG(8) << "Insert: " << type << " at " << insertion_depth;
+      return tree;
     }
-    return false;
+    return std::nullopt;
   }
 
   static bool IsQuotedString(const Token& token) { return token.has_quotes; }
@@ -298,7 +307,8 @@ bool tests_registration = tests::Register(
                    vm::NewCallback(pool, PurityType::kPure,
                                    [](std::wstring a, std::wstring b,
                                       std::wstring c) -> std::wstring {
-                                     return L">" + a + L")" + b + L"]" + c;
+                                     return L"{" + a + L"," + b + L"," + c +
+                                            L"}";
                                    }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                    Compile(LazyString{L"Moo Moo"}, LazyString(),
@@ -312,7 +322,29 @@ bool tests_registration = tests::Register(
                                          .ptr()
                                          ->get_string()
                                          .ToString()),
-                        ">>)])]");
+                        "{{,,},,}");
+             }},
+        {.name = L"UnaryFunctionUnquotedArgument",
+         .callback =
+             [] {
+               gc::Pool pool({});
+               language::gc::Root<Environment> environment =
+                   afc::vm::NewDefaultEnvironment(pool);
+               environment.ptr()->Define(
+                   Identifier(L"UnaryFunction"),
+                   vm::NewCallback(pool, PurityType::kPure,
+                                   [](std::wstring a) -> std::wstring {
+                                     CHECK(a == L"bar");
+                                     return L"quux";
+                                   }));
+               NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
+                   Compile(LazyString{L"UnaryFunction bar"}, LazyString{},
+                           environment.ptr().value(), {kEmptyNamespace}, pool));
+               CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
+                                    .Get()
+                                    .value())
+                         .ptr()
+                         ->get_string() == LazyString{L"quux"});
              }},
         {.name = L"SimpleFunctionTwoArguments",
          .callback =
