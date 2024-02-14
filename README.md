@@ -6,7 +6,7 @@
 Edge is a modal terminal-based text editor for GNU/Linux.
 This document describes the use of Edge.
 
-The following are a few characteristics of Edge:
+A few characteristics of Edge:
 
 * Always responsive.
   Edge should always respond to user commands,
