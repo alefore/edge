@@ -216,6 +216,8 @@ src/log.h \
 src/lru_cache.cc \
 src/lru_cache.h \
 src/map_mode.cc \
+src/math/bigint.cc \
+src/math/bigint.h \
 src/math/decaying_counter.cc \
 src/math/decaying_counter.h \
 src/math/naive_bayes.cc \
