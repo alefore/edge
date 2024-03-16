@@ -43,7 +43,6 @@ using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::math::numbers::Number;
-using afc::math::numbers::ToInt;
 using afc::vm::Environment;
 using afc::vm::GetVMType;
 using afc::vm::Identifier;
@@ -91,7 +90,7 @@ ValueOrError<T> FromVmValue(T t) {
   return t;
 }
 
-ValueOrError<int> FromVmValue(Number number) { return ToInt32(number); }
+ValueOrError<int> FromVmValue(Number number) { return number.ToInt32(); }
 
 template <typename EdgeStruct, typename FieldValue,
           typename FieldVmValue = FieldValue>

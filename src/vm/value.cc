@@ -16,7 +16,6 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
-using afc::math::numbers::ToDouble;
 using afc::math::numbers::ToString;
 
 size_t constexpr kDefaultPrecision = 5ul;
@@ -117,11 +116,11 @@ bool Value::get_bool() const {
 }
 
 language::ValueOrError<int32_t> Value::get_int32() const {
-  return math::numbers::ToInt32(get_number());
+  return get_number().ToInt32();
 }
 
 language::ValueOrError<int64_t> Value::get_int() const {
-  return math::numbers::ToInt(get_number());
+  return get_number().ToInt64();
 }
 
 const math::numbers::Number& Value::get_number() const {
@@ -163,7 +162,7 @@ ValueOrError<double> Value::ToDouble() const {
                  return Error(L"Unable to convert to double: bool");
                },
                [&](const types::Number&) -> ValueOrError<double> {
-                 return afc::math::numbers::ToDouble(get_number());
+                 return get_number().ToDouble();
                },
                [&](const types::String&) -> ValueOrError<double> {
                  return Error(L"Unable to convert to double: string");
@@ -196,9 +195,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
                  os << (value.get_bool() ? L"true" : L"false");
                },
                [&](const types::Number&) {
-                 std::visit(overload{[&](std::wstring str) { os << str; },
-                                     [&](Error error) { os << error; }},
-                            ToString(value.get_number(), kDefaultPrecision));
+                 os << value.get_number().ToString(kDefaultPrecision);
                },
                [&](const types::String&) {
                  os << EscapedString::FromString(LazyString{value.get_string()})

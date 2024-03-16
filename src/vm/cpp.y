@@ -441,7 +441,9 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value),
                 [](LazyString a, LazyString b) { return Success(a + b); },
-                [](numbers::Number a, numbers::Number b) { return a + b; },
+                [](numbers::Number a, numbers::Number b) {
+                  return std::move(a) + std::move(b);
+                },
                 nullptr))
             .release();
 }
@@ -457,7 +459,9 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
                 NewVariableLookup(*compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](numbers::Number a, numbers::Number b) { return a - b; },
+                [](numbers::Number a, numbers::Number b) {
+                  return std::move(a) - std::move(b);
+                },
                 nullptr))
             .release();
 }
@@ -473,7 +477,9 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
                 NewVariableLookup(*compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](numbers::Number a, numbers::Number b) { return a * b; },
+                [](numbers::Number a, numbers::Number b) {
+                  return std::move(a) * std::move(b);
+                },
                 [](LazyString a, int b) -> language::ValueOrError<LazyString> {
                   LazyString output;
                   for (int i = 0; i < b; i++) {
@@ -501,7 +507,9 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
                 NewVariableLookup(*compilation,
                                   {name->value().ptr()->get_symbol()}),
                 std::move(value), nullptr,
-                [](numbers::Number a, numbers::Number b) { return a / b; },
+                [](numbers::Number a, numbers::Number b) {
+                  return std::move(a) / std::move(b);
+                },
                 nullptr))
             .release();
 }
@@ -525,7 +533,9 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
                           types::Number{},
                           [](gc::Pool& pool, const Value&, const Value& a) {
                             return Value::NewNumber(
-                                pool, a.get_number() + numbers::FromInt(1));
+                                pool,
+                                numbers::Number(a.get_number())
+                                    + numbers::Number::FromInt64(1));
                           }))
                       .get_unique()))
               .release();
@@ -555,7 +565,9 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
                           types::Number{},
                           [](gc::Pool& pool, const Value&, const Value& a) {
                             return Value::NewNumber(
-                                pool, a.get_number() - numbers::FromInt(1));
+                                pool,
+                                numbers::Number(a.get_number())
+                                    - numbers::Number::FromInt64(1));
                           }))
                       .get_unique()))
               .release();
@@ -659,11 +671,8 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    ASSIGN_OR_RETURN(
-                        bool output,
-                        numbers::IsEqual(a_value.get_number(),
-                                         b_value.get_number(), precision));
-                    return Value::NewBool(pool, output);
+                    return Value::NewBool(
+                        pool, a_value.get_number() == b_value.get_number());
                   })))
               .release();
   } else {
@@ -703,11 +712,8 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    ASSIGN_OR_RETURN(
-                        bool output,
-                        numbers::IsEqual(a_value.get_number(),
-                                         b_value.get_number(), precision));
-                    return Value::NewBool(pool, !output);
+                    return Value::NewBool(
+                        pool, a_value.get_number() != b_value.get_number());
                   })))
               .release();
   } else {
@@ -735,11 +741,8 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    ASSIGN_OR_RETURN(
-                        bool output,
-                        numbers::IsLessThan(a_value.get_number(),
-                                            b_value.get_number(), precision));
-                    return Value::NewBool(pool, output);
+                    return Value::NewBool(
+                        pool, a_value.get_number() < b_value.get_number());
                   })))
               .release();
   } else {
@@ -766,11 +769,8 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    ASSIGN_OR_RETURN(bool output,
-                                     numbers::IsLessThanOrEqual(
-                                         a_value.get_number(),
-                                         b_value.get_number(), precision));
-                    return Value::NewBool(pool, output);
+                    return Value::NewBool(
+                        pool, a_value.get_number() <= b_value.get_number());
                   })))
               .release();
   } else {
@@ -797,11 +797,8 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    ASSIGN_OR_RETURN(
-                        bool output,
-                        numbers::IsLessThan(b_value.get_number(),
-                                            a_value.get_number(), precision));
-                    return Value::NewBool(pool, output);
+                    return Value::NewBool(
+                        pool, a_value.get_number() > b_value.get_number());
                   })))
               .release();
   } else {
@@ -829,11 +826,8 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
                   [precision = compilation->numbers_precision](
                       gc::Pool& pool, const Value& a_value,
                       const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-                    ASSIGN_OR_RETURN(bool output,
-                                     numbers::IsLessThanOrEqual(
-                                         b_value.get_number(),
-                                         a_value.get_number(), precision));
-                    return Value::NewBool(pool, output);
+                    return Value::NewBool(
+                        pool, a_value.get_number() >= b_value.get_number());
                   })))
               .release();
   } else {
@@ -874,7 +868,7 @@ expr(OUT) ::= expr(A) PLUS expr(B). {
               return Success(a_str + b_str);
             },
             [](numbers::Number a_number, numbers::Number b_number) {
-              return a_number + b_number;
+              return std::move(a_number) + std::move(b_number);
             },
             nullptr)
             .release();
@@ -887,7 +881,7 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
   OUT = NewBinaryExpression(
             *compilation, std::move(a), std::move(b), nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
-              return a_number - b_number;
+              return std::move(a_number) - std::move(b_number);
             },
             nullptr)
             .release();
@@ -913,7 +907,7 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
   OUT = NewBinaryExpression(
             *compilation, std::move(a), std::move(b), nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
-              return a_number * b_number;
+              return std::move(a_number) * std::move(b_number);
             },
             [](LazyString a_str, int b_int)
                 -> language::ValueOrError<LazyString> {
@@ -939,7 +933,7 @@ expr(OUT) ::= expr(A) DIVIDE expr(B). {
   OUT = NewBinaryExpression(
             *compilation, std::move(a), std::move(b), nullptr,
             [](numbers::Number a_number, numbers::Number b_number) {
-              return a_number / b_number;
+              return std::move(a_number) / std::move(b_number);
             },
             nullptr)
             .release();

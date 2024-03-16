@@ -17,7 +17,6 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
-using afc::math::numbers::ToInt;
 
 namespace afc::vm {
 
@@ -127,7 +126,7 @@ std::unique_ptr<Expression> NewBinaryExpression(
         [str_int_operator](
             gc::Pool& pool, const Value& a_value,
             const Value& b_value) -> ValueOrError<gc::Root<Value>> {
-          DECLARE_OR_RETURN(int b_value_int, ToInt(b_value.get_number()));
+          DECLARE_OR_RETURN(int b_value_int, b_value.get_number().ToInt32());
           DECLARE_OR_RETURN(
               LazyString value,
               str_int_operator(a_value.get_string(), b_value_int));

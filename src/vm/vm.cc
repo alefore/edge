@@ -152,10 +152,10 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
 }
 
 numbers::Number ConsumeDecimal(const LazyString& str, ColumnNumber* pos) {
-  numbers::Number output = numbers::FromInt(0);
+  numbers::Number output = numbers::Number::FromInt64(0);
   while (pos->ToDelta() < str.size() && isdigit(str.get(*pos))) {
-    output *= numbers::FromInt(10);
-    output += numbers::FromInt(str.get(*pos) - '0');
+    output *= numbers::Number::FromInt64(10);
+    output += numbers::Number::FromInt64(str.get(*pos) - '0');
     ++(*pos);
   }
   return output;
@@ -354,15 +354,19 @@ void CompileLine(Compilation& compilation, void* parser,
             (str.get(pos) == '.' || str.get(pos) == 'e')) {
           if (str.get(pos) == '.') {
             pos++;
-            numbers::Number decimal_numerator = numbers::FromInt(0);
-            numbers::Number decimal_denominator = numbers::FromInt(1);
+            numbers::Number decimal_numerator = numbers::Number::FromInt64(0);
+            numbers::Number decimal_denominator = numbers::Number::FromInt64(1);
             while (pos.ToDelta() < str.size() && isdigit(str.get(pos))) {
-              decimal_numerator *= numbers::FromInt(10);
-              decimal_denominator *= numbers::FromInt(10);
-              decimal_numerator += numbers::FromInt(str.get(pos) - L'0');
+              decimal_numerator *= numbers::Number::FromInt64(10);
+              decimal_denominator *= numbers::Number::FromInt64(10);
+              decimal_numerator +=
+                  numbers::Number::FromInt64(str.get(pos) - L'0');
               pos++;
             }
-            value += decimal_numerator / decimal_denominator;
+            // TODO(2024-03-16): Drop ValueOrDie. Use sub-type of Number that
+            // exclude zero and/or negatives.
+            value += ValueOrDie(std::move(decimal_numerator) /
+                                std::move(decimal_denominator));
           }
           if (pos.ToDelta() < str.size() && str.get(pos) == 'e') {
             pos++;
@@ -382,7 +386,7 @@ void CompileLine(Compilation& compilation, void* parser,
                 compilation.RegisterErrors(
                     AugmentErrors(L"Exponent (in scientific notation) can't be "
                                   L"converted to integer",
-                                  numbers::ToInt(ConsumeDecimal(str, &pos))));
+                                  ConsumeDecimal(str, &pos).ToInt64()));
             if (IsError(exponent_or_error)) return;
             int64_t exponent = ValueOrDie(std::move(exponent_or_error));
             if (exponent > 1024) {
@@ -395,7 +399,7 @@ void CompileLine(Compilation& compilation, void* parser,
               return;
             }
             numbers::Number exponent_factor =
-                numbers::Pow(numbers::FromInt(10), exponent);
+                numbers::Pow(numbers::Number::FromInt64(10), exponent);
             if (positive)
               value *= std::move(exponent_factor);
             else

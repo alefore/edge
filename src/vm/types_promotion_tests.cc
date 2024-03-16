@@ -8,7 +8,7 @@ namespace gc = afc::language::gc;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
-using afc::math::numbers::FromInt;
+using afc::math::numbers::Number;
 
 namespace afc::vm {
 namespace {
@@ -32,9 +32,9 @@ const bool tests_registration = tests::Register(
                    GetImplicitPromotion(types::Number{}, types::Number{});
                CHECK(callback != nullptr);
                gc::Root<Value> output =
-                   callback(pool, Value::NewNumber(pool, FromInt(5)));
+                   callback(pool, Value::NewNumber(pool, Number::FromInt64(5)));
                ValueOrError<std::wstring> output_str =
-                   ToString(output.ptr()->get_number(), 2);
+                   output.ptr()->get_number().ToString(2);
                LOG(INFO) << "Output str: " << output_str;
                CHECK(ValueOrDie(std::move(output_str)) == L"5");
              }},
@@ -63,7 +63,7 @@ const bool tests_registration = tests::Register(
                                          [](std::wstring s, bool b) {
                                            CHECK(s == L"alejo");
                                            CHECK_EQ(b, true);
-                                           return FromInt(4);
+                                           return Number::FromInt64(4);
                                          }));
                Trampoline trampoline(Trampoline::Options{
                    .pool = pool,
@@ -74,9 +74,10 @@ const bool tests_registration = tests::Register(
                        {Value::NewString(pool, LazyString{L"alejo"}),
                         Value::NewBool(pool, true)},
                        trampoline);
-               CHECK(ValueOrDie(ToString(
-                         ValueOrDie(output.Get().value()).ptr()->get_number(),
-                         2)) == L"4");
+               CHECK(ValueOrDie(output.Get().value())
+                         .ptr()
+                         ->get_number()
+                         .ToString(2) == L"4");
              }},
     });
 }  // namespace

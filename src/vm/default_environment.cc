@@ -37,11 +37,9 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   gc::Root<ObjectType> number_type = ObjectType::New(pool, types::Number{});
   number_type.ptr()->AddField(
       Identifier(L"tostring"),
-      NewCallback(pool, PurityType::kPure,
-                  /*std::function<std::wstring(Number)>*/ ([](Number value) {
-                    return futures::Past(ToString(value, 5));
-                  }))
-          .ptr());
+      NewCallback(pool, PurityType::kPure, [](Number value) {
+        return futures::Past(value.ToString(5));
+      }).ptr());
   environment_value.DefineType(number_type.ptr());
 
   environment_value.Define(

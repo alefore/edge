@@ -228,11 +228,11 @@ void DefineSortLinesByKey(
                        inputs.get_shared(),
                        [data, get_key](LineNumber line_number) {
                          return data->callback.ptr()
-                             ->value(
-                                 {vm::Value::NewNumber(
-                                     data->trampoline.pool(),
-                                     numbers::FromSizeT(line_number.read()))},
-                                 data->trampoline)
+                             ->value({vm::Value::NewNumber(
+                                         data->trampoline.pool(),
+                                         numbers::Number::FromSizeT(
+                                             line_number.read()))},
+                                     data->trampoline)
                              .Transform(
                                  [data, get_key,
                                   line_number](gc::Root<vm::Value> output)
@@ -405,10 +405,10 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                       })
           .ptr());
 
-  DefineSortLinesByKey<int64_t>(pool, buffer_object_type, vm::types::Number{},
-                                [](const vm::Value& value) {
-                                  return numbers::ToInt(value.get_number());
-                                });
+  // TODO(2024-03-14, trivial): Sort by Number.
+  DefineSortLinesByKey<int64_t>(
+      pool, buffer_object_type, vm::types::Number{},
+      [](const vm::Value& value) { return value.get_number().ToInt64(); });
 
   DefineSortLinesByKey<std::wstring>(
       pool, buffer_object_type, vm::types::String{},

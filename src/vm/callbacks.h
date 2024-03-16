@@ -65,10 +65,10 @@ struct VMTypeMapper<bool> {
 template <>
 struct VMTypeMapper<size_t> {
   static afc::language::ValueOrError<size_t> get(Value& value) {
-    return afc::math::numbers::ToSizeT(value.get_number());
+    return value.get_number().ToSizeT();
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool, size_t value) {
-    return Value::NewNumber(pool, afc::math::numbers::FromSizeT(value));
+    return Value::NewNumber(pool, afc::math::numbers::Number::FromSizeT(value));
   }
   static const Type vmtype;
 };
@@ -76,10 +76,10 @@ struct VMTypeMapper<size_t> {
 template <>
 struct VMTypeMapper<int> {
   static afc::language::ValueOrError<int> get(Value& value) {
-    return afc::math::numbers::ToInt32(value.get_number());
+    return value.get_number().ToInt32();
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool, int value) {
-    return Value::NewNumber(pool, afc::math::numbers::FromInt(value));
+    return Value::NewNumber(pool, afc::math::numbers::Number::FromInt64(value));
   }
   static const Type vmtype;
 };
@@ -87,10 +87,11 @@ struct VMTypeMapper<int> {
 template <>
 struct VMTypeMapper<double> {
   static afc::language::ValueOrError<double> get(Value& value) {
-    return afc::math::numbers::ToDouble(value.get_number());
+    return value.get_number().ToDouble();
   }
   static language::gc::Root<Value> New(language::gc::Pool& pool, double value) {
-    return Value::NewNumber(pool, afc::math::numbers::FromDouble(value));
+    return Value::NewNumber(pool,
+                            afc::math::numbers::Number::FromDouble(value));
   }
   static const Type vmtype;
 };

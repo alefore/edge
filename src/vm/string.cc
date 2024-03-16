@@ -16,9 +16,7 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::Success;
 using afc::language::ValueOrError;
-using afc::math::numbers::FromInt;
-using afc::math::numbers::FromSizeT;
-using afc::math::numbers::ToInt;
+using afc::math::numbers::Number;
 
 namespace afc::language::gc {
 class Pool;
@@ -108,7 +106,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find(pattern, start_pos);
-        return pos == std::wstring::npos ? FromInt(-1) : FromSizeT(pos);
+        return pos == std::wstring::npos ? Number::FromInt64(-1)
+                                         : Number::FromSizeT(pos);
       },
       string_type);
   AddMethod(
@@ -116,7 +115,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_last_of(pattern, start_pos);
-        return pos == std::wstring::npos ? FromInt(-1) : FromSizeT(pos);
+        return pos == std::wstring::npos ? Number::FromInt64(-1)
+                                         : Number::FromSizeT(pos);
       },
       string_type);
   AddMethod(
@@ -124,7 +124,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_last_not_of(pattern, start_pos);
-        return pos == std::wstring::npos ? FromInt(-1) : FromSizeT(pos);
+        return pos == std::wstring::npos ? Number::FromInt64(-1)
+                                         : Number::FromSizeT(pos);
       },
       string_type);
   AddMethod(
@@ -132,7 +133,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_first_of(pattern, start_pos);
-        return pos == std::wstring::npos ? FromInt(-1) : FromSizeT(pos);
+        return pos == std::wstring::npos ? Number::FromInt64(-1)
+                                         : Number::FromSizeT(pos);
       },
       string_type);
   AddMethod(
@@ -140,7 +142,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_first_not_of(pattern, start_pos);
-        return pos == std::wstring::npos ? FromInt(-1) : FromSizeT(pos);
+        return pos == std::wstring::npos ? Number::FromInt64(-1)
+                                         : Number::FromSizeT(pos);
       },
       string_type);
   environment.DefineType(string_type.ptr());

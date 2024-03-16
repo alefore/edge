@@ -34,8 +34,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::OutgoingLink;
-using afc::math::numbers::FromInt;
-using afc::math::numbers::ToSizeT;
+using afc::math::numbers::Number;
 
 namespace afc::editor {
 namespace {
@@ -133,7 +132,7 @@ futures::Value<PossibleError> GenerateContents(
           target.environment()->Lookup(editor_state.gc_pool(), kEmptyNamespace,
                                        kDepthSymbol, vm::types::Number{});
       depth_value.has_value()) {
-    FUTURES_ASSIGN_OR_RETURN(depth, ToSizeT(depth_value->ptr()->get_number()));
+    FUTURES_ASSIGN_OR_RETURN(depth, depth_value->ptr()->get_number().ToSizeT());
   }
   DisplayTree(source->ptr().value(), depth, tree.value(), LazyString(), target);
   return futures::Past(Success());
@@ -172,8 +171,8 @@ class NavigationBufferCommand : public Command {
           buffer.Set(buffer_variables::push_positions_to_history, false);
           buffer.Set(buffer_variables::allow_dirty_delete, true);
           buffer.environment()->Define(
-              kDepthSymbol,
-              vm::Value::NewNumber(editor_state_.gc_pool(), FromInt(3)));
+              kDepthSymbol, vm::Value::NewNumber(editor_state_.gc_pool(),
+                                                 Number::FromInt64(3)));
           buffer.Set(buffer_variables::reload_on_enter, true);
           editor_state_.StartHandlingInterrupts();
           editor_state_.AddBuffer(buffer_root,

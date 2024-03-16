@@ -10,6 +10,7 @@
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
+#include "src/math/bigint.h"
 #include "src/math/checked_operation.h"
 #include "src/tests/tests.h"
 
@@ -17,305 +18,373 @@ namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
+using afc::language::NewError;
 using afc::language::overload;
+using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 using ::operator<<;
 
 namespace afc::math::numbers {
-struct BinaryOperation {
-  Number a;
-  Number b;
-};
+Number Number::operator+(Number other) && {
+  if (!positive_ && !other.positive_)
+    return (std::move(*this).Negate() + std::move(other).Negate()).Negate();
+  if (!positive_) return std::move(other) - std::move(*this).Negate();
+  if (!other.positive_) return std::move(*this) - std::move(other).Negate();
 
-struct Negation {
-  Number a;
-};
+  BigInt new_numerator = std::move(numerator_) * other.denominator_ +
+                         denominator_ * std::move(other.numerator_);
+  BigInt new_denominator =
+      std::move(denominator_) * std::move(other.denominator_);
+  return Number(true, std::move(new_numerator), std::move(new_denominator));
+}
 
-struct Addition : public BinaryOperation {};
-struct Multiplication : public BinaryOperation {};
-struct Division : public BinaryOperation {};
+Number Number::operator-(Number other) && {
+  if (!positive_ && !other.positive_)
+    return (std::move(*this).Negate() - std::move(other).Negate()).Negate();
+  if (!positive_)
+    return (std::move(*this).Negate() + std::move(other)).Negate();
+  if (!other.positive_) return std::move(*this) + std::move(other);
 
-struct OperationTree {
-  std::variant<int64_t, Addition, Negation, Multiplication, Division> variant;
-};
+  BigInt a = std::move(numerator_) * other.denominator_;
+  BigInt b = std::move(other.numerator_) * denominator_;
+  BigInt new_numerator = ValueOrDie(a >= b ? std::move(a) - std::move(b)
+                                           : std::move(b) - std::move(a));
+  BigInt new_denominator =
+      std::move(denominator_) * std::move(other.denominator_);
+  return Number(a >= b, std::move(new_numerator), std::move(new_denominator));
+}
 
-namespace {
-// Least significative digit first. The most significant digit (last digit) must
-// not be 0. Zero should always be represented as the empty vector (never as
-// {0}).
-GHOST_TYPE_CONTAINER(Digits, std::vector<size_t>);
+Number Number::operator*(Number other) && {
+  BigInt new_numerator = std::move(numerator_) * std::move(other.numerator_);
+  BigInt new_denominator =
+      std::move(denominator_) * std::move(other.denominator_);
+  return Number(positive_ == other.positive_, std::move(new_numerator),
+                std::move(new_denominator));
+}
 
-struct Decimal {
-  bool positive = true;
-  bool exact = true;
-  Digits digits;
-};
+ValueOrError<Number> Number::operator/(Number other) && {
+  DECLARE_OR_RETURN(Number reciprocal, std::move(other).Reciprocal());
+  return std::move(*this) * std::move(reciprocal);
+}
 
-std::wstring ToString(const Decimal& decimal, size_t decimal_digits) {
-  std::wstring output;
-  if (!decimal.positive) output.push_back(L'-');
-  bool has_dot = false;
-  if (decimal_digits >= decimal.digits.size()) {
-    output.push_back(L'0');
-    if (decimal_digits > decimal.digits.size()) {
-      output.push_back(L'.');
-      has_dot = true;
-      for (size_t i = 0; i < decimal_digits - decimal.digits.size(); ++i)
-        output.push_back(L'0');
+Number Number::Negate() && {
+  return Number(!positive_, std::move(numerator_), std::move(denominator_));
+}
+
+ValueOrError<Number> Number::Reciprocal() && {
+  if (numerator_.IsZero())
+    return NewError(LazyString{L"Zero has no reciprocal."});
+  return Number{positive_, std::move(denominator_), std::move(numerator_)};
+}
+
+void Number::Optimize() {
+  BigInt gcd = numerator_.GreatestCommonDivisor(denominator_);
+  numerator_ = ValueOrDie(std::move(numerator_) / gcd);
+  denominator_ = ValueOrDie(std::move(denominator_) / gcd);
+}
+
+std::wstring Number::ToString(size_t decimal_digits) const {
+  BigInt scaled_numerator =
+      BigInt(numerator_) *
+      BigInt::Pow(BigInt::FromNumber(10), BigInt::FromNumber(decimal_digits));
+  BigIntDivideOutput divide_output =
+      ValueOrDie(Divide(std::move(scaled_numerator), BigInt(denominator_)));
+  std::wstring output = divide_output.quotient.ToString();
+  if (output.length() < decimal_digits)
+    output = std::wstring(decimal_digits - output.length(), L'0') + output;
+  if (decimal_digits > 0) {
+    output.insert(output.length() - decimal_digits, L".");
+    if (divide_output.remainder.IsZero()) {
+      output.erase(output.find_last_not_of(L'0') + 1, std::wstring::npos);
+      if (!output.empty() && output.back() == L'.') output.pop_back();
     }
   }
-  for (size_t i = 0; i < decimal.digits.size(); i++) {
-    if (i == decimal.digits.size() - decimal_digits) {
-      has_dot = true;
-      output.push_back(L'.');
-    }
-    output.push_back(L'0' + decimal.digits[decimal.digits.size() - 1 - i]);
-  }
-  if (decimal.exact && has_dot) {
-    while (!output.empty() && output.back() == L'0') output.pop_back();
-    if (!output.empty() && output.back() == L'.') output.pop_back();
-  }
+  if (output.empty() || output.front() == L'.')
+    output.insert(output.begin(), L'0');
+  if (!positive_) output.insert(output.begin(), L'-');
   return output;
 }
 
-Digits RemoveSignificantZeros(Digits value) {
-  while (!value.empty() && value.back() == 0) value.pop_back();
-  return value;
-}
-
-ValueOrError<Decimal> OperationTreeToDecimal(int64_t value,
-                                             size_t decimal_digits) {
-  Decimal output{.positive = value >= 0,
-                 .digits = {Digits(std::vector<size_t>(decimal_digits, 0))}};
-  while (value != 0) {
-    output.digits.push_back(output.positive ? value % 10 : -(value % 10));
-    value /= 10;
-  }
-  output.digits = RemoveSignificantZeros(output.digits);
-  return output;
-}
-
-const bool operation_tree_to_decimal_int_tests_registration =
-    tests::Register(L"numbers::OperationTreeToDecimalInt", [] {
-      auto test = [](std::wstring name, int input, bool positive_expectation,
-                     std::string expectation) {
+const bool tostring_tests_registration =
+    tests::Register(L"numbers::Number::ToString", [] {
+      auto test = [](std::wstring name, Number input, size_t decimal_digits,
+                     const std::wstring& expectation) {
         return tests::Test{
-            .name = name,
-            .callback = [input, positive_expectation, expectation] {
-              Decimal output = ValueOrDie(OperationTreeToDecimal(input, 0));
-              CHECK_EQ(output.positive, positive_expectation);
-              std::string output_str = container::Materialize<std::string>(
-                  output.digits | std::views::reverse |
-                  std::views::transform([](size_t d) { return '0' + d; }));
-              CHECK_EQ(output_str, expectation);
+            .name = name, .callback = [input, decimal_digits, expectation] {
+              std::wstring output = input.ToString(decimal_digits);
+              CHECK(output == expectation)
+                  << "Expected " << expectation << " but got " << output;
+              ;
             }};
       };
-      return std::vector<tests::Test>({
-          test(L"Zero", 0, true, ""),
-          test(L"SimplePositive", 871, true, "871"),
-          test(L"SimpleNegative", -6239, false, "6239"),
-          test(L"Min", std::numeric_limits<int>::min(), false, "2147483648"),
-          test(L"Max", std::numeric_limits<int>::max(), true, "2147483647"),
-      });
+
+      return std::vector<tests::Test>(
+          {test(L"WholeNumber", Number::FromDouble(123.0), 0, L"123"),
+           // TODO(2024-03-16): This should probably yield 123.46 (rounding).
+           test(L"WholeNumberWithDecimals", Number::FromDouble(123.456), 2,
+                L"123.45"),
+           test(L"NegativeNumber", Number::FromInt64(-123), 2, L"-123"),
+           test(L"Zero", Number::FromInt64(0), 2, L"0"),
+           test(L"NegativeFractional",
+                ValueOrDie(Number::FromInt64(-5) / Number::FromInt64(100)), 5,
+                L"-0.05"),
+           test(L"NegativeFractionalInexact",
+                ValueOrDie(Number::FromInt64(-5) / Number::FromInt64(100)) -
+                    Number::FromDouble(0.00000001),
+                5, L"-0.05000")});
     }());
 
-Digits RemoveDecimals(Digits value, size_t digits_to_remove) {
-  if (digits_to_remove == 0) return value;
-  if (digits_to_remove > value.size()) return Digits();
-  int carry = value[digits_to_remove - 1] >= 5 ? 1 : 0;
-  value.erase(value.begin(), value.begin() + digits_to_remove);
-  for (size_t i = 0; i < value.size() && carry > 0; ++i) {
-    value[i] += carry;
-    carry = value[i] / 10;
-    value[i] = value[i] % 10;
+Number& Number::operator+=(Number rhs) {
+  *this = std::move(*this) + std::move(rhs);
+  return *this;
+}
+
+Number& Number::operator-=(Number rhs) {
+  *this = std::move(*this) - std::move(rhs);
+  return *this;
+}
+
+Number& Number::operator*=(Number rhs) {
+  *this = std::move(*this) * std::move(rhs);
+  return *this;
+}
+
+Number& Number::operator/=(Number rhs) {
+  *this = ValueOrDie(std::move(*this) / std::move(rhs));
+  return *this;
+}
+
+/* static */ Number Number::FromInt64(int64_t value) {
+  // We can't represent abs(std::numeric_limits<int64_t>::min()) as an
+  // int64_t, so we handle this case explicitly.
+  BigInt numerator = BigInt::FromNumber<uint64_t>(
+      value == std::numeric_limits<int64_t>::min()
+          ? static_cast<uint64_t>(-(value + 1)) + 1
+          : static_cast<uint64_t>(std::abs(value)));
+  return Number(value >= 0, std::move(numerator), BigInt::FromNumber(1));
+}
+
+afc::language::ValueOrError<int32_t> Number::ToInt32() const {
+  DECLARE_OR_RETURN(BigInt quotient, numerator_ / denominator_);
+  DECLARE_OR_RETURN(int32_t abs_value, quotient.ToInt32());
+  return CheckedMultiply<int32_t, int32_t>(abs_value, positive_ ? 1 : -1);
+}
+
+afc::language::ValueOrError<int64_t> Number::ToInt64() const {
+  DECLARE_OR_RETURN(BigInt quotient, numerator_ / denominator_);
+  return quotient.ToInt64(positive_);
+}
+
+namespace {
+const bool int_tests_registration = tests::Register(
+    L"numbers::Number::Int",
+    {{.name = L"ToIntZero",
+      .callback =
+          [] { CHECK_EQ(ValueOrDie(Number::FromInt64(0).ToInt64()), 0); }},
+     {.name = L"ToIntSmallPositive",
+      .callback =
+          [] {
+            CHECK_EQ(ValueOrDie(Number::FromInt64(1024).ToInt64()), 1024);
+          }},
+     {.name = L"ToIntSmallNegative",
+      .callback =
+          [] {
+            CHECK_EQ(ValueOrDie(Number::FromInt64(-249).ToInt64()), -249);
+          }},
+     {.name = L"ToIntPositiveLimit",
+      .callback =
+          [] {
+            int64_t input = 9223372036854775807;
+            CHECK_EQ(ValueOrDie(Number::FromInt64(input).ToInt64()), input);
+          }},
+     {.name = L"ToIntNegativeLimit",
+      .callback =
+          [] {
+            int64_t input = -9223372036854775807 - 1;
+            int64_t value = ValueOrDie((Number::FromInt64(input)).ToInt64());
+            CHECK_EQ(value, input);
+          }},
+     {.name = L"OverflowPositive",
+      .callback =
+          [] {
+            int64_t input = 9223372036854775807;
+            CHECK(
+                std::get<Error>(
+                    (Number::FromInt64(input) + Number::FromInt64(1)).ToInt64())
+                    .read()
+                    .substr(0, 10) == L"Overflow: ");
+          }},
+     {.name = L"OverflowNegative", .callback = [] {
+        int64_t input = -9223372036854775807 - 1;
+        CHECK(std::get<Error>(
+                  (Number::FromInt64(input) - Number::FromInt64(1)).ToInt64())
+                  .read()
+                  .substr(0, 10) == L"Overflow: ");
+      }}});
+}  // namespace
+
+afc::language::ValueOrError<size_t> Number::ToSizeT() const {
+  DECLARE_OR_RETURN(BigInt quotient, numerator_ / denominator_);
+  return quotient.ToSizeT();
+}
+
+ValueOrError<double> Number::ToDouble() const {
+  DECLARE_OR_RETURN(double numerator_double, numerator_.ToDouble());
+  DECLARE_OR_RETURN(double denominator_double, denominator_.ToDouble());
+  return numerator_double / denominator_double;
+}
+
+Number Number::FromSizeT(size_t value) {
+  const int base = 65536;  // 2^16
+  Number result = FromInt64(0);
+  Number multiplier = FromInt64(1);
+  while (value != 0) {
+    int chunk = value % base;
+    result = std::move(result) + FromInt64(chunk) * multiplier;
+    value /= base;
+    multiplier = std::move(multiplier) * FromInt64(base);
   }
-  if (carry) value.push_back(carry);
-  return value;
+  return result;
 }
 
-const bool remove_decimals_tests_registration =
-    tests::Register(L"numbers::RemoveDecimals", [] {
-      auto test = [](std::wstring input, size_t digits,
-                     std::wstring expectation) {
-        return tests::Test(
-            {.name = input, .callback = [=] {
-               Digits input_digits = Digits(container::MaterializeVector(
-                   input | std::views::reverse |
-                   std::views::transform(
-                       [](wchar_t c) -> size_t { return c - L'0'; })));
-               std::wstring str = ToString(
-                   {.digits = RemoveDecimals(input_digits, digits)}, 0);
-               LOG(INFO) << "From [" << ToString({.digits = input_digits}, 0)
-                         << "] → [" << str << "]";
-               CHECK(str == expectation);
-             }});
-      };
-      return std::vector({
-          test(L"45", 2, L"0"),
-          test(L"12", 0, L"12"),
-          test(L"12345", 3, L"12"),
-          test(L"198", 1, L"20"),
-          test(L"19951", 2, L"200"),
-          test(L"9951", 2, L"100"),
-          test(L"16", 1, L"2"),
-          test(L"6", 1, L"1"),
-      });
-    }());
+Number Number::FromDouble(double value) {
+  union DoubleIntUnion {
+    double dvalue;
+    int64_t ivalue;
+  };
+  DoubleIntUnion du;
+  du.dvalue = value;
+  int64_t bits = du.ivalue;
+  bool positive = (bits >> 63) == 0;
+  int64_t exponent = ((bits >> 52) & 0x7FFL) - 1023;
+  BigInt mantissa =
+      BigInt::FromNumber((bits & ((1LL << 52) - 1)) | (1LL << 52));
+  BigInt numerator, denominator;
 
-bool operator>(const Digits& a, const Digits& b) {
-  if (a.size() != b.size()) return a.size() > b.size();
-  for (auto it_a = a.rbegin(), it_b = b.rbegin(); it_a != a.rend();
-       ++it_a, ++it_b)
-    if (*it_a != *it_b) return *it_a > *it_b;
-  return false;
-}
-
-bool operator<(const Digits& a, const Digits& b) { return b > a; }
-bool operator>=(const Digits& a, const Digits& b) { return a > b || a == b; }
-bool operator<=(const Digits& a, const Digits& b) { return b >= a; }
-
-Digits operator+(const Digits& a, const Digits& b) {
-  int carry = 0;
-  Digits output;
-  for (size_t digit = 0; a.size() > digit || b.size() > digit || carry > 0;
-       digit++) {
-    if (a.size() > digit) carry += a[digit];
-    if (b.size() > digit) carry += b[digit];
-    output.push_back(carry % 10);
-    carry /= 10;
+  // TODO(2023-10-06): Handle subnormal numbers, where exponent is -1023.
+  if (exponent > 0) {
+    numerator = std::move(mantissa) * BigInt::Pow(BigInt::FromNumber(2),
+                                                  BigInt::FromNumber(exponent));
+    denominator = BigInt::Pow(BigInt::FromNumber(2), BigInt::FromNumber(52));
+  } else {
+    numerator = std::move(mantissa);
+    denominator =
+        BigInt::Pow(BigInt::FromNumber(2), BigInt::FromNumber(52 - exponent));
   }
-  return output;
+  return Number(positive, numerator, denominator);
 }
 
-Digits operator-(const Digits& a, const Digits& b) {
-  CHECK(a >= b);
-  int borrow = 0;
-  Digits output;
-  for (size_t digit = 0; a.size() > digit || b.size() > digit; digit++) {
-    int output_digit = ((a.size() > digit) ? a[digit] : 0) -
-                       ((b.size() > digit) ? b[digit] : 0) - borrow;
-    if (output_digit < 0) {
-      output_digit += 10;
-      borrow = 1;
-    } else {
-      borrow = 0;
-    }
-    output.push_back(output_digit);
-  }
-  return RemoveSignificantZeros(std::move(output));
+Number Number::Pow(BigInt exponent) && {
+  return Number(
+      positive_ || ValueOrDie(exponent % BigInt::FromNumber(2)).IsZero(),
+      BigInt::Pow(std::move(numerator_), BigInt(exponent)),
+      BigInt::Pow(std::move(denominator_), BigInt(exponent)));
 }
 
-Digits operator*(const Digits& a, const Digits& b) {
-  Digits result(std::vector<size_t>(a.size() + b.size(), 0));
-  for (size_t i = 0; i < a.size(); ++i) {
-    for (size_t j = 0; j < b.size(); ++j) {
-      int product = a[i] * b[j];
-      result[i + j] += product;
-      for (size_t k = i + j; result[k] >= 10; ++k) {  // Handle any carry.
-        result[k + 1] += result[k] / 10;
-        result[k] %= 10;
-      }
-    }
-  }
-  return RemoveSignificantZeros(std::move(result));
+bool Number::operator==(const Number& other) const {
+  return positive_ == other.positive_ &&
+         numerator_ * other.denominator_ == denominator_ * other.numerator_;
 }
 
-bool operator==(const Decimal& a, const Decimal& b) {
-  return a.positive == b.positive && a.digits == b.digits;
+bool Number::operator>(const Number& other) const {
+  if (!positive_ && !other.positive_)
+    return Number{*this}.Negate() < Number{other}.Negate();
+  if (!other.positive_) return true;
+  if (!positive_) return false;
+  return numerator_ * other.denominator_ > other.numerator_ * denominator_;
 }
 
-bool operator<(const Decimal& a, const Decimal& b) {
-  if (a.positive != b.positive) return b.positive;
-  return a.positive ? a.digits < b.digits : b.digits < a.digits;
+bool Number::operator<(const Number& other) const { return other > *this; }
+
+bool Number::operator<=(const Number& other) const { return !(*this > other); }
+
+bool Number::operator>=(const Number& other) const { return !(*this < other); }
+
+namespace {
+const bool comparison_tests_registration = tests::Register(
+    L"numbers::Number::Comparison",
+    {{.name = L"GreaterThanPositive",
+      .callback =
+          [] { CHECK(Number::FromInt64(1024) > Number::FromInt64(1023)); }},
+     {.name = L"GreaterThanNegative",
+      .callback =
+          [] { CHECK(Number::FromInt64(-1023) > Number::FromInt64(-1024)); }},
+     {.name = L"LessThanPositive",
+      .callback =
+          [] { CHECK(Number::FromInt64(231) < Number::FromInt64(232)); }},
+     {.name = L"LessThanNegative",
+      .callback = [] { CHECK(Number::FromInt64(-3) < Number::FromInt64(-2)); }},
+     {.name = L"LessThanOrEqualToPositiveEqual",
+      .callback =
+          [] { CHECK(Number::FromInt64(1024) <= Number::FromInt64(1024)); }},
+     {.name = L"LessThanOrEqualToPositiveLess",
+      .callback =
+          [] { CHECK(Number::FromInt64(1023) <= Number::FromInt64(1024)); }},
+     {.name = L"GreaterThanOrEqualToNegativeEqual",
+      .callback =
+          [] { CHECK(Number::FromInt64(-1024) >= Number::FromInt64(-1024)); }},
+     {.name = L"GreaterThanOrEqualToNegativeGreater",
+      .callback =
+          [] { CHECK(Number::FromInt64(-512) >= Number::FromInt64(-1024)); }},
+     {.name = L"EqualToZero",
+      .callback =
+          [] {
+            CHECK(!(Number::FromInt64(0) > Number::FromInt64(0)));
+            CHECK(!(Number::FromInt64(0) < Number::FromInt64(0)));
+            CHECK(Number::FromInt64(0) <= Number::FromInt64(0));
+            CHECK(Number::FromInt64(0) >= Number::FromInt64(0));
+          }},
+     {.name = L"NegativeLessThanZero",
+      .callback = [] { CHECK(Number::FromInt64(-1) < Number::FromInt64(0)); }},
+     {.name = L"PositiveGreaterThanZero",
+      .callback = [] { CHECK(Number::FromInt64(1) > Number::FromInt64(0)); }},
+     {.name = L"EqualNumbers",
+      .callback =
+          [] {
+            CHECK(!(Number::FromInt64(1024) > Number::FromInt64(1024)));
+            CHECK(!(Number::FromInt64(1024) < Number::FromInt64(1024)));
+            CHECK(Number::FromInt64(1024) <= Number::FromInt64(1024));
+            CHECK(Number::FromInt64(1024) >= Number::FromInt64(1024));
+          }},
+     {.name = L"PositiveGreaterThanNegative",
+      .callback = [] { CHECK(Number::FromInt64(1) > Number::FromInt64(-1)); }},
+     {.name = L"NegativeLessThanPositive",
+      .callback = [] { CHECK(Number::FromInt64(-1) < Number::FromInt64(1)); }},
+     {.name = L"PositiveGreaterThanOrEqualToNegative",
+      .callback =
+          [] {
+            CHECK(Number::FromInt64(1) >= Number::FromInt64(-1));
+            CHECK(Number::FromInt64(-1) <= Number::FromInt64(1));
+          }},
+     {.name = L"NegativeLessThanOrEqualToPositive",
+      .callback =
+          [] {
+            CHECK(Number::FromInt64(-1) <= Number::FromInt64(1));
+            CHECK(Number::FromInt64(1) >= Number::FromInt64(-1));
+          }},
+     {.name = L"PositiveNotLessThanNegative",
+      .callback =
+          [] { CHECK(!(Number::FromInt64(1) < Number::FromInt64(-1))); }},
+     {.name = L"NegativeNotGreaterThanPositive",
+      .callback =
+          [] { CHECK(!(Number::FromInt64(-1) > Number::FromInt64(1))); }},
+     {.name = L"PositiveNotLessThanOrEqualToNegative",
+      .callback =
+          [] { CHECK(!(Number::FromInt64(1) <= Number::FromInt64(-1))); }},
+     {.name = L"NegativeNotGreaterThanOrEqualToPositive", .callback = [] {
+        CHECK(!(Number::FromInt64(-1) >= Number::FromInt64(1)));
+      }}});
+}  // namespace
+
+Number Pow(Number base, size_t i) {
+  return std::move(base).Pow(BigInt::FromNumber(i));
 }
 
-struct DivisionOutput {
-  Digits digits;
-  bool exact;
-};
-ValueOrError<DivisionOutput> DivideDigits(const Digits& dividend,
-                                          const Digits& divisor,
-                                          size_t extra_precision) {
-  if (divisor.empty()) return Error(L"Division by zero.");
-  Digits quotient;
-  Digits current_dividend;
-  for (size_t i = 0; i < dividend.size() + extra_precision; ++i) {
-    size_t next = i < dividend.size() ? dividend[dividend.size() - 1 - i] : 0;
-    if (!current_dividend.empty() || next != 0)
-      current_dividend.insert(current_dividend.begin(), next);
-    size_t x = 0;  // Largest number such that divisor * x <= current_dividend.
-    while (divisor * Digits({x + 1}) <= current_dividend) ++x;
-    CHECK_LE(x, 9ul);
-    if (x > 0) current_dividend = current_dividend - divisor * Digits({x});
-    quotient.insert(quotient.begin(), std::move(x));
-  }
-  return DivisionOutput{.digits = RemoveSignificantZeros(quotient),
-                        .exact = current_dividend.empty()};
-}
+}  // namespace afc::math::numbers
 
-ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits);
-
-ValueOrError<Decimal> OperationTreeToDecimal(Addition value,
-                                             size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits + 1));
-  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits + 1));
-  if (a.positive == b.positive)
-    return Decimal{.positive = a.positive,
-                   .exact = a.exact && b.exact,
-                   .digits = RemoveDecimals(a.digits + b.digits, 1)};
-  else if (a.digits >= b.digits)
-    return Decimal{.positive = a.positive,
-                   .exact = a.exact && b.exact,
-                   .digits = RemoveDecimals(a.digits - b.digits, 1)};
-  else
-    return Decimal{.positive = b.positive,
-                   .exact = a.exact && b.exact,
-                   .digits = RemoveDecimals(b.digits - a.digits, 1)};
-}
-
-ValueOrError<Decimal> OperationTreeToDecimal(Negation value,
-                                             size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal output, ToDecimal(value.a, decimal_digits));
-  output.positive = output.digits.empty() || !output.positive;
-  return output;
-}
-
-ValueOrError<Decimal> OperationTreeToDecimal(Multiplication value,
-                                             size_t decimal_digits) {
-  // TODO(2023-09-21): This can be optimized to compute fewer decimal digits
-  // in the recursions.
-  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits));
-  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits));
-  Digits output_digits = std::move(a.digits) * std::move(b.digits);
-  return Decimal{
-      .positive = a.positive == b.positive || output_digits.empty(),
-      .exact = a.exact && b.exact,
-      .digits = RemoveDecimals(std::move(output_digits), decimal_digits)};
-}
-
-ValueOrError<Decimal> OperationTreeToDecimal(Division value,
-                                             size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal a, ToDecimal(value.a, decimal_digits));
-  ASSIGN_OR_RETURN(Decimal b, ToDecimal(value.b, decimal_digits));
-  ASSIGN_OR_RETURN(DivisionOutput output,
-                   DivideDigits(a.digits, b.digits, decimal_digits));
-  return Decimal{.positive = a.positive == b.positive || output.digits.empty(),
-                 .exact = a.exact && b.exact && output.exact,
-                 .digits = std::move(output.digits)};
-}
-
-ValueOrError<Decimal> ToDecimal(const Number& number, size_t decimal_digits) {
-  return std::visit(
-      [decimal_digits](const auto& value) -> ValueOrError<Decimal> {
-        ASSIGN_OR_RETURN(Decimal output,
-                         OperationTreeToDecimal(value, decimal_digits));
-        CHECK(!output.digits.empty() || output.positive);
-        CHECK(output.digits.empty() || output.digits.back() != 0);
-        return output;
-      },
-      number.value.value().variant);
-}
-
+#if 0
+namespace {
 const bool as_decimal_tests_registration =
     tests::Register(L"numbers::ToDecimal", [] {
       auto test = [](Number number, std::wstring expectation,
@@ -380,127 +449,7 @@ const bool as_decimal_tests_registration =
            test(FromInt(1) / FromInt(300) + FromInt(1) / FromInt(300), L"0.01"),
            test(FromInt(1) / FromInt(0), L"Division by zero.")});
     }());
-}  // namespace
 
-ValueOrError<std::wstring> ToString(const Number& number,
-                                    size_t decimal_digits) {
-  ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, decimal_digits));
-  return ToString(decimal, decimal_digits);
-}
-
-Number FromInt(int64_t value) {
-  return Number{.value = MakeNonNullShared<OperationTree>(
-                    OperationTree{.variant = value})};
-}
-
-ValueOrError<int32_t> ToInt32(const Number& number) {
-  ASSIGN_OR_RETURN(int64_t value, ToInt(number));
-  if (value < std::numeric_limits<int>::min() ||
-      value > std::numeric_limits<int>::max())
-    return Error(
-        L"Overflow: the resulting number can't be represented as `int32_t`");
-  return static_cast<int32_t>(value);
-}
-
-ValueOrError<int64_t> ToInt(const Number& number) {
-  ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, 0));
-  if (!decimal.exact)
-    return Error(L"Inexact numbers can't be represented as integer.");
-  int64_t value = 0;
-  for (size_t digit : decimal.digits | std::views::reverse) {
-    ASSIGN_OR_RETURN(value, CheckedMultiply(value, 10));
-    ASSIGN_OR_RETURN(
-        value,
-        CheckedAdd(value, static_cast<int>(decimal.positive ? digit : -digit)));
-  }
-  return value;
-}
-
-namespace {
-const bool int_tests_registration = tests::Register(
-    L"numbers::Int",
-    {{.name = L"ToIntZero",
-      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(FromInt(0))), 0); }},
-     {.name = L"ToIntSmallPositive",
-      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(FromInt(1024))), 1024); }},
-     {.name = L"ToIntSmallNegative",
-      .callback = [] { CHECK_EQ(ValueOrDie(ToInt(FromInt(-249))), -249); }},
-     {.name = L"ToIntPositiveLimit",
-      .callback =
-          [] { CHECK_EQ(ValueOrDie(ToInt(FromInt(2147483647))), 2147483647); }},
-     {.name = L"ToIntNegativeLimit",
-      .callback =
-          [] {
-            int64_t input = -2147483648;
-            int64_t value = ValueOrDie(ToInt(FromInt(input) + FromInt(0)));
-            CHECK_EQ(value, input);
-          }},
-     {.name = L"OverflowPositive",
-      .callback =
-          [] {
-            int64_t input = 9223372036854775807;
-            CHECK(std::get<Error>(ToInt(FromInt(input) + FromInt(1)))
-                      .read()
-                      .substr(0, 10) == L"Overflow: ");
-          }},
-     {.name = L"OverflowNegative", .callback = [] {
-        int64_t input = -9223372036854775807 - 1;
-        CHECK(std::get<Error>(ToInt(FromInt(input) - FromInt(1)))
-                  .read()
-                  .substr(0, 10) == L"Overflow: ");
-      }}});
-}
-
-ValueOrError<double> ToDouble(const Number& number) {
-  static constexpr size_t kDefaultPrecision = 6;
-  static constexpr double kFinalDivision = 10e5;
-
-  ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, kDefaultPrecision));
-  double value = 0;
-  for (int digit : decimal.digits | std::views::reverse)
-    value = value * 10 + (decimal.positive ? 1 : -1) * digit;
-  return value / kFinalDivision;
-}
-
-Number Pow(Number base, size_t i) {
-  Number output = FromInt(1);
-  while (i > 0) {
-    if (i % 2 == 1) {
-      output = output * base;
-      --i;
-    } else {
-      base *= base;
-      i /= 2;
-    }
-  }
-  return output;
-}
-
-Number FromDouble(double value) {
-  union DoubleIntUnion {
-    double dvalue;
-    int64_t ivalue;
-  };
-  DoubleIntUnion du;
-  du.dvalue = value;
-  int64_t bits = du.ivalue;
-  Number sign = ((bits >> 63) == 0) ? FromInt(1) : FromInt(-1);
-  int64_t exponent = ((bits >> 52) & 0x7FFL) - 1023;
-  Number mantissa = FromInt((bits & ((1LL << 52) - 1)) | (1LL << 52));
-  Number numerator, denominator;
-
-  // TODO(2023-10-06): Handle subnormal numbers, where exponent is -1023.
-  if (exponent > 0) {
-    numerator = sign * (mantissa * Pow(FromInt(2), exponent));
-    denominator = Pow(FromInt(2), 52);
-  } else {
-    numerator = sign * mantissa;
-    denominator = Pow(FromInt(2), 52 - exponent);
-  }
-  return numerator / denominator;
-}
-
-namespace {
 const bool double_tests_registration = tests::Register(
     L"numbers::Double",
     {{.name = L"FromDouble",
@@ -523,36 +472,7 @@ const bool double_tests_registration = tests::Register(
      {.name = L"ToDoubleFromDouble", .callback = [] {
         CHECK_NEAR(ValueOrDie(ToDouble(FromDouble(5))), 5.0, 0.00001);
       }}});
-}
 
-Number FromSizeT(size_t value) {
-  const int base = 65536;  // 2^16
-  Number result = FromInt(0);
-  Number multiplier = FromInt(1);
-  while (value != 0) {
-    int chunk = value % base;
-    result = std::move(result) + FromInt(chunk) * multiplier;
-    value /= base;
-    multiplier = std::move(multiplier) * FromInt(base);
-  }
-  return result;
-}
-
-ValueOrError<size_t> ToSizeT(const Number& number) {
-  ASSIGN_OR_RETURN(Decimal decimal, ToDecimal(number, 0));
-  if (!decimal.exact)
-    return Error(L"Inexact numbers can't be represented as size_t.");
-  if (!decimal.positive)
-    return Error(L"Negative numbers can't be represented as size_t.");
-  size_t value = 0;
-  for (size_t digit : decimal.digits | std::views::reverse) {
-    ASSIGN_OR_RETURN(value, CheckedMultiply<size_t>(value, 10));
-    ASSIGN_OR_RETURN(value, CheckedAdd(value, digit));
-  }
-  return value;
-}
-
-namespace {
 const bool size_t_tests_registration = tests::Register(
     L"numbers::SizeT",
     {{.name = L"FromSizeTSimple",
@@ -601,107 +521,4 @@ const bool size_t_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-ValueOrError<bool> IsEqual(const Number& a, const Number& b, size_t precision) {
-  if (const int64_t* a_as_int64 = std::get_if<int64_t>(&a.value->variant);
-      a_as_int64 != nullptr)
-    if (const int64_t* b_as_int64 = std::get_if<int64_t>(&b.value->variant);
-        b_as_int64 != nullptr)
-      return *a_as_int64 == *b_as_int64;
-  ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
-  ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
-  return a_decimal == b_decimal;
-}
-
-ValueOrError<bool> IsLessThan(const Number& a, const Number& b,
-                              size_t precision) {
-  if (const int64_t* a_as_int64 = std::get_if<int64_t>(&a.value->variant);
-      a_as_int64 != nullptr)
-    if (const int64_t* b_as_int64 = std::get_if<int64_t>(&b.value->variant);
-        b_as_int64 != nullptr)
-      return *a_as_int64 < *b_as_int64;
-  ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
-  ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
-  return a_decimal < b_decimal;
-}
-
-ValueOrError<bool> IsLessThanOrEqual(const Number& a, const Number& b,
-                                     size_t precision) {
-  if (const int64_t* a_as_int64 = std::get_if<int64_t>(&a.value->variant);
-      a_as_int64 != nullptr)
-    if (const int64_t* b_as_int64 = std::get_if<int64_t>(&b.value->variant);
-        b_as_int64 != nullptr)
-      return *a_as_int64 <= *b_as_int64;
-  ASSIGN_OR_RETURN(Decimal a_decimal, ToDecimal(a, precision));
-  ASSIGN_OR_RETURN(Decimal b_decimal, ToDecimal(b, precision));
-  return a_decimal < b_decimal || a_decimal == b_decimal;
-}
-
-Number& Number::operator+=(Number rhs) {
-  if (const int64_t* this_as_int64 = std::get_if<int64_t>(&value->variant);
-      this_as_int64 != nullptr)
-    if (const int64_t* rhs_as_int64 = std::get_if<int64_t>(&rhs.value->variant);
-        rhs_as_int64 != nullptr)
-      if (ValueOrError<int64_t> output =
-              CheckedAdd(*this_as_int64, *rhs_as_int64);
-          std::holds_alternative<int64_t>(output)) {
-        value = FromInt(std::get<int64_t>(output)).value;
-        return *this;
-      }
-  value = MakeNonNullShared<OperationTree>(
-      OperationTree{.variant = Addition{{{std::move(value)}, std::move(rhs)}}});
-  return *this;
-}
-
-Number& Number::operator-=(Number rhs) { return operator+=(-rhs); }
-
-Number& Number::operator*=(Number rhs) {
-  if (const int64_t* this_as_int64 = std::get_if<int64_t>(&value->variant);
-      this_as_int64 != nullptr)
-    if (const int64_t* rhs_as_int64 = std::get_if<int64_t>(&rhs.value->variant);
-        rhs_as_int64 != nullptr)
-      if (ValueOrError<int64_t> output =
-              CheckedMultiply(*this_as_int64, *rhs_as_int64);
-          std::holds_alternative<int64_t>(output)) {
-        value = FromInt(std::get<int64_t>(output)).value;
-        return *this;
-      }
-  value = MakeNonNullShared<OperationTree>(OperationTree{
-      .variant = Multiplication{{{std::move(value)}, std::move(rhs)}}});
-  return *this;
-}
-
-Number& Number::operator/=(Number rhs) {
-  value = MakeNonNullShared<OperationTree>(
-      OperationTree{.variant = Division{{{std::move(value)}, std::move(rhs)}}});
-  return *this;
-}
-
-Number operator+(Number a, Number b) {
-  a += std::move(b);
-  return a;
-}
-
-Number operator-(Number a, Number b) {
-  a -= std::move(b);
-  return a;
-}
-
-Number operator*(Number a, Number b) {
-  a *= std::move(b);
-  return a;
-}
-
-Number operator/(Number a, Number b) {
-  a /= std::move(b);
-  return a;
-}
-
-Number operator-(Number a) {
-  if (const int64_t* a_as_int64 = std::get_if<int64_t>(&a.value->variant);
-      a_as_int64 != nullptr &&
-      *a_as_int64 != std::numeric_limits<int64_t>::min())
-    return FromInt(-*a_as_int64);
-  return Number{MakeNonNullShared<OperationTree>(
-      OperationTree{.variant = Negation{std::move(a)}})};
-}
-};  // namespace afc::math::numbers
+#endif

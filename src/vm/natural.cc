@@ -95,7 +95,7 @@ class ParseState {
       if (IsLiteralNumber(token))
         PushValue(
             Value::NewNumber(
-                pool_, math::numbers::FromInt(
+                pool_, math::numbers::Number::FromInt64(
                            atoi(ToByteString(token.value.ToString()).c_str()))),
             extended_candidates);
       // TODO(easy, 2023-12-30): Before adding validation to Identifier,

@@ -19,12 +19,20 @@ language::ValueOrError<A> CheckedMultiply(A a, B b) {
                 "CheckedMultiply supports only integral types.");
   static_assert(std::is_integral<B>::value,
                 "CheckedMultiply supports only integral types.");
+
+  if (std::is_signed<A>::value && std::is_signed<B>::value) {
+    if ((b == -1 && a == std::numeric_limits<A>::min()) ||
+        (a == -1 && b <= std::numeric_limits<A>::min()))
+      return language::Error(
+          L"Overflow: the resulting number can't be represented.");
+  }
+
   if (a > 0 && b > 0) {
     if (a > std::numeric_limits<A>::max() / b)
       return language::Error(
           L"Overflow: the resulting number can't be represented.");
   } else if (a > 0 && b < 0) {
-    if (a > std::numeric_limits<A>::min() / b)
+    if (b < std::numeric_limits<A>::min() / a)
       return language::Error(
           L"Underflow: the resulting number can't be represented.");
   } else if (a < 0 && b > 0) {

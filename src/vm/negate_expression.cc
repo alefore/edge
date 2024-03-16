@@ -82,7 +82,8 @@ std::unique_ptr<Expression> NewNegateExpressionNumber(
   return NewNegateExpression(
       compilation, std::move(expr),
       [](gc::Pool& pool, Value& value) {
-        return Value::NewNumber(pool, -value.get_number());
+        return Value::NewNumber(pool,
+                                Number::FromInt64(0) - value.get_number());
       },
       types::Number{});
 }

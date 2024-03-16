@@ -6,46 +6,55 @@
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/safe_types.h"
+#include "src/math/bigint.h"
 
 namespace afc::math::numbers {
-struct OperationTree;
-struct Number {
-  language::NonNull<std::shared_ptr<const OperationTree>> value;
+class Number {
+  bool positive_;
+  BigInt numerator_;
+  BigInt denominator_;
+
+ public:
+  Number(bool positive, BigInt numerator, BigInt denominator)
+      : positive_(positive),
+        numerator_(std::move(numerator)),
+        denominator_(std::move(denominator)) {}
+
+  Number operator+(Number other) &&;
+  Number operator-(Number other) &&;
+  Number operator*(Number other) &&;
+  language::ValueOrError<Number> operator/(Number other) &&;
+
+  Number Negate() &&;
+  language::ValueOrError<Number> Reciprocal() &&;
+
+  void Optimize();
+  std::wstring ToString(size_t decimal_digits) const;
 
   Number& operator+=(Number rhs);
   Number& operator-=(Number rhs);
   Number& operator*=(Number rhs);
   Number& operator/=(Number rhs);
+
+  bool operator==(const Number& other) const;
+  bool operator>(const Number& other) const;
+  bool operator<(const Number& other) const;
+  bool operator>=(const Number& other) const;
+  bool operator<=(const Number& other) const;
+
+  static Number FromInt64(int64_t);
+  static Number FromSizeT(size_t);
+  static Number FromDouble(double);
+
+  language::ValueOrError<int32_t> ToInt32() const;
+  language::ValueOrError<int64_t> ToInt64() const;
+  language::ValueOrError<size_t> ToSizeT() const;
+  language::ValueOrError<double> ToDouble() const;
+
+  Number Pow(BigInt exponent) &&;
 };
 
-Number operator+(Number a, Number b);
-Number operator-(Number a, Number b);
-Number operator*(Number a, Number b);
-Number operator/(Number a, Number b);
-Number operator-(Number a);
-
-afc::language::ValueOrError<std::wstring> ToString(const Number& number,
-                                                   size_t decimal_digits);
-
-Number FromInt(int64_t);
-afc::language::ValueOrError<int32_t> ToInt32(const Number& number);
-afc::language::ValueOrError<int64_t> ToInt(const Number& number);
-
 Number Pow(Number base, size_t i);
-
-afc::language::ValueOrError<double> ToDouble(const Number& number);
-Number FromDouble(double);
-
-Number FromSizeT(size_t);
-afc::language::ValueOrError<size_t> ToSizeT(const Number& number);
-
-afc::language::ValueOrError<bool> IsEqual(const Number& a, const Number& b,
-                                          size_t precision);
-afc::language::ValueOrError<bool> IsLessThan(const Number& a, const Number& b,
-                                             size_t precision);
-afc::language::ValueOrError<bool> IsLessThanOrEqual(const Number& a,
-                                                    const Number& b,
-                                                    size_t precision);
 
 }  // namespace afc::math::numbers
 
