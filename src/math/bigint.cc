@@ -141,8 +141,10 @@ bool BigInt::operator!=(const BigInt& b) const { return !(*this == b); }
 bool BigInt::operator>(const BigInt& b) const {
   if (digits.size() != b.digits.size()) return digits.size() > b.digits.size();
   for (auto it = digits.rbegin(), it_b = b.digits.rbegin(); it != digits.rend();
-       ++it, ++it_b)
+       ++it, ++it_b) {
+    CHECK(it_b != b.digits.rend());  // Silence -Wnull-dereference warning.
     if (*it != *it_b) return *it > *it_b;
+  }
   return false;
 }
 
@@ -213,6 +215,11 @@ BigInt BigInt::operator*(const BigInt& b) const {
     }
   }
   return BigInt(std::move(output_digits));
+}
+
+BigInt& BigInt::operator++() {
+  *this = std::move(*this) + BigInt::FromNumber(1);
+  return *this;
 }
 
 language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator) {
@@ -290,7 +297,7 @@ BigInt BigInt::GreatestCommonDivisor(const BigInt& other) const {
 
 ValueOrError<int32_t> BigInt::ToInt32() const { return ToNumber<int32_t>(); }
 
-ValueOrError<int64_t> BigInt::ToInt64() const { return ToInt64(); }
+ValueOrError<int64_t> BigInt::ToInt64() const { return ToInt64(true); }
 
 ValueOrError<int64_t> BigInt::ToInt64(bool positive) const {
   return ToNumber<int64_t>(positive);

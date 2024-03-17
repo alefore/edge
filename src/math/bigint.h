@@ -58,6 +58,7 @@ class BigInt {
   BigInt operator+(BigInt b) &&;
   language::ValueOrError<BigInt> operator-(BigInt b) &&;
   BigInt operator*(const BigInt& b) const;
+  BigInt& operator++();
 
   friend language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
                                                            BigInt denominator);
