@@ -86,16 +86,25 @@ void Number::Optimize() {
 
 std::wstring Number::ToString(size_t decimal_digits) const {
   BigInt scaled_numerator =
-      BigInt(numerator_) *
-      BigInt::Pow(BigInt::FromNumber(10), BigInt::FromNumber(decimal_digits));
+      BigInt(numerator_) * BigInt::Pow(BigInt::FromNumber(10),
+                                       BigInt::FromNumber(decimal_digits + 1));
   BigIntDivideOutput divide_output =
       ValueOrDie(Divide(std::move(scaled_numerator), BigInt(denominator_)));
+  bool exact = divide_output.remainder.IsZero();
+
+  // Rounding.
+  divide_output = ValueOrDie(
+      Divide(std::move(divide_output.quotient), BigInt::FromNumber(10)));
+  exact = exact && divide_output.remainder.IsZero();
+  if (divide_output.remainder >= BigInt::FromNumber(5))
+    ++divide_output.quotient;
+
   std::wstring output = divide_output.quotient.ToString();
   if (output.length() < decimal_digits)
     output = std::wstring(decimal_digits - output.length(), L'0') + output;
   if (decimal_digits > 0) {
     output.insert(output.length() - decimal_digits, L".");
-    if (divide_output.remainder.IsZero()) {
+    if (exact) {
       output.erase(output.find_last_not_of(L'0') + 1, std::wstring::npos);
       if (!output.empty() && output.back() == L'.') output.pop_back();
     }
@@ -121,16 +130,17 @@ const bool tostring_tests_registration =
 
       return std::vector<tests::Test>(
           {test(L"WholeNumber", Number::FromDouble(123.0), 0, L"123"),
-           // TODO(2024-03-16): This should probably yield 123.46 (rounding).
-           test(L"WholeNumberWithDecimals", Number::FromDouble(123.456), 2,
+           test(L"InexactNumberRoundedDown", Number::FromDouble(123.454), 2,
                 L"123.45"),
+           test(L"InexactNumberRoundedUp", Number::FromDouble(123.456), 2,
+                L"123.46"),
            test(L"NegativeNumber", Number::FromInt64(-123), 2, L"-123"),
            test(L"Zero", Number::FromInt64(0), 2, L"0"),
            test(L"NegativeFractional",
                 ValueOrDie(Number::FromInt64(-5) / Number::FromInt64(100)), 5,
                 L"-0.05"),
            test(L"NegativeFractionalInexact",
-                ValueOrDie(Number::FromInt64(-5) / Number::FromInt64(100)) -
+                ValueOrDie(Number::FromInt64(-5) / Number::FromInt64(100)) +
                     Number::FromDouble(0.00000001),
                 5, L"-0.05000")});
     }());
@@ -154,6 +164,21 @@ Number& Number::operator/=(Number rhs) {
   *this = ValueOrDie(std::move(*this) / std::move(rhs));
   return *this;
 }
+
+namespace {
+const bool operator_divide_tests_registration = tests::Register(
+    L"numbers::Number::operator/",
+    {
+        {.name = L"OldPrecisionFailure",
+         .callback =
+             [] {
+               // This used to fail in an old implementation.
+               CHECK((ValueOrDie(Number::FromInt64(1) / Number::FromInt64(3)) *
+                      Number::FromInt64(1024))
+                         .ToString(5) == L"341.33333");
+             }},
+    });
+}  // namespace
 
 /* static */ Number Number::FromInt64(int64_t value) {
   // We can't represent abs(std::numeric_limits<int64_t>::min()) as an
