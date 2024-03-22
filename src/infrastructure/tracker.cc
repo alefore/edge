@@ -1,5 +1,7 @@
 #include "src/infrastructure/tracker.h"
 
+#include <glog/logging.h>
+
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
 
