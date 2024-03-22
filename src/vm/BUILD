@@ -151,6 +151,7 @@ cc_library(
     hdrs = ["escape.h"],
     deps = [
         "//src/language:ghost_type",
+        "//src/language/error:value_or_error",
         "//src/language/lazy_string",
         "//src/language/lazy_string:char_buffer",
     ],
@@ -172,6 +173,9 @@ cc_library(
     name = "filter_similar_names",
     srcs = ["filter_similar_names.cc"],
     hdrs = ["filter_similar_names.h"],
+    deps = [
+        "//src/vm:types",
+    ],
 )
 
 cc_library(
@@ -340,6 +344,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/language:gc",
+        "//src/language:gc_view",
         "//src/language:hash",
     ],
 )
