@@ -1,10 +1,8 @@
-#ifndef __AFC_EDITOR_TIME_H__
-#define __AFC_EDITOR_TIME_H__
+#ifndef __AFC_EDITOR_SRC_INFRASTRUCTURE_TIME_H__
+#define __AFC_EDITOR_SRC_INFRASTRUCTURE_TIME_H__
 
 #include <optional>
 #include <string>
-
-#include "src/language/error/value_or_error.h"
 
 namespace afc::infrastructure {
 using Time = struct timespec;
@@ -27,8 +25,6 @@ std::optional<double> UpdateIfMillisecondsHavePassed(
     Time* spec, double required_milliseconds);
 
 Time AddSeconds(Time time, double seconds_duration);
-
-language::ValueOrError<std::wstring> HumanReadableTime(const Time& time);
 
 class CountDownTimer {
  public:
@@ -54,4 +50,4 @@ bool operator<=(const afc::infrastructure::Time& a,
 bool operator>=(const afc::infrastructure::Time& a,
                 const afc::infrastructure::Time& b);
 
-#endif  // __AFC_EDITOR_TIME_H__
+#endif  // __AFC_EDITOR_SRC_INFRASTRUCTURE_TIME_H__

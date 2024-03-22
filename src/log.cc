@@ -2,6 +2,7 @@
 
 #include "src/concurrent/thread_pool.h"
 #include "src/infrastructure/time.h"
+#include "src/infrastructure/time_human.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 

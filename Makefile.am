@@ -121,6 +121,8 @@ src/infrastructure/terminal_adapter.cc \
 src/infrastructure/terminal_adapter.h \
 src/infrastructure/time.cc \
 src/infrastructure/time.h \
+src/infrastructure/time_human.cc \
+src/infrastructure/time_human.h \
 src/infrastructure/screen/cursors.cc \
 src/infrastructure/screen/cursors.h \
 src/infrastructure/screen/line_modifier.cc \

@@ -52,6 +52,16 @@ cc_library(
     hdrs = ["time.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//src/language:wstring",
+    ],
+)
+
+cc_library(
+    name = "time_human",
+    srcs = ["time_human.cc"],
+    hdrs = ["time_human.h"],
+    visibility = ["//visibility:public"],
+    deps = [
         "//src/language/error:value_or_error",
     ],
 )
