@@ -5,6 +5,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/infrastructure:time",
+        "//src/language:container",
         "//src/language:wstring",
     ],
 )
@@ -34,6 +35,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":fuzz_testable",
+        "//src/language/lazy_string",
     ],
 )
 
