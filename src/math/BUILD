@@ -1,4 +1,15 @@
 cc_library(
+    name = "bigint",
+    srcs = ["bigint.cc"],
+    hdrs = ["bigint.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":checked_operation",
+        "//src/language/error:value_or_error",
+    ],
+)
+
+cc_library(
     name = "checked_operation",
     hdrs = ["checked_operation.h"],
     visibility = ["//visibility:public"],
@@ -32,6 +43,7 @@ cc_library(
     hdrs = ["numbers.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":bigint",
         ":checked_operation",
         "//src/language:overload",
         "//src/language:safe_types",
