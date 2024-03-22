@@ -1,5 +1,7 @@
 #include "src/tests/benchmarks.h"
 
+#include <glog/logging.h>
+
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
 
