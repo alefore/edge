@@ -4,6 +4,7 @@
 #include <string>
 
 #include "src/infrastructure/time.h"
+#include "src/language/error/value_or_error.h"
 
 namespace afc::infrastructure {
 language::ValueOrError<std::wstring> HumanReadableTime(const Time& time);
