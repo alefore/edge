@@ -10,6 +10,8 @@ cc_library(
     hdrs = ["const_tree.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":overload",
+        ":safe_types",
         "//src/infrastructure:time",
         "//src/tests",
         "//src/tests:benchmarks",
@@ -20,6 +22,16 @@ cc_library(
     name = "function_traits",
     hdrs = ["function_traits.h"],
     visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "gc_view",
+    hdrs = ["gc_view.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":gc",
+        ":safe_types",
+    ],
 )
 
 cc_library(
@@ -74,6 +86,12 @@ cc_library(
         "//src/concurrent:protected",
         "//src/futures",
     ],
+)
+
+cc_library(
+    name = "once_only_function",
+    hdrs = ["once_only_function.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
