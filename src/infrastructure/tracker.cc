@@ -4,6 +4,7 @@
 
 #include "src/infrastructure/time.h"
 #include "src/language/container.h"
+#include "src/language/wstring.h"
 
 namespace container = afc::language::container;
 
