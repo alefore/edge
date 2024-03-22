@@ -282,6 +282,48 @@ language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator) {
   return output;
 }
 
+namespace {
+const bool pow_tests_registration =
+    tests::Register(L"numbers::BigInt::Pow", [] {
+      auto test = [](std::wstring name, BigInt base, BigInt exponent,
+                     BigInt expectation) {
+        return tests::Test{
+            .name = name, .callback = [base, exponent, expectation] mutable {
+              BigInt output = BigInt::Pow(std::move(base), std::move(exponent));
+              CHECK(output == expectation);
+            }};
+      };
+
+      return std::vector<tests::Test>({
+          // Basic Functionality Tests
+          test(L"SmallNumbers", BigInt::FromNumber(2), BigInt::FromNumber(3),
+               BigInt::FromNumber(8)),
+          test(L"BaseOne", BigInt::FromNumber(1), BigInt::FromNumber(5),
+               BigInt::FromNumber(1)),
+          test(L"ExponentZero", BigInt::FromNumber(5), BigInt::FromNumber(0),
+               BigInt::FromNumber(1)),
+          test(L"ZeroPowerOfPositive", BigInt::FromNumber(0),
+               BigInt::FromNumber(4), BigInt::FromNumber(0)),
+          test(L"TenToTheFifty", BigInt::FromNumber(10), BigInt::FromNumber(50),
+               ValueOrDie(BigInt::FromString(
+                   L"100000000000000000000000000000000000000000000000000"))),
+
+          test(L"LargeBaseSmallExponent",
+               ValueOrDie(BigInt::FromString(L"123456789")),
+               BigInt::FromNumber(2),
+               ValueOrDie(BigInt::FromString(L"15241578750190521"))),
+
+          test(L"ZeroPowerZero", BigInt::FromNumber(0), BigInt::FromNumber(0),
+               BigInt::FromNumber(1)),
+
+          test(L"PowerOfTwoExponent", BigInt::FromNumber(2),
+               BigInt::FromNumber(10), BigInt::FromNumber(1024)),
+          test(L"ConsecutivePowers", BigInt::FromNumber(3),
+               BigInt::FromNumber(3), BigInt::FromNumber(27)),
+      });
+    }());
+}  // namespace
+
 BigInt BigInt::GreatestCommonDivisor(const BigInt& other) const {
   BigInt zero;
   BigInt a = *this;
