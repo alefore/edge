@@ -1,6 +1,5 @@
 cc_library(
     name = "append",
-    srcs = ["append.cc"],
     hdrs = ["append.h"],
     visibility = ["//visibility:public"],
     deps = [
@@ -32,6 +31,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/infrastructure:tracker",
+        "//src/language:const_tree",
         "//src/language:ghost_type",
         "//src/language:hash",
         "//src/language:safe_types",
