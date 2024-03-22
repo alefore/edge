@@ -4,7 +4,6 @@
 
 #include "src/infrastructure/tracker.h"
 #include "src/language/const_tree.h"
-#include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
 
