@@ -193,6 +193,7 @@ cc_library(
         ":value",
         "//src/futures",
         "//src/language:gc",
+        "//src/language/error:view",
     ],
 )
 
