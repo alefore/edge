@@ -8,6 +8,9 @@ cc_library(
         "//src/language:overload",
         "//src/language:safe_types",
         "//src/language:wstring",
+        "//src/language/lazy_string",
+        "//src/language/lazy_string:append",
+        "//src/language/lazy_string:char_buffer",
         "//src/tests",
     ],
 )
