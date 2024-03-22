@@ -13,7 +13,7 @@ concept Subtractable = requires(Iterator a, Iterator b) {
   {
     a - b
   } -> std::convertible_to<
-      typename std::iterator_traits<Iterator>::difference_type>;
+        typename std::iterator_traits<Iterator>::difference_type>;
 };
 
 // Concept to check if an iterator type supports operator+
