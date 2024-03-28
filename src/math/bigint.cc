@@ -141,6 +141,7 @@ const bool constructors_tests_registration =
   return BigInt(std::move(digits));
 }
 
+namespace {
 const bool from_string_tests_registration =
     tests::Register(L"numbers::BigInt::FromString", [] {
       auto test = [](std::wstring input,
@@ -167,6 +168,7 @@ const bool from_string_tests_registration =
           test(std::wstring(100000, L'6'), L"VeryLarge"),
       });
     }());
+}  // namespace
 
 bool BigInt::IsZero() const { return digits.empty(); }
 
@@ -190,6 +192,35 @@ bool BigInt::operator>=(const BigInt& b) const {
 }
 bool BigInt::operator<=(const BigInt& b) const { return b >= *this; }
 
+namespace {
+const bool greater_than_tests_registration =
+    tests::Register(L"numbers::BigInt::GreaterThan", [] {
+      auto test = [](std::wstring name, int input1, int input2,
+                     bool expectation) {
+        return tests::Test{
+            .name = name, .callback = [input1, input2, expectation] {
+              BigInt int_1 = BigInt::FromNumber(input1);
+              BigInt int_2 = BigInt::FromNumber(input2);
+              bool result = int_1 > int_2;
+              CHECK(result == expectation)
+                  << "Unexpected comparison result: " << input1 << " > "
+                  << input2 << " yields " << (result ? "true" : "false")
+                  << ", expected: " << (expectation ? "true" : "false");
+            }};
+      };
+
+      return std::vector<tests::Test>({
+          test(L"SimpleGreaterThan", 123, 45, true),
+          test(L"PositiveGreaterThanZero", 123, 0, true),
+          test(L"ZeroNotGreaterThanPositive", 0, 123, false),
+          test(L"EqualNumbers", 100, 100, false),
+          test(L"LargeNumbers", 1000000001, 1000000000, true),
+          test(L"DifferentLengthsPositive", 12345, 123, true),
+          test(L"CloseValues", 1001, 1000, true),
+      });
+    }());
+}  // namespace
+
 BigInt BigInt::operator+(BigInt b) && {
   std::vector<Digit> result;
 
@@ -211,6 +242,41 @@ BigInt BigInt::operator+(BigInt b) && {
   if (carry > 0) result.push_back(carry);
   return BigInt(std::move(result));
 }
+
+namespace {
+const bool addition_tests_registration =
+    tests::Register(L"numbers::BigInt::Addition", [] {
+      auto test = [](std::wstring name, BigInt input1, BigInt input2,
+                     std::wstring expectation) {
+        return tests::Test{
+            .name = name, .callback = [input1, input2, expectation] mutable {
+              std::wstring output =
+                  (std::move(input1) + std::move(input2)).ToString();
+              CHECK(output == expectation);
+            }};
+      };
+
+      return std::vector<tests::Test>({
+          test(L"Positive", BigInt::FromNumber(123), BigInt::FromNumber(456),
+               L"579"),
+          test(L"WithZeroFirst", BigInt::FromNumber(0), BigInt::FromNumber(456),
+               L"456"),
+          test(L"WithZeroSecond", BigInt::FromNumber(123),
+               BigInt::FromNumber(0), L"123"),
+          test(L"LargeNumbers",
+               ValueOrDie(BigInt::FromString(L"999999999999999999")),
+               ValueOrDie(BigInt::FromString(L"111111111111111111")),
+               L"1111111111111111110"),
+          test(L"VeryLargeNumbers",
+               ValueOrDie(
+                   BigInt::FromString(L"999999999999999999999999999999999999")),
+               BigInt::FromNumber(1), L"1000000000000000000000000000000000000"),
+          test(L"EdgeCaseLargeSum",
+               ValueOrDie(BigInt::FromString(L"18446744073709551615")),
+               BigInt::FromNumber(1), L"18446744073709551616"),
+      });
+    }());
+}  // namespace
 
 ValueOrError<BigInt> BigInt::operator-(BigInt b) && {
   if (*this < b) return NewError(LazyString{L"Subtraction would underflow."});
@@ -234,6 +300,35 @@ ValueOrError<BigInt> BigInt::operator-(BigInt b) && {
   return BigInt(std::move(output_digits));
 }
 
+namespace {
+const bool subtraction_tests_registration =
+    tests::Register(L"numbers::BigInt::Subtraction", [] {
+      auto test = [](std::wstring name, BigInt input1, BigInt input2,
+                     std::wstring expectation) {
+        return tests::Test{
+            .name = name, .callback = [input1, input2, expectation] mutable {
+              std::wstring output =
+                  ValueOrDie(std::move(input1) - std::move(input2)).ToString();
+              CHECK(output == expectation);
+            }};
+      };
+
+      return std::vector<tests::Test>({
+          test(L"SimpleSubtraction", BigInt::FromNumber(456),
+               BigInt::FromNumber(123), L"333"),
+          test(L"SubtractionBorrowing", BigInt::FromNumber(500),
+               BigInt::FromNumber(256), L"244"),
+          test(L"SubtractionEquals", BigInt::FromNumber(123),
+               BigInt::FromNumber(123), L"0"),
+          test(L"SubtractZero", BigInt::FromNumber(123), BigInt::FromNumber(0),
+               L"123"),
+          test(L"LargeNumbers",
+               ValueOrDie(BigInt::FromString(L"10000000000000000000")),
+               ValueOrDie(BigInt::FromString(L"1")), L"9999999999999999999"),
+      });
+    }());
+}  // namespace
+
 BigInt BigInt::operator*(const BigInt& b) const {
   std::vector<Digit> output_digits;
   output_digits.resize(digits.size() + b.digits.size(), 0);
@@ -252,6 +347,43 @@ BigInt BigInt::operator*(const BigInt& b) const {
   }
   return BigInt(std::move(output_digits));
 }
+
+namespace {
+const bool multiplication_tests_registration =
+    tests::Register(L"numbers::BigInt::Multiplication", [] {
+      auto test = [](std::wstring name, BigInt input1, BigInt input2,
+                     std::wstring expectation) {
+        return tests::Test{
+            .name = name, .callback = [input1, input2, expectation] {
+              std::wstring output = (input1 * input2).ToString();
+              CHECK(output == expectation)
+                  << input1.ToString() << " * " << input2.ToString()
+                  << " yields " << output << ", but expected: " << expectation;
+            }};
+      };
+      return std::vector<tests::Test>({
+          test(L"SimpleMultiplication", BigInt::FromNumber(2),
+               BigInt::FromNumber(3), L"6"),
+          test(L"MultiplicationByZero", BigInt::FromNumber(12345),
+               BigInt::FromNumber(0), L"0"),
+          test(L"SingleDigitMultiplicationRequiringCarry",
+               BigInt::FromNumber(9), BigInt::FromNumber(9), L"81"),
+          test(L"MultipleDigitsWithCarry", BigInt::FromNumber(15),
+               BigInt::FromNumber(27), L"405"),
+          test(L"ZeroMultiplicationLargeNumber", BigInt::FromNumber(0),
+               ValueOrDie(BigInt::FromString(std::wstring(1000, L'9'))), L"0"),
+          test(L"LargeNumberMultiplication",
+               ValueOrDie(BigInt::FromString(std::wstring(50, L'9'))),
+               ValueOrDie(BigInt::FromString(L"1" + std::wstring(100, L'0'))),
+               std::wstring(50, L'9') + std::wstring(100, L'0')),
+          test(L"DistributiveProperty", ValueOrDie(BigInt::FromString(L"5")),
+               ValueOrDie(BigInt::FromString(L"2")) +
+                   ValueOrDie(BigInt::FromString(L"3")),
+               L"25"),
+
+      });
+    }());
+}  // namespace
 
 BigInt& BigInt::operator++() {
   *this = std::move(*this) + BigInt::FromNumber(1);
@@ -299,6 +431,37 @@ language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
   return BigIntDivideOutput{.quotient = BigInt(std::move(quotient.digits)),
                             .remainder = std::move(current_dividend)};
 }
+
+namespace {
+const bool division_tests_registration =
+    tests::Register(L"numbers::BigInt::Division", [] {
+      auto test = [](std::wstring name, int numerator, int denominator,
+                     std::optional<std::wstring> expected_outcome) {
+        return tests::Test{
+            .name = name,
+            .callback = [numerator, denominator, expected_outcome] {
+              ValueOrError<BigInt> result = BigInt::FromNumber(numerator) /
+                                            BigInt::FromNumber(denominator);
+              if (expected_outcome.has_value()) {
+                std::wstring output = ValueOrDie(std::move(result)).ToString();
+                CHECK(output == expected_outcome.value());
+              } else {
+                CHECK(IsError(result));
+              }
+            }};
+      };
+
+      return std::vector<tests::Test>({
+          test(L"SimpleDivision", 4, 2, L"2"),
+          test(L"DivisionByOne", 123, 1, L"123"),
+          test(L"DivisionByItself", 123, 123, L"1"),
+          test(L"ZeroDivisionByNonZero", 0, 123, L"0"),
+          test(L"DivisionByZero", 123, 0, std::nullopt),
+          test(L"NonPerfectDivision", 3, 2, std::nullopt),
+          test(L"LargeNumbersDivision", 100000, 1000, L"100"),
+      });
+    }());
+}  // namespace
 
 language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator) {
   DECLARE_OR_RETURN(BigIntDivideOutput values,
@@ -395,156 +558,6 @@ language::ValueOrError<double> BigInt::ToDouble() const {
 }
 
 namespace {
-const bool greater_than_tests_registration =
-    tests::Register(L"numbers::BigInt::GreaterThan", [] {
-      auto test = [](std::wstring name, int input1, int input2,
-                     bool expectation) {
-        return tests::Test{
-            .name = name, .callback = [input1, input2, expectation] {
-              BigInt int_1 = BigInt::FromNumber(input1);
-              BigInt int_2 = BigInt::FromNumber(input2);
-              bool result = int_1 > int_2;
-              CHECK(result == expectation)
-                  << "Unexpected comparison result: " << input1 << " > "
-                  << input2 << " yields " << (result ? "true" : "false")
-                  << ", expected: " << (expectation ? "true" : "false");
-            }};
-      };
-
-      return std::vector<tests::Test>({
-          test(L"SimpleGreaterThan", 123, 45, true),
-          test(L"PositiveGreaterThanZero", 123, 0, true),
-          test(L"ZeroNotGreaterThanPositive", 0, 123, false),
-          test(L"EqualNumbers", 100, 100, false),
-          test(L"LargeNumbers", 1000000001, 1000000000, true),
-          test(L"DifferentLengthsPositive", 12345, 123, true),
-          test(L"CloseValues", 1001, 1000, true),
-      });
-    }());
-
-const bool addition_tests_registration =
-    tests::Register(L"numbers::BigInt::Addition", [] {
-      auto test = [](std::wstring name, BigInt input1, BigInt input2,
-                     std::wstring expectation) {
-        return tests::Test{
-            .name = name, .callback = [input1, input2, expectation] mutable {
-              std::wstring output =
-                  (std::move(input1) + std::move(input2)).ToString();
-              CHECK(output == expectation);
-            }};
-      };
-
-      return std::vector<tests::Test>({
-          test(L"Positive", BigInt::FromNumber(123), BigInt::FromNumber(456),
-               L"579"),
-          test(L"WithZeroFirst", BigInt::FromNumber(0), BigInt::FromNumber(456),
-               L"456"),
-          test(L"WithZeroSecond", BigInt::FromNumber(123),
-               BigInt::FromNumber(0), L"123"),
-          test(L"LargeNumbers",
-               ValueOrDie(BigInt::FromString(L"999999999999999999")),
-               ValueOrDie(BigInt::FromString(L"111111111111111111")),
-               L"1111111111111111110"),
-          test(L"VeryLargeNumbers",
-               ValueOrDie(
-                   BigInt::FromString(L"999999999999999999999999999999999999")),
-               BigInt::FromNumber(1), L"1000000000000000000000000000000000000"),
-          test(L"EdgeCaseLargeSum",
-               ValueOrDie(BigInt::FromString(L"18446744073709551615")),
-               BigInt::FromNumber(1), L"18446744073709551616"),
-      });
-    }());
-
-const bool subtraction_tests_registration =
-    tests::Register(L"numbers::BigInt::Subtraction", [] {
-      auto test = [](std::wstring name, BigInt input1, BigInt input2,
-                     std::wstring expectation) {
-        return tests::Test{
-            .name = name, .callback = [input1, input2, expectation] mutable {
-              std::wstring output =
-                  ValueOrDie(std::move(input1) - std::move(input2)).ToString();
-              CHECK(output == expectation);
-            }};
-      };
-
-      return std::vector<tests::Test>({
-          test(L"SimpleSubtraction", BigInt::FromNumber(456),
-               BigInt::FromNumber(123), L"333"),
-          test(L"SubtractionBorrowing", BigInt::FromNumber(500),
-               BigInt::FromNumber(256), L"244"),
-          test(L"SubtractionEquals", BigInt::FromNumber(123),
-               BigInt::FromNumber(123), L"0"),
-          test(L"SubtractZero", BigInt::FromNumber(123), BigInt::FromNumber(0),
-               L"123"),
-          test(L"LargeNumbers",
-               ValueOrDie(BigInt::FromString(L"10000000000000000000")),
-               ValueOrDie(BigInt::FromString(L"1")), L"9999999999999999999"),
-      });
-    }());
-
-const bool multiplication_tests_registration =
-    tests::Register(L"numbers::BigInt::Multiplication", [] {
-      auto test = [](std::wstring name, BigInt input1, BigInt input2,
-                     std::wstring expectation) {
-        return tests::Test{
-            .name = name, .callback = [input1, input2, expectation] {
-              std::wstring output = (input1 * input2).ToString();
-              CHECK(output == expectation)
-                  << input1.ToString() << " * " << input2.ToString()
-                  << " yields " << output << ", but expected: " << expectation;
-            }};
-      };
-      return std::vector<tests::Test>({
-          test(L"SimpleMultiplication", BigInt::FromNumber(2),
-               BigInt::FromNumber(3), L"6"),
-          test(L"MultiplicationByZero", BigInt::FromNumber(12345),
-               BigInt::FromNumber(0), L"0"),
-          test(L"SingleDigitMultiplicationRequiringCarry",
-               BigInt::FromNumber(9), BigInt::FromNumber(9), L"81"),
-          test(L"MultipleDigitsWithCarry", BigInt::FromNumber(15),
-               BigInt::FromNumber(27), L"405"),
-          test(L"ZeroMultiplicationLargeNumber", BigInt::FromNumber(0),
-               ValueOrDie(BigInt::FromString(std::wstring(1000, L'9'))), L"0"),
-          test(L"LargeNumberMultiplication",
-               ValueOrDie(BigInt::FromString(std::wstring(50, L'9'))),
-               ValueOrDie(BigInt::FromString(L"1" + std::wstring(100, L'0'))),
-               std::wstring(50, L'9') + std::wstring(100, L'0')),
-          test(L"DistributiveProperty", ValueOrDie(BigInt::FromString(L"5")),
-               ValueOrDie(BigInt::FromString(L"2")) +
-                   ValueOrDie(BigInt::FromString(L"3")),
-               L"25"),
-
-      });
-    }());
-
-const bool division_tests_registration =
-    tests::Register(L"numbers::BigInt::Division", [] {
-      auto test = [](std::wstring name, int numerator, int denominator,
-                     std::optional<std::wstring> expected_outcome) {
-        return tests::Test{
-            .name = name,
-            .callback = [numerator, denominator, expected_outcome] {
-              ValueOrError<BigInt> result = BigInt::FromNumber(numerator) /
-                                            BigInt::FromNumber(denominator);
-              if (expected_outcome.has_value()) {
-                std::wstring output = ValueOrDie(std::move(result)).ToString();
-                CHECK(output == expected_outcome.value());
-              } else {
-                CHECK(IsError(result));
-              }
-            }};
-      };
-
-      return std::vector<tests::Test>({
-          test(L"SimpleDivision", 4, 2, L"2"),
-          test(L"DivisionByOne", 123, 1, L"123"),
-          test(L"DivisionByItself", 123, 123, L"1"),
-          test(L"ZeroDivisionByNonZero", 0, 123, L"0"),
-          test(L"DivisionByZero", 123, 0, std::nullopt),
-          test(L"NonPerfectDivision", 3, 2, std::nullopt),
-          test(L"LargeNumbersDivision", 100000, 1000, L"100"),
-      });
-    }());
 
 const bool gcd_tests_registration =
     tests::Register(L"numbers::BigInt::GreatestCommonDivisor", [] {
