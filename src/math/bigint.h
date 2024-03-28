@@ -18,7 +18,7 @@ language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
 class BigInt {
  private:
   using Digit = size_t;
-  std::vector<Digit> digits;  // Element 0 is the list significant digit.
+  std::vector<Digit> digits;  // Element 0 is the least significant digit.
 
  public:
   BigInt() = default;
