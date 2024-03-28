@@ -85,6 +85,42 @@ BigInt::BigInt(std::vector<Digit> digits_input)
   for (Digit digit : digits) CHECK_LE(digit, 9UL);
 }
 
+namespace {
+const bool constructors_tests_registration =
+    tests::Register(L"numbers::BigInt::Constructors", [] {
+      auto vector_constructor_test = [](std::vector<size_t> digits,
+                                        std::wstring name,
+                                        std::wstring expected) {
+        return tests::Test{.name = name, .callback = [digits, expected] {
+                             std::wstring value =
+                                 afc::math::numbers::BigInt(digits).ToString();
+                             CHECK(value == expected)
+                                 << "Expected: " << expected
+                                 << ", output: " << value;
+                           }};
+      };
+
+      return std::vector<tests::Test>({
+          tests::Test{.name = L"DefaultConstructor",
+                      .callback =
+                          [] {
+                            afc::math::numbers::BigInt bigInt;
+                            std::wstring value = bigInt.ToString();
+                            LOG(INFO)
+                                << "Default constructor output: " << value;
+                            CHECK(value == L"0");
+                          }},
+          vector_constructor_test({1, 2, 3}, L"SimpleNumber", L"321"),
+          vector_constructor_test({0, 1, 2, 3}, L"LeadingZeros", L"3210"),
+          vector_constructor_test({1, 2, 3, 0, 0}, L"TrailingZeros", L"321"),
+          vector_constructor_test({4, 9, 2, 2, 3, 2, 7, 2, 0, 3, 6, 8, 5, 4, 7},
+                                  L"LargeNumber", L"745863027232294"),
+          vector_constructor_test({}, L"EmptyVector", L"0"),
+          vector_constructor_test({0, 0, 0, 0}, L"OnlyZeros", L"0"),
+      });
+    }());
+}  // namespace
+
 /* static */ ValueOrError<BigInt> BigInt::FromString(
     const std::wstring& input) {
   if (input.empty()) return NewError(LazyString{L"Input string is empty."});
