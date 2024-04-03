@@ -98,8 +98,6 @@ struct BigIntDivideOutput {
 language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator);
 language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator);
 
-std::wstring ToString(const BigInt& a);
-
 }  // namespace afc::math::numbers
 
 #endif  // __AFC_MATH_BIGINT_H__
