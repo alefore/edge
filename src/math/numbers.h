@@ -29,7 +29,7 @@ class Number {
   language::ValueOrError<Number> Reciprocal() &&;
 
   void Optimize();
-  std::wstring ToString(size_t decimal_digits) const;
+  std::wstring ToString(size_t maximum_decimal_digits) const;
 
   Number& operator+=(Number rhs);
   Number& operator-=(Number rhs);

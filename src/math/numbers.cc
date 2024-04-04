@@ -84,10 +84,11 @@ void Number::Optimize() {
   denominator_ = ValueOrDie(std::move(denominator_) / gcd);
 }
 
-std::wstring Number::ToString(size_t decimal_digits) const {
+std::wstring Number::ToString(size_t maximum_decimal_digits) const {
   BigInt scaled_numerator =
-      BigInt(numerator_) * BigInt::Pow(BigInt::FromNumber(10),
-                                       BigInt::FromNumber(decimal_digits + 1));
+      BigInt(numerator_) *
+      BigInt::Pow(BigInt::FromNumber(10),
+                  BigInt::FromNumber(maximum_decimal_digits + 1));
   BigIntDivideOutput divide_output =
       ValueOrDie(Divide(std::move(scaled_numerator), BigInt(denominator_)));
   bool exact = divide_output.remainder.IsZero();
@@ -100,10 +101,11 @@ std::wstring Number::ToString(size_t decimal_digits) const {
     ++divide_output.quotient;
 
   std::wstring output = divide_output.quotient.ToString();
-  if (output.length() < decimal_digits)
-    output = std::wstring(decimal_digits - output.length(), L'0') + output;
-  if (decimal_digits > 0) {
-    output.insert(output.length() - decimal_digits, L".");
+  if (output.length() < maximum_decimal_digits)
+    output =
+        std::wstring(maximum_decimal_digits - output.length(), L'0') + output;
+  if (maximum_decimal_digits > 0) {
+    output.insert(output.length() - maximum_decimal_digits, L".");
     if (exact) {
       output.erase(output.find_last_not_of(L'0') + 1, std::wstring::npos);
       if (!output.empty() && output.back() == L'.') output.pop_back();
