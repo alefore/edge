@@ -187,6 +187,11 @@ class EditorState {
     return edge_path_;
   }
 
+  // Returns the subdirectory of `edge_path` where dynamic state about files
+  // edited (e.g., backup of unsaved modifications, log of interactions, etc.)
+  // should be kept.
+  static infrastructure::PathComponent StatePathComponent();
+
   language::gc::Pool& gc_pool() { return gc_pool_; }
 
   language::gc::Root<vm::Environment> environment() { return environment_; }

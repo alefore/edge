@@ -44,6 +44,8 @@ extern "C" {
 #include "src/widget_list.h"
 
 namespace container = afc::language::container;
+namespace gc = afc::language::gc;
+namespace error = afc::language::error;
 
 using afc::concurrent::ThreadPool;
 using afc::concurrent::ThreadPoolWithWorkQueue;
@@ -54,6 +56,7 @@ using afc::infrastructure::FileDescriptor;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Now;
 using afc::infrastructure::Path;
+using afc::infrastructure::PathComponent;
 using afc::infrastructure::UnixSignal;
 using afc::language::EmptyValue;
 using afc::language::EraseOrDie;
@@ -74,7 +77,6 @@ using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
-using afc::language::error::FromOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
@@ -84,10 +86,13 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::view::SkipErrors;
+using error::FromOptional;
 
 namespace afc::editor {
-namespace gc = language::gc;
-namespace error = language::error;
+/* static */
+PathComponent EditorState::StatePathComponent() {
+  return ValueOrDie(PathComponent::FromString(L"state"));
+}
 
 // Executes pending work from all buffers.
 void EditorState::ExecutePendingWork() {
@@ -509,7 +514,8 @@ void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 std::optional<LazyString> EditorState::GetExitNotice() const {
   if (dirty_buffers_saved_to_backup_.empty()) return std::nullopt;
   return LazyString{L"Dirty contents backed up (in "} +
-         LazyString{edge_path()[0].read()} + LazyString{L"):\n"} +
+         LazyString{Path::Join(edge_path()[0], StatePathComponent()).read()} +
+         LazyString{L"):\n"} +
          Concatenate(dirty_buffers_saved_to_backup_ |
                      std::views::transform([](const BufferName& name) {
                        return LazyString{L"  "} + LazyString{name.read()} +

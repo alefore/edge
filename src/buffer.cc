@@ -747,8 +747,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
           [&](Path buffer_path) {
             for (const auto& dir : options_.editor.edge_path()) {
               Path state_path = Path::Join(
-                  Path::Join(dir,
-                             ValueOrDie(PathComponent::FromString(L"state"))),
+                  Path::Join(dir, EditorState::StatePathComponent()),
                   Path::Join(buffer_path, ValueOrDie(PathComponent::FromString(
                                               L".edge_state"))));
               file_system_driver_.Stat(state_path)
@@ -937,8 +936,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
       std::list<PathComponent> file_path_components,
       AugmentErrors(L"Unable to split path", file_path.DirectorySplit()));
 
-  file_path_components.push_front(
-      ValueOrDie(PathComponent::FromString(L"state")));
+  file_path_components.push_front(EditorState::StatePathComponent());
 
   auto path = std::make_shared<Path>(path_vector[0]);
   auto error = std::make_shared<std::optional<Error>>();
