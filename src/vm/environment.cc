@@ -25,7 +25,6 @@ using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::VisitOptional;
 using afc::math::numbers::Number;
-using afc::math::numbers::ToString;
 
 namespace afc::vm {
 
