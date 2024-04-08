@@ -401,9 +401,12 @@ language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator) {
 
 language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
                                                   BigInt denominator) {
-  if (denominator.digits.empty())
-    return NewError(LazyString{L"Division by zero."});
+  DECLARE_OR_RETURN(NonZeroBigInt valid_demoninator,
+                    NonZeroBigInt::New(std::move(denominator)));
+  return Divide(std::move(numerator), std::move(valid_demoninator));
+}
 
+BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator) {
   BigInt quotient;
   BigInt current_dividend;
 
@@ -415,7 +418,8 @@ language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
 
     // Largest number such that denominator * x <= current_dividend:
     size_t x = 0;
-    while (denominator * BigInt::FromNumber(x + 1) <= current_dividend) {
+    while (denominator.value() * BigInt::FromNumber(x + 1) <=
+           current_dividend) {
       ++x;
       CHECK_LE(x, 10UL);
     }
@@ -423,7 +427,7 @@ language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
     if (x > 0)
       current_dividend =
           ValueOrDie(std::move(current_dividend) -
-                     BigInt(denominator) * BigInt::FromNumber(x));
+                     denominator.value() * BigInt::FromNumber(x));
     CHECK_LE(x, 9ul);
     quotient.digits.insert(quotient.digits.begin(), x);
   }
@@ -589,4 +593,18 @@ const bool gcd_tests_registration =
     }());
 
 }  // namespace
+
+/* static */ language::ValueOrError<NonZeroBigInt> NonZeroBigInt::New(
+    BigInt value) {
+  if (value.IsZero()) return NewError(LazyString{L"Expected non-zero value."});
+  return NonZeroBigInt(std::move(value));
+}
+
+const BigInt& NonZeroBigInt::value() const { return value_; }
+
+NonZeroBigInt ::NonZeroBigInt(BigInt validated_value)
+    : value_(std::move(validated_value)) {
+  CHECK(!value_.IsZero());
+}
+
 }  // namespace afc::math::numbers

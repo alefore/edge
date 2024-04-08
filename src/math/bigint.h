@@ -12,8 +12,9 @@ namespace afc::math::numbers {
 
 class BigIntDivideOutput;
 class BigInt;
-language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
-                                                  BigInt denominator);
+class NonZeroBigInt;
+
+BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator);
 
 class BigInt {
  private:
@@ -60,8 +61,7 @@ class BigInt {
   BigInt operator*(const BigInt& b) const;
   BigInt& operator++();
 
-  friend language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
-                                                           BigInt denominator);
+  friend BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator);
 
   static BigInt Pow(BigInt base, BigInt exponent);
   BigInt GreatestCommonDivisor(const BigInt& other) const;
@@ -95,8 +95,27 @@ struct BigIntDivideOutput {
   BigInt remainder;
 };
 
+language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
+                                                  BigInt denominator);
+
 language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator);
 language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator);
+
+class NonZeroBigInt {
+  BigInt value_;  // Non-const to enable move-construction.
+
+ public:
+  static language::ValueOrError<NonZeroBigInt> New(BigInt value);
+  const BigInt& value() const;
+
+  NonZeroBigInt(const NonZeroBigInt&) = default;
+  NonZeroBigInt(NonZeroBigInt&&) = default;
+  NonZeroBigInt& operator=(const NonZeroBigInt&) = default;
+  NonZeroBigInt& operator=(NonZeroBigInt&&) = default;
+
+ private:
+  NonZeroBigInt(BigInt validated_value);
+};
 
 }  // namespace afc::math::numbers
 
