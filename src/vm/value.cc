@@ -16,7 +16,6 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
-using afc::math::numbers::ToString;
 
 size_t constexpr kDefaultPrecision = 5ul;
 
