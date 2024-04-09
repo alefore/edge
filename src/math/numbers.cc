@@ -94,9 +94,8 @@ void Number::Optimize() {
 
 std::wstring Number::ToString(size_t maximum_decimal_digits) const {
   BigInt scaled_numerator =
-      BigInt(numerator_) *
-      BigInt::Pow(BigInt::FromNumber(10),
-                  BigInt::FromNumber(maximum_decimal_digits + 1));
+      BigInt(numerator_) * BigInt::FromNumber(10).Pow(
+                               BigInt::FromNumber(maximum_decimal_digits + 1));
   BigIntDivideOutput divide_output =
       Divide(std::move(scaled_numerator), denominator_);
   bool exact = divide_output.remainder.IsZero();
@@ -300,12 +299,11 @@ Number Number::FromDouble(double value) {
 
   // TODO(2023-10-06): Handle subnormal numbers, where exponent is -1023.
   if (exponent > 0) {
-    return Number(
-        positive,
-        std::move(mantissa) *
-            BigInt::Pow(BigInt::FromNumber(2), BigInt::FromNumber(exponent)),
-        ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(2)))
-            .Pow(BigInt::FromNumber(52)));
+    return Number(positive,
+                  std::move(mantissa) *
+                      BigInt::FromNumber(2).Pow(BigInt::FromNumber(exponent)),
+                  ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(2)))
+                      .Pow(BigInt::FromNumber(52)));
   }
 
   return Number(positive, std::move(mantissa),
@@ -316,7 +314,7 @@ Number Number::FromDouble(double value) {
 Number Number::Pow(BigInt exponent) && {
   return Number(
       positive_ || ValueOrDie(exponent % BigInt::FromNumber(2)).IsZero(),
-      BigInt::Pow(std::move(numerator_), BigInt(exponent)),
+      std::move(numerator_).Pow(BigInt(exponent)),
       std::move(denominator_).Pow(BigInt(exponent)));
 }
 

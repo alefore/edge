@@ -473,11 +473,13 @@ language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator) {
   return values.remainder;
 }
 
-/* static */ BigInt BigInt::Pow(BigInt base, BigInt exponent) {
+BigInt BigInt::Pow(BigInt exponent) && {
+  BigInt base = std::move(*this);
   BigInt output = BigInt::FromNumber(1);
   while (exponent > BigInt()) {
     BigIntDivideOutput divide_result =
-        ValueOrDie(Divide(std::move(exponent), BigInt::FromNumber(2)));
+        Divide(std::move(exponent),
+               ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(2))));
     if (!divide_result.remainder.IsZero()) output = std::move(output) * base;
     base = base * base;
     exponent = std::move(divide_result.quotient);
@@ -492,7 +494,7 @@ const bool pow_tests_registration =
                      BigInt expectation) {
         return tests::Test{
             .name = name, .callback = [base, exponent, expectation] mutable {
-              BigInt output = BigInt::Pow(std::move(base), std::move(exponent));
+              BigInt output = std::move(base).Pow(std::move(exponent));
               CHECK(output == expectation);
             }};
       };
@@ -613,7 +615,7 @@ NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
 
 NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
   // TODO(2024-04-09): Articulate better why the output is always positive.
-  return NonZeroBigInt(BigInt::Pow(std::move(value_), exponent));
+  return NonZeroBigInt(std::move(value_).Pow(std::move(exponent)));
 }
 
 }  // namespace afc::math::numbers

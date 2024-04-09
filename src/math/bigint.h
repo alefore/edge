@@ -63,7 +63,7 @@ class BigInt {
 
   friend BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator);
 
-  static BigInt Pow(BigInt base, BigInt exponent);
+  BigInt Pow(BigInt exponent) &&;
   BigInt GreatestCommonDivisor(const BigInt& other) const;
 
   language::ValueOrError<int32_t> ToInt32() const;
