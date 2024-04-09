@@ -12,10 +12,10 @@ namespace afc::math::numbers {
 class Number {
   bool positive_;
   BigInt numerator_;
-  BigInt denominator_;
+  NonZeroBigInt denominator_;
 
  public:
-  Number(bool positive, BigInt numerator, BigInt denominator)
+  Number(bool positive, BigInt numerator, NonZeroBigInt denominator)
       : positive_(positive),
         numerator_(std::move(numerator)),
         denominator_(std::move(denominator)) {}

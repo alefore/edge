@@ -32,9 +32,9 @@ Number Number::operator+(Number other) && {
   if (!positive_) return std::move(other) - std::move(*this).Negate();
   if (!other.positive_) return std::move(*this) - std::move(other).Negate();
 
-  BigInt new_numerator = std::move(numerator_) * other.denominator_ +
-                         denominator_ * std::move(other.numerator_);
-  BigInt new_denominator =
+  BigInt new_numerator = std::move(numerator_) * other.denominator_.value() +
+                         denominator_.value() * std::move(other.numerator_);
+  NonZeroBigInt new_denominator =
       std::move(denominator_) * std::move(other.denominator_);
   return Number(true, std::move(new_numerator), std::move(new_denominator));
 }
@@ -46,18 +46,18 @@ Number Number::operator-(Number other) && {
     return (std::move(*this).Negate() + std::move(other)).Negate();
   if (!other.positive_) return std::move(*this) + std::move(other);
 
-  BigInt a = std::move(numerator_) * other.denominator_;
-  BigInt b = std::move(other.numerator_) * denominator_;
+  BigInt a = std::move(numerator_) * other.denominator_.value();
+  BigInt b = std::move(other.numerator_) * denominator_.value();
   BigInt new_numerator = ValueOrDie(a >= b ? std::move(a) - std::move(b)
                                            : std::move(b) - std::move(a));
-  BigInt new_denominator =
+  NonZeroBigInt new_denominator =
       std::move(denominator_) * std::move(other.denominator_);
   return Number(a >= b, std::move(new_numerator), std::move(new_denominator));
 }
 
 Number Number::operator*(Number other) && {
   BigInt new_numerator = std::move(numerator_) * std::move(other.numerator_);
-  BigInt new_denominator =
+  NonZeroBigInt new_denominator =
       std::move(denominator_) * std::move(other.denominator_);
   return Number(positive_ == other.positive_, std::move(new_numerator),
                 std::move(new_denominator));
@@ -73,15 +73,23 @@ Number Number::Negate() && {
 }
 
 ValueOrError<Number> Number::Reciprocal() && {
-  if (numerator_.IsZero())
-    return NewError(LazyString{L"Zero has no reciprocal."});
-  return Number{positive_, std::move(denominator_), std::move(numerator_)};
+  return std::visit(
+      overload{[](Error) -> ValueOrError<Number> {
+                 return NewError(LazyString{L"Zero has no reciprocal."});
+               },
+               [&](NonZeroBigInt new_denominator) -> ValueOrError<Number> {
+                 return Number{positive_, std::move(denominator_).value(),
+                               std::move(new_denominator)};
+               }},
+      NonZeroBigInt::New(std::move(numerator_)));
 }
 
 void Number::Optimize() {
-  BigInt gcd = numerator_.GreatestCommonDivisor(denominator_);
+  BigInt gcd = numerator_.GreatestCommonDivisor(denominator_.value());
   numerator_ = ValueOrDie(std::move(numerator_) / gcd);
-  denominator_ = ValueOrDie(std::move(denominator_) / gcd);
+  // TODO(2024-04-09, P2): Find a way to use types to avoid this ValueOrDie:
+  denominator_ = ValueOrDie(
+      NonZeroBigInt::New(ValueOrDie(std::move(denominator_).value() / gcd)));
 }
 
 std::wstring Number::ToString(size_t maximum_decimal_digits) const {
@@ -90,12 +98,13 @@ std::wstring Number::ToString(size_t maximum_decimal_digits) const {
       BigInt::Pow(BigInt::FromNumber(10),
                   BigInt::FromNumber(maximum_decimal_digits + 1));
   BigIntDivideOutput divide_output =
-      ValueOrDie(Divide(std::move(scaled_numerator), BigInt(denominator_)));
+      Divide(std::move(scaled_numerator), denominator_);
   bool exact = divide_output.remainder.IsZero();
 
   // Rounding.
-  divide_output = ValueOrDie(
-      Divide(std::move(divide_output.quotient), BigInt::FromNumber(10)));
+  divide_output =
+      Divide(std::move(divide_output.quotient),
+             ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(10))));
   exact = exact && divide_output.remainder.IsZero();
   if (divide_output.remainder >= BigInt::FromNumber(5))
     ++divide_output.quotient;
@@ -189,18 +198,19 @@ const bool operator_divide_tests_registration = tests::Register(
       value == std::numeric_limits<int64_t>::min()
           ? static_cast<uint64_t>(-(value + 1)) + 1
           : static_cast<uint64_t>(std::abs(value)));
-  return Number(value >= 0, std::move(numerator), BigInt::FromNumber(1));
+  static NonZeroBigInt denominator =
+      ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(1)));
+  return Number(value >= 0, std::move(numerator), denominator);
 }
 
 afc::language::ValueOrError<int32_t> Number::ToInt32() const {
-  DECLARE_OR_RETURN(BigInt quotient, numerator_ / denominator_);
+  BigInt quotient = Divide(numerator_, denominator_).quotient;
   DECLARE_OR_RETURN(int32_t abs_value, quotient.ToInt32());
   return CheckedMultiply<int32_t, int32_t>(abs_value, positive_ ? 1 : -1);
 }
 
 afc::language::ValueOrError<int64_t> Number::ToInt64() const {
-  DECLARE_OR_RETURN(BigInt quotient, numerator_ / denominator_);
-  return quotient.ToInt64(positive_);
+  return Divide(numerator_, denominator_).quotient.ToInt64(positive_);
 }
 
 namespace {
@@ -252,13 +262,13 @@ const bool int_tests_registration = tests::Register(
 }  // namespace
 
 afc::language::ValueOrError<size_t> Number::ToSizeT() const {
-  DECLARE_OR_RETURN(BigInt quotient, numerator_ / denominator_);
-  return quotient.ToSizeT();
+  // TODO(2024-04-09, P1, tests): Test that a negative number returns an error.
+  return Divide(numerator_, denominator_).quotient.ToSizeT();
 }
 
 ValueOrError<double> Number::ToDouble() const {
   DECLARE_OR_RETURN(double numerator_double, numerator_.ToDouble());
-  DECLARE_OR_RETURN(double denominator_double, denominator_.ToDouble());
+  DECLARE_OR_RETURN(double denominator_double, denominator_.value().ToDouble());
   return numerator_double / denominator_double;
 }
 
@@ -287,31 +297,33 @@ Number Number::FromDouble(double value) {
   int64_t exponent = ((bits >> 52) & 0x7FFL) - 1023;
   BigInt mantissa =
       BigInt::FromNumber((bits & ((1LL << 52) - 1)) | (1LL << 52));
-  BigInt numerator, denominator;
 
   // TODO(2023-10-06): Handle subnormal numbers, where exponent is -1023.
   if (exponent > 0) {
-    numerator = std::move(mantissa) * BigInt::Pow(BigInt::FromNumber(2),
-                                                  BigInt::FromNumber(exponent));
-    denominator = BigInt::Pow(BigInt::FromNumber(2), BigInt::FromNumber(52));
-  } else {
-    numerator = std::move(mantissa);
-    denominator =
-        BigInt::Pow(BigInt::FromNumber(2), BigInt::FromNumber(52 - exponent));
+    return Number(
+        positive,
+        std::move(mantissa) *
+            BigInt::Pow(BigInt::FromNumber(2), BigInt::FromNumber(exponent)),
+        ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(2)))
+            .Pow(BigInt::FromNumber(52)));
   }
-  return Number(positive, numerator, denominator);
+
+  return Number(positive, std::move(mantissa),
+                ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(2)))
+                    .Pow(BigInt::FromNumber(52 - exponent)));
 }
 
 Number Number::Pow(BigInt exponent) && {
   return Number(
       positive_ || ValueOrDie(exponent % BigInt::FromNumber(2)).IsZero(),
       BigInt::Pow(std::move(numerator_), BigInt(exponent)),
-      BigInt::Pow(std::move(denominator_), BigInt(exponent)));
+      std::move(denominator_).Pow(BigInt(exponent)));
 }
 
 bool Number::operator==(const Number& other) const {
   return positive_ == other.positive_ &&
-         numerator_ * other.denominator_ == denominator_ * other.numerator_;
+         numerator_ * other.denominator_.value() ==
+             denominator_.value() * other.numerator_;
 }
 
 bool Number::operator>(const Number& other) const {
@@ -319,7 +331,8 @@ bool Number::operator>(const Number& other) const {
     return Number{*this}.Negate() < Number{other}.Negate();
   if (!other.positive_) return true;
   if (!positive_) return false;
-  return numerator_ * other.denominator_ > other.numerator_ * denominator_;
+  return numerator_ * other.denominator_.value() >
+         other.numerator_ * denominator_.value();
 }
 
 bool Number::operator<(const Number& other) const { return other > *this; }

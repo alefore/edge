@@ -602,9 +602,18 @@ const bool gcd_tests_registration =
 
 const BigInt& NonZeroBigInt::value() const { return value_; }
 
-NonZeroBigInt ::NonZeroBigInt(BigInt validated_value)
+NonZeroBigInt::NonZeroBigInt(BigInt validated_value)
     : value_(std::move(validated_value)) {
   CHECK(!value_.IsZero());
+}
+
+NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
+  return NonZeroBigInt(value_ * b.value_);
+}
+
+NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
+  // TODO(2024-04-09): Articulate better why the output is always positive.
+  return NonZeroBigInt(BigInt::Pow(std::move(value_), exponent));
 }
 
 }  // namespace afc::math::numbers

@@ -113,6 +113,10 @@ class NonZeroBigInt {
   NonZeroBigInt& operator=(const NonZeroBigInt&) = default;
   NonZeroBigInt& operator=(NonZeroBigInt&&) = default;
 
+  NonZeroBigInt operator*(const NonZeroBigInt& b) const;
+
+  NonZeroBigInt Pow(BigInt exponent) &&;
+
  private:
   NonZeroBigInt(BigInt validated_value);
 };
