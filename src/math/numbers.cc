@@ -309,10 +309,9 @@ Number Number::FromDouble(double value) {
 }
 
 Number Number::Pow(BigInt exponent) && {
-  return Number(
-      positive_ || ValueOrDie(exponent % BigInt::FromNumber(2)).IsZero(),
-      std::move(numerator_).Pow(BigInt(exponent)),
-      std::move(denominator_).Pow(BigInt(exponent)));
+  return Number(positive_ || (exponent % NonZeroBigInt::Constant<2>()).IsZero(),
+                std::move(numerator_).Pow(BigInt(exponent)),
+                std::move(denominator_).Pow(BigInt(exponent)));
 }
 
 bool Number::operator==(const Number& other) const {
