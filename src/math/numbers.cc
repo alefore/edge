@@ -102,8 +102,7 @@ std::wstring Number::ToString(size_t maximum_decimal_digits) const {
 
   // Rounding.
   divide_output =
-      Divide(std::move(divide_output.quotient),
-             ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(10))));
+      Divide(std::move(divide_output.quotient), NonZeroBigInt::Constant<10>());
   exact = exact && divide_output.remainder.IsZero();
   if (divide_output.remainder >= BigInt::FromNumber(5))
     ++divide_output.quotient;
@@ -197,8 +196,7 @@ const bool operator_divide_tests_registration = tests::Register(
       value == std::numeric_limits<int64_t>::min()
           ? static_cast<uint64_t>(-(value + 1)) + 1
           : static_cast<uint64_t>(std::abs(value)));
-  static NonZeroBigInt denominator =
-      ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(1)));
+  static NonZeroBigInt denominator = NonZeroBigInt::Constant<1>();
   return Number(value >= 0, std::move(numerator), denominator);
 }
 
@@ -302,13 +300,12 @@ Number Number::FromDouble(double value) {
     return Number(positive,
                   std::move(mantissa) *
                       BigInt::FromNumber(2).Pow(BigInt::FromNumber(exponent)),
-                  ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(2)))
-                      .Pow(BigInt::FromNumber(52)));
+                  NonZeroBigInt::Constant<2>().Pow(BigInt::FromNumber(52)));
   }
 
-  return Number(positive, std::move(mantissa),
-                ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(2)))
-                    .Pow(BigInt::FromNumber(52 - exponent)));
+  return Number(
+      positive, std::move(mantissa),
+      NonZeroBigInt::Constant<2>().Pow(BigInt::FromNumber(52 - exponent)));
 }
 
 Number Number::Pow(BigInt exponent) && {

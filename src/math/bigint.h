@@ -108,6 +108,12 @@ class NonZeroBigInt {
   static language::ValueOrError<NonZeroBigInt> New(BigInt value);
   const BigInt& value() const;
 
+  template <int N>
+  static NonZeroBigInt Constant() {
+    static_assert(N > 0, "N must be greater than 0.");
+    return NonZeroBigInt(BigInt::FromNumber(N));
+  }
+
   NonZeroBigInt(const NonZeroBigInt&) = default;
   NonZeroBigInt(NonZeroBigInt&&) = default;
   NonZeroBigInt& operator=(const NonZeroBigInt&) = default;

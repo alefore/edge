@@ -478,8 +478,7 @@ BigInt BigInt::Pow(BigInt exponent) && {
   BigInt output = BigInt::FromNumber(1);
   while (exponent > BigInt()) {
     BigIntDivideOutput divide_result =
-        Divide(std::move(exponent),
-               ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(2))));
+        Divide(std::move(exponent), NonZeroBigInt::Constant<2>());
     if (!divide_result.remainder.IsZero()) output = std::move(output) * base;
     base = base * base;
     exponent = std::move(divide_result.quotient);
