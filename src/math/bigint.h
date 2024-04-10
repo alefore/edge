@@ -127,6 +127,8 @@ class NonZeroBigInt {
   NonZeroBigInt(BigInt validated_value);
 };
 
+BigInt operator%(BigInt numerator, NonZeroBigInt denominator);
+
 }  // namespace afc::math::numbers
 
 #endif  // __AFC_MATH_BIGINT_H__

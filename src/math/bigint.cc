@@ -468,9 +468,9 @@ const bool division_tests_registration =
 }  // namespace
 
 language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator) {
-  DECLARE_OR_RETURN(BigIntDivideOutput values,
-                    Divide(std::move(numerator), std::move(denominator)));
-  return values.remainder;
+  DECLARE_OR_RETURN(NonZeroBigInt non_zero_denominator,
+                    NonZeroBigInt::New(std::move(denominator)));
+  return numerator % non_zero_denominator;
 }
 
 BigInt BigInt::Pow(BigInt exponent) && {
@@ -615,6 +615,10 @@ NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
 NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
   // TODO(2024-04-09): Articulate better why the output is always positive.
   return NonZeroBigInt(std::move(value_).Pow(std::move(exponent)));
+}
+
+BigInt operator%(BigInt numerator, NonZeroBigInt denominator) {
+  return Divide(std::move(numerator), std::move(denominator)).remainder;
 }
 
 }  // namespace afc::math::numbers
