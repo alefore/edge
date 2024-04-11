@@ -64,7 +64,6 @@ class BigInt {
   friend BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator);
 
   BigInt Pow(BigInt exponent) &&;
-  BigInt GreatestCommonDivisor(const BigInt& other) const;
 
   language::ValueOrError<int32_t> ToInt32() const;
   language::ValueOrError<int64_t> ToInt64() const;
@@ -123,10 +122,13 @@ class NonZeroBigInt {
 
   NonZeroBigInt Pow(BigInt exponent) &&;
 
+  NonZeroBigInt GreatestCommonDivisor(const NonZeroBigInt& other) const;
+
  private:
   NonZeroBigInt(BigInt validated_value);
 };
 
+bool operator==(const NonZeroBigInt& a, const NonZeroBigInt& b);
 BigInt operator%(BigInt numerator, NonZeroBigInt denominator);
 
 }  // namespace afc::math::numbers

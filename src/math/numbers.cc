@@ -85,11 +85,31 @@ ValueOrError<Number> Number::Reciprocal() && {
 }
 
 void Number::Optimize() {
-  BigInt gcd = numerator_.GreatestCommonDivisor(denominator_.value());
-  numerator_ = ValueOrDie(std::move(numerator_) / gcd);
-  // TODO(2024-04-09, P2): Find a way to use types to avoid this ValueOrDie:
-  denominator_ = ValueOrDie(
-      NonZeroBigInt::New(ValueOrDie(std::move(denominator_).value() / gcd)));
+  std::visit(
+      overload{[&](Error) {
+                 CHECK(numerator_.IsZero());
+                 denominator_ = NonZeroBigInt::Constant<1>();
+               },
+               [&](NonZeroBigInt non_zero_numerator) {
+                 NonZeroBigInt gcd =
+                     non_zero_numerator.GreatestCommonDivisor(denominator_);
+                 {
+                   BigIntDivideOutput divided_numerator =
+                       Divide(std::move(non_zero_numerator).value(), gcd);
+                   CHECK(divided_numerator.remainder.IsZero());
+                   numerator_ = divided_numerator.quotient;
+                 }
+                 {
+                   BigIntDivideOutput divided_denominator =
+                       Divide(std::move(denominator_).value(), gcd);
+                   CHECK(divided_denominator.remainder.IsZero());
+                   // TODO(2024-04-09, P2): Find a way to use types to
+                   // avoid this ValueOrDie:
+                   denominator_ = ValueOrDie(
+                       NonZeroBigInt::New(divided_denominator.quotient));
+                 }
+               }},
+      NonZeroBigInt::New(std::move(numerator_)));
 }
 
 std::wstring Number::ToString(size_t maximum_decimal_digits) const {

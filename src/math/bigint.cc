@@ -528,15 +528,15 @@ const bool pow_tests_registration =
     }());
 }  // namespace
 
-BigInt BigInt::GreatestCommonDivisor(const BigInt& other) const {
-  BigInt zero;
-  BigInt a = *this;
-  BigInt b = other;
+NonZeroBigInt NonZeroBigInt::GreatestCommonDivisor(
+    const NonZeroBigInt& other) const {
+  NonZeroBigInt a = *this;
+  ValueOrError<NonZeroBigInt> b = other;
 
-  while (b != zero) {
-    // TODO(2024-03-14): Get rid of ValueOrDie.
-    a = ValueOrDie(std::move(a) % BigInt(b));
-    std::swap(a, b);
+  while (!IsError(b)) {
+    BigInt remainder = a.value() % std::get<NonZeroBigInt>(b);
+    a = ValueOrDie(std::move(b));
+    b = NonZeroBigInt::New(remainder);
   }
   return a;
 }
@@ -570,19 +570,20 @@ const bool gcd_tests_registration =
                      int expectation) {
         return tests::Test{
             .name = name, .callback = [input1, input2, expectation] {
-              BigInt result = BigInt::FromNumber(input1).GreatestCommonDivisor(
-                  BigInt::FromNumber(input2));
-              CHECK(result == BigInt::FromNumber(expectation))
+              NonZeroBigInt result =
+                  ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(input1)))
+                      .GreatestCommonDivisor(ValueOrDie(
+                          NonZeroBigInt::New(BigInt::FromNumber(input2))));
+              CHECK(result == ValueOrDie(NonZeroBigInt::New(
+                                  BigInt::FromNumber(expectation))))
                   << "Unexpected GCD result for: " << input1 << " and "
-                  << input2 << " yields " << result.ToString()
+                  << input2 << " yields " << result.value().ToString()
                   << ", expected: " << expectation;
             }};
       };
 
       return std::vector<tests::Test>({
           test(L"PositiveNumbers", 48, 18, 6),
-          test(L"OneZeroValue", 0, 123, 123),
-          test(L"BothZeroValues", 0, 0, 0),
           test(L"OneValueIsOne", 13, 1, 1),
           test(L"PrimeNumbers", 17, 19, 1),
           test(L"CompositeNumbersCommonDivisors", 54, 24, 6),
@@ -615,6 +616,10 @@ NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
 NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
   // TODO(2024-04-09): Articulate better why the output is always positive.
   return NonZeroBigInt(std::move(value_).Pow(std::move(exponent)));
+}
+
+bool operator==(const NonZeroBigInt& a, const NonZeroBigInt& b) {
+  return a.value() == b.value();
 }
 
 BigInt operator%(BigInt numerator, NonZeroBigInt denominator) {
