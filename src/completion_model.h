@@ -13,49 +13,51 @@
 #include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
-class CompletionModelManager {
+class DictionaryManager {
  public:
   // TODO(templates, 2023-09-02): Use GHOST_TYPE. That is tricky because we need
   // to be able to selectively disable some constructors, which requires finicky
   // SFINAE. And operator<<.
-  using CompressedText = language::lazy_string::LazyString;
+  using Key = language::lazy_string::LazyString;
   using Text = language::lazy_string::LazyString;
 
   struct NothingFound {};
 
   struct Suggestion {
-    CompressedText compressed_text;
+    Key key;
   };
 
   using BufferLoader =
       std::function<futures::Value<language::text::LineSequence>(
           infrastructure::Path)>;
-  CompletionModelManager(BufferLoader buffer_loader);
+  DictionaryManager(BufferLoader buffer_loader);
 
   using QueryOutput = std::variant<Text, Suggestion, NothingFound>;
   futures::Value<QueryOutput> Query(std::vector<infrastructure::Path> models,
-                                    CompressedText compressed_text);
+                                    Key key);
 
  private:
-  using CompletionModel = language::text::SortedLineSequence;
+  using DictionaryInput = language::text::SortedLineSequence;
   using ModelsMap =
-      std::map<infrastructure::Path, futures::ListenableValue<CompletionModel>>;
+      std::map<infrastructure::Path, futures::ListenableValue<DictionaryInput>>;
 
   struct Data;
 
-  static futures::Value<QueryOutput> FindCompletionWithIndex(
+  // index is an index into the `models` vector; the semantics are that we
+  // should start the search at that position (and iterate until the end of
+  // `models`, or until we find something).
+  static futures::Value<QueryOutput> FindWordDataWithIndex(
       BufferLoader buffer_loader,
       language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
-      std::shared_ptr<std::vector<infrastructure::Path>> models,
-      CompressedText compressed_text, size_t index);
+      std::shared_ptr<std::vector<infrastructure::Path>> models, Key key,
+      size_t index);
 
   static void UpdateReverseTable(Data& data, const infrastructure::Path& path,
                                  const language::text::LineSequence& contents);
 
   struct Data {
     ModelsMap models;
-    std::map<std::wstring, std::map<infrastructure::Path, CompressedText>>
-        reverse_table;
+    std::map<std::wstring, std::map<infrastructure::Path, Key>> reverse_table;
   };
 
   const BufferLoader buffer_loader_;

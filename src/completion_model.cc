@@ -40,17 +40,17 @@ using ::operator<<;
 
 namespace {
 struct ParsedLine {
-  CompletionModelManager::CompressedText compressed_text;
-  CompletionModelManager::Text text;
+  DictionaryManager::Key compressed_text;
+  DictionaryManager::Text text;
 };
 
 ValueOrError<ParsedLine> Parse(const Line& line) {
   return VisitOptional(
       [&line](ColumnNumber first_space) -> ValueOrError<ParsedLine> {
         return ParsedLine{
-            .compressed_text = CompletionModelManager::CompressedText(
+            .compressed_text = DictionaryManager::Key(
                 line.Substring(ColumnNumber(), first_space.ToDelta())),
-            .text = CompletionModelManager::Text(
+            .text = DictionaryManager::Text(
                 line.Substring(first_space + ColumnNumberDelta(1)))};
       },
       [] { return ValueOrError<ParsedLine>(Error(L"No space found.")); },
@@ -73,7 +73,7 @@ SortedLineSequence CompletionModelForTests() {
 }
 
 const bool prepare_buffer_tests_registration = tests::Register(
-    L"CompletionModelManager::PrepareBuffer",
+    L"DictionaryManager::PrepareBuffer",
     {{.name = L"EmptyBuffer",
       .callback =
           [] {
@@ -89,9 +89,9 @@ const bool prepare_buffer_tests_registration = tests::Register(
         CHECK(result == L"b baby\nf fox");
       }}});
 
-std::optional<CompletionModelManager::Text> FindCompletionInModel(
+std::optional<DictionaryManager::Text> FindCompletionInModel(
     const SortedLineSequence& contents,
-    const CompletionModelManager::CompressedText& compressed_text) {
+    const DictionaryManager::Key& compressed_text) {
   VLOG(3) << "Starting completion with model with size: "
           << contents.lines().size()
           << " token: " << compressed_text.ToString();
@@ -104,28 +104,27 @@ std::optional<CompletionModelManager::Text> FindCompletionInModel(
   VLOG(5) << "Check: " << compressed_text.ToString()
           << " against: " << line_contents.ToString();
   return std::visit(
-      overload{
-          [&](const ParsedLine& parsed_line)
-              -> std::optional<CompletionModelManager::Text> {
-            if (compressed_text != parsed_line.compressed_text) {
-              VLOG(5) << "No match: [" << parsed_line.compressed_text.ToString()
-                      << "] != [" << parsed_line.compressed_text.ToString()
-                      << "]";
-              return std::nullopt;
-            }
+      overload{[&](const ParsedLine& parsed_line)
+                   -> std::optional<DictionaryManager::Text> {
+                 if (compressed_text != parsed_line.compressed_text) {
+                   VLOG(5) << "No match: ["
+                           << parsed_line.compressed_text.ToString() << "] != ["
+                           << parsed_line.compressed_text.ToString() << "]";
+                   return std::nullopt;
+                 }
 
-            if (compressed_text == parsed_line.text) {
-              VLOG(4) << "Found a match, but the line has compressed text "
-                         "identical to parsed text, so we'll skip it.";
-              return std::nullopt;
-            }
+                 if (compressed_text == parsed_line.text) {
+                   VLOG(4) << "Found a match, but the line has compressed text "
+                              "identical to parsed text, so we'll skip it.";
+                   return std::nullopt;
+                 }
 
-            VLOG(2) << "Found compression: "
-                    << parsed_line.compressed_text.ToString() << " -> "
-                    << parsed_line.text.ToString();
-            return parsed_line.text;
-          },
-          [](Error) { return std::optional<CompletionModelManager::Text>(); }},
+                 VLOG(2) << "Found compression: "
+                         << parsed_line.compressed_text.ToString() << " -> "
+                         << parsed_line.text.ToString();
+                 return parsed_line.text;
+               },
+               [](Error) { return std::optional<DictionaryManager::Text>(); }},
       Parse(contents.lines().at(line)));
 }
 
@@ -135,53 +134,49 @@ const bool find_completion_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(FindCompletionInModel(SortedLineSequence(LineSequence()),
-                                        CompletionModelManager::CompressedText(
-                                            LazyString{L"foo"})) ==
-                  std::nullopt);
+                                        DictionaryManager::Key(LazyString{
+                                            L"foo"})) == std::nullopt);
           }},
      {.name = L"NoMatch",
       .callback =
           [] {
             CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                        CompletionModelManager::CompressedText(
-                                            LazyString{L"foo"})) ==
-                  std::nullopt);
+                                        DictionaryManager::Key(LazyString{
+                                            L"foo"})) == std::nullopt);
           }},
      {.name = L"Match",
       .callback =
           [] {
-            CHECK(FindCompletionInModel(
-                      CompletionModelForTests(),
-                      CompletionModelManager::CompressedText(LazyString{L"f"}))
-                      .value() == LazyString{L"fox"});
+            CHECK(
+                FindCompletionInModel(CompletionModelForTests(),
+                                      DictionaryManager::Key(LazyString{L"f"}))
+                    .value() == LazyString{L"fox"});
           }},
      {.name = L"IdenticalMatch", .callback = [] {
         CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                    CompletionModelManager::CompressedText(
-                                        LazyString{L"i"})) == std::nullopt);
+                                    DictionaryManager::Key(LazyString{L"i"})) ==
+              std::nullopt);
       }}});
 }  // namespace
 
-CompletionModelManager::CompletionModelManager(BufferLoader buffer_loader)
+DictionaryManager::DictionaryManager(BufferLoader buffer_loader)
     : buffer_loader_(std::move(buffer_loader)) {}
 
-futures::Value<CompletionModelManager::QueryOutput>
-CompletionModelManager::Query(
-    std::vector<Path> models,
-    CompletionModelManager::CompressedText compressed_text) {
-  return FindCompletionWithIndex(
+futures::Value<DictionaryManager::QueryOutput> DictionaryManager::Query(
+    std::vector<Path> models, DictionaryManager::Key compressed_text) {
+  return FindWordDataWithIndex(
       buffer_loader_, data_,
       std::make_shared<std::vector<Path>>(std::move(models)),
       std::move(compressed_text), 0);
 }
 
 /* static */
-futures::Value<CompletionModelManager::QueryOutput>
-CompletionModelManager::FindCompletionWithIndex(
+futures::Value<DictionaryManager::QueryOutput>
+DictionaryManager::FindWordDataWithIndex(
     BufferLoader buffer_loader,
     NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
     std::shared_ptr<std::vector<Path>> models_list,
-    CompletionModelManager::CompressedText compressed_text, size_t index) {
+    DictionaryManager::Key compressed_text, size_t index) {
   if (index == models_list->size())
     return futures::Past(
         data->lock([&](const Data& locked_data) -> QueryOutput {
@@ -191,7 +186,7 @@ CompletionModelManager::FindCompletionWithIndex(
             for (const Path& path : *models_list)
               if (auto path_it = text_it->second.find(path);
                   path_it != text_it->second.end())
-                return Suggestion{.compressed_text = path_it->second};
+                return Suggestion{.key = path_it->second};
           }
           return NothingFound{};
         }));
@@ -236,12 +231,13 @@ CompletionModelManager::FindCompletionWithIndex(
                 FindCompletionInModel(contents, compressed_text);
             result.has_value())
           return futures::Past(QueryOutput(*result));
-        return FindCompletionWithIndex(buffer_loader, std::move(data),
-                                       std::move(models_list), compressed_text,
-                                       index + 1);
+        return FindWordDataWithIndex(buffer_loader, std::move(data),
+                                     std::move(models_list), compressed_text,
+                                     index + 1);
       });
 }
-/* static */ void CompletionModelManager::UpdateReverseTable(
+
+/* static */ void DictionaryManager::UpdateReverseTable(
     Data& data, const Path& path, const LineSequence& contents) {
   std::ranges::for_each(contents | std::views::transform(Parse) |
                             language::view::SkipErrors |
@@ -256,10 +252,10 @@ CompletionModelManager::FindCompletionWithIndex(
 
 namespace {
 const bool completion_model_manager_tests_registration =
-    tests::Register(L"CompletionModelManager", [] {
+    tests::Register(L"DictionaryManager", [] {
       auto paths = MakeNonNullShared<std::vector<Path>>();
       auto GetManager = [paths] {
-        return MakeNonNullUnique<CompletionModelManager>([paths](Path path) {
+        return MakeNonNullUnique<DictionaryManager>([paths](Path path) {
           LOG(INFO) << "Creating buffer for: " << path;
           paths->push_back(path);
           if (path == ValueOrDie(Path::FromString(L"en"))) {
@@ -272,15 +268,15 @@ const bool completion_model_manager_tests_registration =
         });
       };
       auto TestQuery =
-          [](const NonNull<std::unique_ptr<CompletionModelManager>>& manager,
+          [](const NonNull<std::unique_ptr<DictionaryManager>>& manager,
              const std::vector<std::wstring>& models,
              std::wstring compressed_text) {
             std::vector<infrastructure::Path> model_paths;
             for (const std::wstring& path : models)
               model_paths.push_back(ValueOrDie(Path::FromString(path)));
             return manager
-                ->Query(model_paths, CompletionModelManager::CompressedText(
-                                         LazyString{compressed_text}))
+                ->Query(model_paths,
+                        DictionaryManager::Key(LazyString{compressed_text}))
                 .Get();
           };
       return std::vector<tests::Test>(
@@ -293,8 +289,7 @@ const bool completion_model_manager_tests_registration =
            {.name = L"SimpleQueryNothing",
             .callback =
                 [GetManager, TestQuery, paths] {
-                  CHECK(std::holds_alternative<
-                        CompletionModelManager::NothingFound>(
+                  CHECK(std::holds_alternative<DictionaryManager::NothingFound>(
                       TestQuery(GetManager(), {L"en"}, L"nothing").value()));
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
@@ -302,54 +297,51 @@ const bool completion_model_manager_tests_registration =
            {.name = L"SimpleQueryWithMatch",
             .callback =
                 [GetManager, TestQuery, paths] {
-                  CompletionModelManager::QueryOutput output =
+                  DictionaryManager::QueryOutput output =
                       TestQuery(GetManager(), {L"en"}, L"f").value();
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
-                  CHECK(std::get<CompletionModelManager::Text>(output) ==
-                        CompletionModelManager::Text(LazyString{L"fox"}));
+                  CHECK(std::get<DictionaryManager::Text>(output) ==
+                        DictionaryManager::Text(LazyString{L"fox"}));
                 }},
            {.name = L"SimpleQueryWithReverseMatch",
             .callback =
                 [GetManager, TestQuery, paths] {
-                  CompletionModelManager::QueryOutput output =
+                  DictionaryManager::QueryOutput output =
                       TestQuery(GetManager(), {L"en"}, L"fox").value();
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
-                  CHECK(
-                      std::get<CompletionModelManager::Suggestion>(output)
-                          .compressed_text ==
-                      CompletionModelManager::CompressedText(LazyString{L"f"}));
+                  CHECK(std::get<DictionaryManager::Suggestion>(output).key ==
+                        DictionaryManager::Key(LazyString{L"f"}));
                 }},
            {.name = L"RepeatedQuerySameModel",
             .callback =
                 [GetManager, TestQuery, paths] {
-                  const NonNull<std::unique_ptr<CompletionModelManager>>
-                      manager = GetManager();
+                  const NonNull<std::unique_ptr<DictionaryManager>> manager =
+                      GetManager();
                   for (int i = 0; i < 10; i++) {
-                    CHECK(std::get<CompletionModelManager::CompressedText>(
+                    CHECK(std::get<DictionaryManager::Key>(
                               TestQuery(manager, {L"en"}, L"f").value()) ==
-                          CompletionModelManager::Text(LazyString{L"fox"}));
+                          DictionaryManager::Text(LazyString{L"fox"}));
                   }
                   // The gist of the test is here:
                   CHECK_EQ(paths->size(), 1ul);
                 }},
            {.name = L"MultiModelQuery",
             .callback = [GetManager, TestQuery, paths] {
-              const NonNull<std::unique_ptr<CompletionModelManager>> manager =
+              const NonNull<std::unique_ptr<DictionaryManager>> manager =
                   GetManager();
-              CHECK(std::get<CompletionModelManager::CompressedText>(
+              CHECK(std::get<DictionaryManager::Key>(
                         TestQuery(manager, {L"en", L"en"}, L"f").value()) ==
-                    CompletionModelManager::Text(LazyString{L"fox"}));
-              CHECK(std::get<CompletionModelManager::CompressedText>(
+                    DictionaryManager::Text(LazyString{L"fox"}));
+              CHECK(std::get<DictionaryManager::Key>(
                         TestQuery(manager, {L"en", L"es"}, L"f").value()) ==
-                    CompletionModelManager::Text(LazyString{L"fox"}));
-              CHECK(std::get<CompletionModelManager::CompressedText>(
+                    DictionaryManager::Text(LazyString{L"fox"}));
+              CHECK(std::get<DictionaryManager::Key>(
                         TestQuery(manager, {L"en", L"es"}, L"p").value()) ==
-                    CompletionModelManager::Text(LazyString{L"perrito"}));
-              CHECK(
-                  std::holds_alternative<CompletionModelManager::NothingFound>(
-                      TestQuery(manager, {L"en", L"es"}, L"rock").value()));
+                    DictionaryManager::Text(LazyString{L"perrito"}));
+              CHECK(std::holds_alternative<DictionaryManager::NothingFound>(
+                  TestQuery(manager, {L"en", L"es"}, L"rock").value()));
     // This shows a bug in the implementation: we shouldn't give a
     // recommendation for a compressed-text that is unreachable (because a model
     // with higher priority takes precedence). So we have it uncommented for
@@ -357,7 +349,7 @@ const bool completion_model_manager_tests_registration =
     // TODO(P2, 2023-09-08): Fix the bug and uncomment the test.
 #if 0
               CHECK(
-                  std::holds_alternative<CompletionModelManager::NothingFound>(
+                  std::holds_alternative<DictionaryManager::NothingFound>(
                       TestQuery(manager, {L"en", L"es"}, L"firulais")));
 #endif
               CHECK_EQ(paths->size(), 2ul);

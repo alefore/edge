@@ -358,7 +358,7 @@ class InsertMode : public InputReceiver {
                   std::function<void(MutableLineSequence*)>>
       current_insertion_;
 
-  NonNull<std::shared_ptr<CompletionModelManager>> completion_model_supplier_;
+  NonNull<std::shared_ptr<DictionaryManager>> completion_model_supplier_;
 
  public:
   InsertMode(InsertModeOptions options)
@@ -371,7 +371,7 @@ class InsertMode : public InputReceiver {
                   return buffer.ptr();
                 }))))),
         current_insertion_(NewInsertion(options_.editor_state)),
-        completion_model_supplier_(MakeNonNullShared<CompletionModelManager>(
+        completion_model_supplier_(MakeNonNullShared<DictionaryManager>(
             [&editor = options_.editor_state](Path path) {
               return OpenOrCreateFile(
                          OpenFileOptions{
@@ -712,20 +712,19 @@ class InsertMode : public InputReceiver {
                 LineRange token_range =
                     GetTokenRange(buffer_root.ptr().value());
                 if (token_range.IsEmpty()) return futures::Past(EmptyValue{});
-                CompletionModelManager::CompressedText token =
-                    GetCompletionToken(buffer_root.ptr()->contents().snapshot(),
-                                       token_range);
+                DictionaryManager::Key token = GetCompletionToken(
+                    buffer_root.ptr()->contents().snapshot(), token_range);
                 return completion_model_supplier
                     ->Query(std::move(
                                 CompletionModelPaths(buffer_root.ptr().value())
                                     .value()),
                             token)
-                    .Transform([buffer_root, token](
-                                   CompletionModelManager::QueryOutput output) {
+                    .Transform([buffer_root,
+                                token](DictionaryManager::QueryOutput output) {
                       std::visit(
-                          overload{[](CompletionModelManager::NothingFound) {},
-                                   [](CompletionModelManager::Suggestion) {},
-                                   [&](CompletionModelManager::Text text) {
+                          overload{[](DictionaryManager::NothingFound) {},
+                                   [](DictionaryManager::Suggestion) {},
+                                   [&](DictionaryManager::Text text) {
                                      ShowSuggestion(buffer_root.ptr().value(),
                                                     token, text);
                                    }},
@@ -938,9 +937,9 @@ class InsertMode : public InputReceiver {
     return LineRange(LineColumn(position.line, start), position.column - start);
   }
 
-  static CompletionModelManager::CompressedText GetCompletionToken(
+  static DictionaryManager::Key GetCompletionToken(
       const LineSequence& buffer_contents, LineRange token_range) {
-    CompletionModelManager::CompressedText output = LowerCase(
+    DictionaryManager::Key output = LowerCase(
         buffer_contents.at(token_range.line())
             .contents()
             .Substring(token_range.begin_column(),
@@ -949,22 +948,18 @@ class InsertMode : public InputReceiver {
     return output;
   }
 
-  static void ShowSuggestion(
-      OpenBuffer& buffer,
-      CompletionModelManager::CompressedText compressed_text,
-      CompletionModelManager::Text text) {
+  static void ShowSuggestion(OpenBuffer& buffer, DictionaryManager::Key key,
+                             DictionaryManager::Text text) {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
         buffer.status().SetExpiringInformationText(LineBuilder{
-            LazyString{L"`"} + compressed_text +
-            LazyString{L"` is an alias for `"} + text +
+            LazyString{L"`"} + key + LazyString{L"` is an alias for `"} + text +
             LazyString{L"`"}}.Build()));
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
       Modifiers::ModifyMode modify_mode,
-      NonNull<std::shared_ptr<CompletionModelManager>>
-          completion_model_supplier,
+      NonNull<std::shared_ptr<DictionaryManager>> completion_model_supplier,
       OpenBufferNoPasteMode buffer) {
     const auto model_paths = CompletionModelPaths(buffer.value);
     const LineColumn position =
@@ -1007,7 +1002,7 @@ class InsertMode : public InputReceiver {
       return output;
     }
 
-    CompletionModelManager::CompressedText token =
+    DictionaryManager::Key token =
         GetCompletionToken(buffer.value.contents().snapshot(), token_range);
     return std::move(output).Transform([model_paths = std::move(model_paths),
                                         token, position, modify_mode,
@@ -1020,7 +1015,7 @@ class InsertMode : public InputReceiver {
                token_range = LineRange(
                    LineColumn(position.line, position.column - token.size()),
                    token.size()),
-               modify_mode](CompletionModelManager::Text completion_text) {
+               modify_mode](DictionaryManager::Text completion_text) {
                 transformation::Stack stack;
                 stack.PushBack(transformation::Delete{
                     .range = token_range.value,
@@ -1037,14 +1032,12 @@ class InsertMode : public InputReceiver {
                     ColumnNumberDelta(1)));
                 return buffer_root.ptr()->ApplyToCursors(std::move(stack));
               },
-              [buffer_root,
-               token](CompletionModelManager::Suggestion suggestion) {
-                ShowSuggestion(buffer_root.ptr().value(),
-                               suggestion.compressed_text,
-                               CompletionModelManager::Text(token));
+              [buffer_root, token](DictionaryManager::Suggestion suggestion) {
+                ShowSuggestion(buffer_root.ptr().value(), suggestion.key,
+                               DictionaryManager::Text(token));
                 return futures::Past(EmptyValue());
               },
-              [](CompletionModelManager::NothingFound) {
+              [](DictionaryManager::NothingFound) {
                 return futures::Past(EmptyValue());
               }}));
     });
