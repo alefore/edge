@@ -722,12 +722,18 @@ class InsertMode : public InputReceiver {
                     .Transform([buffer_root,
                                 token](DictionaryManager::QueryOutput output) {
                       std::visit(
-                          overload{[](DictionaryManager::NothingFound) {},
-                                   [](DictionaryManager::Suggestion) {},
-                                   [&](DictionaryManager::Text text) {
-                                     ShowSuggestion(buffer_root.ptr().value(),
-                                                    token, text);
-                                   }},
+                          overload{
+                              [](DictionaryManager::NothingFound) {},
+                              [&](DictionaryManager::Suggestion suggestion) {
+                                ShowSuggestion(buffer_root.ptr().value(),
+                                               suggestion.key, token);
+                              },
+                              [&](DictionaryManager::WordData word_data) {
+                                if (word_data.replacement.has_value())
+                                  ShowSuggestion(buffer_root.ptr().value(),
+                                                 token,
+                                                 word_data.replacement.value());
+                              }},
                           output);
                       return futures::Past(EmptyValue{});
                     });
@@ -949,12 +955,12 @@ class InsertMode : public InputReceiver {
   }
 
   static void ShowSuggestion(OpenBuffer& buffer, DictionaryManager::Key key,
-                             DictionaryManager::Text text) {
+                             LazyString value) {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
         buffer.status().SetExpiringInformationText(LineBuilder{
-            LazyString{L"`"} + key + LazyString{L"` is an alias for `"} + text +
-            LazyString{L"`"}}.Build()));
+            LazyString{L"`"} + key + LazyString{L"` is an alias for `"} +
+            value + LazyString{L"`"}}.Build()));
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
@@ -1015,16 +1021,19 @@ class InsertMode : public InputReceiver {
                token_range = LineRange(
                    LineColumn(position.line, position.column - token.size()),
                    token.size()),
-               modify_mode](DictionaryManager::Text completion_text) {
+               modify_mode](DictionaryManager::WordData word_data) {
+                if (!word_data.replacement.has_value())
+                  return futures::Past(EmptyValue());
                 transformation::Stack stack;
                 stack.PushBack(transformation::Delete{
                     .range = token_range.value,
                     .initiator = transformation::Delete::Initiator::kInternal});
                 const ColumnNumberDelta completion_text_size =
-                    completion_text.size();
+                    word_data.replacement.value().size();
                 stack.PushBack(transformation::Insert{
                     .contents_to_insert = LineSequence::WithLine(
-                        LineBuilder(std::move(completion_text)).Build()),
+                        LineBuilder(std::move(word_data.replacement.value()))
+                            .Build()),
                     .modifiers = {.insertion = modify_mode},
                     .position = token_range.value.begin()});
                 stack.PushBack(transformation::SetPosition(
@@ -1034,7 +1043,7 @@ class InsertMode : public InputReceiver {
               },
               [buffer_root, token](DictionaryManager::Suggestion suggestion) {
                 ShowSuggestion(buffer_root.ptr().value(), suggestion.key,
-                               DictionaryManager::Text(token));
+                               token);
                 return futures::Past(EmptyValue());
               },
               [](DictionaryManager::NothingFound) {

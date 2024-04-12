@@ -15,11 +15,17 @@
 namespace afc::editor {
 class DictionaryManager {
  public:
+  struct WordData {
+    using Text = language::lazy_string::LazyString;
+    std::optional<Text> replacement;
+
+    bool operator==(const WordData&) const;
+  };
+
   // TODO(templates, 2023-09-02): Use GHOST_TYPE. That is tricky because we need
   // to be able to selectively disable some constructors, which requires finicky
   // SFINAE. And operator<<.
   using Key = language::lazy_string::LazyString;
-  using Text = language::lazy_string::LazyString;
 
   struct NothingFound {};
 
@@ -32,7 +38,7 @@ class DictionaryManager {
           infrastructure::Path)>;
   DictionaryManager(BufferLoader buffer_loader);
 
-  using QueryOutput = std::variant<Text, Suggestion, NothingFound>;
+  using QueryOutput = std::variant<WordData, Suggestion, NothingFound>;
   futures::Value<QueryOutput> Query(std::vector<infrastructure::Path> models,
                                     Key key);
 

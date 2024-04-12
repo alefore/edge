@@ -41,7 +41,7 @@ using ::operator<<;
 namespace {
 struct ParsedLine {
   DictionaryManager::Key compressed_text;
-  DictionaryManager::Text text;
+  DictionaryManager::WordData word_data;
 };
 
 ValueOrError<ParsedLine> Parse(const Line& line) {
@@ -50,8 +50,9 @@ ValueOrError<ParsedLine> Parse(const Line& line) {
         return ParsedLine{
             .compressed_text = DictionaryManager::Key(
                 line.Substring(ColumnNumber(), first_space.ToDelta())),
-            .text = DictionaryManager::Text(
-                line.Substring(first_space + ColumnNumberDelta(1)))};
+            .word_data = DictionaryManager::WordData{
+                .replacement =
+                    line.Substring(first_space + ColumnNumberDelta(1))}};
       },
       [] { return ValueOrError<ParsedLine>(Error(L"No space found.")); },
       FindFirstColumnWithPredicate(
@@ -89,7 +90,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
         CHECK(result == L"b baby\nf fox");
       }}});
 
-std::optional<DictionaryManager::Text> FindCompletionInModel(
+std::optional<DictionaryManager::WordData> FindCompletionInModel(
     const SortedLineSequence& contents,
     const DictionaryManager::Key& compressed_text) {
   VLOG(3) << "Starting completion with model with size: "
@@ -104,27 +105,28 @@ std::optional<DictionaryManager::Text> FindCompletionInModel(
   VLOG(5) << "Check: " << compressed_text.ToString()
           << " against: " << line_contents.ToString();
   return std::visit(
-      overload{[&](const ParsedLine& parsed_line)
-                   -> std::optional<DictionaryManager::Text> {
-                 if (compressed_text != parsed_line.compressed_text) {
-                   VLOG(5) << "No match: ["
-                           << parsed_line.compressed_text.ToString() << "] != ["
-                           << parsed_line.compressed_text.ToString() << "]";
-                   return std::nullopt;
-                 }
+      overload{
+          [&](const ParsedLine& parsed_line)
+              -> std::optional<DictionaryManager::WordData> {
+            if (compressed_text != parsed_line.compressed_text) {
+              VLOG(5) << "No match: [" << parsed_line.compressed_text.ToString()
+                      << "] != [" << parsed_line.compressed_text.ToString()
+                      << "]";
+              return std::nullopt;
+            }
 
-                 if (compressed_text == parsed_line.text) {
-                   VLOG(4) << "Found a match, but the line has compressed text "
-                              "identical to parsed text, so we'll skip it.";
-                   return std::nullopt;
-                 }
+            if (compressed_text == parsed_line.word_data.replacement) {
+              VLOG(4) << "Found a match, but the line has compressed text "
+                         "identical to parsed text, so we'll skip it.";
+              return std::nullopt;
+            }
 
-                 VLOG(2) << "Found compression: "
-                         << parsed_line.compressed_text.ToString() << " -> "
-                         << parsed_line.text.ToString();
-                 return parsed_line.text;
-               },
-               [](Error) { return std::optional<DictionaryManager::Text>(); }},
+            VLOG(2) << "Found compression: "
+                    << parsed_line.compressed_text.ToString() << " -> "
+                    << parsed_line.word_data.replacement.value().ToString();
+            return parsed_line.word_data;
+          },
+          [](Error) { return std::optional<DictionaryManager::WordData>(); }},
       Parse(contents.lines().at(line)));
 }
 
@@ -150,7 +152,8 @@ const bool find_completion_tests_registration = tests::Register(
             CHECK(
                 FindCompletionInModel(CompletionModelForTests(),
                                       DictionaryManager::Key(LazyString{L"f"}))
-                    .value() == LazyString{L"fox"});
+                    .value()
+                    .replacement.value() == LazyString{L"fox"});
           }},
      {.name = L"IdenticalMatch", .callback = [] {
         CHECK(FindCompletionInModel(CompletionModelForTests(),
@@ -158,6 +161,10 @@ const bool find_completion_tests_registration = tests::Register(
               std::nullopt);
       }}});
 }  // namespace
+
+bool DictionaryManager::WordData::operator==(const WordData& other) const {
+  return replacement == other.replacement;
+}
 
 DictionaryManager::DictionaryManager(BufferLoader buffer_loader)
     : buffer_loader_(std::move(buffer_loader)) {}
@@ -180,8 +187,9 @@ DictionaryManager::FindWordDataWithIndex(
   if (index == models_list->size())
     return futures::Past(
         data->lock([&](const Data& locked_data) -> QueryOutput {
-          Text text = compressed_text;
-          if (auto text_it = locked_data.reverse_table.find(text.ToString());
+          WordData text{.replacement = compressed_text};
+          if (auto text_it = locked_data.reverse_table.find(
+                  text.replacement.value().ToString());
               text_it != locked_data.reverse_table.end()) {
             for (const Path& path : *models_list)
               if (auto path_it = text_it->second.find(path);
@@ -227,7 +235,7 @@ DictionaryManager::FindWordDataWithIndex(
       .Transform([buffer_loader = std::move(buffer_loader),
                   data = std::move(data), models_list = std::move(models_list),
                   compressed_text, index](SortedLineSequence contents) mutable {
-        if (std::optional<Text> result =
+        if (std::optional<WordData> result =
                 FindCompletionInModel(contents, compressed_text);
             result.has_value())
           return futures::Past(QueryOutput(*result));
@@ -239,15 +247,15 @@ DictionaryManager::FindWordDataWithIndex(
 
 /* static */ void DictionaryManager::UpdateReverseTable(
     Data& data, const Path& path, const LineSequence& contents) {
-  std::ranges::for_each(contents | std::views::transform(Parse) |
-                            language::view::SkipErrors |
-                            std::views::filter([](const ParsedLine& entry) {
-                              return entry.text != entry.compressed_text;
-                            }),
-                        [&path, &data](const ParsedLine& entry) {
-                          data.reverse_table[entry.text.ToString()].insert(
-                              {path, entry.compressed_text});
-                        });
+  std::ranges::for_each(
+      contents | std::views::transform(Parse) | language::view::SkipErrors |
+          std::views::filter([](const ParsedLine& entry) {
+            return entry.word_data.replacement.value() != entry.compressed_text;
+          }),
+      [&path, &data](const ParsedLine& entry) {
+        data.reverse_table[entry.word_data.replacement.value().ToString()]
+            .insert({path, entry.compressed_text});
+      });
 }
 
 namespace {
@@ -301,8 +309,9 @@ const bool completion_model_manager_tests_registration =
                       TestQuery(GetManager(), {L"en"}, L"f").value();
                   CHECK(paths.value() ==
                         std::vector<Path>{ValueOrDie(Path::FromString(L"en"))});
-                  CHECK(std::get<DictionaryManager::Text>(output) ==
-                        DictionaryManager::Text(LazyString{L"fox"}));
+                  CHECK(std::get<DictionaryManager::WordData>(output) ==
+                        DictionaryManager::WordData{.replacement =
+                                                        LazyString{L"fox"}});
                 }},
            {.name = L"SimpleQueryWithReverseMatch",
             .callback =
@@ -320,9 +329,9 @@ const bool completion_model_manager_tests_registration =
                   const NonNull<std::unique_ptr<DictionaryManager>> manager =
                       GetManager();
                   for (int i = 0; i < 10; i++) {
-                    CHECK(std::get<DictionaryManager::Key>(
-                              TestQuery(manager, {L"en"}, L"f").value()) ==
-                          DictionaryManager::Text(LazyString{L"fox"}));
+                    CHECK(std::get<DictionaryManager::WordData>(
+                              TestQuery(manager, {L"en"}, L"f").value())
+                              .replacement == LazyString{L"fox"});
                   }
                   // The gist of the test is here:
                   CHECK_EQ(paths->size(), 1ul);
@@ -331,15 +340,15 @@ const bool completion_model_manager_tests_registration =
             .callback = [GetManager, TestQuery, paths] {
               const NonNull<std::unique_ptr<DictionaryManager>> manager =
                   GetManager();
-              CHECK(std::get<DictionaryManager::Key>(
-                        TestQuery(manager, {L"en", L"en"}, L"f").value()) ==
-                    DictionaryManager::Text(LazyString{L"fox"}));
-              CHECK(std::get<DictionaryManager::Key>(
-                        TestQuery(manager, {L"en", L"es"}, L"f").value()) ==
-                    DictionaryManager::Text(LazyString{L"fox"}));
-              CHECK(std::get<DictionaryManager::Key>(
-                        TestQuery(manager, {L"en", L"es"}, L"p").value()) ==
-                    DictionaryManager::Text(LazyString{L"perrito"}));
+              CHECK(std::get<DictionaryManager::WordData>(
+                        TestQuery(manager, {L"en", L"en"}, L"f").value())
+                        .replacement == LazyString{L"fox"});
+              CHECK(std::get<DictionaryManager::WordData>(
+                        TestQuery(manager, {L"en", L"es"}, L"f").value())
+                        .replacement == LazyString{L"fox"});
+              CHECK(std::get<DictionaryManager::WordData>(
+                        TestQuery(manager, {L"en", L"es"}, L"p").value())
+                        .replacement == LazyString{L"perrito"});
               CHECK(std::holds_alternative<DictionaryManager::NothingFound>(
                   TestQuery(manager, {L"en", L"es"}, L"rock").value()));
     // This shows a bug in the implementation: we shouldn't give a
