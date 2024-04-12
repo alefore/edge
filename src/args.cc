@@ -72,8 +72,7 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
       output.push_back(path.read());
     }
   };
-  push(Path::Join(home, ValueOrDie(PathComponent::FromString(L".edge"),
-                                   L"GetEdgeConfigPath")));
+  push(Path::Join(home, PathComponent::FromString(L".edge")));
   LOG(INFO) << "Pushing config path: " << output[0];
   if (char* env = getenv("EDGE_PATH"); env != nullptr) {
     std::istringstream text_stream(std::string(env) + ";");

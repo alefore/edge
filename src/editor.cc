@@ -91,7 +91,7 @@ using error::FromOptional;
 namespace afc::editor {
 /* static */
 PathComponent EditorState::StatePathComponent() {
-  return ValueOrDie(PathComponent::FromString(L"state"));
+  return PathComponent::FromString(L"state");
 }
 
 // Executes pending work from all buffers.

@@ -96,10 +96,9 @@ std::map<std::wstring, LazyString> LoadEnvironmentVariables(
       overload{IgnoreErrors{},
                [&](PathComponent command_component) {
                  auto environment_local_path = Path::Join(
-                     ValueOrDie(PathComponent::FromString(L"commands")),
+                     PathComponent::FromString(L"commands"),
                      Path::Join(command_component,
-                                ValueOrDie(PathComponent::FromString(
-                                    L"environment"))));
+                                PathComponent::FromString(L"environment")));
                  for (auto dir : path) {
                    Path full_path = Path::Join(dir, environment_local_path);
                    std::ifstream infile(ToByteString(full_path.read()));

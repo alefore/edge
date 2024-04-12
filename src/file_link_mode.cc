@@ -152,8 +152,8 @@ futures::Value<PossibleError> Save(
                       return futures::Past(
                           AugmentError(L"Unable to backup buffer", error));
                     }).Transform([](Path state_directory) {
-        return Success(Path::Join(
-            state_directory, ValueOrDie(PathComponent::FromString(L"backup"))));
+        return Success(
+            Path::Join(state_directory, PathComponent::FromString(L"backup")));
       });
   }
 
@@ -362,35 +362,18 @@ const bool ends_in_registration = tests::Register(
     {
         {.name = L"EmptyBoth", .callback = [] { CHECK(EndsIn<int>({}, {})); }},
         {.name = L"EmptySuffix",
-         .callback =
-             [] {
-               CHECK(EndsIn<int>({}, {1, 2, 3}));
-             }},
+         .callback = [] { CHECK(EndsIn<int>({}, {1, 2, 3})); }},
         {.name = L"EmptyCandidate",
-         .callback =
-             [] {
-               CHECK(!EndsIn<int>({1, 2, 3}, {}));
-             }},
+         .callback = [] { CHECK(!EndsIn<int>({1, 2, 3}, {})); }},
         {.name = L"ShortNonEmptyCandidate",
-         .callback =
-             [] {
-               CHECK(!EndsIn<int>({1, 2, 3}, {1, 2}));
-             }},
+         .callback = [] { CHECK(!EndsIn<int>({1, 2, 3}, {1, 2})); }},
         {.name = L"IdenticalNonEmpty",
-         .callback =
-             [] {
-               CHECK(EndsIn<int>({1, 2, 3}, {1, 2, 3}));
-             }},
+         .callback = [] { CHECK(EndsIn<int>({1, 2, 3}, {1, 2, 3})); }},
         {.name = L"EndsInLongerCandidate",
-         .callback =
-             [] {
-               CHECK(EndsIn<int>({4, 5, 6}, {1, 2, 3, 4, 5, 6}));
-             }},
+         .callback = [] { CHECK(EndsIn<int>({4, 5, 6}, {1, 2, 3, 4, 5, 6})); }},
         {.name = L"NotEndsInLongerCandidate",
          .callback =
-             [] {
-               CHECK(!EndsIn<int>({4, 5, 6}, {1, 2, 3, 4, 0, 6}));
-             }},
+             [] { CHECK(!EndsIn<int>({4, 5, 6}, {1, 2, 3, 4, 0, 6})); }},
     });
 
 futures::ValueOrError<ResolvePathOutput<gc::Root<OpenBuffer>>>
@@ -484,10 +467,9 @@ gc::Root<OpenBuffer> CreateBuffer(
   buffer_options->log_supplier =
       [&editor_state = options.editor_state](Path edge_state_directory) {
         FileSystemDriver driver(editor_state.thread_pool());
-        return NewFileLog(
-            driver,
-            Path::Join(edge_state_directory,
-                       ValueOrDie(PathComponent::FromString(L".edge_log"))));
+        return NewFileLog(driver,
+                          Path::Join(edge_state_directory,
+                                     PathComponent::FromString(L".edge_log")));
       };
 
   if (options.name.has_value()) {

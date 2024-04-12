@@ -51,37 +51,28 @@ const bool path_component_with_extension_tests_registration = tests::Register(
     {{.name = L"Absent",
       .callback =
           [] {
-            CHECK_EQ(
-                PathComponent::WithExtension(
-                    ValueOrDie(PathComponent::FromString(L"foo"), L"tests"),
-                    L"md"),
-                ValueOrDie(PathComponent::FromString(L"foo.md"), L"tests"));
+            CHECK_EQ(PathComponent::WithExtension(
+                         PathComponent::FromString(L"foo"), L"md"),
+                     PathComponent::FromString(L"foo.md"));
           }},
      {.name = L"Empty",
       .callback =
           [] {
-            CHECK_EQ(
-                PathComponent::WithExtension(
-                    ValueOrDie(PathComponent::FromString(L"foo"), L"tests"),
-                    L""),
-                ValueOrDie(PathComponent::FromString(L"foo."), L"tests"));
+            CHECK_EQ(PathComponent::WithExtension(
+                         PathComponent::FromString(L"foo"), L""),
+                     PathComponent::FromString(L"foo."));
           }},
      {.name = L"Present",
       .callback =
           [] {
-            CHECK_EQ(
-                PathComponent::WithExtension(
-                    ValueOrDie(PathComponent::FromString(L"foo.txt"), L"tests"),
-                    L"md"),
-                ValueOrDie(PathComponent::FromString(L"foo.md"), L"tests"));
+            CHECK_EQ(PathComponent::WithExtension(
+                         PathComponent::FromString(L"foo.txt"), L"md"),
+                     PathComponent::FromString(L"foo.md"));
           }},
      {.name = L"MultipleReplacesOnlyLast", .callback = [] {
-        CHECK_EQ(
-            PathComponent::WithExtension(
-                ValueOrDie(PathComponent::FromString(L"foo.blah.txt"),
-                           L"tests"),
-                L"md"),
-            ValueOrDie(PathComponent::FromString(L"foo.blah.md"), L"tests"));
+        CHECK_EQ(PathComponent::WithExtension(
+                     PathComponent::FromString(L"foo.blah.txt"), L"md"),
+                 PathComponent::FromString(L"foo.blah.md"));
       }}});
 
 const std::wstring& PathComponent::ToString() const { return component_; }
@@ -100,34 +91,27 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
     {{.name = L"Absent",
       .callback =
           [] {
-            CHECK(ValueOrDie(
-                      ValueOrDie(PathComponent::FromString(L"foo"), L"tests")
-                          .remove_extension(),
-                      L"tests") ==
-                  ValueOrDie(PathComponent::FromString(L"foo"), L"tests"));
+            CHECK(
+                ValueOrDie(PathComponent::FromString(L"foo").remove_extension(),
+                           L"tests") == PathComponent::FromString(L"foo"));
           }},
      {.name = L"hidden",
       .callback =
           [] {
             CHECK(std::holds_alternative<Error>(
-                ValueOrDie(PathComponent::FromString(L".blah"), L"tests")
-                    .remove_extension()));
+                PathComponent::FromString(L".blah").remove_extension()));
           }},
      {.name = L"Empty",
       .callback =
           [] {
             CHECK(ValueOrDie(
-                      ValueOrDie(PathComponent::FromString(L"foo."), L"tests")
-                          .remove_extension(),
-                      L"tests") ==
-                  ValueOrDie(PathComponent::FromString(L"foo"), L"tests"));
+                      PathComponent::FromString(L"foo.").remove_extension(),
+                      L"tests") == PathComponent::FromString(L"foo"));
           }},
      {.name = L"Present", .callback = [] {
-        CHECK(ValueOrDie(
-                  ValueOrDie(PathComponent::FromString(L"foo.md"), L"tests")
-                      .remove_extension(),
-                  L"tests") ==
-              ValueOrDie(PathComponent::FromString(L"foo"), L"tests"));
+        CHECK(
+            ValueOrDie(PathComponent::FromString(L"foo.md").remove_extension(),
+                       L"tests") == PathComponent::FromString(L"foo"));
       }}});
 
 std::optional<std::wstring> PathComponent::extension() const {
@@ -143,22 +127,17 @@ const bool path_component_extension_tests_registration = tests::Register(
     {{.name = L"Absent",
       .callback =
           [] {
-            CHECK(!ValueOrDie(PathComponent::FromString(L"foo"), L"tests")
-                       .extension()
-                       .has_value());
+            CHECK(!PathComponent::FromString(L"foo").extension().has_value());
           }},
      {.name = L"Empty",
       .callback =
           [] {
-            CHECK(ValueOrDie(PathComponent::FromString(L"foo."), L"tests")
-                      .extension()
-                      .value()
-                      .empty());
+            CHECK(
+                PathComponent::FromString(L"foo.").extension().value().empty());
           }},
      {.name = L"Present", .callback = [] {
-        CHECK(ValueOrDie(PathComponent::FromString(L"foo.md"), L"tests")
-                  .extension()
-                  .value() == L"md");
+        CHECK(PathComponent::FromString(L"foo.md").extension().value() ==
+              L"md");
       }}});
 
 PathComponent::PathComponent(std::wstring component)
@@ -213,9 +192,7 @@ Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
       overload{[&](Error) { return path; },
                [&](std::list<PathComponent> components) {
                  if (components.empty() ||
-                     components.front() !=
-                         ValueOrDie(PathComponent::FromString(L"~"),
-                                    L"ExpandHomeDirectory"))
+                     components.front() != PathComponent::FromString(L"~"))
                    return path;
                  components.pop_front();
                  return container::Fold(
@@ -341,45 +318,37 @@ const bool directory_split_tests_registration = tests::Register(
         {.name = L"NoSplit",
          .callback =
              [] {
-               std::list<PathComponent> result = ValueOrDie(
-                   ValueOrDie(Path::FromString(L"alejo.txt"), L"tests")
-                       .DirectorySplit(),
-                   L"tests");
+               std::list<PathComponent> result =
+                   ValueOrDie(Path{PathComponent::FromString(L"alejo.txt")}
+                                  .DirectorySplit(),
+                              L"tests");
                CHECK_EQ(result.size(), 1ul);
                CHECK_EQ(result.front(),
-                        ValueOrDie(PathComponent::FromString(L"alejo.txt"),
-                                   L"tests"));
+                        PathComponent::FromString(L"alejo.txt"));
              }},
         {.name = L"Directory",
          .callback =
              [] {
-               auto result =
-                   ValueOrDie(ValueOrDie(Path::FromString(L"alejo/"), L"tests")
-                                  .DirectorySplit(),
-                              L"tests");
+               auto result = ValueOrDie(
+                   Path{PathComponent::FromString(L"alejo/")}.DirectorySplit(),
+                   L"tests");
                CHECK_EQ(result.size(), 1ul);
-               CHECK_EQ(
-                   result.front(),
-                   ValueOrDie(PathComponent::FromString(L"alejo"), L"tests"));
+               CHECK_EQ(result.front(), PathComponent::FromString(L"alejo"));
              }},
         {.name = L"LongSplit",
          .callback =
              [] {
-               auto result_list = ValueOrDie(
-                   ValueOrDie(Path::FromString(L"aaa/b/cc/ddd"), L"tests")
-                       .DirectorySplit(),
-                   L"tests");
+               auto result_list =
+                   ValueOrDie(Path{PathComponent::FromString(L"aaa/b/cc/ddd")}
+                                  .DirectorySplit(),
+                              L"tests");
                CHECK_EQ(result_list.size(), 4ul);
                std::vector<PathComponent> result(result_list.begin(),
                                                  result_list.end());
-               CHECK_EQ(result[0], ValueOrDie(PathComponent::FromString(L"aaa"),
-                                              L"tests"));
-               CHECK_EQ(result[1],
-                        ValueOrDie(PathComponent::FromString(L"b"), L"tests"));
-               CHECK_EQ(result[2],
-                        ValueOrDie(PathComponent::FromString(L"cc"), L"tests"));
-               CHECK_EQ(result[3], ValueOrDie(PathComponent::FromString(L"ddd"),
-                                              L"tests"));
+               CHECK_EQ(result[0], PathComponent::FromString(L"aaa"));
+               CHECK_EQ(result[1], PathComponent::FromString(L"b"));
+               CHECK_EQ(result[2], PathComponent::FromString(L"cc"));
+               CHECK_EQ(result[3], PathComponent::FromString(L"ddd"));
              }},
         {.name = L"LongSplitMultiSlash",
          .callback =
@@ -392,14 +361,10 @@ const bool directory_split_tests_registration = tests::Register(
                CHECK_EQ(result_list.size(), 4ul);
                std::vector<PathComponent> result(result_list.begin(),
                                                  result_list.end());
-               CHECK_EQ(result[0], ValueOrDie(PathComponent::FromString(L"aaa"),
-                                              L"tests"));
-               CHECK_EQ(result[1],
-                        ValueOrDie(PathComponent::FromString(L"b"), L"tests"));
-               CHECK_EQ(result[2],
-                        ValueOrDie(PathComponent::FromString(L"cc"), L"tests"));
-               CHECK_EQ(result[3], ValueOrDie(PathComponent::FromString(L"ddd"),
-                                              L"tests"));
+               CHECK_EQ(result[0], PathComponent::FromString(L"aaa"));
+               CHECK_EQ(result[1], PathComponent::FromString(L"b"));
+               CHECK_EQ(result[2], PathComponent::FromString(L"cc"));
+               CHECK_EQ(result[3], PathComponent::FromString(L"ddd"));
              }},
     });
 

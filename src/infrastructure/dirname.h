@@ -25,6 +25,13 @@ class PathComponent {
  public:
   using ValueType = std::wstring;
 
+  // Compile-time version of FromString for string literals.
+  template <size_t N>
+  static PathComponent FromString(const wchar_t (&str)[N]) {
+    static_assert(N > 1, "String cannot be empty");
+    return PathComponent{std::wstring{str}};
+  }
+
   static language::ValueOrError<PathComponent> FromString(
       std::wstring component);
   static PathComponent WithExtension(const PathComponent& path,

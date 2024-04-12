@@ -530,9 +530,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                  })
       .Transform([this,
                   root_this = ptr_this_->ToRoot()](Path edge_state_directory) {
-        Path path =
-            Path::Join(edge_state_directory,
-                       ValueOrDie(PathComponent::FromString(L".edge_state")));
+        Path path = Path::Join(edge_state_directory,
+                               PathComponent::FromString(L".edge_state"));
         LOG(INFO) << "PersistState: Preparing state file: " << path;
         return futures::OnError(
             SaveContentsToFile(path,
@@ -742,28 +741,28 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   ClearContents();
 
   std::visit(
-      overload{
-          IgnoreErrors{},
-          [&](Path buffer_path) {
-            for (const auto& dir : options_.editor.edge_path()) {
-              Path state_path = Path::Join(
-                  Path::Join(dir, EditorState::StatePathComponent()),
-                  Path::Join(buffer_path, ValueOrDie(PathComponent::FromString(
-                                              L".edge_state"))));
-              file_system_driver_.Stat(state_path)
-                  .Transform([state_path, weak_this](struct stat) {
-                    return VisitPointer(
-                        weak_this.Lock(),
-                        [&](gc::Root<OpenBuffer> root_this) {
-                          return root_this.ptr()->EvaluateFile(state_path);
-                        },
-                        [] {
-                          return futures::Past(ValueOrError<gc::Root<Value>>(
-                              Error(L"Buffer has been deleted.")));
-                        });
-                  });
-            }
-          }},
+      overload{IgnoreErrors{},
+               [&](Path buffer_path) {
+                 for (const auto& dir : options_.editor.edge_path()) {
+                   Path state_path = Path::Join(
+                       Path::Join(dir, EditorState::StatePathComponent()),
+                       Path::Join(buffer_path,
+                                  PathComponent::FromString(L".edge_state")));
+                   file_system_driver_.Stat(state_path)
+                       .Transform([state_path, weak_this](struct stat) {
+                         return VisitPointer(
+                             weak_this.Lock(),
+                             [&](gc::Root<OpenBuffer> root_this) {
+                               return root_this.ptr()->EvaluateFile(state_path);
+                             },
+                             [] {
+                               return futures::Past(
+                                   ValueOrError<gc::Root<Value>>(
+                                       Error(L"Buffer has been deleted.")));
+                             });
+                       });
+                 }
+               }},
       Path::FromString(Read(buffer_variables::path)));
 
   contents_observer_->SetOpenBuffer(weak_this);

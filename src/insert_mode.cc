@@ -920,9 +920,8 @@ class InsertMode : public InputReceiver {
             [](const std::optional<Path>& t) { return t.has_value(); }) |
         std::views::transform([](std::optional<Path> path) {
           VLOG(5) << "Loading model: " << *path;
-          return Path::Join(
-              ValueOrDie(PathComponent::FromString(L"completion_models")),
-              std::move(*path));
+          return Path::Join(PathComponent::FromString(L"completion_models"),
+                            std::move(*path));
         })));
   }
 
