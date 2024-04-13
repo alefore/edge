@@ -23,7 +23,8 @@ Input::Input(Adapter& input_adapter, OpenBuffer& input_buffer)
 Input Input::NewChild(LineColumn new_position) const {
   Input child(adapter, buffer);
   child.mode = mode;
-  child.delete_buffer = delete_buffer;
+  if (delete_buffer.has_value())
+    child.delete_buffer = delete_buffer->ptr().ToRoot();
   child.position = new_position;
   return child;
 }

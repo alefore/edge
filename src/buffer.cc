@@ -2345,20 +2345,10 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   input.mode = mode;
   input.position = position;
   if (Read(buffer_variables::delete_into_paste_buffer)) {
-    input.delete_buffer =
-        &editor()
-             .FindOrBuildBuffer(
-                 kFuturePasteBuffer,
-                 [&] {
-                   LOG(INFO) << "Creating paste buffer.";
-                   return OpenBuffer::New(
-                       {.editor = editor(), .name = kFuturePasteBuffer});
-                 })
-             .ptr()
-             .value();
-    CHECK(input.delete_buffer != nullptr);
-  } else {
-    CHECK_EQ(input.delete_buffer, nullptr);
+    input.delete_buffer = editor().FindOrBuildBuffer(kFuturePasteBuffer, [&] {
+      LOG(INFO) << "Creating paste buffer.";
+      return OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer});
+    });
   }
 
   VLOG(5) << "Apply transformation: "

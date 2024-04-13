@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/gc.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 
@@ -49,9 +50,10 @@ struct Input {
   // `adapter`. Remove this.
   editor::OpenBuffer& buffer;
 
-  // If non-null, if the transformation deletes text, it should append it to
-  // this buffer (for pasting it later).
-  editor::OpenBuffer* delete_buffer = nullptr;
+  // If set, if the transformation deletes text, it should append it to this
+  // buffer (for pasting it later).
+  std::optional<language::gc::Root<editor::OpenBuffer>> delete_buffer =
+      std::nullopt;
 
   // Where should the transformation be applied?
   language::text::LineColumn position;

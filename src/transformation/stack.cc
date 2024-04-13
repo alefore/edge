@@ -112,7 +112,11 @@ futures::Value<Result> HandleCommandCpp(Input input,
   }
   return input.buffer.EvaluateString(contents.ToLazyString())
       .Transform([input](gc::Root<vm::Value> value) {
-        ShowValue(input.buffer, input.delete_buffer, value.ptr().value());
+        ShowValue(input.buffer,
+                  input.delete_buffer.has_value()
+                      ? &input.delete_buffer->ptr().value()
+                      : nullptr,
+                  value.ptr().value());
         Result output(input.position);
         output.added_to_paste_buffer = true;
         return Success(std::move(output));
@@ -121,10 +125,10 @@ futures::Value<Result> HandleCommandCpp(Input input,
         Result output(input.position);
         error = AugmentError(L"💣 Runtime error", std::move(error));
         input.buffer.status().Set(error);
-        if (input.delete_buffer != nullptr) {
-          input.delete_buffer->AppendToLastLine(
+        if (input.delete_buffer.has_value()) {
+          input.delete_buffer->ptr()->AppendToLastLine(
               LineBuilder{LazyString{error.read()}}.Build());
-          input.delete_buffer->AppendRawLine(Line());
+          input.delete_buffer->ptr()->AppendRawLine(Line());
           output.added_to_paste_buffer = true;
         }
         return futures::Past(std::move(output));
