@@ -19,6 +19,7 @@ extern "C" {
 #include "src/language/text/mutable_line_sequence.h"
 
 using namespace afc::editor;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::MutableLineSequence;

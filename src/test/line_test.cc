@@ -8,6 +8,7 @@
 
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line.h"
+#include "src/language/text/line_builder.h"
 #include "src/language/wstring.h"
 
 namespace afc {
@@ -19,7 +20,7 @@ using infrastructure::screen::LineModifierSet;
 using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::NewCopyCharBuffer;
+using language::lazy_string::LazyString;
 using language::text::Line;
 using language::text::LineBuilder;
 
@@ -31,7 +32,7 @@ void CheckSingleton(C const container, V value) {
 
 void TestLineDeleteCharacters() {
   // Preparation.
-  LineBuilder builder(NewCopyCharBuffer(L"alejo"));
+  LineBuilder builder{LazyString{L"alejo"}};
   builder.InsertModifier(ColumnNumber(0), LineModifier::kRed);
   builder.InsertModifier(ColumnNumber(1), LineModifier::kGreen);
   builder.InsertModifier(ColumnNumber(2), LineModifier::kBlue);

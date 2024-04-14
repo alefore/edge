@@ -13,25 +13,27 @@
 #include "src/language/wstring.h"
 #include "src/test/line_test.h"
 
+using afc::infrastructure::screen::CursorsTracker;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::ToByteString;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::MutableLineSequence;
+
 namespace afc {
 namespace editor {
 namespace testing {
 namespace {
 using ::operator<<;
-using infrastructure::screen::CursorsTracker;
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::ToByteString;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::LineNumberDelta;
-using language::text::MutableLineSequence;
 
 void TestMutableLineSequenceSnapshot() {
   MutableLineSequence contents;
@@ -60,7 +62,7 @@ void TestBufferInsertModifiers() {
   contents.push_back(options.Copy().Build());  // LineNumber(2).
   options.set_modifiers(ColumnNumber(2), {LineModifier::kBold});
   contents.push_back(options.Copy().Build());  // LineNumber(3).
-  LineBuilder new_line(contents.at(LineNumber(1)).value());
+  LineBuilder new_line(contents.at(LineNumber(1)));
   new_line.SetAllModifiers(LineModifierSet({LineModifier::kDim}));
   contents.push_back(std::move(new_line).Build());  // LineNumber(4).
 
@@ -70,7 +72,7 @@ void TestBufferInsertModifiers() {
 
     {
       // Check line 1: 0:CYAN
-      auto modifiers_1 = contents.at(LineNumber(1))->modifiers();
+      auto modifiers_1 = contents.at(LineNumber(1)).modifiers();
       CHECK_EQ(modifiers_1.size(), 1ul);
       CHECK(modifiers_1.find(ColumnNumber(0))->second ==
             LineModifierSet({LineModifier::kCyan}));
@@ -78,7 +80,7 @@ void TestBufferInsertModifiers() {
 
     {
       // Check line 2: 0:CYAN
-      auto modifiers_2 = contents.at(LineNumber(2))->modifiers();
+      auto modifiers_2 = contents.at(LineNumber(2)).modifiers();
       CHECK_EQ(modifiers_2.size(), 1ul);
       CHECK(modifiers_2.find(ColumnNumber(0))->second ==
             LineModifierSet({LineModifier::kCyan}));
@@ -86,7 +88,7 @@ void TestBufferInsertModifiers() {
 
     {
       // Check line 3: 0:CYAN, 2:BOLD
-      auto modifiers_3 = contents.at(LineNumber(3))->modifiers();
+      auto modifiers_3 = contents.at(LineNumber(3)).modifiers();
       CHECK_EQ(modifiers_3.size(), 2ul);
       CHECK(modifiers_3.find(ColumnNumber(0))->second ==
             LineModifierSet({LineModifier::kCyan}));
@@ -96,7 +98,7 @@ void TestBufferInsertModifiers() {
 
     {
       // Check line 4: 0:DIM
-      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
+      auto modifiers_4 = contents.at(LineNumber(4)).modifiers();
       CHECK_EQ(modifiers_4.size(), 1ul);
       CHECK(modifiers_4.find(ColumnNumber(0))->second ==
             LineModifierSet({LineModifier::kDim}));
@@ -140,7 +142,7 @@ void TestBufferInsertModifiers() {
 
     CHECK_EQ(contents.size(), LineNumberDelta(6));
     {
-      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
+      auto modifiers_4 = contents.at(LineNumber(4)).modifiers();
       CHECK_EQ(modifiers_4.size(), 1ul);
     }
 
@@ -154,7 +156,7 @@ void TestBufferInsertModifiers() {
 
     CHECK_EQ(contents.size(), LineNumberDelta(5));
     {
-      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
+      auto modifiers_4 = contents.at(LineNumber(4)).modifiers();
       for (auto& c : modifiers_4) {
         LOG(INFO) << "At: " << c.first << " "
                   << ModifierToString(*c.second.begin());

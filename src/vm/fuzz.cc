@@ -4,6 +4,7 @@
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
+#include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 #include "src/vm/environment.h"
 #include "src/vm/types.h"
@@ -19,6 +20,7 @@ using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::OnceOnlyFunction;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::vm::Expression;
@@ -37,20 +39,18 @@ int main(int, char** argv) {
           ValueOrDie(Path::FromString(FromByteString("/dev/"
                                                      "stdin"))),
           pool, environment));
-  if (IsError(expr)) {
-    return 0;
-  }
+  if (IsError(expr)) return 0;
 
-  std::function<void()> resume;
+  std::optional<OnceOnlyFunction<void()>> resume;
   auto value = afc::vm::Evaluate(ValueOrDie(std::move(expr)), pool, environment,
-                                 [&resume](std::function<void()> callback) {
+                                 [&resume](OnceOnlyFunction<void()> callback) {
                                    resume = std::move(callback);
                                  });
 
-  for (int i = 0; i < 5 && resume != nullptr; ++i) {
-    auto copy = std::move(resume);
-    resume = nullptr;
-    copy();
+  for (int i = 0; i < 5 && resume.has_value(); ++i) {
+    auto copy = std::move(resume.value());
+    resume = std::nullopt;
+    std::move(copy)();
   }
 
   return 0;
