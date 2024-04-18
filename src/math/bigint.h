@@ -89,6 +89,8 @@ class BigInt {
   }
 };
 
+std::ostream& operator<<(std::ostream& os, const BigInt& p);
+
 struct BigIntDivideOutput {
   BigInt quotient;
   BigInt remainder;

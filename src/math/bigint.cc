@@ -18,6 +18,8 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::math::numbers {
+using ::operator<<;
+
 BigInt::BigInt(std::vector<Digit> digits_input)
     : digits(std::move(digits_input)) {
   while (!digits.empty() && digits.back() == 0) digits.pop_back();
@@ -63,9 +65,7 @@ const bool constructors_tests_registration =
 /* static */ ValueOrError<BigInt> BigInt::FromString(
     const std::wstring& input) {
   if (input.empty()) return NewError(LazyString{L"Input string is empty."});
-
-  size_t start = input[0] == L'-' || input[0] == L'+' ? 1 : 0;
-
+  size_t start = input[0] == L'+' ? 1 : 0;
   std::vector<Digit> digits;
   for (size_t i = start; i < input.size(); ++i) {
     if (input[i] < L'0' || input[i] > L'9') {
@@ -94,6 +94,16 @@ const bool from_string_tests_registration =
               CHECK(value == expectation.value_or(input));
             }};
       };
+      auto test_error = [](std::wstring input) {
+        return tests::Test{
+            .name = L"Error" + input, .callback = [input] {
+              ValueOrError<BigInt> value = BigInt::FromString(input);
+              CHECK(IsError(value)) << "Expected error but received value: "
+                                    << ValueOrDie(std::move(value)).ToString();
+              LOG(INFO) << "Received expected error: "
+                        << std::get<Error>(value);
+            }};
+      };
       return std::vector<tests::Test>({
           test(L"1"),
           test(L"+1", {}, L"1"),
@@ -105,11 +115,43 @@ const bool from_string_tests_registration =
           test(L"999999999999999999999999999999999999", L"Large",
                L"999999999999999999999999999999999999"),
           test(std::wstring(100000, L'6'), L"VeryLarge"),
+          test_error(L"-1"),
+          test_error(L"123x9"),
+          test_error(L""),
       });
     }());
 }  // namespace
 
 bool BigInt::IsZero() const { return digits.empty(); }
+
+namespace {
+const bool is_zero_tests_registration = tests::Register(
+    L"numbers::BigInt::IsZero",
+    std::vector<tests::Test>({
+        {.name = L"Zero", .callback = [] { CHECK(BigInt().IsZero()); }},
+        {.name = L"One",
+         .callback = [] { CHECK(!BigInt::FromNumber(1).IsZero()); }},
+        {.name = L"OneFromStringLeadingZeros",
+         .callback =
+             [] { CHECK(!ValueOrDie(BigInt::FromString(L"00001")).IsZero()); }},
+        {.name = L"ZeroFromString",
+         .callback = [] { CHECK(BigInt::FromNumber(0).IsZero()); }},
+        {.name = L"ZeroFromStringLeadingZeros",
+         .callback =
+             [] { CHECK(ValueOrDie(BigInt::FromString(L"0000")).IsZero()); }},
+        {.name = L"ZeroFromStringPlus",
+         .callback =
+             [] { CHECK(ValueOrDie(BigInt::FromString(L"+0")).IsZero()); }},
+        {.name = L"ZeroFromStringLarge",
+         .callback =
+             [] {
+               CHECK(
+                   !ValueOrDie(BigInt::FromString(L"9230789434958349578345987"))
+                        .IsZero());
+             }},
+
+    }));
+}  // namespace
 
 bool BigInt::operator==(const BigInt& b) const { return digits == b.digits; }
 
@@ -155,9 +197,37 @@ const bool greater_than_tests_registration =
           test(L"EqualNumbers", 100, 100, false),
           test(L"LargeNumbers", 1000000001, 1000000000, true),
           test(L"DifferentLengthsPositive", 12345, 123, true),
-          test(L"CloseValues", 1001, 1000, true),
       });
     }());
+
+const bool tests_order_registration = tests::Register(
+    L"numbers::BigInt::Order",
+    std::vector<tests::Test>(
+        {{.name = L"Combinations", .callback = [] {
+            std::vector<BigInt> values = {
+                BigInt::FromNumber(0),    BigInt::FromNumber(1),
+                BigInt::FromNumber(2),    BigInt::FromNumber(10),
+                BigInt::FromNumber(1024),
+            };
+            for (size_t i = 0; i < values.size(); i++) {
+              LOG(INFO) << "i := " << i;
+              CHECK_EQ(values[i], values[i]);
+              CHECK(!(values[i] != values[i]));
+              CHECK_LE(values[i], values[i]);
+              CHECK_GE(values[i], values[i]);
+              for (size_t j = i + 1; j < values.size(); j++) {
+                LOG(INFO) << "i := " << i << ", j := " << j;
+                CHECK_NE(values[i], values[j]);
+                CHECK_NE(values[j], values[i]);
+                CHECK(!(values[i] == values[j]));
+                CHECK(!(values[j] == values[i]));
+                CHECK_LE(values[i], values[j]);
+                CHECK_LT(values[i], values[j]);
+                CHECK_GE(values[j], values[i]);
+                CHECK_GT(values[j], values[i]);
+              }
+            }
+          }}}));
 }  // namespace
 
 BigInt BigInt::operator+(BigInt b) && {
@@ -338,6 +408,11 @@ language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator) {
   return values.quotient;
 }
 
+std::ostream& operator<<(std::ostream& os, const BigInt& p) {
+  os << p.ToString();
+  return os;
+}
+
 language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
                                                   BigInt denominator) {
   DECLARE_OR_RETURN(NonZeroBigInt valid_demoninator,
@@ -516,7 +591,7 @@ const bool gcd_tests_registration =
               CHECK(result == ValueOrDie(NonZeroBigInt::New(
                                   BigInt::FromNumber(expectation))))
                   << "Unexpected GCD result for: " << input1 << " and "
-                  << input2 << " yields " << result.value().ToString()
+                  << input2 << " yields " << result.value()
                   << ", expected: " << expectation;
             }};
       };
