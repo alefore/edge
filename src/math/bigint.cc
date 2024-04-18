@@ -266,7 +266,7 @@ const bool addition_tests_registration =
       };
 
       return std::vector<tests::Test>({
-          test(L"Positive", BigInt::FromNumber(123), BigInt::FromNumber(456),
+          test(L"Normal", BigInt::FromNumber(123), BigInt::FromNumber(456),
                L"579"),
           test(L"WithZeroFirst", BigInt::FromNumber(0), BigInt::FromNumber(456),
                L"456"),
@@ -334,6 +334,17 @@ const bool subtraction_tests_registration =
           test(L"LargeNumbers",
                ValueOrDie(BigInt::FromString(L"10000000000000000000")),
                ValueOrDie(BigInt::FromString(L"1")), L"9999999999999999999"),
+          {.name = L"UnderflowZero",
+           .callback =
+               [] {
+                 CHECK(IsError(BigInt::FromNumber(0) - BigInt::FromNumber(1)));
+               }},
+          {.name = L"UnderflowNormal",
+           .callback =
+               [] {
+                 CHECK(IsError(BigInt::FromNumber(123) -
+                               BigInt::FromNumber(456)));
+               }},
       });
     }());
 }  // namespace
