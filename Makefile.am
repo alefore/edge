@@ -220,6 +220,8 @@ src/lru_cache.h \
 src/map_mode.cc \
 src/math/bigint.cc \
 src/math/bigint.h \
+src/math/checked_operation.cc \
+src/math/checked_operation.h \
 src/math/decaying_counter.cc \
 src/math/decaying_counter.h \
 src/math/naive_bayes.cc \
