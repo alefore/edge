@@ -23,9 +23,10 @@ using afc::language::overload;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
-using ::operator<<;
 
 namespace afc::math::numbers {
+using ::operator<<;
+
 Number Number::operator+(Number other) && {
   if (!positive_ && !other.positive_)
     return (std::move(*this).Negate() + std::move(other).Negate()).Negate();
