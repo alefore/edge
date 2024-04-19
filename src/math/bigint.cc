@@ -115,9 +115,12 @@ const bool from_string_tests_registration =
           test(L"999999999999999999999999999999999999", L"Large",
                L"999999999999999999999999999999999999"),
           test(std::wstring(100000, L'6'), L"VeryLarge"),
+          // TODO(trivial): Make this test pass?
+          // test(L"123.0", {}, L"123"),
           test_error(L"-1"),
           test_error(L"123x9"),
           test_error(L""),
+          test_error(L"1.5"),
       });
     }());
 }  // namespace
@@ -558,7 +561,6 @@ const bool big_int_divide_tests_registration =
     }());
 }  // namespace
 
-// TODO(trivial): Add unit tests.
 BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator) {
   BigInt quotient;
   BigInt current_dividend;
@@ -589,12 +591,76 @@ BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator) {
                             .remainder = std::move(current_dividend)};
 }
 
-// TODO(trivial): Add unit tests.
+const bool big_int_divide_nonzero_tests_registration =
+    tests::Register(L"numbers::NonZeroBigInt::Divide", [] {
+      auto test = [](std::wstring name, BigInt numerator,
+                     NonZeroBigInt denominator, BigInt expected_quotient,
+                     BigInt expected_remainder) {
+        return tests::Test{.name = name,
+                           .callback = [numerator, denominator,
+                                        expected_quotient, expected_remainder] {
+                             BigIntDivideOutput result =
+                                 Divide(numerator, denominator);
+                             CHECK_EQ(result.quotient, expected_quotient);
+                             CHECK_EQ(result.remainder, expected_remainder);
+                           }};
+      };
+
+      return std::vector<tests::Test>{
+          test(L"StandardDivision", BigInt::FromNumber(30),
+               NonZeroBigInt::Constant<7>(), BigInt::FromNumber(4),
+               BigInt::FromNumber(2)),
+          test(L"EvenDivision", BigInt::FromNumber(24),
+               NonZeroBigInt::Constant<6>(), BigInt::FromNumber(4),
+               BigInt::FromNumber(0)),
+          test(L"LargeNumerator", BigInt::FromNumber(10000),
+               NonZeroBigInt::Constant<3>(), BigInt::FromNumber(3333),
+               BigInt::FromNumber(1)),
+          test(L"LargeDenominator", BigInt::FromNumber(5),
+               NonZeroBigInt::Constant<10000>(), BigInt::FromNumber(0),
+               BigInt::FromNumber(5)),
+          test(L"BoundaryQuotientOfOne", BigInt::FromNumber(26),
+               NonZeroBigInt::Constant<25>(), BigInt::FromNumber(1),
+               BigInt::FromNumber(1)),
+          test(L"DivisionByOne", BigInt::FromNumber(99),
+               NonZeroBigInt::Constant<1>(), BigInt::FromNumber(99),
+               BigInt::FromNumber(0)),
+      };
+    }());
+
 language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator) {
   DECLARE_OR_RETURN(NonZeroBigInt non_zero_denominator,
                     NonZeroBigInt::New(std::move(denominator)));
   return numerator % non_zero_denominator;
 }
+
+namespace {
+const bool big_int_modulo_tests_registration =
+    tests::Register(L"numbers::BigInt::Modulo", [] {
+      auto test = [](std::wstring name, BigInt numerator, BigInt denominator,
+                     BigInt expected) {
+        return tests::Test{
+            .name = name, .callback = [numerator, denominator, expected] {
+              CHECK_EQ(ValueOrDie(numerator % denominator), expected);
+            }};
+      };
+
+      return std::vector<tests::Test>{
+          tests::Test{.name = L"ZeroDenominator",
+                      .callback =
+                          [] {
+                            CHECK(IsError(BigInt::FromNumber(10) %
+                                          BigInt::FromNumber(0)));
+                          }},
+          test(L"StandardRemainder", BigInt::FromNumber(10),
+               BigInt::FromNumber(3), BigInt::FromNumber(1)),
+          test(L"NoRemainder", BigInt::FromNumber(12), BigInt::FromNumber(3),
+               BigInt::FromNumber(0)),
+          test(L"LargeNumeratorRemainder", BigInt::FromNumber(10000),
+               BigInt::FromNumber(9999), BigInt::FromNumber(1))};
+    }());
+
+}  // namespace
 
 BigInt BigInt::Pow(BigInt exponent) && {
   BigInt base = std::move(*this);
@@ -650,10 +716,35 @@ const bool pow_tests_registration =
     }());
 }  // namespace
 
-// TODO(trivial): Add unit tests.
 ValueOrError<int32_t> BigInt::ToInt32() const { return ToNumber<int32_t>(); }
 
-// TODO(trivial): Add unit tests.
+namespace {
+const bool big_int_to_int32_tests_registration =
+    tests::Register(L"numbers::BigInt::ToInt32", [] {
+      auto test = [](std::wstring name, BigInt input,
+                     std::optional<int32_t> expected) {
+        return tests::Test{.name = name, .callback = [input, expected] {
+                             ValueOrError<int32_t> result = input.ToInt32();
+                             if (IsError(result))
+                               CHECK(expected == std::nullopt);
+                             else
+                               CHECK_EQ(ValueOrDie(std::move(result), L"tests"),
+                                        expected.value());
+                           }};
+      };
+
+      return std::vector<tests::Test>{
+          test(L"Zero", BigInt(), 0),
+          test(L"Positive", BigInt::FromNumber(123), 123),
+          test(L"Max", BigInt::FromNumber(std::numeric_limits<int32_t>::max()),
+               std::numeric_limits<int32_t>::max()),
+          test(L"Overflow",
+               BigInt::FromNumber(std::numeric_limits<int32_t>::max()) +
+                   BigInt::FromNumber(1),
+               std::nullopt)};
+    }());
+}  // namespace
+
 ValueOrError<int64_t> BigInt::ToInt64() const { return ToInt64(true); }
 
 // TODO(trivial): Add unit tests.
@@ -661,12 +752,69 @@ ValueOrError<int64_t> BigInt::ToInt64(bool positive) const {
   return ToNumber<int64_t>(positive);
 }
 
-// TODO(trivial): Add unit tests.
+namespace {
+const bool big_int_to_int64_tests_registration =
+    tests::Register(L"numbers::BigInt::ToInt64", [] {
+      auto test = [](std::wstring name, BigInt input, bool positive,
+                     std::optional<int64_t> expected) {
+        return tests::Test{
+            .name = name, .callback = [input, positive, expected] {
+              ValueOrError<int64_t> result = input.ToInt64(positive);
+              if (IsError(result))
+                CHECK(expected == std::nullopt);
+              else
+                CHECK_EQ(ValueOrDie(std::move(result), L"tests"),
+                         expected.value());
+            }};
+      };
+
+      return std::vector<tests::Test>{
+          test(L"Zero", BigInt(), true, 0),
+          test(L"ZeroNegative", BigInt(), false, 0),
+          test(L"Positive", BigInt::FromNumber(1234567890123), true,
+               1234567890123),
+          test(L"Negative", BigInt::FromNumber(1234567890123), false,
+               -1234567890123),
+          test(L"Max", BigInt::FromNumber(std::numeric_limits<int64_t>::max()),
+               true, std::numeric_limits<int64_t>::max()),
+          test(L"Overflow",
+               BigInt::FromNumber(std::numeric_limits<int64_t>::max()) +
+                   BigInt::FromNumber(1),
+               true, std::nullopt)};
+    }());
+}  // namespace
+
 language::ValueOrError<size_t> BigInt::ToSizeT() const {
   return ToNumber<size_t>();
 }
 
-// TODO(trivial): Add unit tests.
+namespace {
+const bool big_int_to_size_t_tests_registration =
+    tests::Register(L"numbers::BigInt::ToSizeT", [] {
+      auto test = [](std::wstring name, BigInt input,
+                     std::optional<size_t> expected) {
+        return tests::Test{.name = name, .callback = [input, expected] {
+                             ValueOrError<size_t> result = input.ToSizeT();
+                             if (IsError(result))
+                               CHECK(expected == std::nullopt);
+                             else
+                               CHECK_EQ(ValueOrDie(std::move(result), L"tests"),
+                                        expected.value());
+                           }};
+      };
+
+      return std::vector<tests::Test>{
+          test(L"Zero", BigInt(), 0),
+          test(L"Positive", BigInt::FromNumber(4294967295), 4294967295),
+          test(L"Max", BigInt::FromNumber(std::numeric_limits<size_t>::max()),
+               std::numeric_limits<size_t>::max()),
+          test(L"Overflow",
+               BigInt::FromNumber(std::numeric_limits<size_t>::max()) +
+                   BigInt::FromNumber(1),
+               std::nullopt)};
+    }());
+}  // namespace
+
 language::ValueOrError<double> BigInt::ToDouble() const {
   double value = 0;
   for (double digit : digits | std::views::reverse) {
@@ -675,6 +823,31 @@ language::ValueOrError<double> BigInt::ToDouble() const {
   }
   return value;
 }
+
+namespace {
+const bool big_int_to_double_tests_registration =
+    tests::Register(L"numbers::BigInt::ToDouble", [] {
+      auto test = [](std::wstring name, BigInt input,
+                     std::optional<double> expected) {
+        return tests::Test{.name = name, .callback = [input, expected] {
+                             ValueOrError<double> result = input.ToDouble();
+                             if (IsError(result))
+                               CHECK(expected == std::nullopt);
+                             else
+                               CHECK_NEAR(
+                                   ValueOrDie(std::move(result), L"tests"),
+                                   expected.value(), 0.0001);
+                           }};
+      };
+
+      return std::vector<tests::Test>{
+          test(L"Zero", BigInt(), 0.0),
+          test(L"Positive", BigInt::FromNumber(123456789012345),
+               123456789012345.0),
+          test(L"VeryLargeNumber",
+               BigInt::FromNumber(10).Pow(BigInt::FromNumber(18)), 1e18)};
+    }());
+}  // namespace
 
 // TODO(trivial): Add unit tests.
 /* static */ language::ValueOrError<NonZeroBigInt> NonZeroBigInt::New(
