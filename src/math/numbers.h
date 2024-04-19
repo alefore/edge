@@ -42,6 +42,7 @@ class Number {
   bool operator>=(const Number& other) const;
   bool operator<=(const Number& other) const;
 
+  static Number FromBigInt(BigInt);
   static Number FromInt64(int64_t);
   static Number FromSizeT(size_t);
   static Number FromDouble(double);
@@ -53,8 +54,6 @@ class Number {
 
   Number Pow(BigInt exponent) &&;
 };
-
-Number Pow(Number base, size_t i);
 
 }  // namespace afc::math::numbers
 

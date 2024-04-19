@@ -209,6 +209,10 @@ const bool operator_divide_tests_registration = tests::Register(
     });
 }  // namespace
 
+/* static */ Number Number::FromBigInt(BigInt value) {
+  return Number(true, std::move(value), NonZeroBigInt::Constant<1>());
+}
+
 /* static */ Number Number::FromInt64(int64_t value) {
   // We can't represent abs(std::numeric_limits<int64_t>::min()) as an
   // int64_t, so we handle this case explicitly.
@@ -430,10 +434,6 @@ const bool comparison_tests_registration = tests::Register(
         CHECK(!(Number::FromInt64(-1) >= Number::FromInt64(1)));
       }}});
 }  // namespace
-
-Number Pow(Number base, size_t i) {
-  return std::move(base).Pow(BigInt::FromNumber(i));
-}
 
 }  // namespace afc::math::numbers
 
