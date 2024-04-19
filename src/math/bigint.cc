@@ -747,7 +747,6 @@ const bool big_int_to_int32_tests_registration =
 
 ValueOrError<int64_t> BigInt::ToInt64() const { return ToInt64(true); }
 
-// TODO(trivial): Add unit tests.
 ValueOrError<int64_t> BigInt::ToInt64(bool positive) const {
   return ToNumber<int64_t>(positive);
 }
