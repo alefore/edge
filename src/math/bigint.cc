@@ -410,6 +410,51 @@ BigInt& BigInt::operator++() {
   return *this;
 }
 
+namespace {
+const bool increment_tests_registration =
+    tests::Register(L"numbers::BigInt::operator++",
+                    std::vector<tests::Test>{
+                        {.name = L"ZeroIncrement",
+                         .callback =
+                             [] {
+                               BigInt num;
+                               ++num;
+                               CHECK_EQ(num, BigInt::FromNumber(1));
+                             }},
+                        {.name = L"SingleDigitIncrement",
+                         .callback =
+                             [] {
+                               BigInt num = BigInt::FromNumber(5);
+                               ++num;
+                               CHECK_EQ(num, BigInt::FromNumber(6));
+                             }},
+                        {.name = L"Bondary",
+                         .callback =
+                             [] {
+                               BigInt num = BigInt::FromNumber(99);
+                               ++num;
+                               CHECK_EQ(num, BigInt::FromNumber(100));
+                             }},
+                        {.name = L"LargeNumberIncrement",
+                         .callback =
+                             [] {
+                               BigInt num = BigInt::FromNumber(87654);
+                               ++num;
+                               CHECK_EQ(num, BigInt::FromNumber(87655));
+                             }},
+                        {.name = L"Repetitive Increment",
+                         .callback =
+                             [] {
+                               BigInt number = BigInt::FromNumber(100);
+                               for (size_t i = 0; i < 100; ++i) {
+                                 CHECK_EQ(number, BigInt::FromNumber(100 + i));
+                                 ++number;
+                               }
+                               CHECK_EQ(number, BigInt::FromNumber(200));
+                             }},
+                    });
+}  // namespace
+
 language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator) {
   DECLARE_OR_RETURN(BigIntDivideOutput values,
                     Divide(std::move(numerator), std::move(denominator)));
@@ -419,10 +464,62 @@ language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator) {
   return values.quotient;
 }
 
+namespace {
+const bool division_tests_registration =
+    tests::Register(L"numbers::BigInt::Division", [] {
+      auto test = [](std::wstring name, int numerator, int denominator,
+                     std::optional<std::wstring> expected_outcome) {
+        return tests::Test{
+            .name = name,
+            .callback = [numerator, denominator, expected_outcome] {
+              ValueOrError<BigInt> result = BigInt::FromNumber(numerator) /
+                                            BigInt::FromNumber(denominator);
+              if (expected_outcome.has_value()) {
+                std::wstring output = ValueOrDie(std::move(result)).ToString();
+                CHECK(output == expected_outcome.value());
+              } else {
+                CHECK(IsError(result));
+              }
+            }};
+      };
+
+      return std::vector<tests::Test>({
+          test(L"SimpleDivision", 4, 2, L"2"),
+          test(L"DivisionByOne", 123, 1, L"123"),
+          test(L"DivisionByItself", 123, 123, L"1"),
+          test(L"ZeroDivisionByNonZero", 0, 123, L"0"),
+          test(L"DivisionByZero", 123, 0, std::nullopt),
+          test(L"DivisionZeroByZero", 0, 0, std::nullopt),
+          test(L"NonPerfectDivision", 3, 2, std::nullopt),
+          test(L"MediumDivision", 968, 11, L"88"),
+          test(L"LargeNumbersDivision", 10000000, 100000, L"100"),
+      });
+    }());
+}  // namespace
+
 std::ostream& operator<<(std::ostream& os, const BigInt& p) {
   os << p.ToString();
   return os;
 }
+
+namespace {
+const bool ostream_tests_registration =
+    tests::Register(L"numbers::BigInt::OstreamOperator", [] {
+      auto test = [](std::wstring name, BigInt input, std::string expectation) {
+        return tests::Test{.name = name,
+                           .callback = [input, expectation] mutable {
+                             std::stringstream ss;
+                             ss << input;
+                             CHECK_EQ(ss.str(), expectation);
+                           }};
+      };
+
+      return std::vector<tests::Test>(
+          {test(L"Simple", BigInt::FromNumber(42), "42"),
+           test(L"MultipleDigits", BigInt::FromNumber(1234), "1234"),
+           test(L"Zero", BigInt(), "0")});
+    }());
+}  // namespace
 
 language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
                                                   BigInt denominator) {
@@ -431,6 +528,37 @@ language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
   return Divide(std::move(numerator), std::move(valid_demoninator));
 }
 
+namespace {
+const bool big_int_divide_tests_registration =
+    tests::Register(L"numbers::BigInt::Divide", [] {
+      auto test = [](std::wstring name, BigInt numerator, BigInt denominator,
+                     BigInt expected_quotient, BigInt expected_remainder) {
+        return tests::Test{.name = name,
+                           .callback = [numerator, denominator,
+                                        expected_quotient, expected_remainder] {
+                             BigIntDivideOutput result = ValueOrDie(
+                                 Divide(numerator, denominator), L"tests");
+                             CHECK_EQ(result.quotient, expected_quotient);
+                             CHECK_EQ(result.remainder, expected_remainder);
+                           }};
+      };
+
+      return std::vector<tests::Test>{
+          test(L"SimpleDivision", BigInt::FromNumber(10), BigInt::FromNumber(3),
+               BigInt::FromNumber(3), BigInt::FromNumber(1)),
+          test(L"DivisionByOne", BigInt::FromNumber(5), BigInt::FromNumber(1),
+               BigInt::FromNumber(5), BigInt::FromNumber(0)),
+          tests::Test{
+              .name = L"ZeroDenominator",
+              .callback =
+                  [] {
+                    CHECK(IsError(Divide(BigInt::FromNumber(5), BigInt())));
+                  }},
+      };
+    }());
+}  // namespace
+
+// TODO(trivial): Add unit tests.
 BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator) {
   BigInt quotient;
   BigInt current_dividend;
@@ -461,37 +589,7 @@ BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator) {
                             .remainder = std::move(current_dividend)};
 }
 
-namespace {
-const bool division_tests_registration =
-    tests::Register(L"numbers::BigInt::Division", [] {
-      auto test = [](std::wstring name, int numerator, int denominator,
-                     std::optional<std::wstring> expected_outcome) {
-        return tests::Test{
-            .name = name,
-            .callback = [numerator, denominator, expected_outcome] {
-              ValueOrError<BigInt> result = BigInt::FromNumber(numerator) /
-                                            BigInt::FromNumber(denominator);
-              if (expected_outcome.has_value()) {
-                std::wstring output = ValueOrDie(std::move(result)).ToString();
-                CHECK(output == expected_outcome.value());
-              } else {
-                CHECK(IsError(result));
-              }
-            }};
-      };
-
-      return std::vector<tests::Test>({
-          test(L"SimpleDivision", 4, 2, L"2"),
-          test(L"DivisionByOne", 123, 1, L"123"),
-          test(L"DivisionByItself", 123, 123, L"1"),
-          test(L"ZeroDivisionByNonZero", 0, 123, L"0"),
-          test(L"DivisionByZero", 123, 0, std::nullopt),
-          test(L"NonPerfectDivision", 3, 2, std::nullopt),
-          test(L"LargeNumbersDivision", 100000, 1000, L"100"),
-      });
-    }());
-}  // namespace
-
+// TODO(trivial): Add unit tests.
 language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator) {
   DECLARE_OR_RETURN(NonZeroBigInt non_zero_denominator,
                     NonZeroBigInt::New(std::move(denominator)));
@@ -524,7 +622,6 @@ const bool pow_tests_registration =
       };
 
       return std::vector<tests::Test>({
-          // Basic Functionality Tests
           test(L"SmallNumbers", BigInt::FromNumber(2), BigInt::FromNumber(3),
                BigInt::FromNumber(8)),
           test(L"BaseOne", BigInt::FromNumber(1), BigInt::FromNumber(5),
@@ -553,6 +650,59 @@ const bool pow_tests_registration =
     }());
 }  // namespace
 
+// TODO(trivial): Add unit tests.
+ValueOrError<int32_t> BigInt::ToInt32() const { return ToNumber<int32_t>(); }
+
+// TODO(trivial): Add unit tests.
+ValueOrError<int64_t> BigInt::ToInt64() const { return ToInt64(true); }
+
+// TODO(trivial): Add unit tests.
+ValueOrError<int64_t> BigInt::ToInt64(bool positive) const {
+  return ToNumber<int64_t>(positive);
+}
+
+// TODO(trivial): Add unit tests.
+language::ValueOrError<size_t> BigInt::ToSizeT() const {
+  return ToNumber<size_t>();
+}
+
+// TODO(trivial): Add unit tests.
+language::ValueOrError<double> BigInt::ToDouble() const {
+  double value = 0;
+  for (double digit : digits | std::views::reverse) {
+    value *= 10;
+    value += digit;
+  }
+  return value;
+}
+
+// TODO(trivial): Add unit tests.
+/* static */ language::ValueOrError<NonZeroBigInt> NonZeroBigInt::New(
+    BigInt value) {
+  if (value.IsZero()) return NewError(LazyString{L"Expected non-zero value."});
+  return NonZeroBigInt(std::move(value));
+}
+
+// TODO(trivial): Add unit tests.
+const BigInt& NonZeroBigInt::value() const { return value_; }
+
+// TODO(trivial): Add unit tests.
+NonZeroBigInt::NonZeroBigInt(BigInt validated_value)
+    : value_(std::move(validated_value)) {
+  CHECK(!value_.IsZero());
+}
+
+// TODO(trivial): Add unit tests.
+NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
+  return NonZeroBigInt(value_ * b.value_);
+}
+
+// TODO(trivial): Add unit tests.
+NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
+  // TODO(2024-04-09): Articulate better why the output is always positive.
+  return NonZeroBigInt(std::move(value_).Pow(std::move(exponent)));
+}
+
 NonZeroBigInt NonZeroBigInt::GreatestCommonDivisor(
     const NonZeroBigInt& other) const {
   NonZeroBigInt a = *this;
@@ -566,29 +716,7 @@ NonZeroBigInt NonZeroBigInt::GreatestCommonDivisor(
   return a;
 }
 
-ValueOrError<int32_t> BigInt::ToInt32() const { return ToNumber<int32_t>(); }
-
-ValueOrError<int64_t> BigInt::ToInt64() const { return ToInt64(true); }
-
-ValueOrError<int64_t> BigInt::ToInt64(bool positive) const {
-  return ToNumber<int64_t>(positive);
-}
-
-language::ValueOrError<size_t> BigInt::ToSizeT() const {
-  return ToNumber<size_t>();
-}
-
-language::ValueOrError<double> BigInt::ToDouble() const {
-  double value = 0;
-  for (double digit : digits | std::views::reverse) {
-    value *= 10;
-    value += digit;
-  }
-  return value;
-}
-
 namespace {
-
 const bool gcd_tests_registration =
     tests::Register(L"numbers::BigInt::GreatestCommonDivisor", [] {
       auto test = [](std::wstring name, int input1, int input2,
@@ -618,35 +746,14 @@ const bool gcd_tests_registration =
           test(L"LargeIdenticalNumbers", 1000000000, 1000000000, 1000000000),
       });
     }());
-
 }  // namespace
 
-/* static */ language::ValueOrError<NonZeroBigInt> NonZeroBigInt::New(
-    BigInt value) {
-  if (value.IsZero()) return NewError(LazyString{L"Expected non-zero value."});
-  return NonZeroBigInt(std::move(value));
-}
-
-const BigInt& NonZeroBigInt::value() const { return value_; }
-
-NonZeroBigInt::NonZeroBigInt(BigInt validated_value)
-    : value_(std::move(validated_value)) {
-  CHECK(!value_.IsZero());
-}
-
-NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
-  return NonZeroBigInt(value_ * b.value_);
-}
-
-NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
-  // TODO(2024-04-09): Articulate better why the output is always positive.
-  return NonZeroBigInt(std::move(value_).Pow(std::move(exponent)));
-}
-
+// TODO(trivial): Add unit tests.
 bool operator==(const NonZeroBigInt& a, const NonZeroBigInt& b) {
   return a.value() == b.value();
 }
 
+// TODO(trivial): Add unit tests.
 BigInt operator%(BigInt numerator, NonZeroBigInt denominator) {
   return Divide(std::move(numerator), std::move(denominator)).remainder;
 }

@@ -14,6 +14,7 @@ class BigIntDivideOutput;
 class BigInt;
 class NonZeroBigInt;
 
+// Forward declaration to enable `friend` declaration.
 BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator);
 
 class BigInt {
@@ -96,6 +97,7 @@ struct BigIntDivideOutput {
   BigInt remainder;
 };
 
+// Returns an error if `denominator` is zero.
 language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
                                                   BigInt denominator);
 
