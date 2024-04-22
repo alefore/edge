@@ -455,12 +455,14 @@ OpenBuffer::PrepareToClose() {
                   LOG(INFO) << name() << ": attempting to save buffer.";
                   if (Read(buffer_variables::save_on_close))
                     return Save(Options::SaveType::kMainFile)
-                        .Transform([](EmptyValue) {
+                        .Transform([name = name()](EmptyValue) {
+                          LOG(INFO) << "Buffer saved" << name;
                           return Success(PrepareToCloseOutput{});
                         });
 
                   return Save(Options::SaveType::kBackup)
-                      .Transform([](EmptyValue) {
+                      .Transform([name = name()](EmptyValue) {
+                        LOG(INFO) << "Backup saved" << name;
                         return Success(PrepareToCloseOutput{
                             .dirty_contents_saved_to_backup = true});
                       });
@@ -481,6 +483,7 @@ void OpenBuffer::Close() {
     }
   }
   editor().line_marks().RemoveSource(name());
+  LOG(INFO) << name() << ": Notify close observers";
   close_observers_.Notify();
 }
 

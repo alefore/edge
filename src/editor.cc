@@ -282,6 +282,8 @@ EditorState::~EditorState() {
   LOG(INFO) << "Reclaim GC pool.";
   gc_pool_.FullCollect();
   gc_pool_.BlockUntilDone();
+
+  LOG(INFO) << "Destructor finished running.";
 }
 
 const CommandLineValues& EditorState::args() { return args_; }
