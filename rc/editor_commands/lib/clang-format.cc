@@ -42,7 +42,7 @@ void ClangFormatToggle() {
 string extension = Extension(path);
 
 if (extension == "cc" || extension == "h" || extension == "cpp" ||
-    extension == "java") {
+    extension == "java" || extension == "js") {
   reformat_command = "clang-format";
   reformat_command_in_place = "clang-format -i";
 } else if (extension == "sql" || extension == "sqlt" || extension == "sqlm") {
