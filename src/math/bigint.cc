@@ -414,48 +414,32 @@ BigInt& BigInt::operator++() {
 }
 
 namespace {
-const bool increment_tests_registration =
-    tests::Register(L"numbers::BigInt::operator++",
-                    std::vector<tests::Test>{
-                        {.name = L"ZeroIncrement",
-                         .callback =
-                             [] {
-                               BigInt num;
-                               ++num;
-                               CHECK_EQ(num, BigInt::FromNumber(1));
-                             }},
-                        {.name = L"SingleDigitIncrement",
-                         .callback =
-                             [] {
-                               BigInt num = BigInt::FromNumber(5);
-                               ++num;
-                               CHECK_EQ(num, BigInt::FromNumber(6));
-                             }},
-                        {.name = L"Bondary",
-                         .callback =
-                             [] {
-                               BigInt num = BigInt::FromNumber(99);
-                               ++num;
-                               CHECK_EQ(num, BigInt::FromNumber(100));
-                             }},
-                        {.name = L"LargeNumberIncrement",
-                         .callback =
-                             [] {
-                               BigInt num = BigInt::FromNumber(87654);
-                               ++num;
-                               CHECK_EQ(num, BigInt::FromNumber(87655));
-                             }},
-                        {.name = L"Repetitive Increment",
-                         .callback =
-                             [] {
-                               BigInt number = BigInt::FromNumber(100);
-                               for (size_t i = 0; i < 100; ++i) {
-                                 CHECK_EQ(number, BigInt::FromNumber(100 + i));
-                                 ++number;
-                               }
-                               CHECK_EQ(number, BigInt::FromNumber(200));
-                             }},
-                    });
+const bool increment_tests_registration = tests::Register(
+    L"numbers::BigInt::operator++", std::invoke([] {
+      auto test = [](std::wstring name, int32_t input) {
+        return tests::Test{.name = std::move(name), .callback = [input] {
+                             BigInt num = BigInt::FromNumber(input);
+                             ++num;
+                             CHECK_EQ(num, BigInt::FromNumber(input + 1));
+                           }};
+      };
+      return std::vector<tests::Test>{
+          test(L"ZeroIncrement", 0),
+          test(L"SingleDigitIncrement", 5),
+          test(L"Boundary", 99),
+          test(L"LargeNumberIncrement", 87654),
+          {.name = L"RepetitiveIncrement",
+           .callback =
+               [] {
+                 BigInt number = BigInt::FromNumber(100);
+                 for (size_t i = 0; i < 100; ++i) {
+                   CHECK_EQ(number, BigInt::FromNumber(100 + i));
+                   ++number;
+                 }
+                 CHECK_EQ(number, BigInt::FromNumber(200));
+               }},
+      };
+    }));
 }  // namespace
 
 language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator) {
