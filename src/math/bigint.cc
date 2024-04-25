@@ -832,32 +832,93 @@ const bool big_int_to_double_tests_registration =
     }());
 }  // namespace
 
-// TODO(trivial): Add unit tests.
 /* static */ language::ValueOrError<NonZeroBigInt> NonZeroBigInt::New(
     BigInt value) {
   if (value.IsZero()) return NewError(LazyString{L"Expected non-zero value."});
   return NonZeroBigInt(std::move(value));
 }
 
-// TODO(trivial): Add unit tests.
+namespace {
+const bool non_zero_big_int_factory_tests_registration = tests::Register(
+    L"numbers::NonZeroBigInt::New",
+    std::vector<tests::Test>{
+        {.name = L"Zero",
+         .callback = [] { CHECK(IsError(NonZeroBigInt::New(BigInt{}))); }},
+        {.name = L"Positive", .callback = [] {
+           CHECK_EQ(
+               ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(1)), L"tests")
+                   .value(),
+               BigInt::FromNumber(1));
+         }}});
+}  // namespace
+
 const BigInt& NonZeroBigInt::value() const { return value_; }
 
-// TODO(trivial): Add unit tests.
+namespace {
+const bool non_zero_big_int_value_tests_registration = tests::Register(
+    L"numbers::NonZeroBigInt::Value",
+    std::vector<tests::Test>{{.name = L"Constant", .callback = [] {
+                                CHECK_EQ(
+                                    NonZeroBigInt::Constant<7385>().value(),
+                                    BigInt::FromNumber(7385));
+                              }}});
+}  // namespace
+
 NonZeroBigInt::NonZeroBigInt(BigInt validated_value)
     : value_(std::move(validated_value)) {
   CHECK(!value_.IsZero());
 }
 
-// TODO(trivial): Add unit tests.
 NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
   return NonZeroBigInt(value_ * b.value_);
 }
+
+namespace {
+const bool non_zero_big_int_multiplication_tests_registration = tests::Register(
+    L"numbers::NonZeroBigInt::Multiplication",
+    std::vector<tests::Test>{{.name = L"Identity",
+                              .callback =
+                                  [] {
+                                    CHECK_EQ((NonZeroBigInt::Constant<7385>() *
+                                              NonZeroBigInt::Constant<1>())
+                                                 .value(),
+                                             BigInt::FromNumber(7385));
+                                  }},
+                             {.name = L"Numbers", .callback = [] {
+                                CHECK_EQ((NonZeroBigInt::Constant<73>() *
+                                          NonZeroBigInt::Constant<29>()),
+                                         NonZeroBigInt::Constant<2117>());
+                              }}});
+}  // namespace
 
 // TODO(trivial): Add unit tests.
 NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
   // TODO(2024-04-09): Articulate better why the output is always positive.
   return NonZeroBigInt(std::move(value_).Pow(std::move(exponent)));
 }
+
+namespace {
+const bool non_zero_big_int_pow_tests_registration = tests::Register(
+    L"numbers::NonZeroBigInt::Pow",
+    std::vector<tests::Test>{
+        {.name = L"ZeroExponent",
+         .callback =
+             [] {
+               CHECK_EQ(NonZeroBigInt::Constant<13>().Pow(BigInt{}),
+                        NonZeroBigInt::Constant<1>());
+             }},
+        {.name = L"OneExponent",
+         .callback =
+             [] {
+               CHECK_EQ(
+                   NonZeroBigInt::Constant<13>().Pow(BigInt::FromNumber(1)),
+                   NonZeroBigInt::Constant<13>());
+             }},
+        {.name = L"Numbers", .callback = [] {
+           CHECK_EQ(NonZeroBigInt::Constant<13>().Pow(BigInt::FromNumber(5)),
+                    NonZeroBigInt::Constant<371293>());
+         }}});
+}  // namespace
 
 NonZeroBigInt NonZeroBigInt::GreatestCommonDivisor(
     const NonZeroBigInt& other) const {
@@ -914,4 +975,8 @@ BigInt operator%(BigInt numerator, NonZeroBigInt denominator) {
   return Divide(std::move(numerator), std::move(denominator)).remainder;
 }
 
+// TODO(trivial): Add unit tests.
+std::ostream& operator<<(std::ostream& os, const NonZeroBigInt& p) {
+  return os << p.value();
+}
 }  // namespace afc::math::numbers

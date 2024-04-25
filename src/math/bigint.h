@@ -135,6 +135,7 @@ class NonZeroBigInt {
 
 bool operator==(const NonZeroBigInt& a, const NonZeroBigInt& b);
 BigInt operator%(BigInt numerator, NonZeroBigInt denominator);
+std::ostream& operator<<(std::ostream& os, const NonZeroBigInt& p);
 
 }  // namespace afc::math::numbers
 
