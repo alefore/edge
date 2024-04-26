@@ -11,7 +11,12 @@ ForkCommandOptions git_push_options = ForkCommandOptions();
 git_push_options.set_command("test ! -f " + git_push_path.shell_escape() +
                              " || ( git commit -a -m \"$( cat " +
                              git_push_path.shell_escape() +
-                             ")\" && git push ) >/tmp/edge-git-push.log 2>&1");
+                             ")\" && git push "
+                             "|| edge --run 'editor.OpenFile(\"'" +
+                             path.shell_escape() +
+                             "'\", false).SetWarningStatus(\"git-push failed."
+                             " See /tmp/edge-git-push.log\");'"
+                             ") >/tmp/edge-git-push.log 2>&1");
 git_push_options.set_insertion_type("ignore");
 editor.ForkCommand(git_push_options);
 
