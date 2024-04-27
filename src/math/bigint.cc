@@ -934,8 +934,8 @@ NonZeroBigInt NonZeroBigInt::GreatestCommonDivisor(
 }
 
 namespace {
-const bool gcd_tests_registration =
-    tests::Register(L"numbers::BigInt::GreatestCommonDivisor", [] {
+const bool non_zero_big_int_gcd_tests =
+    tests::Register(L"numbers::NonZeroBigInt::GreatestCommonDivisor", [] {
       auto test = [](std::wstring name, int input1, int input2,
                      int expectation) {
         return tests::Test{
@@ -965,18 +965,66 @@ const bool gcd_tests_registration =
     }());
 }  // namespace
 
-// TODO(trivial): Add unit tests.
 bool operator==(const NonZeroBigInt& a, const NonZeroBigInt& b) {
   return a.value() == b.value();
 }
 
-// TODO(trivial): Add unit tests.
+namespace {
+const auto non_zero_big_int_eq_tests = tests::Register(
+    L"numbers::NonZeroBigInt::OperatorEq",
+    std::vector<afc::tests::Test>{{.name = L"Equal",
+                                   .callback =
+                                       [] {
+                                         CHECK_EQ(NonZeroBigInt::Constant<5>(),
+                                                  NonZeroBigInt::Constant<5>());
+                                       }},
+                                  {.name = L"Different", .callback = [] {
+                                     CHECK_NE(NonZeroBigInt::Constant<5>(),
+                                              NonZeroBigInt::Constant<6>());
+                                   }}});
+}  // namespace
+
 BigInt operator%(BigInt numerator, NonZeroBigInt denominator) {
   return Divide(std::move(numerator), std::move(denominator)).remainder;
 }
 
-// TODO(trivial): Add unit tests.
+namespace {
+const auto non_zero_big_int_modulo_tests = tests::Register(
+    L"numbers::NonZeroBigInt::OperatorModulo",
+    std::vector<afc::tests::Test>{
+        {.name = L"Zero",
+         .callback =
+             [] {
+               CHECK_EQ(BigInt::FromNumber(0) % NonZeroBigInt::Constant<5>(),
+                        BigInt::FromNumber(0));
+             }},
+        {.name = L"Normal", .callback = [] {
+           CHECK_EQ(BigInt::FromNumber(170) % NonZeroBigInt::Constant<5>(),
+                    BigInt::FromNumber(2));
+         }}});
+}  // namespace
+
 std::ostream& operator<<(std::ostream& os, const NonZeroBigInt& p) {
   return os << p.value();
 }
+
+namespace {
+const bool non_zero_big_int_ostream_tests_registration =
+    tests::Register(L"numbers::NonZeroBigInt::OstreamOperator", [] {
+      auto test = [](std::wstring name, NonZeroBigInt input,
+                     std::string expectation) {
+        return tests::Test{.name = name,
+                           .callback = [input, expectation] mutable {
+                             std::stringstream ss;
+                             ss << input;
+                             CHECK_EQ(ss.str(), expectation);
+                           }};
+      };
+
+      return std::vector<tests::Test>(
+          {test(L"Simple", NonZeroBigInt::Constant<42>(), "42"),
+           test(L"MultipleDigits", NonZeroBigInt::Constant<1234>(), "1234")});
+    }());
+}  // namespace
+
 }  // namespace afc::math::numbers
