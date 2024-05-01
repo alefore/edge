@@ -891,7 +891,6 @@ const bool non_zero_big_int_multiplication_tests_registration = tests::Register(
                               }}});
 }  // namespace
 
-// TODO(trivial): Add unit tests.
 NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
   // TODO(2024-04-09): Articulate better why the output is always positive.
   return NonZeroBigInt(std::move(value_).Pow(std::move(exponent)));
@@ -999,7 +998,7 @@ const auto non_zero_big_int_modulo_tests = tests::Register(
                         BigInt::FromNumber(0));
              }},
         {.name = L"Normal", .callback = [] {
-           CHECK_EQ(BigInt::FromNumber(170) % NonZeroBigInt::Constant<5>(),
+           CHECK_EQ(BigInt::FromNumber(17) % NonZeroBigInt::Constant<5>(),
                     BigInt::FromNumber(2));
          }}});
 }  // namespace
