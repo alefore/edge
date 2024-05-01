@@ -5,8 +5,6 @@ SetString shell_prompt_preview_execution = SetString();
 shell_prompt_preview_execution.insert("grep");
 shell_prompt_preview_execution.insert("grep-code");
 shell_prompt_preview_execution.insert("ls");
-shell_prompt_preview_execution.insert("ls-code");
-shell_prompt_preview_execution.insert("ps");
 
 // Set of commands for which `man` should be run.
 SetString shell_prompt_help_programs_man = SetString();
