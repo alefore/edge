@@ -2550,11 +2550,11 @@ void OpenBuffer::OnCursorMove() {
 NonNull<std::unique_ptr<EditorState>> EditorForTests() {
   static audio::Player* player = audio::NewNullPlayer().get_unique().release();
   return MakeNonNullUnique<EditorState>(
-      [] {
+      std::invoke([] {
         CommandLineValues output;
         output.config_paths = {L"/home/edge-test-user/.edge/"};
         return output;
-      }(),
+      }),
       *player);
 }
 
