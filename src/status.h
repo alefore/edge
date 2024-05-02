@@ -36,6 +36,7 @@ class Status {
  public:
   Status(infrastructure::audio::Player& audio_player);
   Status(const Status&) = delete;
+  Status(Status&&) = default;
   void CopyFrom(const Status& status);
 
   enum class Type { kWarning, kInformation, kPrompt };
