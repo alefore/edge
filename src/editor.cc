@@ -627,25 +627,24 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             return futures::Past(EmptyValue());
           }
 
-          // TODO(easy, 2023-09-08): Convert `extra` to LazyString.
-          std::wstring extra;
-          std::wstring separator = L": ";
-          int count = 0;
-          for (const OpenBuffer& pending_buffer :
-               data->pending_buffers | gc::view::Value) {
-            if (count < 5) {
-              extra += separator + pending_buffer.name().read();
-              separator = L", ";
-            } else if (count == 5) {
-              extra += L"…";
-            }
-            count++;
-          }
+          const size_t max_buffers_to_show = 5;
           status().SetInformationText(
               LineBuilder(
                   LazyString{L"Exit: Closing buffers: Remaining: "} +
                   LazyString{std::to_wstring(data->pending_buffers.size())} +
-                  LazyString{extra})
+                  LazyString{L": "} +
+                  Concatenate(
+                      data->pending_buffers |
+                      std::views::take(max_buffers_to_show) |
+                      std::views::transform(
+                          [](const gc::Root<OpenBuffer>& pending_buffer) {
+                            return LazyString{
+                                pending_buffer.ptr()->name().read()};
+                          }) |
+                      Intersperse(LazyString{L", "})) +
+                  (data->pending_buffers.size() > max_buffers_to_show
+                       ? LazyString{L"…"}
+                       : LazyString{L""}))
                   .Build());
           return futures::Past(EmptyValue());
         });
