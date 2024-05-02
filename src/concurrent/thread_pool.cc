@@ -27,6 +27,7 @@ ThreadPool::~ThreadPool() {
   });
   LOG(INFO) << "Joining threads.";
   for (auto& t : threads) t.join();
+  LOG(INFO) << "All threads are joined.";
 }
 
 void ThreadPool::Schedule(std::function<void()> work) {
