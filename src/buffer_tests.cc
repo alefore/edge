@@ -291,37 +291,55 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
 
 const bool buffer_work_queue_tests_registration = tests::Register(
     L"BufferWorkQueue",
-    {{.name = L"WorkQueueStaysAlive", .callback = [] {
-        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+    {{.name = L"WorkQueueStaysAlive",
+      .callback =
+          [] {
+            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
 
-        // Validates that the work queue in a buffer is correctly connected to
-        // the work queue in the editor, including not being destroyed early.
-        bool keep_going = true;
-        int iterations = 0;
-        NonNull<std::shared_ptr<WorkQueue>> work_queue =
-            NewBufferForTests(editor.value()).ptr()->work_queue();
-        std::function<void()> callback =
-            [work_queue_weak =
-                 std::weak_ptr<WorkQueue>(work_queue.get_shared()),
-             &callback, &iterations, &keep_going] {
-              if (keep_going) {
-                CHECK(work_queue_weak.lock() != nullptr);
-                work_queue_weak.lock()->Schedule(
-                    WorkQueue::Callback{.callback = callback});
-              }
-              iterations++;
-            };
-        callback();
-        work_queue = WorkQueue::New();
-        for (int i = 0; i < 10; i++) {
-          CHECK_EQ(iterations, i + 1);
-          editor->work_queue()->Execute();
-        }
-        keep_going = false;
-        editor->work_queue()->Execute();
-        CHECK_EQ(iterations, 12);
-        editor->work_queue()->Execute();
-        CHECK_EQ(iterations, 12);
+            // Validates that the work queue in a buffer is correctly connected
+            // to the work queue in the editor, including not being destroyed
+            // early.
+            bool keep_going = true;
+            int iterations = 0;
+            NonNull<std::shared_ptr<WorkQueue>> work_queue =
+                NewBufferForTests(editor.value()).ptr()->work_queue();
+            std::function<void()> callback =
+                [work_queue_weak =
+                     std::weak_ptr<WorkQueue>(work_queue.get_shared()),
+                 &callback, &iterations, &keep_going] {
+                  if (keep_going) {
+                    CHECK(work_queue_weak.lock() != nullptr);
+                    work_queue_weak.lock()->Schedule(
+                        WorkQueue::Callback{.callback = callback});
+                  }
+                  iterations++;
+                };
+            callback();
+            work_queue = WorkQueue::New();
+            for (int i = 0; i < 10; i++) {
+              CHECK_EQ(iterations, i + 1);
+              editor->work_queue()->Execute();
+            }
+            keep_going = false;
+            editor->work_queue()->Execute();
+            CHECK_EQ(iterations, 12);
+            editor->work_queue()->Execute();
+            CHECK_EQ(iterations, 12);
+          }},
+     {.name = L"DeleteEditor", .callback = [] {
+        std::unique_ptr<EditorState> editor = EditorForTests().get_unique();
+        futures::Value<int> value = editor->thread_pool().Run([]() {
+          LOG(INFO) << "Thread work starting";
+          std::this_thread::sleep_for(std::chrono::milliseconds(200));
+          LOG(INFO) << "Thread work done, returning";
+          return 56;
+        });
+        LOG(INFO) << "Deleting editor";
+        editor = nullptr;
+        LOG(INFO) << "Editor deleted.";
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        LOG(INFO) << "Checking value";
+        CHECK(!value.Get());
       }}});
 
 const bool buffer_positions_tests_registration = tests::Register(
