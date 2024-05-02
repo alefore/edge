@@ -28,5 +28,5 @@ const bool line_tests_registration = tests::Register(
                  CHECK(compute_hash(MakeWithHash(
                            value, compute_hash(*value))) != initial_hash);
                }}});
-}
+}  // namespace
 }  // namespace afc::language

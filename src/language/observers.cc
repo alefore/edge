@@ -125,5 +125,5 @@ bool observers_test_registration = tests::Register(
         observers.Notify();
         CHECK_EQ(runs_top, 3);
       }}});
-}
+}  // namespace
 }  // namespace afc::language
