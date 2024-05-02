@@ -579,7 +579,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                                    .pending_buffers = container::MaterializeSet(
                                        buffers_ | std::views::values)});
 
-  for (const gc::Root<OpenBuffer>& buffer : data->pending_buffers)
+  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
     buffer.ptr()
         ->PrepareToClose()
         .Transform(
