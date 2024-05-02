@@ -579,14 +579,13 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                                    .pending_buffers = container::MaterializeSet(
                                        buffers_ | std::views::values)});
 
-  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
+  for (const gc::Root<OpenBuffer>& buffer : data->pending_buffers)
     buffer.ptr()
         ->PrepareToClose()
         .Transform(
             [this, data, buffer](OpenBuffer::PrepareToCloseOutput output) {
-              if (output.dirty_contents_saved_to_backup) {
+              if (output.dirty_contents_saved_to_backup)
                 dirty_buffers_saved_to_backup_.insert(buffer.ptr()->name());
-              }
               return futures::Past(Success());
             })
         .ConsumeErrors([data, buffer](Error error) {
