@@ -122,16 +122,18 @@ ThreadPoolWithWorkQueue& EditorState::thread_pool() {
   return thread_pool_.value();
 }
 
-void EditorState::NotifyInternalEvent() {
+/* static */
+void EditorState::NotifyInternalEvent(EditorState::SharedData& data) {
   VLOG(5) << "Internal event notification!";
-  if (!has_internal_events_.lock([](bool& value) {
+  if (!data.has_internal_events.lock([](bool& value) {
         bool old_value = value;
         value = true;
         return old_value;
       }) &&
-      write(pipe_to_communicate_internal_events_.second.read(), " ", 1) == -1) {
-    status_.InsertError(Error(L"Write to internal pipe failed: " +
-                              FromByteString(strerror(errno))));
+      write(data.pipe_to_communicate_internal_events.second.read(), " ", 1) ==
+          -1) {
+    data.status.InsertError(Error(L"Write to internal pipe failed: " +
+                                  FromByteString(strerror(errno))));
   }
 }
 
@@ -167,6 +169,15 @@ class BuffersListAdapter : public BuffersList::CustomerAdapter {
 EditorState::EditorState(CommandLineValues args,
                          infrastructure::audio::Player& audio_player)
     : args_(std::move(args)),
+      shared_data_(MakeNonNullShared<SharedData>(SharedData{
+          .pipe_to_communicate_internal_events = std::invoke([] {
+            int output[2];
+            return pipe2(output, O_NONBLOCK) == -1
+                       ? std::make_pair(FileDescriptor(-1), FileDescriptor(-1))
+                       : std::make_pair(FileDescriptor(output[0]),
+                                        FileDescriptor(output[1]));
+          }),
+          .status = audio_player})),
       work_queue_(WorkQueue::New()),
       thread_pool_(MakeNonNullShared<ThreadPoolWithWorkQueue>(
           MakeNonNullShared<ThreadPool>(32), work_queue_)),
@@ -203,18 +214,10 @@ EditorState::EditorState(CommandLineValues args,
         return output;
       }()),
       default_commands_(NewCommandMode(*this)),
-      pipe_to_communicate_internal_events_([] {
-        int output[2];
-        return pipe2(output, O_NONBLOCK) == -1
-                   ? std::make_pair(FileDescriptor(-1), FileDescriptor(-1))
-                   : std::make_pair(FileDescriptor(output[0]),
-                                    FileDescriptor(output[1]));
-      }()),
       audio_player_(audio_player),
-      buffer_tree_(MakeNonNullUnique<BuffersListAdapter>(*this)),
-      status_(audio_player_) {
-  work_queue_->OnSchedule().Add([this] {
-    NotifyInternalEvent();
+      buffer_tree_(MakeNonNullUnique<BuffersListAdapter>(*this)) {
+  work_queue_->OnSchedule().Add([shared_data = shared_data_] {
+    NotifyInternalEvent(shared_data.value());
     return Observers::State::kAlive;
   });
   auto paths = edge_path();
@@ -247,7 +250,7 @@ EditorState::EditorState(CommandLineValues args,
             },
             [&](Error error) {
               LOG(INFO) << "Compilation error: " << error;
-              status_.Set(error);
+              status().Set(error);
               return futures::Past(futures::IterationControlCommand::kContinue);
             }},
         CompileFile(path, gc_pool_, environment_));
@@ -543,7 +546,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                   L"Unable to close", buffer->IsUnableToPrepareToClose())));
             });
         !buffers_with_problems.empty()) {
-      switch (status_.InsertError(
+      switch (status().InsertError(
           NewError(
               LazyString{L"🖝  Dirty buffers (pre):"} +
               Concatenate(container::MaterializeVector(
@@ -601,7 +604,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             }
             LOG(INFO) << "Checking buffers state for termination.";
             if (!data->buffers_with_problems.empty()) {
-              switch (status_.InsertError(
+              switch (status().InsertError(
                   NewError(
                       LazyString{L"🖝  Dirty buffers (post):"} +
                       Concatenate(std::move(data->buffers_with_problems) |
@@ -970,8 +973,8 @@ bool EditorState::MovePositionsStack(Direction direction) {
   return true;
 }
 
-Status& EditorState::status() { return status_; }
-const Status& EditorState::status() const { return status_; }
+Status& EditorState::status() { return shared_data_->status; }
+const Status& EditorState::status() const { return shared_data_->status; }
 
 const infrastructure::Path& EditorState::home_directory() const {
   return args_.home_directory;
@@ -1019,13 +1022,16 @@ void EditorState::ExecutionIteration(
     buffer.AddExecutionHandlers(handler);
 
   handler.AddHandler(
-      pipe_to_communicate_internal_events_.first, POLLIN | POLLPRI, [&](int) {
+      shared_data_->pipe_to_communicate_internal_events.first, POLLIN | POLLPRI,
+      [&](int) {
         char buffer[4096];
         VLOG(5) << "Internal events detected.";
-        while (read(pipe_to_communicate_internal_events_.first.read(), buffer,
-                    sizeof(buffer)) > 0)
+        while (
+            read(shared_data_->pipe_to_communicate_internal_events.first.read(),
+                 buffer, sizeof(buffer)) > 0)
           continue;
-        has_internal_events_.lock([](bool& value) { value = false; });
+        shared_data_->has_internal_events.lock(
+            [](bool& value) { value = false; });
       });
 }
 

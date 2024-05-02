@@ -45,6 +45,26 @@ enum class CommandArgumentModeApplyMode;
 class EditorState {
   const CommandLineValues args_;
 
+  struct SharedData {
+    // Each editor has a pipe. The customer of the editor can poll from the read
+    // end, to detect the need to redraw the screen. Internally, background
+    // threads write to the write end to trigger that.
+    //
+    // We use has_internal_events to avoid redundantly notifying this. The
+    // customer must call ResetInternalEventsNotifications to reset it just
+    // before starting to process events.
+    std::pair<infrastructure::FileDescriptor, infrastructure::FileDescriptor>
+        pipe_to_communicate_internal_events;
+    concurrent::Protected<bool> has_internal_events =
+        concurrent::Protected<bool>(false);
+    Status status;
+  };
+
+  // The callbacks we schedule in work_queue_ may survive `this`. Anything those
+  // callbacks may depend on will be in `shared_data_`, allowing `this` to be
+  // deleted.
+  const language::NonNull<std::shared_ptr<SharedData>> shared_data_;
+
  public:
   struct ScreenState {
     bool needs_hard_redraw = false;
@@ -233,7 +253,7 @@ class EditorState {
       std::shared_ptr<std::vector<infrastructure::ExtendedChar>> input,
       size_t start_index);
 
-  void NotifyInternalEvent();
+  static void NotifyInternalEvent(SharedData& data);
 
   const language::NonNull<std::shared_ptr<concurrent::WorkQueue>> work_queue_;
   language::NonNull<std::shared_ptr<concurrent::ThreadPoolWithWorkQueue>>
@@ -273,25 +293,11 @@ class EditorState {
   Modifiers modifiers_;
   LineMarks line_marks_;
 
-  // Each editor has a pipe. The customer of the editor can poll from the read
-  // end, to detect the need to redraw the screen. Internally, background
-  // threads write to the write end to trigger that.
-  //
-  // We use has_internal_events_ to avoid redundantly notifying this. The
-  // customer must call ResetInternalEventsNotifications to reset it just before
-  // starting to process events.
-  const std::pair<infrastructure::FileDescriptor,
-                  infrastructure::FileDescriptor>
-      pipe_to_communicate_internal_events_;
-  concurrent::Protected<bool> has_internal_events_ =
-      concurrent::Protected<bool>(false);
-
   infrastructure::audio::Player& audio_player_;
 
   InsertHistory insert_history_;
 
   BuffersList buffer_tree_;
-  Status status_;
 };
 
 }  // namespace afc::editor
