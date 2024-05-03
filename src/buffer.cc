@@ -2349,7 +2349,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   input.position = position;
   if (Read(buffer_variables::delete_into_paste_buffer)) {
     input.delete_buffer = editor().FindOrBuildBuffer(kFuturePasteBuffer, [&] {
-      LOG(INFO) << "Creating paste buffer.";
+      LOG(INFO) << "Creating paste buffer: " << kFuturePasteBuffer;
       return OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer});
     });
   }
@@ -2371,6 +2371,9 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
                      paste_buffer != editor().buffers()->end()) {
             editor().buffers()->insert_or_assign(
                 BufferName::PasteBuffer(), paste_buffer->second.ptr().ToRoot());
+            paste_buffer->second.ptr()->Set(buffer_variables::name,
+                                            BufferName::PasteBuffer().read());
+            editor().buffers()->erase(paste_buffer);
           }
         }
 

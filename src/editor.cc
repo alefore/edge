@@ -89,6 +89,8 @@ using afc::language::view::SkipErrors;
 using error::FromOptional;
 
 namespace afc::editor {
+using ::operator<<;
+
 /* static */
 PathComponent EditorState::StatePathComponent() {
   return PathComponent::FromString(L"state");
@@ -346,6 +348,7 @@ void EditorState::CheckPosition() {
 }
 
 void EditorState::CloseBuffer(OpenBuffer& buffer) {
+  LOG(INFO) << "Close buffer: " << buffer.name();
   OnError(buffer.PrepareToClose(),
           [buffer = buffer.NewRoot()](Error error)
               -> futures::ValueOrError<OpenBuffer::PrepareToCloseOutput> {
@@ -374,6 +377,7 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
 
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
     BufferName name, std::function<gc::Root<OpenBuffer>()> callback) {
+  LOG(INFO) << "FindOrBuildBuffer: " << name;
   if (auto it = buffers_.find(name); it != buffers_.end()) {
     return it->second;
   }
@@ -578,8 +582,11 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                                    .exit_value = exit_value,
                                    .pending_buffers = container::MaterializeSet(
                                        buffers_ | std::views::values)});
-
-  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values)
+  CHECK_EQ(buffers_.size(), data->pending_buffers.size());
+  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values) {
+    LOG(INFO) << "Preparing to close: " << buffer.ptr()->name() << " @ "
+              << &buffer.ptr().value();
+    CHECK_EQ(data->pending_buffers.count(buffer), 1ul);
     buffer.ptr()
         ->PrepareToClose()
         .Transform(
@@ -594,6 +601,8 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           return futures::Past(EmptyValue());
         })
         .Transform([this, data, buffer](EmptyValue) {
+          LOG(INFO) << "Removing buffer: " << buffer.ptr()->name()
+                    << &buffer.ptr().value();
           EraseOrDie(data->pending_buffers, buffer);
 
           if (data->pending_buffers.empty()) {
@@ -648,6 +657,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                   .Build());
           return futures::Past(EmptyValue());
         });
+  }
 }
 
 void EditorState::ResetModifiers() {
