@@ -333,6 +333,32 @@ Number Number::FromDouble(double value) {
       NonZeroBigInt::Constant<2>().Pow(BigInt::FromNumber(52 - exponent)));
 }
 
+const bool double_tests_registration = tests::Register(
+    L"numbers::Double",
+    {{.name = L"FromDouble",
+      .callback =
+          [] {
+            std::wstring str = Number::FromDouble(5).ToString(2);
+            LOG(INFO) << "Representation: " << str;
+            CHECK(std::move(str) == L"5");
+          }},
+     {.name = L"FromDoubleSmall",
+      .callback =
+          [] {
+            std::wstring str = Number::FromDouble(0.00000001).ToString(8);
+            LOG(INFO) << "Representation: " << str;
+            CHECK(std::move(str) == L"0.00000001");
+          }},
+     {.name = L"ToDoubleFromInt",
+      .callback =
+          [] {
+            CHECK_NEAR(ValueOrDie(Number::FromInt64(5).ToDouble()), 5.0,
+                       0.00001);
+          }},
+     {.name = L"ToDoubleFromDouble", .callback = [] {
+        CHECK_NEAR(ValueOrDie(Number::FromDouble(5).ToDouble()), 5.0, 0.00001);
+      }}});
+
 Number Number::Pow(BigInt exponent) && {
   return Number(positive_ || (exponent % NonZeroBigInt::Constant<2>()).IsZero(),
                 std::move(numerator_).Pow(BigInt(exponent)),
@@ -505,28 +531,6 @@ const bool as_decimal_tests_registration =
            test(FromInt(1) / FromInt(0), L"Division by zero.")});
     }());
 
-const bool double_tests_registration = tests::Register(
-    L"numbers::Double",
-    {{.name = L"FromDouble",
-      .callback =
-          [] {
-            auto str = ToString(FromDouble(5), 2);
-            LOG(INFO) << "Representation: " << str;
-            CHECK(ValueOrDie(std::move(str)) == L"5");
-          }},
-     {.name = L"FromDoubleSmall",
-      .callback =
-          [] {
-            auto str = ToString(FromDouble(0.00000001), 8);
-            LOG(INFO) << "Representation: " << str;
-            CHECK(ValueOrDie(std::move(str)) == L"0.00000001");
-          }},
-     {.name = L"ToDoubleFromInt",
-      .callback =
-          [] { CHECK_NEAR(ValueOrDie(ToDouble(FromInt(5))), 5.0, 0.00001); }},
-     {.name = L"ToDoubleFromDouble", .callback = [] {
-        CHECK_NEAR(ValueOrDie(ToDouble(FromDouble(5))), 5.0, 0.00001);
-      }}});
 
 const bool size_t_tests_registration = tests::Register(
     L"numbers::SizeT",
