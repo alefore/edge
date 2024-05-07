@@ -288,11 +288,59 @@ afc::language::ValueOrError<size_t> Number::ToSizeT() const {
   return Divide(numerator_, denominator_).quotient.ToSizeT();
 }
 
+const bool to_size_t_tests_registration = tests::Register(
+    L"numbers::ToSizeT",
+    {{.name = L"Simple",
+      .callback =
+          [] { CHECK_EQ(ValueOrDie(Number::FromSizeT(5).ToSizeT()), 5ul); }},
+     {.name = L"ToSizeTMax",
+      .callback =
+          [] {
+            CHECK_EQ(
+                ValueOrDie(Number::FromSizeT(std::numeric_limits<size_t>::max())
+                               .ToSizeT()),
+                18446744073709551615ul);
+          }},
+     {.name = L"Overflow",
+      .callback =
+          [] {
+            CHECK(std::get<Error>(
+                      (Number::FromInt64(1) +
+                       Number::FromSizeT(std::numeric_limits<size_t>::max()))
+                          .ToSizeT())
+                      .read()
+                      .substr(0, 10) == L"Overflow: ");
+          }},
+     {.name = L"Negative",
+      .callback =
+          [] {
+            CHECK(std::get<Error>(Number::FromInt64(-1).ToSizeT())
+                      .read()
+                      .substr(0, 9) == L"Negative ");
+          }},
+     {.name = L"Inexact", .callback = [] {
+        ValueOrError<size_t> value = Number::FromDouble(1.5).ToSizeT();
+        LOG(INFO) << "Output: " << value;
+        CHECK(std::get<Error>(value).read().substr(0, 8) == L"Inexact ");
+      }}});
+
 ValueOrError<double> Number::ToDouble() const {
   DECLARE_OR_RETURN(double numerator_double, numerator_.ToDouble());
   DECLARE_OR_RETURN(double denominator_double, denominator_.value().ToDouble());
   return numerator_double / denominator_double;
 }
+
+const bool to_double_tests_registration = tests::Register(
+    L"numbers::ToDouble",
+    {{.name = L"FromInt",
+      .callback =
+          [] {
+            CHECK_NEAR(ValueOrDie(Number::FromInt64(5).ToDouble()), 5.0,
+                       0.00001);
+          }},
+     {.name = L"FromDouble", .callback = [] {
+        CHECK_NEAR(ValueOrDie(Number::FromDouble(5).ToDouble()), 5.0, 0.00001);
+      }}});
 
 Number Number::FromSizeT(size_t value) {
   const int base = 65536;  // 2^16
@@ -306,6 +354,27 @@ Number Number::FromSizeT(size_t value) {
   }
   return result;
 }
+
+const bool from_size_t_tests_registration = tests::Register(
+    L"numbers::FromSizeT",
+    {
+        {.name = L"Simple",
+         .callback =
+             [] {
+               std::wstring str = Number::FromSizeT(5).ToString(2);
+               LOG(INFO) << "Representation: " << str;
+               CHECK(std::move(str) == L"5");
+             }},
+        {.name = L"Max",
+         .callback =
+             [] {
+               std::wstring str =
+                   Number::FromSizeT(std::numeric_limits<size_t>::max())
+                       .ToString(2);
+               LOG(INFO) << "Representation: " << str;
+               CHECK(std::move(str) == L"18446744073709551615");
+             }},
+    });
 
 Number Number::FromDouble(double value) {
   union DoubleIntUnion {
@@ -333,30 +402,19 @@ Number Number::FromDouble(double value) {
       NonZeroBigInt::Constant<2>().Pow(BigInt::FromNumber(52 - exponent)));
 }
 
-const bool double_tests_registration = tests::Register(
-    L"numbers::Double",
-    {{.name = L"FromDouble",
+const bool from_double_tests_registration = tests::Register(
+    L"numbers::FromDouble",
+    {{.name = L"Five",
       .callback =
           [] {
             std::wstring str = Number::FromDouble(5).ToString(2);
             LOG(INFO) << "Representation: " << str;
             CHECK(std::move(str) == L"5");
           }},
-     {.name = L"FromDoubleSmall",
-      .callback =
-          [] {
-            std::wstring str = Number::FromDouble(0.00000001).ToString(8);
-            LOG(INFO) << "Representation: " << str;
-            CHECK(std::move(str) == L"0.00000001");
-          }},
-     {.name = L"ToDoubleFromInt",
-      .callback =
-          [] {
-            CHECK_NEAR(ValueOrDie(Number::FromInt64(5).ToDouble()), 5.0,
-                       0.00001);
-          }},
-     {.name = L"ToDoubleFromDouble", .callback = [] {
-        CHECK_NEAR(ValueOrDie(Number::FromDouble(5).ToDouble()), 5.0, 0.00001);
+     {.name = L"Small", .callback = [] {
+        std::wstring str = Number::FromDouble(0.00000001).ToString(8);
+        LOG(INFO) << "Representation: " << str;
+        CHECK(std::move(str) == L"0.00000001");
       }}});
 
 Number Number::Pow(BigInt exponent) && {
@@ -532,52 +590,6 @@ const bool as_decimal_tests_registration =
     }());
 
 
-const bool size_t_tests_registration = tests::Register(
-    L"numbers::SizeT",
-    {{.name = L"FromSizeTSimple",
-      .callback =
-          [] {
-            auto str = ToString(FromSizeT(5), 2);
-            LOG(INFO) << "Representation: " << str;
-            CHECK(ValueOrDie(std::move(str)) == L"5");
-          }},
-     {.name = L"FromSizeTMax",
-      .callback =
-          [] {
-            auto str =
-                ToString(FromSizeT(std::numeric_limits<size_t>::max()), 2);
-            LOG(INFO) << "Representation: " << str;
-            CHECK(ValueOrDie(std::move(str)) == L"18446744073709551615");
-          }},
-     {.name = L"ToSizeTSimple",
-      .callback = [] { CHECK_EQ(ValueOrDie(ToSizeT(FromSizeT(5))), 5ul); }},
-     {.name = L"ToSizeTMax",
-      .callback =
-          [] {
-            CHECK_EQ(ValueOrDie(ToSizeT(
-                         FromSizeT(std::numeric_limits<size_t>::max()))),
-                     18446744073709551615ul);
-          }},
-     {.name = L"ToSizeTOverflow",
-      .callback =
-          [] {
-            CHECK(std::get<Error>(
-                      ToSizeT(FromInt(1) +
-                              FromSizeT(std::numeric_limits<size_t>::max())))
-                      .read()
-                      .substr(0, 10) == L"Overflow: ");
-          }},
-     {.name = L"ToSizeTNegative",
-      .callback =
-          [] {
-            CHECK(std::get<Error>(ToSizeT(FromInt(-1))).read().substr(0, 9) ==
-                  L"Negative ");
-          }},
-     {.name = L"ToSizeTInexact", .callback = [] {
-        ValueOrError<size_t> value = ToSizeT(FromDouble(1.5));
-        LOG(INFO) << "Output: " << value;
-        CHECK(std::get<Error>(value).read().substr(0, 8) == L"Inexact ");
-      }}});
 }  // namespace
 
 #endif
