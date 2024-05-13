@@ -7,20 +7,28 @@
 #include <sstream>
 
 extern "C" {
+#include <glob.h>
 #include <sys/wait.h>
 }
 
+#include "src/language/container.h"
+#include "src/language/error/view.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
+
+namespace container = afc::language::container;
 
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
+using afc::language::NewError;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+using afc::language::view::ExtractErrors;
 
 namespace afc::infrastructure {
 
@@ -36,6 +44,27 @@ PossibleError SyscallReturnValue(std::wstring description, int return_value) {
 FileSystemDriver::FileSystemDriver(
     concurrent::ThreadPoolWithWorkQueue& thread_pool)
     : thread_pool_(thread_pool) {}
+
+futures::ValueOrError<std::vector<Path>> FileSystemDriver::Glob(
+    language::lazy_string::LazyString pattern) {
+  return thread_pool_.Run([pattern]() -> ValueOrError<std::vector<Path>> {
+    glob_t output_glob;
+    switch (glob(ToByteString(pattern.ToString()).c_str(), 0, nullptr,
+                 &output_glob)) {
+      case GLOB_NOSPACE:
+        return NewError(LazyString{L"Out of memory"});
+      case GLOB_ABORTED:
+        return NewError(LazyString{L"Aborted"});
+      case GLOB_NOMATCH:
+        return NewError(LazyString{L"No match"});
+    }
+    return ExtractErrors(container::MaterializeVector(
+        std::views::counted(output_glob.gl_pathv, output_glob.gl_pathc) |
+        std::views::transform([](char* input) {
+          return Path::FromString(FromByteString(input));
+        })));
+  });
+}
 
 futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(
     Path path, int flags, mode_t mode) const {

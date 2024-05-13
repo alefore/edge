@@ -14,6 +14,7 @@ extern "C" {
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::infrastructure {
 
@@ -32,6 +33,9 @@ class FileSystemDriver {
 
  public:
   FileSystemDriver(concurrent::ThreadPoolWithWorkQueue& thread_pool);
+
+  futures::ValueOrError<std::vector<Path>> Glob(
+      language::lazy_string::LazyString pattern);
 
   futures::ValueOrError<FileDescriptor> Open(Path path, int flags,
                                              mode_t mode) const;
