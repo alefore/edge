@@ -5,7 +5,6 @@
 #include <set>
 #include <vector>
 
-#include "src/vm/callbacks.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
