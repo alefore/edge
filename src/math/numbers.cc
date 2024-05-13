@@ -589,7 +589,6 @@ const bool as_decimal_tests_registration =
            test(FromInt(1) / FromInt(0), L"Division by zero.")});
     }());
 
-
 }  // namespace
 
 #endif
