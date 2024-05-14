@@ -502,7 +502,7 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   value.DefineType(editor_type.ptr());
 
-  value.DefineType(BuildBufferType(pool).ptr());
+  DefineBufferType(pool, value);
 
   InitShapes(pool, value);
   RegisterTransformations(pool, value);

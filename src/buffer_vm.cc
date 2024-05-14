@@ -17,6 +17,7 @@
 #include "src/language/text/line_column_vm.h"
 #include "src/parse_tree.h"
 #include "src/transformation/vm.h"
+#include "src/vm/container.h"
 
 namespace gc = afc::language::gc;
 namespace numbers = afc::math::numbers;
@@ -49,6 +50,7 @@ using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
+using afc::vm::Environment;
 using afc::vm::Identifier;
 using afc::vm::ObjectType;
 using afc::vm::PurityType;
@@ -81,6 +83,11 @@ VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
 const vm::types::ObjectName
     vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::object_type_name =
         vm::types::ObjectName(L"Buffer");
+
+template <>
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
+    std::vector<gc::Root<editor::OpenBuffer>>>>>::object_type_name =
+    types::ObjectName(L"VectorBuffer");
 }  // namespace afc::vm
 
 namespace afc::editor {
@@ -293,7 +300,7 @@ void DefineSortLinesByKey(
 }
 }  // namespace
 
-gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
+void DefineBufferType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> buffer_object_type = ObjectType::New(
       pool, vm::VMTypeMapper<gc::Root<OpenBuffer>>::object_type_name);
 
@@ -642,6 +649,7 @@ gc::Root<ObjectType> BuildBufferType(gc::Pool& pool) {
                             });
                       })
           .ptr());
-  return buffer_object_type;
+  environment.DefineType(buffer_object_type.ptr());
+  vm::container::Export<std::vector<gc::Root<OpenBuffer>>>(pool, environment);
 }
 }  // namespace afc::editor
