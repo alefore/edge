@@ -64,7 +64,7 @@ struct Traits<std::vector<ValueType>> : public TraitsBase {
 
   static constexpr bool has_set_at_index = true;
   static void SetAtIndex(ContainerPtr& v, size_t index, ValueType e) {
-    v.value()[index] = e;
+    v.value()[index] = std::move(e);
   }
 };
 
