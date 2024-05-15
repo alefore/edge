@@ -6,70 +6,71 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/language/gc.h"
+#include "src/language/safe_types.h"
 #include "src/vm/value.h"
 #include "src/vm/vm.h"
 
-namespace afc {
-namespace vm {
+namespace afc::vm::optional {
 
 // Defines an optional type.
 //
-// To use it, define the vmtype of the optional<MyType> type in your module:
+// To use it, define the `object_type_name` of the
+// `NonNull<std::shared_ptr<std::optional<MyType>>>` type in your module:
 //
 //     template <>
-//     const VMType VMTypeMapper<std::optional<MyType>*>::vmtype =
-//         VMType::ObjectType(L"OptionalMyType");
+//     const types::ObjectType
+//     VMTypeMapper<NonNull<std::shared_ptr<std::optional<MyType>>>>
+//         ::object_type_name =
+//         types::ObjectName(L"OptionalMyType");
+//
+// You'll probably want to surface it in header files (if you expect to define
+// functions that receive this type).
 //
 // Then initialize it in an environment:
 //
-//     VMTypeMapper<std::optional<MyType>*>::Export(&environment);
+//     vm::optional::Export<MyType>::Export(&environment);
 template <typename T>
-struct VMTypeMapper<std::optional<T>*> {
-  static std::optional<T>* get(Value* value) {
-    return static_cast<std::optional<T>*>(value->user_value.get());
-  }
+void Export(language::gc::Pool& pool, Environment& environment) {
+  using FullType = language::NonNull<std::shared_ptr<std::optional<T>>>;
+  const types::ObjectName& object_type_name =
+      VMTypeMapper<FullType>::object_type_name;
+  const vm::Type vmtype = GetVMType<FullType>::vmtype();
+  language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
-  static language::gc::Root<Value> New(std::optional<T>* value) {
-    // TODO: It's lame that we have to copy the values. :-/ We should find a way
-    // to avoid that.
-    auto value_copy = std::make_shared<std::optional<T>>(*value);
-    std::shared_ptr<void> void_ptr(value_copy, value_copy.get());
-    return Value::NewObject(vmtype.object_type, void_ptr);
-  }
+  environment.Define(
+      Identifier(object_type_name.read()),
+      Value::NewFunction(pool, PurityType::kPure, vmtype, {},
+                         [&pool](std::vector<language::gc::Root<Value>> args) {
+                           CHECK(args.empty());
+                           return Value::NewObject(
+                               pool, object_type_name,
+                               language::MakeNonNullShared<std::optional<T>>());
+                         }));
+  object_type.ptr()->AddField(
+      Identifier(L"has_value"),
+      vm::NewCallback(pool, PurityType::kPure, [](FullType v) {
+        return v->has_value();
+      }).ptr());
+  object_type.ptr()->AddField(
+      Identifier(L"value"),
+      vm::NewCallback(pool, PurityType::kPure, [](FullType v) {
+        return v->value();
+      }).ptr());
+  object_type.ptr()->AddField(
+      Identifier(L"reset"),
+      vm::NewCallback(pool, PurityType::kUnknown, [](FullType v) {
+        v.value() = std::nullopt;
+      }).ptr());
+  object_type.ptr()->AddField(
+      Identifier(L"set"),
+      vm::NewCallback(pool, PurityType::kUnknown, [](FullType o, T t) {
+        o.value() = std::move(t);
+      }).ptr());
 
-  static const VMType vmtype;
+  environment.DefineType(object_type.ptr());
+}
 
-  static void Export(Environment* environment) {
-    auto name = vmtype.object_type;
-    auto optional_type = std::make_unique<ObjectType>(name);
-
-    environment->Define(
-        name, Value::NewFunction(
-                  {VMType::ObjectType(optional_type.get())},
-                  [name](std::vector < language::gc::Root<Value> args) {
-                    CHECK(args.empty());
-                    return Value::NewObject(
-                        name, std::make_shared<std::optional<T>>());
-                  }));
-
-    optional_type->AddField(
-        L"has_value", vm::NewCallback(std::function<bool(std::optional<T>*)>(
-                          [](std::optional<T>* v) { return v->has_value(); })));
-    optional_type->AddField(
-        L"value", vm::NewCallback(std::function<T(std::optional<T>*)>(
-                      [](std::optional<T>* v) { return v->value(); })));
-    optional_type->AddField(
-        L"reset", vm::NewCallback(std::function<void(std::optional<T>*)>(
-                      [](std::optional<T>* v) { *v = std::nullopt; })));
-    optional_type->AddField(
-        L"set", vm::NewCallback(std::function<void(std::optional<T>*, T)>(
-                    [](std::optional<T>* o, T t) { *o = std::move(t); })));
-
-    environment->DefineType(name, std::move(optional_type));
-  }
-};
-
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm::optional
 
 #endif  // __AFC_VM_PUBLIC_OPTIONAL_H__
