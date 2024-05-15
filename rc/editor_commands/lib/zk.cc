@@ -9,6 +9,7 @@
 // * ln - Create a new entry based on the title under the cursor.
 // * Expand - Generate an article.
 
+#include "markdown.cc"
 #include "paths.cc"
 #include "strings.cc"
 
@@ -612,6 +613,25 @@ void AddNextDayLink() {
         }));
   });
 }
+
+void PrepareOutputBuffer(Buffer buffer) {
+  buffer.ApplyTransformation(SetPositionTransformation(LineColumn(0, 0)));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder()
+          // TODO: Add `set_buffer` and use that?
+          .set_modifiers(Modifiers().set_line().set_repetitions(9999999))
+          .build());
+}
+
+void Log(Buffer log, string text) {
+  log.ApplyTransformation(
+      InsertTransformationBuilder().set_text(text + "\n").build());
+}
+
+void ProcessTags(Buffer output, Buffer input_buffer) {
+  // TODO(easy, 2024-05-15): Implement.
+  Log(output, "Processing:" + input_buffer.name());
+}
 }  // namespace internal
 
 void Journal(string days_to_generate, string start_day, string template_path) {
@@ -713,4 +733,38 @@ void Pr() { return internal::FindLink("Prev"); }
 void NDay() { return internal::AddNextDayLink(); }
 
 auto Expand = internal::ExpandIntoPath;
+
+void ExtractTags(string directory) {
+  Buffer output_buffer = editor.OpenFile("stdout", true);
+  output_buffer.WaitForEndOfFile();
+  internal::PrepareOutputBuffer(output_buffer);
+  VectorBuffer input_buffers = VectorBuffer();
+  string glob_pattern = directory + "/???.md";
+  internal::Log(output_buffer, "Glob: " + glob_pattern);
+  VectorString paths = Glob(glob_pattern);
+  output_buffer.ApplyTransformation(
+      InsertTransformationBuilder()
+          .set_text("Opening buffers: " + paths.size().tostring() + "\n")
+          .build());
+  paths.ForEach([](string path) -> void {
+    input_buffers.push_back(editor.OpenFile(path, false));
+  });
+
+  internal::Log(output_buffer, "Waiting for EOF.");
+  input_buffers.ForEach(
+      [](Buffer buffer) -> void { buffer.WaitForEndOfFile(); });
+  internal::Log(output_buffer, "Buffers loaded, filtering.");
+  input_buffers = input_buffers.filter([](Buffer input) -> bool {
+    Range range = md::FindSection(input, "Tags", 2);
+    // TODO(easy, 2024-05-15): Define equality operator and avoid the conversion
+    // to string.
+    return range.begin().line() != range.end().line();
+  });
+  internal::Log(output_buffer,
+                "Buffers with tags:" + input_buffers.size().tostring());
+
+  input_buffers.ForEach([](Buffer buffer) -> void {
+    internal::ProcessTags(output_buffer, buffer);
+  });
+}
 }  // namespace zettelkasten
