@@ -11,7 +11,6 @@
 #include "src/language/text/range.h"  // TODO(2023-12-08, P1): Remove.
 #include "src/vm/callbacks.h"
 #include "src/vm/container.h"
-#include "src/vm/optional.h"
 
 namespace afc::language::gc {
 class Pool;

@@ -9,6 +9,7 @@
 #include "src/vm/callbacks.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
+#include "src/vm/optional.h"
 #include "src/vm/value.h"
 
 namespace gc = afc::language::gc;
