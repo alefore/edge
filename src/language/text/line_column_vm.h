@@ -11,6 +11,7 @@
 #include "src/language/text/range.h"  // TODO(2023-12-08, P1): Remove.
 #include "src/vm/callbacks.h"
 #include "src/vm/container.h"
+#include "src/vm/optional.h"
 
 namespace afc::language::gc {
 class Pool;
@@ -24,6 +25,10 @@ const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
 template <>
 const types::ObjectName VMTypeMapper<language::NonNull<
     std::shared_ptr<std::set<language::text::LineColumn>>>>::object_type_name;
+
+template <>
+const types::ObjectName VMTypeMapper<language::NonNull<
+    std::shared_ptr<std::optional<language::text::Range>>>>::object_type_name;
 
 template <>
 struct VMTypeMapper<language::text::LineColumn> {

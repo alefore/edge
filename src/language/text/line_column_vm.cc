@@ -31,6 +31,11 @@ const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<std::set<language::text::LineColumn>>>>::object_type_name =
     types::ObjectName(L"SetLineColumn");
 
+template <>
+const types::ObjectName VMTypeMapper<NonNull<
+    std::shared_ptr<std::optional<language::text::Range>>>>::object_type_name =
+    types::ObjectName(L"OptionalRange");
+
 /* static */
 language::text::LineColumn VMTypeMapper<language::text::LineColumn>::get(
     Value& value) {
@@ -190,5 +195,6 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
 
   vm::container::Export<typename std::vector<LineColumn>>(pool, environment);
   vm::container::Export<typename std::set<LineColumn>>(pool, environment);
+  vm::optional::Export<Range>(pool, environment);
 }
 }  // namespace afc::language::text
