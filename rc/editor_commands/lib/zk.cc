@@ -625,7 +625,9 @@ void PrepareOutputBuffer(Buffer buffer) {
 
 void Log(Buffer log, string text) {
   log.ApplyTransformation(
-      InsertTransformationBuilder().set_text(text + "\n").build());
+      InsertTransformationBuilder()
+          .set_text(Now().format("%F %T") + ": " + text + "\n")
+          .build());
 }
 
 void ProcessTags(Buffer output, Buffer input_buffer) {
@@ -742,10 +744,7 @@ void ExtractTags(string directory) {
   string glob_pattern = directory + "/???.md";
   internal::Log(output_buffer, "Glob: " + glob_pattern);
   VectorString paths = Glob(glob_pattern);
-  output_buffer.ApplyTransformation(
-      InsertTransformationBuilder()
-          .set_text("Opening buffers: " + paths.size().tostring() + "\n")
-          .build());
+  internal::Log(output_buffer, "Opening buffers: " + paths.size().tostring());
   paths.ForEach([](string path) -> void {
     input_buffers.push_back(editor.OpenFile(path, false));
   });
