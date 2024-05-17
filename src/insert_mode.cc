@@ -526,7 +526,7 @@ class InsertMode : public InputReceiver {
                 vm::Identifier(L"HandleKeyboardControlU"),
                 vm::types::Function{
                     .output = vm::Type{vm::types::Void{}},
-                    .inputs = {vm::GetVMType<gc::Root<OpenBuffer>>::vmtype()}});
+                    .inputs = {vm::GetVMType<gc::Ptr<OpenBuffer>>::vmtype()}});
         if (!callback.has_value()) {
           LOG(WARNING) << "Didn't find HandleKeyboardControlU function.";
           return;
@@ -537,7 +537,7 @@ class InsertMode : public InputReceiver {
                   vm::NewFunctionCall(
                       vm::NewConstantExpression(callback.value()),
                       {vm::NewConstantExpression(
-                          {VMTypeMapper<gc::Root<OpenBuffer>>::New(
+                          {VMTypeMapper<gc::Ptr<OpenBuffer>>::New(
                               buffer.editor().gc_pool(), buffer.NewRoot())})});
               if (expression->Types().empty()) {
                 buffer.status().InsertError(

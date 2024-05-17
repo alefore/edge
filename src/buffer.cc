@@ -712,9 +712,10 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   UpdateTreeParser();
 
-  environment_->Define(Identifier(L"buffer"),
-                       VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
-                           editor().gc_pool(), NewRoot()));
+  gc::Root<OpenBuffer> root = NewRoot();
+  environment_->Define(
+      Identifier(L"buffer"),
+      VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(editor().gc_pool(), root));
 
   environment_->Define(
       Identifier(L"sleep"),

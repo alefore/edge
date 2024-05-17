@@ -61,23 +61,37 @@ struct BufferWrapper {
   const gc::Ptr<editor::OpenBuffer> buffer;
 };
 
-gc::Root<editor::OpenBuffer>
-vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>::get(Value& value) {
+gc::Ptr<editor::OpenBuffer> vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::get(
+    Value& value) {
   BufferWrapper wrapper =
       value.get_user_value<BufferWrapper>(object_type_name).value();
-  return wrapper.buffer.ToRoot();
+  return wrapper.buffer;
 }
+
+/* static */ gc::Root<vm::Value> VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
+    gc::Pool& pool, gc::Ptr<editor::OpenBuffer> value) {
+  return vm::Value::NewObject(
+      pool, object_type_name,
+      MakeNonNullShared<BufferWrapper>(BufferWrapper{.buffer = value}),
+      [object_metadata = value.object_metadata()] {
+        return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
+            {object_metadata});
+      });
+}
+
+/* static */ gc::Root<vm::Value> VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
+    gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
+  return New(pool, value.ptr());
+}
+
+const vm::types::ObjectName
+    vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::object_type_name =
+        vm::types::ObjectName(L"Buffer");
 
 /* static */ gc::Root<vm::Value>
 VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
     gc::Pool& pool, gc::Root<editor::OpenBuffer> value) {
-  return vm::Value::NewObject(
-      pool, object_type_name,
-      MakeNonNullShared<BufferWrapper>(BufferWrapper{.buffer = value.ptr()}),
-      [object_metadata = value.ptr().object_metadata()] {
-        return std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>(
-            {object_metadata});
-      });
+  return VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(pool, value);
 }
 
 const vm::types::ObjectName
@@ -86,7 +100,7 @@ const vm::types::ObjectName
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
-    std::vector<gc::Root<editor::OpenBuffer>>>>>::object_type_name =
+    std::vector<gc::Ptr<editor::OpenBuffer>>>>>::object_type_name =
     types::ObjectName(L"VectorBuffer");
 }  // namespace afc::vm
 
@@ -109,9 +123,9 @@ void RegisterBufferFields(
     object_type.ptr()->AddField(
         Identifier(variable->name()),
         vm::NewCallback(pool, PurityType::kReader,
-                        [reader, variable](gc::Root<OpenBuffer> buffer) {
+                        [reader, variable](gc::Ptr<OpenBuffer> buffer) {
                           DVLOG(4) << "Buffer field reader is returning.";
-                          return (buffer.ptr().value().*reader)(variable);
+                          return (buffer.value().*reader)(variable);
                         })
             .ptr());
 
@@ -120,22 +134,21 @@ void RegisterBufferFields(
         Identifier(L"set_" + variable->name()),
         vm::NewCallback(
             pool, PurityType::kUnknown,
-            [variable, setter](gc::Root<OpenBuffer> buffer, FieldValue value) {
-              (buffer.ptr().value().*setter)(variable, value);
+            [variable, setter](gc::Ptr<OpenBuffer> buffer, FieldValue value) {
+              (buffer.value().*setter)(variable, value);
             })
             .ptr());
   }
 }
 
-gc::Root<OpenBuffer> MaybeFollowOutgoingLink(gc::Root<OpenBuffer> buffer) {
-  if (buffer.ptr()->editor().structure() == Structure::kLine) {
+gc::Ptr<OpenBuffer> MaybeFollowOutgoingLink(gc::Ptr<OpenBuffer> buffer) {
+  if (buffer->editor().structure() == Structure::kLine) {
     return VisitPointer(
-        buffer.ptr()->CurrentLine().outgoing_link(),
+        buffer->CurrentLine().outgoing_link(),
         [&](const OutgoingLink& link) {
-          if (auto it =
-                  buffer.ptr()->editor().buffers()->find(BufferName(link.path));
-              it != buffer.ptr()->editor().buffers()->end())
-            return it->second;
+          if (auto it = buffer->editor().buffers()->find(BufferName(link.path));
+              it != buffer->editor().buffers()->end())
+            return it->second.ptr();
           return buffer;
         },
         [&] { return buffer; });
@@ -202,7 +215,7 @@ void DefineSortLinesByKey(
 
             struct Data {
               Trampoline& trampoline;
-              gc::Root<OpenBuffer> buffer;
+              gc::Ptr<OpenBuffer> buffer;
               PossibleError possible_error = Success();
               gc::Root<gc::ValueWithFixedDependencies<vm::Value::Callback>>
                   callback;
@@ -211,20 +224,20 @@ void DefineSortLinesByKey(
 
             const auto data = MakeNonNullShared<Data>(
                 Data{.trampoline = trampoline,
-                     .buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
+                     .buffer = vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                          args[0].ptr().value()),
                      .callback = args[1].ptr()->LockCallback()});
 
             const std::pair<LineNumber, LineNumberDelta> boundaries =
                 GetBoundariesForTransformation(
-                    data->buffer.ptr()->active_cursors(),
-                    data->buffer.ptr()->contents().snapshot());
+                    data->buffer->active_cursors(),
+                    data->buffer->contents().snapshot());
 
             LOG(INFO) << "Sorting with boundaries: " << boundaries.first << " "
                       << boundaries.second;
             // We build `inputs` simply to be able to use futures::ForEach.
             NonNull<std::shared_ptr<std::vector<LineNumber>>> inputs;
-            data->buffer.ptr()->contents().snapshot().ForEachLine(
+            data->buffer->contents().snapshot().ForEachLine(
                 boundaries.first, boundaries.second,
                 [&inputs](LineNumber number, const Line&) {
                   inputs->push_back(number);
@@ -246,8 +259,7 @@ void DefineSortLinesByKey(
                                      -> ValueOrError<
                                          futures::IterationControlCommand> {
                                    Line line =
-                                       data->buffer.ptr()->contents().at(
-                                           line_number);
+                                       data->buffer->contents().at(line_number);
                                    VLOG(9) << "Value for line: " << line << ": "
                                            << get_key(output.ptr().value());
                                    ASSIGN_OR_RETURN(
@@ -273,7 +285,7 @@ void DefineSortLinesByKey(
                             return error;
                           },
                           [data, boundaries](EmptyValue) {
-                            data->buffer.ptr()->SortContents(
+                            data->buffer->SortContents(
                                 boundaries.first, boundaries.second,
                                 [data](const Line& a, const Line& b) {
                                   auto it_a =
@@ -302,7 +314,7 @@ void DefineSortLinesByKey(
 
 void DefineBufferType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> buffer_object_type = ObjectType::New(
-      pool, vm::VMTypeMapper<gc::Root<OpenBuffer>>::object_type_name);
+      pool, vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::object_type_name);
 
   RegisterBufferFields<EdgeStruct<bool>, bool>(
       pool, buffer_variables::BoolStruct(), buffer_object_type,
@@ -323,8 +335,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   buffer_object_type.ptr()->AddField(
       Identifier(L"SetStatus"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer, LazyString s) {
-                        buffer.ptr()->status().SetInformationText(
+                      [](gc::Ptr<OpenBuffer> buffer, LazyString s) {
+                        buffer->status().SetInformationText(
                             LineBuilder{s}.Build());
                       })
           .ptr());
@@ -332,59 +344,57 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   buffer_object_type.ptr()->AddField(
       Identifier(L"SetWarningStatus"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer, LazyString s) {
-                        buffer.ptr()->status().InsertError(NewError(s));
+                      [](gc::Ptr<OpenBuffer> buffer, LazyString s) {
+                        buffer->status().InsertError(NewError(s));
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"child_exit_status"),
       vm::NewCallback(pool, PurityType::kReader,
-                      [](gc::Root<OpenBuffer> buffer) {
+                      [](gc::Ptr<OpenBuffer> buffer) {
                         return static_cast<int>(
-                            buffer.ptr()->child_exit_status().value_or(0));
+                            buffer->child_exit_status().value_or(0));
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier(L"tostring"),
-      vm::NewCallback(pool, PurityType::kReader,
-                      [](gc::Root<OpenBuffer> buffer) {
-                        return buffer.ptr()->name().read();
-                      })
-          .ptr());
+      Identifier(L"tostring"), vm::NewCallback(pool, PurityType::kReader,
+                                               [](gc::Ptr<OpenBuffer> buffer) {
+                                                 return buffer->name().read();
+                                               })
+                                   .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"line_count"),
       vm::NewCallback(pool, PurityType::kReader,
-                      [](gc::Root<OpenBuffer> buffer) {
+                      [](gc::Ptr<OpenBuffer> buffer) {
                         return static_cast<int>(
-                            buffer.ptr()->contents().size().read());
+                            buffer->contents().size().read());
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"set_position"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer, LineColumn position) {
-                        buffer.ptr()->set_position(position);
+                      [](gc::Ptr<OpenBuffer> buffer, LineColumn position) {
+                        buffer->set_position(position);
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"position"),
       vm::NewCallback(pool, PurityType::kReader,
-                      [](gc::Root<OpenBuffer> buffer) {
-                        return LineColumn(buffer.ptr()->position());
+                      [](gc::Ptr<OpenBuffer> buffer) {
+                        return LineColumn(buffer->position());
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"active_cursors"),
       vm::NewCallback(pool, PurityType::kReader,
-                      [](gc::Root<OpenBuffer> buffer) {
-                        const CursorsSet& cursors =
-                            buffer.ptr()->active_cursors();
+                      [](gc::Ptr<OpenBuffer> buffer) {
+                        const CursorsSet& cursors = buffer->active_cursors();
                         return MakeNonNullShared<std::vector<LineColumn>>(
                             cursors.begin(), cursors.end());
                       })
@@ -394,21 +404,21 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       Identifier(L"set_active_cursors"),
       vm::NewCallback(
           pool, PurityType::kReader,
-          [](gc::Root<OpenBuffer> buffer,
+          [](gc::Ptr<OpenBuffer> buffer,
              NonNull<std::shared_ptr<std::vector<LineColumn>>> cursors) {
-            buffer.ptr()->set_active_cursors(cursors.value());
+            buffer->set_active_cursors(cursors.value());
           })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"line"),
       vm::NewCallback(pool, PurityType::kReader,
-                      [](gc::Root<OpenBuffer> buffer, int line_input) {
-                        LineNumber line = std::min(
-                            LineNumber(std::max(line_input, 0)),
-                            LineNumber(0) + buffer.ptr()->lines_size() -
-                                LineNumberDelta(1));
-                        return buffer.ptr()->contents().at(line).ToString();
+                      [](gc::Ptr<OpenBuffer> buffer, int line_input) {
+                        LineNumber line =
+                            std::min(LineNumber(std::max(line_input, 0)),
+                                     LineNumber(0) + buffer->lines_size() -
+                                         LineNumberDelta(1));
+                        return buffer->contents().at(line).ToString();
                       })
           .ptr());
 
@@ -426,8 +436,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"tree"), vm::NewCallback(pool, PurityType::kReader,
-                                           [](gc::Root<OpenBuffer> buffer) {
-                                             return buffer.ptr()->parse_tree();
+                                           [](gc::Ptr<OpenBuffer> buffer) {
+                                             return buffer->parse_tree();
                                            })
                                .ptr());
 
@@ -435,27 +445,25 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       Identifier(L"ApplyTransformation"),
       vm::NewCallback(
           pool, PurityType::kUnknown,
-          [](gc::Root<OpenBuffer> buffer,
+          [](gc::Ptr<OpenBuffer> buffer,
              NonNull<std::shared_ptr<editor::transformation::Variant>>
                  transformation) {
-            return buffer.ptr()->ApplyToCursors(transformation.value());
+            return buffer->ApplyToCursors(transformation.value());
           })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"PushTransformationStack"),
-      vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer) {
-                        buffer.ptr()->PushTransformationStack();
-                      })
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](gc::Ptr<OpenBuffer> buffer) { buffer->PushTransformationStack(); })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"PopTransformationStack"),
-      vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer) {
-                        buffer.ptr()->PopTransformationStack();
-                      })
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](gc::Ptr<OpenBuffer> buffer) { buffer->PopTransformationStack(); })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
@@ -467,11 +475,10 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                .inputs = {vm::types::String{}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
-            auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
+            auto buffer = vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                 args[0].ptr().value());
             return vm::Value::NewBool(
-                pool,
-                buffer.ptr()->AddKeyboardTextTransformer(std::move(args[1])));
+                pool, buffer->AddKeyboardTextTransformer(std::move(args[1])));
           })
           .ptr());
 
@@ -484,9 +491,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                .inputs = {vm::types::String{}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
-            auto buffer = vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
+            auto buffer = vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                 args[0].ptr().value());
-            buffer.ptr()->set_filter(std::move(args[1]));
+            buffer->set_filter(std::move(args[1]));
             return vm::Value::NewVoid(pool);
           })
           .ptr());
@@ -494,32 +501,31 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   buffer_object_type.ptr()->AddField(
       Identifier(L"Reload"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer) {
+                      [](gc::Ptr<OpenBuffer> buffer) {
                         buffer = MaybeFollowOutgoingLink(std::move(buffer));
-                        buffer.ptr()->Reload();
-                        buffer.ptr()->editor().ResetModifiers();
+                        buffer->Reload();
+                        buffer->editor().ResetModifiers();
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"SendEndOfFileToProcess"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer) {
+                      [](gc::Ptr<OpenBuffer> buffer) {
                         buffer = MaybeFollowOutgoingLink(std::move(buffer));
-                        buffer.ptr()->SendEndOfFileToProcess();
-                        buffer.ptr()->editor().ResetModifiers();
+                        buffer->SendEndOfFileToProcess();
+                        buffer->editor().ResetModifiers();
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"Save"),
       vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer) {
+                      [](gc::Ptr<OpenBuffer> buffer) {
                         buffer = MaybeFollowOutgoingLink(std::move(buffer));
-                        futures::Value<PossibleError> output =
-                            buffer.ptr()->Save(
-                                OpenBuffer::Options::SaveType::kMainFile);
-                        buffer.ptr()->editor().ResetModifiers();
+                        futures::Value<PossibleError> output = buffer->Save(
+                            OpenBuffer::Options::SaveType::kMainFile);
+                        buffer->editor().ResetModifiers();
                         return output;
                       })
           .ptr());
@@ -527,11 +533,10 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   buffer_object_type.ptr()->AddField(
       Identifier(L"Close"),
       vm::NewCallback(pool, vm::PurityTypeWriter,
-                      [](gc::Root<OpenBuffer> buffer) {
+                      [](gc::Ptr<OpenBuffer> buffer) {
                         buffer = MaybeFollowOutgoingLink(std::move(buffer));
-                        buffer.ptr()->editor().CloseBuffer(
-                            buffer.ptr().value());
-                        buffer.ptr()->editor().ResetModifiers();
+                        buffer->editor().CloseBuffer(buffer.value());
+                        buffer->editor().ResetModifiers();
                       })
           .ptr());
 
@@ -544,13 +549,13 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
            vm::types::Function{.output = vm::Type{vm::types::Void{}}}},
           [&pool](std::vector<gc::Root<vm::Value>> args) {
             CHECK_EQ(args.size(), 4u);
-            gc::Root<OpenBuffer> buffer =
-                vm::VMTypeMapper<gc::Root<OpenBuffer>>::get(
+            gc::Ptr<OpenBuffer> buffer =
+                vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                     args[0].ptr().value());
-            buffer.ptr()->default_commands()->Add(
+            buffer->default_commands()->Add(
                 VectorExtendedChar(args[1].ptr()->get_string()),
                 args[2].ptr()->get_string(), std::move(args[3]),
-                buffer.ptr()->environment());
+                buffer->environment());
             return vm::Value::NewVoid(pool);
           })
           .ptr());
@@ -559,18 +564,17 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       Identifier(L"AddBindingToFile"),
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
-          [](gc::Root<OpenBuffer> buffer,
+          [](gc::Ptr<OpenBuffer> buffer,
              NonNull<std::shared_ptr<std::vector<ExtendedChar>>> keys,
              LazyString path) {
             LOG(INFO) << "AddBindingToFile: " << path;
-            buffer.ptr()->default_commands()->Add(
+            buffer->default_commands()->Add(
                 keys.value(),
                 [buffer, path]() {
                   std::wstring resolved_path;
                   ResolvePathOptions<EmptyValue>::New(
-                      buffer.ptr()->editor(),
-                      MakeNonNullShared<FileSystemDriver>(
-                          buffer.ptr()->editor().thread_pool()))
+                      buffer->editor(), MakeNonNullShared<FileSystemDriver>(
+                                            buffer->editor().thread_pool()))
                       .Transform([buffer, path](
                                      ResolvePathOptions<EmptyValue> options) {
                         // TODO(easy, 2024-01-05): Avoid call to ToString.
@@ -580,11 +584,11 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                 .Transform(
                                     [buffer, path](
                                         ResolvePathOutput<EmptyValue> results) {
-                                      buffer.ptr()->EvaluateFile(results.path);
+                                      buffer->EvaluateFile(results.path);
                                       return Success();
                                     }),
                             [buffer, path](Error error) {
-                              buffer.ptr()->status().Set(
+                              buffer->status().Set(
                                   // TODO(2024-01-05): Avoid call to ToString.
                                   AugmentError(
                                       (LazyString{L"Unable to resolve: "} +
@@ -603,8 +607,8 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       Identifier(L"ShowTrackers"),
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
-          [](gc::Root<OpenBuffer> buffer) {
-            buffer.ptr()->AppendLines(container::MaterializeVector(
+          [](gc::Ptr<OpenBuffer> buffer) {
+            buffer->AppendLines(container::MaterializeVector(
                 Tracker::GetData() |
                 std::views::transform([](Tracker::Data data) -> const Line {
                   return LineBuilder(
@@ -623,25 +627,23 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   buffer_object_type.ptr()->AddField(
       Identifier(L"EvaluateFile"),
       vm::NewCallback(pool, vm::PurityTypeWriter,
-                      [](gc::Root<OpenBuffer> buffer, Path path) {
-                        buffer.ptr()->EvaluateFile(std::move(path));
+                      [](gc::Ptr<OpenBuffer> buffer, Path path) {
+                        buffer->EvaluateFile(std::move(path));
                       })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"WaitForEndOfFile"),
-      vm::NewCallback(pool, PurityType::kUnknown,
-                      [](gc::Root<OpenBuffer> buffer) {
-                        return buffer.ptr()->WaitForEndOfFile();
-                      })
+      vm::NewCallback(
+          pool, PurityType::kUnknown,
+          [](gc::Ptr<OpenBuffer> buffer) { return buffer->WaitForEndOfFile(); })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"LineMetadataString"),
       vm::NewCallback(pool, PurityType::kPure,
-                      [](gc::Root<OpenBuffer> buffer, int line_number) {
-                        return ToFuture(buffer.ptr()
-                                            ->contents()
+                      [](gc::Ptr<OpenBuffer> buffer, int line_number) {
+                        return ToFuture(buffer->contents()
                                             .at(LineNumber(line_number))
                                             .metadata_future())
                             .Transform([](LazyString str_value) {
@@ -650,6 +652,6 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                       })
           .ptr());
   environment.DefineType(buffer_object_type.ptr());
-  vm::container::Export<std::vector<gc::Root<OpenBuffer>>>(pool, environment);
+  vm::container::Export<std::vector<gc::Ptr<OpenBuffer>>>(pool, environment);
 }
 }  // namespace afc::editor

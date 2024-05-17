@@ -21,7 +21,9 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/language/container.h"
 #include "src/language/gc.h"
+#include "src/language/gc_view.h"
 #include "src/language/safe_types.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/environment.h"
@@ -92,6 +94,25 @@ struct Traits<std::set<ValueType>> : public TraitsBase {
   static constexpr bool has_set_at_index = false;
 };
 
+template <typename NestedType>
+struct NestedTypeTraits {
+  static std::vector<
+      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand(const auto&) {
+    return {};
+  }
+};
+
+template <typename NestedType>
+struct NestedTypeTraits<gc::Ptr<NestedType>> {
+  static std::vector<
+      language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
+  Expand(const auto& value) {
+    return language::container::MaterializeVector(value |
+                                                  gc::view::ObjectMetadata);
+  }
+};
+
 template <typename Container>
 void Export(language::gc::Pool& pool, Environment& environment) {
   using T = Traits<Container>;
@@ -103,13 +124,16 @@ void Export(language::gc::Pool& pool, Environment& environment) {
 
   environment.Define(
       Identifier(object_type_name.read()),
-      Value::NewFunction(pool, PurityType::kPure, vmtype, {},
-                         [&pool](std::vector<language::gc::Root<Value>> args) {
-                           CHECK(args.empty());
-                           return Value::NewObject(
-                               pool, object_type_name,
-                               language::MakeNonNullShared<Container>());
-                         }));
+      Value::NewFunction(
+          pool, PurityType::kPure, vmtype, {},
+          [&pool](std::vector<language::gc::Root<Value>> args) {
+            CHECK(args.empty());
+            auto value = language::MakeNonNullShared<Container>();
+            return Value::NewObject(pool, object_type_name, value, [value]() {
+              return NestedTypeTraits<typename Container::value_type>::Expand(
+                  value.value());
+            });
+          }));
 
   object_type.ptr()->AddField(
       Identifier(L"empty"),

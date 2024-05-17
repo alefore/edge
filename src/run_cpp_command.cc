@@ -377,7 +377,7 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                       }},
              Parse(editor.gc_pool(), line, environment, search_namespaces));
 
-  using BufferMapper = vm::VMTypeMapper<gc::Root<editor::OpenBuffer>>;
+  using BufferMapper = vm::VMTypeMapper<gc::Ptr<editor::OpenBuffer>>;
   return Predict(predictor,
                  PredictorInput{.editor = editor,
                                 .input = line,
@@ -404,27 +404,28 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                           << command.tokens[0].value
                           << ", buffer: " << buffer->ptr()->name();
                   return Execute(buffer->ptr().value(), std::move(command))
-                      .Transform([buffer,
-                                  output](gc::Root<vm::Value> value) mutable {
-                        VLOG(3) << "Successfully executed Preview command: "
-                                << value.ptr().value();
-                        if (value.ptr()->type ==
-                            vm::GetVMType<
-                                gc::Root<editor::OpenBuffer>>::vmtype()) {
-                          output->context =
-                              ColorizePromptOptions::ContextBuffer{
-                                  .buffer =
-                                      BufferMapper::get(value.ptr().value())};
-                        }
-                        return futures::Past(Success());
-                      })
+                      .Transform(
+                          [buffer, output](gc::Root<vm::Value> value) mutable {
+                            VLOG(3) << "Successfully executed Preview command: "
+                                    << value.ptr().value();
+                            if (value.ptr()->type ==
+                                vm::GetVMType<
+                                    gc::Ptr<editor::OpenBuffer>>::vmtype()) {
+                              output->context =
+                                  ColorizePromptOptions::ContextBuffer{
+                                      .buffer =
+                                          BufferMapper::get(value.ptr().value())
+                                              .ToRoot()};
+                            }
+                            return futures::Past(Success());
+                          })
                       .ConsumeErrors(
                           [](Error) { return futures::Past(EmptyValue()); });
                 }},
             buffer.has_value()
                 ? Parse(editor.gc_pool(), line, environment,
                         LazyString{L"Preview"},
-                        {vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()},
+                        {vm::GetVMType<gc::Ptr<editor::OpenBuffer>>::vmtype()},
                         search_namespaces)
                 : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
       })

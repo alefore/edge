@@ -15,8 +15,17 @@ void DefineBufferType(language::gc::Pool& pool, vm::Environment& environment);
 }  // namespace afc::editor
 namespace afc::vm {
 template <>
+struct VMTypeMapper<language::gc::Ptr<editor::OpenBuffer>> {
+  static language::gc::Ptr<editor::OpenBuffer> get(Value& value);
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool, language::gc::Root<editor::OpenBuffer> value);
+  static language::gc::Root<Value> New(
+      language::gc::Pool& pool, language::gc::Ptr<editor::OpenBuffer> value);
+  static const types::ObjectName object_type_name;
+};
+
+template <>
 struct VMTypeMapper<language::gc::Root<editor::OpenBuffer>> {
-  static language::gc::Root<editor::OpenBuffer> get(Value& value);
   static language::gc::Root<Value> New(
       language::gc::Pool& pool, language::gc::Root<editor::OpenBuffer> value);
   static const types::ObjectName object_type_name;

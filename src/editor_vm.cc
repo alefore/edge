@@ -231,7 +231,7 @@ gc::Root<Environment> BuildEditorEnvironment(
            vm::types::Function{
                .output = vm::Type{vm::types::Void{}},
                .inputs =
-                   {vm::GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()}}},
+                   {vm::GetVMType<gc::Ptr<editor::OpenBuffer>>::vmtype()}}},
           [&pool](std::vector<gc::Root<vm::Value>> input,
                   Trampoline& trampoline) {
             EditorState& editor_arg =
@@ -241,9 +241,8 @@ gc::Root<Environment> BuildEditorEnvironment(
                 .ForEachActiveBuffer([callback = input[1].ptr()->LockCallback(),
                                       &trampoline, output](OpenBuffer& buffer) {
                   std::vector<gc::Root<vm::Value>> args;
-                  args.push_back(
-                      VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
-                          trampoline.pool(), buffer.NewRoot()));
+                  args.push_back(VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
+                      trampoline.pool(), buffer.NewRoot()));
                   return callback.ptr()
                       ->value(std::move(args), trampoline)
                       .Transform([](gc::Root<vm::Value>) { return Success(); })
@@ -273,7 +272,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           {GetVMType<EditorState>::vmtype(),
            vm::types::Function{
                .output = vm::Type{vm::types::Void{}},
-               .inputs = {GetVMType<gc::Root<editor::OpenBuffer>>::vmtype()}}},
+               .inputs = {GetVMType<gc::Ptr<editor::OpenBuffer>>::vmtype()}}},
           [&pool](std::vector<gc::Root<vm::Value>> input,
                   Trampoline& trampoline) {
             EditorState& editor_arg =
@@ -284,7 +283,7 @@ gc::Root<Environment> BuildEditorEnvironment(
                      &trampoline](OpenBuffer& buffer) {
                       std::vector<gc::Root<vm::Value>> args;
                       args.push_back(
-                          VMTypeMapper<gc::Root<editor::OpenBuffer>>::New(
+                          VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
                               trampoline.pool(), buffer.NewRoot()));
                       return callback.ptr()
                           ->value(std::move(args), trampoline)
