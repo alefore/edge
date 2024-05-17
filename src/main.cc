@@ -166,8 +166,7 @@ void RedrawScreens(const CommandLineValues& args,
                    std::optional<FileDescriptor> remote_server_fd,
                    std::optional<LineColumnDelta>* last_screen_size,
                    Terminal* terminal, Screen* screen_curses) {
-  static Tracker tracker(L"Main::RedrawScreens");
-  auto call = tracker.Call();
+  TRACK_OPERATION(Main_RedrawScreens);
 
   // Precondition.
   CHECK(!args.client.has_value() || remote_server_fd.has_value());
@@ -175,6 +174,7 @@ void RedrawScreens(const CommandLineValues& args,
   auto screen_state = editor_state().FlushScreenState();
   if (!screen_state.has_value()) return;
   if (screen_curses != nullptr) {
+    TRACK_OPERATION(Main_RedrawScreens_Curses);
     if (!args.client.has_value()) {
       terminal->Display(editor_state(), *screen_curses, screen_state.value());
     } else {
@@ -196,6 +196,8 @@ void RedrawScreens(const CommandLineValues& args,
       }
     }
   }
+
+  TRACK_OPERATION(Main_RedrawScreens_RemoteScreens);
   VLOG(5) << "Updating remote screens.";
   for (OpenBuffer& buffer :
        *editor_state().buffers() | std::views::values | gc::view::Value) {
