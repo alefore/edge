@@ -613,6 +613,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
 
 ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
     Path path, gc::Pool& pool, gc::Root<Environment> environment) {
+  TRACK_OPERATION(vm_CompileFile);
   Compilation compilation(pool, std::move(environment));
   CompileFile(path, compilation, GetParser(compilation).get());
   return ResultsFromCompilation(std::move(compilation));
