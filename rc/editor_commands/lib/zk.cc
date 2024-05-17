@@ -630,9 +630,66 @@ void Log(Buffer log, string text) {
           .build());
 }
 
-void ProcessTags(Buffer output, Buffer input_buffer) {
-  // TODO(easy, 2024-05-15): Implement.
-  Log(output, "Processing:" + input_buffer.name());
+void ReceiveDateTags(Buffer output, string input_date,
+                     string input_reminder_frequency,
+                     string input_reminder_advance) {
+  Log(output, input_date + ", " + input_reminder_frequency + ", " +
+                  input_reminder_advance);
+}
+
+void ReceiveLanguageTags(Buffer output, string input_typo,
+                         string input_synonym) {
+  Log(output, input_typo + ", " + input_synonym);
+}
+
+void ProcessTags(Buffer log, Buffer output_dates, Buffer output_languages,
+                 Buffer input_buffer) {
+  Log(log, "Processing:" + input_buffer.name());
+  Range range = md::FindSection(input_buffer, "Tags", 2);
+  number line = range.begin().line() + 1;
+
+  string input_date = "";
+  string input_reminder_frequency = "";
+  string input_reminder_advance = "";
+
+  string input_language_typo = "";
+  string input_language_synonyms = "";
+
+  while (line < range.end().line()) {
+    string contents = input_buffer.line(line);
+    line++;
+    if (contents != "") {
+      string tag = "";
+      string value = "";
+      number colon = contents.find_first_of(":", 0);
+      if (colon > -1) {
+        tag = contents.substr(0, colon).tolower();
+        colon++;
+        value = SkipSpaces(contents.substr(colon, contents.size() - colon));
+        if (tag == "reminder-frequency")
+          input_reminder_frequency = value;
+        else if (tag == "date")
+          input_date = value;
+        else if (tag == "reminder-advance")
+          input_reminder_advance = value;
+        else if (tag == "language-typo")
+          input_language_typo = value;
+        else if (tag == "language-synonyms")
+          input_language_synonyms = value;
+        else if (tag != "")
+          Log(log, "Invalid tag: " + tag + ", value: " + value);
+      } else {
+        Log(log, "Unable to parse line: " + contents);
+      }
+    }
+  }
+
+  if (input_date != "")
+    ReceiveDateTags(output_dates, input_date, input_reminder_frequency,
+                    input_reminder_advance);
+  if (input_language_typo != "" || input_language_synonyms != "")
+    ReceiveLanguageTags(output_languages, input_language_typo,
+                        input_language_synonyms);
 }
 }  // namespace internal
 
@@ -737,33 +794,37 @@ void NDay() { return internal::AddNextDayLink(); }
 auto Expand = internal::ExpandIntoPath;
 
 void ExtractTags(string directory) {
-  Buffer output_buffer = editor.OpenFile("stdout", true);
-  output_buffer.WaitForEndOfFile();
-  internal::PrepareOutputBuffer(output_buffer);
+  Buffer log_buffer = editor.OpenFile("/tmp/tags/log", true);
+  log_buffer.WaitForEndOfFile();
+  internal::PrepareOutputBuffer(log_buffer);
   VectorBuffer input_buffers = VectorBuffer();
   string glob_pattern = directory + "/???.md";
-  internal::Log(output_buffer, "Glob: " + glob_pattern);
+  internal::Log(log_buffer, "Glob: " + glob_pattern);
   VectorString paths = Glob(glob_pattern);
-  internal::Log(output_buffer, "Opening buffers: " + paths.size().tostring());
+  internal::Log(log_buffer, "Opening buffers: " + paths.size().tostring());
   paths.ForEach([](string path) -> void {
     input_buffers.push_back(editor.OpenFile(path, false));
   });
 
-  internal::Log(output_buffer, "Waiting for EOF.");
+  internal::Log(log_buffer, "Waiting for EOF.");
   input_buffers.ForEach(
       [](Buffer buffer) -> void { buffer.WaitForEndOfFile(); });
-  internal::Log(output_buffer, "Buffers loaded, filtering.");
+  internal::Log(log_buffer, "Buffers loaded, filtering.");
   input_buffers = input_buffers.filter([](Buffer input) -> bool {
     Range range = md::FindSection(input, "Tags", 2);
     // TODO(easy, 2024-05-15): Define equality operator and avoid the conversion
     // to string.
-    return range.begin().line() != range.end().line();
+    if (range.begin().line() != range.end().line()) return true;
+    input.Close();
+    return false;
   });
-  internal::Log(output_buffer,
+  internal::Log(log_buffer,
                 "Buffers with tags:" + input_buffers.size().tostring());
 
+  Buffer dates_buffer = editor.OpenFile("/tmp/tags/dates", true);
+  Buffer languages_buffer = editor.OpenFile("/tmp/tags/languages", true);
   input_buffers.ForEach([](Buffer buffer) -> void {
-    internal::ProcessTags(output_buffer, buffer);
+    internal::ProcessTags(log_buffer, dates_buffer, languages_buffer, buffer);
   });
 }
 }  // namespace zettelkasten
