@@ -42,6 +42,7 @@ class VariableLookup : public Expression {
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
+    TRACK_OPERATION(vm_VariableLookup_Evaluate);
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
     return futures::Past(VisitPointer(
