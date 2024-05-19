@@ -128,6 +128,11 @@ class Protected {
   Validator validator_ = Validator{};
 };
 
+template <typename V>
+Protected<V> MakeProtected(V v) {
+  return Protected<V>(std::move(v));
+}
+
 template <typename T, typename Validator = EmptyValidator<T>,
           bool test_flows_register = true>
 class ProtectedWithCondition
