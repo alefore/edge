@@ -226,13 +226,25 @@ const bool operator_divide_tests_registration = tests::Register(
 }
 
 afc::language::ValueOrError<int32_t> Number::ToInt32() const {
-  BigInt quotient = Divide(numerator_, denominator_).quotient;
-  DECLARE_OR_RETURN(int32_t abs_value, quotient.ToInt32());
-  return CheckedMultiply<int32_t, int32_t>(abs_value, positive_ ? 1 : -1);
+  if (BigIntDivideOutput tmp = Divide(numerator_, denominator_);
+      tmp.remainder.IsZero()) {
+    DECLARE_OR_RETURN(int32_t abs_value, tmp.quotient.ToInt32());
+    return CheckedMultiply<int32_t, int32_t>(abs_value, positive_ ? 1 : -1);
+  }
+
+  return NewError(
+      LazyString{L"Inexact: Number can't be represented as int32_t: "
+                 L"fractional part is non-zero."});
 }
 
 afc::language::ValueOrError<int64_t> Number::ToInt64() const {
-  return Divide(numerator_, denominator_).quotient.ToInt64(positive_);
+  if (BigIntDivideOutput tmp = Divide(numerator_, denominator_);
+      tmp.remainder.IsZero())
+    return tmp.quotient.ToInt64(positive_);
+
+  return NewError(
+      LazyString{L"Inexact: Number can't be represented as int64_t: "
+                 L"fractional part is non-zero."});
 }
 
 namespace {
@@ -274,18 +286,36 @@ const bool int_tests_registration = tests::Register(
                     .read()
                     .substr(0, 10) == L"Overflow: ");
           }},
-     {.name = L"OverflowNegative", .callback = [] {
-        int64_t input = -9223372036854775807 - 1;
-        CHECK(std::get<Error>(
-                  (Number::FromInt64(input) - Number::FromInt64(1)).ToInt64())
-                  .read()
-                  .substr(0, 10) == L"Overflow: ");
+     {.name = L"OverflowNegative",
+      .callback =
+          [] {
+            int64_t input = -9223372036854775807 - 1;
+            CHECK(
+                std::get<Error>(
+                    (Number::FromInt64(input) - Number::FromInt64(1)).ToInt64())
+                    .read()
+                    .substr(0, 10) == L"Overflow: ");
+          }},
+     {.name = L"Inexact", .callback = [] {
+        ValueOrError<int64_t> value = Number::FromDouble(1.5).ToInt64();
+        LOG(INFO) << "Output: " << value;
+        CHECK(std::get<Error>(value).read().substr(0, 8) == L"Inexact:");
       }}});
+
 }  // namespace
 
 afc::language::ValueOrError<size_t> Number::ToSizeT() const {
-  // TODO(2024-04-09, P1, tests): Test that a negative number returns an error.
-  return Divide(numerator_, denominator_).quotient.ToSizeT();
+  if (!positive_)
+    return NewError(
+        LazyString{L"Negative: Number can't be represented as size_t."});
+
+  if (BigIntDivideOutput tmp = Divide(numerator_, denominator_);
+      tmp.remainder.IsZero())
+    return tmp.quotient.ToSizeT();
+
+  return NewError(
+      LazyString{L"Inexact: Number can't be represented as size_t: "
+                 L"fractional part is non-zero."});
 }
 
 const bool to_size_t_tests_registration = tests::Register(
@@ -316,12 +346,12 @@ const bool to_size_t_tests_registration = tests::Register(
           [] {
             CHECK(std::get<Error>(Number::FromInt64(-1).ToSizeT())
                       .read()
-                      .substr(0, 9) == L"Negative ");
+                      .substr(0, 9) == L"Negative:");
           }},
      {.name = L"Inexact", .callback = [] {
         ValueOrError<size_t> value = Number::FromDouble(1.5).ToSizeT();
         LOG(INFO) << "Output: " << value;
-        CHECK(std::get<Error>(value).read().substr(0, 8) == L"Inexact ");
+        CHECK(std::get<Error>(value).read().substr(0, 8) == L"Inexact:");
       }}});
 
 ValueOrError<double> Number::ToDouble() const {
