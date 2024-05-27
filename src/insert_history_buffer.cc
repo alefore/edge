@@ -7,6 +7,8 @@
 #include "src/insert_history.h"
 #include "src/language/text/line_sequence.h"
 
+namespace gc = afc::language::gc;
+
 namespace afc::editor {
 using language::NonNull;
 using language::PossibleError;
@@ -29,7 +31,7 @@ futures::Value<PossibleError> InsertHistoryBufferContents(OpenBuffer& output) {
 void ShowInsertHistoryBuffer(EditorState& editor) {
   const BufferName name(L"- Insert History");
 
-  auto buffer_root =
+  gc::Root<OpenBuffer> buffer_root =
       OpenBuffer::New({.editor = editor,
                        .name = name,
                        .generate_contents = &InsertHistoryBufferContents});
@@ -41,8 +43,7 @@ void ShowInsertHistoryBuffer(EditorState& editor) {
 
   buffer.Reload();
 
-  editor.buffers()->insert_or_assign(name, buffer_root.ptr().ToRoot());
-  editor.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
+  editor.AddBuffer(std::move(buffer_root), BuffersList::AddBufferType::kVisit);
   editor.ResetRepetitions();
 }
 }  // namespace afc::editor

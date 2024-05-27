@@ -141,16 +141,15 @@ class HelpCommand : public Command {
     VisitOptional(
         [&](gc::Root<OpenBuffer> original_buffer) {
           const BufferName name(L"- help: " + mode_description_);
-          auto buffer_root = OpenBuffer::New(OpenBuffer::Options{
-              .editor = editor_state_,
-              .name = name,
-              .generate_contents = std::bind_front(
-                  GenerateContents, std::ref(commands_), original_buffer)});
+          gc::Root<OpenBuffer> buffer_root =
+              OpenBuffer::New(OpenBuffer::Options{
+                  .editor = editor_state_,
+                  .name = name,
+                  .generate_contents = std::bind_front(
+                      GenerateContents, std::ref(commands_), original_buffer)});
           buffer_root.ptr()->Reload();
-          editor_state_.AddBuffer(buffer_root,
+          editor_state_.AddBuffer(std::move(buffer_root),
                                   BuffersList::AddBufferType::kVisit);
-          editor_state_.buffers()->insert_or_assign(name,
-                                                    std::move(buffer_root));
           editor_state_.ResetRepetitions();
         },
         [] {}, editor_state_.current_buffer());

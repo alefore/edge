@@ -684,7 +684,6 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   buffer.ptr()->Set(buffer_variables::command, options.command.ToString());
   buffer.ptr()->Reload();
 
-  editor_state.buffers()->insert_or_assign(name, buffer.ptr()->NewRoot());
   editor_state.AddBuffer(buffer, options.insertion_type);
   return buffer;
 }
