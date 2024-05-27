@@ -212,7 +212,6 @@ const bool vm_memory_leaks_tests = tests::Register(L"VMMemoryLeaks", [] {
                         CHECK(editor->active_buffers()[0] == buffer);
                         auto output =
                             ValueOrDie(buffer.ptr()->CompileString(code));
-                        EraseOrDie(*editor->buffers(), buffer.ptr()->name());
                         editor->CloseBuffer(buffer.ptr().value());
                         return output;
                       }();
