@@ -6,6 +6,7 @@
 #include <ranges>
 #include <set>
 
+#include "src/concurrent/protected.h"
 #include "src/language/container.h"
 #include "src/language/gc_view.h"
 #include "src/language/safe_types.h"
@@ -18,6 +19,7 @@
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
+using afc::concurrent::Protected;
 using afc::language::Error;
 using afc::language::InsertOrDie;
 using afc::language::MakeNonNullUnique;
@@ -31,14 +33,14 @@ namespace afc::vm {
 using ::operator<<;
 
 template <>
-const types::ObjectName
-    VMTypeMapper<NonNull<std::shared_ptr<std::vector<int>>>>::object_type_name =
-        types::ObjectName(L"VectorInt");
+const types::ObjectName VMTypeMapper<
+    NonNull<std::shared_ptr<Protected<std::vector<int>>>>>::object_type_name =
+    types::ObjectName(L"VectorInt");
 
 template <>
-const types::ObjectName
-    VMTypeMapper<NonNull<std::shared_ptr<std::set<int>>>>::object_type_name =
-        types::ObjectName(L"SetInt");
+const types::ObjectName VMTypeMapper<
+    NonNull<std::shared_ptr<Protected<std::set<int>>>>>::object_type_name =
+    types::ObjectName(L"SetInt");
 
 // TODO(easy, 2022-12-03): Get rid of this? Now that we have GC, shouldn't be
 // needed.

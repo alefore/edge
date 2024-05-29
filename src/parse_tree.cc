@@ -17,6 +17,8 @@ extern "C" {
 
 namespace container = afc::language::container;
 
+using afc::concurrent::MakeProtected;
+using afc::concurrent::Protected;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::compute_hash;
@@ -38,9 +40,9 @@ using afc::vm::Identifier;
 
 namespace afc::vm {
 template <>
-const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<std::vector<
-    NonNull<std::shared_ptr<const editor::ParseTree>>>>>>::object_type_name =
-    types::ObjectName(L"VectorParseTree");
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<Protected<
+    std::vector<NonNull<std::shared_ptr<const editor::ParseTree>>>>>>>::
+    object_type_name = types::ObjectName(L"VectorParseTree");
 }
 
 namespace afc::editor {
@@ -376,18 +378,18 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
       vm::NewCallback(
           pool, PurityType::kReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
-            NonNull<std::shared_ptr<
-                std::vector<NonNull<std::shared_ptr<const ParseTree>>>>>
-                output;
+            std::vector<NonNull<std::shared_ptr<const ParseTree>>> output;
             for (const ParseTree& child : tree->children())
               // TODO(2023-09-16): Find a way to avoid Unsafe here: that means
               // figuring out how to use the std::shared_ptr aliasing
               // constructor with NonNull.
-              output->push_back(
+              output.push_back(
                   NonNull<std::shared_ptr<const ParseTree>>::Unsafe(
                       std::shared_ptr<const ParseTree>(tree.get_shared(),
                                                        &child)));
-            return output;
+            return MakeNonNullShared<Protected<
+                std::vector<NonNull<std::shared_ptr<const ParseTree>>>>>(
+                Protected(std::move(output)));
           })
           .ptr());
 
@@ -401,16 +403,17 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
 
   parse_tree_object_type.ptr()->AddField(
       Identifier(L"properties"),
-      vm::NewCallback(pool, PurityType::kReader,
-                      [](NonNull<std::shared_ptr<const ParseTree>> tree) {
-                        return MakeNonNullShared<std::set<std::wstring>>(
-                            container::MaterializeSet(
-                                tree->properties() |
-                                std::views::transform(
-                                    [](const ParseTreeProperty& property) {
-                                      return property.read();
-                                    })));
-                      })
+      vm::NewCallback(
+          pool, PurityType::kReader,
+          [](NonNull<std::shared_ptr<const ParseTree>> tree) {
+            return MakeNonNullShared<Protected<std::set<std::wstring>>>(
+                MakeProtected(container::MaterializeSet(
+                    tree->properties() |
+                    std::views::transform(
+                        [](const ParseTreeProperty& property) {
+                          return property.read();
+                        }))));
+          })
           .ptr());
 
   environment.DefineType(parse_tree_object_type.ptr());

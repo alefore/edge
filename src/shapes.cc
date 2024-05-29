@@ -4,6 +4,7 @@
 
 #include <set>
 
+#include "src/concurrent/protected.h"
 #include "src/language/container.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_column_vm.h"
@@ -13,6 +14,7 @@
 
 namespace container = afc::language::container;
 
+using afc::concurrent::Protected;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -21,52 +23,68 @@ using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 
 namespace afc ::editor {
-futures::ValueOrError<NonNull<std::shared_ptr<std::vector<std::wstring>>>>
-Justify(NonNull<std::shared_ptr<std::vector<std::wstring>>> input, int width) {
-  LOG(INFO) << "Evaluating breaks with inputs: " << input->size();
+futures::ValueOrError<
+    NonNull<std::shared_ptr<Protected<std::vector<std::wstring>>>>>
+Justify(
+    NonNull<std::shared_ptr<Protected<std::vector<std::wstring>>>> input_ptr,
+    int width) {
+  return input_ptr->lock([&](std::vector<std::wstring>& input) {
+    LOG(INFO) << "Evaluating breaks with inputs: " << input.size();
 
-  // Push back a dummy string for the end. This is the goal of our graph search.
-  input->push_back(L"*");
+    // Push back a dummy string for the end. This is the goal of our graph
+    // search.
+    input.push_back(L"*");
 
-  // At position i, contains the best solution to reach word i. The values are
-  // the cost of the solution, and the solution itself.
-  std::vector<std::tuple<int, std::vector<int>>> options(input->size());
+    // At position i, contains the best solution to reach word i. The values are
+    // the cost of the solution, and the solution itself.
+    std::vector<std::tuple<int, std::vector<int>>> options(input.size());
 
-  for (size_t i = 0; i < input->size(); i++) {
-    if (i > 0 && std::get<1>(options[i]).empty()) {
-      continue;
-    }
-    // Consider doing the next break (after word i) at word next.
-    int length = input.value()[i].size();
-    for (size_t next = i + 1; next < input->size(); next++) {
-      if (length > width) {
-        continue;  // Line was too long, this won't work.
+    for (size_t i = 0; i < input.size(); i++) {
+      if (i > 0 && std::get<1>(options[i]).empty()) {
+        continue;
       }
-      int cost = width - length;
-      cost = cost * cost;
-      cost += std::get<0>(options[i]);
-      if (std::get<1>(options[next]).empty() ||
-          std::get<0>(options[next]) >= cost) {
-        std::get<0>(options[next]) = cost;
-        std::get<1>(options[next]) = std::get<1>(options[i]);
-        std::get<1>(options[next]).push_back(next);
+      // Consider doing the next break (after word i) at word next.
+      int length = input[i].size();
+      for (size_t next = i + 1; next < input.size(); next++) {
+        if (length > width) {
+          continue;  // Line was too long, this won't work.
+        }
+        int cost = width - length;
+        cost = cost * cost;
+        cost += std::get<0>(options[i]);
+        if (std::get<1>(options[next]).empty() ||
+            std::get<0>(options[next]) >= cost) {
+          std::get<0>(options[next]) = cost;
+          std::get<1>(options[next]) = std::get<1>(options[i]);
+          std::get<1>(options[next]).push_back(next);
+        }
+        length += 1 + input[next].size();
       }
-      length += 1 + input.value()[next].size();
     }
-  }
-  NonNull<std::shared_ptr<std::vector<std::wstring>>> output;
-  auto route = std::get<1>(options.back());
-  for (size_t line = 0; line < route.size(); line++) {
-    size_t previous_word = line == 0 ? 0 : route[line - 1];
-    std::wstring output_line;
-    for (int word = previous_word; word < route[line]; word++) {
-      output_line += (output_line.empty() ? L"" : L" ") + input.value()[word];
-    }
-    output->push_back(output_line);
-  }
-  LOG(INFO) << "Returning breaks: " << output->size() << ", cost "
-            << std::get<0>(options.back());
-  return futures::Past(Success(output));
+    NonNull<std::shared_ptr<Protected<std::vector<std::wstring>>>>
+        protected_output;
+    protected_output->lock([&](std::vector<std::wstring> output) {
+      auto route = std::get<1>(options.back());
+      for (size_t line = 0; line < route.size(); line++) {
+        size_t previous_word = line == 0 ? 0 : route[line - 1];
+        std::wstring output_line;
+        for (int word = previous_word; word < route[line]; word++) {
+          output_line += (output_line.empty() ? L"" : L" ") + input[word];
+        }
+        output.push_back(output_line);
+      }
+      LOG(INFO) << "Returning breaks: " << output.size() << ", cost "
+                << std::get<0>(options.back());
+    });
+    return futures::Past(Success(std::move(protected_output)));
+  });
+}
+
+void LockAndInsert(
+    NonNull<std::shared_ptr<Protected<std::set<LineColumn>>>> output,
+    LineColumn value) {
+  output->lock(
+      [value](std::set<LineColumn>& container) { container.insert(value); });
 }
 
 // output_right contains LineColumn(i, j) if there's a line cross into
@@ -74,8 +92,8 @@ Justify(NonNull<std::shared_ptr<std::vector<std::wstring>>> input, int width) {
 // LineColumn(i + 1, j).
 void FindBoundariesLine(
     LineColumn start, LineColumn end,
-    NonNull<std::shared_ptr<std::set<LineColumn>>> output_right,
-    NonNull<std::shared_ptr<std::set<LineColumn>>> output_down) {
+    NonNull<std::shared_ptr<Protected<std::set<LineColumn>>>> output_right,
+    NonNull<std::shared_ptr<Protected<std::set<LineColumn>>>> output_down) {
   if (start.column > end.column) {
     LineColumn tmp = start;
     start = end;
@@ -93,15 +111,15 @@ void FindBoundariesLine(
          (delta_error >= 0 ? start.line < end.line : start.line > end.line)) {
     if (error > 0.5) {
       error -= 1.0;
-      output_down->insert(start);
+      LockAndInsert(output_down, start);
       start.line++;
     } else if (error < -0.5) {
       error += 1.0;
       start.line--;
-      output_down->insert(start);
+      LockAndInsert(output_down, start);
     } else {
       error += delta_error;
-      output_right->insert(start);
+      LockAndInsert(output_right, start);
       start.column++;
     }
   }
@@ -175,15 +193,18 @@ void InternalFindBoundariesBezier(const std::vector<Point> points, double start,
 }
 
 void FindBoundariesBezier(
-    NonNull<std::shared_ptr<std::vector<LineColumn>>> positions,
-    NonNull<std::shared_ptr<std::set<LineColumn>>> output_right,
-    NonNull<std::shared_ptr<std::set<LineColumn>>> output_down) {
-  if (positions->size() < 2) {
+    NonNull<std::shared_ptr<Protected<std::vector<LineColumn>>>> positions,
+    NonNull<std::shared_ptr<Protected<std::set<LineColumn>>>> output_right,
+    NonNull<std::shared_ptr<Protected<std::set<LineColumn>>>> output_down) {
+  std::vector<Point> points = positions->lock([](std::vector<LineColumn> data) {
+    return container::MaterializeVector(data |
+                                        std::views::transform(Point::New));
+  });
+
+  if (points.size() < 2) {
     return;
   }
 
-  std::vector<Point> points = container::MaterializeVector(
-      positions.value() | std::views::transform(Point::New));
   std::vector<LineColumn> journey;
   InternalFindBoundariesBezier(points, 0.0, 1.0, points.front().ToLineColumn(),
                                points.back().ToLineColumn(), &journey);
@@ -194,12 +215,13 @@ void FindBoundariesBezier(
     }
     LOG(INFO) << "Now: " << position;
     if (last_point.column != position.column) {
-      output_right->insert(last_point.column < position.column ? last_point
-                                                               : position);
+      LockAndInsert(output_right, last_point.column < position.column
+                                      ? last_point
+                                      : position);
     }
     if (last_point.line != position.line) {
-      output_down->insert(last_point.line < position.line ? last_point
-                                                          : position);
+      LockAndInsert(output_down,
+                    last_point.line < position.line ? last_point : position);
     }
     last_point = position;
   }

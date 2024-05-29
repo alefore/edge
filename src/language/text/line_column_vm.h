@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "src/concurrent/protected.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/range.h"  // TODO(2023-12-08, P1): Remove.
@@ -18,12 +19,14 @@ class Pool;
 namespace afc::vm {
 class Environment;
 template <>
-const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
-    std::vector<language::text::LineColumn>>>>::object_type_name;
+const types::ObjectName
+    VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
+        std::vector<language::text::LineColumn>>>>>::object_type_name;
 
 template <>
-const types::ObjectName VMTypeMapper<language::NonNull<
-    std::shared_ptr<std::set<language::text::LineColumn>>>>::object_type_name;
+const types::ObjectName
+    VMTypeMapper<language::NonNull<std::shared_ptr<concurrent::Protected<
+        std::set<language::text::LineColumn>>>>>::object_type_name;
 
 template <>
 const types::ObjectName VMTypeMapper<language::NonNull<

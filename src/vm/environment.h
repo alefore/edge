@@ -105,12 +105,12 @@ class Environment {
 };
 
 template <>
-const types::ObjectName VMTypeMapper<language::NonNull<
-    std::shared_ptr<std::vector<Identifier>>>>::object_type_name;
+const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
+    concurrent::Protected<std::vector<Identifier>>>>>::object_type_name;
 
 template <>
-const types::ObjectName VMTypeMapper<
-    language::NonNull<std::shared_ptr<std::set<Identifier>>>>::object_type_name;
+const types::ObjectName VMTypeMapper<language::NonNull<std::shared_ptr<
+    concurrent::Protected<std::set<Identifier>>>>>::object_type_name;
 
 }  // namespace afc::vm
 

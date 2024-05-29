@@ -2,6 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
+#include "src/concurrent/protected.h"
 #include "src/file_link_mode.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/dirname_vm.h"
@@ -23,6 +24,7 @@ namespace gc = afc::language::gc;
 namespace numbers = afc::math::numbers;
 namespace container = afc::language::container;
 
+using afc::concurrent::Protected;
 using afc::infrastructure::ExtendedChar;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
@@ -100,7 +102,7 @@ const vm::types::ObjectName
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
-    std::vector<gc::Ptr<editor::OpenBuffer>>>>>::object_type_name =
+    Protected<std::vector<gc::Ptr<editor::OpenBuffer>>>>>>::object_type_name =
     types::ObjectName(L"VectorBuffer");
 }  // namespace afc::vm
 
@@ -392,12 +394,13 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"active_cursors"),
-      vm::NewCallback(pool, PurityType::kReader,
-                      [](gc::Ptr<OpenBuffer> buffer) {
-                        const CursorsSet& cursors = buffer->active_cursors();
-                        return MakeNonNullShared<std::vector<LineColumn>>(
-                            cursors.begin(), cursors.end());
-                      })
+      vm::NewCallback(
+          pool, PurityType::kReader,
+          [](gc::Ptr<OpenBuffer> buffer) {
+            const CursorsSet& cursors = buffer->active_cursors();
+            return MakeNonNullShared<Protected<std::vector<LineColumn>>>(
+                std::vector<LineColumn>(cursors.begin(), cursors.end()));
+          })
           .ptr());
 
   buffer_object_type.ptr()->AddField(
@@ -405,8 +408,11 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       vm::NewCallback(
           pool, PurityType::kReader,
           [](gc::Ptr<OpenBuffer> buffer,
-             NonNull<std::shared_ptr<std::vector<LineColumn>>> cursors) {
-            buffer->set_active_cursors(cursors.value());
+             NonNull<std::shared_ptr<Protected<std::vector<LineColumn>>>>
+                 cursors) {
+            cursors->lock([&](std::vector<LineColumn> values) {
+              buffer->set_active_cursors(values);
+            });
           })
           .ptr());
 
@@ -560,46 +566,53 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           })
           .ptr());
 
+  // TODO(easy, 2024-05-29): When capturing `buffer`, maybe capture a weakptr
+  // or ensure that we expand it somehow. Otherwise, it may get collected under
+  // our feet. Probably can't happen in practice, but it would be good to use
+  // the type system to ensure that.
   buffer_object_type.ptr()->AddField(
       Identifier(L"AddBindingToFile"),
       vm::NewCallback(
           pool, vm::PurityTypeWriter,
           [](gc::Ptr<OpenBuffer> buffer,
-             NonNull<std::shared_ptr<std::vector<ExtendedChar>>> keys,
+             NonNull<std::shared_ptr<Protected<std::vector<ExtendedChar>>>>
+                 keys,
              LazyString path) {
             LOG(INFO) << "AddBindingToFile: " << path;
-            buffer->default_commands()->Add(
-                keys.value(),
-                [buffer, path]() {
-                  std::wstring resolved_path;
-                  ResolvePathOptions<EmptyValue>::New(
-                      buffer->editor(), MakeNonNullShared<FileSystemDriver>(
-                                            buffer->editor().thread_pool()))
-                      .Transform([buffer, path](
-                                     ResolvePathOptions<EmptyValue> options) {
-                        // TODO(easy, 2024-01-05): Avoid call to ToString.
-                        options.path = path.ToString();
-                        return futures::OnError(
-                            ResolvePath(std::move(options))
-                                .Transform(
-                                    [buffer, path](
-                                        ResolvePathOutput<EmptyValue> results) {
-                                      buffer->EvaluateFile(results.path);
-                                      return Success();
-                                    }),
-                            [buffer, path](Error error) {
-                              buffer->status().Set(
-                                  // TODO(2024-01-05): Avoid call to ToString.
-                                  AugmentError(
-                                      (LazyString{L"Unable to resolve: "} +
-                                       path)
-                                          .ToString(),
-                                      std::move(error)));
-                              return futures::Past(Success());
-                            });
-                      });
-                },
-                LazyString{L"Load file: "} + path);
+            return keys->lock([&](std::vector<ExtendedChar>& keys_values) {
+              buffer->default_commands()->Add(
+                  keys_values,
+                  [buffer, path]() {
+                    std::wstring resolved_path;
+                    ResolvePathOptions<EmptyValue>::New(
+                        buffer->editor(), MakeNonNullShared<FileSystemDriver>(
+                                              buffer->editor().thread_pool()))
+                        .Transform([buffer, path](
+                                       ResolvePathOptions<EmptyValue> options) {
+                          // TODO(easy, 2024-01-05): Avoid call to ToString.
+                          options.path = path.ToString();
+                          return futures::OnError(
+                              ResolvePath(std::move(options))
+                                  .Transform([buffer, path](
+                                                 ResolvePathOutput<EmptyValue>
+                                                     results) {
+                                    buffer->EvaluateFile(results.path);
+                                    return Success();
+                                  }),
+                              [buffer, path](Error error) {
+                                buffer->status().Set(
+                                    // TODO(2024-01-05): Avoid call to ToString.
+                                    AugmentError(
+                                        (LazyString{L"Unable to resolve: "} +
+                                         path)
+                                            .ToString(),
+                                        std::move(error)));
+                                return futures::Past(Success());
+                              });
+                        });
+                  },
+                  LazyString{L"Load file: "} + path);
+            });
           })
           .ptr());
 

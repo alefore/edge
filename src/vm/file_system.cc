@@ -8,6 +8,8 @@
 #include "src/vm/container.h"
 #include "src/vm/string.h"
 
+using afc::concurrent::MakeProtected;
+using afc::concurrent::Protected;
 using afc::infrastructure::FileSystemDriver;
 using afc::infrastructure::Path;
 using afc::language::EmptyValue;
@@ -32,18 +34,18 @@ void RegisterFileSystemFunctions(
       vm::NewCallback(
           pool, PurityType::kReader,
           [file_system_driver](LazyString pattern)
-              -> futures::ValueOrError<
-                  NonNull<std::shared_ptr<std::vector<std::wstring>>>> {
+              -> futures::ValueOrError<NonNull<
+                  std::shared_ptr<Protected<std::vector<std::wstring>>>>> {
             return file_system_driver->Glob(pattern).Transform(
                 [](std::vector<Path> input)
-                    -> language::ValueOrError<
-                        NonNull<std::shared_ptr<std::vector<std::wstring>>>> {
+                    -> language::ValueOrError<NonNull<std::shared_ptr<
+                        Protected<std::vector<std::wstring>>>>> {
                   return language::Success(
-                      MakeNonNullShared<std::vector<std::wstring>>(
-                          language::container::MaterializeVector(
+                      MakeNonNullShared<Protected<std::vector<std::wstring>>>(
+                          MakeProtected(language::container::MaterializeVector(
                               input | std::views::transform([](Path& path) {
                                 return path.read();
-                              }))));
+                              })))));
                 });
           }));
 }

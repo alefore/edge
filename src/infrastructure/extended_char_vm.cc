@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "src/concurrent/protected.h"
 #include "src/infrastructure/extended_char.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/container.h"
@@ -29,9 +30,10 @@ VMTypeMapper<infrastructure::ExtendedChar>::get(Value& value) {
 }
 
 template <>
-const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
-    std::vector<infrastructure::ExtendedChar>>>>::object_type_name =
-    types::ObjectName(L"VectorExtendedChar");
+const types::ObjectName
+    VMTypeMapper<NonNull<std::shared_ptr<concurrent::Protected<
+        std::vector<infrastructure::ExtendedChar>>>>>::object_type_name =
+        types::ObjectName(L"VectorExtendedChar");
 
 }  // namespace afc::vm
 namespace afc::infrastructure {

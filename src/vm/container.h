@@ -5,7 +5,7 @@
 //
 //     template <>
 //     const types::ObjectName
-//     VMTypeMapper<NonNull<std::shared_ptr<std::vector<MyType>>>>
+//     VMTypeMapper<NonNull<std::shared_ptr<Protected<std::vector<MyType>>>>>
 //         ::object_type_name =
 //         types::ObjectName(L"VectorMyType");
 //
@@ -47,8 +47,8 @@ struct Traits {};
 
 template <typename ValueType>
 struct Traits<std::vector<ValueType>> : public TraitsBase {
-  using ContainerPtr =
-      language::NonNull<std::shared_ptr<std::vector<ValueType>>>;
+  using ContainerPtr = language::NonNull<
+      std::shared_ptr<concurrent::Protected<std::vector<ValueType>>>>;
 
   static ValueType Get(const std::vector<ValueType>& v, size_t index) {
     return v.at(index);
@@ -56,23 +56,26 @@ struct Traits<std::vector<ValueType>> : public TraitsBase {
 
   static constexpr bool has_erase_by_index = true;
   static futures::ValueOrError<afc::language::EmptyValue> EraseByIndex(
-      ContainerPtr v, size_t index) {
-    v->erase(v->begin() + index);
+      ContainerPtr ptr, size_t index) {
+    ptr->lock([&](std::vector<ValueType>& v) { v.erase(v.begin() + index); });
     return futures::Past(afc::language::Success());
   }
 
   static constexpr bool has_push_back = true;
-  static void PushBack(ContainerPtr v, ValueType e) { v->emplace_back(e); }
+  static void PushBack(ContainerPtr ptr, ValueType e) {
+    ptr->lock([&e](std::vector<ValueType>& v) { v.emplace_back(e); });
+  }
 
   static constexpr bool has_set_at_index = true;
-  static void SetAtIndex(ContainerPtr& v, size_t index, ValueType e) {
-    v.value()[index] = std::move(e);
+  static void SetAtIndex(std::vector<ValueType>& v, size_t index, ValueType e) {
+    v[index] = std::move(e);
   }
 };
 
 template <typename ValueType>
 struct Traits<std::set<ValueType>> : public TraitsBase {
-  using ContainerPtr = language::NonNull<std::shared_ptr<std::set<ValueType>>>;
+  using ContainerPtr = language::NonNull<
+      std::shared_ptr<concurrent::Protected<std::set<ValueType>>>>;
 
   static ValueType Get(const std::set<ValueType>& v, size_t index) {
     auto it = v.begin();
@@ -81,15 +84,19 @@ struct Traits<std::set<ValueType>> : public TraitsBase {
   }
 
   static constexpr bool has_erase_by_element = true;
-  static void EraseByElement(ContainerPtr v, ValueType t) { v->erase(t); }
+  static void EraseByElement(ContainerPtr ptr, ValueType t) {
+    ptr->lock([&](std::set<ValueType>& c) { c.erase(t); });
+  }
 
   static constexpr bool has_contains = true;
-  static bool Contains(ContainerPtr v, const ValueType& e) {
-    return v->count(e) > 0;
+  static bool Contains(ContainerPtr ptr, const ValueType& e) {
+    return ptr->lock([&](std::set<ValueType>& c) { return c.count(e) > 0; });
   }
 
   static constexpr bool has_insert = true;
-  static void Insert(ContainerPtr v, ValueType e) { v->insert(e); }
+  static void Insert(ContainerPtr ptr, ValueType e) {
+    ptr->lock([&](std::set<ValueType>& c) { c.insert(e); });
+  }
 
   static constexpr bool has_set_at_index = false;
 };
@@ -128,22 +135,25 @@ void Export(language::gc::Pool& pool, Environment& environment) {
           pool, PurityType::kPure, vmtype, {},
           [&pool](std::vector<language::gc::Root<Value>> args) {
             CHECK(args.empty());
-            auto value = language::MakeNonNullShared<Container>();
+            auto value =
+                language::MakeNonNullShared<concurrent::Protected<Container>>();
             return Value::NewObject(pool, object_type_name, value, [value]() {
-              return NestedTypeTraits<typename Container::value_type>::Expand(
-                  value.value());
+              return value->lock([](auto& data) {
+                return NestedTypeTraits<typename Container::value_type>::Expand(
+                    data);
+              });
             });
           }));
 
   object_type.ptr()->AddField(
       Identifier(L"empty"),
-      vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr c) {
-        return c->empty();
+      vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr ptr) {
+        return ptr->lock([](Container& c) { return c.empty(); });
       }).ptr());
   object_type.ptr()->AddField(
       Identifier(L"size"),
-      vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr v) {
-        return v->size();
+      vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr ptr) {
+        return ptr->lock([](Container& c) { return c.size(); });
       }).ptr());
   object_type.ptr()->AddField(
       Identifier(L"get"),
@@ -155,17 +165,22 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                              Trampoline& trampoline)
               -> futures::ValueOrError<language::gc::Root<Value>> {
             CHECK_EQ(args.size(), 2ul);
-            auto v = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
+            ContainerPtr ptr =
+                VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
             FUTURES_ASSIGN_OR_RETURN(int index, args[1].ptr()->get_int());
-            if (index < 0 || static_cast<size_t>(index) >= v->size()) {
-              return futures::Past(language::Error(
-                  object_type_name.read() + L": Index out of range " +
-                  std::to_wstring(index) + L" (size: " +
-                  std::to_wstring(v->size()) + L")"));
-            }
-            return futures::Past(language::Success(
-                VMTypeMapper<typename Container::value_type>::New(
-                    trampoline.pool(), T::Get(v.value(), index))));
+            return ptr->lock(
+                [object_type_name, index, &trampoline](Container& c)
+                    -> futures::ValueOrError<language::gc::Root<Value>> {
+                  if (index < 0 || static_cast<size_t>(index) >= c.size()) {
+                    return futures::Past(language::Error(
+                        object_type_name.read() + L": Index out of range " +
+                        std::to_wstring(index) + L" (size: " +
+                        std::to_wstring(c.size()) + L")"));
+                  }
+                  return futures::Past(language::Success(
+                      VMTypeMapper<typename Container::value_type>::New(
+                          trampoline.pool(), T::Get(c, index))));
+                });
           })
           .ptr());
 
@@ -180,27 +195,33 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                                Trampoline& trampoline)
                 -> futures::ValueOrError<language::gc::Root<Value>> {
               CHECK_EQ(args.size(), 3ul);
-              ContainerPtr v =
+              ContainerPtr ptr =
                   VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
               FUTURES_ASSIGN_OR_RETURN(int index, args[1].ptr()->get_int());
-              if (index < 0 || static_cast<size_t>(index) >= v->size()) {
-                return futures::Past(language::Error(
-                    object_type_name.read() + L": Index out of range " +
-                    std::to_wstring(index) + L" (size: " +
-                    std::to_wstring(v->size()) + L")"));
-              }
-              auto value = VMTypeMapper<typename Container::value_type>::get(
-                  args[2].ptr().value());
-              if constexpr (afc::language::IsValueOrError<
-                                decltype(value)>::value) {
-                if (language::IsError(value))
-                  return futures::Past(std::get<language::Error>(value));
-                T::SetAtIndex(v, index, language::ValueOrDie(std::move(value)));
-              } else {
-                T::SetAtIndex(v, index, value);
-              }
-              return futures::Past(
-                  language::Success(Value::NewVoid(trampoline.pool())));
+              return ptr->lock(
+                  [object_type_name, index, &args, &trampoline](Container& c)
+                      -> futures::ValueOrError<language::gc::Root<Value>> {
+                    if (index < 0 || static_cast<size_t>(index) >= c.size()) {
+                      return futures::Past(language::Error(
+                          object_type_name.read() + L": Index out of range " +
+                          std::to_wstring(index) + L" (size: " +
+                          std::to_wstring(c.size()) + L")"));
+                    }
+                    auto value =
+                        VMTypeMapper<typename Container::value_type>::get(
+                            args[2].ptr().value());
+                    if constexpr (afc::language::IsValueOrError<
+                                      decltype(value)>::value) {
+                      if (language::IsError(value))
+                        return futures::Past(std::get<language::Error>(value));
+                      T::SetAtIndex(c, index,
+                                    language::ValueOrDie(std::move(value)));
+                    } else {
+                      T::SetAtIndex(c, index, value);
+                    }
+                    return futures::Past(
+                        language::Success(Value::NewVoid(trampoline.pool())));
+                  });
             })
             .ptr());
 
@@ -217,41 +238,47 @@ void Export(language::gc::Pool& pool, Environment& environment) {
              Trampoline& trampoline)
               -> futures::ValueOrError<language::gc::Root<Value>> {
             CHECK_EQ(args.size(), 2ul);
-            auto output_container = language::MakeNonNullShared<Container>();
-            auto input = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
+            Container output_container;
+            auto ptr = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
             auto callback = args[1].ptr()->LockCallback();
             futures::ValueOrError<afc::language::EmptyValue> output =
                 futures::Past(afc::language::EmptyValue());
-            for (const auto& current_value : input.value()) {
-              output =
-                  std::move(output)
-                      .Transform([&trampoline, callback,
-                                  current_value](afc::language::EmptyValue) {
-                        std::vector<language::gc::Root<vm::Value>> call_args;
-                        call_args.push_back(
-                            VMTypeMapper<typename Container::value_type>::New(
-                                trampoline.pool(), current_value));
-                        return callback.ptr()->value(std::move(call_args),
-                                                     trampoline);
-                      })
-                      .Transform([output_container, current_value](
-                                     gc::Root<Value> callback_output) {
-                        if constexpr (T::has_push_back) {
-                          if (callback_output.ptr()->get_bool())
-                            output_container->push_back(current_value);
-                        } else {
-                          if (callback_output.ptr()->get_bool())
-                            output_container->insert(current_value);
-                        }
-                        return afc::language::Success();
-                      });
-            }
+            ptr->lock([&output, &output_container, &trampoline,
+                       &callback](Container& input) {
+              for (const auto& current_value : input) {
+                output =
+                    std::move(output)
+                        .Transform([&trampoline, callback,
+                                    current_value](afc::language::EmptyValue) {
+                          std::vector<language::gc::Root<vm::Value>> call_args;
+                          call_args.push_back(
+                              VMTypeMapper<typename Container::value_type>::New(
+                                  trampoline.pool(), current_value));
+                          return callback.ptr()->value(std::move(call_args),
+                                                       trampoline);
+                        })
+                        .Transform([&output_container, current_value](
+                                       gc::Root<Value> callback_output) {
+                          if constexpr (T::has_push_back) {
+                            if (callback_output.ptr()->get_bool())
+                              output_container.push_back(current_value);
+                          } else {
+                            if (callback_output.ptr()->get_bool())
+                              output_container.insert(current_value);
+                          }
+                          return afc::language::Success();
+                        });
+              }
+            });
             return std::move(output).Transform(
                 [&pool = trampoline.pool(),
-                 output_container](afc::language::EmptyValue) {
+                 output_container =
+                     std::move(output_container)](afc::language::EmptyValue) {
                   return futures::Past(
                       afc::language::Success(VMTypeMapper<ContainerPtr>::New(
-                          pool, std::move(output_container))));
+                          pool, language::MakeNonNullShared<
+                                    concurrent::Protected<Container>>(
+                                    std::move(output_container)))));
                 });
           })
           .ptr());
@@ -269,25 +296,27 @@ void Export(language::gc::Pool& pool, Environment& environment) {
              Trampoline& trampoline)
               -> futures::ValueOrError<language::gc::Root<Value>> {
             CHECK_EQ(args.size(), 2ul);
-            auto input = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
+            auto ptr = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
             auto callback = args[1].ptr()->LockCallback();
             futures::ValueOrError<afc::language::EmptyValue> output =
                 futures::Past(afc::language::EmptyValue());
-            for (const auto& current_value : input.value())
-              output =
-                  std::move(output)
-                      .Transform([&trampoline, callback,
-                                  current_value](afc::language::EmptyValue) {
-                        std::vector<language::gc::Root<vm::Value>> call_args;
-                        call_args.push_back(
-                            VMTypeMapper<typename Container::value_type>::New(
-                                trampoline.pool(), current_value));
-                        return callback.ptr()->value(std::move(call_args),
-                                                     trampoline);
-                      })
-                      .Transform([](gc::Root<Value>) {
-                        return futures::Past(afc::language::Success());
-                      });
+            ptr->lock([&output, &trampoline, &callback](Container& input) {
+              for (const auto& current_value : input)
+                output =
+                    std::move(output)
+                        .Transform([&trampoline, callback,
+                                    current_value](afc::language::EmptyValue) {
+                          std::vector<language::gc::Root<vm::Value>> call_args;
+                          call_args.push_back(
+                              VMTypeMapper<typename Container::value_type>::New(
+                                  trampoline.pool(), current_value));
+                          return callback.ptr()->value(std::move(call_args),
+                                                       trampoline);
+                        })
+                        .Transform([](gc::Root<Value>) {
+                          return futures::Past(afc::language::Success());
+                        });
+            });
             return std::move(output).Transform(
                 [&pool = trampoline.pool()](afc::language::EmptyValue) {
                   return futures::Past(

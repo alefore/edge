@@ -9,6 +9,7 @@
 #include "src/buffer_variables.h"
 #include "src/buffer_vm.h"
 #include "src/command.h"
+#include "src/concurrent/protected.h"
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
 #include "src/language/container.h"
@@ -26,6 +27,7 @@
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
+using afc::concurrent::Protected;
 using afc::concurrent::VersionPropertyKey;
 using afc::futures::DeleteNotification;
 using afc::infrastructure::screen::LineModifier;
@@ -162,8 +164,8 @@ ValueOrError<ParsedCommand> Parse(
       type_match_functions.push_back(candidate);
     } else if (function_type->inputs.size() == 1 &&
                function_type->inputs[0] ==
-                   vm::GetVMType<NonNull<
-                       std::shared_ptr<std::vector<std::wstring>>>>::vmtype()) {
+                   vm::GetVMType<NonNull<std::shared_ptr<
+                       Protected<std::vector<std::wstring>>>>>::vmtype()) {
       function_vector = candidate;
     }
   }
@@ -174,13 +176,15 @@ ValueOrError<ParsedCommand> Parse(
   if (function_vector.has_value()) {
     output_function = function_vector.value();
     // TODO(2024-01-02, trivial): Convert to vector<LazyString>.
-    auto argument_values = MakeNonNullShared<std::vector<std::wstring>>(
-        container::MaterializeVector(
-            output_tokens | std::views::drop(1) |
-            std::views::transform([](auto& v) { return v.value.ToString(); })));
+    auto argument_values =
+        MakeNonNullShared<Protected<std::vector<std::wstring>>>(
+            container::MaterializeVector(output_tokens | std::views::drop(1) |
+                                         std::views::transform([](auto& v) {
+                                           return v.value.ToString();
+                                         })));
 
-    output_function_inputs.push_back(vm::NewConstantExpression(
-        VMTypeMapper<NonNull<std::shared_ptr<std::vector<std::wstring>>>>::New(
+    output_function_inputs.push_back(
+        vm::NewConstantExpression(VMTypeMapper<decltype(argument_values)>::New(
             pool, std::move(argument_values))));
   } else if (!type_match_functions.empty()) {
     // TODO: Choose the most suitable one given our arguments.

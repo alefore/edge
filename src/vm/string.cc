@@ -5,12 +5,14 @@
 #include <set>
 #include <vector>
 
+#include "src/concurrent/protected.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
+using afc::concurrent::Protected;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::Success;
@@ -27,13 +29,13 @@ using language::NonNull;
 namespace gc = language::gc;
 
 template <>
-const types::ObjectName VMTypeMapper<
-    NonNull<std::shared_ptr<std::vector<std::wstring>>>>::object_type_name =
+const types::ObjectName VMTypeMapper<NonNull<
+    std::shared_ptr<Protected<std::vector<std::wstring>>>>>::object_type_name =
     types::ObjectName(L"VectorString");
 
 template <>
-const types::ObjectName VMTypeMapper<
-    NonNull<std::shared_ptr<std::set<std::wstring>>>>::object_type_name =
+const types::ObjectName VMTypeMapper<NonNull<
+    std::shared_ptr<Protected<std::set<std::wstring>>>>>::object_type_name =
     types::ObjectName(L"SetString");
 
 template <typename Callable>

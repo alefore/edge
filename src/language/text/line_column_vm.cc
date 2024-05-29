@@ -3,6 +3,7 @@
 #include <set>
 #include <vector>
 
+#include "src/concurrent/protected.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
@@ -14,6 +15,7 @@
 
 namespace gc = afc::language::gc;
 
+using afc::concurrent::Protected;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -24,12 +26,12 @@ using afc::vm::Identifier;
 namespace afc::vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
-    std::vector<language::text::LineColumn>>>>::object_type_name =
+    Protected<std::vector<language::text::LineColumn>>>>>::object_type_name =
     types::ObjectName(L"VectorLineColumn");
 
 template <>
-const types::ObjectName VMTypeMapper<NonNull<
-    std::shared_ptr<std::set<language::text::LineColumn>>>>::object_type_name =
+const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
+    Protected<std::set<language::text::LineColumn>>>>>::object_type_name =
     types::ObjectName(L"SetLineColumn");
 
 template <>
