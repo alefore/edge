@@ -1,11 +1,14 @@
 #include "src/buffer_registry.h"
 
+#include "src/language/container.h"
 #include "src/language/gc_view.h"
 #include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
+using afc::language::GetValueOrDefault;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::VisitOptional;
@@ -24,30 +27,33 @@ gc::Ptr<OpenBuffer> BufferRegistry::MaybeAddFile(
   return files_.insert({path, std::move(factory)().ptr()}).first->second;
 }
 
+std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::FindFile(
+    infrastructure::Path path) {
+  if (auto it = files_.find(path); it != files_.end()) return it->second;
+  return std::nullopt;
+}
+
 void BufferRegistry::AddAnonymous(language::gc::Ptr<OpenBuffer> buffer) {
   anonymous_.push_back(buffer);
 }
 
-std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
-BufferRegistry::Expand() const {
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
+std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
+  std::vector<gc::Ptr<OpenBuffer>> output;
   VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) {
-        output.push_back(buffer.object_metadata());
-      },
+      [&output](gc::Ptr<OpenBuffer> buffer) { output.push_back(buffer); },
       [] {}, initial_commands_);
   VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) {
-        output.push_back(buffer.object_metadata());
-      },
+      [&output](gc::Ptr<OpenBuffer> buffer) { output.push_back(buffer); },
       [] {}, paste_);
-  for (NonNull<std::shared_ptr<gc::ObjectMetadata>> data :
-       files_ | std::views::values | gc::view::ObjectMetadata)
-    output.push_back(data);
-  for (NonNull<std::shared_ptr<gc::ObjectMetadata>> data :
-       anonymous_ | gc::view::ObjectMetadata)
-    output.push_back(data);
+  auto files_values = files_ | std::views::values;
+  output.insert(output.end(), files_values.begin(), files_values.end());
+  output.insert(output.end(), anonymous_.begin(), anonymous_.end());
   return output;
+}
+
+std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
+BufferRegistry::Expand() const {
+  return container::MaterializeVector(buffers() | gc::view::ObjectMetadata);
 }
 
 void BufferRegistry::SetPaste(gc::Ptr<OpenBuffer> buffer) {

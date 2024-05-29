@@ -3,6 +3,7 @@
 
 #include <map>
 #include <optional>
+#include <vector>
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
@@ -29,7 +30,13 @@ class BufferRegistry {
       infrastructure::Path path,
       language::OnceOnlyFunction<language::gc::Root<OpenBuffer>()> factory);
 
+  std::optional<language::gc::Ptr<OpenBuffer>> FindFile(
+      infrastructure::Path path);
+
   void AddAnonymous(language::gc::Ptr<OpenBuffer> buffer);
+
+  // Return a vector containing all buffers.
+  std::vector<language::gc::Ptr<OpenBuffer>> buffers() const;
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
