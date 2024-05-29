@@ -8,6 +8,7 @@
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
+using afc::infrastructure::Path;
 using afc::language::GetValueOrDefault;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
@@ -20,21 +21,24 @@ void BufferRegistry::SetInitialCommands(gc::Ptr<OpenBuffer> buffer) {
 }
 
 gc::Ptr<OpenBuffer> BufferRegistry::MaybeAddFile(
-    infrastructure::Path path,
-    OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
+    Path path, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
   // TODO(trivial, 2024-05-30): Only traverse the map once.
   if (auto it = files_.find(path); it != files_.end()) return it->second;
   return files_.insert({path, std::move(factory)().ptr()}).first->second;
 }
 
-std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::FindFile(
-    infrastructure::Path path) {
+std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::FindFile(Path path) {
   if (auto it = files_.find(path); it != files_.end()) return it->second;
   return std::nullopt;
 }
 
-void BufferRegistry::AddAnonymous(language::gc::Ptr<OpenBuffer> buffer) {
+void BufferRegistry::AddAnonymous(gc::Ptr<OpenBuffer> buffer) {
   anonymous_.push_back(buffer);
+}
+
+void BufferRegistry::AddServer(Path address, gc::Ptr<OpenBuffer> buffer) {
+  // TODO(2024-05-30, trivial): Detect errors if a server already was there.
+  servers_.insert({address, std::move(buffer)});
 }
 
 std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
@@ -47,6 +51,10 @@ std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
       [] {}, paste_);
   auto files_values = files_ | std::views::values;
   output.insert(output.end(), files_values.begin(), files_values.end());
+
+  auto servers_values = servers_ | std::views::values;
+  output.insert(output.end(), servers_values.begin(), servers_values.end());
+
   output.insert(output.end(), anonymous_.begin(), anonymous_.end());
   return output;
 }

@@ -17,6 +17,7 @@ class BufferRegistry {
   std::optional<language::gc::Ptr<OpenBuffer>> paste_;
 
   std::map<infrastructure::Path, language::gc::Ptr<OpenBuffer>> files_;
+  std::map<infrastructure::Path, language::gc::Ptr<OpenBuffer>> servers_;
 
   std::vector<language::gc::Ptr<OpenBuffer>> anonymous_;
 
@@ -34,6 +35,9 @@ class BufferRegistry {
       infrastructure::Path path);
 
   void AddAnonymous(language::gc::Ptr<OpenBuffer> buffer);
+
+  void AddServer(infrastructure::Path path,
+                 language::gc::Ptr<OpenBuffer> buffer);
 
   // Return a vector containing all buffers.
   std::vector<language::gc::Ptr<OpenBuffer>> buffers() const;

@@ -18,6 +18,7 @@ extern "C" {
 }
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
@@ -257,6 +258,7 @@ void OpenServerBuffer(EditorState& editor_state, const Path& address) {
   buffer.Set(buffer_variables::vm_exec, true);
   buffer.Set(buffer_variables::vm_lines_evaluation, false);
 
+  editor_state.buffer_registry().AddServer(address, buffer_root.ptr());
   editor_state.buffers()->insert_or_assign(buffer.name(),
                                            buffer_root.ptr().ToRoot());
   buffer.Reload();
@@ -268,10 +270,10 @@ bool server_tests_registration = tests::Register(
     {{.name = L"StartServer", .callback = [] {
         language::NonNull<std::unique_ptr<EditorState>> editor =
             EditorForTests();
-        CHECK_EQ(editor->buffers()->size(), 0ul);
+        CHECK_EQ(editor->buffer_registry().buffers().size(), 0ul);
         infrastructure::Path server_address =
             ValueOrDie(StartServer(editor.value(), std::nullopt));
-        CHECK_EQ(editor->buffers()->size(), 1ul);
+        CHECK_EQ(editor->buffer_registry().buffers().size(), 1ul);
         CHECK(!editor->exit_value().has_value());
         size_t iteration = 0;
         ExecutionEnvironment(
