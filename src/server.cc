@@ -231,8 +231,7 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
   return output;
 }
 
-gc::Root<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
-                                      const Path& address) {
+void OpenServerBuffer(EditorState& editor_state, const Path& address) {
   gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
       OpenBuffer::Options{.editor = editor_state,
                           .name = editor_state.GetUnusedBufferName(L"- server"),
@@ -261,7 +260,6 @@ gc::Root<OpenBuffer> OpenServerBuffer(EditorState& editor_state,
   editor_state.buffers()->insert_or_assign(buffer.name(),
                                            buffer_root.ptr().ToRoot());
   buffer.Reload();
-  return buffer_root;
 }
 
 namespace {
@@ -301,5 +299,5 @@ bool server_tests_registration = tests::Register(
         CHECK(editor->exit_value().has_value());
         CHECK_EQ(editor->exit_value().value(), 567);
       }}});
-}
+}  // namespace
 }  // namespace afc::editor

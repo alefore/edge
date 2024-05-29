@@ -32,8 +32,8 @@ class OpenBuffer;
 language::ValueOrError<infrastructure::Path> StartServer(
     EditorState& editor_state, std::optional<infrastructure::Path> address);
 
-language::gc::Root<OpenBuffer> OpenServerBuffer(
-    EditorState& editor_state, const infrastructure::Path& address);
+void OpenServerBuffer(EditorState& editor_state,
+                      const infrastructure::Path& address);
 
 }  // namespace afc::editor
 
