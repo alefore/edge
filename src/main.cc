@@ -17,6 +17,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/args.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
@@ -316,7 +317,7 @@ int main(int argc, const char** argv) {
       gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
           OpenBuffer::Options{.editor = editor_state(), .name = name});
       buffer_root.ptr()->EvaluateString(commands_to_run);
-      editor_state().buffers()->insert_or_assign(name, std::move(buffer_root));
+      editor_state().buffer_registry().SetInitialCommands(buffer_root.ptr());
     }
   }
 

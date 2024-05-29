@@ -19,6 +19,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command_argument_mode.h"
 #include "src/editor_vm.h"
@@ -217,7 +218,8 @@ EditorState::EditorState(CommandLineValues args,
       }()),
       default_commands_(NewCommandMode(*this)),
       audio_player_(audio_player),
-      buffer_tree_(MakeNonNullUnique<BuffersListAdapter>(*this)) {
+      buffer_tree_(MakeNonNullUnique<BuffersListAdapter>(*this)),
+      buffer_registry_(gc_pool_.NewRoot(MakeNonNullUnique<BufferRegistry>())) {
   work_queue_->OnSchedule().Add([shared_data = shared_data_] {
     NotifyInternalEvent(shared_data.value());
     return Observers::State::kAlive;
@@ -1041,6 +1043,10 @@ void EditorState::ExecutionIteration(
         shared_data_->has_internal_events.lock(
             [](bool& value) { value = false; });
       });
+}
+
+BufferRegistry& EditorState::buffer_registry() {
+  return buffer_registry_.ptr().value();
 }
 
 }  // namespace afc::editor

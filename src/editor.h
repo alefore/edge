@@ -40,6 +40,7 @@ class Environment;
 namespace afc::editor {
 
 class Buffercontents;
+class BufferRegistry;
 enum class CommandArgumentModeApplyMode;
 
 class EditorState {
@@ -148,6 +149,8 @@ class EditorState {
   void ResetDirection();
   Direction default_direction() const;
   void set_default_direction(Direction direction);
+
+  BufferRegistry& buffer_registry();
 
   std::optional<size_t> repetitions() const;
   void ResetRepetitions();
@@ -298,6 +301,8 @@ class EditorState {
   InsertHistory insert_history_;
 
   BuffersList buffer_tree_;
+
+  const language::gc::Root<BufferRegistry> buffer_registry_;
 };
 
 }  // namespace afc::editor
