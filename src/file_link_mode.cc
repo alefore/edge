@@ -64,6 +64,7 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Intersperse;
@@ -482,44 +483,50 @@ gc::Root<OpenBuffer> CreateBuffer(
         options.editor_state.GetUnusedBufferName(L"anonymous buffer");
   }
 
-  gc::Root<OpenBuffer> buffer =
-      options.editor_state.FindOrBuildBuffer(buffer_options->name, [&] {
+  gc::Ptr<OpenBuffer> buffer = VisitOptional(
+      [&](Path path) {
+        return options.editor_state.buffer_registry().MaybeAddFile(path, [&] {
+          gc::Root<OpenBuffer> output = OpenBuffer::New(buffer_options.value());
+          output.ptr()->Set(buffer_variables::persist_state, true);
+          output.ptr()->Reload();
+          return output;
+        });
+      },
+      [&] {
         gc::Root<OpenBuffer> output = OpenBuffer::New(buffer_options.value());
-        if (buffer_options->path.has_value())
-          options.editor_state.buffer_registry().AddFile(
-              buffer_options->path.value(), output.ptr());
         output.ptr()->Set(buffer_variables::persist_state, true);
         output.ptr()->Reload();
-        return output;
-      });
-  buffer.ptr()->ResetMode();
+        options.editor_state.buffer_registry().AddAnonymous(output.ptr());
+        return output.ptr();
+      },
+      buffer_options->path);
+  buffer->ResetMode();
 
   if (resolve_path_output.has_value() &&
       resolve_path_output->position.has_value()) {
-    buffer.ptr()->set_position(*resolve_path_output->position);
+    buffer->set_position(*resolve_path_output->position);
   }
 
-  options.editor_state.AddBuffer(buffer, options.insertion_type);
+  options.editor_state.AddBuffer(buffer.ToRoot(), options.insertion_type);
 
   if (resolve_path_output.has_value() &&
       resolve_path_output->pattern.has_value() &&
       !resolve_path_output->pattern->IsEmpty()) {
     SearchOptions search_options =
-        SearchOptions{.starting_position = buffer.ptr()->position(),
+        SearchOptions{.starting_position = buffer->position(),
                       .search_query = resolve_path_output->pattern.value()};
     std::visit(
         overload{[&](LineColumn position) {
-                   buffer.ptr()->set_position(position);
+                   buffer->set_position(position);
                    editor_state.PushCurrentPosition();
                  },
                  [&buffer](Error error) {
-                   buffer.ptr()->status().SetInformationText(
-                       Line(error.read()));
+                   buffer->status().SetInformationText(Line(error.read()));
                  }},
         GetNextMatch(options.editor_state.modifiers().direction, search_options,
-                     buffer.ptr()->contents().snapshot()));
+                     buffer->contents().snapshot()));
   }
-  return buffer;
+  return buffer.ToRoot();
 }
 
 futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
