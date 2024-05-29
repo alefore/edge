@@ -24,4 +24,12 @@ BufferRegistry::Expand() const {
   return output;
 }
 
+void BufferRegistry::SetPaste(language::gc::Ptr<OpenBuffer> buffer) {
+  paste_ = std::move(buffer);
+}
+
+std::optional<language::gc::Ptr<OpenBuffer>> BufferRegistry::paste() const {
+  return paste_;
+}
+
 }  // namespace afc::editor

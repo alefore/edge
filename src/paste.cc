@@ -1,6 +1,7 @@
 #include "src/paste.h"
 
 #include "src/buffer_name.h"
+#include "src/buffer_registry.h"
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/language/gc.h"
@@ -35,8 +36,9 @@ class Paste : public Command {
   std::wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(ExtendedChar) override {
-    auto it = editor_state_.buffers()->find(BufferName::PasteBuffer());
-    if (it == editor_state_.buffers()->end()) {
+    std::optional<gc::Ptr<OpenBuffer>> paste_buffer =
+        editor_state_.buffer_registry().paste();
+    if (paste_buffer == std::nullopt) {
       LOG(INFO) << "Attempted to paste without a paste buffer.";
       const static std::wstring errors[] = {
           L"No text to paste.",
@@ -60,10 +62,10 @@ class Paste : public Command {
       }
       return;
     }
-    gc::Root<OpenBuffer> paste_buffer = it->second;
     editor_state_
         .ForEachActiveBuffer([&editor_state = editor_state_,
-                              paste_buffer](OpenBuffer& buffer) {
+                              paste_buffer =
+                                  paste_buffer->ToRoot()](OpenBuffer& buffer) {
           if (&paste_buffer.ptr().value() == &buffer) {
             LOG(INFO) << "Attempted to paste into paste buffer.";
             const static std::wstring errors[] = {
@@ -131,9 +133,7 @@ bool tests_registration = tests::Register(
             NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
             gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
                 {.editor = editor.value(), .name = BufferName::PasteBuffer()});
-            editor->buffers()->insert_or_assign(
-                paste_buffer_root.ptr()->name(),
-                paste_buffer_root.ptr().ToRoot());
+            editor->buffer_registry().SetPaste(paste_buffer_root.ptr());
 
             paste_buffer_root.ptr()->AppendLine(LazyString{L"Foo"});
             paste_buffer_root.ptr()->AppendLine(LazyString{L"Bar"});
@@ -157,8 +157,7 @@ bool tests_registration = tests::Register(
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
             {.editor = editor.value(), .name = BufferName::PasteBuffer()});
-        editor->buffers()->insert_or_assign(paste_buffer_root.ptr()->name(),
-                                            paste_buffer_root.ptr().ToRoot());
+        editor->buffer_registry().SetPaste(paste_buffer_root.ptr());
 
         paste_buffer_root.ptr()->AppendLine(LazyString{L"Foo"});
         paste_buffer_root.ptr()->AppendLine(LazyString{L"Bar"});

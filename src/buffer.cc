@@ -21,6 +21,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/buffer_contents_util.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_vm.h"
 #include "src/editor.h"
@@ -2370,8 +2371,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
           } else if (auto paste_buffer =
                          editor().buffers()->find(kFuturePasteBuffer);
                      paste_buffer != editor().buffers()->end()) {
-            editor().buffers()->insert_or_assign(
-                BufferName::PasteBuffer(), paste_buffer->second.ptr().ToRoot());
+            editor().buffer_registry().SetPaste(paste_buffer->second.ptr());
             paste_buffer->second.ptr()->Set(buffer_variables::name,
                                             BufferName::PasteBuffer().read());
             editor().buffers()->erase(paste_buffer);
