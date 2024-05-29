@@ -7,12 +7,14 @@
 #include <iostream>
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/overload.h"
 #include "src/line_marks.h"
 #include "src/line_with_cursor.h"
 #include "src/parse_tree.h"
@@ -22,13 +24,19 @@
 namespace gc = afc::language::gc;
 namespace container = afc::language::container;
 
+using afc::infrastructure::Path;
 using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::CursorsSet;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::CaptureAndHash;
+using afc::language::IgnoreErrors;
+using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -444,16 +452,23 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   for (const auto& mark : marks) {
     static Tracker tracker(L"BufferMetadataOutput::Prepare:AddMetadataForMark");
     auto call = tracker.Call();
-    auto source = options.buffer.editor().buffers()->find(mark.source_buffer);
-    output.push_back(MetadataLine{
-        output.empty() ? L'!' : L' ',
-        output.empty() ? LineModifier::kRed : LineModifier::kDim,
-        (source != options.buffer.editor().buffers()->end() &&
-         mark.source_line <
-             LineNumber(0) + source->second.ptr()->contents().size())
-            ? source->second.ptr()->contents().at(mark.source_line)
-            : Line(L"(dead mark)"),
-        MetadataLine::Type::kMark});
+    std::visit(
+        overload{[&](Path mark_source_path) {
+                   std::optional<gc::Ptr<OpenBuffer>> source =
+                       options.buffer.editor().buffer_registry().FindFile(
+                           mark_source_path);
+                   output.push_back(MetadataLine{
+                       output.empty() ? L'!' : L' ',
+                       output.empty() ? LineModifier::kRed : LineModifier::kDim,
+                       (source.has_value() &&
+                        mark.source_line <
+                            LineNumber(0) + (*source)->contents().size())
+                           ? (*source)->contents().at(mark.source_line)
+                           : Line(L"(dead mark)"),
+                       MetadataLine::Type::kMark});
+                 },
+                 IgnoreErrors{}},
+        Path::FromString(mark.source_buffer.read()));
   }
 
   // When an expired mark appears again, no need to show it redundantly (as
@@ -461,14 +476,23 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   // TODO(easy, 2023-12-14): This should use Line directly?
   std::set<std::wstring> marks_strings;
   for (const auto& mark : marks) {
-    if (auto source =
-            options.buffer.editor().buffers()->find(mark.source_buffer);
-        source != options.buffer.editor().buffers()->end() &&
-        mark.source_line <
-            LineNumber(0) + source->second.ptr()->contents().size()) {
-      marks_strings.insert(
-          source->second.ptr()->contents().at(mark.source_line).ToString());
-    }
+    std::visit(
+        overload{
+            [&](Path mark_source_path) {
+              VisitOptional(
+                  [&](gc::Ptr<OpenBuffer> source) {
+                    if (mark.source_line <
+                        LineNumber(0) + source->contents().size()) {
+                      marks_strings.insert(
+                          source->contents().at(mark.source_line).ToString());
+                    }
+                  },
+                  [] {},
+                  options.buffer.editor().buffer_registry().FindFile(
+                      mark_source_path));
+            },
+            IgnoreErrors{}},
+        Path::FromString(mark.source_buffer.read()));
   }
 
   for (const auto& mark : expired_marks) {
