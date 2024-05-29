@@ -8,9 +8,14 @@ using afc::language::NonNull;
 using afc::language::VisitOptional;
 
 namespace afc::editor {
-void BufferRegistry::SetInitialCommands(language::gc::Ptr<OpenBuffer> buffer) {
+void BufferRegistry::SetInitialCommands(gc::Ptr<OpenBuffer> buffer) {
   CHECK(initial_commands_ == std::nullopt);
   initial_commands_ = std::move(buffer);
+}
+
+void BufferRegistry::AddFile(infrastructure::Path path,
+                             gc::Ptr<OpenBuffer> buffer) {
+  files_.insert({path, std::move(buffer)});
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
@@ -24,11 +29,11 @@ BufferRegistry::Expand() const {
   return output;
 }
 
-void BufferRegistry::SetPaste(language::gc::Ptr<OpenBuffer> buffer) {
+void BufferRegistry::SetPaste(gc::Ptr<OpenBuffer> buffer) {
   paste_ = std::move(buffer);
 }
 
-std::optional<language::gc::Ptr<OpenBuffer>> BufferRegistry::paste() const {
+std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::paste() const {
   return paste_;
 }
 

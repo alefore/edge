@@ -20,6 +20,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command_argument_mode.h"
 #include "src/directory_listing.h"
@@ -484,6 +485,9 @@ gc::Root<OpenBuffer> CreateBuffer(
   gc::Root<OpenBuffer> buffer =
       options.editor_state.FindOrBuildBuffer(buffer_options->name, [&] {
         gc::Root<OpenBuffer> output = OpenBuffer::New(buffer_options.value());
+        if (buffer_options->path.has_value())
+          options.editor_state.buffer_registry().AddFile(
+              buffer_options->path.value(), output.ptr());
         output.ptr()->Set(buffer_variables::persist_state, true);
         output.ptr()->Reload();
         return output;
