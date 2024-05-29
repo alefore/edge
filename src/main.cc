@@ -200,13 +200,13 @@ void RedrawScreens(const CommandLineValues& args,
 
   TRACK_OPERATION(Main_RedrawScreens_RemoteScreens);
   VLOG(5) << "Updating remote screens.";
-  for (OpenBuffer& buffer :
-       *editor_state().buffers() | std::views::values | gc::view::Value) {
+  for (gc::Ptr<OpenBuffer> buffer :
+       editor_state().buffer_registry().buffers()) {
     static const afc::vm::Namespace kEmptyNamespace;
     std::optional<gc::Root<afc::vm::Value>> value =
-        buffer.environment()->Lookup(editor_state().gc_pool(), kEmptyNamespace,
-                                     vm::Identifier(L"screen"),
-                                     GetScreenVmType());
+        buffer->environment()->Lookup(editor_state().gc_pool(), kEmptyNamespace,
+                                      vm::Identifier(L"screen"),
+                                      GetScreenVmType());
     if (!value.has_value() ||
         value.value().ptr()->type != afc::vm::Type{GetScreenVmType()}) {
       continue;
@@ -217,7 +217,7 @@ void RedrawScreens(const CommandLineValues& args,
     if (&buffer_screen.value() == screen_curses) {
       continue;
     }
-    LOG(INFO) << "Remote screen for buffer: " << buffer.name();
+    LOG(INFO) << "Remote screen for buffer: " << buffer->name();
     terminal->Display(editor_state(), buffer_screen.value(),
                       screen_state.value());
   }

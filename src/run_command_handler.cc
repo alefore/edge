@@ -19,6 +19,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
@@ -657,14 +658,14 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
       options.name.value_or(BufferName(L"$ " + options.command.ToString()));
   if (options.existing_buffer_behavior ==
       ForkCommandOptions::ExistingBufferBehavior::kReuse) {
-    if (auto it = editor_state.buffers()->find(name);
-        it != editor_state.buffers()->end()) {
-      gc::Root<OpenBuffer> buffer = it->second;
-      buffer.ptr()->ResetMode();
-      buffer.ptr()->Reload();
-      buffer.ptr()->set_current_position_line(LineNumber(0));
-      editor_state.AddBuffer(buffer, options.insertion_type);
-      return buffer;
+    if (std::optional<gc::Ptr<OpenBuffer>> buffer =
+            editor_state.buffer_registry().FindCommand(options.command);
+        buffer.has_value()) {
+      (*buffer)->ResetMode();
+      (*buffer)->Reload();
+      (*buffer)->set_current_position_line(LineNumber(0));
+      editor_state.AddBuffer(buffer->ToRoot(), options.insertion_type);
+      return buffer->ToRoot();
     }
   }
 
@@ -685,6 +686,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   buffer.ptr()->Reload();
 
   editor_state.AddBuffer(buffer, options.insertion_type);
+  editor_state.buffer_registry().AddCommand(options.command, buffer.ptr());
   return buffer;
 }
 

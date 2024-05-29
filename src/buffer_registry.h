@@ -7,6 +7,7 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/once_only_function.h"
 
 namespace afc::editor {
@@ -18,6 +19,9 @@ class BufferRegistry {
 
   std::map<infrastructure::Path, language::gc::Ptr<OpenBuffer>> files_;
   std::map<infrastructure::Path, language::gc::Ptr<OpenBuffer>> servers_;
+  std::unordered_map<language::lazy_string::LazyString,
+                     language::gc::Ptr<OpenBuffer>>
+      commands_;
 
   std::vector<language::gc::Ptr<OpenBuffer>> anonymous_;
 
@@ -38,6 +42,12 @@ class BufferRegistry {
 
   void AddServer(infrastructure::Path path,
                  language::gc::Ptr<OpenBuffer> buffer);
+
+  void AddCommand(language::lazy_string::LazyString command,
+                  language::gc::Ptr<OpenBuffer> buffer);
+
+  std::optional<language::gc::Ptr<OpenBuffer>> FindCommand(
+      language::lazy_string::LazyString command);
 
   // Return a vector containing all buffers.
   std::vector<language::gc::Ptr<OpenBuffer>> buffers() const;

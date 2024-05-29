@@ -2,6 +2,7 @@
 
 #include "src/language/container.h"
 #include "src/language/gc_view.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
 
@@ -41,6 +42,19 @@ void BufferRegistry::AddServer(Path address, gc::Ptr<OpenBuffer> buffer) {
   servers_.insert({address, std::move(buffer)});
 }
 
+void BufferRegistry::AddCommand(language::lazy_string::LazyString command,
+                                language::gc::Ptr<OpenBuffer> buffer) {
+  // TODO(2024-05-30, trivial): Override it if it already existed.
+  commands_.insert({command, buffer});
+}
+
+std::optional<language::gc::Ptr<OpenBuffer>> BufferRegistry::FindCommand(
+    language::lazy_string::LazyString command) {
+  if (auto it = commands_.find(command); it != commands_.end())
+    return it->second;
+  return std::nullopt;
+}
+
 std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
   std::vector<gc::Ptr<OpenBuffer>> output;
   VisitOptional(
@@ -54,6 +68,9 @@ std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
 
   auto servers_values = servers_ | std::views::values;
   output.insert(output.end(), servers_values.begin(), servers_values.end());
+
+  auto commands_values = commands_ | std::views::values;
+  output.insert(output.end(), commands_values.begin(), commands_values.end());
 
   output.insert(output.end(), anonymous_.begin(), anonymous_.end());
   return output;

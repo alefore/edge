@@ -1030,8 +1030,8 @@ void EditorState::ExecutionIteration(
   // pending work updates may have visible effects.
   ExecutePendingWork();
 
-  for (OpenBuffer& buffer : *buffers() | std::views::values | gc::view::Value)
-    buffer.AddExecutionHandlers(handler);
+  for (gc::Ptr<OpenBuffer>& buffer : buffer_registry().buffers())
+    buffer->AddExecutionHandlers(handler);
 
   handler.AddHandler(
       shared_data_->pipe_to_communicate_internal_events.first, POLLIN | POLLPRI,
