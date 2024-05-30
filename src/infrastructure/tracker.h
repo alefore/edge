@@ -1,3 +1,10 @@
+// Tracks number of times an operation happens (globally), as well as total time
+// spent executing it.
+//
+// Example:
+//
+//     TRACK_OPERATION(BufferMetadataOutput_Prepare_AddMetadataForMark);
+
 #ifndef __AFC_EDITOR_SRC_TRACKERS_H__
 #define __AFC_EDITOR_SRC_TRACKERS_H__
 
@@ -10,9 +17,6 @@
 
 namespace afc::infrastructure {
 
-// Tracks number of times an operation happens (globally), as well as total time
-// spent executing it.
-//
 // When an operation starts, just call tracker. Capture the returned value and
 // discard it when the operation completes:
 //
