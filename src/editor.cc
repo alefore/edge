@@ -510,18 +510,6 @@ futures::Value<EmptyValue> EditorState::ApplyToActiveBuffers(
       });
 }
 
-BufferName GetBufferName(const std::wstring& prefix, size_t count) {
-  return BufferName(prefix + L" " + std::to_wstring(count));
-}
-
-BufferName EditorState::GetUnusedBufferName(const std::wstring& prefix) {
-  size_t count = 0;
-  while (buffers()->find(GetBufferName(prefix, count)) != buffers()->end()) {
-    count++;
-  }
-  return GetBufferName(prefix, count);
-}
-
 void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 
 std::optional<LazyString> EditorState::GetExitNotice() const {

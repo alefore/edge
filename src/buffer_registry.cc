@@ -16,11 +16,6 @@ using afc::language::OnceOnlyFunction;
 using afc::language::VisitOptional;
 
 namespace afc::editor {
-void BufferRegistry::SetInitialCommands(gc::Ptr<OpenBuffer> buffer) {
-  CHECK(initial_commands_ == std::nullopt);
-  initial_commands_ = std::move(buffer);
-}
-
 gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
     const BufferName& id, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
   // TODO(trivial, 2024-05-30): Only traverse the map once.
@@ -58,11 +53,6 @@ std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
       [&output](gc::Ptr<OpenBuffer> buffer) {
         output.push_back(buffer.ToRoot());
       },
-      [] {}, initial_commands_);
-  VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) {
-        output.push_back(buffer.ToRoot());
-      },
       [] {}, paste_);
   return output;
 }
@@ -70,11 +60,6 @@ std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
-  VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) {
-        output.push_back(buffer.object_metadata());
-      },
-      [] {}, initial_commands_);
   VisitOptional(
       [&output](gc::Ptr<OpenBuffer> buffer) {
         output.push_back(buffer.object_metadata());

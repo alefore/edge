@@ -12,19 +12,25 @@ using ::operator<<;
 std::wstring to_wstring(const BufferName& p) {
   return std::visit(
       overload{
-          [&](const BufferFileId& i) { return to_wstring(i); },
-          [&](const BufferListId&) -> std::wstring { return L"- buffers"; },
-          [&](const PasteBuffer&) -> std::wstring { return L"- paste buffer"; },
-          [&](const TextInsertion&) -> std::wstring {
+          [](const BufferFileId& i) { return to_wstring(i); },
+          [](const BufferListId&) -> std::wstring { return L"- buffers"; },
+          [](const PasteBuffer&) -> std::wstring { return L"- paste buffer"; },
+          [](const TextInsertion&) -> std::wstring {
             return L"- text inserted";
           },
-          [&](const CommandBufferName& input) -> std::wstring {
+          [](const InitialCommands&) -> std::wstring {
+            return L"- initial commands";
+          },
+          [](const ServerBufferName& input) -> std::wstring {
+            return L"@ " + to_wstring(input);
+          },
+          [](const CommandBufferName& input) -> std::wstring {
             return L"$ " + to_wstring(input);
           },
-          [&](const AnonymousBufferName& input) -> std::wstring {
+          [](const AnonymousBufferName& input) -> std::wstring {
             return L"anonymous buffer " + to_wstring(input);
           },
-          [&](const std::wstring& str) { return str; },
+          [](const std::wstring& str) { return str; },
       },
       p);
 }

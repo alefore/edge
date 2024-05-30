@@ -28,6 +28,13 @@ struct TextInsertion {
   bool operator<(const TextInsertion&) const { return false; }
 };
 
+struct InitialCommands {
+  bool operator==(const InitialCommands&) const { return true; }
+  bool operator<(const InitialCommands&) const { return false; }
+};
+
+GHOST_TYPE(ServerBufferName, infrastructure::Path);
+
 // TODO(trivial, 2024-05-30): Turn this into LazyString?
 GHOST_TYPE(CommandBufferName, std::wstring);
 
@@ -35,7 +42,8 @@ GHOST_TYPE(AnonymousBufferName, size_t);
 
 using BufferName =
     std::variant<BufferFileId, PasteBuffer, BufferListId, TextInsertion,
-                 CommandBufferName, AnonymousBufferName, std::wstring>;
+                 InitialCommands, ServerBufferName, CommandBufferName,
+                 AnonymousBufferName, std::wstring>;
 
 std::wstring to_wstring(const BufferName&);
 
@@ -43,6 +51,7 @@ std::ostream& operator<<(std::ostream& os, const BufferName& p);
 }  // namespace afc::editor
 
 GHOST_TYPE_TOP_LEVEL(afc::editor::BufferFileId);
+GHOST_TYPE_TOP_LEVEL(afc::editor::ServerBufferName);
 GHOST_TYPE_TOP_LEVEL(afc::editor::CommandBufferName);
 GHOST_TYPE_TOP_LEVEL(afc::editor::AnonymousBufferName);
 
@@ -60,6 +69,11 @@ struct hash<afc::editor::BufferListId> {
 template <>
 struct hash<afc::editor::TextInsertion> {
   size_t operator()(const afc::editor::TextInsertion&) const { return 0; }
+};
+
+template <>
+struct hash<afc::editor::InitialCommands> {
+  size_t operator()(const afc::editor::InitialCommands&) const { return 0; }
 };
 }  // namespace std
 

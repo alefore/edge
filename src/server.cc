@@ -235,7 +235,7 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
 void OpenServerBuffer(EditorState& editor_state, const Path& address) {
   gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
       OpenBuffer::Options{.editor = editor_state,
-                          .name = editor_state.GetUnusedBufferName(L"- server"),
+                          .name = ServerBufferName{address},
                           .path = address,
                           .generate_contents = GenerateContents});
   OpenBuffer& buffer = buffer_root.ptr().value();

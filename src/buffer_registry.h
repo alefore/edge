@@ -14,8 +14,6 @@
 namespace afc::editor {
 class OpenBuffer;
 class BufferRegistry {
-  std::optional<language::gc::Ptr<OpenBuffer>> initial_commands_;
-
   std::optional<language::gc::Ptr<OpenBuffer>> paste_;
 
   // Q: Why does this use WeakPtr (rather than Ptr)?
@@ -27,8 +25,6 @@ class BufferRegistry {
   size_t next_anonymous_buffer_name_ = 0;
 
  public:
-  void SetInitialCommands(language::gc::Ptr<OpenBuffer> buffer);
-
   void SetPaste(language::gc::Ptr<OpenBuffer> buffer);
   std::optional<language::gc::Ptr<OpenBuffer>> paste() const;
 

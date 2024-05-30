@@ -312,12 +312,11 @@ int main(int argc, const char** argv) {
       CHECK(!IsError(
           SyncSendCommandsToServer(remote_server_fd.value(), commands_to_run)));
     } else {
-      BufferName name =
-          editor_state().GetUnusedBufferName(L"- initial-commands");
-      gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(
-          OpenBuffer::Options{.editor = editor_state(), .name = name});
+      gc::Root<OpenBuffer> buffer_root = OpenBuffer::New(OpenBuffer::Options{
+          .editor = editor_state(), .name = InitialCommands{}});
       buffer_root.ptr()->EvaluateString(commands_to_run);
-      editor_state().buffer_registry().SetInitialCommands(buffer_root.ptr());
+      editor_state().buffer_registry().Add(buffer_root.ptr()->name(),
+                                           buffer_root.ptr().ToWeakPtr());
     }
   }
 
