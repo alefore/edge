@@ -512,5 +512,12 @@ const bool position_after_tests_registration = tests::Register(
                      {LineNumber(25), ColumnNumber(30)}),
                  LineColumn(LineNumber(2), ColumnNumber(sizeof("cuervo") - 1)));
       }}});
-}
+
+const bool line_sequence_iterator_tests_registration = tests::Register(
+    L"LineSequenceIterator", {{.name = L"EndSubtract", .callback = [] {
+                                 LineSequence lines;
+                                 CHECK_EQ(lines.end() - lines.end(), 0);
+                               }}});
+
+}  // namespace
 }  // namespace afc::language::text
