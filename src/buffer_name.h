@@ -28,8 +28,11 @@ struct TextInsertion {
   bool operator<(const TextInsertion&) const { return false; }
 };
 
+// TODO(trivial, 2024-05-30): Turn this into LazyString?
+GHOST_TYPE(CommandBufferName, std::wstring);
+
 using BufferName = std::variant<BufferFileId, PasteBuffer, BufferListId,
-                                TextInsertion, std::wstring>;
+                                TextInsertion, CommandBufferName, std::wstring>;
 
 std::wstring to_wstring(const BufferName&);
 
@@ -37,6 +40,7 @@ std::ostream& operator<<(std::ostream& os, const BufferName& p);
 }  // namespace afc::editor
 
 GHOST_TYPE_TOP_LEVEL(afc::editor::BufferFileId);
+GHOST_TYPE_TOP_LEVEL(afc::editor::CommandBufferName);
 
 namespace std {
 template <>

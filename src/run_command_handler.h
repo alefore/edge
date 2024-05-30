@@ -28,6 +28,8 @@ struct ForkCommandOptions {
   // The command to run.
   language::lazy_string::LazyString command;
 
+  // TODO(trivial, 2024-05-30): Get rid of this. The name should come always
+  // from the command.
   std::optional<BufferName> name = std::nullopt;
 
   // Additional environment variables (e.g. getenv) to give to the command.

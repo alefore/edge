@@ -613,7 +613,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
                              std::wstring)>(
               [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                  std::wstring value) {
-                options->name = BufferName(std::move(value));
+                options->name = CommandBufferName(std::move(value));
               }))
           .ptr());
 
@@ -654,9 +654,8 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 
 gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                  const ForkCommandOptions& options) {
-  // TODO(trivial, 2024-05-30): Avoid the std::wstring version of BufferName.
-  BufferName name =
-      options.name.value_or(BufferName(L"$ " + options.command.ToString()));
+  BufferName name = options.name.value_or(
+      CommandBufferName{L"$ " + options.command.ToString()});
   if (options.existing_buffer_behavior ==
       ForkCommandOptions::ExistingBufferBehavior::kReuse) {
     if (std::optional<gc::Ptr<OpenBuffer>> buffer =
