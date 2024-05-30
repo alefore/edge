@@ -30,7 +30,7 @@ std::wstring to_wstring(const BufferName& p) {
           [](const AnonymousBufferName& input) -> std::wstring {
             return L"anonymous buffer " + to_wstring(input);
           },
-          [](const std::wstring& str) { return str; },
+          [](const std::wstring& str) { return L"[" + str + L"]"; },
       },
       p);
 }
