@@ -4,6 +4,7 @@
 
 #include "src/args.h"
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/editor.h"
 #include "src/infrastructure/execution.h"
 #include "src/language/wstring.h"
@@ -29,10 +30,10 @@ bool server_tests_registration = tests::Register(
             .name = name, .callback = [name, args, stop] {
               language::NonNull<std::unique_ptr<EditorState>> editor =
                   EditorForTests();
-              CHECK_EQ(editor->buffers()->size(), 0ul);
+              CHECK_EQ(editor->buffer_registry().buffers().size(), 0ul);
               infrastructure::Path server_address =
                   ValueOrDie(StartServer(editor.value(), std::nullopt));
-              CHECK_EQ(editor->buffers()->size(), 1ul);
+              CHECK_EQ(editor->buffer_registry().buffers().size(), 1ul);
               CHECK(!editor->exit_value().has_value());
 
               size_t iteration = 0;
@@ -77,5 +78,5 @@ bool server_tests_registration = tests::Register(
                            has_buffer(BufferName(L"/tmp"), editor);
                   })};
     }));
-}
+}  // namespace
 }  // namespace afc::editor
