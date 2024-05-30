@@ -90,15 +90,8 @@ class LineSequence {
 
 class LineSequenceIterator {
  private:
-  struct Data {
-    LineSequence container;
-    LineNumber position;
-    bool operator==(const Data& other) const {
-      return container.lines_ == other.container.lines_ &&
-             position == other.position;
-    }
-  };
-  std::optional<Data> data_;
+  LineSequence container_;
+  LineNumber position_;
 
  public:
   LineSequenceIterator() {}
@@ -113,12 +106,9 @@ class LineSequenceIterator {
   using reference = value_type&;
 
   LineSequenceIterator(LineSequence container, LineNumber position)
-      : data_(Data{.container = std::move(container), .position = position}) {}
+      : container_(std::move(container)), position_(position) {}
 
-  Line operator*() const {
-    CHECK(data_.has_value());
-    return data_->container.at(data_->position);
-  }
+  Line operator*() const { return container_.at(position_); }
 
   bool operator!=(const LineSequenceIterator& other) const {
     return !(*this == other);
@@ -126,12 +116,12 @@ class LineSequenceIterator {
 
   bool operator==(const LineSequenceIterator& other) const {
     if (IsAtEnd() || other.IsAtEnd()) return IsAtEnd() && other.IsAtEnd();
-    return data_.value() == other.data_.value();
+    return container_.lines_ == other.container_.lines_ &&
+           position_ == other.position_;
   }
 
   LineSequenceIterator& operator++() {  // Prefix increment.
-    ++data_->position;
-    // TODO: If we get to the end, we must reset data_->container.
+    ++position_;
     return *this;
   }
 
@@ -142,25 +132,20 @@ class LineSequenceIterator {
   }
 
   int operator-(const LineSequenceIterator& other) const {
-    CHECK(data_->container.lines_ == other.data_->container.lines_);
-    return (data_->position - other.data_->position).read();
+    CHECK(container_.lines_ == other.container_.lines_);
+    return (position_ - other.position_).read();
   }
 
   LineSequenceIterator operator+(int n) const {
-    return LineSequenceIterator(data_->container,
-                                data_->position + LineNumberDelta(n));
+    return LineSequenceIterator(container_, position_ + LineNumberDelta(n));
   }
 
   LineSequenceIterator operator+(int n) {
-    return LineSequenceIterator(data_->container,
-                                data_->position + LineNumberDelta(n));
+    return LineSequenceIterator(container_, position_ + LineNumberDelta(n));
   }
 
  private:
-  bool IsAtEnd() const {
-    return data_ == std::nullopt ||
-           data_->position.ToDelta() >= data_->container.size();
-  }
+  bool IsAtEnd() const { return position_.ToDelta() >= container_.size(); }
 };
 
 }  // namespace afc::language::text
