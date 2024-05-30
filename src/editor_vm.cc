@@ -7,6 +7,7 @@
 #include "src/infrastructure/dirname_vm.h"
 #include "src/infrastructure/extended_char_vm.h"
 #include "src/insert_history_buffer.h"
+#include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line_column_vm.h"
@@ -23,6 +24,8 @@
 #include "src/vm/callbacks.h"
 #include "src/vm/default_environment.h"
 #include "src/vm/file_system.h"
+
+namespace container = afc::language::container;
 
 using afc::concurrent::MakeProtected;
 using afc::infrastructure::ControlChar;
@@ -330,22 +333,24 @@ gc::Root<Environment> BuildEditorEnvironment(
       vm::NewCallback(
           pool, PurityType::kUnknown,
           [](EditorState& editor_arg,
-             NonNull<std::shared_ptr<Protected<std::set<std::wstring>>>>
+             NonNull<
+                 std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
                  buffers_to_wait) {
-            auto values =
-                std::make_shared<std::vector<futures::Value<EmptyValue>>>();
-            buffers_to_wait->lock([&values, &editor_arg](
-                                      std::set<std::wstring> buffers) {
-              for (const auto& buffer_name_str : buffers)
-                if (auto buffer_it =
-                        editor_arg.buffers()->find(BufferName(buffer_name_str));
-                    buffer_it != editor_arg.buffers()->end())
-                  values->push_back(buffer_it->second.ptr()->NewCloseFuture());
-            });
-
             return futures::ForEach(
-                       values,
-                       [values](futures::Value<EmptyValue>& future) {
+                       std::make_shared<
+                           std::vector<futures::Value<EmptyValue>>>(
+                           buffers_to_wait->lock(
+                               [&editor_arg](
+                                   const std::vector<gc::Ptr<OpenBuffer>>&
+                                       buffers) {
+                                 return container::MaterializeVector(
+                                     buffers |
+                                     std::views::transform(
+                                         [](gc::Ptr<OpenBuffer> buffer) {
+                                           return buffer->NewCloseFuture();
+                                         }));
+                               })),
+                       [](futures::Value<EmptyValue>& future) {
                          return std::move(future).Transform([](EmptyValue) {
                            return futures::IterationControlCommand::kContinue;
                          });

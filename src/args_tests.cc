@@ -66,7 +66,10 @@ bool server_tests_registration = tests::Register(
       };
       auto has_buffer = [](const BufferName& name,
                            const EditorState& editor) -> bool {
-        return editor.buffer_registry().Find(name).has_value();
+        const bool result = editor.buffer_registry().Find(name).has_value();
+        LOG(INFO) << "Checking for: " << name << ": "
+                  << (result ? "present" : "absent");
+        return result;
       };
       return {add_test(
                   L"DefaultArguments", [] { return CommandLineValues(); },
