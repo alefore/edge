@@ -34,7 +34,8 @@ class BufferRegistry {
 
   void Add(const BufferName& name, language::gc::Ptr<OpenBuffer> buffer);
 
-  std::optional<language::gc::Ptr<OpenBuffer>> Find(const BufferName& name);
+  std::optional<language::gc::Ptr<OpenBuffer>> Find(
+      const BufferName& name) const;
 
   AnonymousBufferName NewAnonymousBufferName();
 

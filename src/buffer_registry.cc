@@ -35,7 +35,7 @@ void BufferRegistry::Add(const BufferName& name, gc::Ptr<OpenBuffer> buffer) {
 }
 
 std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::Find(
-    const BufferName& name) {
+    const BufferName& name) const {
   if (auto it = buffer_map_.find(name); it != buffer_map_.end())
     return it->second;
   return std::nullopt;
