@@ -595,14 +595,11 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 
   fork_command_options.ptr()->AddField(
       vm::Identifier(L"set_command"),
-      NewCallback(
-          pool, vm::PurityType::kUnknown,
-          std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
-                             std::wstring)>(
-              [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring value) {
-                options->command = LazyString{std::move(value)};
-              }))
+      NewCallback(pool, vm::PurityType::kUnknown,
+                  [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                     std::wstring value) {
+                    options->command = LazyString{std::move(value)};
+                  })
           .ptr());
 
   fork_command_options.ptr()->AddField(
@@ -618,32 +615,26 @@ void ForkCommandOptions::Register(gc::Pool& pool,
       vm::Identifier(L"set_insertion_type"),
       NewCallback(
           pool, vm::PurityType::kUnknown,
-          std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
-                             std::wstring)>(
-              [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring value) {
-                if (value == L"visit") {
-                  options->insertion_type = BuffersList::AddBufferType::kVisit;
-                } else if (value == L"only_list") {
-                  options->insertion_type =
-                      BuffersList::AddBufferType::kOnlyList;
-                } else if (value == L"ignore") {
-                  options->insertion_type = BuffersList::AddBufferType::kIgnore;
-                }
-              }))
+          [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+             std::wstring value) {
+            if (value == L"visit") {
+              options->insertion_type = BuffersList::AddBufferType::kVisit;
+            } else if (value == L"only_list") {
+              options->insertion_type = BuffersList::AddBufferType::kOnlyList;
+            } else if (value == L"ignore") {
+              options->insertion_type = BuffersList::AddBufferType::kIgnore;
+            }
+          })
           .ptr());
 
   fork_command_options.ptr()->AddField(
       vm::Identifier(L"set_children_path"),
-      NewCallback(
-          pool, vm::PurityType::kUnknown,
-          std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
-                             std::wstring)>(
-              [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring value) {
-                options->children_path =
-                    OptionalFrom(Path::FromString(std::move(value)));
-              }))
+      NewCallback(pool, vm::PurityType::kUnknown,
+                  [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                     std::wstring value) {
+                    options->children_path =
+                        OptionalFrom(Path::FromString(std::move(value)));
+                  })
           .ptr());
 
   environment.DefineType(fork_command_options.ptr());
