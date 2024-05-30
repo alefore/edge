@@ -45,19 +45,6 @@ void BufferRegistry::AddAnonymous(gc::Ptr<OpenBuffer> buffer) {
   anonymous_.push_back(buffer);
 }
 
-void BufferRegistry::AddCommand(language::lazy_string::LazyString command,
-                                language::gc::Ptr<OpenBuffer> buffer) {
-  // TODO(2024-05-30, trivial): Override it if it already existed.
-  commands_.insert({command, buffer});
-}
-
-std::optional<language::gc::Ptr<OpenBuffer>> BufferRegistry::FindCommand(
-    language::lazy_string::LazyString command) {
-  if (auto it = commands_.find(command); it != commands_.end())
-    return it->second;
-  return std::nullopt;
-}
-
 std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
   std::vector<gc::Ptr<OpenBuffer>> output;
   VisitOptional(
@@ -69,9 +56,6 @@ std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
   auto buffer_map_values = buffer_map_ | std::views::values;
   output.insert(output.end(), buffer_map_values.begin(),
                 buffer_map_values.end());
-
-  auto commands_values = commands_ | std::views::values;
-  output.insert(output.end(), commands_values.begin(), commands_values.end());
 
   output.insert(output.end(), anonymous_.begin(), anonymous_.end());
   return output;

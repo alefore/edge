@@ -654,12 +654,13 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 
 gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                  const ForkCommandOptions& options) {
+  // TODO(trivial, 2024-05-30): Avoid the std::wstring version of BufferName.
   BufferName name =
       options.name.value_or(BufferName(L"$ " + options.command.ToString()));
   if (options.existing_buffer_behavior ==
       ForkCommandOptions::ExistingBufferBehavior::kReuse) {
     if (std::optional<gc::Ptr<OpenBuffer>> buffer =
-            editor_state.buffer_registry().FindCommand(options.command);
+            editor_state.buffer_registry().Find(name);
         buffer.has_value()) {
       (*buffer)->ResetMode();
       (*buffer)->Reload();
@@ -686,7 +687,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   buffer.ptr()->Reload();
 
   editor_state.AddBuffer(buffer, options.insertion_type);
-  editor_state.buffer_registry().AddCommand(options.command, buffer.ptr());
+  editor_state.buffer_registry().Add(name, buffer.ptr());
   return buffer;
 }
 

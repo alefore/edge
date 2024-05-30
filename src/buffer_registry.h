@@ -19,9 +19,6 @@ class BufferRegistry {
   std::optional<language::gc::Ptr<OpenBuffer>> paste_;
 
   std::map<BufferName, language::gc::Ptr<OpenBuffer>> buffer_map_;
-  std::unordered_map<language::lazy_string::LazyString,
-                     language::gc::Ptr<OpenBuffer>>
-      commands_;
 
   std::vector<language::gc::Ptr<OpenBuffer>> anonymous_;
 
@@ -40,12 +37,6 @@ class BufferRegistry {
   std::optional<language::gc::Ptr<OpenBuffer>> Find(const BufferName& name);
 
   void AddAnonymous(language::gc::Ptr<OpenBuffer> buffer);
-
-  void AddCommand(language::lazy_string::LazyString command,
-                  language::gc::Ptr<OpenBuffer> buffer);
-
-  std::optional<language::gc::Ptr<OpenBuffer>> FindCommand(
-      language::lazy_string::LazyString command);
 
   // Return a vector containing all buffers.
   std::vector<language::gc::Ptr<OpenBuffer>> buffers() const;
