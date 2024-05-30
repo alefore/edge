@@ -480,7 +480,7 @@ gc::Root<OpenBuffer> CreateBuffer(
     buffer_options->name = BufferName(buffer_options->path.value().read());
   } else {
     buffer_options->name =
-        options.editor_state.GetUnusedBufferName(L"anonymous buffer");
+        options.editor_state.buffer_registry().NewAnonymousBufferName();
   }
 
   gc::Ptr<OpenBuffer> buffer = VisitOptional(
@@ -498,7 +498,8 @@ gc::Root<OpenBuffer> CreateBuffer(
         gc::Root<OpenBuffer> output = OpenBuffer::New(buffer_options.value());
         output.ptr()->Set(buffer_variables::persist_state, true);
         output.ptr()->Reload();
-        options.editor_state.buffer_registry().AddAnonymous(output.ptr());
+        options.editor_state.buffer_registry().Add(output.ptr()->name(),
+                                                   output.ptr());
         return output.ptr();
       },
       buffer_options->path);

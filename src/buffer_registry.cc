@@ -41,8 +41,8 @@ std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::Find(
   return std::nullopt;
 }
 
-void BufferRegistry::AddAnonymous(gc::Ptr<OpenBuffer> buffer) {
-  anonymous_.push_back(buffer);
+AnonymousBufferName BufferRegistry::NewAnonymousBufferName() {
+  return AnonymousBufferName(next_anonymous_buffer_name_++);
 }
 
 std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
@@ -56,8 +56,6 @@ std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
   auto buffer_map_values = buffer_map_ | std::views::values;
   output.insert(output.end(), buffer_map_values.begin(),
                 buffer_map_values.end());
-
-  output.insert(output.end(), anonymous_.begin(), anonymous_.end());
   return output;
 }
 

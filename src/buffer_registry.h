@@ -20,7 +20,7 @@ class BufferRegistry {
 
   std::map<BufferName, language::gc::Ptr<OpenBuffer>> buffer_map_;
 
-  std::vector<language::gc::Ptr<OpenBuffer>> anonymous_;
+  size_t next_anonymous_buffer_name_ = 0;
 
  public:
   void SetInitialCommands(language::gc::Ptr<OpenBuffer> buffer);
@@ -36,7 +36,7 @@ class BufferRegistry {
 
   std::optional<language::gc::Ptr<OpenBuffer>> Find(const BufferName& name);
 
-  void AddAnonymous(language::gc::Ptr<OpenBuffer> buffer);
+  AnonymousBufferName NewAnonymousBufferName();
 
   // Return a vector containing all buffers.
   std::vector<language::gc::Ptr<OpenBuffer>> buffers() const;

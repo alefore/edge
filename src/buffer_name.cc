@@ -21,6 +21,9 @@ std::wstring to_wstring(const BufferName& p) {
           [&](const CommandBufferName& input) -> std::wstring {
             return L"$ " + to_wstring(input);
           },
+          [&](const AnonymousBufferName& input) -> std::wstring {
+            return L"anonymous buffer " + to_wstring(input);
+          },
           [&](const std::wstring& str) { return str; },
       },
       p);

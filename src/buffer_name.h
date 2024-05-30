@@ -31,8 +31,11 @@ struct TextInsertion {
 // TODO(trivial, 2024-05-30): Turn this into LazyString?
 GHOST_TYPE(CommandBufferName, std::wstring);
 
-using BufferName = std::variant<BufferFileId, PasteBuffer, BufferListId,
-                                TextInsertion, CommandBufferName, std::wstring>;
+GHOST_TYPE(AnonymousBufferName, size_t);
+
+using BufferName =
+    std::variant<BufferFileId, PasteBuffer, BufferListId, TextInsertion,
+                 CommandBufferName, AnonymousBufferName, std::wstring>;
 
 std::wstring to_wstring(const BufferName&);
 
@@ -41,6 +44,7 @@ std::ostream& operator<<(std::ostream& os, const BufferName& p);
 
 GHOST_TYPE_TOP_LEVEL(afc::editor::BufferFileId);
 GHOST_TYPE_TOP_LEVEL(afc::editor::CommandBufferName);
+GHOST_TYPE_TOP_LEVEL(afc::editor::AnonymousBufferName);
 
 namespace std {
 template <>
