@@ -14,10 +14,12 @@
 namespace gc = afc::language::gc;
 
 using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::Path;
 using afc::infrastructure::execution::ExecutionEnvironment;
 using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::language::IsError;
 using afc::language::ToByteString;
+using afc::language::ValueOrDie;
 
 namespace afc::editor {
 namespace {
@@ -60,12 +62,14 @@ bool server_tests_registration = tests::Register(
                   .Run();
             }};
       };
-      auto has_buffer = [](const BufferName& name, const EditorState& editor) {
-        return editor.buffers()->contains(name);
+      auto has_buffer = [](const BufferName& name,
+                           const EditorState& editor) -> bool {
+        return editor.buffer_registry().Find(name).has_value();
       };
       return {add_test(
                   L"DefaultArguments", [] { return CommandLineValues(); },
-                  std::bind_front(has_buffer, BufferName(L"💻shell"))),
+                  std::bind_front(has_buffer,
+                                  BufferName{CommandBufferName{L"💻shell"}})),
               add_test(
                   L"File",
                   [] {
@@ -74,8 +78,12 @@ bool server_tests_registration = tests::Register(
                     return output;
                   },
                   [has_buffer](EditorState& editor) {
-                    return has_buffer(BufferName(L"/foo/bar"), editor) &&
-                           has_buffer(BufferName(L"/tmp"), editor);
+                    return has_buffer(BufferName{BufferFileId{ValueOrDie(
+                                          Path::FromString(L"/foo/bar"))}},
+                                      editor) &&
+                           has_buffer(BufferName{BufferFileId{ValueOrDie(
+                                          Path::FromString(L"/tmp"))}},
+                                      editor);
                   })};
     }));
 }  // namespace
