@@ -19,7 +19,6 @@ class BufferRegistry {
   std::optional<language::gc::Ptr<OpenBuffer>> paste_;
 
   std::map<BufferName, language::gc::Ptr<OpenBuffer>> buffer_map_;
-  std::map<infrastructure::Path, language::gc::Ptr<OpenBuffer>> servers_;
   std::unordered_map<language::lazy_string::LazyString,
                      language::gc::Ptr<OpenBuffer>>
       commands_;
@@ -36,12 +35,11 @@ class BufferRegistry {
       const BufferName& name,
       language::OnceOnlyFunction<language::gc::Root<OpenBuffer>()> factory);
 
+  void Add(const BufferName& name, language::gc::Ptr<OpenBuffer> buffer);
+
   std::optional<language::gc::Ptr<OpenBuffer>> Find(const BufferName& name);
 
   void AddAnonymous(language::gc::Ptr<OpenBuffer> buffer);
-
-  void AddServer(infrastructure::Path path,
-                 language::gc::Ptr<OpenBuffer> buffer);
 
   void AddCommand(language::lazy_string::LazyString command,
                   language::gc::Ptr<OpenBuffer> buffer);

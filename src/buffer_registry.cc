@@ -29,6 +29,11 @@ gc::Ptr<OpenBuffer> BufferRegistry::MaybeAdd(
   return buffer_map_.insert({id, std::move(factory)().ptr()}).first->second;
 }
 
+void BufferRegistry::Add(const BufferName& name, gc::Ptr<OpenBuffer> buffer) {
+  // TODO(2024-05-30, trivial): Detect errors if a server already was there.
+  buffer_map_.insert({name, std::move(buffer)});
+}
+
 std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::Find(
     const BufferName& name) {
   if (auto it = buffer_map_.find(name); it != buffer_map_.end())
@@ -38,11 +43,6 @@ std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::Find(
 
 void BufferRegistry::AddAnonymous(gc::Ptr<OpenBuffer> buffer) {
   anonymous_.push_back(buffer);
-}
-
-void BufferRegistry::AddServer(Path address, gc::Ptr<OpenBuffer> buffer) {
-  // TODO(2024-05-30, trivial): Detect errors if a server already was there.
-  servers_.insert({address, std::move(buffer)});
 }
 
 void BufferRegistry::AddCommand(language::lazy_string::LazyString command,
@@ -69,9 +69,6 @@ std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
   auto buffer_map_values = buffer_map_ | std::views::values;
   output.insert(output.end(), buffer_map_values.begin(),
                 buffer_map_values.end());
-
-  auto servers_values = servers_ | std::views::values;
-  output.insert(output.end(), servers_values.begin(), servers_values.end());
 
   auto commands_values = commands_ | std::views::values;
   output.insert(output.end(), commands_values.begin(), commands_values.end());
