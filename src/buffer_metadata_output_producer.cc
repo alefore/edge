@@ -453,21 +453,22 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     static Tracker tracker(L"BufferMetadataOutput::Prepare:AddMetadataForMark");
     auto call = tracker.Call();
     std::visit(
-        overload{[&](Path mark_source_path) {
-                   std::optional<gc::Ptr<OpenBuffer>> source =
-                       options.buffer.editor().buffer_registry().FindFile(
-                           mark_source_path);
-                   output.push_back(MetadataLine{
-                       output.empty() ? L'!' : L' ',
-                       output.empty() ? LineModifier::kRed : LineModifier::kDim,
-                       (source.has_value() &&
-                        mark.source_line <
-                            LineNumber(0) + (*source)->contents().size())
-                           ? (*source)->contents().at(mark.source_line)
-                           : Line(L"(dead mark)"),
-                       MetadataLine::Type::kMark});
-                 },
-                 IgnoreErrors{}},
+        overload{
+            [&](Path mark_source_path) {
+              std::optional<gc::Ptr<OpenBuffer>> source =
+                  options.buffer.editor().buffer_registry().FindFile(
+                      mark_source_path);
+              output.push_back(MetadataLine{
+                  output.empty() ? L'!' : L' ',
+                  output.empty() ? LineModifier::kRed : LineModifier::kDim,
+                  (source.has_value() &&
+                   mark.source_line <
+                       LineNumber(0) + (*source)->contents().size())
+                      ? (*source)->contents().at(mark.source_line)
+                      : Line(L"(dead mark: " + mark_source_path.read() + L")"),
+                  MetadataLine::Type::kMark});
+            },
+            IgnoreErrors{}},
         Path::FromString(mark.source_buffer.read()));
   }
 
