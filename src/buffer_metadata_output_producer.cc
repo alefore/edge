@@ -450,26 +450,17 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
       PushMarks(options.buffer.GetExpiredLineMarks(), range);
 
   for (const auto& mark : marks) {
-    static Tracker tracker(L"BufferMetadataOutput::Prepare:AddMetadataForMark");
-    auto call = tracker.Call();
-    std::visit(
-        overload{
-            [&](Path mark_source_path) {
-              std::optional<gc::Ptr<OpenBuffer>> source =
-                  options.buffer.editor().buffer_registry().FindFile(
-                      mark_source_path);
-              output.push_back(MetadataLine{
-                  output.empty() ? L'!' : L' ',
-                  output.empty() ? LineModifier::kRed : LineModifier::kDim,
-                  (source.has_value() &&
-                   mark.source_line <
-                       LineNumber(0) + (*source)->contents().size())
-                      ? (*source)->contents().at(mark.source_line)
-                      : Line(L"(dead mark: " + mark_source_path.read() + L")"),
-                  MetadataLine::Type::kMark});
-            },
-            IgnoreErrors{}},
-        Path::FromString(to_wstring(mark.source_buffer)));
+    TRACK_OPERATION(BufferMetadataOutput_Prepare_AddMetadataForMark);
+    const std::optional<gc::Ptr<OpenBuffer>> source =
+        options.buffer.editor().buffer_registry().Find(mark.source_buffer);
+    output.push_back(MetadataLine{
+        output.empty() ? L'!' : L' ',
+        output.empty() ? LineModifier::kRed : LineModifier::kDim,
+        (source.has_value() &&
+         mark.source_line < LineNumber(0) + (*source)->contents().size())
+            ? (*source)->contents().at(mark.source_line)
+            : Line(L"(dead mark: " + to_wstring(mark.source_buffer) + L")"),
+        MetadataLine::Type::kMark});
   }
 
   // When an expired mark appears again, no need to show it redundantly (as
@@ -477,23 +468,15 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   // TODO(easy, 2023-12-14): This should use Line directly?
   std::set<std::wstring> marks_strings;
   for (const auto& mark : marks) {
-    std::visit(
-        overload{
-            [&](Path mark_source_path) {
-              VisitOptional(
-                  [&](gc::Ptr<OpenBuffer> source) {
-                    if (mark.source_line <
-                        LineNumber(0) + source->contents().size()) {
-                      marks_strings.insert(
-                          source->contents().at(mark.source_line).ToString());
-                    }
-                  },
-                  [] {},
-                  options.buffer.editor().buffer_registry().FindFile(
-                      mark_source_path));
-            },
-            IgnoreErrors{}},
-        Path::FromString(to_wstring(mark.source_buffer)));
+    VisitOptional(
+        [&](gc::Ptr<OpenBuffer> source) {
+          if (mark.source_line < LineNumber(0) + source->contents().size()) {
+            marks_strings.insert(
+                source->contents().at(mark.source_line).ToString());
+          }
+        },
+        [] {},
+        options.buffer.editor().buffer_registry().Find(mark.source_buffer));
   }
 
   for (const auto& mark : expired_marks) {

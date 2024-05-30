@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include "src/buffer_name.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/functional.h"
@@ -17,7 +18,7 @@ class BufferRegistry {
 
   std::optional<language::gc::Ptr<OpenBuffer>> paste_;
 
-  std::map<infrastructure::Path, language::gc::Ptr<OpenBuffer>> files_;
+  std::map<BufferName, language::gc::Ptr<OpenBuffer>> buffer_map_;
   std::map<infrastructure::Path, language::gc::Ptr<OpenBuffer>> servers_;
   std::unordered_map<language::lazy_string::LazyString,
                      language::gc::Ptr<OpenBuffer>>
@@ -31,12 +32,11 @@ class BufferRegistry {
   void SetPaste(language::gc::Ptr<OpenBuffer> buffer);
   std::optional<language::gc::Ptr<OpenBuffer>> paste() const;
 
-  language::gc::Ptr<OpenBuffer> MaybeAddFile(
-      infrastructure::Path path,
+  language::gc::Ptr<OpenBuffer> MaybeAdd(
+      const BufferName& name,
       language::OnceOnlyFunction<language::gc::Root<OpenBuffer>()> factory);
 
-  std::optional<language::gc::Ptr<OpenBuffer>> FindFile(
-      infrastructure::Path path);
+  std::optional<language::gc::Ptr<OpenBuffer>> Find(const BufferName& name);
 
   void AddAnonymous(language::gc::Ptr<OpenBuffer> buffer);
 

@@ -21,15 +21,18 @@ void BufferRegistry::SetInitialCommands(gc::Ptr<OpenBuffer> buffer) {
   initial_commands_ = std::move(buffer);
 }
 
-gc::Ptr<OpenBuffer> BufferRegistry::MaybeAddFile(
-    Path path, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
+gc::Ptr<OpenBuffer> BufferRegistry::MaybeAdd(
+    const BufferName& id, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
   // TODO(trivial, 2024-05-30): Only traverse the map once.
-  if (auto it = files_.find(path); it != files_.end()) return it->second;
-  return files_.insert({path, std::move(factory)().ptr()}).first->second;
+  if (auto it = buffer_map_.find(id); it != buffer_map_.end())
+    return it->second;
+  return buffer_map_.insert({id, std::move(factory)().ptr()}).first->second;
 }
 
-std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::FindFile(Path path) {
-  if (auto it = files_.find(path); it != files_.end()) return it->second;
+std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::Find(
+    const BufferName& name) {
+  if (auto it = buffer_map_.find(name); it != buffer_map_.end())
+    return it->second;
   return std::nullopt;
 }
 
@@ -63,8 +66,9 @@ std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
   VisitOptional(
       [&output](gc::Ptr<OpenBuffer> buffer) { output.push_back(buffer); },
       [] {}, paste_);
-  auto files_values = files_ | std::views::values;
-  output.insert(output.end(), files_values.begin(), files_values.end());
+  auto buffer_map_values = buffer_map_ | std::views::values;
+  output.insert(output.end(), buffer_map_values.begin(),
+                buffer_map_values.end());
 
   auto servers_values = servers_ | std::views::values;
   output.insert(output.end(), servers_values.begin(), servers_values.end());

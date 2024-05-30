@@ -485,12 +485,14 @@ gc::Root<OpenBuffer> CreateBuffer(
 
   gc::Ptr<OpenBuffer> buffer = VisitOptional(
       [&](Path path) {
-        return options.editor_state.buffer_registry().MaybeAddFile(path, [&] {
-          gc::Root<OpenBuffer> output = OpenBuffer::New(buffer_options.value());
-          output.ptr()->Set(buffer_variables::persist_state, true);
-          output.ptr()->Reload();
-          return output;
-        });
+        return options.editor_state.buffer_registry().MaybeAdd(
+            BufferFileId{path}, [&] {
+              gc::Root<OpenBuffer> output =
+                  OpenBuffer::New(buffer_options.value());
+              output.ptr()->Set(buffer_variables::persist_state, true);
+              output.ptr()->Reload();
+              return output;
+            });
       },
       [&] {
         gc::Root<OpenBuffer> output = OpenBuffer::New(buffer_options.value());
