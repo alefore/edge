@@ -1754,9 +1754,7 @@ bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
   return true;
 }
 
-BufferName OpenBuffer::name() const {
-  return BufferName(Read(buffer_variables::name));
-}
+BufferName OpenBuffer::name() const { return options_.name; }
 
 void OpenBuffer::InsertLines(std::vector<Line> lines_to_insert) {
   // These changes don't count: they come from disk.
