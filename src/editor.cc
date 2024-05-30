@@ -531,7 +531,7 @@ std::optional<LazyString> EditorState::GetExitNotice() const {
          LazyString{L"):\n"} +
          Concatenate(dirty_buffers_saved_to_backup_ |
                      std::views::transform([](const BufferName& name) {
-                       return LazyString{L"  "} + LazyString{name.read()} +
+                       return LazyString{L"  "} + LazyString{to_wstring(name)} +
                               LazyString{L"\n"};
                      }));
 }
@@ -624,7 +624,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                                   std::views::transform(
                                       [](const OpenBuffer& b) -> LazyString {
                                         return LazyString{L" "} +
-                                               LazyString{b.name().read()};
+                                               LazyString{to_wstring(b.name())};
                                       }))),
                   5)) {
                 case error::Log::InsertResult::kInserted:
@@ -652,7 +652,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                       std::views::transform(
                           [](const gc::Root<OpenBuffer>& pending_buffer) {
                             return LazyString{
-                                pending_buffer.ptr()->name().read()};
+                                to_wstring(pending_buffer.ptr()->name())};
                           }) |
                       Intersperse(LazyString{L", "})) +
                   (data->pending_buffers.size() > max_buffers_to_show

@@ -469,7 +469,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                   MetadataLine::Type::kMark});
             },
             IgnoreErrors{}},
-        Path::FromString(mark.source_buffer.read()));
+        Path::FromString(to_wstring(mark.source_buffer)));
   }
 
   // When an expired mark appears again, no need to show it redundantly (as
@@ -493,7 +493,7 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
                       mark_source_path));
             },
             IgnoreErrors{}},
-        Path::FromString(mark.source_buffer.read()));
+        Path::FromString(to_wstring(mark.source_buffer)));
   }
 
   for (const auto& mark : expired_marks) {

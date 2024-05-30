@@ -65,8 +65,8 @@ using language::NonNull;
 gc::Root<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
                                           Range range) {
   LOG(INFO) << "Preparing deleted text buffer: " << range;
-  gc::Root<OpenBuffer> delete_buffer = OpenBuffer::New(
-      {.editor = buffer.editor(), .name = BufferName::PasteBuffer()});
+  gc::Root<OpenBuffer> delete_buffer =
+      OpenBuffer::New({.editor = buffer.editor(), .name = PasteBuffer{}});
   for (LineNumber i = range.begin().line; i <= range.end().line; ++i) {
     LineBuilder line_options(buffer.contents().at(i));
     if (i == range.end().line) {

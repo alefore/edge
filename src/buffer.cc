@@ -590,7 +590,7 @@ void OpenBuffer::SignalEndOfFile() {
 
   if (std::optional<gc::Root<OpenBuffer>> current_buffer =
           editor().current_buffer();
-      current_buffer.has_value() && name() == BufferName::BuffersList())
+      current_buffer.has_value() && name() == BufferName{BufferListId{}})
     current_buffer->ptr()->Reload();
 }
 
@@ -731,14 +731,14 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                             [&] { return futures::Past(EmptyValue()); });
                       }));
 
-  Set(buffer_variables::name, options_.name.read());
+  Set(buffer_variables::name, to_wstring(options_.name));
   if (options_.path.has_value()) {
     Set(buffer_variables::path, options_.path.value().read());
   }
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
   Set(buffer_variables::reload_after_exit, false);
-  if (name() == BufferName::PasteBuffer() || name() == kFuturePasteBuffer) {
+  if (name() == BufferName{PasteBuffer{}} || name() == kFuturePasteBuffer) {
     Set(buffer_variables::allow_dirty_delete, true);
     Set(buffer_variables::show_in_buffers_list, false);
     Set(buffer_variables::delete_into_paste_buffer, false);
@@ -813,7 +813,7 @@ void OpenBuffer::AppendLines(
                       LineMarks::Mark mark{
                           .source_buffer = buffer_name,
                           .source_line = source_line,
-                          .target_buffer = BufferName(results.path),
+                          .target_buffer = BufferFileId(results.path),
                           .target_line_column =
                               results.position.value_or(LineColumn())};
                       LOG(INFO) << "Found a mark: " << mark;
@@ -1603,7 +1603,8 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
     void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
 
     infrastructure::TerminalName name() override {
-      return infrastructure::TerminalName(L"Terminal:" + buffer_.name().read());
+      return infrastructure::TerminalName(L"Terminal:" +
+                                          to_wstring(buffer_.name()));
     }
 
     std::optional<infrastructure::FileDescriptor> fd() override {
@@ -1789,7 +1790,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     futures::Future<EmptyValue> output;
     reader =
         std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
-            .name = FileDescriptorName(name().read() + L":" + name_suffix),
+            .name = FileDescriptorName(to_wstring(name()) + L":" + name_suffix),
             .fd = fd,
             .receive_end_of_file =
                 [buffer = NewRoot(), this, &reader,
@@ -2372,8 +2373,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
                          editor().buffers()->find(kFuturePasteBuffer);
                      paste_buffer != editor().buffers()->end()) {
             editor().buffer_registry().SetPaste(paste_buffer->second.ptr());
-            paste_buffer->second.ptr()->Set(buffer_variables::name,
-                                            BufferName::PasteBuffer().read());
+            paste_buffer->second.ptr()->Set(
+                buffer_variables::name, to_wstring(BufferName{PasteBuffer{}}));
             editor().buffers()->erase(paste_buffer);
           }
         }

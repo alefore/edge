@@ -64,7 +64,7 @@ void AppendLine(OpenBuffer& source, LazyString padding, LineColumn position,
   LineBuilder options;
   options.set_contents(padding);
   options.SetOutgoingLink(
-      OutgoingLink{.path = source.name().read(), .line_column = position});
+      OutgoingLink{.path = to_wstring(source.name()), .line_column = position});
   AddContents(source, *source.LineAt(position.line), &options);
   target.AppendRawLine(std::move(options).Build());
 }
@@ -89,8 +89,9 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
               tree.children()[i + 1].range().begin().line) {
         AddContents(source, *source.LineAt(child.range().end().line), &options);
       }
-      options.SetOutgoingLink(OutgoingLink{
-          .path = source.name().read(), .line_column = child.range().begin()});
+      options.SetOutgoingLink(
+          OutgoingLink{.path = to_wstring(source.name()),
+                       .line_column = child.range().begin()});
 
       target.AppendRawLine(std::move(options).Build());
       continue;
@@ -156,7 +157,7 @@ class NavigationBufferCommand : public Command {
       return;
     }
 
-    BufferName name(L"Navigation: " + source->ptr()->name().read());
+    BufferName name(L"Navigation: " + to_wstring(source->ptr()->name()));
     gc::Root<OpenBuffer> buffer_root =
         editor_state_.FindOrBuildBuffer(name, [&] {
           gc::WeakPtr<OpenBuffer> source_weak = source->ptr().ToWeakPtr();

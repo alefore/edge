@@ -7,37 +7,52 @@
 namespace afc::editor {
 class OpenBuffer;
 
-class BufferName {
- public:
-  // Name of the buffer that holds the contents that the paste command should
-  // paste, which corresponds to things that have been deleted recently.
-  static const BufferName& PasteBuffer();
+GHOST_TYPE(BufferFileId, infrastructure::Path);
 
-  // Name of a special buffer that shows the list of buffers.
-  static const BufferName& BuffersList();
-
-  // Name of a special buffer that contains text being inserted.
-  static const BufferName& TextInsertion();
-
-  using ValueType = std::wstring;
-
-  explicit BufferName(infrastructure::Path path);
-
-  GHOST_TYPE_CONSTRUCTOR(BufferName, std::wstring, value);
-  GHOST_TYPE_EQ(BufferName, value);
-  GHOST_TYPE_ORDER(BufferName, value);
-  GHOST_TYPE_OUTPUT_FRIEND(BufferName, value);
-  GHOST_TYPE_HASH_FRIEND(BufferName, value);
-
-  const std::wstring& read() const;
-
- private:
-  ValueType value;
+// Name of the buffer that holds the contents that the paste command should
+// paste, which corresponds to things that have been deleted recently.
+struct PasteBuffer {
+  bool operator==(const PasteBuffer&) const { return true; }
+  bool operator<(const PasteBuffer&) const { return false; }
 };
-using ::operator<<;
-GHOST_TYPE_OUTPUT(BufferName, value);
+
+// Name of a special buffer that shows the list of buffers.
+struct BufferListId {
+  bool operator==(const BufferListId&) const { return true; }
+  bool operator<(const BufferListId&) const { return false; }
+};
+
+// Name of a special buffer that contains text being inserted.
+struct TextInsertion {
+  bool operator==(const TextInsertion&) const { return true; }
+  bool operator<(const TextInsertion&) const { return false; }
+};
+
+using BufferName = std::variant<BufferFileId, PasteBuffer, BufferListId,
+                                TextInsertion, std::wstring>;
+
+std::wstring to_wstring(const BufferName&);
+
+std::ostream& operator<<(std::ostream& os, const BufferName& p);
 }  // namespace afc::editor
 
-GHOST_TYPE_HASH(afc::editor::BufferName)
+GHOST_TYPE_TOP_LEVEL(afc::editor::BufferFileId);
+
+namespace std {
+template <>
+struct hash<afc::editor::PasteBuffer> {
+  size_t operator()(const afc::editor::PasteBuffer&) const { return 0; }
+};
+
+template <>
+struct hash<afc::editor::BufferListId> {
+  size_t operator()(const afc::editor::BufferListId&) const { return 0; }
+};
+
+template <>
+struct hash<afc::editor::TextInsertion> {
+  size_t operator()(const afc::editor::TextInsertion&) const { return 0; }
+};
+}  // namespace std
 
 #endif  // __AFC_EDITOR_BUFFER_NAME_H__

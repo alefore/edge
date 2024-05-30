@@ -592,8 +592,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
     DeleteNotification::Value abort_value, std::wstring filter) {
-  BufferName name(L"- history filter: " + history_buffer.ptr()->name().read() +
-                  L": " + filter);
+  BufferName name(L"- history filter: " +
+                  to_wstring(history_buffer.ptr()->name()) + L": " + filter);
   gc::Root<OpenBuffer> filter_buffer_root =
       OpenBuffer::New({.editor = editor_state, .name = name});
   OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
@@ -1201,7 +1201,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                   } else {
                     prompt_state->editor_state().status().InsertError(Error(
                         L"Error: Predict: predictions buffer not found: " +
-                        name.read()));
+                        to_wstring(name)));
                   }
                   return EmptyValue();
                 });

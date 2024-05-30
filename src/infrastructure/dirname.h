@@ -126,6 +126,9 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 // Wrapper around `opendir` that calls `closedir` in the deleter.
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
 
+inline std::wstring to_wstring(const afc::infrastructure::Path& obj) {
+  return obj.read();
+}
 }  // namespace afc::infrastructure
 
 GHOST_TYPE_HASH(afc::infrastructure::Path);

@@ -131,8 +131,9 @@ bool tests_registration = tests::Register(
       .callback =
           [] {
             NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-            gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
-                {.editor = editor.value(), .name = BufferName::PasteBuffer()});
+            gc::Root<OpenBuffer> paste_buffer_root =
+                OpenBuffer::New(OpenBuffer::Options{.editor = editor.value(),
+                                                    .name = PasteBuffer()});
             editor->buffer_registry().SetPaste(paste_buffer_root.ptr());
 
             paste_buffer_root.ptr()->AppendLine(LazyString{L"Foo"});
@@ -155,8 +156,9 @@ bool tests_registration = tests::Register(
           }},
      {.name = L"PasteWithFileDescriptor", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-        gc::Root<OpenBuffer> paste_buffer_root = OpenBuffer::New(
-            {.editor = editor.value(), .name = BufferName::PasteBuffer()});
+        gc::Root<OpenBuffer> paste_buffer_root =
+            OpenBuffer::New(OpenBuffer::Options{.editor = editor.value(),
+                                                .name = PasteBuffer()});
         editor->buffer_registry().SetPaste(paste_buffer_root.ptr());
 
         paste_buffer_root.ptr()->AppendLine(LazyString{L"Foo"});

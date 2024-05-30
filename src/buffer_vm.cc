@@ -361,11 +361,11 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
           .ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier(L"tostring"), vm::NewCallback(pool, PurityType::kReader,
-                                               [](gc::Ptr<OpenBuffer> buffer) {
-                                                 return buffer->name().read();
-                                               })
-                                   .ptr());
+      Identifier(L"tostring"),
+      vm::NewCallback(
+          pool, PurityType::kReader,
+          [](gc::Ptr<OpenBuffer> buffer) { return to_wstring(buffer->name()); })
+          .ptr());
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"line_count"),
