@@ -151,6 +151,7 @@ class EditorState {
   void set_default_direction(Direction direction);
 
   BufferRegistry& buffer_registry();
+  const BufferRegistry& buffer_registry() const;
 
   std::optional<size_t> repetitions() const;
   void ResetRepetitions();

@@ -1051,4 +1051,7 @@ BufferRegistry& EditorState::buffer_registry() {
   return buffer_registry_.ptr().value();
 }
 
+const BufferRegistry& EditorState::buffer_registry() const {
+  return buffer_registry_.ptr().value();
+}
 }  // namespace afc::editor
