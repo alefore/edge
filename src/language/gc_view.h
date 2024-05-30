@@ -48,6 +48,14 @@ class GetObjectMetadata {
   }
 };
 
+class LockWeakPtr {
+ public:
+  template <typename Iterator>
+  static auto Adjust(const Iterator& iterator) {
+    return (*iterator).Lock();
+  }
+};
+
 template <typename Adapter, typename Iterator>
 class RootValueIterator {
   Iterator iterator_;
@@ -156,14 +164,32 @@ class RootValueViewAdapter {
   }
 };
 
+struct LockAdaptorClosure {
+  template <std::ranges::viewable_range R>
+  constexpr auto operator()(R&& r) const {
+    return std::forward<R>(r) |
+           gc::view::RootValueViewAdapter<gc::LockWeakPtr>{} |
+           std::views::filter(
+               [](const auto& root) { return root.has_value(); }) |
+           std::views::transform([](const auto& root) { return root.value(); });
+  }
+};
+
 // Global instance of the adapters:
 inline constexpr RootValueViewAdapter<GetRootValue> Value{};
 inline constexpr RootValueViewAdapter<GetPtrRoot> Root{};
 inline constexpr RootValueViewAdapter<GetObjectMetadata> ObjectMetadata{};
 
+inline constexpr LockAdaptorClosure Lock{};
+
 // Overload the pipe operator for range and RootValueViewAdapter
 template <typename Adapter, typename Range>
 auto operator|(Range&& r, const RootValueViewAdapter<Adapter>& adapter) {
+  return adapter(std::forward<Range>(r));
+}
+
+template <typename Range>
+auto operator|(Range&& r, const LockAdaptorClosure& adapter) {
   return adapter(std::forward<Range>(r));
 }
 }  // namespace view
