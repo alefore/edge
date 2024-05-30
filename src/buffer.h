@@ -104,6 +104,13 @@ class OpenBuffer {
         log_supplier = [](infrastructure::Path) {
           return futures::Past(language::Success(NewNullLog()));
         };
+
+    enum class SurvivalBehavior {
+      kExplicitCloseRequired,
+      kAllowSilentDeletion
+    };
+    SurvivalBehavior survival_behavior =
+        SurvivalBehavior::kExplicitCloseRequired;
   };
 
   // Calling `New` doesn't load the contents of the buffer; the customer must
@@ -675,6 +682,9 @@ class OpenBuffer {
   // also isn't a WeakPtr because ... if it is being accessed, we know the
   // containing object /must/ be alive.
   std::optional<language::gc::Ptr<OpenBuffer>> ptr_this_;
+  // Self-reference. This is used for buffers that want to make sure they are
+  // explicitly closed (through OpenBuffer::Close) before they can be collected.
+  std::optional<language::gc::Root<OpenBuffer>> root_this_;
 };
 
 language::NonNull<std::unique_ptr<EditorState>> EditorForTests();

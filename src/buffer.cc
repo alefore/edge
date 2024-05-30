@@ -486,6 +486,7 @@ void OpenBuffer::Close() {
   editor().line_marks().RemoveSource(name());
   LOG(INFO) << name() << ": Notify close observers";
   close_observers_.Notify();
+  root_this_ = std::nullopt;
 }
 
 futures::Value<EmptyValue> OpenBuffer::WaitForEndOfFile() {
@@ -702,6 +703,14 @@ NonNull<std::shared_ptr<const ParseTree>> OpenBuffer::simplified_parse_tree()
 
 void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   ptr_this_ = std::move(ptr_this);
+
+  switch (options_.survival_behavior) {
+    case Options::SurvivalBehavior::kExplicitCloseRequired:
+      root_this_ = NewRoot();
+      break;
+    case Options::SurvivalBehavior::kAllowSilentDeletion:
+      break;
+  }
 
   gc::WeakPtr<OpenBuffer> weak_this = ptr_this_->ToWeakPtr();
   buffer_syntax_parser_.ObserveTrees().Add(WeakPtrLockingObserver(
