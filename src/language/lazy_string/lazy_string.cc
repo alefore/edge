@@ -155,17 +155,11 @@ LazyString LazyString::Append(LazyString suffix) const {
       AppendImpl::TreeFrom(*this), AppendImpl::TreeFrom(suffix))));
 }
 
-bool LazyString::operator<(const LazyString& x) {
+bool LazyString::operator<(const LazyString& x) const {
   for (ColumnNumber current; current.ToDelta() < size(); ++current) {
-    if (current.ToDelta() == x.size()) {
-      return false;
-    }
-    if (get(current) < x.get(current)) {
-      return true;
-    }
-    if (get(current) > x.get(current)) {
-      return false;
-    }
+    if (current.ToDelta() == x.size()) return false;
+    if (get(current) < x.get(current)) return true;
+    if (get(current) > x.get(current)) return false;
   }
   return size() < x.size();
 }
@@ -192,5 +186,7 @@ std::ostream& operator<<(std::ostream& os,
   os << obj.ToString();
   return os;
 }
+
+std::wstring to_wstring(const LazyString& s) { return s.ToString(); }
 
 }  // namespace afc::language::lazy_string

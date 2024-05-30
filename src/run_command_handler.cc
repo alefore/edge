@@ -607,14 +607,11 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 
   fork_command_options.ptr()->AddField(
       vm::Identifier(L"set_name"),
-      NewCallback(
-          pool, vm::PurityType::kUnknown,
-          std::function<void(NonNull<std::shared_ptr<ForkCommandOptions>>,
-                             std::wstring)>(
-              [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                 std::wstring value) {
-                options->name = CommandBufferName(std::move(value));
-              }))
+      NewCallback(pool, vm::PurityType::kUnknown,
+                  [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
+                     LazyString value) {
+                    options->name = CommandBufferName{std::move(value)};
+                  })
           .ptr());
 
   fork_command_options.ptr()->AddField(
@@ -655,7 +652,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                  const ForkCommandOptions& options) {
   BufferName name = options.name.value_or(
-      CommandBufferName{L"$ " + options.command.ToString()});
+      CommandBufferName{LazyString{L"$ "} + options.command});
   if (options.existing_buffer_behavior ==
       ForkCommandOptions::ExistingBufferBehavior::kReuse) {
     if (std::optional<gc::Root<OpenBuffer>> buffer =

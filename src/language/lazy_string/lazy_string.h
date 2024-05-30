@@ -67,7 +67,7 @@ class LazyString {
 
   LazyString Append(LazyString) const;
 
-  bool operator<(const LazyString& x);
+  bool operator<(const LazyString& x) const;
 };
 
 bool operator==(const LazyString& a, const LazyString& b);
@@ -76,6 +76,8 @@ LazyString operator+(const LazyString& a, const LazyString& b);
 
 std::ostream& operator<<(std::ostream& os,
                          const afc::language::lazy_string::LazyString& obj);
+
+std::wstring to_wstring(const LazyString&);
 }  // namespace afc::language::lazy_string
 
 GHOST_TYPE_TOP_LEVEL(afc::language::lazy_string::ColumnNumber)

@@ -7,6 +7,7 @@
 #include "src/buffer_registry.h"
 #include "src/editor.h"
 #include "src/infrastructure/execution.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
 #include "src/server.h"
 #include "src/tests/tests.h"
@@ -20,6 +21,7 @@ using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::language::IsError;
 using afc::language::ToByteString;
 using afc::language::ValueOrDie;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 namespace {
@@ -68,8 +70,8 @@ bool server_tests_registration = tests::Register(
       };
       return {add_test(
                   L"DefaultArguments", [] { return CommandLineValues(); },
-                  std::bind_front(has_buffer,
-                                  BufferName{CommandBufferName{L"💻shell"}})),
+                  std::bind_front(has_buffer, BufferName{CommandBufferName{
+                                                  LazyString{L"💻shell"}}})),
               add_test(
                   L"File",
                   [] {

@@ -3,6 +3,7 @@
 
 #include "src/infrastructure/dirname.h"
 #include "src/language/ghost_type.h"
+#include "src/language/lazy_string/functional.h"
 
 namespace afc::editor {
 class OpenBuffer;
@@ -35,8 +36,7 @@ struct InitialCommands {
 
 GHOST_TYPE(ServerBufferName, infrastructure::Path);
 
-// TODO(trivial, 2024-05-30): Turn this into LazyString?
-GHOST_TYPE(CommandBufferName, std::wstring);
+GHOST_TYPE(CommandBufferName, language::lazy_string::LazyString);
 
 GHOST_TYPE(AnonymousBufferName, size_t);
 
