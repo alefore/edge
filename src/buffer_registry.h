@@ -18,7 +18,11 @@ class BufferRegistry {
 
   std::optional<language::gc::Ptr<OpenBuffer>> paste_;
 
-  std::map<BufferName, language::gc::Ptr<OpenBuffer>> buffer_map_;
+  // Q: Why does this use WeakPtr (rather than Ptr)?
+  // A: Buffers must find other ways to remain alive. Typically that is managed
+  // through OpenBuffer::Options::SurvivalBehavior or explicit references
+  // elsewhere.
+  std::map<BufferName, language::gc::WeakPtr<OpenBuffer>> buffer_map_;
 
   size_t next_anonymous_buffer_name_ = 0;
 
@@ -28,19 +32,19 @@ class BufferRegistry {
   void SetPaste(language::gc::Ptr<OpenBuffer> buffer);
   std::optional<language::gc::Ptr<OpenBuffer>> paste() const;
 
-  language::gc::Ptr<OpenBuffer> MaybeAdd(
+  language::gc::Root<OpenBuffer> MaybeAdd(
       const BufferName& name,
       language::OnceOnlyFunction<language::gc::Root<OpenBuffer>()> factory);
 
-  void Add(const BufferName& name, language::gc::Ptr<OpenBuffer> buffer);
+  void Add(const BufferName& name, language::gc::WeakPtr<OpenBuffer> buffer);
 
-  std::optional<language::gc::Ptr<OpenBuffer>> Find(
+  std::optional<language::gc::Root<OpenBuffer>> Find(
       const BufferName& name) const;
 
   AnonymousBufferName NewAnonymousBufferName();
 
   // Return a vector containing all buffers.
-  std::vector<language::gc::Ptr<OpenBuffer>> buffers() const;
+  std::vector<language::gc::Root<OpenBuffer>> buffers() const;
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;

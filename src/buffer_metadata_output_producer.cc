@@ -451,14 +451,14 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
 
   for (const auto& mark : marks) {
     TRACK_OPERATION(BufferMetadataOutput_Prepare_AddMetadataForMark);
-    const std::optional<gc::Ptr<OpenBuffer>> source =
+    const std::optional<gc::Root<OpenBuffer>> source =
         options.buffer.editor().buffer_registry().Find(mark.source_buffer);
     output.push_back(MetadataLine{
         output.empty() ? L'!' : L' ',
         output.empty() ? LineModifier::kRed : LineModifier::kDim,
         (source.has_value() &&
-         mark.source_line < LineNumber(0) + (*source)->contents().size())
-            ? (*source)->contents().at(mark.source_line)
+         mark.source_line < LineNumber(0) + source->ptr()->contents().size())
+            ? source->ptr()->contents().at(mark.source_line)
             : Line(L"(dead mark: " + to_wstring(mark.source_buffer) + L")"),
         MetadataLine::Type::kMark});
   }
@@ -469,10 +469,11 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   std::set<std::wstring> marks_strings;
   for (const auto& mark : marks) {
     VisitOptional(
-        [&](gc::Ptr<OpenBuffer> source) {
-          if (mark.source_line < LineNumber(0) + source->contents().size()) {
+        [&](gc::Root<OpenBuffer> source) {
+          if (mark.source_line <
+              LineNumber(0) + source.ptr()->contents().size()) {
             marks_strings.insert(
-                source->contents().at(mark.source_line).ToString());
+                source.ptr()->contents().at(mark.source_line).ToString());
           }
         },
         [] {},

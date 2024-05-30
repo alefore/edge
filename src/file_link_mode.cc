@@ -422,8 +422,11 @@ gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
     std::optional<ResolvePathOutput<EmptyValue>> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
-  auto buffer_options = MakeNonNullShared<OpenBuffer::Options>(
-      OpenBuffer::Options{.editor = options.editor_state});
+  auto buffer_options =
+      MakeNonNullShared<OpenBuffer::Options>(OpenBuffer::Options{
+          .editor = options.editor_state,
+          .survival_behavior =
+              OpenBuffer::Options::SurvivalBehavior::kAllowSilentDeletion});
 
   NonNull<std::shared_ptr<struct stat>> stat_buffer;
   auto file_system_driver =
@@ -483,7 +486,7 @@ gc::Root<OpenBuffer> CreateBuffer(
         options.editor_state.buffer_registry().NewAnonymousBufferName();
   }
 
-  gc::Ptr<OpenBuffer> buffer = VisitOptional(
+  gc::Root<OpenBuffer> buffer = VisitOptional(
       [&](Path path) {
         return options.editor_state.buffer_registry().MaybeAdd(
             BufferFileId{path}, [&] {
@@ -499,37 +502,38 @@ gc::Root<OpenBuffer> CreateBuffer(
         output.ptr()->Set(buffer_variables::persist_state, true);
         output.ptr()->Reload();
         options.editor_state.buffer_registry().Add(output.ptr()->name(),
-                                                   output.ptr());
-        return output.ptr();
+                                                   output.ptr().ToWeakPtr());
+        return output;
       },
       buffer_options->path);
-  buffer->ResetMode();
+  buffer.ptr()->ResetMode();
 
   if (resolve_path_output.has_value() &&
       resolve_path_output->position.has_value()) {
-    buffer->set_position(*resolve_path_output->position);
+    buffer.ptr()->set_position(*resolve_path_output->position);
   }
 
-  options.editor_state.AddBuffer(buffer.ToRoot(), options.insertion_type);
+  options.editor_state.AddBuffer(buffer, options.insertion_type);
 
   if (resolve_path_output.has_value() &&
       resolve_path_output->pattern.has_value() &&
       !resolve_path_output->pattern->IsEmpty()) {
     SearchOptions search_options =
-        SearchOptions{.starting_position = buffer->position(),
+        SearchOptions{.starting_position = buffer.ptr()->position(),
                       .search_query = resolve_path_output->pattern.value()};
     std::visit(
         overload{[&](LineColumn position) {
-                   buffer->set_position(position);
+                   buffer.ptr()->set_position(position);
                    editor_state.PushCurrentPosition();
                  },
                  [&buffer](Error error) {
-                   buffer->status().SetInformationText(Line(error.read()));
+                   buffer.ptr()->status().SetInformationText(
+                       Line(error.read()));
                  }},
         GetNextMatch(options.editor_state.modifiers().direction, search_options,
-                     buffer->contents().snapshot()));
+                     buffer.ptr()->contents().snapshot()));
   }
-  return buffer.ToRoot();
+  return buffer;
 }
 
 futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
@@ -693,7 +697,8 @@ const bool buffer_positions_tests_registration = tests::Register(
         LineSequence contents =
             LineSequence::ForTests({L"Alejandro", L"Forero"});
         driver.OpenAndReadPath(driver.NewTmpFile(contents), contents)
-            .Transform([&](gc::Root<OpenBuffer>) {
+            .Transform([&](gc::Root<OpenBuffer> buffer) {
+              buffer.ptr()->Close();
               driver.Stop();
               return Success();
             });

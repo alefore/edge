@@ -21,23 +21,29 @@ void BufferRegistry::SetInitialCommands(gc::Ptr<OpenBuffer> buffer) {
   initial_commands_ = std::move(buffer);
 }
 
-gc::Ptr<OpenBuffer> BufferRegistry::MaybeAdd(
+gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
     const BufferName& id, OnceOnlyFunction<gc::Root<OpenBuffer>()> factory) {
   // TODO(trivial, 2024-05-30): Only traverse the map once.
   if (auto it = buffer_map_.find(id); it != buffer_map_.end())
-    return it->second;
-  return buffer_map_.insert({id, std::move(factory)().ptr()}).first->second;
+    if (std::optional<gc::Root<OpenBuffer>> previous_buffer = it->second.Lock();
+        previous_buffer.has_value())
+      return previous_buffer.value();
+
+  gc::Root<OpenBuffer> buffer = std::move(factory)();
+  buffer_map_.insert({id, buffer.ptr().ToWeakPtr()});
+  return buffer;
 }
 
-void BufferRegistry::Add(const BufferName& name, gc::Ptr<OpenBuffer> buffer) {
+void BufferRegistry::Add(const BufferName& name,
+                         gc::WeakPtr<OpenBuffer> buffer) {
   // TODO(2024-05-30, trivial): Detect errors if a server already was there.
   buffer_map_.insert({name, std::move(buffer)});
 }
 
-std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::Find(
+std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
     const BufferName& name) const {
   if (auto it = buffer_map_.find(name); it != buffer_map_.end())
-    return it->second;
+    return it->second.Lock();
   return std::nullopt;
 }
 
@@ -45,23 +51,36 @@ AnonymousBufferName BufferRegistry::NewAnonymousBufferName() {
   return AnonymousBufferName(next_anonymous_buffer_name_++);
 }
 
-std::vector<gc::Ptr<OpenBuffer>> BufferRegistry::buffers() const {
-  std::vector<gc::Ptr<OpenBuffer>> output;
+std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
+  std::vector<gc::Root<OpenBuffer>> output = container::MaterializeVector(
+      buffer_map_ | std::views::values | gc::view::Lock);
   VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) { output.push_back(buffer); },
+      [&output](gc::Ptr<OpenBuffer> buffer) {
+        output.push_back(buffer.ToRoot());
+      },
       [] {}, initial_commands_);
   VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) { output.push_back(buffer); },
+      [&output](gc::Ptr<OpenBuffer> buffer) {
+        output.push_back(buffer.ToRoot());
+      },
       [] {}, paste_);
-  auto buffer_map_values = buffer_map_ | std::views::values;
-  output.insert(output.end(), buffer_map_values.begin(),
-                buffer_map_values.end());
   return output;
 }
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
-  return container::MaterializeVector(buffers() | gc::view::ObjectMetadata);
+  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
+  VisitOptional(
+      [&output](gc::Ptr<OpenBuffer> buffer) {
+        output.push_back(buffer.object_metadata());
+      },
+      [] {}, initial_commands_);
+  VisitOptional(
+      [&output](gc::Ptr<OpenBuffer> buffer) {
+        output.push_back(buffer.object_metadata());
+      },
+      [] {}, paste_);
+  return output;
 }
 
 void BufferRegistry::SetPaste(gc::Ptr<OpenBuffer> buffer) {

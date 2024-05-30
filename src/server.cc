@@ -258,7 +258,8 @@ void OpenServerBuffer(EditorState& editor_state, const Path& address) {
   buffer.Set(buffer_variables::vm_exec, true);
   buffer.Set(buffer_variables::vm_lines_evaluation, false);
 
-  editor_state.buffer_registry().Add(buffer.name(), buffer_root.ptr());
+  editor_state.buffer_registry().Add(buffer.name(),
+                                     buffer_root.ptr().ToWeakPtr());
   editor_state.buffers()->insert_or_assign(buffer.name(),
                                            buffer_root.ptr().ToRoot());
   buffer.Reload();

@@ -658,14 +658,14 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
       CommandBufferName{L"$ " + options.command.ToString()});
   if (options.existing_buffer_behavior ==
       ForkCommandOptions::ExistingBufferBehavior::kReuse) {
-    if (std::optional<gc::Ptr<OpenBuffer>> buffer =
+    if (std::optional<gc::Root<OpenBuffer>> buffer =
             editor_state.buffer_registry().Find(name);
         buffer.has_value()) {
-      (*buffer)->ResetMode();
-      (*buffer)->Reload();
-      (*buffer)->set_current_position_line(LineNumber(0));
-      editor_state.AddBuffer(buffer->ToRoot(), options.insertion_type);
-      return buffer->ToRoot();
+      buffer->ptr()->ResetMode();
+      buffer->ptr()->Reload();
+      buffer->ptr()->set_current_position_line(LineNumber(0));
+      editor_state.AddBuffer(buffer.value(), options.insertion_type);
+      return buffer.value();
     }
   }
 
@@ -686,7 +686,7 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
   buffer.ptr()->Reload();
 
   editor_state.AddBuffer(buffer, options.insertion_type);
-  editor_state.buffer_registry().Add(name, buffer.ptr());
+  editor_state.buffer_registry().Add(name, buffer.ptr().ToWeakPtr());
   return buffer;
 }
 
