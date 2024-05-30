@@ -597,9 +597,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
       vm::Identifier(L"set_command"),
       NewCallback(pool, vm::PurityType::kUnknown,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                     std::wstring value) {
-                    options->command = LazyString{std::move(value)};
-                  })
+                     LazyString value) { options->command = std::move(value); })
           .ptr());
 
   fork_command_options.ptr()->AddField(
