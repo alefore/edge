@@ -8,6 +8,7 @@
 #include <string>
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/command_argument_mode.h"
@@ -1186,22 +1187,26 @@ InsertModeOptions PromptState::insert_mode_options() {
                   status_version_value->SetStatusValue(
                       VersionPropertyKey(L"🔮"), L"stuck");
                   auto buffers = prompt_state->editor_state().buffers();
-                  auto name = PredictionsBufferName();
-                  if (auto it = buffers->find(name); it != buffers->end()) {
-                    it->second.ptr()->set_current_position_line(LineNumber(0));
+                  if (std::optional<gc::Root<OpenBuffer>> predictions_buffer =
+                          prompt_state->editor_state().buffer_registry().Find(
+                              PredictionsBufferName{});
+                      predictions_buffer.has_value()) {
+                    predictions_buffer->ptr()->set_current_position_line(
+                        LineNumber(0));
                     prompt_state->editor_state().set_current_buffer(
-                        it->second, CommandArgumentModeApplyMode::kFinal);
+                        predictions_buffer.value(),
+                        CommandArgumentModeApplyMode::kFinal);
                     if (!prompt_state->editor_state()
                              .status()
                              .prompt_buffer()
                              .has_value()) {
-                      it->second.ptr()->status().CopyFrom(
+                      predictions_buffer->ptr()->status().CopyFrom(
                           prompt_state->status());
                     }
                   } else {
                     prompt_state->editor_state().status().InsertError(Error(
                         L"Error: Predict: predictions buffer not found: " +
-                        to_wstring(name)));
+                        to_wstring(PredictionsBufferName{})));
                   }
                   return EmptyValue();
                 });

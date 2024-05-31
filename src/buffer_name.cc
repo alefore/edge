@@ -22,6 +22,9 @@ std::wstring to_wstring(const BufferName& p) {
             return L"- initial commands";
           },
           [](const ConsoleBufferName&) -> std::wstring { return L"- console"; },
+          [](const PredictionsBufferName&) -> std::wstring {
+            return L"- predictions";
+          },
           [](const ServerBufferName& input) -> std::wstring {
             return L"@ " + to_wstring(input);
           },

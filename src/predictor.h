@@ -96,8 +96,6 @@ std::ostream& operator<<(std::ostream& os, const PredictorOutput& lc);
 using Predictor =
     std::function<futures::Value<PredictorOutput>(PredictorInput)>;
 
-const BufferName& PredictionsBufferName();
-
 struct PredictResults {
   // If the input matched at least one item, this will be the longest common
   // prefix of all the items that the input matched.

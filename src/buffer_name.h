@@ -39,6 +39,11 @@ struct ConsoleBufferName {
   bool operator<(const ConsoleBufferName&) const { return false; }
 };
 
+struct PredictionsBufferName {
+  bool operator==(const PredictionsBufferName&) const { return true; }
+  bool operator<(const PredictionsBufferName&) const { return false; }
+};
+
 GHOST_TYPE(ServerBufferName, infrastructure::Path);
 
 GHOST_TYPE(CommandBufferName, language::lazy_string::LazyString);
@@ -47,8 +52,9 @@ GHOST_TYPE(AnonymousBufferName, size_t);
 
 using BufferName =
     std::variant<BufferFileId, PasteBuffer, BufferListId, TextInsertion,
-                 InitialCommands, ConsoleBufferName, ServerBufferName,
-                 CommandBufferName, AnonymousBufferName, std::wstring>;
+                 InitialCommands, ConsoleBufferName, PredictionsBufferName,
+                 ServerBufferName, CommandBufferName, AnonymousBufferName,
+                 std::wstring>;
 
 std::wstring to_wstring(const BufferName&);
 
@@ -84,6 +90,13 @@ struct hash<afc::editor::InitialCommands> {
 template <>
 struct hash<afc::editor::ConsoleBufferName> {
   size_t operator()(const afc::editor::ConsoleBufferName&) const { return 0; }
+};
+
+template <>
+struct hash<afc::editor::PredictionsBufferName> {
+  size_t operator()(const afc::editor::PredictionsBufferName&) const {
+    return 0;
+  }
 };
 }  // namespace std
 

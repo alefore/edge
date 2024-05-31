@@ -120,8 +120,8 @@ ValueOrError<PredictResults> BuildResults(
              .lines()
              .at(LineNumber())
              .empty());
-  auto predictions_buffer = OpenBuffer::New(
-      OpenBuffer::Options{.editor = editor, .name = PredictionsBufferName()});
+  gc::Root<OpenBuffer> predictions_buffer = OpenBuffer::New(
+      OpenBuffer::Options{.editor = editor, .name = PredictionsBufferName{}});
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer.ptr()->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
@@ -409,11 +409,6 @@ void RegisterVariations(const std::wstring& prediction, wchar_t separator,
 }
 
 }  // namespace
-
-const BufferName& PredictionsBufferName() {
-  static const BufferName* const value = new BufferName(L"- predictions");
-  return *value;
-}
 
 Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
                                wchar_t separator) {
