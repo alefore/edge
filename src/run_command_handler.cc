@@ -343,7 +343,7 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
   return output;
 }
 
-void RunCommand(const BufferName& name,
+void RunCommand(const CommandBufferName& name,
                 std::map<std::wstring, LazyString> environment,
                 EditorState& editor_state, std::optional<Path> children_path,
                 LazyString input) {
@@ -397,9 +397,8 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
   }
   name += LazyString{L" "} +
           EscapedString::FromString(input).EscapedRepresentation();
-  // TODO(trivial, 2023-12-31): Avoid ToString:
-  RunCommand(BufferName(name.ToString()), environment, editor_state,
-             children_path, input);
+  RunCommand(CommandBufferName{name}, environment, editor_state, children_path,
+             input);
   return futures::Past(EmptyValue());
 }
 
@@ -640,8 +639,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 
 gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
                                  const ForkCommandOptions& options) {
-  BufferName name = options.name.value_or(
-      CommandBufferName{LazyString{L"$ "} + options.command});
+  BufferName name = options.name.value_or(CommandBufferName{options.command});
   if (options.existing_buffer_behavior ==
       ForkCommandOptions::ExistingBufferBehavior::kReuse) {
     if (std::optional<gc::Root<OpenBuffer>> buffer =
@@ -684,9 +682,7 @@ gc::Root<Command> NewForkCommand(EditorState& editor_state) {
 futures::Value<EmptyValue> RunCommandHandler(
     EditorState& editor_state, std::map<std::wstring, LazyString> environment,
     LazyString input, LazyString name_suffix) {
-  // TODO(easy, 2022-06-05): Avoid call to ToString.
-  RunCommand(BufferName((LazyString{L"$ "} + input + name_suffix).ToString()),
-             environment, editor_state,
+  RunCommand(CommandBufferName{input + name_suffix}, environment, editor_state,
              OptionalFrom(GetChildrenPath(editor_state)), input);
   return futures::Past(EmptyValue());
 }
