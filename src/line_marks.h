@@ -18,7 +18,7 @@ struct LineMarks {
  public:
   struct Mark {
     // What created this mark?
-    const BufferName source_buffer = BufferName(L"");
+    const BufferName source_buffer;
 
     // What line in the source did this mark occur in?
     const language::text::LineNumber source_line;
