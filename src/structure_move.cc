@@ -29,12 +29,14 @@ template <typename Iterator>
 static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
                                   LineColumn current,
                                   const Modifiers& modifiers) {
+  if (it_begin == it_end) return current;
   using P = std::pair<const LineColumn, LineMarks::Mark>;
+
+  // This value is never actually read, but we use it to create a valid P value
+  // that we can pass to std::upper_bound.
+  auto dummy_value = it_begin->second;
   Iterator it = std::upper_bound(
-      it_begin, it_end,
-      P(LineColumn(current.line),
-        LineMarks::Mark{.source_line = LineNumber(),
-                        .target_line_column = LineColumn()}),
+      it_begin, it_end, P{LineColumn(current.line), dummy_value},
       modifiers.direction == Direction::kForwards
           ? [](const P& a, const P& b) { return a.first < b.first; }
           : [](const P& a, const P& b) { return a.first > b.first; });
