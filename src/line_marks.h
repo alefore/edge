@@ -24,7 +24,7 @@ struct LineMarks {
     const language::text::LineNumber source_line;
 
     // What buffer does this mark identify?
-    const BufferName target_buffer = BufferName(L"");
+    const BufferName target_buffer;
 
     // The line marked.
     const language::text::LineColumn target_line_column;

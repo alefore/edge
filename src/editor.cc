@@ -924,10 +924,9 @@ static BufferPosition PositionFromLine(const std::wstring& line) {
 }
 
 gc::Root<OpenBuffer> EditorState::GetConsole() {
-  auto name = BufferName(L"- console");
-  return FindOrBuildBuffer(name, [&] {
+  return FindOrBuildBuffer(ConsoleBufferName{}, [&] {
     gc::Root<OpenBuffer> buffer_root =
-        OpenBuffer::New({.editor = *this, .name = name});
+        OpenBuffer::New({.editor = *this, .name = ConsoleBufferName{}});
     OpenBuffer& buffer = buffer_root.ptr().value();
     buffer.Set(buffer_variables::allow_dirty_delete, true);
     buffer.Set(buffer_variables::show_in_buffers_list, false);
