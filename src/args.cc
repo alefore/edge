@@ -297,6 +297,7 @@ LazyString CommandsToRun(CommandLineValues args) {
   LazyString commands_to_run =
       LazyString{args.commands_to_run} +
       LazyString{L"VectorBuffer buffers_to_watch = VectorBuffer();\n"};
+  bool start_shell = args.commands_to_run.empty();
   for (auto& path : args.naked_arguments) {
     std::wstring full_path;
     if (!path.empty() &&
@@ -320,6 +321,7 @@ LazyString CommandsToRun(CommandLineValues args) {
         LazyString{L"buffers_to_watch.push_back(editor.OpenFile("} +
         EscapedString::FromString(LazyString{full_path}).CppRepresentation() +
         LazyString{L", true));\n"};
+    start_shell = false;
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
@@ -331,6 +333,7 @@ LazyString CommandsToRun(CommandLineValues args) {
         LazyString{args.background ? L"skip" : L"search_or_create"} +
         LazyString{L"\");\n"} +
         LazyString{L"buffers_to_watch.push_back(editor.ForkCommand(options));"};
+    start_shell = false;
   }
   switch (args.view_mode) {
     case CommandLineValues::ViewMode::kAllBuffers:
@@ -349,21 +352,24 @@ LazyString CommandsToRun(CommandLineValues args) {
             LazyString{FromByteString(getenv(kEdgeParentAddress))})
             .CppRepresentation() +
         LazyString{L");\n"};
+    start_shell = false;
   } else if (args.nested_edge_behavior ==
              CommandLineValues::NestedEdgeBehavior::kWaitForClose) {
     commands_to_run += LazyString{L"editor.WaitForClose(buffers_to_watch);\n"};
   }
   if (args.prompt_for_path) {
     commands_to_run += LazyString{L"editor.PromptAndOpenFile();"};
+    start_shell = false;
   }
-  static const LazyString kDefaultCommandsToRun = LazyString{
-      L"if (buffers_to_watch.empty()) {"
-      L"ForkCommandOptions options = ForkCommandOptions();\n"
-      L"options.set_command(\"sh -l\");\n"
-      L"options.set_insertion_type(\"search_or_create\");\n"
-      L"options.set_name(\"💻shell\");\n"
-      L"editor.ForkCommand(options);"
-      L"}"};
-  return commands_to_run + kDefaultCommandsToRun;
+  if (start_shell) {
+    static const LazyString kDefaultCommandsToRun = LazyString{
+        L"ForkCommandOptions options = ForkCommandOptions();\n"
+        L"options.set_command(\"sh -l\");\n"
+        L"options.set_insertion_type(\"search_or_create\");\n"
+        L"options.set_name(\"💻shell\");\n"
+        L"editor.ForkCommand(options);"};
+    commands_to_run += kDefaultCommandsToRun;
+  }
+  return commands_to_run;
 }
 }  // namespace afc::editor
