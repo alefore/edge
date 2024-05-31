@@ -480,7 +480,8 @@ gc::Root<OpenBuffer> CreateBuffer(
   if (options.name.has_value()) {
     buffer_options->name = *options.name;
   } else if (buffer_options->path.has_value()) {
-    buffer_options->name = BufferName(buffer_options->path.value().read());
+    buffer_options->name =
+        BufferName{BufferFileId{buffer_options->path.value()}};
   } else {
     buffer_options->name =
         options.editor_state.buffer_registry().NewAnonymousBufferName();
