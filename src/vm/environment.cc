@@ -131,21 +131,16 @@ Environment::Environment(ConstructorAccessTag,
 
 /* static */ std::optional<gc::Root<Environment>> Environment::LookupNamespace(
     gc::Ptr<Environment> source, const Namespace& name) {
-  std::optional<gc::Ptr<Environment>> output = {source};
-  for (auto& n : name) {
-    output = output.value()->data_.lock(
-        [&](Data& data) -> std::optional<gc::Ptr<Environment>> {
-          if (auto it = data.namespaces.find(n); it != data.namespaces.end()) {
-            return it->second;
-          } else {
-            return std::nullopt;
-          }
-        });
-    if (!output.has_value()) break;
-  }
-  if (output.has_value()) {
+  if (std::optional<gc::Ptr<Environment>> output = container::FoldOptional(
+          [](auto n, gc::Ptr<Environment> env) {
+            return env->data_.lock(
+                [&](Data& data) -> std::optional<gc::Ptr<Environment>> {
+                  return language::GetValueOrNullOpt(data.namespaces, n);
+                });
+          },
+          source, name);
+      output.has_value())
     return output->ToRoot();
-  }
   return VisitOptional(
       [&name](gc::Ptr<Environment> parent_environment) {
         return LookupNamespace(parent_environment, name);
