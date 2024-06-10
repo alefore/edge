@@ -47,6 +47,13 @@ const auto& GetValueOrDefault(const Container& container, const KeyType& key,
   return default_value;
 }
 
+template <typename Container, typename KeyType>
+const std::optional<typename Container::mapped_type> GetValueOrNullOpt(
+    const Container& container, const KeyType& key) {
+  if (auto it = container.find(key); it != container.end()) return it->second;
+  return std::nullopt;
+}
+
 template <typename Container>
 Container::mapped_type PopValueOrDie(Container& container,
                                      const typename Container::key_type& key) {
@@ -126,6 +133,16 @@ Value Fold(Callable aggregate, Value identity, Container&& container) {
   for (auto&& value : container)
     output = aggregate(std::move(value), std::move(output));
 
+  return output;
+}
+
+template <typename Container, typename Callable, typename Value>
+std::optional<Value> FoldOptional(Callable aggregate, Value identity,
+                                  Container&& container) {
+  std::optional<Value> output = std::make_optional(std::move(identity));
+  for (auto&& value : container)
+    if (output.has_value())
+      output = aggregate(std::move(value), std::move(output.value()));
   return output;
 }
 
