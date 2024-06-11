@@ -96,8 +96,8 @@ PurityType CombinePurityType(const std::vector<PurityType>& types) {
       case PurityType::kReader:
         output = PurityType::kReader;
         break;
-      default:
-        CHECK(output != PurityType::kUnknown);
+      case PurityType::kPure:
+        continue;
     }
   return output;
 }
@@ -109,9 +109,8 @@ bool combine_purity_type_tests_registration =
         std::stringstream value_stream;
         value_stream << a << " + " << b << " = " << expect;
         return tests::Test(
-            {.name = FromByteString(value_stream.str()), .callback = [=] {
-               CHECK(CombinePurityType({a, b}) == expect);
-             }});
+            {.name = FromByteString(value_stream.str()),
+             .callback = [=] { CHECK(CombinePurityType({a, b}) == expect); }});
       };
       return std::vector<tests::Test>(
           {t(PurityType::kPure, PurityType::kPure, PurityType::kPure),
@@ -125,7 +124,7 @@ bool combine_purity_type_tests_registration =
            t(PurityType::kUnknown, PurityType::kUnknown,
              PurityType::kUnknown)});
     }());
-}
+}  // namespace
 
 std::ostream& operator<<(std::ostream& os, const PurityType& value) {
   switch (value) {
