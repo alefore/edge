@@ -227,7 +227,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                editor->default_commands().ptr()->Add(
                    VectorExtendedChar(L"X"),
                    LazyString{L"Activates something."},
-                   vm::NewCallback(editor->gc_pool(), vm::PurityType::kUnknown,
+                   vm::NewCallback(editor->gc_pool(), vm::kPurityTypeUnknown,
                                    [&executed]() { executed = true; }),
                    editor->environment().ptr());
                CHECK(!executed);
@@ -245,7 +245,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                editor->default_commands().ptr()->Add(
                    {ExtendedChar(L'A'), ExtendedChar(ControlChar::kPageDown)},
                    LazyString{L"Activates something."},
-                   vm::NewCallback(editor->gc_pool(), vm::PurityType::kUnknown,
+                   vm::NewCallback(editor->gc_pool(), vm::kPurityTypeUnknown,
                                    [&executed]() {
                                      LOG(INFO) << "Executed!";
                                      executed = true;

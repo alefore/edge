@@ -37,6 +37,7 @@ using afc::language::text::LineRange;
 using afc::language::text::LineSequence;
 using afc::language::text::Range;
 using afc::vm::Identifier;
+using afc::vm::kPurityTypeReader;
 
 namespace afc::vm {
 template <>
@@ -376,7 +377,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
   parse_tree_object_type.ptr()->AddField(
       Identifier(L"children"),
       vm::NewCallback(
-          pool, PurityType::kReader,
+          pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
             std::vector<NonNull<std::shared_ptr<const ParseTree>>> output;
             for (const ParseTree& child : tree->children())
@@ -395,7 +396,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
 
   parse_tree_object_type.ptr()->AddField(
       Identifier(L"range"),
-      vm::NewCallback(pool, PurityType::kReader,
+      vm::NewCallback(pool, kPurityTypeReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return tree->range();
                       })
@@ -404,7 +405,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
   parse_tree_object_type.ptr()->AddField(
       Identifier(L"properties"),
       vm::NewCallback(
-          pool, PurityType::kReader,
+          pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
             return MakeNonNullShared<Protected<std::set<std::wstring>>>(
                 MakeProtected(container::MaterializeSet(

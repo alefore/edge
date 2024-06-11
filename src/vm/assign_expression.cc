@@ -47,7 +47,7 @@ class AssignExpression : public Expression {
     return value_->ReturnTypes();
   }
 
-  PurityType purity() override { return PurityType::kUnknown; }
+  PurityType purity() override { return kPurityTypeUnknown; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {

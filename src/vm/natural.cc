@@ -285,7 +285,7 @@ bool tests_registration = tests::Register(
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
                    Identifier(L"SomeFunction"),
-                   vm::NewCallback(pool, PurityType::kPure,
+                   vm::NewCallback(pool, kPurityTypePure,
                                    []() -> std::wstring { return L"quux"; }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                    Compile(LazyString{L"SomeFunction"}, LazyString{},
@@ -304,7 +304,7 @@ bool tests_registration = tests::Register(
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
                    Identifier(L"Moo"),
-                   vm::NewCallback(pool, PurityType::kPure,
+                   vm::NewCallback(pool, kPurityTypePure,
                                    [](std::wstring a, std::wstring b,
                                       std::wstring c) -> std::wstring {
                                      return L"{" + a + L"," + b + L"," + c +
@@ -332,7 +332,7 @@ bool tests_registration = tests::Register(
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
                    Identifier(L"UnaryFunction"),
-                   vm::NewCallback(pool, PurityType::kPure,
+                   vm::NewCallback(pool, kPurityTypePure,
                                    [](std::wstring a) -> std::wstring {
                                      CHECK(a == L"bar");
                                      return L"quux";
@@ -355,7 +355,7 @@ bool tests_registration = tests::Register(
                environment.ptr()->Define(
                    Identifier(L"SomeFunction"),
                    vm::NewCallback(
-                       pool, PurityType::kPure,
+                       pool, kPurityTypePure,
                        [](std::wstring a, std::wstring b) -> std::wstring {
                          CHECK(a == L"bar");
                          CHECK(b == L"foo");
@@ -378,7 +378,7 @@ bool tests_registration = tests::Register(
            size_t calls = 0;
            environment.ptr()->Define(
                Identifier(L"foo"),
-               vm::NewCallback(pool, PurityType::kPure,
+               vm::NewCallback(pool, kPurityTypePure,
                                [&calls](std::wstring a) -> std::wstring {
                                  calls++;
                                  return L"[" + a + L"]";

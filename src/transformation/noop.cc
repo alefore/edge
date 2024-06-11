@@ -18,7 +18,7 @@ class Noop : public CompositeTransformation {
   static void Register(language::gc::Pool& pool, vm::Environment& environment) {
     environment.Define(
         vm::Identifier(L"NoopTransformation"),
-        vm::NewCallback(pool, vm::PurityType::kPure, []() {
+        vm::NewCallback(pool, vm::kPurityTypePure, []() {
           return MakeNonNullShared<Variant>(NewNoopTransformation());
         }));
   }

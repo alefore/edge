@@ -29,7 +29,7 @@ using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::Success;
 using afc::vm::GetVMType;
-using afc::vm::PurityType;
+using afc::vm::kPurityTypePure;
 using afc::vm::VMTypeMapper;
 
 namespace afc {
@@ -89,7 +89,7 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
   environment.Define(
       vm::Identifier(L"FunctionTransformation"),
       vm::Value::NewFunction(
-          pool, PurityType::kPure,
+          pool, kPurityTypePure,
           GetVMType<NonNull<std::shared_ptr<editor::transformation::Variant>>>::
               vmtype(),
           {vm::types::Function{

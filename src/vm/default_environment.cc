@@ -16,6 +16,7 @@ using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::PossibleError;
 using afc::math::numbers::Number;
+using afc::vm::kPurityTypePure;
 
 namespace afc::vm {
 language::gc::Root<Environment> NewDefaultEnvironment(
@@ -28,7 +29,7 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   gc::Root<ObjectType> bool_type = ObjectType::New(pool, types::Bool{});
   bool_type.ptr()->AddField(
       Identifier(L"tostring"),
-      NewCallback(pool, PurityType::kPure,
+      NewCallback(pool, kPurityTypePure,
                   std::function<std::wstring(bool)>(
                       [](bool v) { return v ? L"true" : L"false"; }))
           .ptr());
@@ -37,14 +38,14 @@ language::gc::Root<Environment> NewDefaultEnvironment(
   gc::Root<ObjectType> number_type = ObjectType::New(pool, types::Number{});
   number_type.ptr()->AddField(
       Identifier(L"tostring"),
-      NewCallback(pool, PurityType::kPure, [](Number value) {
+      NewCallback(pool, kPurityTypePure, [](Number value) {
         return futures::Past(value.ToString(5));
       }).ptr());
   environment_value.DefineType(number_type.ptr());
 
   environment_value.Define(
       Identifier(L"Error"),
-      NewCallback(pool, PurityType::kPure, [](std::wstring description) {
+      NewCallback(pool, kPurityTypePure, [](std::wstring description) {
         return futures::Past(PossibleError(Error(description)));
       }));
 

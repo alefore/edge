@@ -10,15 +10,16 @@
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
+using afc::language::Error;
+using afc::language::FromByteString;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+
 namespace afc::vm {
-using language::Error;
-using language::FromByteString;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
 
 namespace gc = language::gc;
 
@@ -86,7 +87,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       ObjectType::New(pool, VMTypeMapper<Time>::object_type_name);
   time_type.ptr()->AddField(
       Identifier(L"tostring"),
-      vm::NewCallback(pool, PurityType::kPure,
+      vm::NewCallback(pool, kPurityTypePure,
                       std::function<std::wstring(Time)>([](Time t) {
                         std::wstring decimal = std::to_wstring(t.tv_nsec);
                         if (decimal.length() < 9)
@@ -96,7 +97,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           .ptr());
   time_type.ptr()->AddField(
       Identifier(L"AddDays"),
-      vm::NewCallback(pool, PurityType::kPure,
+      vm::NewCallback(pool, kPurityTypePure,
                       [](Time input, int days) -> futures::ValueOrError<Time> {
                         FUTURES_ASSIGN_OR_RETURN(struct tm t,
                                                  LocalTime(&input.tv_sec));
@@ -108,7 +109,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   time_type.ptr()->AddField(
       Identifier(L"format"),
       vm::NewCallback(
-          pool, PurityType::kPure,
+          pool, kPurityTypePure,
           [](Time input,
              std::wstring format_str) -> futures::ValueOrError<std::wstring> {
             FUTURES_ASSIGN_OR_RETURN(struct tm t, LocalTime(&input.tv_sec));
@@ -122,7 +123,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           .ptr());
   time_type.ptr()->AddField(
       Identifier(L"year"),
-      vm::NewCallback(pool, PurityType::kPure,
+      vm::NewCallback(pool, kPurityTypePure,
                       [](Time input) -> futures::ValueOrError<int> {
                         FUTURES_ASSIGN_OR_RETURN(struct tm t,
                                                  LocalTime(&input.tv_sec));
@@ -130,7 +131,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                       })
           .ptr());
   environment.Define(Identifier(L"Now"),
-                     vm::NewCallback(pool, PurityType::kReader, []() {
+                     vm::NewCallback(pool, kPurityTypeReader, []() {
                        Time output;
                        CHECK_NE(clock_gettime(0, &output), -1);
                        return output;
@@ -138,7 +139,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   environment.Define(
       Identifier(L"ParseTime"),
       vm::NewCallback(
-          pool, PurityType::kPure,
+          pool, kPurityTypePure,
           [](std::wstring value,
              std::wstring format) -> futures::ValueOrError<Time> {
             struct tm t = {};
@@ -156,28 +157,27 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       ObjectType::New(pool, VMTypeMapper<Duration>::object_type_name);
   duration_type.ptr()->AddField(
       Identifier(L"days"),
-      vm::NewCallback(pool, PurityType::kPure,
+      vm::NewCallback(pool, kPurityTypePure,
                       std::function<int(Duration)>([](Duration input) {
                         return input.value.tv_sec / (24 * 60 * 60);
                       }))
           .ptr());
   environment.Define(Identifier(L"Seconds"),
-                     vm::NewCallback(pool, PurityType::kPure, [](int input) {
+                     vm::NewCallback(pool, kPurityTypePure, [](int input) {
                        return Duration{.value{.tv_sec = input, .tv_nsec = 0}};
                      }));
 
-  environment.Define(
-      Identifier(L"DurationBetween"),
-      vm::NewCallback(pool, PurityType::kPure, [](Time a, Time b) {
-        b.tv_sec -= a.tv_sec;
-        if (b.tv_nsec < a.tv_nsec) {
-          b.tv_nsec = 1e9 - a.tv_nsec + b.tv_nsec;
-          b.tv_sec--;
-        } else {
-          b.tv_nsec -= a.tv_nsec;
-        }
-        return Duration{.value = b};
-      }));
+  environment.Define(Identifier(L"DurationBetween"),
+                     vm::NewCallback(pool, kPurityTypePure, [](Time a, Time b) {
+                       b.tv_sec -= a.tv_sec;
+                       if (b.tv_nsec < a.tv_nsec) {
+                         b.tv_nsec = 1e9 - a.tv_nsec + b.tv_nsec;
+                         b.tv_sec--;
+                       } else {
+                         b.tv_nsec -= a.tv_nsec;
+                       }
+                       return Duration{.value = b};
+                     }));
 
   environment.DefineType(time_type.ptr());
   environment.DefineType(duration_type.ptr());

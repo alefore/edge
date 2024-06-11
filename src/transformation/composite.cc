@@ -15,6 +15,8 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::text::LineColumn;
+using afc::vm::kPurityTypePure;
+using afc::vm::kPurityTypeUnknown;
 
 namespace afc {
 namespace vm {
@@ -127,7 +129,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
   input_type.ptr()->AddField(
       vm::Identifier(L"position"),
       vm::NewCallback(
-          pool, PurityType::kPure,
+          pool, kPurityTypePure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
             return input->position;
           })
@@ -135,7 +137,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
   input_type.ptr()->AddField(
       vm::Identifier(L"range"),
       vm::NewCallback(
-          pool, PurityType::kPure,
+          pool, kPurityTypePure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
             return input->range;
           })
@@ -144,7 +146,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
   input_type.ptr()->AddField(
       vm::Identifier(L"final_mode"),
       vm::NewCallback(
-          pool, PurityType::kPure,
+          pool, kPurityTypePure,
           [](NonNull<std::shared_ptr<CompositeTransformation::Input>> input) {
             return input->mode == transformation::Input::Mode::kFinal;
           })
@@ -160,13 +162,13 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
           VMTypeMapper<NonNull<std::shared_ptr<
               editor::CompositeTransformation::Output>>>::object_type_name
               .read()),
-      vm::NewCallback(pool, PurityType::kPure,
+      vm::NewCallback(pool, kPurityTypePure,
                       MakeNonNullShared<CompositeTransformation::Output>));
 
   output_type.ptr()->AddField(
       vm::Identifier(L"push"),
       vm::NewCallback(
-          pool, PurityType::kUnknown,
+          pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<CompositeTransformation::Output>> output,
              NonNull<std::shared_ptr<transformation::Variant>> transformation) {
             output->Push(transformation.value());

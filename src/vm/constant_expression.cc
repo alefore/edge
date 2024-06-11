@@ -23,7 +23,7 @@ class ConstantExpression : public Expression {
   std::vector<Type> Types() override { return {value_.ptr()->type}; }
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
-  PurityType purity() override { return PurityType::kPure; }
+  PurityType purity() override { return PurityType{}; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline&,
                                                    const Type& type) override {

@@ -22,6 +22,7 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::vm::Identifier;
+using afc::vm::kPurityTypePure;
 
 namespace afc::vm {
 template <>
@@ -106,25 +107,25 @@ void LineColumnRegister(gc::Pool& pool, Environment& environment) {
   // Methods for LineColumn.
   environment.Define(
       Identifier(L"LineColumn"),
-      NewCallback(pool, PurityType::kPure, [](int line, int column) {
+      NewCallback(pool, kPurityTypePure, [](int line, int column) {
         return LineColumn(LineNumber(line), ColumnNumber(column));
       }));
 
   line_column_type.ptr()->AddField(
       Identifier(L"line"),
-      NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
+      NewCallback(pool, kPurityTypePure, [](LineColumn line_column) {
         return line_column.line.read();
       }).ptr());
 
   line_column_type.ptr()->AddField(
       Identifier(L"column"),
-      NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
+      NewCallback(pool, kPurityTypePure, [](LineColumn line_column) {
         return line_column.column.read();
       }).ptr());
 
   line_column_type.ptr()->AddField(
       Identifier(L"tostring"),
-      NewCallback(pool, PurityType::kPure, [](LineColumn line_column) {
+      NewCallback(pool, kPurityTypePure, [](LineColumn line_column) {
         return std::to_wstring(line_column.line.read()) + L", " +
                std::to_wstring(line_column.column.read());
       }).ptr());
@@ -139,35 +140,29 @@ void LineColumnDeltaRegister(gc::Pool& pool, Environment& environment) {
   // Methods for LineColumn.
   environment.Define(
       Identifier(L"LineColumnDelta"),
-      NewCallback(pool, PurityType::kPure, [](int line, int column) {
+      NewCallback(pool, kPurityTypePure, [](int line, int column) {
         return LineColumnDelta(LineNumberDelta(line),
                                ColumnNumberDelta(column));
       }));
 
   line_column_delta_type.ptr()->AddField(
-      Identifier(L"line"), NewCallback(pool, PurityType::kPure,
-                                       [](LineColumnDelta line_column_delta) {
-                                         return line_column_delta.line.read();
-                                       })
-                               .ptr());
+      Identifier(L"line"),
+      NewCallback(pool, kPurityTypePure, [](LineColumnDelta line_column_delta) {
+        return line_column_delta.line.read();
+      }).ptr());
 
   line_column_delta_type.ptr()->AddField(
       Identifier(L"column"),
-      NewCallback(pool, PurityType::kPure,
-                  [](LineColumnDelta line_column_delta) {
-                    return line_column_delta.column.read();
-                  })
-          .ptr());
+      NewCallback(pool, kPurityTypePure, [](LineColumnDelta line_column_delta) {
+        return line_column_delta.column.read();
+      }).ptr());
 
   line_column_delta_type.ptr()->AddField(
       Identifier(L"tostring"),
-      NewCallback(pool, PurityType::kPure,
-                  [](LineColumnDelta line_column_delta) {
-                    return std::to_wstring(line_column_delta.line.read()) +
-                           L", " +
-                           std::to_wstring(line_column_delta.column.read());
-                  })
-          .ptr());
+      NewCallback(pool, kPurityTypePure, [](LineColumnDelta line_column_delta) {
+        return std::to_wstring(line_column_delta.line.read()) + L", " +
+               std::to_wstring(line_column_delta.column.read());
+      }).ptr());
 
   environment.DefineType(line_column_delta_type.ptr());
 }
@@ -177,20 +172,19 @@ void RangeRegister(gc::Pool& pool, Environment& environment) {
       ObjectType::New(pool, VMTypeMapper<Range>::object_type_name);
 
   // Methods for Range.
-  environment.Define(Identifier(L"Range"),
-                     NewCallback(pool, PurityType::kPure,
-                                 [](LineColumn begin, LineColumn end) {
-                                   return Range(begin, end);
-                                 }));
+  environment.Define(
+      Identifier(L"Range"),
+      NewCallback(pool, kPurityTypePure, [](LineColumn begin, LineColumn end) {
+        return Range(begin, end);
+      }));
 
   range_type.ptr()->AddField(
-      Identifier(L"begin"),
-      NewCallback(pool, PurityType::kPure, [](Range range) {
-        return range.begin();
-      }).ptr());
+      Identifier(L"begin"), NewCallback(pool, kPurityTypePure, [](Range range) {
+                              return range.begin();
+                            }).ptr());
 
   range_type.ptr()->AddField(
-      Identifier(L"end"), NewCallback(pool, PurityType::kPure, [](Range range) {
+      Identifier(L"end"), NewCallback(pool, kPurityTypePure, [](Range range) {
                             return range.end();
                           }).ptr());
 

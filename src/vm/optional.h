@@ -42,7 +42,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
 
   environment.Define(
       Identifier(object_type_name.read()),
-      Value::NewFunction(pool, PurityType::kPure, vmtype, {},
+      Value::NewFunction(pool, kPurityTypePure, vmtype, {},
                          [&pool](std::vector<language::gc::Root<Value>> args) {
                            CHECK(args.empty());
                            return Value::NewObject(
@@ -51,12 +51,12 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                          }));
   object_type.ptr()->AddField(
       Identifier(L"has_value"),
-      vm::NewCallback(pool, PurityType::kPure, [](FullType v) {
+      vm::NewCallback(pool, kPurityTypePure, [](FullType v) {
         return v->has_value();
       }).ptr());
   object_type.ptr()->AddField(
       Identifier(L"value"),
-      vm::NewCallback(pool, PurityType::kPure,
+      vm::NewCallback(pool, kPurityTypePure,
                       [](FullType v) -> language::ValueOrError<T> {
                         if (v->has_value()) return v->value();
                         return language::NewError(
@@ -66,12 +66,12 @@ void Export(language::gc::Pool& pool, Environment& environment) {
           .ptr());
   object_type.ptr()->AddField(
       Identifier(L"reset"),
-      vm::NewCallback(pool, PurityType::kUnknown, [](FullType v) {
+      vm::NewCallback(pool, kPurityTypeUnknown, [](FullType v) {
         v.value() = std::nullopt;
       }).ptr());
   object_type.ptr()->AddField(
       Identifier(L"set"),
-      vm::NewCallback(pool, PurityType::kUnknown, [](FullType o, T t) {
+      vm::NewCallback(pool, kPurityTypeUnknown, [](FullType o, T t) {
         o.value() = std::move(t);
       }).ptr());
 

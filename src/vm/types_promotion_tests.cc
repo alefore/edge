@@ -59,7 +59,7 @@ const bool tests_registration = tests::Register(
                                    .inputs = inputs},
                    types::Function{.output = Type{types::Number{}},
                                    .inputs = inputs})(
-                   pool, vm::NewCallback(pool, PurityType::kUnknown,
+                   pool, vm::NewCallback(pool, PurityType{},
                                          [](std::wstring s, bool b) {
                                            CHECK(s == L"alejo");
                                            CHECK_EQ(b, true);

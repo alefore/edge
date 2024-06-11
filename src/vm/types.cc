@@ -20,6 +20,12 @@ using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
 
 namespace std {
+size_t hash<afc::vm::PurityType>::operator()(
+    const afc::vm::PurityType& x) const {
+  return afc::language::compute_hash(x.writes_external_outputs,
+                                     x.reads_external_inputs);
+}
+
 template <>
 struct hash<afc::vm::types::Void> {
   size_t operator()(const afc::vm::types::Void&) const { return 0; }
@@ -88,18 +94,15 @@ const Identifier& IdentifierInclude() {
 }
 
 PurityType CombinePurityType(const std::vector<PurityType>& types) {
-  // We don't use `container::Fold` to enable early return.
-  PurityType output = PurityType::kPure;
-  for (PurityType a : types) switch (a) {
-      case PurityType::kUnknown:
-        return PurityType::kUnknown;
-      case PurityType::kReader:
-        output = PurityType::kReader;
-        break;
-      case PurityType::kPure:
-        continue;
-    }
-  return output;
+  return container::Fold(
+      [](PurityType a, PurityType b) {
+        return PurityType{
+            .writes_external_outputs =
+                a.writes_external_outputs || b.writes_external_outputs,
+            .reads_external_inputs =
+                a.reads_external_inputs || b.reads_external_inputs};
+      },
+      PurityType{}, types);
 }
 
 namespace {
@@ -110,34 +113,33 @@ bool combine_purity_type_tests_registration =
         value_stream << a << " + " << b << " = " << expect;
         return tests::Test(
             {.name = FromByteString(value_stream.str()),
-             .callback = [=] { CHECK(CombinePurityType({a, b}) == expect); }});
+             .callback = [=] { CHECK_EQ(CombinePurityType({a, b}), expect); }});
       };
       return std::vector<tests::Test>(
-          {t(PurityType::kPure, PurityType::kPure, PurityType::kPure),
-           t(PurityType::kPure, PurityType::kReader, PurityType::kReader),
-           t(PurityType::kPure, PurityType::kUnknown, PurityType::kUnknown),
-           t(PurityType::kReader, PurityType::kPure, PurityType::kReader),
-           t(PurityType::kReader, PurityType::kReader, PurityType::kReader),
-           t(PurityType::kReader, PurityType::kUnknown, PurityType::kUnknown),
-           t(PurityType::kUnknown, PurityType::kPure, PurityType::kUnknown),
-           t(PurityType::kUnknown, PurityType::kReader, PurityType::kUnknown),
-           t(PurityType::kUnknown, PurityType::kUnknown,
-             PurityType::kUnknown)});
+          {t(kPurityTypePure, kPurityTypePure, kPurityTypePure),
+           t(kPurityTypePure, kPurityTypeReader, kPurityTypeReader),
+           t(kPurityTypePure, kPurityTypeUnknown, kPurityTypeUnknown),
+           t(kPurityTypeReader, kPurityTypePure, kPurityTypeReader),
+           t(kPurityTypeReader, kPurityTypeReader, kPurityTypeReader),
+           t(kPurityTypeReader, kPurityTypeUnknown, kPurityTypeUnknown),
+           t(kPurityTypeUnknown, kPurityTypePure, kPurityTypeUnknown),
+           t(kPurityTypeUnknown, kPurityTypeReader, kPurityTypeUnknown),
+           t(kPurityTypeUnknown, kPurityTypeUnknown, kPurityTypeUnknown)});
     }());
 }  // namespace
 
+bool operator==(const PurityType& a, const PurityType& b) {
+  return a.writes_external_outputs == b.writes_external_outputs &&
+         a.reads_external_inputs == b.reads_external_inputs;
+}
+
 std::ostream& operator<<(std::ostream& os, const PurityType& value) {
-  switch (value) {
-    case PurityType::kPure:
-      os << "pure";
-      break;
-    case PurityType::kReader:
-      os << "reader";
-      break;
-    case PurityType::kUnknown:
-      os << "unknown";
-      break;
-  }
+  if (value == PurityType{})
+    os << "pure";
+  else if (value == kPurityTypeReader)
+    os << "reader";
+  else
+    os << "unknown";
   return os;
 }
 
@@ -188,32 +190,29 @@ LazyString TypesToString(const std::unordered_set<Type>& types) {
 
 LazyString ToString(const Type& type) {
   return std::visit(
-      overload{[](const types::Void&) { return LazyString{L"void"}; },
-               [](const types::Bool&) { return LazyString{L"bool"}; },
-               [](const types::Number&) { return LazyString{L"number"}; },
-               [](const types::String&) { return LazyString{L"string"}; },
-               [](const types::Symbol&) { return LazyString{L"symbol"}; },
-               [](const types::ObjectName& object) {
-                 return LazyString{object.read()};
-               },
-               [](const types::Function& function_type) {
-                 const std::unordered_map<PurityType, LazyString>
-                     function_purity_types = {
-                         {PurityType::kPure, LazyString{L"function"}},
-                         {PurityType::kReader, LazyString{L"Function"}},
-                         {PurityType::kUnknown, LazyString{L"FUNCTION"}}};
-                 return GetValueOrDie(function_purity_types,
-                                      function_type.function_purity) +
-                        LazyString{L"<"} +
-                        ToString(function_type.output.get()) +
-                        LazyString{L"("} +
-                        Concatenate(function_type.inputs |
-                                    std::views::transform([](const Type& t) {
-                                      return ToString(t);
-                                    }) |
-                                    Intersperse(LazyString{L", "})) +
-                        LazyString{L")>"};
-               }},
+      overload{
+          [](const types::Void&) { return LazyString{L"void"}; },
+          [](const types::Bool&) { return LazyString{L"bool"}; },
+          [](const types::Number&) { return LazyString{L"number"}; },
+          [](const types::String&) { return LazyString{L"string"}; },
+          [](const types::Symbol&) { return LazyString{L"symbol"}; },
+          [](const types::ObjectName& object) {
+            return LazyString{object.read()};
+          },
+          [](const types::Function& function_type) {
+            return (function_type.function_purity.writes_external_outputs
+                        ? LazyString{L"FUNCTION"}
+                        : (function_type.function_purity.reads_external_inputs
+                               ? LazyString{L"Function"}
+                               : LazyString{L"function"})) +
+                   LazyString{L"<"} + ToString(function_type.output.get()) +
+                   LazyString{L"("} +
+                   Concatenate(function_type.inputs |
+                               std::views::transform(
+                                   [](const Type& t) { return ToString(t); }) |
+                               Intersperse(LazyString{L", "})) +
+                   LazyString{L")>"};
+          }},
       type);
 }
 

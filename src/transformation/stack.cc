@@ -68,25 +68,21 @@ futures::Value<PossibleError> PreviewCppExpression(
                            buffer.CompileString(expression_str.ToString()));
   auto [expression, environment] = std::move(compilation_result);
   buffer.status().Reset();
-  switch (expression->purity()) {
-    case vm::PurityType::kReader:
-    case vm::PurityType::kPure:
-      return buffer.EvaluateExpression(std::move(expression), environment)
-          .Transform([&buffer](gc::Root<vm::Value> value) {
-            ShowValue(buffer, nullptr, value.ptr().value());
-            return Success();
-          })
-          .ConsumeErrors([&buffer](Error error) {
-            buffer.status().SetInformationText(LineBuilder{
-                LazyString{L"E: "} +
-                LazyString{error.read()}}.Build());
-            return futures::Past(EmptyValue());
-          })
-          .Transform([](EmptyValue) { return futures::Past(Success()); });
-    case vm::PurityType::kUnknown:
-      break;
-  }
-  return futures::Past(Success());
+  return expression->purity().writes_external_outputs
+             ? futures::Past(Success())
+             : buffer.EvaluateExpression(std::move(expression), environment)
+                   .Transform([&buffer](gc::Root<vm::Value> value) {
+                     ShowValue(buffer, nullptr, value.ptr().value());
+                     return Success();
+                   })
+                   .ConsumeErrors([&buffer](Error error) {
+                     buffer.status().SetInformationText(LineBuilder{
+                         LazyString{L"E: "} +
+                         LazyString{error.read()}}.Build());
+                     return futures::Past(EmptyValue());
+                   })
+                   .Transform(
+                       [](EmptyValue) { return futures::Past(Success()); });
 }
 
 futures::Value<Result> HandleCommandCpp(Input input,

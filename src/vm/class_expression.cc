@@ -41,7 +41,7 @@ namespace {
 gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
                             Identifier field_name) {
   gc::Root<Value> output = Value::NewFunction(
-      pool, PurityType::kUnknown, class_type, {class_type, field_type},
+      pool, kPurityTypeUnknown, class_type, {class_type, field_type},
       [class_type, field_name, field_type](std::vector<gc::Root<Value>> args,
                                            Trampoline&) {
         CHECK_EQ(args.size(), 2u);
@@ -54,14 +54,14 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
       });
 
   std::get<types::Function>(output.ptr()->type).function_purity =
-      PurityType::kUnknown;
+      kPurityTypeUnknown;
   return output;
 }
 
 gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                             Identifier field_name) {
   gc::Root<Value> output = Value::NewFunction(
-      pool, PurityType::kPure, field_type, {class_type},
+      pool, PurityType{}, field_type, {class_type},
       [&pool, class_type, field_name, field_type](
           std::vector<gc::Root<Value>> args, Trampoline&) {
         CHECK_EQ(args.size(), 1u);
@@ -77,8 +77,9 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                            field_name.read());
             }));
       });
-  std::get<types::Function>(output.ptr()->type).function_purity =
-      PurityType::kPure;
+  // TODO(2024-06-11, trivial): Why do we need this? Shouldn't the above call
+  // to Value::NewFunction already set it?
+  std::get<types::Function>(output.ptr()->type).function_purity = PurityType{};
   return output;
 }
 }  // namespace
@@ -113,7 +114,7 @@ PossibleError FinishClassDeclaration(
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
   auto purity = constructor_expression->purity();
   gc::Root<Value> constructor = Value::NewFunction(
-      pool, PurityType::kPure, class_type, {},
+      pool, PurityType{}, class_type, {},
       [&pool, constructor_expression, class_environment, class_type](
           std::vector<gc::Root<Value>>, Trampoline& trampoline) {
         gc::Root<Environment> instance_environment = VisitOptional(
@@ -146,6 +147,8 @@ PossibleError FinishClassDeclaration(
               return error;
             });
       });
+  // TODO(2024-06-11, trivial): Why do we need this? Why can't we just pass the
+  // purity directly in the call to Value::NewFunction?
   std::get<types::Function>(constructor.ptr()->type).function_purity = purity;
 
   compilation.environment.ptr()->Define(

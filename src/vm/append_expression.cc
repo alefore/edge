@@ -19,7 +19,7 @@ class AppendExpression : public Expression {
                    std::unordered_set<Type> return_types)
       : e0_(std::move(e0)), e1_(std::move(e1)), return_types_(return_types) {
     // Check that the optimization in NewAppendExpression is applied.
-    CHECK(e0_->purity() != PurityType::kPure || !e0_->ReturnTypes().empty());
+    CHECK(e0_->purity().writes_external_outputs || !e0_->ReturnTypes().empty());
   }
 
   std::vector<Type> Types() override { return e1_->Types(); }
@@ -71,7 +71,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
 ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
     NonNull<std::unique_ptr<Expression>> a,
     NonNull<std::unique_ptr<Expression>> b) {
-  if (a->purity() == PurityType::kPure && a->ReturnTypes().empty())
+  if (!a->purity().writes_external_outputs && a->ReturnTypes().empty())
     return Success(std::move(b));
   ASSIGN_OR_RETURN(std::unordered_set<Type> return_types,
                    CombineReturnTypes(a->ReturnTypes(), b->ReturnTypes()));

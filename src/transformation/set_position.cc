@@ -11,6 +11,7 @@ using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::text::LineColumn;
 using afc::vm::Identifier;
+using afc::vm::kPurityTypePure;
 
 namespace afc::editor::transformation {
 void RegisterSetPosition(language::gc::Pool& pool,
@@ -18,14 +19,14 @@ void RegisterSetPosition(language::gc::Pool& pool,
   using vm::PurityType;
   environment.Define(
       Identifier(L"SetColumnTransformation"),
-      vm::NewCallback(pool, PurityType::kPure, [](size_t column_number) {
+      vm::NewCallback(pool, kPurityTypePure, [](size_t column_number) {
         return MakeNonNullShared<Variant>(
             SetPosition(ColumnNumber(column_number)));
       }));
 
   environment.Define(
       Identifier(L"SetPositionTransformation"),
-      vm::NewCallback(pool, PurityType::kPure, [](LineColumn position) {
+      vm::NewCallback(pool, kPurityTypePure, [](LineColumn position) {
         return MakeNonNullShared<Variant>(SetPosition(position));
       }));
 }

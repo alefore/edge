@@ -41,8 +41,8 @@ const types::ObjectName VMTypeMapper<NonNull<
 template <typename Callable>
 void AddMethod(const Identifier& name, language::gc::Pool& pool,
                Callable callback, gc::Root<ObjectType>& string_type) {
-  string_type.ptr()->AddField(
-      name, NewCallback(pool, PurityType::kPure, callback).ptr());
+  string_type.ptr()->AddField(name,
+                              NewCallback(pool, PurityType{}, callback).ptr());
 }
 
 void RegisterStringType(gc::Pool& pool, Environment& environment) {

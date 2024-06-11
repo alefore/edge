@@ -324,13 +324,8 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                 std::vector<vm::Type>({vm::types::Void{}}))
               return futures::Past(output);
 
-            switch (compilation_result.first->purity()) {
-              case vm::PurityType::kUnknown:
-                return futures::Past(output);
-              case vm::PurityType::kPure:
-              case vm::PurityType::kReader:
-                break;
-            }
+            if (compilation_result.first->purity().writes_external_outputs)
+              return futures::Past(output);
             return buffer->ptr()
                 ->EvaluateExpression(std::move(compilation_result.first),
                                      compilation_result.second)

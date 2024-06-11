@@ -158,39 +158,35 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                 LazyString description =
                     LazyString{L"C++: "} +
                     vm::TypesToString(compilation_result.first->Types());
-                switch (compilation_result.first->purity()) {
-                  case vm::PurityType::kPure:
-                  case vm::PurityType::kReader: {
-                    description += LazyString{L" ..."};
-                    if (compilation_result.first->Types() ==
-                        std::vector<vm::Type>({vm::types::Void{}})) {
-                      LineBuilder line_builder(std::move(line));
-                      line_builder.SetMetadata(std::nullopt);
-                      line = std::move(line_builder).Build();
-                    }
-                    NonNull<std::shared_ptr<vm::Expression>> expr =
-                        std::move(compilation_result.first);
-                    metadata_value = buffer.work_queue()->Wait(Now()).Transform(
-                        [buffer = buffer.NewRoot(), expr = std::move(expr),
-                         sub_environment =
-                             std::move(compilation_result.second)](EmptyValue) {
-                          return buffer.ptr()
-                              ->EvaluateExpression(expr, sub_environment)
-                              .Transform([](gc::Root<vm::Value> value) {
-                                std::ostringstream oss;
-                                oss << value.ptr().value();
-                                return Success(LazyString(
-                                    LazyString{FromByteString(oss.str())}));
-                              })
-                              .ConsumeErrors([](Error error) {
-                                return futures::Past(LazyString(
-                                    LazyString{L"E: "} +
-                                    LazyString{std::move(error.read())}));
-                              });
-                        });
-                  } break;
-                  case vm::PurityType::kUnknown:
-                    break;
+                if (!compilation_result.first->purity()
+                         .writes_external_outputs) {
+                  description += LazyString{L" ..."};
+                  if (compilation_result.first->Types() ==
+                      std::vector<vm::Type>({vm::types::Void{}})) {
+                    LineBuilder line_builder(std::move(line));
+                    line_builder.SetMetadata(std::nullopt);
+                    line = std::move(line_builder).Build();
+                  }
+                  NonNull<std::shared_ptr<vm::Expression>> expr =
+                      std::move(compilation_result.first);
+                  metadata_value = buffer.work_queue()->Wait(Now()).Transform(
+                      [buffer = buffer.NewRoot(), expr = std::move(expr),
+                       sub_environment =
+                           std::move(compilation_result.second)](EmptyValue) {
+                        return buffer.ptr()
+                            ->EvaluateExpression(expr, sub_environment)
+                            .Transform([](gc::Root<vm::Value> value) {
+                              std::ostringstream oss;
+                              oss << value.ptr().value();
+                              return Success(LazyString(
+                                  LazyString{FromByteString(oss.str())}));
+                            })
+                            .ConsumeErrors([](Error error) {
+                              return futures::Past(LazyString(
+                                  LazyString{L"E: "} +
+                                  LazyString{std::move(error.read())}));
+                            });
+                      });
                 }
 
                 LineBuilder line_builder(std::move(line));
@@ -729,7 +725,8 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   environment_->Define(
       Identifier(L"sleep"),
-      vm::NewCallback(editor().gc_pool(), PurityType::kReader,
+      vm::NewCallback(editor().gc_pool(),
+                      PurityType{.reads_external_inputs = true},
                       [weak_this](double delay_seconds) {
                         return VisitPointer(
                             weak_this.Lock(),

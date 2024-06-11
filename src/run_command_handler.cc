@@ -589,19 +589,19 @@ void ForkCommandOptions::Register(gc::Pool& pool,
           NonNull<std::shared_ptr<ForkCommandOptions>>>::object_type_name);
 
   environment.Define(vm::Identifier(L"ForkCommandOptions"),
-                     NewCallback(pool, vm::PurityType::kPure,
+                     NewCallback(pool, vm::kPurityTypePure,
                                  MakeNonNullShared<ForkCommandOptions>));
 
   fork_command_options.ptr()->AddField(
       vm::Identifier(L"set_command"),
-      NewCallback(pool, vm::PurityType::kUnknown,
+      NewCallback(pool, vm::kPurityTypeUnknown,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                      LazyString value) { options->command = std::move(value); })
           .ptr());
 
   fork_command_options.ptr()->AddField(
       vm::Identifier(L"set_name"),
-      NewCallback(pool, vm::PurityType::kUnknown,
+      NewCallback(pool, vm::kPurityTypeUnknown,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                      LazyString value) {
                     options->name = CommandBufferName{std::move(value)};
@@ -611,7 +611,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
   fork_command_options.ptr()->AddField(
       vm::Identifier(L"set_insertion_type"),
       NewCallback(
-          pool, vm::PurityType::kUnknown,
+          pool, vm::kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
              std::wstring value) {
             if (value == L"visit") {
@@ -626,7 +626,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
 
   fork_command_options.ptr()->AddField(
       vm::Identifier(L"set_children_path"),
-      NewCallback(pool, vm::PurityType::kUnknown,
+      NewCallback(pool, vm::kPurityTypeUnknown,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                      std::wstring value) {
                     options->children_path =

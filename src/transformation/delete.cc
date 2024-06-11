@@ -267,12 +267,12 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
       vm::Identifier(
           VMTypeMapper<NonNull<std::shared_ptr<Delete>>>::object_type_name
               .read()),
-      vm::NewCallback(pool, PurityType::kPure,
+      vm::NewCallback(pool, PurityType{},
                       MakeNonNullShared<transformation::Delete>));
 
   builder.ptr()->AddField(
       vm::Identifier(L"set_modifiers"),
-      vm::NewCallback(pool, vm::PurityTypeWriter,
+      vm::NewCallback(pool, PurityType{.writes_external_outputs = true},
                       [](NonNull<std::shared_ptr<Delete>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
                         options->modifiers = modifiers.value();
@@ -283,7 +283,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
   builder.ptr()->AddField(
       vm::Identifier(L"set_line_end_behavior"),
       vm::NewCallback(
-          pool, vm::PurityTypeWriter,
+          pool, PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Delete>> options, std::wstring value) {
             if (value == L"stop") {
               options->line_end_behavior = Delete::LineEndBehavior::kStop;
@@ -296,7 +296,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
   builder.ptr()->AddField(
       vm::Identifier(L"set_range"),
       vm::NewCallback(
-          pool, vm::PurityTypeWriter,
+          pool, PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Delete>> options, Range range) {
             options->range = range;
             return options;
@@ -305,7 +305,7 @@ void RegisterDelete(language::gc::Pool& pool, vm::Environment& environment) {
 
   builder.ptr()->AddField(
       vm::Identifier(L"build"),
-      vm::NewCallback(pool, PurityType::kPure,
+      vm::NewCallback(pool, PurityType{},
                       [](NonNull<std::shared_ptr<Delete>> options) {
                         return MakeNonNullShared<Variant>(options.value());
                       })

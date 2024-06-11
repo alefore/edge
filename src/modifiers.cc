@@ -7,6 +7,8 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::vm::Identifier;
+using afc::vm::kPurityTypePure;
+using afc::vm::kPurityTypeUnknown;
 
 namespace afc::vm {
 template <>
@@ -80,11 +82,11 @@ void Modifiers::Register(language::gc::Pool& pool,
 
   environment.Define(
       Identifier(L"Modifiers"),
-      vm::NewCallback(pool, PurityType::kPure, MakeNonNullShared<Modifiers>));
+      vm::NewCallback(pool, kPurityTypePure, MakeNonNullShared<Modifiers>));
 
   modifiers_type.ptr()->AddField(
       Identifier(L"set_backwards"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->direction = Direction::kBackwards;
                         return output;
@@ -93,7 +95,7 @@ void Modifiers::Register(language::gc::Pool& pool,
 
   modifiers_type.ptr()->AddField(
       Identifier(L"set_line"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->structure = Structure::kLine;
                         return output;
@@ -103,7 +105,7 @@ void Modifiers::Register(language::gc::Pool& pool,
   modifiers_type.ptr()->AddField(
       Identifier(L"set_delete_behavior"),
       vm::NewCallback(
-          pool, PurityType::kUnknown,
+          pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Modifiers>> output, bool delete_behavior) {
             output->text_delete_behavior =
                 delete_behavior ? Modifiers::TextDeleteBehavior::kDelete
@@ -114,7 +116,7 @@ void Modifiers::Register(language::gc::Pool& pool,
 
   modifiers_type.ptr()->AddField(
       Identifier(L"set_paste_buffer_behavior"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output,
                          bool paste_buffer_behavior) {
                         output->paste_buffer_behavior =
@@ -128,7 +130,7 @@ void Modifiers::Register(language::gc::Pool& pool,
   modifiers_type.ptr()->AddField(
       Identifier(L"set_repetitions"),
       vm::NewCallback(
-          pool, PurityType::kUnknown,
+          pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Modifiers>> output, int repetitions) {
             output->repetitions = repetitions;
             return output;
@@ -137,7 +139,7 @@ void Modifiers::Register(language::gc::Pool& pool,
 
   modifiers_type.ptr()->AddField(
       Identifier(L"set_boundary_end_neighbor"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Modifiers>> output) {
                         output->boundary_end = LIMIT_NEIGHBOR;
                         return output;

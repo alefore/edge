@@ -33,19 +33,18 @@ const Identifier& IdentifierInclude();
 
 class ObjectType;
 
-enum class PurityType {
-  // Expression is completely pure: will always evaluate to the same value.
-  kPure,
-
-  // Expression doesn't have any side-effects, but depends on external
-  // "environment" values; evaluating it repeatedly may yield different values.
-  kReader,
-  kUnknown
+struct PurityType {
+  bool writes_external_outputs = false;
+  bool reads_external_inputs = false;
 };
 
-// Add definition to PurityType and remove this one.
-constexpr PurityType PurityTypeWriter = PurityType::kUnknown;
+constexpr PurityType kPurityTypeUnknown =
+    PurityType{.writes_external_outputs = true, .reads_external_inputs = true};
+constexpr PurityType kPurityTypeReader =
+    PurityType{.reads_external_inputs = true};
+constexpr PurityType kPurityTypePure = PurityType{};
 
+bool operator==(const PurityType& a, const PurityType& b);
 std::ostream& operator<<(std::ostream& os, const PurityType& value);
 
 // Return the purity type of an expression that depends on a set of purity
@@ -103,7 +102,7 @@ bool operator==(const SimpleBox<T>& t, const SimpleBox<U>& u) {
 struct Function {
   SimpleBox<Type> output;
   std::vector<Type> inputs = {};
-  PurityType function_purity = PurityType::kUnknown;
+  PurityType function_purity = kPurityTypeUnknown;
 };
 }  // namespace types
 
@@ -155,6 +154,10 @@ class ObjectType {
 }  // namespace afc::vm
 
 namespace std {
+template <>
+struct hash<afc::vm::PurityType> {
+  size_t operator()(const afc::vm::PurityType& x) const;
+};
 template <>
 struct hash<afc::vm::Type> {
   size_t operator()(const afc::vm::Type& x) const;

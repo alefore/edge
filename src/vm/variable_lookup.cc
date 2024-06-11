@@ -38,7 +38,7 @@ class VariableLookup : public Expression {
   std::vector<Type> Types() override { return types_; }
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
-  PurityType purity() override { return PurityType::kPure; }
+  PurityType purity() override { return PurityType{}; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {

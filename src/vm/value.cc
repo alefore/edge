@@ -222,7 +222,7 @@ bool value_gc_tests_registration = tests::Register(
             callback = [&] {
               gc::Root<Value> parent = [&] {
                 gc::Root<Value> child = Value::NewFunction(
-                    pool, PurityType::kPure, types::Void{}, {},
+                    pool, kPurityTypePure, types::Void{}, {},
                     [&pool](std::vector<gc::Root<Value>>, Trampoline&) {
                       return futures::Past(Value::NewVoid(pool));
                     },
@@ -231,7 +231,7 @@ bool value_gc_tests_registration = tests::Register(
                           NonNull<std::shared_ptr<gc::ObjectMetadata>>>();
                     });
                 return Value::NewFunction(
-                    pool, PurityType::kPure, types::Void{}, {},
+                    pool, kPurityTypePure, types::Void{}, {},
                     [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
                                               Trampoline&) {
                       return futures::Past(Error(L"Some error."));

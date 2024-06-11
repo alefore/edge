@@ -21,6 +21,7 @@ using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::vm::kPurityTypeUnknown;
 
 namespace afc ::editor {
 futures::ValueOrError<
@@ -231,13 +232,13 @@ void InitShapes(language::gc::Pool& pool, vm::Environment& environment) {
   using vm::Identifier;
   using vm::PurityType;
   environment.Define(Identifier(L"ShapesReflow"),
-                     vm::NewCallback(pool, PurityType::kUnknown, Justify));
+                     vm::NewCallback(pool, kPurityTypeUnknown, Justify));
   environment.Define(
       Identifier(L"FindBoundariesLine"),
-      vm::NewCallback(pool, PurityType::kUnknown, FindBoundariesLine));
+      vm::NewCallback(pool, kPurityTypeUnknown, FindBoundariesLine));
   environment.Define(
       Identifier(L"FindBoundariesBezier"),
-      vm::NewCallback(pool, PurityType::kUnknown, FindBoundariesBezier));
+      vm::NewCallback(pool, kPurityTypeUnknown, FindBoundariesBezier));
 }
 
 }  // namespace afc::editor

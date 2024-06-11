@@ -132,7 +132,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   environment.Define(
       Identifier(object_type_name.read()),
       Value::NewFunction(
-          pool, PurityType::kPure, vmtype, {},
+          pool, kPurityTypePure, vmtype, {},
           [&pool](std::vector<language::gc::Root<Value>> args) {
             CHECK(args.empty());
             auto value =
@@ -147,18 +147,18 @@ void Export(language::gc::Pool& pool, Environment& environment) {
 
   object_type.ptr()->AddField(
       Identifier(L"empty"),
-      vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr ptr) {
+      vm::NewCallback(pool, kPurityTypePure, [](ContainerPtr ptr) {
         return ptr->lock([](Container& c) { return c.empty(); });
       }).ptr());
   object_type.ptr()->AddField(
       Identifier(L"size"),
-      vm::NewCallback(pool, PurityType::kPure, [](ContainerPtr ptr) {
+      vm::NewCallback(pool, kPurityTypePure, [](ContainerPtr ptr) {
         return ptr->lock([](Container& c) { return c.size(); });
       }).ptr());
   object_type.ptr()->AddField(
       Identifier(L"get"),
       Value::NewFunction(
-          pool, PurityType::kPure,
+          pool, kPurityTypePure,
           GetVMType<typename Container::value_type>::vmtype(),
           {vmtype, types::Number{}},
           [object_type_name](std::vector<language::gc::Root<Value>> args,
@@ -188,7 +188,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
     object_type.ptr()->AddField(
         Identifier(L"set"),
         Value::NewFunction(
-            pool, PurityType::kPure, types::Void{},
+            pool, kPurityTypePure, types::Void{},
             {vmtype, types::Number{},
              GetVMType<typename Container::value_type>::vmtype()},
             [object_type_name](std::vector<language::gc::Root<Value>> args,
@@ -228,7 +228,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   object_type.ptr()->AddField(
       Identifier(L"filter"),
       Value::NewFunction(
-          pool, PurityType::kUnknown, vmtype,
+          pool, kPurityTypeUnknown, vmtype,
           {vmtype,
            types::Function{
                .output = Type{types::Bool{}},
@@ -286,7 +286,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   object_type.ptr()->AddField(
       Identifier(L"ForEach"),
       Value::NewFunction(
-          pool, PurityType::kUnknown, types::Void{},
+          pool, kPurityTypeUnknown, types::Void{},
           {vmtype,
            types::Function{
                .output = Type{types::Void{}},
@@ -328,28 +328,28 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   if constexpr (T::has_contains)
     object_type.ptr()->AddField(
         Identifier(L"contains"),
-        vm::NewCallback(pool, PurityType::kPure, T::Contains).ptr());
+        vm::NewCallback(pool, kPurityTypePure, T::Contains).ptr());
 
   if constexpr (T::has_erase_by_index) {
     object_type.ptr()->AddField(
         Identifier(L"erase"),
-        vm::NewCallback(pool, PurityType::kUnknown, T::EraseByIndex).ptr());
+        vm::NewCallback(pool, kPurityTypeUnknown, T::EraseByIndex).ptr());
   }
 
   if constexpr (T::has_erase_by_element)
     object_type.ptr()->AddField(
         Identifier(L"erase"),
-        vm::NewCallback(pool, PurityType::kUnknown, T::EraseByElement).ptr());
+        vm::NewCallback(pool, kPurityTypeUnknown, T::EraseByElement).ptr());
 
   if constexpr (T::has_insert)
     object_type.ptr()->AddField(
         Identifier(L"insert"),
-        vm::NewCallback(pool, PurityType::kUnknown, T::Insert).ptr());
+        vm::NewCallback(pool, kPurityTypeUnknown, T::Insert).ptr());
 
   if constexpr (T::has_push_back)
     object_type.ptr()->AddField(
         Identifier(L"push_back"),
-        vm::NewCallback(pool, PurityType::kUnknown, T::PushBack).ptr());
+        vm::NewCallback(pool, kPurityTypeUnknown, T::PushBack).ptr());
 
   environment.DefineType(object_type.ptr());
 }

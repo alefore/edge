@@ -124,12 +124,12 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
       Identifier(
           VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name
               .read()),
-      vm::NewCallback(pool, PurityType::kPure, MakeNonNullShared<Insert>));
+      vm::NewCallback(pool, PurityType{}, MakeNonNullShared<Insert>));
 
   builder.ptr()->AddField(
       Identifier(L"set_text"),
       vm::NewCallback(
-          pool, vm::PurityTypeWriter,
+          pool, vm::PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Insert>> options, std::wstring text) {
             MutableLineSequence output;
             ColumnNumber line_start;
@@ -152,7 +152,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
 
   builder.ptr()->AddField(
       Identifier(L"set_modifiers"),
-      vm::NewCallback(pool, vm::PurityTypeWriter,
+      vm::NewCallback(pool, vm::PurityType{.writes_external_outputs = true},
                       [](NonNull<std::shared_ptr<Insert>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
                         options->modifiers = modifiers.value();
@@ -163,7 +163,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   builder.ptr()->AddField(
       Identifier(L"set_position"),
       NewCallback(
-          pool, vm::PurityTypeWriter,
+          pool, vm::PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Insert>> options, LineColumn position) {
             options->position = position;
             return options;
@@ -172,7 +172,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
 
   builder.ptr()->AddField(
       Identifier(L"build"),
-      NewCallback(pool, PurityType::kPure,
+      NewCallback(pool, PurityType{},
                   [](NonNull<std::shared_ptr<Insert>> options) {
                     return MakeNonNullShared<Variant>(options.value());
                   })

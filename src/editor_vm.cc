@@ -50,6 +50,9 @@ using afc::math::numbers::Number;
 using afc::vm::Environment;
 using afc::vm::GetVMType;
 using afc::vm::Identifier;
+using afc::vm::kPurityTypePure;
+using afc::vm::kPurityTypeReader;
+using afc::vm::kPurityTypeUnknown;
 using afc::vm::ObjectType;
 using afc::vm::PurityType;
 using afc::vm::Trampoline;
@@ -109,7 +112,7 @@ void RegisterVariableFields(
     // Getter.
     editor_type.AddField(
         Identifier(variable->name()),
-        vm::NewCallback(pool, PurityType::kReader,
+        vm::NewCallback(pool, kPurityTypeReader,
                         [reader, variable](EditorState& editor) {
                           return (editor.*reader)(variable);
                         })
@@ -119,7 +122,7 @@ void RegisterVariableFields(
     editor_type.AddField(
         Identifier(L"set_" + variable->name()),
         vm::NewCallback(
-            pool, PurityType::kUnknown,
+            pool, kPurityTypeUnknown,
             [variable, setter](EditorState& editor, FieldVmValue value)
                 -> futures::Value<PossibleError> {
               FUTURES_ASSIGN_OR_RETURN(auto processed_value,
@@ -190,13 +193,13 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"EnterSetBufferMode"),
-      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
+      vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState& editor_arg) {
         editor_arg.set_keyboard_redirect(NewSetBufferMode(editor_arg));
       }).ptr());
 
   editor_type.ptr()->AddField(
       Identifier(L"SetActiveBuffer"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, int delta) {
                         editor_arg.SetActiveBuffer(delta);
                       })
@@ -204,7 +207,7 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"AdvanceActiveBuffer"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, int delta) {
                         editor_arg.AdvanceActiveBuffer(delta);
                       })
@@ -212,7 +215,7 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"SetVariablePrompt"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, LazyString variable) {
                         SetVariableCommandHandler(editor_arg, variable);
                       })
@@ -220,13 +223,13 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"home"),
-      vm::NewCallback(pool, PurityType::kPure, [](EditorState& editor_arg) {
+      vm::NewCallback(pool, kPurityTypePure, [](EditorState& editor_arg) {
         return editor_arg.home_directory().read();
       }).ptr());
 
   editor_type.ptr()->AddField(
       Identifier(L"pop_repetitions"),
-      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
+      vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState& editor_arg) {
         int value_arg = static_cast<int>(editor_arg.repetitions().value_or(1));
         editor_arg.ResetRepetitions();
         return value_arg;
@@ -237,7 +240,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"ForEachActiveBuffer"),
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
+          pool, kPurityTypeUnknown, vm::types::Void{},
           {GetVMType<EditorState>::vmtype(),
            vm::types::Function{
                .output = vm::Type{vm::types::Void{}},
@@ -279,7 +282,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"ForEachActiveBufferWithRepetitions"),
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
+          pool, kPurityTypeUnknown, vm::types::Void{},
           {GetVMType<EditorState>::vmtype(),
            vm::types::Function{
                .output = vm::Type{vm::types::Void{}},
@@ -314,13 +317,13 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"ProcessInput"),
       vm::NewCallback(
-          pool, PurityType::kUnknown,
+          pool, kPurityTypeUnknown,
           [](EditorState& editor_arg, int c) { editor_arg.ProcessInput({c}); })
           .ptr());
 
   editor_type.ptr()->AddField(
       Identifier(L"ConnectTo"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, Path target_path)
                           -> futures::ValueOrError<EmptyValue> {
                         OpenServerBuffer(editor_arg, target_path);
@@ -331,7 +334,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"WaitForClose"),
       vm::NewCallback(
-          pool, PurityType::kUnknown,
+          pool, kPurityTypeUnknown,
           [](EditorState& editor_arg,
              NonNull<
                  std::shared_ptr<Protected<std::vector<gc::Ptr<OpenBuffer>>>>>
@@ -363,7 +366,7 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"SendExitTo"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState&, LazyString args) {
                         int fd = open(ToByteString(args.ToString()).c_str(),
                                       O_WRONLY);
@@ -375,14 +378,14 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"Exit"),
-      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState&, int status) {
+      vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState&, int status) {
         LOG(INFO) << "Exit: " << status;
         exit(status);
       }).ptr());
 
   editor_type.ptr()->AddField(
       Identifier(L"SetStatus"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, LazyString s) {
                         editor_arg.status().SetInformationText(
                             LineBuilder{s}.Build());
@@ -391,13 +394,13 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"PromptAndOpenFile"),
-      vm::NewCallback(pool, PurityType::kUnknown, [](EditorState& editor_arg) {
+      vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState& editor_arg) {
         NewOpenFileCommand(editor_arg).ptr()->ProcessInput(0);
       }).ptr());
 
   editor_type.ptr()->AddField(
       Identifier(L"set_screen_needs_hard_redraw"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, bool value_arg) {
                         editor_arg.set_screen_needs_hard_redraw(value_arg);
                       })
@@ -405,7 +408,7 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"set_exit_value"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, int exit_value) {
                         editor_arg.set_exit_value(exit_value);
                       })
@@ -413,7 +416,7 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"ForkCommand"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg,
                          NonNull<std::shared_ptr<ForkCommandOptions>> options) {
                         return ForkCommand(editor_arg, options.value());
@@ -422,14 +425,14 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"repetitions"),
-      vm::NewCallback(pool, PurityType::kPure, [](EditorState& editor_arg) {
+      vm::NewCallback(pool, kPurityTypePure, [](EditorState& editor_arg) {
         // TODO: Somehow expose the optional to the VM.
         return static_cast<int>(editor_arg.repetitions().value_or(1));
       }).ptr());
 
   editor_type.ptr()->AddField(
       Identifier(L"set_repetitions"),
-      vm::NewCallback(pool, PurityType::kUnknown,
+      vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, int times) {
                         editor_arg.set_repetitions(times);
                       })
@@ -438,7 +441,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"OpenFile"),
       vm::NewCallback(
-          pool, PurityType::kUnknown,
+          pool, kPurityTypeUnknown,
           [](EditorState& editor_arg, LazyString path_str,
              bool visit) -> futures::ValueOrError<gc::Root<OpenBuffer>> {
             return OpenOrCreateFile(OpenFileOptions{
@@ -451,14 +454,13 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   editor_type.ptr()->AddField(
       Identifier(L"ShowInsertHistoryBuffer"),
-      vm::NewCallback(pool, PurityType::kUnknown, ShowInsertHistoryBuffer)
-          .ptr());
+      vm::NewCallback(pool, kPurityTypeUnknown, ShowInsertHistoryBuffer).ptr());
 
   // Version of AddBinding that receives a VectorExtendedChar.
   editor_type.ptr()->AddField(
       Identifier(L"AddBinding"),
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
+          pool, kPurityTypeUnknown, vm::types::Void{},
           {GetVMType<EditorState>::vmtype(),
            VMTypeMapper<VSP>::object_type_name, vm::types::String{},
            vm::types::Function{.output = vm::Type{vm::types::Void{}}}},
@@ -481,7 +483,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   editor_type.ptr()->AddField(
       Identifier(L"AddBinding"),
       vm::Value::NewFunction(
-          pool, PurityType::kUnknown, vm::types::Void{},
+          pool, kPurityTypeUnknown, vm::types::Void{},
           {GetVMType<EditorState>::vmtype(), vm::types::String{},
            vm::types::String{},
            vm::types::Function{.output = vm::Type{vm::types::Void{}}}},
@@ -499,22 +501,30 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   RegisterBufferMethod(pool, editor_type.ptr().value(), L"ToggleActiveCursors",
-                       vm::PurityTypeWriter, &OpenBuffer::ToggleActiveCursors);
+                       PurityType{.writes_external_outputs = true},
+                       &OpenBuffer::ToggleActiveCursors);
   RegisterBufferMethod(pool, editor_type.ptr().value(), L"PushActiveCursors",
-                       vm::PurityTypeWriter, &OpenBuffer::PushActiveCursors);
+                       PurityType{.writes_external_outputs = true},
+                       &OpenBuffer::PushActiveCursors);
   RegisterBufferMethod(pool, editor_type.ptr().value(), L"PopActiveCursors",
-                       vm::PurityTypeWriter, &OpenBuffer::PopActiveCursors);
+                       PurityType{.writes_external_outputs = true},
+                       &OpenBuffer::PopActiveCursors);
   RegisterBufferMethod(pool, editor_type.ptr().value(),
-                       L"SetActiveCursorsToMarks", vm::PurityTypeWriter,
+                       L"SetActiveCursorsToMarks",
+                       PurityType{.writes_external_outputs = true},
                        &OpenBuffer::SetActiveCursorsToMarks);
   RegisterBufferMethod(pool, editor_type.ptr().value(), L"CreateCursor",
-                       vm::PurityTypeWriter, &OpenBuffer::CreateCursor);
+                       PurityType{.writes_external_outputs = true},
+                       &OpenBuffer::CreateCursor);
   RegisterBufferMethod(pool, editor_type.ptr().value(), L"DestroyCursor",
-                       vm::PurityTypeWriter, &OpenBuffer::DestroyCursor);
+                       PurityType{.writes_external_outputs = true},
+                       &OpenBuffer::DestroyCursor);
   RegisterBufferMethod(pool, editor_type.ptr().value(), L"DestroyOtherCursors",
-                       vm::PurityTypeWriter, &OpenBuffer::DestroyOtherCursors);
+                       PurityType{.writes_external_outputs = true},
+                       &OpenBuffer::DestroyOtherCursors);
   RegisterBufferMethod(pool, editor_type.ptr().value(),
-                       L"RepeatLastTransformation", vm::PurityTypeWriter,
+                       L"RepeatLastTransformation",
+                       PurityType{.writes_external_outputs = true},
                        &OpenBuffer::RepeatLastTransformation);
 
   value.DefineType(editor_type.ptr());
