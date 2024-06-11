@@ -31,10 +31,7 @@ class LogicalExpression : public Expression {
   std::unordered_set<Type> ReturnTypes() const override { return {}; }
 
   PurityType purity() override {
-    return expr_a_->purity() == PurityType::kPure &&
-                   expr_b_->purity() == PurityType::kPure
-               ? PurityType::kPure
-               : PurityType::kUnknown;
+    return CombinePurityType({expr_a_->purity(), expr_b_->purity()});
   }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
