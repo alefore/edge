@@ -54,9 +54,7 @@ std::unordered_set<Type> BinaryOperator::ReturnTypes() const {
 }
 
 PurityType BinaryOperator::purity() {
-  return a_->purity() == PurityType::kPure && b_->purity() == PurityType::kPure
-             ? PurityType::kPure
-             : PurityType::kUnknown;
+  return CombinePurityType({a_->purity(), b_->purity()});
 }
 
 futures::ValueOrError<EvaluationOutput> BinaryOperator::Evaluate(
