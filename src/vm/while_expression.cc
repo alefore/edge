@@ -34,10 +34,7 @@ class WhileExpression : public Expression {
   }
 
   PurityType purity() override {
-    return condition_->purity() == PurityType::kPure &&
-                   body_->purity() == PurityType::kPure
-               ? PurityType::kPure
-               : PurityType::kUnknown;
+    return CombinePurityType({condition_->purity(), body_->purity()});
   }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
