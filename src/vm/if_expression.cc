@@ -36,11 +36,8 @@ class IfExpression : public Expression {
   }
 
   PurityType purity() override {
-    return cond_->purity() == PurityType::kPure &&
-                   true_case_->purity() == PurityType::kPure &&
-                   false_case_->purity() == PurityType::kPure
-               ? PurityType::kPure
-               : PurityType::kUnknown;
+    return CombinePurityType(
+        {cond_->purity(), true_case_->purity(), false_case_->purity()});
   }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
