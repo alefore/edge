@@ -395,14 +395,11 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   VisitPointer(
       contents.outgoing_link(),
       [&](const OutgoingLink& link) {
-        if (auto it =
-                options.buffer.editor().buffers()->find(BufferName(link.path));
-            it != options.buffer.editor().buffers()->end()) {
-          target_buffer_dummy = it->second;
-          if (target_buffer_dummy.has_value())
-            target_buffer = NonNull<const OpenBuffer*>::AddressOf(
-                target_buffer_dummy->ptr().value());
-        }
+        target_buffer_dummy = options.buffer.editor().buffer_registry().Find(
+            BufferName{link.path});
+        if (target_buffer_dummy.has_value())
+          target_buffer = NonNull<const OpenBuffer*>::AddressOf(
+              target_buffer_dummy->ptr().value());
       },
       [] {});
   auto info_char = L'•';

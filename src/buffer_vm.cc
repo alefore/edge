@@ -1,6 +1,7 @@
 #include "src/buffer_vm.h"
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/concurrent/protected.h"
 #include "src/file_link_mode.h"
@@ -150,9 +151,11 @@ gc::Ptr<OpenBuffer> MaybeFollowOutgoingLink(gc::Ptr<OpenBuffer> buffer) {
     return VisitPointer(
         buffer->CurrentLine().outgoing_link(),
         [&](const OutgoingLink& link) {
-          if (auto it = buffer->editor().buffers()->find(BufferName(link.path));
-              it != buffer->editor().buffers()->end())
-            return it->second.ptr();
+          if (std::optional<gc::Root<OpenBuffer>> link_buffer =
+                  buffer->editor().buffer_registry().Find(
+                      BufferName{link.path});
+              link_buffer.has_value())
+            return link_buffer->ptr();
           return buffer;
         },
         [&] { return buffer; });

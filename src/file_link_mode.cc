@@ -392,7 +392,7 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
             .Transform([&](std::list<PathComponent> path_components)
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
               for (gc::Root<OpenBuffer> buffer :
-                   *editor_state.buffers() | std::views::values) {
+                   editor_state.buffer_registry().buffers()) {
                 auto buffer_path = Path::FromString(
                     buffer.ptr()->Read(buffer_variables::path));
                 if (IsError(buffer_path)) continue;
