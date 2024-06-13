@@ -131,13 +131,15 @@ bool tests_registration = tests::Register(
       .callback =
           [] {
             NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-            gc::Root<OpenBuffer> paste_buffer_root =
+            std::optional<gc::Root<OpenBuffer>> paste_buffer_root =
                 OpenBuffer::New(OpenBuffer::Options{.editor = editor.value(),
                                                     .name = PasteBuffer()});
-            editor->buffer_registry().SetPaste(paste_buffer_root.ptr());
+            editor->buffer_registry().SetPaste(paste_buffer_root->ptr());
 
-            paste_buffer_root.ptr()->AppendLine(LazyString{L"Foo"});
-            paste_buffer_root.ptr()->AppendLine(LazyString{L"Bar"});
+            paste_buffer_root->ptr()->AppendLine(LazyString{L"Foo"});
+            paste_buffer_root->ptr()->AppendLine(LazyString{L"Bar"});
+            paste_buffer_root = std::nullopt;
+            editor->gc_pool().Collect();
 
             gc::Root<OpenBuffer> buffer_root =
                 NewBufferForTests(editor.value());
@@ -156,13 +158,15 @@ bool tests_registration = tests::Register(
           }},
      {.name = L"PasteWithFileDescriptor", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
-        gc::Root<OpenBuffer> paste_buffer_root =
+        std::optional<gc::Root<OpenBuffer>> paste_buffer_root =
             OpenBuffer::New(OpenBuffer::Options{.editor = editor.value(),
                                                 .name = PasteBuffer()});
-        editor->buffer_registry().SetPaste(paste_buffer_root.ptr());
+        editor->buffer_registry().SetPaste(paste_buffer_root->ptr());
 
-        paste_buffer_root.ptr()->AppendLine(LazyString{L"Foo"});
-        paste_buffer_root.ptr()->AppendLine(LazyString{L"Bar"});
+        paste_buffer_root->ptr()->AppendLine(LazyString{L"Foo"});
+        paste_buffer_root->ptr()->AppendLine(LazyString{L"Bar"});
+        paste_buffer_root = std::nullopt;
+        editor->gc_pool().Collect();
 
         int pipefd_out[2];
         CHECK(pipe2(pipefd_out, O_NONBLOCK) != -1);
