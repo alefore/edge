@@ -236,17 +236,6 @@ Observers::State MaybeScheduleNextWorkQueueExecution(
 
 using namespace afc::vm;
 
-// Name of the buffer that holds the contents that have been deleted recently
-// and which should still be included in the delete buffer for additional
-// deletions.
-//
-// This is used so that multiple subsequent deletion transformations (without
-// any interspersed non-delete transformations) will all aggregate into the
-// paste buffer (rather than retaining only the deletion corresponding to the
-// last such transformation).
-/* static */ const BufferName kFuturePasteBuffer =
-    BufferName(L"- future paste buffer");
-
 /* static */ gc::Root<OpenBuffer> OpenBuffer::New(Options options) {
   gc::Root<MapModeCommands> default_commands =
       options.editor.default_commands().ptr()->NewChild();
@@ -744,7 +733,8 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
   Set(buffer_variables::reload_after_exit, false);
-  if (name() == BufferName{PasteBuffer{}} || name() == kFuturePasteBuffer) {
+  if (std::holds_alternative<PasteBuffer>(name()) ||
+      std::holds_alternative<FuturePasteBuffer>(name())) {
     Set(buffer_variables::allow_dirty_delete, true);
     Set(buffer_variables::show_in_buffers_list, false);
     Set(buffer_variables::delete_into_paste_buffer, false);
@@ -2355,10 +2345,12 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
   input.mode = mode;
   input.position = position;
   if (Read(buffer_variables::delete_into_paste_buffer)) {
-    input.delete_buffer = editor().FindOrBuildBuffer(kFuturePasteBuffer, [&] {
-      LOG(INFO) << "Creating paste buffer: " << kFuturePasteBuffer;
-      return OpenBuffer::New({.editor = editor(), .name = kFuturePasteBuffer});
-    });
+    input.delete_buffer =
+        editor().buffer_registry().MaybeAdd(FuturePasteBuffer{}, [&] {
+          LOG(INFO) << "Creating paste buffer: " << FuturePasteBuffer{};
+          return OpenBuffer::New(
+              {.editor = editor(), .name = FuturePasteBuffer{}});
+        });
   }
 
   VLOG(5) << "Apply transformation: "
@@ -2372,15 +2364,14 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
         if (mode == transformation::Input::Mode::kFinal &&
             Read(buffer_variables::delete_into_paste_buffer)) {
           if (!result.added_to_paste_buffer) {
-            editor().buffers()->erase(kFuturePasteBuffer);
+            editor().buffer_registry().Remove(FuturePasteBuffer{});
           } else if (std::optional<gc::Root<OpenBuffer>> paste_buffer =
-                         editor().buffer_registry().Find(kFuturePasteBuffer);
+                         editor().buffer_registry().Find(FuturePasteBuffer{});
                      paste_buffer.has_value()) {
-            editor().buffer_registry().SetPaste(paste_buffer->ptr());
-            editor().buffer_registry().Remove(kFuturePasteBuffer);
+            editor().buffer_registry().Remove(FuturePasteBuffer{});
             paste_buffer->ptr()->Set(buffer_variables::name,
                                      to_wstring(BufferName{PasteBuffer{}}));
-            editor().buffers()->erase(kFuturePasteBuffer);
+            editor().buffer_registry().SetPaste(paste_buffer->ptr());
           }
         }
 

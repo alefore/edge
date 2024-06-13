@@ -25,13 +25,16 @@ gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
       return previous_buffer.value();
 
   gc::Root<OpenBuffer> buffer = std::move(factory)();
-  buffer_map_.insert({id, buffer.ptr().ToWeakPtr()});
+  Add(id, buffer.ptr().ToWeakPtr());
   return buffer;
 }
 
 void BufferRegistry::Add(const BufferName& name,
                          gc::WeakPtr<OpenBuffer> buffer) {
   // TODO(2024-05-30, trivial): Detect errors if a server already was there.
+  if (std::holds_alternative<FuturePasteBuffer>(name)) {
+    future_paste_ = buffer.Lock()->ptr();
+  }
   buffer_map_.insert({name, std::move(buffer)});
 }
 
@@ -54,15 +57,23 @@ std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
         output.push_back(buffer.ToRoot());
       },
       [] {}, paste_);
+  VisitOptional(
+      [&output](gc::Ptr<OpenBuffer> buffer) {
+        output.push_back(buffer.ToRoot());
+      },
+      [] {}, future_paste_);
   return output;
 }
 
 void BufferRegistry::Clear() {
   buffer_map_ = {};
   paste_ = std::nullopt;
+  future_paste_ = std::nullopt;
 }
 
 bool BufferRegistry::Remove(const BufferName& name) {
+  if (std::holds_alternative<FuturePasteBuffer>(name))
+    future_paste_ = std::nullopt;
   return buffer_map_.erase(name) > 0;
 }
 
@@ -74,6 +85,11 @@ BufferRegistry::Expand() const {
         output.push_back(buffer.object_metadata());
       },
       [] {}, paste_);
+  VisitOptional(
+      [&output](gc::Ptr<OpenBuffer> buffer) {
+        output.push_back(buffer.object_metadata());
+      },
+      [] {}, future_paste_);
   return output;
 }
 
@@ -84,5 +100,4 @@ void BufferRegistry::SetPaste(gc::Ptr<OpenBuffer> buffer) {
 std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::paste() const {
   return paste_;
 }
-
 }  // namespace afc::editor

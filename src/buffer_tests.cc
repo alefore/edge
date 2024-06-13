@@ -1,5 +1,7 @@
 #include "src/args.h"
 #include "src/buffer.h"
+#include "src/buffer_name.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/language/container.h"
@@ -9,6 +11,7 @@
 #include "src/tests/tests.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::concurrent::WorkQueue;
 using afc::infrastructure::screen::CursorsSet;
@@ -371,6 +374,44 @@ const bool buffer_positions_tests_registration = tests::Register(
 
         buffer.ptr()->DestroyCursor();
         CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(0)));
+      }}});
+
+const bool buffer_registry_tests_registration = tests::Register(
+    L"BufferRegistry",
+    {{.name = L"BufferIsCollected",
+      .callback =
+          [] {
+            NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+            std::optional<gc::Root<OpenBuffer>> buffer_root =
+                NewBufferForTests(editor.value());
+            EraseOrDie(*editor->buffers(), buffer_root->ptr()->name());
+            gc::WeakPtr<OpenBuffer> buffer_weak =
+                buffer_root->ptr().ToWeakPtr();
+            editor->CloseBuffer(buffer_root->ptr().value());
+            buffer_root = std::nullopt;
+            CHECK(buffer_weak.Lock().has_value());
+            editor->gc_pool().FullCollect();
+            editor->gc_pool().BlockUntilDone();
+            CHECK(!buffer_weak.Lock().has_value());
+          }},
+     {.name = L"FuturePasteBufferSurvives", .callback = [] {
+        NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
+        std::optional<gc::Root<OpenBuffer>> buffer_root =
+            OpenBuffer::New(OpenBuffer::Options{.editor = editor.value(),
+                                                .name = FuturePasteBuffer{}});
+        gc::WeakPtr<OpenBuffer> buffer_weak = buffer_root->ptr().ToWeakPtr();
+        editor->buffer_registry().Add(FuturePasteBuffer{}, buffer_weak);
+        editor->CloseBuffer(buffer_root->ptr().value());
+        buffer_root = std::nullopt;
+
+        editor->gc_pool().FullCollect();
+        editor->gc_pool().BlockUntilDone();
+        CHECK(buffer_weak.Lock().has_value());
+
+        editor->buffer_registry().Remove(FuturePasteBuffer{});
+        editor->gc_pool().FullCollect();
+        editor->gc_pool().BlockUntilDone();
+        CHECK(!buffer_weak.Lock().has_value());
       }}});
 
 }  // namespace

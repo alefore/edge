@@ -17,6 +17,19 @@ struct PasteBuffer {
   bool operator<(const PasteBuffer&) const { return false; }
 };
 
+// Name of the buffer that holds the contents that have been deleted recently
+// and which should still be included in the delete buffer for additional
+// deletions.
+//
+// This is used so that multiple subsequent deletion transformations (without
+// any interspersed non-delete transformations) will all aggregate into the
+// paste buffer (rather than retaining only the deletion corresponding to the
+// last such transformation).
+struct FuturePasteBuffer {
+  bool operator==(const FuturePasteBuffer&) const { return true; }
+  bool operator<(const FuturePasteBuffer&) const { return false; }
+};
+
 // Name of a special buffer that shows the list of buffers.
 struct BufferListId {
   bool operator==(const BufferListId&) const { return true; }
@@ -51,10 +64,10 @@ GHOST_TYPE(CommandBufferName, language::lazy_string::LazyString);
 GHOST_TYPE(AnonymousBufferName, size_t);
 
 using BufferName =
-    std::variant<BufferFileId, PasteBuffer, BufferListId, TextInsertion,
-                 InitialCommands, ConsoleBufferName, PredictionsBufferName,
-                 ServerBufferName, CommandBufferName, AnonymousBufferName,
-                 std::wstring>;
+    std::variant<BufferFileId, PasteBuffer, FuturePasteBuffer, BufferListId,
+                 TextInsertion, InitialCommands, ConsoleBufferName,
+                 PredictionsBufferName, ServerBufferName, CommandBufferName,
+                 AnonymousBufferName, std::wstring>;
 
 std::wstring to_wstring(const BufferName&);
 
@@ -70,6 +83,11 @@ namespace std {
 template <>
 struct hash<afc::editor::PasteBuffer> {
   size_t operator()(const afc::editor::PasteBuffer&) const { return 0; }
+};
+
+template <>
+struct hash<afc::editor::FuturePasteBuffer> {
+  size_t operator()(const afc::editor::FuturePasteBuffer&) const { return 0; }
 };
 
 template <>

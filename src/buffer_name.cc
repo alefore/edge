@@ -15,6 +15,9 @@ std::wstring to_wstring(const BufferName& p) {
           [](const BufferFileId& i) { return to_wstring(i); },
           [](const BufferListId&) -> std::wstring { return L"- buffers"; },
           [](const PasteBuffer&) -> std::wstring { return L"- paste buffer"; },
+          [](const FuturePasteBuffer&) -> std::wstring {
+            return L"- future paste buffer";
+          },
           [](const TextInsertion&) -> std::wstring {
             return L"- text inserted";
           },
