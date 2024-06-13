@@ -39,13 +39,12 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   if (editor_state.structure() == Structure::kLine) {
     std::optional<OutgoingLink> outgoing_link =
         buffer->ptr()->CurrentLine().outgoing_link();
-    if (outgoing_link.has_value()) {
-      if (auto it =
-              editor_state.buffers()->find(BufferName(outgoing_link->path));
-          it != editor_state.buffers()->end()) {
-        buffer = it->second;
-      }
-    }
+    if (outgoing_link.has_value())
+      if (std::optional<gc::Root<OpenBuffer>> link_buffer =
+              editor_state.buffer_registrys()->Find(
+                  BufferName(outgoing_link->path));
+          link_buffer.has_value)
+        buffer = link_buffer;
     editor_state.ResetModifiers();
   }
 
