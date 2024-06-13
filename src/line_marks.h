@@ -38,13 +38,13 @@ struct LineMarks {
   // previous run of the compiler) while they're being updated.
   struct ExpiredMark {
     // What created this mark?
-    const BufferName source_buffer = BufferName(L"");
+    const BufferName source_buffer;
 
     // The contents in the source (and line) that created this mark.
     const language::text::Line source_line_content;
 
     // What buffer does this mark identify?
-    const BufferName target_buffer = BufferName(L"");
+    const BufferName target_buffer;
 
     // The position marked.
     const language::text::LineColumn target_line_column;
