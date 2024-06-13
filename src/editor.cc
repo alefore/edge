@@ -379,10 +379,10 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
 }
 
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
-    BufferName name, std::function<gc::Root<OpenBuffer>()> callback) {
+    BufferName name, OnceOnlyFunction<gc::Root<OpenBuffer>()> callback) {
   LOG(INFO) << "FindOrBuildBuffer: " << name;
   return buffer_registry_.ptr()->MaybeAdd(name, [this, &name, &callback] {
-    gc::Root<OpenBuffer> value = callback();
+    gc::Root<OpenBuffer> value = std::move(callback)();
     buffers_.insert_or_assign(name, value.ptr().ToRoot());
     return value;
   });

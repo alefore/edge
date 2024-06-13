@@ -26,6 +26,7 @@
 #include "src/insert_history.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/once_only_function.h"
 #include "src/line_marks.h"
 #include "src/modifiers.h"
 #include "src/status.h"
@@ -101,7 +102,8 @@ class EditorState {
   }
 
   language::gc::Root<OpenBuffer> FindOrBuildBuffer(
-      BufferName, std::function<language::gc::Root<OpenBuffer>()> factory);
+      BufferName,
+      language::OnceOnlyFunction<language::gc::Root<OpenBuffer>()> factory);
 
   BuffersList& buffer_tree() { return buffer_tree_; }
   const BuffersList& buffer_tree() const { return buffer_tree_; }
