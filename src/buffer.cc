@@ -2373,13 +2373,14 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
             Read(buffer_variables::delete_into_paste_buffer)) {
           if (!result.added_to_paste_buffer) {
             editor().buffers()->erase(kFuturePasteBuffer);
-          } else if (auto paste_buffer =
-                         editor().buffers()->find(kFuturePasteBuffer);
-                     paste_buffer != editor().buffers()->end()) {
-            editor().buffer_registry().SetPaste(paste_buffer->second.ptr());
-            paste_buffer->second.ptr()->Set(
-                buffer_variables::name, to_wstring(BufferName{PasteBuffer{}}));
-            editor().buffers()->erase(paste_buffer);
+          } else if (std::optional<gc::Root<OpenBuffer>> paste_buffer =
+                         editor().buffer_registry().Find(kFuturePasteBuffer);
+                     paste_buffer.has_value()) {
+            editor().buffer_registry().SetPaste(paste_buffer->ptr());
+            editor().buffer_registry().Remove(kFuturePasteBuffer);
+            paste_buffer->ptr()->Set(buffer_variables::name,
+                                     to_wstring(BufferName{PasteBuffer{}}));
+            editor().buffers()->erase(kFuturePasteBuffer);
           }
         }
 
