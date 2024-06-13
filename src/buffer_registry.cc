@@ -57,6 +57,11 @@ std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
   return output;
 }
 
+void BufferRegistry::Clear() {
+  buffer_map_ = {};
+  paste_ = std::nullopt;
+}
+
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;

@@ -42,6 +42,8 @@ class BufferRegistry {
   // Return a vector containing all buffers.
   std::vector<language::gc::Root<OpenBuffer>> buffers() const;
 
+  void Clear();
+
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
 };
