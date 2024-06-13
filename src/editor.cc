@@ -273,18 +273,19 @@ EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
-  for (OpenBuffer& buffer : buffers_ | std::views::values | gc::view::Value)
+  for (OpenBuffer& buffer : buffer_registry_.ptr()->buffers() | gc::view::Value)
     buffer.Close();
 
   buffer_tree_.RemoveBuffers(
       container::Materialize<std::unordered_set<NonNull<const OpenBuffer*>>>(
-          buffers_ | std::views::values | gc::view::Value |
+          buffer_registry_.ptr()->buffers() | gc::view::Value |
           std::views::transform([](const OpenBuffer& buffer) {
             return NonNull<const OpenBuffer*>::AddressOf(buffer);
           })));
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
   buffers_.clear();
+  buffer_registry_.ptr()->Clear();
 
   LOG(INFO) << "Reclaim GC pool.";
   gc_pool_.FullCollect();
@@ -380,12 +381,11 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
 gc::Root<OpenBuffer> EditorState::FindOrBuildBuffer(
     BufferName name, std::function<gc::Root<OpenBuffer>()> callback) {
   LOG(INFO) << "FindOrBuildBuffer: " << name;
-  if (auto it = buffers_.find(name); it != buffers_.end()) {
-    return it->second;
-  }
-  gc::Root<OpenBuffer> value = callback();
-  buffers_.insert_or_assign(name, value.ptr().ToRoot());
-  return value;
+  return buffer_registry_.ptr()->MaybeAdd(name, [this, &name, &callback] {
+    gc::Root<OpenBuffer> value = callback();
+    buffers_.insert_or_assign(name, value.ptr().ToRoot());
+    return value;
+  });
 }
 
 void EditorState::set_current_buffer(gc::Root<OpenBuffer> buffer,
