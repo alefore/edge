@@ -422,9 +422,27 @@ gc::Root<OpenBuffer> CreateBuffer(
     const OpenFileOptions& options,
     std::optional<ResolvePathOutput<EmptyValue>> resolve_path_output) {
   EditorState& editor_state = options.editor_state;
+  const std::optional<Path> buffer_options_path =
+      std::invoke([&resolve_path_output, &options] -> std::optional<Path> {
+        if (resolve_path_output.has_value()) return resolve_path_output->path;
+        if (options.path.has_value())
+          return options.editor_state.expand_path(options.path.value());
+        return std::nullopt;
+      });
+
   auto buffer_options =
       MakeNonNullShared<OpenBuffer::Options>(OpenBuffer::Options{
           .editor = options.editor_state,
+          .name = options.name.has_value()
+                      ? options.name.value()
+                      : std::invoke([&editor_state, &buffer_options_path] {
+                          return buffer_options_path.has_value()
+                                     ? BufferName{BufferFileId{
+                                           buffer_options_path.value()}}
+                                     : editor_state.buffer_registry()
+                                           .NewAnonymousBufferName();
+                        }),
+          .path = buffer_options_path,
           .survival_behavior =
               OpenBuffer::Options::SurvivalBehavior::kAllowSilentDeletion});
 
@@ -463,12 +481,6 @@ gc::Root<OpenBuffer> CreateBuffer(
     buffer_options->handle_save = [](OpenBuffer::Options::HandleSaveOptions) {
       return futures::Past(Success());
     };
-  if (resolve_path_output.has_value()) {
-    buffer_options->path = resolve_path_output->path;
-  } else if (options.path.has_value()) {
-    buffer_options->path =
-        options.editor_state.expand_path(options.path.value());
-  }
   buffer_options->log_supplier =
       [&editor_state = options.editor_state](Path edge_state_directory) {
         FileSystemDriver driver(editor_state.thread_pool());
@@ -476,16 +488,6 @@ gc::Root<OpenBuffer> CreateBuffer(
                           Path::Join(edge_state_directory,
                                      PathComponent::FromString(L".edge_log")));
       };
-
-  if (options.name.has_value()) {
-    buffer_options->name = *options.name;
-  } else if (buffer_options->path.has_value()) {
-    buffer_options->name =
-        BufferName{BufferFileId{buffer_options->path.value()}};
-  } else {
-    buffer_options->name =
-        options.editor_state.buffer_registry().NewAnonymousBufferName();
-  }
 
   gc::Root<OpenBuffer> buffer = VisitOptional(
       [&](Path path) {

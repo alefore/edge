@@ -61,7 +61,7 @@ class OpenBuffer {
  public:
   struct Options {
     EditorState& editor;
-    BufferName name = BufferName(L"");
+    BufferName name;
     std::optional<infrastructure::Path> path = {};
 
     // Optional function that will be run to generate the contents of the
