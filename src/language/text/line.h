@@ -24,6 +24,8 @@ struct LineMetadataEntry {
 };
 
 struct OutgoingLink {
+  // TODO(2024-06-13): We'd like to change this to BufferName, but that's
+  // difficult: this module can't depend on BufferName.
   std::wstring path;
   std::optional<LineColumn> line_column;
 };
