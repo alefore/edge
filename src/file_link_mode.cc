@@ -185,15 +185,19 @@ futures::Value<PossibleError> Save(
                   }
                   if (buffer.ptr()->Read(
                           buffer_variables::trigger_reload_on_buffer_write)) {
-                    for (OpenBuffer& reload_buffer :
-                         *buffer.ptr()->editor().buffers() |
-                             std::views::values | gc::view::Value)
-                      if (reload_buffer.Read(
-                              buffer_variables::reload_on_buffer_write)) {
-                        LOG(INFO) << "Write of " << path << " triggers reload: "
-                                  << reload_buffer.Read(buffer_variables::name);
-                        reload_buffer.Reload();
-                      }
+                    std::ranges::for_each(
+                        buffer.ptr()->editor().buffer_registry().buffers() |
+                            gc::view::Value |
+                            std::views::filter([](OpenBuffer& reload_buffer) {
+                              return reload_buffer.Read(
+                                  buffer_variables::reload_on_buffer_write);
+                            }),
+                        [&path](OpenBuffer& reload_buffer) {
+                          LOG(INFO)
+                              << "Write of " << path << " triggers reload: "
+                              << reload_buffer.Read(buffer_variables::name);
+                          reload_buffer.Reload();
+                        });
                   }
                   stat(ToByteString(path.read()).c_str(), &stat_buffer.value());
                   break;
