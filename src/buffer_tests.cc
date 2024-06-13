@@ -384,7 +384,6 @@ const bool buffer_registry_tests_registration = tests::Register(
             NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
             std::optional<gc::Root<OpenBuffer>> buffer_root =
                 NewBufferForTests(editor.value());
-            EraseOrDie(*editor->buffers(), buffer_root->ptr()->name());
             gc::WeakPtr<OpenBuffer> buffer_weak =
                 buffer_root->ptr().ToWeakPtr();
             editor->CloseBuffer(buffer_root->ptr().value());

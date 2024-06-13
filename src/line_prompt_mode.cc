@@ -111,7 +111,7 @@ std::unordered_multimap<std::wstring, LazyString> GetCurrentFeatures(
     EditorState& editor) {
   std::unordered_multimap<std::wstring, LazyString> output;
   for (OpenBuffer& buffer :
-       *editor.buffers() | std::views::values | gc::view::Value)
+       editor.buffer_registry().buffers() | gc::view::Value)
     if (buffer.Read(buffer_variables::show_in_buffers_list) &&
         editor.buffer_tree().GetBufferIndex(buffer).has_value())
       output.insert({L"name", LazyString{buffer.Read(buffer_variables::name)}});
@@ -690,29 +690,22 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
 
   gc::Root<OpenBuffer> GetPromptBuffer() const {
     BufferName name(L"- prompt");
-    if (auto it = options_.editor_state.buffers()->find(name);
-        it != options_.editor_state.buffers()->end()) {
-      gc::Root<OpenBuffer> buffer_root = it->second;
-      OpenBuffer& buffer = buffer_root.ptr().value();
-      buffer.Set(buffer_variables::contents_type,
-                 options_.prompt_contents_type);
-      buffer.Reload();
-      InitializePromptBuffer(buffer);
-      return buffer_root;
-    }
-    gc::Root<OpenBuffer> buffer_root =
-        OpenBuffer::New({.editor = options_.editor_state, .name = name});
-    OpenBuffer& buffer = buffer_root.ptr().value();
+    gc::Root<OpenBuffer> output =
+        options_.editor_state.buffer_registry().MaybeAdd(name, [&] {
+          return OpenBuffer::New(
+              {.editor = options_.editor_state, .name = name});
+        });
+
+    OpenBuffer& buffer = output.ptr().value();
     buffer.Set(buffer_variables::allow_dirty_delete, true);
     buffer.Set(buffer_variables::show_in_buffers_list, false);
     buffer.Set(buffer_variables::delete_into_paste_buffer, false);
     buffer.Set(buffer_variables::save_on_close, false);
     buffer.Set(buffer_variables::persist_state, false);
     buffer.Set(buffer_variables::completion_model_paths, L"");
-    InsertOrDie(*options_.editor_state.buffers(),
-                {name, buffer_root.ptr().ToRoot()});
+    buffer.Reload();
     InitializePromptBuffer(buffer);
-    return buffer_root;
+    return output;
   }
 
   void InitializePromptBuffer(OpenBuffer& buffer) const {
@@ -1186,7 +1179,8 @@ InsertModeOptions PromptState::insert_mode_options() {
                   LOG(INFO) << "Prediction didn't advance.";
                   status_version_value->SetStatusValue(
                       VersionPropertyKey(L"🔮"), L"stuck");
-                  auto buffers = prompt_state->editor_state().buffers();
+                  auto buffers =
+                      prompt_state->editor_state().buffer_registry().buffers();
                   if (std::optional<gc::Root<OpenBuffer>> predictions_buffer =
                           prompt_state->editor_state().buffer_registry().Find(
                               PredictionsBufferName{});
