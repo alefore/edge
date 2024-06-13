@@ -53,8 +53,6 @@ AnonymousBufferName BufferRegistry::NewAnonymousBufferName() {
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
   std::vector<gc::Root<OpenBuffer>> output = container::MaterializeVector(
       buffer_map_ | std::views::values | gc::view::Lock);
-  for (auto& buffer : retained_buffers_ | std::views::values)
-    output.push_back(buffer.ToRoot());
   return output;
 }
 
