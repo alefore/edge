@@ -273,12 +273,12 @@ EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
-  for (OpenBuffer& buffer : buffer_registry_.ptr()->buffers() | gc::view::Value)
+  for (OpenBuffer& buffer : buffer_registry().buffers() | gc::view::Value)
     buffer.Close();
 
   buffer_tree_.RemoveBuffers(
       container::Materialize<std::unordered_set<NonNull<const OpenBuffer*>>>(
-          buffer_registry_.ptr()->buffers() | gc::view::Value |
+          buffer_registry().buffers() | gc::view::Value |
           std::views::transform([](const OpenBuffer& buffer) {
             return NonNull<const OpenBuffer*>::AddressOf(buffer);
           })));
@@ -574,10 +574,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       MakeNonNullShared<Data>(Data{.termination_type = termination_type,
                                    .exit_value = exit_value,
                                    .pending_buffers = container::MaterializeSet(
-                                       buffer_registry_.ptr()->buffers())});
-  CHECK_EQ(buffer_registry_.ptr()->buffers().size(),
-           data->pending_buffers.size());
-  for (const gc::Root<OpenBuffer>& buffer : buffer_registry_.ptr()->buffers()) {
+                                       buffer_registry().buffers())});
+  CHECK_EQ(buffer_registry().buffers().size(), data->pending_buffers.size());
+  for (const gc::Root<OpenBuffer>& buffer : buffer_registry().buffers()) {
     LOG(INFO) << "Preparing to close: " << buffer.ptr()->name() << " @ "
               << &buffer.ptr().value();
     CHECK_EQ(data->pending_buffers.count(buffer), 1ul);
