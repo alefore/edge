@@ -768,57 +768,6 @@ futures::Value<EmptyValue> EditorState::ProcessInput(
   return futures::Past(EmptyValue());
 }
 
-void EditorState::MoveBufferForwards(size_t times) {
-  auto it = buffers_.end();
-
-  auto buffer = current_buffer();
-  if (buffer.has_value()) {
-    it = buffers_.find(buffer->ptr()->name());
-  }
-
-  if (it == buffers_.end()) {
-    if (buffers_.empty()) {
-      return;
-    }
-    it = buffers_.begin();
-  }
-
-  times = times % buffers_.size();
-  for (size_t repetition = 0; repetition < times; repetition++) {
-    ++it;
-    if (it == buffers_.end()) {
-      it = buffers_.begin();
-    }
-  }
-  set_current_buffer(it->second, CommandArgumentModeApplyMode::kFinal);
-  PushCurrentPosition();
-}
-
-void EditorState::MoveBufferBackwards(size_t times) {
-  auto it = buffers_.end();
-
-  auto buffer = current_buffer();
-  if (buffer.has_value()) {
-    it = buffers_.find(buffer->ptr()->name());
-  }
-
-  if (it == buffers_.end()) {
-    if (buffers_.empty()) {
-      return;
-    }
-    --it;
-  }
-  times = times % buffers_.size();
-  for (size_t i = 0; i < times; i++) {
-    if (it == buffers_.begin()) {
-      it = buffers_.end();
-    }
-    --it;
-  }
-  set_current_buffer(it->second, CommandArgumentModeApplyMode::kFinal);
-  PushCurrentPosition();
-}
-
 std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
   auto now = Now();
   if (now < next_screen_update_) {

@@ -188,9 +188,6 @@ class EditorState {
     return default_commands_;
   }
 
-  void MoveBufferForwards(size_t times);
-  void MoveBufferBackwards(size_t times);
-
   // Returns nullptr if the redraw should be skipped.
   std::optional<ScreenState> FlushScreenState();
   void set_screen_needs_hard_redraw(bool value) {
