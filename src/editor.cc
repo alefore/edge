@@ -573,9 +573,10 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       MakeNonNullShared<Data>(Data{.termination_type = termination_type,
                                    .exit_value = exit_value,
                                    .pending_buffers = container::MaterializeSet(
-                                       buffers_ | std::views::values)});
-  CHECK_EQ(buffers_.size(), data->pending_buffers.size());
-  for (const gc::Root<OpenBuffer>& buffer : buffers_ | std::views::values) {
+                                       buffer_registry_.ptr()->buffers())});
+  CHECK_EQ(buffer_registry_.ptr()->buffers().size(),
+           data->pending_buffers.size());
+  for (const gc::Root<OpenBuffer>& buffer : buffer_registry_.ptr()->buffers()) {
     LOG(INFO) << "Preparing to close: " << buffer.ptr()->name() << " @ "
               << &buffer.ptr().value();
     CHECK_EQ(data->pending_buffers.count(buffer), 1ul);
