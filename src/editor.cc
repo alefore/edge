@@ -111,7 +111,7 @@ std::optional<struct timespec> EditorState::WorkQueueNextExecution() const {
         return output.has_value() ? std::min(a, output.value()) : a;
       },
       Output(),
-      buffers_ | std::views::values | gc::view::Value | std::views::transform([
+      buffer_registry().buffers() | gc::view::Value | std::views::transform([
       ](OpenBuffer & buffer) -> ValueOrError<struct timespec> {
         return FromOptional(buffer.work_queue()->NextExecution());
       }) | SkipErrors);
@@ -526,14 +526,15 @@ std::optional<LazyString> EditorState::GetExitNotice() const {
 
 void EditorState::Terminate(TerminationType termination_type, int exit_value) {
   status().SetInformationText(
-      LineBuilder(LazyString{L"Exit: Preparing to close buffers ("} +
-                  LazyString{std::to_wstring(buffers_.size())} +
-                  LazyString{L")"})
+      LineBuilder(
+          LazyString{L"Exit: Preparing to close buffers ("} +
+          LazyString{std::to_wstring(buffer_registry().buffers().size())} +
+          LazyString{L")"})
           .Build());
   if (termination_type == TerminationType::kWhenClean) {
     LOG(INFO) << "Checking buffers for termination.";
     if (auto buffers_with_problems =
-            buffers_ | std::views::values | gc::view::Value |
+            buffer_registry().buffers() | gc::view::Value |
             std::views::transform([](OpenBuffer& buffer) {
               return NonNull<OpenBuffer*>::AddressOf(buffer);
             }) |
