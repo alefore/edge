@@ -68,9 +68,7 @@ bool BufferRegistry::Remove(const BufferName& name) {
 
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
-  for (auto& buffer : retained_buffers_ | std::views::values)
-    output.push_back(buffer.object_metadata());
-  return output;
+  return container::MaterializeVector(retained_buffers_ | std::views::values |
+                                      gc::view::ObjectMetadata);
 }
 }  // namespace afc::editor
