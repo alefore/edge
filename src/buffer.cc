@@ -2371,7 +2371,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
             editor().buffer_registry().Remove(FuturePasteBuffer{});
             paste_buffer->ptr()->Set(buffer_variables::name,
                                      to_wstring(BufferName{PasteBuffer{}}));
-            editor().buffer_registry().SetPaste(paste_buffer->ptr());
+            editor().buffer_registry().Add(PasteBuffer{},
+                                           paste_buffer->ptr().ToWeakPtr());
           }
         }
 

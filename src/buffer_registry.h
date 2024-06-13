@@ -14,11 +14,6 @@
 namespace afc::editor {
 class OpenBuffer;
 class BufferRegistry {
-  // TODO(trivial, 2024-06-13): Handle paste_ identically to future_paste_:
-  // don't require explicit `SetPaste` and `paste` methods, just use the regular
-  // `Add` and `Find` methods.
-  std::optional<language::gc::Ptr<OpenBuffer>> paste_;
-
   // Q: Why does this use WeakPtr (rather than Ptr)?
   // A: Buffers must find other ways to remain alive. Typically that is managed
   // through OpenBuffer::Options::SurvivalBehavior or explicit references
@@ -30,9 +25,6 @@ class BufferRegistry {
   size_t next_anonymous_buffer_name_ = 0;
 
  public:
-  void SetPaste(language::gc::Ptr<OpenBuffer> buffer);
-  std::optional<language::gc::Ptr<OpenBuffer>> paste() const;
-
   language::gc::Root<OpenBuffer> MaybeAdd(
       const BufferName& name,
       language::OnceOnlyFunction<language::gc::Root<OpenBuffer>()> factory);

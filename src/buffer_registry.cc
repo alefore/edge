@@ -33,9 +33,10 @@ void BufferRegistry::Add(const BufferName& name,
                          gc::WeakPtr<OpenBuffer> buffer) {
   // TODO(2024-05-30, trivial): Detect errors if a server already was there.
   if (std::holds_alternative<FuturePasteBuffer>(name) ||
-      std::holds_alternative<HistoryBufferName>(name))
-    retained_buffers_.insert({name, buffer.Lock()->ptr()});
-  buffer_map_.insert({name, std::move(buffer)});
+      std::holds_alternative<HistoryBufferName>(name) ||
+      std::holds_alternative<PasteBuffer>(name))
+    retained_buffers_.insert_or_assign(name, buffer.Lock()->ptr());
+  buffer_map_.insert_or_assign(name, std::move(buffer));
 }
 
 std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
@@ -52,11 +53,6 @@ AnonymousBufferName BufferRegistry::NewAnonymousBufferName() {
 std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
   std::vector<gc::Root<OpenBuffer>> output = container::MaterializeVector(
       buffer_map_ | std::views::values | gc::view::Lock);
-  VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) {
-        output.push_back(buffer.ToRoot());
-      },
-      [] {}, paste_);
   for (auto& buffer : retained_buffers_ | std::views::values)
     output.push_back(buffer.ToRoot());
   return output;
@@ -64,7 +60,6 @@ std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
 
 void BufferRegistry::Clear() {
   buffer_map_ = {};
-  paste_ = std::nullopt;
   retained_buffers_ = {};
 }
 
@@ -76,21 +71,8 @@ bool BufferRegistry::Remove(const BufferName& name) {
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;
-  VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) {
-        output.push_back(buffer.object_metadata());
-      },
-      [] {}, paste_);
   for (auto& buffer : retained_buffers_ | std::views::values)
     output.push_back(buffer.object_metadata());
   return output;
-}
-
-void BufferRegistry::SetPaste(gc::Ptr<OpenBuffer> buffer) {
-  paste_ = std::move(buffer);
-}
-
-std::optional<gc::Ptr<OpenBuffer>> BufferRegistry::paste() const {
-  return paste_;
 }
 }  // namespace afc::editor
