@@ -32,9 +32,9 @@ gc::Root<OpenBuffer> BufferRegistry::MaybeAdd(
 void BufferRegistry::Add(const BufferName& name,
                          gc::WeakPtr<OpenBuffer> buffer) {
   // TODO(2024-05-30, trivial): Detect errors if a server already was there.
-  if (std::holds_alternative<FuturePasteBuffer>(name)) {
-    future_paste_ = buffer.Lock()->ptr();
-  }
+  if (std::holds_alternative<FuturePasteBuffer>(name) ||
+      std::holds_alternative<HistoryBufferName>(name))
+    retained_buffers_.insert({name, buffer.Lock()->ptr()});
   buffer_map_.insert({name, std::move(buffer)});
 }
 
@@ -57,23 +57,19 @@ std::vector<gc::Root<OpenBuffer>> BufferRegistry::buffers() const {
         output.push_back(buffer.ToRoot());
       },
       [] {}, paste_);
-  VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) {
-        output.push_back(buffer.ToRoot());
-      },
-      [] {}, future_paste_);
+  for (auto& buffer : retained_buffers_ | std::views::values)
+    output.push_back(buffer.ToRoot());
   return output;
 }
 
 void BufferRegistry::Clear() {
   buffer_map_ = {};
   paste_ = std::nullopt;
-  future_paste_ = std::nullopt;
+  retained_buffers_ = {};
 }
 
 bool BufferRegistry::Remove(const BufferName& name) {
-  if (std::holds_alternative<FuturePasteBuffer>(name))
-    future_paste_ = std::nullopt;
+  retained_buffers_.erase(name);
   return buffer_map_.erase(name) > 0;
 }
 
@@ -85,11 +81,8 @@ BufferRegistry::Expand() const {
         output.push_back(buffer.object_metadata());
       },
       [] {}, paste_);
-  VisitOptional(
-      [&output](gc::Ptr<OpenBuffer> buffer) {
-        output.push_back(buffer.object_metadata());
-      },
-      [] {}, future_paste_);
+  for (auto& buffer : retained_buffers_ | std::views::values)
+    output.push_back(buffer.object_metadata());
   return output;
 }
 

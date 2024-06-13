@@ -18,13 +18,14 @@ class BufferRegistry {
   // don't require explicit `SetPaste` and `paste` methods, just use the regular
   // `Add` and `Find` methods.
   std::optional<language::gc::Ptr<OpenBuffer>> paste_;
-  std::optional<language::gc::Ptr<OpenBuffer>> future_paste_;
 
   // Q: Why does this use WeakPtr (rather than Ptr)?
   // A: Buffers must find other ways to remain alive. Typically that is managed
   // through OpenBuffer::Options::SurvivalBehavior or explicit references
   // elsewhere.
   std::map<BufferName, language::gc::WeakPtr<OpenBuffer>> buffer_map_;
+
+  std::map<BufferName, language::gc::Ptr<OpenBuffer>> retained_buffers_;
 
   size_t next_anonymous_buffer_name_ = 0;
 

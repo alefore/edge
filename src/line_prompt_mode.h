@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "src/buffer_name.h"
 #include "src/command.h"
 #include "src/editor.h"
 #include "src/futures/delete_notification.h"
@@ -13,11 +14,6 @@
 #include "src/predictor.h"
 
 namespace afc::editor {
-
-GHOST_TYPE(HistoryFile, std::wstring);
-
-HistoryFile HistoryFileFiles();
-HistoryFile HistoryFileCommands();
 
 struct TokenAndModifiers {
   // The portion to colorize. The `value` field is ignored; instead, the

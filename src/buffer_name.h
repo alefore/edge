@@ -57,6 +57,13 @@ struct PredictionsBufferName {
   bool operator<(const PredictionsBufferName&) const { return false; }
 };
 
+GHOST_TYPE(HistoryFile, std::wstring);
+
+HistoryFile HistoryFileFiles();
+HistoryFile HistoryFileCommands();
+
+GHOST_TYPE(HistoryBufferName, HistoryFile);
+
 GHOST_TYPE(ServerBufferName, infrastructure::Path);
 
 GHOST_TYPE(CommandBufferName, language::lazy_string::LazyString);
@@ -66,8 +73,8 @@ GHOST_TYPE(AnonymousBufferName, size_t);
 using BufferName =
     std::variant<BufferFileId, PasteBuffer, FuturePasteBuffer, BufferListId,
                  TextInsertion, InitialCommands, ConsoleBufferName,
-                 PredictionsBufferName, ServerBufferName, CommandBufferName,
-                 AnonymousBufferName, std::wstring>;
+                 PredictionsBufferName, HistoryBufferName, ServerBufferName,
+                 CommandBufferName, AnonymousBufferName, std::wstring>;
 
 std::wstring to_wstring(const BufferName&);
 
@@ -76,6 +83,8 @@ std::ostream& operator<<(std::ostream& os, const BufferName& p);
 
 GHOST_TYPE_TOP_LEVEL(afc::editor::BufferFileId);
 GHOST_TYPE_TOP_LEVEL(afc::editor::ServerBufferName);
+GHOST_TYPE_TOP_LEVEL(afc::editor::HistoryFile);
+GHOST_TYPE_TOP_LEVEL(afc::editor::HistoryBufferName);
 GHOST_TYPE_TOP_LEVEL(afc::editor::CommandBufferName);
 GHOST_TYPE_TOP_LEVEL(afc::editor::AnonymousBufferName);
 

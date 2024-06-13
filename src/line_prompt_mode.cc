@@ -238,11 +238,11 @@ const bool get_synthetic_features_tests_registration = tests::Register(
 
 futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
                                                       const HistoryFile& name) {
-  BufferName buffer_name(L"- history: " + name.read());
-  if (auto it = editor_state.buffers()->find(buffer_name);
-      it != editor_state.buffers()->end()) {
-    return futures::Past(it->second);
-  }
+  HistoryBufferName buffer_name{name};
+  if (std::optional<gc::Root<OpenBuffer>> buffer =
+          editor_state.buffer_registry().Find(buffer_name);
+      buffer.has_value())
+    return futures::Past(buffer.value());
   return OpenOrCreateFile(
              {.editor_state = editor_state,
               .name = buffer_name,

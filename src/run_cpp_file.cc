@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/editor.h"
@@ -37,14 +38,14 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
     return futures::Past(ValueOrError<EmptyValue>(Error(L"No current buffer")));
   }
   if (editor_state.structure() == Structure::kLine) {
-    std::optional<OutgoingLink> outgoing_link =
-        buffer->ptr()->CurrentLine().outgoing_link();
-    if (outgoing_link.has_value())
+    if (std::optional<OutgoingLink> outgoing_link =
+            buffer->ptr()->CurrentLine().outgoing_link();
+        outgoing_link.has_value())
       if (std::optional<gc::Root<OpenBuffer>> link_buffer =
-              editor_state.buffer_registrys()->Find(
+              editor_state.buffer_registry().Find(
                   BufferName(outgoing_link->path));
-          link_buffer.has_value)
-        buffer = link_buffer;
+          link_buffer.has_value())
+        buffer = std::move(link_buffer);
     editor_state.ResetModifiers();
   }
 

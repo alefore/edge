@@ -28,6 +28,9 @@ std::wstring to_wstring(const BufferName& p) {
           [](const PredictionsBufferName&) -> std::wstring {
             return L"- predictions";
           },
+          [](const HistoryBufferName& input) -> std::wstring {
+            return L"- history: " + to_wstring(input);
+          },
           [](const ServerBufferName& input) -> std::wstring {
             return L"@ " + to_wstring(input);
           },
