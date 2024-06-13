@@ -62,6 +62,10 @@ void BufferRegistry::Clear() {
   paste_ = std::nullopt;
 }
 
+bool BufferRegistry::Remove(const BufferName& name) {
+  return buffer_map_.erase(name) > 0;
+}
+
 std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>>
 BufferRegistry::Expand() const {
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> output;

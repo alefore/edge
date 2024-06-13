@@ -44,6 +44,8 @@ class BufferRegistry {
 
   void Clear();
 
+  bool Remove(const BufferName& name);
+
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const;
 };
