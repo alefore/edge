@@ -461,7 +461,6 @@ void EditorState::AddBuffer(gc::Root<OpenBuffer> buffer,
   std::vector<gc::Root<OpenBuffer>> initial_active_buffers = active_buffers();
   buffer_tree().AddBuffer(buffer, insertion_type);
   AdjustWidgets();
-  buffers_.insert_or_assign(buffer.ptr()->name(), std::move(buffer));
 
   if (initial_active_buffers != active_buffers()) {
     // The set of buffers changed; if some mode was active, ... cancel it.
