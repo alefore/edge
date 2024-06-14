@@ -20,7 +20,7 @@ class Trampoline;
 class Value {
  private:
   class ConstructorAccessTag {
-    ConstructorAccessTag(){};
+    ConstructorAccessTag() {};
     friend Value;
   };
 
