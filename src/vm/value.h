@@ -104,9 +104,6 @@ class Value {
   futures::ValueOrError<language::gc::Root<Value>> RunFunction(
       std::vector<language::gc::Root<Value>> arguments, Trampoline& trampoline);
 
-  language::gc::Root<language::gc::ValueWithFixedDependencies<Callback>>
-  LockCallback();
-
   // This is similar to `get_double`, but can deal with type conversion from
   // integer.
   language::ValueOrError<double> ToDouble() const;

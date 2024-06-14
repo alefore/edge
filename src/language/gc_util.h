@@ -131,16 +131,5 @@ template <typename Callback>
 auto LockCallback(gc::Ptr<Callback> callback) {
   return [root = callback.ToRoot()] { root.ptr().value()(); };
 }
-
-template <typename Value>
-struct ValueWithFixedDependencies {
-  Value value;
-
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> dependencies;
-
-  std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand() const {
-    return dependencies;
-  }
-};
 }  // namespace afc::language::gc
 #endif  // __AFC_LANGUAGE_GC_UTIL_H__
