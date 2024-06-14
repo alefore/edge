@@ -39,6 +39,14 @@ class GetRootValue {
   }
 };
 
+class GetPtrValue {
+ public:
+  template <typename Iterator>
+  static auto& Adjust(const Iterator& iterator) {
+    return (*iterator).value();
+  }
+};
+
 class GetObjectMetadata {
  public:
   template <typename Iterator>
@@ -179,6 +187,7 @@ struct LockAdaptorClosure {
 inline constexpr RootValueViewAdapter<GetRootValue> Value{};
 inline constexpr RootValueViewAdapter<GetPtrRoot> Root{};
 inline constexpr RootValueViewAdapter<GetObjectMetadata> ObjectMetadata{};
+inline constexpr RootValueViewAdapter<GetPtrValue> PtrValue{};
 
 inline constexpr LockAdaptorClosure Lock{};
 
