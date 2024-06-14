@@ -135,7 +135,7 @@ class ObjectType {
 
   void AddField(const Identifier& name, language::gc::Ptr<Value> field);
 
-  std::vector<language::NonNull<Value*>> LookupField(
+  std::vector<language::gc::Root<Value>> LookupField(
       const Identifier& name) const;
 
   void ForEachField(std::function<void(const Identifier&, Value&)> callback);

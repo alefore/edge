@@ -240,11 +240,14 @@ std::unique_ptr<Expression> NewMethodLookup(
             continue;
           }
 
-          std::vector<NonNull<Value*>> fields =
+          std::vector<gc::Root<Value>> fields =
               object_type->LookupField(method_name);
           for (auto& field : fields) {
-            CHECK_GE(std::get<types::Function>(field->type).inputs.size(), 1ul);
-            CHECK(std::get<types::Function>(field->type).inputs[0] == type);
+            CHECK(field.ptr()->IsFunction());
+            CHECK_GE(std::get<types::Function>(field.ptr()->type).inputs.size(),
+                     1ul);
+            CHECK(std::get<types::Function>(field.ptr()->type).inputs[0] ==
+                  type);
           }
           if (fields.empty()) {
             std::vector<Identifier> alternatives;
@@ -273,14 +276,14 @@ std::unique_ptr<Expression> NewMethodLookup(
           class BindObjectExpression : public Expression {
            public:
             BindObjectExpression(NonNull<std::shared_ptr<Expression>> obj_expr,
-                                 std::vector<NonNull<Value*>> delegates)
+                                 std::vector<gc::Root<Value>> delegates)
                 : delegates_(std::move(delegates)),
                   external_types_(MakeNonNullShared<std::vector<Type>>(
                       container::MaterializeVector(
                           delegates_ | std::views::transform(
-                                           [](const NonNull<Value*>& delegate) {
+                                           [](const gc::Root<Value>& delegate) {
                                              return RemoveObjectFirstArgument(
-                                                 delegate->type);
+                                                 delegate.ptr()->type);
                                            })))),
                   obj_expr_(std::move(obj_expr)) {}
 
@@ -314,9 +317,9 @@ std::unique_ptr<Expression> NewMethodLookup(
                         return Success(std::move(output));
                       case EvaluationOutput::OutputType::kContinue:
                         for (auto& delegate : delegates)
-                          if (GetImplicitPromotion(
-                                  RemoveObjectFirstArgument(delegate->type),
-                                  type) != nullptr) {
+                          if (GetImplicitPromotion(RemoveObjectFirstArgument(
+                                                       delegate.ptr()->type),
+                                                   type) != nullptr) {
                             const types::Function& function_type =
                                 std::get<types::Function>(type);
                             return Success(
@@ -325,11 +328,11 @@ std::unique_ptr<Expression> NewMethodLookup(
                                     function_type.output.get(),
                                     function_type.inputs,
                                     [obj = std::move(output.value),
-                                     callback = delegate->LockCallback()](
+                                     callback = delegate](
                                         std::vector<gc::Root<Value>> args,
                                         Trampoline& trampoline_inner) {
                                       args.emplace(args.begin(), obj);
-                                      return callback.ptr()->value(
+                                      return callback.ptr()->RunFunction(
                                           std::move(args), trampoline_inner);
                                     })));
                           }
@@ -352,7 +355,7 @@ std::unique_ptr<Expression> NewMethodLookup(
               return input_function;
             }
 
-            const std::vector<NonNull<Value*>> delegates_;
+            const std::vector<gc::Root<Value>> delegates_;
 
             // The actual types that the expression can deliver. Basically, a
             // function receiving the arguments that will be dispatched to a

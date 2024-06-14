@@ -233,14 +233,12 @@ void ObjectType::AddField(const Identifier& name, gc::Ptr<Value> field) {
   fields_.insert({name, std::move(field)});
 }
 
-std::vector<NonNull<Value*>> ObjectType::LookupField(
+std::vector<gc::Root<Value>> ObjectType::LookupField(
     const Identifier& name) const {
   auto range = fields_.equal_range(name);
   return container::MaterializeVector(
       std::ranges::subrange(range.first, range.second) |
-      std::views::transform([](const auto& p) {
-        return NonNull<Value*>::AddressOf(p.second.value());
-      }));
+      std::views::transform([](const auto& p) { return p.second.ToRoot(); }));
 }
 
 void ObjectType::ForEachField(
