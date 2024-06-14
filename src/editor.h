@@ -275,7 +275,7 @@ class EditorState {
   const language::gc::Root<vm::Environment> environment_;
 
   // Should only be directly used when the editor has no buffer.
-  language::gc::Root<MapModeCommands> default_commands_;
+  const language::gc::Root<MapModeCommands> default_commands_;
   std::optional<language::gc::Root<InputReceiver>> keyboard_redirect_;
 
   // Used to honor command line argument frames_per_second. Holds the earliest
