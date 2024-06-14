@@ -35,11 +35,14 @@ class ObjectType;
 
 struct PurityType {
   bool writes_external_outputs = false;
+  bool writes_local_variables = false;
   bool reads_external_inputs = false;
 };
 
 constexpr PurityType kPurityTypeUnknown =
-    PurityType{.writes_external_outputs = true, .reads_external_inputs = true};
+    PurityType{.writes_external_outputs = true,
+               .writes_local_variables = true,
+               .reads_external_inputs = true};
 constexpr PurityType kPurityTypeReader =
     PurityType{.reads_external_inputs = true};
 constexpr PurityType kPurityTypePure = PurityType{};

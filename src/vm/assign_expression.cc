@@ -110,9 +110,7 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
 std::unique_ptr<Expression> NewDefineExpression(
     Compilation& compilation, Identifier type, Identifier symbol,
     std::unique_ptr<Expression> value) {
-  if (value == nullptr) {
-    return nullptr;
-  }
+  if (value == nullptr) return nullptr;
   std::optional<Type> default_type;
   if (type == IdentifierAuto()) {
     auto types = value->Types();
@@ -135,7 +133,7 @@ std::unique_ptr<Expression> NewDefineExpression(
   }
   return std::make_unique<AssignExpression>(
       AssignExpression::AssignmentType::kDefine, std::move(symbol),
-      kPurityTypeUnknown,
+      PurityType{.writes_local_variables = true},
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
 }
 
@@ -144,9 +142,8 @@ std::unique_ptr<Expression> NewAssignExpression(
     std::unique_ptr<Expression> value) {
   if (value == nullptr) return nullptr;
   static const vm::Namespace kEmptyNamespace;
-  std::vector<gc::Root<Value>> variables = container::MaterializeVector(
-      compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol) |
-      std::views::transform(&Environment::LookupResult::value));
+  std::vector<Environment::LookupResult> variables =
+      compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol);
   if (variables.empty()) {
     compilation.AddError(
         Error(L"Variable not found: \"" + symbol.read() + L"\""));
@@ -154,10 +151,19 @@ std::unique_ptr<Expression> NewAssignExpression(
   }
 
   return VisitOptional(
-      [&value, &symbol](const Value&) {
+      [&value, &symbol](const Environment::LookupResult& lookup_result) {
         return std::make_unique<AssignExpression>(
             AssignExpression::AssignmentType::kAssign, symbol,
-            kPurityTypeUnknown,
+            std::invoke([&lookup_result] {
+              switch (lookup_result.scope) {
+                case Environment::LookupResult::VariableScope::kLocal:
+                  return PurityType{.writes_local_variables = true};
+                case Environment::LookupResult::VariableScope::kGlobal:
+                  return PurityType{.writes_external_outputs = true};
+              }
+              LOG(FATAL) << "Invalid scope.";
+              return kPurityTypeUnknown;
+            }),
             NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
       },
       [&] {
@@ -166,14 +172,16 @@ std::unique_ptr<Expression> NewAssignExpression(
                        L"types: \""} +
             TypesToString(value->Types()) + LazyString{L"\". Value types: "} +
             TypesToString(container::MaterializeVector(
-                std::move(variables) | gc::view::Value |
-                std::views::transform([](Value v) { return v.type; })))));
+                std::move(variables) |
+                std::views::transform(&Environment::LookupResult::value) |
+                gc::view::Value | std::views::transform(&Value::type)))));
 
         return nullptr;
       },
-      container::FindFirstIf(variables | gc::view::Value, [&value](Value& v) {
-        return value->SupportsType(v.type);
-      }));
+      container::FindFirstIf(
+          variables, [&value](Environment::LookupResult lookup_result) {
+            return value->SupportsType(lookup_result.value.ptr()->type);
+          }));
 }
 
 }  // namespace afc::vm

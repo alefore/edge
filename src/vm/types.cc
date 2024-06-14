@@ -23,6 +23,7 @@ namespace std {
 size_t hash<afc::vm::PurityType>::operator()(
     const afc::vm::PurityType& x) const {
   return afc::language::compute_hash(x.writes_external_outputs,
+                                     x.writes_local_variables,
                                      x.reads_external_inputs);
 }
 
@@ -99,6 +100,8 @@ PurityType CombinePurityType(const std::vector<PurityType>& types) {
         return PurityType{
             .writes_external_outputs =
                 a.writes_external_outputs || b.writes_external_outputs,
+            .writes_local_variables =
+                a.writes_local_variables || b.writes_local_variables,
             .reads_external_inputs =
                 a.reads_external_inputs || b.reads_external_inputs};
       },
@@ -112,24 +115,32 @@ bool combine_purity_type_tests_registration =
         std::stringstream value_stream;
         value_stream << a << " + " << b << " = " << expect;
         return tests::Test(
-            {.name = FromByteString(value_stream.str()),
-             .callback = [=] { CHECK_EQ(CombinePurityType({a, b}), expect); }});
+            {.name = FromByteString(value_stream.str()), .callback = [=] {
+               CHECK_EQ(CombinePurityType({a, b}), expect);
+               CHECK_EQ(CombinePurityType({b, a}), expect);
+             }});
       };
-      return std::vector<tests::Test>(
-          {t(kPurityTypePure, kPurityTypePure, kPurityTypePure),
-           t(kPurityTypePure, kPurityTypeReader, kPurityTypeReader),
-           t(kPurityTypePure, kPurityTypeUnknown, kPurityTypeUnknown),
-           t(kPurityTypeReader, kPurityTypePure, kPurityTypeReader),
-           t(kPurityTypeReader, kPurityTypeReader, kPurityTypeReader),
-           t(kPurityTypeReader, kPurityTypeUnknown, kPurityTypeUnknown),
-           t(kPurityTypeUnknown, kPurityTypePure, kPurityTypeUnknown),
-           t(kPurityTypeUnknown, kPurityTypeReader, kPurityTypeUnknown),
-           t(kPurityTypeUnknown, kPurityTypeUnknown, kPurityTypeUnknown)});
+      return std::vector<tests::Test>({
+          t(kPurityTypePure, kPurityTypePure, kPurityTypePure),
+          t(kPurityTypePure, kPurityTypeReader, kPurityTypeReader),
+          t(kPurityTypePure, kPurityTypeUnknown, kPurityTypeUnknown),
+          t(kPurityTypeReader, kPurityTypePure, kPurityTypeReader),
+          t(kPurityTypeReader, kPurityTypeReader, kPurityTypeReader),
+          t(kPurityTypeReader, kPurityTypeUnknown, kPurityTypeUnknown),
+          t(kPurityTypeUnknown, kPurityTypePure, kPurityTypeUnknown),
+          t(kPurityTypeUnknown, kPurityTypeReader, kPurityTypeUnknown),
+          t(kPurityTypeUnknown, kPurityTypeUnknown, kPurityTypeUnknown),
+          t(PurityType{.writes_local_variables = true}, kPurityTypePure,
+            PurityType{.writes_local_variables = true}),
+          t(PurityType{.writes_local_variables = true}, kPurityTypeUnknown,
+            kPurityTypeUnknown),
+      });
     }());
 }  // namespace
 
 bool operator==(const PurityType& a, const PurityType& b) {
   return a.writes_external_outputs == b.writes_external_outputs &&
+         a.writes_local_variables == b.writes_local_variables &&
          a.reads_external_inputs == b.reads_external_inputs;
 }
 
@@ -138,6 +149,8 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value) {
     os << "pure";
   else if (value == kPurityTypeReader)
     os << "reader";
+  else if (value == PurityType{.writes_local_variables = true})
+    os << "local_variables";
   else
     os << "unknown";
   return os;
@@ -200,11 +213,15 @@ LazyString ToString(const Type& type) {
             return LazyString{object.read()};
           },
           [](const types::Function& function_type) {
-            return (function_type.function_purity.writes_external_outputs
-                        ? LazyString{L"FUNCTION"}
-                        : (function_type.function_purity.reads_external_inputs
-                               ? LazyString{L"Function"}
-                               : LazyString{L"function"})) +
+            return std::invoke([&] {
+                     if (function_type.function_purity.writes_external_outputs)
+                       return LazyString{L"FUNCTION"};
+                     if (function_type.function_purity.reads_external_inputs)
+                       return LazyString{L"FUNCtion"};
+                     if (function_type.function_purity.writes_local_variables)
+                       return LazyString{L"Function"};
+                     return LazyString{L"function"};
+                   }) +
                    LazyString{L"<"} + ToString(function_type.output.get()) +
                    LazyString{L"("} +
                    Concatenate(function_type.inputs |
