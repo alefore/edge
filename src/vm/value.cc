@@ -143,13 +143,7 @@ Value::LockCallback() {
   return pool_.NewRoot(
       MakeNonNullUnique<gc::ValueWithFixedDependencies<Value::Callback>>(
           gc::ValueWithFixedDependencies<Value::Callback>{
-              .value =
-                  [callback = std::get<Callback>(value_)](
-                      std::vector<gc::Root<Value>> args,
-                      Trampoline& trampoline) {
-                    return callback(std::move(args), trampoline);
-                  },
-              .dependencies = Expand()}));
+              .value = std::get<Callback>(value_), .dependencies = Expand()}));
 }
 
 ValueOrError<double> Value::ToDouble() const {
