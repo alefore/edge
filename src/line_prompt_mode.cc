@@ -938,7 +938,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
         if (position.line < LineNumber(0) + history.contents().size()) {
           prompt_state->status().set_context(history_root);
           VisitPointer(
-              history.CurrentLineOrNull(),
+              history.OptionalCurrentLine(),
               [&line_to_insert](Line line) { line_to_insert = line; }, [] {});
         } else if (prompt_state->status().context() != previous_context) {
           prompt_state->status().set_context(previous_context);
@@ -1041,7 +1041,7 @@ class LinePromptCommand : public Command {
     if (editor_state_.structure() == Structure::kLine) {
       editor_state_.ResetStructure();
       VisitPointer(
-          buffer->ptr()->CurrentLineOrNull(),
+          buffer->ptr()->OptionalCurrentLine(),
           [&](Line line) {
             AddLineToHistory(editor_state_, options.history_file,
                              line.contents());

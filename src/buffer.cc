@@ -1227,7 +1227,7 @@ LineColumn OpenBuffer::InsertInPosition(
 
 void OpenBuffer::MaybeAdjustPositionCol() {
   VisitPointer(
-      CurrentLineOrNull(),
+      OptionalCurrentLine(),
       [&](Line line) {
         set_current_position_col(std::min(position().column, line.EndColumn()));
       },
@@ -1648,7 +1648,7 @@ Line OpenBuffer::CurrentLine() const {
   return LineAt(line).value();
 }
 
-std::optional<Line> OpenBuffer::CurrentLineOrNull() const {
+std::optional<Line> OpenBuffer::OptionalCurrentLine() const {
   return LineAt(position().line);
 }
 

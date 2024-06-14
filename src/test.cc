@@ -176,8 +176,9 @@ void TestCases() {
   editor_state.ProcessInput({ControlChar::kEscape});
   editor_state.ProcessInput(VectorExtendedChar(L"i forero"));
   editor_state.ProcessInput({ControlChar::kEscape});
-  CHECK(editor_state.current_buffer()->ptr()->CurrentLineOrNull()->ToString() ==
-        L"alejo forero");
+  CHECK(
+      editor_state.current_buffer()->ptr()->OptionalCurrentLine()->ToString() ==
+      L"alejo forero");
   editor_state.ProcessInput(VectorExtendedChar(L"gde\n"));
   CHECK(editor_state.current_buffer()->ptr()->ToString().empty());
 
@@ -227,7 +228,7 @@ void TestCases() {
   editor_state.ProcessInput(VectorExtendedChar(L"d2e]\n"));
   CHECK_EQ(ToByteString(editor_state.current_buffer()
                             ->ptr()
-                            ->CurrentLineOrNull()
+                            ->OptionalCurrentLine()
                             ->ToString()),
            "cuervo");
 

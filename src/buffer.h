@@ -408,8 +408,7 @@ class OpenBuffer {
   language::text::Line CurrentLine() const;
 
   // May return nullptr if the current_cursor is at the end of file.
-  // TODO(trivial, 2023-12-14): Rename to CurrentLineOptional.
-  std::optional<language::text::Line> CurrentLineOrNull() const;
+  std::optional<language::text::Line> OptionalCurrentLine() const;
 
   std::optional<language::text::Line> LineAt(
       language::text::LineNumber line_number) const;

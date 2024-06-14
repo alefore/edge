@@ -477,7 +477,7 @@ class ForkEditorCommand : public Command {
         return;
       }
       VisitPointer(
-          buffer->ptr()->CurrentLineOrNull(),
+          buffer->ptr()->OptionalCurrentLine(),
           [&](const Line& current_line) {
             std::visit(
                 overload{
