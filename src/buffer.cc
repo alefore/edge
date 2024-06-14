@@ -2284,10 +2284,10 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
   trace->Append(L"Transformation: " + transformation::ToString(transformation));
 
   if (!last_transformation_stack_.empty()) {
-    last_transformation_stack_.back()->PushBack(transformation);
+    last_transformation_stack_.back()->push_back(transformation);
   }
 
-  undo_state_.Current()->PushFront(transformation::Cursors{
+  undo_state_.Current()->push_front(transformation::Cursors{
       .cursors = active_cursors(), .active = position()});
 
   std::optional<futures::Value<EmptyValue>> transformation_result;
@@ -2381,7 +2381,7 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
         }
 
         if (auto undo_stack = undo_stack_weak.lock(); undo_stack != nullptr) {
-          undo_stack->PushFront(
+          undo_stack->push_front(
               transformation::Stack{.stack = result.undo_stack->stack});
           *undo_stack = transformation::Stack{
               .stack = {OptimizeBase(std::move(*undo_stack))}};
@@ -2413,7 +2413,7 @@ void OpenBuffer::PopTransformationStack() {
   last_transformation_ = std::move(last_transformation_stack_.back().value());
   last_transformation_stack_.pop_back();
   if (!last_transformation_stack_.empty()) {
-    last_transformation_stack_.back()->PushBack(last_transformation_);
+    last_transformation_stack_.back()->push_back(last_transformation_);
   } else {
     undo_state_.CommitCurrent();
   }

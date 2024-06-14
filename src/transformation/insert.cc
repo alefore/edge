@@ -63,8 +63,8 @@ futures::Value<transformation::Result> ApplyBase(const Insert& options,
   LineColumn final_position = result->position;
 
   size_t chars_inserted = length * options.modifiers.repetitions.value_or(1);
-  result->undo_stack->PushFront(transformation::SetPosition(input.position));
-  result->undo_stack->PushFront(TransformationAtPosition(
+  result->undo_stack->push_front(transformation::SetPosition(input.position));
+  result->undo_stack->push_front(TransformationAtPosition(
       start_position, GetCharactersDeleteOptions(chars_inserted)));
 
   auto delayed_shared_result = futures::Past(result);

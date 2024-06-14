@@ -108,12 +108,12 @@ CompositeTransformation::Output::Output(Output&& other)
 
 CompositeTransformation::Output::Output(transformation::Variant transformation)
     : Output() {
-  stack->PushBack(std::move(transformation));
+  stack->push_back(std::move(transformation));
 }
 
 void CompositeTransformation::Output::Push(
     transformation::Variant transformation) {
-  stack->PushBack(std::move(transformation));
+  stack->push_back(std::move(transformation));
 }
 
 void RegisterCompositeTransformation(language::gc::Pool& pool,

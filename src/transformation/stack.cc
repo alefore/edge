@@ -463,14 +463,6 @@ std::wstring ToStringBase(const Stack& stack) {
       .ToString();
 }
 
-void Stack::PushBack(Variant transformation) {
-  push_back(std::move(transformation));
-}
-
-void Stack::PushFront(Variant transformation) {
-  push_front(std::move(transformation));
-}
-
 void Stack::push_back(Variant transformation) {
   stack.push_back(std::move(transformation));
 }

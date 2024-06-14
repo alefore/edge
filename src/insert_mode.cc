@@ -790,7 +790,7 @@ class InsertMode : public InputReceiver {
           buffer.MaybeAdjustPositionCol();
           gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
           transformation::Stack stack;
-          stack.PushBack(transformation::Delete{
+          stack.push_back(transformation::Delete{
               .modifiers = {.direction = direction,
                             .paste_buffer_behavior =
                                 Modifiers::PasteBufferBehavior::kDoNothing},
@@ -799,7 +799,7 @@ class InsertMode : public InputReceiver {
             case Modifiers::ModifyMode::kShift:
               break;
             case Modifiers::ModifyMode::kOverwrite:
-              stack.PushBack(transformation::Insert{
+              stack.push_back(transformation::Insert{
                   .contents_to_insert = LineSequence::WithLine(Line(L" ")),
                   .final_position =
                       direction == Direction::kBackwards
@@ -972,14 +972,14 @@ class InsertMode : public InputReceiver {
         return std::move(output).Transform([buffer_root, position](EmptyValue) {
           VLOG(3) << "Found completion disabling suffix; removing it.";
           transformation::Stack stack;
-          stack.PushBack(transformation::Delete{
+          stack.push_back(transformation::Delete{
               .range =
                   LineRange(LineColumn(position.line,
                                        position.column - ColumnNumberDelta(1)),
                             ColumnNumberDelta(1))
                       .value,
               .initiator = transformation::Delete::Initiator::kInternal});
-          stack.PushBack(transformation::SetPosition(position.column));
+          stack.push_back(transformation::SetPosition(position.column));
           return buffer_root.ptr()->ApplyToCursors(std::move(stack));
         });
       }
@@ -1003,18 +1003,18 @@ class InsertMode : public InputReceiver {
                 if (!word_data.replacement.has_value())
                   return futures::Past(EmptyValue());
                 transformation::Stack stack;
-                stack.PushBack(transformation::Delete{
+                stack.push_back(transformation::Delete{
                     .range = token_range.value,
                     .initiator = transformation::Delete::Initiator::kInternal});
                 const ColumnNumberDelta completion_text_size =
                     word_data.replacement.value().size();
-                stack.PushBack(transformation::Insert{
+                stack.push_back(transformation::Insert{
                     .contents_to_insert = LineSequence::WithLine(
                         LineBuilder(std::move(word_data.replacement.value()))
                             .Build()),
                     .modifiers = {.insertion = modify_mode},
                     .position = token_range.value.begin()});
-                stack.PushBack(transformation::SetPosition(
+                stack.push_back(transformation::SetPosition(
                     token_range.begin_column() + completion_text_size +
                     ColumnNumberDelta(1)));
                 return buffer_root.ptr()->ApplyToCursors(std::move(stack));

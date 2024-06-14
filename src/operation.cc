@@ -288,7 +288,7 @@ transformation::Stack GetTransformation(
     CommandReachQuery reach_query) {
   if (reach_query.query.empty()) return transformation::Stack{};
   transformation::Stack transformation;
-  transformation.PushBack(
+  transformation.push_back(
       MakeNonNullUnique<transformation::ReachQueryTransformation>(
           reach_query.query));
   return transformation;
@@ -298,7 +298,7 @@ transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandReachBisect bisect) {
   transformation::Stack transformation;
-  transformation.PushBack(MakeNonNullUnique<transformation::Bisect>(
+  transformation.push_back(MakeNonNullUnique<transformation::Bisect>(
       bisect.structure.value_or(Structure::kChar),
       std::move(bisect.directions)));
   return transformation;
@@ -431,8 +431,8 @@ class State {
     // relevant, since other transformations follow).
     std::optional<transformation::Variant> separator;
     for (auto& command : commands_) {
-      if (separator.has_value()) stack.PushBack(separator.value());
-      stack.PushBack(std::visit(
+      if (separator.has_value()) stack.push_back(separator.value());
+      stack.push_back(std::visit(
           [&](auto t) -> transformation::Variant {
             static Tracker tracker(L"State::PrepareStack::GetTransformation");
             auto call = tracker.Call();
