@@ -33,13 +33,16 @@ class AssignExpression : public Expression {
  private:
   const AssignmentType assignment_type_;
   const Identifier symbol_;
+  const PurityType purity_;
   const NonNull<std::shared_ptr<Expression>> value_;
 
  public:
   AssignExpression(AssignmentType assignment_type, Identifier symbol,
+                   PurityType purity,
                    NonNull<std::shared_ptr<Expression>> value)
       : assignment_type_(assignment_type),
         symbol_(std::move(symbol)),
+        purity_(CombinePurityType({std::move(purity), value->purity()})),
         value_(std::move(value)) {}
 
   std::vector<Type> Types() override { return value_->Types(); }
@@ -47,7 +50,7 @@ class AssignExpression : public Expression {
     return value_->ReturnTypes();
   }
 
-  PurityType purity() override { return kPurityTypeUnknown; }
+  PurityType purity() override { return purity_; }
 
   futures::ValueOrError<EvaluationOutput> Evaluate(Trampoline& trampoline,
                                                    const Type& type) override {
@@ -132,6 +135,7 @@ std::unique_ptr<Expression> NewDefineExpression(
   }
   return std::make_unique<AssignExpression>(
       AssignExpression::AssignmentType::kDefine, std::move(symbol),
+      kPurityTypeUnknown,
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
 }
 
@@ -153,6 +157,7 @@ std::unique_ptr<Expression> NewAssignExpression(
       [&value, &symbol](const Value&) {
         return std::make_unique<AssignExpression>(
             AssignExpression::AssignmentType::kAssign, symbol,
+            kPurityTypeUnknown,
             NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(value)));
       },
       [&] {
