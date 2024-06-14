@@ -384,12 +384,12 @@ std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
 }
 
 std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
-                                Range range) {
+                                LineRange range) {
   static Tracker top_tracker(L"BufferMetadataOutput::Prepare");
   auto top_call = top_tracker.Call();
 
   std::list<MetadataLine> output;
-  const Line& contents = options.buffer.contents().at(range.begin().line);
+  const Line& contents = options.buffer.contents().at(range.line());
   std::optional<gc::Root<OpenBuffer>> target_buffer_dummy;
   NonNull<const OpenBuffer*> target_buffer =
       NonNull<const OpenBuffer*>::AddressOf(options.buffer);
@@ -442,10 +442,10 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   auto call_generic_marks_logic = tracker_generic_marks_logic.Call();
 
   std::list<LineMarks::Mark> marks =
-      PushMarks(options.buffer.GetLineMarks(), range);
+      PushMarks(options.buffer.GetLineMarks(), range.value);
 
   std::list<LineMarks::ExpiredMark> expired_marks =
-      PushMarks(options.buffer.GetExpiredLineMarks(), range);
+      PushMarks(options.buffer.GetExpiredLineMarks(), range.value);
 
   for (const auto& mark : marks) {
     TRACK_OPERATION(BufferMetadataOutput_Prepare_AddMetadataForMark);
@@ -490,12 +490,10 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     }
   }
 
-  if (output.empty()) {
-    output.push_back(
-        MetadataLine{info_char, info_char_modifier,
-                     GetDefaultInformation(options, range.begin().line),
-                     MetadataLine::Type::kDefault});
-  }
+  if (output.empty())
+    output.push_back(MetadataLine{info_char, info_char_modifier,
+                                  GetDefaultInformation(options, range.line()),
+                                  MetadataLine::Type::kDefault});
   CHECK(!output.empty());
   return output;
 }
@@ -832,7 +830,7 @@ ColumnsVector::Column BufferMetadataOutput(
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
     if (LineRange range = options.screen_lines[i.ToDelta().read()].range;
         range.line() < LineNumber(0) + options.buffer.lines_size()) {
-      metadata_by_line[i.read()] = Prepare(options, range.value);
+      metadata_by_line[i.read()] = Prepare(options, range);
     }
   }
 
