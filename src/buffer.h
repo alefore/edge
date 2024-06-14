@@ -543,9 +543,6 @@ class OpenBuffer {
       language::text::LineColumn position, transformation::Input::Mode mode);
   void UpdateTreeParser();
 
-  // TODO(trivial, 2023-12-11): Document why this isn't const-ref.
-  void ProcessCommandInput(language::lazy_string::LazyString str);
-
   // Returns true if the position given is set to a value other than
   // language::text::LineColumn::Max and the buffer has read past that position.
   bool IsPastPosition(language::text::LineColumn position) const;
