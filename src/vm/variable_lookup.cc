@@ -73,10 +73,11 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
   // We don't need to switch namespaces (i.e., we can use
   // `compilation->environment` directly) because during compilation, we know
   // that we'll be in the right environment.
-  std::vector<gc::Root<Value>> result;
-  compilation.environment.ptr()->PolyLookup(symbol_namespace, symbol, &result);
+  std::vector<Environment::LookupResult> result =
+      compilation.environment.ptr()->PolyLookup(symbol_namespace, symbol);
   if (result.empty()) {
-    compilation.AddError(Error(L"Unknown variable: `" + symbol.read() + L"`"));
+    compilation.AddError(
+        Error(L"Unknown variable: `" + to_wstring(symbol) + L"`"));
     return nullptr;
   }
 
@@ -84,8 +85,10 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
   std::vector<Type> types;
   // We can't use `MaterializeVector` here: we need to ensure that the filtering
   // is done in an order-preserving way.
-  for (const Type& type : std::move(result) | gc::view::Value |
-                              std::views::transform(&Value::type))
+  for (const Type& type :
+       std::move(result) |
+           std::views::transform(&Environment::LookupResult::value) |
+           gc::view::Value | std::views::transform(&Value::type))
     if (already_seen.insert(type).second) types.push_back(type);
   return std::make_unique<VariableLookup>(std::move(symbol_namespace),
                                           std::move(symbol), types);

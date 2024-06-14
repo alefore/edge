@@ -156,33 +156,47 @@ void Environment::DefineType(gc::Ptr<ObjectType> value) {
 std::optional<gc::Root<Value>> Environment::Lookup(
     gc::Pool& pool, const Namespace& symbol_namespace, const Identifier& symbol,
     Type expected_type) const {
-  std::vector<gc::Root<Value>> values;
-  PolyLookup(symbol_namespace, symbol, &values);
-  for (Value& value : values | gc::view::Value)
+  std::vector<LookupResult> values = PolyLookup(symbol_namespace, symbol);
+  for (Value& value :
+       values | std::views::transform(&LookupResult::value) | gc::view::Value)
     if (auto callback = GetImplicitPromotion(value.type, expected_type);
         callback != nullptr)
       return callback(pool, pool.NewRoot(MakeNonNullUnique<Value>(value)));
   return std::nullopt;
 }
 
+std::vector<Environment::LookupResult> Environment::PolyLookup(
+    const Namespace& symbol_namespace, const Identifier& symbol) const {
+  std::vector<LookupResult> output;
+  PolyLookup(symbol_namespace, symbol, LookupResult::VariableScope::kLocal,
+             output);
+  return output;
+}
+
 void Environment::PolyLookup(const Namespace& symbol_namespace,
                              const Identifier& symbol,
-                             std::vector<gc::Root<Value>>* output) const {
+                             LookupResult::VariableScope variable_scope,
+                             std::vector<LookupResult>& output) const {
   if (const Environment* environment = FindNamespace(symbol_namespace);
       environment != nullptr) {
-    environment->data_.lock([&output, &symbol](const Data& data) {
-      if (auto it = data.table.find(symbol); it != data.table.end()) {
-        auto view = it->second | std::views::values |
-                    std::views::transform([](const gc::Ptr<Value>& entry) {
-                      return entry.ToRoot();
-                    });
-        output->insert(output->end(), view.begin(), view.end());
-      }
-    });
+    environment->data_.lock(
+        [&output, &symbol, variable_scope](const Data& data) {
+          if (auto it = data.table.find(symbol); it != data.table.end()) {
+            auto view = it->second | std::views::values |
+                        std::views::transform(
+                            [variable_scope](const gc::Ptr<Value>& entry) {
+                              return LookupResult{.scope = variable_scope,
+                                                  .value = entry.ToRoot()};
+                            });
+            output.insert(output.end(), view.begin(), view.end());
+          }
+        });
   }
   // Deliverately ignoring `environment`:
   if (parent_environment_.has_value()) {
-    (*parent_environment_)->PolyLookup(symbol_namespace, symbol, output);
+    (*parent_environment_)
+        ->PolyLookup(symbol_namespace, symbol,
+                     LookupResult::VariableScope::kGlobal, output);
   }
 }
 

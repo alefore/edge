@@ -138,14 +138,11 @@ std::unique_ptr<Expression> NewDefineExpression(
 std::unique_ptr<Expression> NewAssignExpression(
     Compilation& compilation, Identifier symbol,
     std::unique_ptr<Expression> value) {
-  if (value == nullptr) {
-    return nullptr;
-  }
-  std::vector<gc::Root<Value>> variables;
+  if (value == nullptr) return nullptr;
   static const vm::Namespace kEmptyNamespace;
-  compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol,
-                                            &variables);
-
+  std::vector<gc::Root<Value>> variables = container::MaterializeVector(
+      compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol) |
+      std::views::transform(&Environment::LookupResult::value));
   if (variables.empty()) {
     compilation.AddError(
         Error(L"Variable not found: \"" + symbol.read() + L"\""));

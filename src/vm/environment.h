@@ -77,8 +77,15 @@ class Environment {
       language::gc::Pool& pool, const Namespace& symbol_namespace,
       const Identifier& symbol, Type expected_type) const;
 
-  void PolyLookup(const Namespace& symbol_namespace, const Identifier& symbol,
-                  std::vector<language::gc::Root<Value>>* output) const;
+  struct LookupResult {
+    enum class VariableScope { kLocal, kGlobal };
+    VariableScope scope;
+    language::gc::Root<Value> value;
+  };
+
+  std::vector<LookupResult> PolyLookup(const Namespace& symbol_namespace,
+                                       const Identifier& symbol) const;
+
   // Same as `PolyLookup` but ignores case and thus is much slower (runtime
   // complexity is linear to the total number of symbols defined);
   void CaseInsensitiveLookup(
@@ -101,6 +108,10 @@ class Environment {
   Expand() const;
 
  private:
+  void PolyLookup(const Namespace& symbol_namespace, const Identifier& symbol,
+                  LookupResult::VariableScope variable_scope,
+                  std::vector<LookupResult>& output) const;
+
   const Environment* FindNamespace(const Namespace& namespace_name) const;
 };
 
