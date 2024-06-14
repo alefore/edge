@@ -65,7 +65,7 @@ void ShowValue(OpenBuffer& buffer, OpenBuffer* delete_buffer,
 futures::Value<PossibleError> PreviewCppExpression(
     OpenBuffer& buffer, const LineSequence& expression_str) {
   FUTURES_ASSIGN_OR_RETURN(auto compilation_result,
-                           buffer.CompileString(expression_str.ToString()));
+                           buffer.CompileString(expression_str.ToLazyString()));
   auto [expression, environment] = std::move(compilation_result);
   buffer.status().Reset();
   return expression->purity().writes_external_outputs

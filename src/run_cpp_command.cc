@@ -350,7 +350,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                 {.values = {{VersionPropertyKey(L"error"), error.read()}}});
             return futures::Past(ColorizePromptOptions());
           }},
-      buffer->ptr()->CompileString(line.ToString()));
+      buffer->ptr()->CompileString(line));
 }
 
 futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(

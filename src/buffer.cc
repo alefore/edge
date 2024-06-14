@@ -196,7 +196,7 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                 line = std::move(line_builder).Build();
               },
               IgnoreErrors{}},
-          buffer.CompileString(line.contents().ToString()));
+          buffer.CompileString(line.contents()));
   return lines;
 }
 
@@ -1098,11 +1098,12 @@ void OpenBuffer::AppendToLastLine(Line line) {
 
 ValueOrError<
     std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
-OpenBuffer::CompileString(const std::wstring& code) const {
+OpenBuffer::CompileString(const LazyString& code) const {
   gc::Root<Environment> sub_environment = Environment::New(environment_);
-  ASSIGN_OR_RETURN(
-      NonNull<std::unique_ptr<Expression>> expression,
-      afc::vm::CompileString(code, editor().gc_pool(), sub_environment));
+  // TODO(trivial, 2023-12-31): Remove call to ToString.
+  ASSIGN_OR_RETURN(NonNull<std::unique_ptr<Expression>> expression,
+                   afc::vm::CompileString(code.ToString(), editor().gc_pool(),
+                                          sub_environment));
   return std::make_pair(std::move(expression), sub_environment);
 }
 
@@ -1134,8 +1135,7 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
                  LOG(INFO) << "Code compiled, evaluating.";
                  return EvaluateExpression(std::move(expression), environment);
                }},
-      // TODO(trivial, 2023-12-31): Remove call to ToString.
-      CompileString(code.ToString()));
+      CompileString(code));
 }
 
 futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
