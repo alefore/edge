@@ -96,9 +96,9 @@ std::set<typename Container::key_type> GetSetWithKeys(
 }
 
 namespace container {
-template <typename Range, typename Predicate>
-std::optional<typename Range::value_type> FindFirstIf(Range&& range,
-                                                      Predicate pred) {
+template <std::ranges::input_range Range, typename Predicate>
+std::optional<std::ranges::range_value_t<Range>> FindFirstIf(Range&& range,
+                                                             Predicate pred) {
   if (auto it = std::ranges::find_if(range, pred);
       it != std::ranges::end(range))
     return *it;
