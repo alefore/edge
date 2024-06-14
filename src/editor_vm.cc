@@ -252,13 +252,13 @@ gc::Root<Environment> BuildEditorEnvironment(
                 VMTypeMapper<EditorState>::get(input[0].ptr().value());
             NonNull<std::shared_ptr<PossibleError>> output;
             return editor_arg
-                .ForEachActiveBuffer([callback = input[1].ptr()->LockCallback(),
+                .ForEachActiveBuffer([callback = std::move(input[1]),
                                       &trampoline, output](OpenBuffer& buffer) {
                   std::vector<gc::Root<vm::Value>> args;
                   args.push_back(VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
                       trampoline.pool(), buffer.NewRoot()));
                   return callback.ptr()
-                      ->value(std::move(args), trampoline)
+                      ->RunFunction(std::move(args), trampoline)
                       .Transform([](gc::Root<vm::Value>) { return Success(); })
                       .ConsumeErrors([output](Error error) {
                         output.value() = error;
@@ -292,23 +292,21 @@ gc::Root<Environment> BuildEditorEnvironment(
             EditorState& editor_arg =
                 VMTypeMapper<EditorState>::get(input[0].ptr().value());
             return editor_arg
-                .ForEachActiveBufferWithRepetitions(
-                    [callback = input[1].ptr()->LockCallback(),
-                     &trampoline](OpenBuffer& buffer) {
-                      std::vector<gc::Root<vm::Value>> args;
-                      args.push_back(
-                          VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
-                              trampoline.pool(), buffer.NewRoot()));
-                      return callback.ptr()
-                          ->value(std::move(args), trampoline)
-                          .Transform(
-                              [](gc::Root<vm::Value>) { return Success(); })
-                          // TODO(easy): Don't ConsumeErrors; change
-                          // ForEachActiveBuffer.
-                          .ConsumeErrors([](Error) {
-                            return futures::Past(EmptyValue());
-                          });
-                    })
+                .ForEachActiveBufferWithRepetitions([callback =
+                                                         std::move(input[1]),
+                                                     &trampoline](
+                                                        OpenBuffer& buffer) {
+                  std::vector<gc::Root<vm::Value>> args;
+                  args.push_back(VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(
+                      trampoline.pool(), buffer.NewRoot()));
+                  return callback.ptr()
+                      ->RunFunction(std::move(args), trampoline)
+                      .Transform([](gc::Root<vm::Value>) { return Success(); })
+                      // TODO(easy): Don't ConsumeErrors; change
+                      // ForEachActiveBuffer.
+                      .ConsumeErrors(
+                          [](Error) { return futures::Past(EmptyValue()); });
+                })
                 .Transform(
                     [&pool](EmptyValue) { return vm::Value::NewVoid(pool); });
           })
