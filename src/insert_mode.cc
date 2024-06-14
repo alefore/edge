@@ -688,16 +688,14 @@ class InsertMode : public InputReceiver {
          completion_model_supplier =
              completion_model_supplier_](OpenBuffer& buffer) {
           gc::Root<OpenBuffer> buffer_root = buffer.NewRoot();
-          return buffer.TransformKeyboardText(consumed_input)
-              .Transform([options, buffer_root](std::wstring value) {
-                VLOG(6) << "Inserting text: [" << value << "]";
-                TRACK_OPERATION(InsertMode_ProcessInput_Regular_ApplyToCursors);
-                return buffer_root.ptr()->ApplyToCursors(transformation::Insert{
-                    .contents_to_insert = LineSequence::WithLine(Line(value)),
-                    .modifiers = {
-                        .insertion =
-                            options.editor_state.modifiers().insertion}});
-              })
+          VLOG(6) << "Inserting text: [" << consumed_input << "]";
+          TRACK_OPERATION(InsertMode_ProcessInput_Regular_ApplyToCursors);
+          return buffer_root.ptr()
+              ->ApplyToCursors(transformation::Insert{
+                  .contents_to_insert =
+                      LineSequence::WithLine(Line(consumed_input)),
+                  .modifiers = {.insertion = options.editor_state.modifiers()
+                                                 .insertion}})
               .Transform([buffer_root, completion_model_supplier](EmptyValue) {
                 TRACK_OPERATION(InsertMode_ProcessInput_Regular_ShowCompletion);
                 LineRange token_range =

@@ -453,22 +453,6 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       }).ptr());
 
   buffer_object_type.ptr()->AddField(
-      Identifier(L"AddKeyboardTextTransformer"),
-      vm::Value::NewFunction(
-          pool, kPurityTypeUnknown, vm::types::Bool{},
-          {buffer_object_type.ptr()->type(),
-           vm::types::Function{.output = vm::Type{vm::types::String{}},
-                               .inputs = {vm::types::String{}}}},
-          [&pool](std::vector<gc::Root<vm::Value>> args) {
-            CHECK_EQ(args.size(), size_t(2));
-            auto buffer = vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
-                args[0].ptr().value());
-            return vm::Value::NewBool(
-                pool, buffer->AddKeyboardTextTransformer(std::move(args[1])));
-          })
-          .ptr());
-
-  buffer_object_type.ptr()->AddField(
       Identifier(L"Filter"),
       vm::Value::NewFunction(
           pool, kPurityTypeUnknown, vm::types::Void{},

@@ -1687,55 +1687,6 @@ FileSystemDriver& OpenBuffer::file_system_driver() const {
   return file_system_driver_;
 }
 
-futures::Value<std::wstring> OpenBuffer::TransformKeyboardText(
-    std::wstring input) {
-  TRACK_OPERATION(OpenBuffer_TransformKeyboardText);
-  // TODO(2024-01-05): Turn to LazyString.
-  auto input_shared = std::make_shared<std::wstring>(std::move(input));
-  return futures::ForEach(
-             keyboard_text_transformers_.begin(),
-             keyboard_text_transformers_.end(),
-             [this, input_shared](const gc::Root<Value>& t) {
-               std::vector<gc::Root<Value>> args;
-               gc::Pool& pool = editor().gc_pool();
-               args.push_back(Value::NewString(
-                   pool, LazyString{std::move(*input_shared)}));
-               return Call(pool, t.ptr().value(), std::move(args),
-                           [work_queue = work_queue()](
-                               OnceOnlyFunction<void()> callback) {
-                             work_queue->Schedule(WorkQueue::Callback{
-                                 .callback = std::move(callback)});
-                           })
-                   .Transform([input_shared](const gc::Root<Value>& value) {
-                     *input_shared = value.ptr()->get_string().ToString();
-                     return Success(IterationControlCommand::kContinue);
-                   })
-                   .ConsumeErrors([](Error) {
-                     return futures::Past(IterationControlCommand::kContinue);
-                   });
-               ;
-             })
-      .Transform([input_shared](IterationControlCommand) {
-        return futures::Past(std::move(*input_shared));
-      });
-}
-
-bool OpenBuffer::AddKeyboardTextTransformer(gc::Root<Value> transformer) {
-  const Type& type = transformer.ptr()->type;
-  if (const vm::types::Function* function_type =
-          std::get_if<vm::types::Function>(&type);
-      function_type == nullptr || function_type->inputs.size() != 1 ||
-      !std::holds_alternative<vm::types::String>(function_type->output.get()) ||
-      !std::holds_alternative<vm::types::String>(function_type->inputs[0])) {
-    status_.InsertError(NewError(
-        LazyString{L": Unexpected type for keyboard text transformer: "} +
-        vm::ToString(transformer.ptr()->type)));
-    return false;
-  }
-  keyboard_text_transformers_.push_back(std::move(transformer));
-  return true;
-}
-
 BufferName OpenBuffer::name() const { return options_.name; }
 
 void OpenBuffer::InsertLines(std::vector<Line> lines_to_insert) {

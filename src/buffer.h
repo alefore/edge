@@ -319,9 +319,6 @@ class OpenBuffer {
   static language::lazy_string::LazyString FlagsToString(
       std::map<std::wstring, std::wstring> flags);
 
-  futures::Value<std::wstring> TransformKeyboardText(std::wstring input);
-  bool AddKeyboardTextTransformer(language::gc::Root<vm::Value> transformer);
-
   futures::Value<language::EmptyValue> ApplyToCursors(
       transformation::Variant transformation);
   futures::Value<language::EmptyValue> ApplyToCursors(
@@ -620,7 +617,6 @@ class OpenBuffer {
 
   UndoState undo_state_;
 
-  std::list<language::gc::Root<vm::Value>> keyboard_text_transformers_;
   const language::gc::Ptr<vm::Environment> environment_;
 
   // A function that receives a string and returns a boolean. The function will
