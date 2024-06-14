@@ -46,6 +46,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineRange;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
 
@@ -829,10 +830,9 @@ ColumnsVector::Column BufferMetadataOutput(
   std::vector<std::list<MetadataLine>> metadata_by_line(
       options.screen_lines.size());
   for (LineNumber i; i.ToDelta() < screen_size; ++i) {
-    // TODO(2023-12-08, trivial): Stay with LineRange.
-    if (Range range = options.screen_lines[i.ToDelta().read()].range.value;
-        range.begin().line < LineNumber(0) + options.buffer.lines_size()) {
-      metadata_by_line[i.read()] = Prepare(options, range);
+    if (LineRange range = options.screen_lines[i.ToDelta().read()].range;
+        range.line() < LineNumber(0) + options.buffer.lines_size()) {
+      metadata_by_line[i.read()] = Prepare(options, range.value);
     }
   }
 
