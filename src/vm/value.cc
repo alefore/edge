@@ -137,6 +137,11 @@ const Identifier& Value::get_symbol() const {
   return std::get<Identifier>(value_);
 }
 
+futures::ValueOrError<language::gc::Root<Value>> Value::RunFunction(
+    std::vector<language::gc::Root<Value>> arguments, Trampoline& trampoline) {
+  return std::get<Callback>(value_)(std::move(arguments), trampoline);
+}
+
 gc::Root<gc::ValueWithFixedDependencies<Value::Callback>>
 Value::LockCallback() {
   CHECK(IsFunction());

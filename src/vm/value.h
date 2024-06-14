@@ -101,6 +101,9 @@ class Value {
     return get_user_value<T>(std::get<types::ObjectName>(type));
   }
 
+  futures::ValueOrError<language::gc::Root<Value>> RunFunction(
+      std::vector<language::gc::Root<Value>> arguments, Trampoline& trampoline);
+
   language::gc::Root<language::gc::ValueWithFixedDependencies<Callback>>
   LockCallback();
 

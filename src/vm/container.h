@@ -240,7 +240,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
             CHECK_EQ(args.size(), 2ul);
             Container output_container;
             auto ptr = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
-            auto callback = args[1].ptr()->LockCallback();
+            const gc::Root<vm::Value> callback = std::move(args[1]);
+            CHECK(callback.ptr()->IsFunction());
             futures::ValueOrError<afc::language::EmptyValue> output =
                 futures::Past(afc::language::EmptyValue());
             ptr->lock([&output, &output_container, &trampoline,
@@ -254,8 +255,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                           call_args.push_back(
                               VMTypeMapper<typename Container::value_type>::New(
                                   trampoline.pool(), current_value));
-                          return callback.ptr()->value(std::move(call_args),
-                                                       trampoline);
+                          return callback.ptr()->RunFunction(
+                              std::move(call_args), trampoline);
                         })
                         .Transform([&output_container, current_value](
                                        gc::Root<Value> callback_output) {
@@ -297,7 +298,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
               -> futures::ValueOrError<language::gc::Root<Value>> {
             CHECK_EQ(args.size(), 2ul);
             auto ptr = VMTypeMapper<ContainerPtr>::get(args[0].ptr().value());
-            auto callback = args[1].ptr()->LockCallback();
+            const gc::Root<vm::Value> callback = std::move(args[1]);
             futures::ValueOrError<afc::language::EmptyValue> output =
                 futures::Past(afc::language::EmptyValue());
             ptr->lock([&output, &trampoline, &callback](Container& input) {
@@ -310,8 +311,8 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                           call_args.push_back(
                               VMTypeMapper<typename Container::value_type>::New(
                                   trampoline.pool(), current_value));
-                          return callback.ptr()->value(std::move(call_args),
-                                                       trampoline);
+                          return callback.ptr()->RunFunction(
+                              std::move(call_args), trampoline);
                         })
                         .Transform([](gc::Root<Value>) {
                           return futures::Past(afc::language::Success());

@@ -150,9 +150,7 @@ PromotionCallback GetImplicitPromotion(Type original, Type desired) {
                                                      std::move(arguments[i]));
                 }
                 return original_callback.ptr()
-                    ->LockCallback()
-                    .ptr()
-                    ->value(std::move(arguments), trampoline)
+                    ->RunFunction(std::move(arguments), trampoline)
                     .Transform([output_callback, &pool = trampoline.pool()](
                                    gc::Root<Value> output) {
                       return Success(output_callback(pool, std::move(output)));

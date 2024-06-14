@@ -224,8 +224,7 @@ void DefineSortLinesByKey(
               Trampoline& trampoline;
               gc::Ptr<OpenBuffer> buffer;
               PossibleError possible_error = Success();
-              gc::Root<gc::ValueWithFixedDependencies<vm::Value::Callback>>
-                  callback;
+              gc::Root<vm::Value> callback;
               std::unordered_map<std::wstring, KeyType> keys = {};
             };
 
@@ -233,7 +232,7 @@ void DefineSortLinesByKey(
                 Data{.trampoline = trampoline,
                      .buffer = vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
                          args[0].ptr().value()),
-                     .callback = args[1].ptr()->LockCallback()});
+                     .callback = std::move(args[1])});
 
             const std::pair<LineNumber, LineNumberDelta> boundaries =
                 GetBoundariesForTransformation(
@@ -255,11 +254,11 @@ void DefineSortLinesByKey(
                        inputs.get_shared(),
                        [data, get_key](LineNumber line_number) {
                          return data->callback.ptr()
-                             ->value({vm::Value::NewNumber(
-                                         data->trampoline.pool(),
-                                         numbers::Number::FromSizeT(
-                                             line_number.read()))},
-                                     data->trampoline)
+                             ->RunFunction({vm::Value::NewNumber(
+                                               data->trampoline.pool(),
+                                               numbers::Number::FromSizeT(
+                                                   line_number.read()))},
+                                           data->trampoline)
                              .Transform(
                                  [data, get_key,
                                   line_number](gc::Root<vm::Value> output)

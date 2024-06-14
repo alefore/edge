@@ -130,11 +130,10 @@ class FunctionCall : public Expression {
           if (callback.type == EvaluationOutput::OutputType::kReturn)
             return futures::Past(Success(std::move(callback)));
           DVLOG(6) << "Got function: " << callback.value.ptr().value();
-          CHECK(std::holds_alternative<types::Function>(
-              callback.value.ptr()->type));
+          CHECK(callback.value.ptr()->IsFunction());
           return CaptureArgs(trampoline, args,
                              MakeNonNullShared<std::vector<gc::Root<Value>>>(),
-                             callback.value.ptr()->LockCallback());
+                             callback.value);
         });
   }
 
@@ -145,13 +144,13 @@ class FunctionCall : public Expression {
           std::shared_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>>>
           args,
       NonNull<std::shared_ptr<std::vector<gc::Root<Value>>>> values,
-      gc::Root<gc::ValueWithFixedDependencies<Value::Callback>> callback) {
+      gc::Root<vm::Value> callback) {
     DVLOG(5) << "Evaluating function parameters, args: " << values->size()
              << " of " << args->size();
     if (values->size() == args->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
       return callback.ptr()
-          ->value(std::move(values.value()), trampoline)
+          ->RunFunction(std::move(values.value()), trampoline)
           .Transform([](gc::Root<Value> return_value) {
             DVLOG(5) << "Function call consumer gets value: "
                      << return_value.ptr().value();
