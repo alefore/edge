@@ -267,8 +267,6 @@ void DefineSortLinesByKey(
                                          futures::IterationControlCommand> {
                                    Line line =
                                        data->buffer->contents().at(line_number);
-                                   VLOG(9) << "Value for line: " << line << ": "
-                                           << get_key(output.ptr().value());
                                    ASSIGN_OR_RETURN(
                                        auto key_value,
                                        get_key(output.ptr().value()));
@@ -301,12 +299,6 @@ void DefineSortLinesByKey(
                                       data->keys.find(b.contents().ToString());
                                   CHECK(it_a != data->keys.end());
                                   CHECK(it_b != data->keys.end());
-                                  VLOG(10)
-                                      << "Sort key: " << a.contents().ToString()
-                                      << ": " << it_a->second;
-                                  VLOG(10)
-                                      << "Sort key: " << b.contents().ToString()
-                                      << ": " << it_b->second;
                                   return it_a->second < it_b->second;
                                 });
                             return Success(
@@ -421,10 +413,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                       })
           .ptr());
 
-  // TODO(2024-03-14, trivial): Sort by Number.
-  DefineSortLinesByKey<int64_t>(
+  DefineSortLinesByKey<numbers::Number>(
       pool, buffer_object_type, vm::types::Number{},
-      [](const vm::Value& value) { return value.get_number().ToInt64(); });
+      [](const vm::Value& value) { return value.get_number(); });
 
   DefineSortLinesByKey<std::wstring>(
       pool, buffer_object_type, vm::types::String{},
