@@ -931,7 +931,8 @@ class InsertMode : public InputReceiver {
   }
 
   static LineRange GetTokenRange(OpenBuffer& buffer) {
-    const LineColumn position = buffer.AdjustLineColumn(buffer.position());
+    const LineColumn position =
+        buffer.contents().AdjustLineColumn(buffer.position());
     const Line line = buffer.contents().at(position.line);
 
     ColumnNumber start = position.column;
@@ -969,7 +970,7 @@ class InsertMode : public InputReceiver {
       OpenBufferNoPasteMode buffer) {
     const auto model_paths = CompletionModelPaths(buffer.value);
     const LineColumn position =
-        buffer.value.AdjustLineColumn(buffer.value.position());
+        buffer.value.contents().AdjustLineColumn(buffer.value.position());
     LineRange token_range = GetTokenRange(buffer.value);
     futures::Value<EmptyValue> output = buffer.value.ApplyToCursors(
         transformation::Insert{.contents_to_insert = LineSequence::WithLine(

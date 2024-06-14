@@ -1225,11 +1225,6 @@ LineColumn OpenBuffer::InsertInPosition(
   return LineColumn(last_line, column);
 }
 
-LineColumn OpenBuffer::AdjustLineColumn(LineColumn position) const {
-  CHECK_GT(contents_.size(), LineNumberDelta(0));
-  return contents_.AdjustLineColumn(position);
-}
-
 void OpenBuffer::MaybeAdjustPositionCol() {
   VisitPointer(
       CurrentLineOrNull(),
@@ -1648,7 +1643,7 @@ double OpenBuffer::lines_read_rate() const {
 }
 
 Line OpenBuffer::CurrentLine() const {
-  LineNumber line = AdjustLineColumn(position()).line;
+  LineNumber line = contents().AdjustLineColumn(position()).line;
   CHECK_LE(line, contents().EndLine());
   return LineAt(line).value();
 }
@@ -1906,7 +1901,8 @@ void OpenBuffer::set_position(const LineColumn& position) {
 
 namespace {
 std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
-  auto adjusted_position = buffer.AdjustLineColumn(buffer.position());
+  auto adjusted_position =
+      buffer.contents().AdjustLineColumn(buffer.position());
   std::optional<URL> initial_url;
 
   NonNull<std::shared_ptr<const ParseTree>> tree = buffer.parse_tree();
@@ -2003,7 +1999,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
   // of this logic. To avoid this, each call captures the original position
   // and uses that to avoid taking any effects when the position changes in
   // the meantime.
-  auto adjusted_position = AdjustLineColumn(position());
+  auto adjusted_position = contents().AdjustLineColumn(position());
   struct Data {
     const gc::WeakPtr<OpenBuffer> source;
     ValueOrError<std::optional<gc::Root<OpenBuffer>>> output =
@@ -2071,8 +2067,10 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                data->source.Lock(),
                                [&](gc::Root<OpenBuffer> locked_buffer) {
                                  if (adjusted_position !=
-                                     locked_buffer.ptr()->AdjustLineColumn(
-                                         locked_buffer.ptr()->position())) {
+                                     locked_buffer.ptr()
+                                         ->contents()
+                                         .AdjustLineColumn(
+                                             locked_buffer.ptr()->position())) {
                                    data->output =
                                        Error(L"Computation was cancelled.");
                                    return futures::Past(ICC::kStop);
@@ -2533,7 +2531,7 @@ void OpenBuffer::OnCursorMove() {
         [&](LineColumnDelta view_size) {
           std::set<language::text::Range> ranges =
               buffer_syntax_parser_.GetRangesForToken(
-                  AdjustLineColumn(position()),
+                  contents().AdjustLineColumn(position()),
                   Range(view_start, view_start + view_size));
           for (const language::text::Range& range : ranges) {
             CHECK(range.IsSingleLine());

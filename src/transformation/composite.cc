@@ -39,7 +39,7 @@ futures::Value<Result> ApplyBase(const Modifiers& modifiers,
   NonNull<std::shared_ptr<Log>> trace =
       transformation_input.buffer.log().NewChild(
           L"ApplyBase(CompositeTransformation)");
-  auto position = transformation_input.buffer.AdjustLineColumn(
+  auto position = transformation_input.buffer.contents().AdjustLineColumn(
       transformation_input.position);
   return transformation
       .Apply(CompositeTransformation::Input{

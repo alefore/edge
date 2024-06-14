@@ -250,12 +250,6 @@ class OpenBuffer {
       const language::text::LineColumn& position,
       const std::optional<infrastructure::screen::LineModifierSet>& modifiers);
 
-  // See MutableLineSequence::AdjustLineColumn.
-  // TODO(trivial, 2023-08-24): Get rid of this method; switch all callers to
-  // LineSequence.
-  language::text::LineColumn AdjustLineColumn(
-      language::text::LineColumn position) const;
-
   // If the current cursor is in a valid line (i.e., it isn't past the last
   // line), adjusts the column to not be beyond the length of the line.
   void MaybeAdjustPositionCol();
