@@ -772,21 +772,19 @@ class InsertMode : public InputReceiver {
       const gc::Root<std::vector<gc::Ptr<OpenBuffer>>>& buffers,
       std::wstring line_buffer,
       std::function<futures::Value<EmptyValue>(OpenBuffer&)> callable) {
-    return WriteLineBuffer(buffers, line_buffer)
-        .Transform([buffers, callable](EmptyValue) {
-          return futures::ForEach(
-              buffers.ptr()->begin(), buffers.ptr()->end(),
-              [buffers, callable](gc::Ptr<OpenBuffer>& buffer_ptr) {
-                return buffer_ptr->fd() == nullptr
-                           ? callable(buffer_ptr.value())
-                                 .Transform([](EmptyValue) {
-                                   return futures::IterationControlCommand::
-                                       kContinue;
-                                 })
-                           : futures::Past(
-                                 futures::IterationControlCommand::kContinue);
-              });
-        })
+    WriteLineBuffer(buffers, line_buffer);
+    return futures::ForEach(
+               buffers.ptr()->begin(), buffers.ptr()->end(),
+               [buffers, callable](gc::Ptr<OpenBuffer>& buffer_ptr) {
+                 return buffer_ptr->fd() == nullptr
+                            ? callable(buffer_ptr.value())
+                                  .Transform([](EmptyValue) {
+                                    return futures::IterationControlCommand::
+                                        kContinue;
+                                  })
+                            : futures::Past(
+                                  futures::IterationControlCommand::kContinue);
+               })
         .Transform(
             [](futures::IterationControlCommand) { return EmptyValue(); });
   }
@@ -887,30 +885,21 @@ class InsertMode : public InputReceiver {
     scroll_behavior_ = std::nullopt;
   }
 
-  static futures::Value<EmptyValue> WriteLineBuffer(
+  static void WriteLineBuffer(
       gc::Root<std::vector<gc::Ptr<OpenBuffer>>> buffers,
       std::wstring line_buffer) {
-    if (line_buffer.empty()) return futures::Past(EmptyValue());
-    return futures::ForEach(
-               buffers.ptr()->begin(), buffers.ptr()->end(),
-               [line_buffer = std::move(line_buffer),
-                buffers](gc::Ptr<OpenBuffer>& buffer_ptr) {
-                 OpenBuffer& buffer = buffer_ptr.value();
-                 if (auto fd = buffer.fd(); fd != nullptr) {
-                   std::string bytes = ToByteString(line_buffer);
-                   if (write(fd->fd().read(), bytes.c_str(), bytes.size()) ==
-                       -1) {
-                     buffer.status().InsertError(Error(
-                         L"Write failed: " + FromByteString(strerror(errno))));
-                   } else {
-                     buffer.editor().StartHandlingInterrupts();
-                   }
-                 }
-                 return futures::Past(
-                     futures::IterationControlCommand::kContinue);
-               })
-        .Transform(
-            [](futures::IterationControlCommand) { return EmptyValue(); });
+    if (line_buffer.empty()) return;
+    std::ranges::for_each(
+        buffers.ptr().value() | gc::view::PtrValue,
+        [line_buffer = std::move(line_buffer)](OpenBuffer& buffer) {
+          buffer.editor().StartHandlingInterrupts();
+          if (auto fd = buffer.fd(); fd != nullptr) {
+            std::string bytes = ToByteString(line_buffer);
+            if (write(fd->fd().read(), bytes.c_str(), bytes.size()) == -1)
+              buffer.status().InsertError(
+                  Error(L"Write failed: " + FromByteString(strerror(errno))));
+          }
+        });
   }
 
   static NonNull<std::shared_ptr<std::vector<Path>>> CompletionModelPaths(
