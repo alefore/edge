@@ -19,6 +19,8 @@
 #include "src/terminal.h"
 #include "src/tests/tests.h"
 
+namespace gc = afc::language::gc;
+
 using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
@@ -215,7 +217,7 @@ LineWithCursor::Generator::Vector ProduceBufferView(
     }
 
     std::optional<const Line> line_contents = buffer.LineAt(line);
-    std::shared_ptr<InputReceiver> editor_keyboard_redirect =
+    std::optional<gc::Root<InputReceiver>> editor_keyboard_redirect =
         buffer.editor().keyboard_redirect();
     LineWithCursor::Generator generator =
         LineWithCursor::Generator::New(language::CaptureAndHash(
@@ -281,8 +283,11 @@ LineWithCursor::Generator::Vector ProduceBufferView(
             MakeWithHash(line_contents, compute_hash(*line_contents)),
             screen_line, buffer.Read(buffer_variables::atomic_lines),
             buffer.Read(buffer_variables::multiple_cursors), buffer.position(),
-            (editor_keyboard_redirect == nullptr ? buffer.mode()
-                                                 : *editor_keyboard_redirect)
+            // TODO(P0, 2024-06-14, trivial): We need to capture the root!
+            // editor_keyboard_redirect may be deallocated under our feet.
+            (editor_keyboard_redirect.has_value()
+                 ? editor_keyboard_redirect->ptr().value()
+                 : buffer.mode())
                 .cursor_mode()));
 
     if (&current_tree != root.get().get() &&
@@ -340,5 +345,5 @@ const bool tests_registration = tests::Register(L"BufferOutputProducer", [] {
          CHECK_EQ(lines.size(), LineNumberDelta(1));
        }}};
 }());
-}
+}  // namespace
 }  // namespace afc::editor

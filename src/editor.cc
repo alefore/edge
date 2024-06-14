@@ -97,6 +97,28 @@ PathComponent EditorState::StatePathComponent() {
   return PathComponent::FromString(L"state");
 }
 
+std::optional<language::gc::Root<InputReceiver>>
+EditorState::keyboard_redirect() const {
+  return keyboard_redirect_;
+}
+
+std::optional<language::gc::Root<InputReceiver>>
+EditorState::set_keyboard_redirect(
+    std::optional<language::gc::Root<InputReceiver>> keyboard_redirect) {
+  return std::exchange(keyboard_redirect_, std::move(keyboard_redirect));
+}
+
+std::optional<language::gc::Root<InputReceiver>>
+EditorState::set_keyboard_redirect(
+    std::unique_ptr<InputReceiver> keyboard_redirect) {
+  return VisitPointer(
+      std::move(keyboard_redirect),
+      [&](NonNull<std::unique_ptr<InputReceiver>> input) {
+        return set_keyboard_redirect(gc_pool().NewRoot(std::move(input)));
+      },
+      [&] { return set_keyboard_redirect(std::nullopt); });
+}
+
 // Executes pending work from all buffers.
 void EditorState::ExecutePendingWork() {
   VLOG(5) << "Executing pending work.";
@@ -738,7 +760,9 @@ futures::Value<EmptyValue> EditorState::ProcessInput(
     std::shared_ptr<std::vector<infrastructure::ExtendedChar>> input,
     size_t start_index) {
   while (start_index < input->size()) {
-    InputReceiver* receiver = keyboard_redirect().get();
+    InputReceiver* receiver = keyboard_redirect_.has_value()
+                                  ? &keyboard_redirect_->ptr().value()
+                                  : nullptr;
     if (std::optional<language::gc::Root<OpenBuffer>> buffer = current_buffer();
         receiver == nullptr && buffer.has_value())
       receiver = &buffer->ptr()->mode();

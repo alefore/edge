@@ -251,7 +251,7 @@ bool apply_repetitions_test = tests::Register(
                 ApplyRepetitions(repetitions, Structure::kLine,
                                  NewMoveTransformation(operation_scope)));
           }}}));
-}
+}  // namespace
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>& operation_scope,
@@ -363,12 +363,12 @@ class State {
     static Tracker tracker(L"State::RunUndoCallback");
     auto call = tracker.Call();
     const EditorState& editor = editor_state_;
-    const std::shared_ptr<InputReceiver> keyboard_redirect =
+    const std::optional<gc::Root<InputReceiver>> keyboard_redirect =
         editor.keyboard_redirect();
     serializer_.Push([callback = std::move(undo_callback_)]() {
       return Pointer(callback).Reference()();
     });
-    CHECK_EQ(keyboard_redirect, editor.keyboard_redirect())
+    CHECK(keyboard_redirect == editor.keyboard_redirect())
         << "Internal error: undo callback has changed the keyboard redirector, "
            "probably causing us to be deleted. This isn't supported (as this "
            "code assumes survival of various now-deleted objects).";

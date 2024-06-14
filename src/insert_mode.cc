@@ -1044,7 +1044,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
     buffer.status().SetInformationText(
         Line(buffer.fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
 
-  gc::Root<InsertMode> insert_mode =
+  options.editor_state.set_keyboard_redirect(
       options.editor_state.gc_pool().NewRoot(MakeNonNullUnique<InsertMode>(
           options,
           options.editor_state.gc_pool()
@@ -1056,16 +1056,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
                           [](const gc::Root<OpenBuffer>& buffer) {
                             return buffer.ptr();
                           }))))
-              .ptr()));
-  // TODO(easy, 2023-11-30): Avoid this trick of wrapping the gc::Root inside
-  // an std::shared_ptr. Instead, change the type of
-  // EditorState::keyboard_redirect_ to be a gc::Ptr.
-  NonNull<InsertMode*> insert_mode_address =
-      NonNull<InsertMode*>::AddressOf(insert_mode.ptr().value());
-  options.editor_state.set_keyboard_redirect(std::shared_ptr<InsertMode>(
-      insert_mode_address.get(),
-      [insert_mode = std::move(insert_mode)](InsertMode*) {}));
-
+              .ptr())));
   if (std::ranges::any_of(
           options.buffers.value() | gc::view::Value, [](OpenBuffer& buffer) {
             return buffer.active_cursors().size() > 1 &&

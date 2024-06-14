@@ -232,16 +232,14 @@ class EditorState {
 
   infrastructure::audio::Player& audio_player() const { return audio_player_; }
 
-  // Can return null.
-  std::shared_ptr<InputReceiver> keyboard_redirect() const {
-    return keyboard_redirect_;
-  }
+  std::optional<language::gc::Root<InputReceiver>> keyboard_redirect() const;
   // Returns the old value.
-  std::shared_ptr<InputReceiver> set_keyboard_redirect(
-      std::shared_ptr<InputReceiver> keyboard_redirect) {
-    keyboard_redirect_.swap(keyboard_redirect);
-    return keyboard_redirect;
-  }
+  std::optional<language::gc::Root<InputReceiver>> set_keyboard_redirect(
+      std::optional<language::gc::Root<InputReceiver>> keyboard_redirect);
+  // TODO(easy, 2024-06-14): Remove callers of this override. Switch them to the
+  // gc::Root version.
+  std::optional<language::gc::Root<InputReceiver>> set_keyboard_redirect(
+      std::unique_ptr<InputReceiver> keyboard_redirect);
 
   // Executes pending work from all buffers.
   void ExecutePendingWork();
@@ -278,7 +276,7 @@ class EditorState {
 
   // Should only be directly used when the editor has no buffer.
   language::gc::Root<MapModeCommands> default_commands_;
-  std::shared_ptr<InputReceiver> keyboard_redirect_;
+  std::optional<language::gc::Root<InputReceiver>> keyboard_redirect_;
 
   // Used to honor command line argument frames_per_second. Holds the earliest
   // time when a redraw should be allowed.
