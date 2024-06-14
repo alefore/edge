@@ -373,8 +373,7 @@ Line GetDefaultInformation(const BufferMetadataOutputOptions& options,
 template <typename MarkType>
 std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
                               Range range) {
-  static Tracker tracker(L"BufferMetadataOutput::Prepare:PushMarks");
-  auto call = tracker.Call();
+  TRACK_OPERATION(BufferMetadataOutput_Prepare_PushMarks);
   return container::Materialize<std::list<MarkType>>(
       std::ranges::subrange(input.lower_bound(range.begin()),
                             input.lower_bound(range.end())) |
