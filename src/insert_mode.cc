@@ -331,13 +331,9 @@ NewInsertion(EditorState& editor) {
 class InsertMode : public InputReceiver {
   const InsertModeOptions options_;
 
-  // Copy of the contents of options_.buffers. gc::Root to make it easy for it
-  // to be captured efficiently.
-  //
-  // TODO(easy, 2023-11-30): Change this to be a gc::Ptr. That requires storing
-  // `InsertMode` instances in gc::Ptr, rather than std::shared_ptr. That
-  // requires changing the type of EditorState::keyboard_redirect_.
-  const gc::Root<std::vector<gc::Ptr<OpenBuffer>>> buffers_;
+  // Copy of the contents of options_.buffers. gc::Ptr to make it possible to
+  // capture it in a lambda (as a gc::Root) without copying the contents.
+  const gc::Ptr<std::vector<gc::Ptr<OpenBuffer>>> buffers_;
 
   std::optional<
       futures::ListenableValue<NonNull<std::shared_ptr<ScrollBehavior>>>>
@@ -361,15 +357,10 @@ class InsertMode : public InputReceiver {
   NonNull<std::shared_ptr<DictionaryManager>> completion_model_supplier_;
 
  public:
-  InsertMode(InsertModeOptions options)
+  InsertMode(InsertModeOptions options,
+             gc::Ptr<std::vector<gc::Ptr<OpenBuffer>>> buffers)
       : options_(std::move(options)),
-        buffers_(options_.editor_state.gc_pool().NewRoot(
-            MakeNonNullUnique<
-                std::vector<gc::Ptr<OpenBuffer>>>(container::MaterializeVector(
-                options_.buffers.value_or(std::vector<gc::Root<OpenBuffer>>{}) |
-                std::views::transform([](const gc::Root<OpenBuffer>& buffer) {
-                  return buffer.ptr();
-                }))))),
+        buffers_(std::move(buffers)),
         current_insertion_(NewInsertion(options_.editor_state)),
         completion_model_supplier_(MakeNonNullShared<DictionaryManager>(
             [&editor = options_.editor_state](Path path) {
@@ -596,8 +587,8 @@ class InsertMode : public InputReceiver {
   size_t ProcessRegular(std::vector<ExtendedChar> input, size_t start_index,
                         bool old_literal) {
     TRACK_OPERATION(InsertMode_ProcessInput_Regular);
-    const bool all_in_paste_mode = std::ranges::all_of(
-        buffers_.ptr().value(), [](gc::Ptr<OpenBuffer>& buffer) {
+    const bool all_in_paste_mode =
+        std::ranges::all_of(buffers_.value(), [](gc::Ptr<OpenBuffer>& buffer) {
           return buffer->Read(buffer_variables::paste_mode);
         });
     switch (std::get<wchar_t>(input.at(start_index))) {
@@ -759,23 +750,21 @@ class InsertMode : public InputReceiver {
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()
       const override {
-    // This shouldn't be necessary; buffers_ is itself a root. However, since
-    // our plan is to eventually turn buffers_ into a gc::Ptr, it'll make sense
-    // to do (a variation of) this here when that happens.
-    return {buffers_.ptr().object_metadata()};
+    return {buffers_.object_metadata()};
   }
 
  private:
   // Writes `line_buffer` to every buffer with a fd, and runs `callable` in
   // every buffer without an fd.
   static futures::Value<EmptyValue> ForEachActiveBuffer(
-      const gc::Root<std::vector<gc::Ptr<OpenBuffer>>>& buffers,
+      const gc::Ptr<std::vector<gc::Ptr<OpenBuffer>>>& buffers,
       std::wstring line_buffer,
       std::function<futures::Value<EmptyValue>(OpenBuffer&)> callable) {
     WriteLineBuffer(buffers, line_buffer);
     return futures::ForEach(
-               buffers.ptr()->begin(), buffers.ptr()->end(),
-               [buffers, callable](gc::Ptr<OpenBuffer>& buffer_ptr) {
+               buffers->begin(), buffers->end(),
+               [buffers = buffers.ToRoot(),
+                callable](gc::Ptr<OpenBuffer>& buffer_ptr) {
                  return buffer_ptr->fd() == nullptr
                             ? callable(buffer_ptr.value())
                                   .Transform([](EmptyValue) {
@@ -885,12 +874,11 @@ class InsertMode : public InputReceiver {
     scroll_behavior_ = std::nullopt;
   }
 
-  static void WriteLineBuffer(
-      gc::Root<std::vector<gc::Ptr<OpenBuffer>>> buffers,
-      std::wstring line_buffer) {
+  static void WriteLineBuffer(gc::Ptr<std::vector<gc::Ptr<OpenBuffer>>> buffers,
+                              std::wstring line_buffer) {
     if (line_buffer.empty()) return;
     std::ranges::for_each(
-        buffers.ptr().value() | gc::view::PtrValue,
+        buffers.value() | gc::view::PtrValue,
         [line_buffer = std::move(line_buffer)](OpenBuffer& buffer) {
           buffer.editor().StartHandlingInterrupts();
           if (auto fd = buffer.fd(); fd != nullptr) {
@@ -1055,8 +1043,28 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   for (OpenBuffer& buffer : options.buffers.value() | gc::view::Value)
     buffer.status().SetInformationText(
         Line(buffer.fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
-  options.editor_state.set_keyboard_redirect(
-      std::make_unique<InsertMode>(options));
+
+  gc::Root<InsertMode> insert_mode =
+      options.editor_state.gc_pool().NewRoot(MakeNonNullUnique<InsertMode>(
+          options,
+          options.editor_state.gc_pool()
+              .NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<OpenBuffer>>>(
+                  container::MaterializeVector(
+                      options.buffers.value_or(
+                          std::vector<gc::Root<OpenBuffer>>{}) |
+                      std::views::transform(
+                          [](const gc::Root<OpenBuffer>& buffer) {
+                            return buffer.ptr();
+                          }))))
+              .ptr()));
+  // TODO(easy, 2023-11-30): Avoid this trick of wrapping the gc::Root inside
+  // an std::shared_ptr. Instead, change the type of
+  // EditorState::keyboard_redirect_ to be a gc::Ptr.
+  NonNull<InsertMode*> insert_mode_address =
+      NonNull<InsertMode*>::AddressOf(insert_mode.ptr().value());
+  options.editor_state.set_keyboard_redirect(std::shared_ptr<InsertMode>(
+      insert_mode_address.get(),
+      [insert_mode = std::move(insert_mode)](InsertMode*) {}));
 
   if (std::ranges::any_of(
           options.buffers.value() | gc::view::Value, [](OpenBuffer& buffer) {
