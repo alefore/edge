@@ -295,8 +295,8 @@ EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
-  for (OpenBuffer& buffer : buffer_registry().buffers() | gc::view::Value)
-    buffer.Close();
+  std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
+                        &OpenBuffer::Close);
 
   buffer_tree_.RemoveBuffers(
       container::Materialize<std::unordered_set<NonNull<const OpenBuffer*>>>(
