@@ -107,7 +107,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
     std::map<Description, std::set<ExtendedChar>> inverted_map;
     for (const std::pair<const ExtendedChar, Description>& entry :
          category_entry.second)
-      if (entry.second != Description(L""))
+      if (entry.second != Description{LazyString{}})
         inverted_map[entry.second].insert(entry.first);
     for (const std::pair<const Description, std::set<ExtendedChar>>& entry :
          inverted_map) {
@@ -139,7 +139,7 @@ const bool key_commands_map_tests_registration = tests::Register(
             bool executed = false;
             map.Insert(L'a',
                        {.category = KeyCommandsMap::Category::kStringControl,
-                        .description = Description(L"Test"),
+                        .description = Description{LazyString{L"Test"}},
                         .handler = [&executed](ExtendedChar) {
                           CHECK(!executed);
                           executed = true;
@@ -155,7 +155,7 @@ const bool key_commands_map_tests_registration = tests::Register(
             map.Insert(
                 L'b',
                 {.category = KeyCommandsMap::Category::kStringControl,
-                 .description = Description(L"Test"),
+                 .description = Description{LazyString{L"Test"}},
                  .handler = [&executed](ExtendedChar) { executed = true; }});
             map.Erase(L'b');
             CHECK(!map.Execute(L'b'));
@@ -195,7 +195,7 @@ const bool key_commands_map_tests_registration = tests::Register(
             map.Insert(
                 L'c',
                 {.category = KeyCommandsMap::Category::kDirection,
-                 .description = Description(L"Test callback"),
+                 .description = Description{LazyString{L"Test callback"}},
                  .handler = [](ExtendedChar) { /* Handler code here */ }});
             CHECK(map.FindCallbackOrNull(L'c') != nullptr);
           }},
@@ -208,7 +208,7 @@ const bool key_commands_map_tests_registration = tests::Register(
                 .Insert(
                     L'd',
                     {.category = KeyCommandsMap::Category::kStructure,
-                     .description = Description(L"OnHandle test"),
+                     .description = Description{LazyString{L"OnHandle test"}},
                      .handler = [](ExtendedChar) { /* Handler code here */ }});
             for (size_t i = 0; i < 5; i++) {
               CHECK_EQ(on_handle_executions, i);
@@ -255,18 +255,18 @@ const bool key_commands_map_tests_registration = tests::Register(
 
             map.Insert(L'0',
                        {.category = KeyCommandsMap::Category::kStringControl,
-                        .description = Description(L"Execute0"),
+                        .description = Description{LazyString{L"Execute0"}},
                         .handler = [&](ExtendedChar) { execution_count[0]++; }})
                 .Insert(
                     L'1',
                     {.category = KeyCommandsMap::Category::kRepetitions,
-                     .description = Description(L"Execute1"),
+                     .description = Description{LazyString{L"Execute1"}},
                      .handler = [&](ExtendedChar) { execution_count[1]++; }})
-                .Insert(L'2', {.category = KeyCommandsMap::Category::kDirection,
-                               .description = Description(L"Execute2"),
-                               .handler = [&](ExtendedChar) {
-                                 execution_count[2]++;
-                               }});
+                .Insert(
+                    L'2',
+                    {.category = KeyCommandsMap::Category::kDirection,
+                     .description = Description{LazyString{L"Execute2"}},
+                     .handler = [&](ExtendedChar) { execution_count[2]++; }});
 
             map.Execute(L'0');
             CHECK_EQ(execution_count[0], 1ul);
@@ -287,26 +287,29 @@ const bool key_commands_map_tests_registration = tests::Register(
         KeyCommandsMap map;
         size_t executions = 0;
 
-        map.Insert(L'0', {.category = KeyCommandsMap::Category::kStringControl,
-                          .description = Description(L"Handler for '0'"),
-                          .handler =
-                              [&executions](ExtendedChar c) {
-                                CHECK(c == ExtendedChar(L'0'));
-                                executions++;
-                              }})
-            .Insert(L'1', {.category = KeyCommandsMap::Category::kRepetitions,
-                           .description = Description(L"Handler for '1'"),
-                           .handler =
-                               [&executions](ExtendedChar c) {
-                                 CHECK(c == ExtendedChar(L'1'));
-                                 executions++;
-                               }})
-            .Insert(L'2', {.category = KeyCommandsMap::Category::kDirection,
-                           .description = Description(L"Handler for '2'"),
-                           .handler = [&executions](ExtendedChar c) {
-                             CHECK(c == ExtendedChar(L'2'));
-                             executions++;
-                           }});
+        map.Insert(L'0',
+                   {.category = KeyCommandsMap::Category::kStringControl,
+                    .description = Description{LazyString{L"Handler for '0'"}},
+                    .handler =
+                        [&executions](ExtendedChar c) {
+                          CHECK(c == ExtendedChar(L'0'));
+                          executions++;
+                        }})
+            .Insert(L'1',
+                    {.category = KeyCommandsMap::Category::kRepetitions,
+                     .description = Description{LazyString{L"Handler for '1'"}},
+                     .handler =
+                         [&executions](ExtendedChar c) {
+                           CHECK(c == ExtendedChar(L'1'));
+                           executions++;
+                         }})
+            .Insert(L'2',
+                    {.category = KeyCommandsMap::Category::kDirection,
+                     .description = Description{LazyString{L"Handler for '2'"}},
+                     .handler = [&executions](ExtendedChar c) {
+                       CHECK(c == ExtendedChar(L'2'));
+                       executions++;
+                     }});
 
         map.Execute(L'0');
         CHECK_EQ(executions, 1ul);

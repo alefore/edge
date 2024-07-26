@@ -61,10 +61,9 @@ using ::operator<<;
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
-void SerializeCall(std::wstring name, std::vector<LazyString> arguments,
+void SerializeCall(LazyString name, std::vector<LazyString> arguments,
                    LineBuilder& output) {
-  // TODO(easy, 2024-07-26): Receive `name` already as LazyString.
-  output.AppendString(LazyString{name}, LineModifierSet{LineModifier::kCyan});
+  output.AppendString(name, LineModifierSet{LineModifier::kCyan});
   output.AppendString(LazyString{L"("}, LineModifierSet{LineModifier::kDim});
   LazyString separator;
   std::ranges::for_each(
@@ -101,22 +100,23 @@ Modifiers GetModifiers(std::optional<Structure> structure,
   return GetModifiers(structure, repetitions.get(), direction);
 }
 
-static const Description kMoveDown = Description(L"🧗👇");
-static const Description kMoveUp = Description(L"🧗👆");
-static const Description kPageDown = Description(L"📜👇");
-static const Description kPageUp = Description(L"📜👆");
-static const Description kMoveLeft = Description(L"👈");
-static const Description kMoveRight = Description(L"👉");
-static const Description kHomeLeft = Description(L"🏠👈");
-static const Description kHomeRight = Description(L"🏠👉");
-static const Description kHomeUp = Description(L"🏠👆");
-static const Description kHomeDown = Description(L"🏠👇");
-static const Description kReachQuery = Description(L"🔮");
-static const Description kDescriptionShell = Description(L"🌀");
+static const Description kMoveDown = Description{LazyString{L"🧗👇"}};
+static const Description kMoveUp = Description{LazyString{L"🧗👆"}};
+static const Description kPageDown = Description{LazyString{L"📜👇"}};
+static const Description kPageUp = Description{LazyString{L"📜👆"}};
+static const Description kMoveLeft = Description{LazyString{L"👈"}};
+static const Description kMoveRight = Description{LazyString{L"👉"}};
+static const Description kHomeLeft = Description{LazyString{L"🏠👈"}};
+static const Description kHomeRight = Description{LazyString{L"🏠👉"}};
+static const Description kHomeUp = Description{LazyString{L"🏠👆"}};
+static const Description kHomeDown = Description{LazyString{L"🏠👇"}};
+static const Description kReachQuery = Description{LazyString{L"🔮"}};
+static const Description kDescriptionShell = Description{LazyString{L"🌀"}};
 
 void AppendStatus(const CommandReach& reach, LineBuilder& output) {
   SerializeCall(
-      L"🦀", {StructureToString(reach.structure), reach.repetitions.ToString()},
+      LazyString{L"🦀"},
+      {StructureToString(reach.structure), reach.repetitions.ToString()},
       output);
 }
 
@@ -156,7 +156,7 @@ void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
       c.structure == Structure::kLine ? LazyString{L"👆"} : LazyString{L"👈"};
   LazyString forwards =
       c.structure == Structure::kLine ? LazyString{L"👇"} : LazyString{L"👉"};
-  SerializeCall(L"🪓",
+  SerializeCall(LazyString{L"🪓"},
                 {StructureToString(c.structure),
                  Concatenate(c.directions |
                              std::views::transform(
@@ -533,10 +533,10 @@ void CheckStructureChar(KeyCommandsMap& cmap,
     VLOG(9) << "Add key: " << entry.second;
     std::stringstream structure_stream;
     structure_stream << entry.second;
-    std::wstring structure_name = FromByteString(structure_stream.str());
+    LazyString structure_name{FromByteString(structure_stream.str())};
     cmap.Insert(entry.first,
                 {.category = KeyCommandsMap::Category::kStructure,
-                 .description = Description(structure_name),
+                 .description = Description{structure_name},
                  .active = *structure == std::nullopt,
                  .handler =
                      [structure, repetitions, &entry](ExtendedChar) {
@@ -547,7 +547,7 @@ void CheckStructureChar(KeyCommandsMap& cmap,
                        }
                      }})
         .Insert(entry.first, {.category = KeyCommandsMap::Category::kStructure,
-                              .description = Description(structure_name),
+                              .description = Description{structure_name},
                               .active = entry.second == *structure,
                               .handler = [repetitions](ExtendedChar) {
                                 repetitions->sum(1);
@@ -577,20 +577,20 @@ void CheckRepetitionsChar(KeyCommandsMap& cmap,
                           CommandArgumentRepetitions* output) {
   cmap.Insert(ControlChar::kBackspace,
               {.category = KeyCommandsMap::Category::kStringControl,
-               .description = Description(L"PopRepetitions"),
+               .description = Description{LazyString{L"PopRepetitions"}},
                .active = !output->empty(),
                .handler = [output](ExtendedChar) { output->PopValue(); }});
   for (int i = 0; i < 10; i++)
     cmap.Insert(L'0' + i,
                 {.category = KeyCommandsMap::Category::kRepetitions,
-                 .description = Description(L"Repetitions"),
+                 .description = Description{LazyString{L"Repetitions"}},
                  .handler = [output, i](ExtendedChar) { output->factor(i); }});
 }
 
-static const Description kBisectLeft = Description(L"🪓👈");
-static const Description kBisectRight = Description(L"🪓👉");
-static const Description kBisectUp = Description(L"🪓👆");
-static const Description kBisectDown = Description(L"🪓👇");
+static const Description kBisectLeft{LazyString{L"🪓👈"}};
+static const Description kBisectRight{LazyString{L"🪓👉"}};
+static const Description kBisectUp{LazyString{L"🪓👆"}};
+static const Description kBisectDown{LazyString{L"🪓👇"}};
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReach* output,
                        State* state) {
@@ -658,10 +658,11 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
             output->repetitions.sum(delta);
           }};
     };
-    cmap.Insert(L'j', handler(Description(L"👇")))
-        .Insert(ControlChar::kDownArrow, handler(Description(L"👇")))
-        .Insert(L'k', handler(Description(L"👆")))
-        .Insert(ControlChar::kUpArrow, handler(Description(L"👆")));
+    cmap.Insert(L'j', handler(Description{LazyString{L"👇"}}))
+        .Insert(ControlChar::kDownArrow,
+                handler(Description{LazyString{L"👇"}}))
+        .Insert(L'k', handler(Description{LazyString{L"👆"}}))
+        .Insert(ControlChar::kUpArrow, handler(Description{LazyString{L"👆"}}));
   }
 
   CheckStructureChar(cmap, &output->structure, &output->repetitions);
@@ -670,8 +671,9 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 
   if (output->structure.value_or(Structure::kChar) == Structure::kChar ||
       output->structure == Structure::kLine) {
-    // Don't let CheckRepetitionsChar below handle these; we'd rather preserve
-    // the usual meaning (of scrolling by a character).
+    // Don't let CheckRepetitionsChar below handle these; we'd
+    // rather preserve the usual meaning (of scrolling by a
+    // character).
     cmap.Erase(L'h').Erase(L'l');
   }
 }
@@ -679,7 +681,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBegin* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                        State* state) {
   cmap.Insert(L'K', {.category = KeyCommandsMap::Category::kNewCommand,
-                     .description = Description(L"🪓👆"),
+                     .description = Description{LazyString{L"🪓👆"}},
                      .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() < 0,
                      .handler =
@@ -689,7 +691,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachLine* output,
                                .directions = {Direction::kBackwards}});
                          }})
       .Insert(L'J', {.category = KeyCommandsMap::Category::kNewCommand,
-                     .description = Description(L"🪓👇"),
+                     .description = Description{LazyString{L"🪓👇"}},
                      .active = !output->repetitions.empty() &&
                                output->repetitions.get_list().back() > 0,
                      .handler = [state](ExtendedChar) {
@@ -749,7 +751,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
                      });
   cmap.Insert(ControlChar::kBackspace,
               {.category = KeyCommandsMap::Category::kStringControl,
-               .description = Description(L"Backspace"),
+               .description = Description{LazyString{L"Backspace"}},
                .active = !output->query.IsEmpty(),
                .handler = [output](ExtendedChar) {
                  output->query = output->query.Substring(
@@ -762,7 +764,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
                        State*) {
   cmap.Insert(ControlChar::kBackspace,
               {.category = KeyCommandsMap::Category::kStringControl,
-               .description = Description(L"Pop"),
+               .description = Description{LazyString{L"Pop"}},
                .active = !output->directions.empty(),
                .handler = [output](ExtendedChar) {
                  return output->directions.pop_back();
@@ -801,7 +803,7 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
   cmap.Insert(ControlChar::kBackspace,
               {.category = KeyCommandsMap::Category::kStringControl,
-               .description = Description(L"Backspace"),
+               .description = Description{LazyString{L"Backspace"}},
                .active = !output->input.empty(),
                .handler = [output](ExtendedChar) { output->input.pop_back(); }})
       .SetFallback(
@@ -870,11 +872,11 @@ class OperationMode : public EditorMode {
 
     cmap.PushNew()
         .Insert(L'\n', {.category = KeyCommandsMap::Category::kTop,
-                        .description = Description(L"Apply"),
+                        .description = Description{LazyString{L"Apply"}},
                         .handler = [this](ExtendedChar) { state_.Commit(); }})
         .Insert(ControlChar::kBackspace,
                 {.category = KeyCommandsMap::Category::kStringControl,
-                 .description = Description(L"Backspace"),
+                 .description = Description{LazyString{L"Backspace"}},
                  .handler = [this](ExtendedChar) {
                    state_.UndoLast();
                    ShowStatus();
@@ -886,10 +888,7 @@ class OperationMode : public EditorMode {
       structure_keys.Insert(
           entry.first,
           {.category = KeyCommandsMap::Category::kStructure,
-           // TODO(easy, 2024-07-26): Change .description to LazyString to get
-           // rid of this call to ToString.
-           .description =
-               Description(StructureToString(entry.second).ToString()),
+           .description = Description{StructureToString(entry.second)},
            .handler = [this, structure = entry.second](ExtendedChar) {
              int last_repetitions = 0;
              if (!state_.empty()) {
@@ -950,7 +949,7 @@ class OperationMode : public EditorMode {
     cmap.PushNew()
         .Insert(ControlChar::kEscape,
                 {.category = KeyCommandsMap::Category::kStringControl,
-                 .description = Description(L"Cancel"),
+                 .description = Description{LazyString{L"Cancel"}},
                  .handler =
                      [&state = state_](ExtendedChar) {
                        if (state.top_command().post_transformation_behavior ==
@@ -1032,7 +1031,7 @@ class OperationMode : public EditorMode {
     cmap.OnHandle([this] { ShowStatus(); });
     cmap.Insert(L'd',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description(L"Delete"),
+                 .description = Description{LazyString{L"Delete"}},
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
@@ -1053,7 +1052,7 @@ class OperationMode : public EditorMode {
                      }})
         .Insert(L'?',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description(L"Help"),
+                 .description = Description{LazyString{L"Help"}},
                  .handler =
                      [&state = state_, top_command](ExtendedChar) mutable {
                        top_command.show_help = !top_command.show_help;
@@ -1061,7 +1060,7 @@ class OperationMode : public EditorMode {
                      }})
         .Insert(L'~',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description(L"SwitchCase"),
+                 .description = Description{LazyString{L"SwitchCase"}},
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
@@ -1078,7 +1077,7 @@ class OperationMode : public EditorMode {
                      }})
         .Insert(L'$',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description(L"Shell"),
+                 .description = Description{LazyString{L"Shell"}},
                  .handler =
                      [top_command, &state = state_](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
@@ -1100,7 +1099,7 @@ class OperationMode : public EditorMode {
         .Insert(L'|', push(kDescriptionShell, CommandSetShell{}))
         .Insert(L'+',
                 {.category = KeyCommandsMap::Category::kTop,
-                 .description = Description(L"CursorEveryLine"),
+                 .description = Description{LazyString{L"CursorEveryLine"}},
                  .handler =
                      [&state = state_, top_command](ExtendedChar) mutable {
                        switch (top_command.post_transformation_behavior) {
@@ -1176,7 +1175,8 @@ class OperationMode : public EditorMode {
             LineModifierSet{LineModifier::kBold, LineModifier::kMagenta});
         return;
     }
-    LOG(FATAL) << "Invalid post transformation behavior.";
+    LOG(FATAL) << "Invalid post transformation "
+                  "behavior.";
   }
 
   EditorState& editor_state_;

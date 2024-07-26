@@ -14,7 +14,7 @@
 #include "src/language/text/line_sequence.h"
 
 namespace afc::editor::operation {
-GHOST_TYPE(Description, std::wstring);
+GHOST_TYPE(Description, language::lazy_string::LazyString);
 
 // Contains a table of commands. Each command is an association of a chatacter
 // to a "handler" that should be executed when the command is pressed.
