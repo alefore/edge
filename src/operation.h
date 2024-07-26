@@ -11,6 +11,7 @@
 #include "src/command.h"
 #include "src/futures/futures.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/modifiers.h"
 #include "src/transformation/stack.h"
@@ -32,7 +33,7 @@ class CommandArgumentRepetitions {
       : entries_({{.additive_default = repetitions,
                    .multiplicative_sign = repetitions >= 0 ? 1 : -1}}) {}
 
-  std::wstring ToString() const;
+  language::lazy_string::LazyString ToString() const;
   // Returns the total sum of all entries.
   int get() const;
   std::list<int> get_list() const;

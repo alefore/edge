@@ -11,6 +11,7 @@
 #include "src/futures/serializer.h"
 #include "src/goto_command.h"
 #include "src/key_commands_map.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
@@ -45,6 +46,8 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::VisitOptional;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -57,30 +60,30 @@ using ::operator<<;
 namespace {
 using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
-void SerializeCall(std::wstring name, std::vector<std::wstring> arguments,
+void SerializeCall(std::wstring name, std::vector<LazyString> arguments,
                    LineBuilder& output) {
   // TODO(easy, 2024-07-26): Receive `name` already as LazyString.
-  // TODO(easy, 2024-07-26): Receive `arguments` already as LazyString.
   output.AppendString(LazyString{name}, LineModifierSet{LineModifier::kCyan});
   output.AppendString(LazyString{L"("}, LineModifierSet{LineModifier::kDim});
   LazyString separator;
-  for (auto& a : arguments) {
-    if (!a.empty()) {
-      output.AppendString(separator, LineModifierSet{LineModifier::kDim});
-      output.AppendString(LazyString{a}, std::nullopt);
-      separator = LazyString{L", "};
-    }
-  }
+  std::ranges::for_each(
+      arguments |
+          std::views::filter([](const LazyString& a) { return !a.IsEmpty(); }),
+      [&](const LazyString& a) {
+        output.AppendString(separator, LineModifierSet{LineModifier::kDim});
+        output.AppendString(a, std::nullopt);
+        separator = LazyString{L", "};
+      });
   output.AppendString(LazyString{L")"}, LineModifierSet{LineModifier::kDim});
 }
 
-std::wstring StructureToString(std::optional<Structure> structure) {
+LazyString StructureToString(std::optional<Structure> structure) {
   std::ostringstream oss;
   if (structure.has_value())
     oss << *structure;
   else
     oss << "?";
-  return language::FromByteString(oss.str());
+  return LazyString{language::FromByteString(oss.str())};
 }
 
 Modifiers GetModifiers(std::optional<Structure> structure, int repetitions,
@@ -139,34 +142,42 @@ void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
 }
 
 void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
+  // TODO(easy, 2024-07-26): Switch c.query to use Lazystring to avoid
+  // conversion.
   SerializeCall(
       kReachQuery.read(),
-      {c.query + std::wstring(3 - std::min(3ul, c.query.size()), L'_')},
+      {LazyString{c.query} + LazyString{ColumnNumberDelta{static_cast<int>(
+                                            3 - std::min(3ul, c.query.size()))},
+                                        L'_'}},
       output);
 }
 
 void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
-  wchar_t backwards = c.structure == Structure::kLine ? L'👆' : L'👈';
-  wchar_t forwards = c.structure == Structure::kLine ? L'👇' : L'👉';
+  LazyString backwards =
+      c.structure == Structure::kLine ? LazyString{L"👆"} : LazyString{L"👈"};
+  LazyString forwards =
+      c.structure == Structure::kLine ? LazyString{L"👇"} : LazyString{L"👉"};
   SerializeCall(L"🪓",
                 {StructureToString(c.structure),
-                 container::Materialize<std::wstring>(
-                     c.directions |
-                     std::views::transform([&](const Direction& direction) {
-                       switch (direction) {
-                         case Direction::kForwards:
-                           return forwards;
-                         case Direction::kBackwards:
-                           return backwards;
-                       }
-                       LOG(FATAL) << "Invalid direction.";
-                       return L' ';
-                     }))},
+                 Concatenate(c.directions |
+                             std::views::transform(
+                                 [&](const Direction& direction) -> LazyString {
+                                   switch (direction) {
+                                     case Direction::kForwards:
+                                       return forwards;
+                                     case Direction::kBackwards:
+                                       return backwards;
+                                   }
+                                   LOG(FATAL) << "Invalid direction.";
+                                   return LazyString{L" "};
+                                 }))},
                 output);
 }
 
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
-  SerializeCall(kDescriptionShell.read(), {c.input}, output);
+  // TODO(easy, 2024-07-26): Switch c.input to use Lazystring to avoid
+  // conversion.
+  SerializeCall(kDescriptionShell.read(), {LazyString{c.input}}, output);
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -869,7 +880,10 @@ class OperationMode : public EditorMode {
       structure_keys.Insert(
           entry.first,
           {.category = KeyCommandsMap::Category::kStructure,
-           .description = Description(StructureToString(entry.second)),
+           // TODO(easy, 2024-07-26): Change .description to LazyString to get
+           // rid of this call to ToString.
+           .description =
+               Description(StructureToString(entry.second).ToString()),
            .handler = [this, structure = entry.second](ExtendedChar) {
              int last_repetitions = 0;
              if (!state_.empty()) {
@@ -1164,13 +1178,11 @@ class OperationMode : public EditorMode {
 };
 }  // namespace
 
-std::wstring CommandArgumentRepetitions::ToString() const {
-  std::wstring output;
+LazyString CommandArgumentRepetitions::ToString() const {
+  LazyString output;
   for (auto& r : get_list()) {
-    if (!output.empty() && r > 0) {
-      output += L"+";
-    }
-    output += std::to_wstring(r);
+    if (!output.IsEmpty() && r > 0) output += LazyString{L"+"};
+    output += LazyString{std::to_wstring(r)};
   }
   return output;
 }
