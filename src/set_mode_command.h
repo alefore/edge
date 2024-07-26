@@ -6,6 +6,7 @@
 #include <string>
 
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::editor {
 class EditorState;
@@ -13,8 +14,8 @@ class EditorMode;
 class Command;
 struct SetModeCommandOptions {
   EditorState& editor_state;
-  std::wstring description;
-  std::wstring category;
+  language::lazy_string::LazyString description;
+  language::lazy_string::LazyString category;
   std::function<std::unique_ptr<EditorMode>()> factory;
 };
 

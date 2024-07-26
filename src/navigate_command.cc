@@ -28,6 +28,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
@@ -322,8 +323,8 @@ NavigateState InitialState(EditorState& editor_state) {
 gc::Root<Command> NewNavigateCommand(EditorState& editor_state) {
   return NewSetModeCommand(SetModeCommandOptions{
       .editor_state = editor_state,
-      .description = L"activates navigate mode.",
-      .category = L"Navigate",
+      .description = LazyString{L"activates navigate mode."},
+      .category = LazyString{L"Navigate"},
       .factory = [&editor_state] {
         CommandArgumentMode<NavigateState>::Options options{
             .editor_state = editor_state,

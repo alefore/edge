@@ -100,8 +100,8 @@ using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
                              CommandReachBisect, CommandSetShell>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
-    std::wstring name, std::wstring description, TopCommand top_command,
-    EditorState& editor_state, Command command);
+    std::wstring name, language::lazy_string::LazyString description,
+    TopCommand top_command, EditorState& editor_state, Command command);
 
 }  // namespace operation
 }  // namespace afc::editor

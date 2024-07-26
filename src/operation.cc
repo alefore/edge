@@ -1225,13 +1225,13 @@ bool CommandArgumentRepetitions::PopValue() {
 }
 
 gc::Root<afc::editor::Command> NewTopLevelCommand(std::wstring,
-                                                  std::wstring description,
+                                                  LazyString description,
                                                   TopCommand top_command,
                                                   EditorState& editor_state,
                                                   Command command) {
   return NewSetModeCommand({.editor_state = editor_state,
                             .description = description,
-                            .category = L"Edit",
+                            .category = LazyString{L"Edit"},
                             .factory = [top_command, &editor_state, command] {
                               auto output = std::make_unique<OperationMode>(
                                   top_command, editor_state);
