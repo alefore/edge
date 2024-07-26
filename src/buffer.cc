@@ -146,7 +146,7 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
 
   TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
   for (Line& line : lines)
-    if (line.metadata() == std::nullopt && !line.empty())
+    if (line.metadata().empty() && !line.empty())
       std::visit(
           overload{
               [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
@@ -164,7 +164,7 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                   if (compilation_result.first->Types() ==
                       std::vector<vm::Type>({vm::types::Void{}})) {
                     LineBuilder line_builder(std::move(line));
-                    line_builder.SetMetadata(std::nullopt);
+                    line_builder.SetMetadata({});
                     line = std::move(line_builder).Build();
                   }
                   NonNull<std::shared_ptr<vm::Expression>> expr =
@@ -190,9 +190,10 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
                 }
 
                 LineBuilder line_builder(std::move(line));
-                line_builder.SetMetadata(language::text::LineMetadataEntry{
-                    .initial_value = description,
-                    .value = std::move(metadata_value)});
+                line_builder.SetMetadata(
+                    {{LazyString{}, language::text::LineMetadataEntry{
+                                        .initial_value = description,
+                                        .value = std::move(metadata_value)}}});
                 line = std::move(line_builder).Build();
               },
               IgnoreErrors{}},

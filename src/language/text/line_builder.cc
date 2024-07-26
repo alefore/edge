@@ -73,19 +73,23 @@ const bool line_tests_registration = tests::Register(
         futures::Future<LazyString> future;
         LineBuilder builder;
         builder.SetMetadata(
-            LineMetadataEntry{.initial_value = LazyString{L"Foo"},
-                              .value = std::move(future.value)});
+            {{LazyString{},
+              LineMetadataEntry{.initial_value = LazyString{L"Foo"},
+                                .value = std::move(future.value)}}});
         Line line = std::move(builder).Build();
-        CHECK(*line.metadata() == LazyString{L"Foo"});
+        CHECK(line.metadata().at(LazyString{}).get_value() ==
+              LazyString{L"Foo"});
         std::move(future.consumer)(LazyString{L"Bar"});
-        CHECK(*line.metadata() == LazyString{L"Bar"});
+        CHECK(line.metadata().at(LazyString{}).get_value() ==
+              LazyString{L"Bar"});
       }}});
 }  // namespace
 
 LineBuilder::LineBuilder(const Line& line) : data_(line.data_.value()) {}
 
 LineBuilder::LineBuilder(language::lazy_string::LazyString input_contents)
-    : data_(Line::Data{.contents = std::move(input_contents)}) {}
+    : data_(Line::Data{.contents = std::move(input_contents), .metadata = {}}) {
+}
 
 LineBuilder::LineBuilder(Line::Data data) : data_(std::move(data)) {}
 
@@ -119,7 +123,7 @@ void LineBuilder::SetCharacter(ColumnNumber column, int c,
                          .Append(std::move(suffix));
   }
 
-  data_.metadata = std::nullopt;
+  data_.metadata.clear();
 
   // Return the modifiers that are effective at a given position.
   auto Read = [&](ColumnNumber position) -> LineModifierSet {
@@ -250,7 +254,7 @@ void LineBuilder::InsertCharacterAtPosition(ColumnNumber column) {
         std::move(m.second);
   }
   set_modifiers(std::move(new_modifiers));
-  SetMetadata(std::nullopt);
+  SetMetadata({});
   ValidateInvariants();
 }
 
@@ -259,7 +263,7 @@ void LineBuilder::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   CHECK(!modifier.contains(LineModifier::kReset));
   data_.modifiers[ColumnNumber(0) + data_.contents.size()] = modifier;
   data_.contents = std::move(data_.contents) + LazyString{std::wstring(1, c)};
-  SetMetadata(std::nullopt);
+  SetMetadata({});
   ValidateInvariants();
 }
 
@@ -286,7 +290,7 @@ void LineBuilder::Append(LineBuilder line) {
   ColumnNumberDelta original_length = EndColumn().ToDelta();
   data_.contents =
       std::move(data_.contents).Append(std::move(line.data_.contents));
-  SetMetadata(std::nullopt);
+  SetMetadata({});
 
   auto initial_modifier =
       line.data_.modifiers.empty() ||
@@ -321,7 +325,7 @@ std::optional<OutgoingLink> LineBuilder::outgoing_link() const {
 }
 
 LineBuilder& LineBuilder::SetMetadata(
-    std::optional<LineMetadataEntry> metadata) {
+    std::map<LazyString, LineMetadataEntry> metadata) {
   data_.metadata = std::move(metadata);
   return *this;
 }
@@ -358,7 +362,7 @@ LineBuilder& LineBuilder::DeleteCharacters(ColumnNumber column,
     new_modifiers[column] = modifiers_continuation.value();
   }
   set_modifiers(std::move(new_modifiers));
-  data_.metadata = std::nullopt;
+  data_.metadata.clear();
 
   ValidateInvariants();
   return *this;

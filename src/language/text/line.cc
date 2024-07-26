@@ -31,7 +31,8 @@ using lazy_string::ColumnNumber;
 using lazy_string::ColumnNumberDelta;
 using lazy_string::LazyString;
 
-Line::Line(LazyString contents) : Line(Data{.contents = std::move(contents)}) {}
+Line::Line(LazyString contents)
+    : Line(Data{.contents = std::move(contents), .metadata = {}}) {}
 Line::Line(std::wstring contents) : Line(LazyString{std::move(contents)}) {}
 
 Line::Line(const Line& line)
@@ -47,7 +48,12 @@ size_t Line::ComputeHash(const Line::Data& data) {
             return compute_hash(value.first,
                                 MakeHashableIteratorRange(value.second));
           }),
-      MakeHashableIteratorRange(data.end_of_line_modifiers), data.metadata);
+      MakeHashableIteratorRange(data.end_of_line_modifiers),
+      MakeHashableIteratorRange(
+          data.metadata.begin(), data.metadata.end(),
+          [](const std::pair<LazyString, LineMetadataEntry>& value) {
+            return compute_hash(value.first, value.second);
+          }));
 }
 
 LazyString Line::contents() const { return data_->contents; }
@@ -71,19 +77,12 @@ LazyString Line::Substring(ColumnNumber column) const {
   return contents().Substring(column);
 }
 
-std::optional<LazyString> Line::metadata() const {
-  if (const auto& metadata = data_->metadata; metadata.has_value())
-    return metadata->value.get_copy().value_or(metadata->initial_value);
-
-  return std::nullopt;
+const std::map<LazyString, LineMetadataEntry>& Line::metadata() const {
+  return data_->metadata;
 }
 
-language::ValueOrError<futures::ListenableValue<LazyString>>
-Line::metadata_future() const {
-  if (const auto& metadata = data_->metadata; metadata.has_value()) {
-    return metadata.value().value;
-  }
-  return Error(L"Line has no value.");
+LazyString LineMetadataEntry::get_value() const {
+  return value.get_copy().value_or(initial_value);
 }
 
 const std::map<language::lazy_string::ColumnNumber,

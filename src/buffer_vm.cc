@@ -48,6 +48,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
+using afc::language::text::LineMetadataEntry;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
@@ -611,15 +612,17 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"LineMetadataString"),
-      vm::NewCallback(pool, kPurityTypeReader,
-                      [](gc::Ptr<OpenBuffer> buffer, int line_number) {
-                        return ToFuture(buffer->contents()
-                                            .at(LineNumber(line_number))
-                                            .metadata_future())
-                            .Transform([](LazyString str_value) {
-                              return Success(str_value.ToString());
-                            });
-                      })
+      vm::NewCallback(
+          pool, kPurityTypeReader,
+          [](gc::Ptr<OpenBuffer> buffer,
+             int line_number) -> futures::ValueOrError<LazyString> {
+            std::map<LazyString, LineMetadataEntry> metadata_map =
+                buffer->contents().at(LineNumber(line_number)).metadata();
+            if (const auto metadata_it = metadata_map.find(LazyString{});
+                metadata_it != metadata_map.end())
+              return metadata_it->second.value.ToFuture();
+            return futures::Past(Error(L"Line has no value."));
+          })
           .ptr());
   environment.DefineType(buffer_object_type.ptr());
   vm::container::Export<std::vector<gc::Ptr<OpenBuffer>>>(pool, environment);

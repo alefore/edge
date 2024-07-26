@@ -26,6 +26,7 @@ using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
+using afc::language::text::LineMetadataEntry;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::MutableLineSequence;
@@ -49,12 +50,13 @@ std::wstring GetMetadata(std::wstring line) {
   buffer.ptr()->editor().work_queue()->Execute();
 
   auto line_in_buffer = buffer.ptr()->LineAt(buffer.ptr()->EndLine());
-  std::optional<language::lazy_string::LazyString> metadata =
-      line_in_buffer->metadata();
-  auto output = metadata.has_value() ? metadata->ToString() : L"";
-  LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
-            << output << L"]";
-  return output;
+  if (const auto metadata_it = line_in_buffer->metadata().find(LazyString{});
+      metadata_it != line_in_buffer->metadata().end()) {
+    LOG(INFO) << "GetMetadata output: " << line_in_buffer->ToString() << ": ["
+              << metadata_it->second.get_value().ToString() << L"]";
+    return metadata_it->second.get_value().ToString();
+  }
+  return L"";
 }
 
 const bool buffer_tests_registration = tests::Register(
@@ -128,14 +130,21 @@ const bool buffer_tests_registration = tests::Register(
                NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
                auto buffer = NewBufferForTests(editor.value());
                LineBuilder options{LazyString{L"foo"}};
-               options.SetMetadata(language::text::LineMetadataEntry{
-                   .initial_value = LazyString{L"bar"},
-                   .value = futures::Past(LazyString{L"quux"})});
+               options.SetMetadata(
+                   {{LazyString{},
+                     language::text::LineMetadataEntry{
+                         .initial_value = LazyString{L"bar"},
+                         .value = futures::Past(LazyString{L"quux"})}}});
                buffer.ptr()->AppendRawLine(std::move(options).Build());
                // Gives it a chance to execute:
                buffer.ptr()->editor().work_queue()->Execute();
-               CHECK(buffer.ptr()->contents().back().metadata()->ToString() ==
-                     L"quux");
+               CHECK(buffer.ptr()
+                         ->contents()
+                         .back()
+                         .metadata()
+                         .at(LazyString{})
+                         .value.get_copy()
+                         ->ToString() == L"quux");
              }},
         {.name = L"PassingParametersPreservesThem",
          .callback =

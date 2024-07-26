@@ -71,7 +71,8 @@ class LineBuilder {
   void SetOutgoingLink(OutgoingLink outgoing_link);
   std::optional<OutgoingLink> outgoing_link() const;
 
-  LineBuilder& SetMetadata(std::optional<LineMetadataEntry> metadata);
+  LineBuilder& SetMetadata(
+      std::map<lazy_string::LazyString, LineMetadataEntry> metadata);
 
   // Delete characters in [position, position + amount).
   LineBuilder& DeleteCharacters(

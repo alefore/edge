@@ -12,6 +12,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/hash.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/overload.h"
@@ -40,10 +41,12 @@ using afc::language::VisitOptional;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
+using afc::language::text::LineMetadataEntry;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineRange;
@@ -424,22 +427,18 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     info_char_modifier = LineModifier::kDim;
   }
 
-  VisitPointer(
-      contents.metadata(),
-      [&output](LazyString metadata) {
-        static Tracker tracker(
-            L"BufferMetadataOutput::Prepare:VisitContentsMetadata");
-        auto call = tracker.Call();
-
-        if (metadata.size().IsZero()) return;
-        ForEachColumn(metadata, [](ColumnNumber, wchar_t c) {
-          CHECK(c != L'\n') << "Metadata has invalid newline character.";
-        });
-        output.push_back(MetadataLine{L'>', LineModifier::kGreen,
-                                      LineBuilder(std::move(metadata)).Build(),
-                                      MetadataLine::Type::kLineContents});
-      },
-      [] {});
+  if (LazyString metadata = Concatenate(std::views::transform(
+          contents.metadata(),
+          [](const std::pair<LazyString, LineMetadataEntry>& item) {
+            static Tracker tracker(
+                L"BufferMetadataOutput::Prepare:VisitContentsMetadata");
+            auto call = tracker.Call();
+            return item.second.get_value();
+          }));
+      !metadata.IsEmpty())
+    output.push_back(MetadataLine{L'>', LineModifier::kGreen,
+                                  LineBuilder(metadata).Build(),
+                                  MetadataLine::Type::kLineContents});
 
   static Tracker tracker_generic_marks_logic(
       L"BufferMetadataOutput::Prepare::GenericMarksLogic");

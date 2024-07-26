@@ -19,6 +19,8 @@
 
 namespace afc::language::text {
 struct LineMetadataEntry {
+  language::lazy_string::LazyString get_value() const;
+
   language::lazy_string::LazyString initial_value;
   futures::ListenableValue<language::lazy_string::LazyString> value;
 };
@@ -58,11 +60,8 @@ class Line {
 
   std::wstring ToString() const { return contents().ToString(); }
 
-  std::optional<language::lazy_string::LazyString> metadata() const;
-  language::ValueOrError<
-      futures::ListenableValue<language::lazy_string::LazyString>>
-  metadata_future() const;
-
+  const std::map<language::lazy_string::LazyString, LineMetadataEntry>&
+  metadata() const;
   const std::map<language::lazy_string::ColumnNumber,
                  afc::infrastructure::screen::LineModifierSet>&
   modifiers() const;
@@ -99,7 +98,7 @@ class Line {
     // second line.
     afc::infrastructure::screen::LineModifierSet end_of_line_modifiers = {};
 
-    std::optional<LineMetadataEntry> metadata = std::nullopt;
+    std::map<language::lazy_string::LazyString, LineMetadataEntry> metadata;
     std::function<void()> explicit_delete_observer = nullptr;
     std::optional<OutgoingLink> outgoing_link = std::nullopt;
   };
