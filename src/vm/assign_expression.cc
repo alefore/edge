@@ -121,7 +121,7 @@ std::unique_ptr<Expression> NewDefineExpression(
     }
     default_type = *types.cbegin();
   }
-  auto vmtype =
+  std::optional<Type> vmtype =
       NewDefineTypeExpression(compilation, type, symbol, default_type);
   if (vmtype == std::nullopt) return nullptr;
   if (!value->SupportsType(*vmtype)) {
