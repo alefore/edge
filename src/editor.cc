@@ -882,13 +882,11 @@ void EditorState::PushPosition(LineColumn position) {
 
 static BufferPosition PositionFromLine(const std::wstring& line) {
   std::wstringstream line_stream(line);
-  LineColumn position;
   size_t line_number;
   size_t column_number;
   line_stream >> line_number >> column_number;
   // TODO(easy, 2022-06-06): Define operator>> and use it here?
-  position.line = LineNumber(line_number);
-  position.column = ColumnNumber(column_number);
+  LineColumn position{LineNumber(line_number), ColumnNumber(column_number)};
   line_stream.get();
   std::wstring buffer_name;
   getline(line_stream, buffer_name);
