@@ -84,6 +84,9 @@ const bool buffer_tests_registration = tests::Register(
         {.name = L"MetadataReader",
          .callback =
              [] { CHECK(GetMetadata(L"buffer.name()") == L"\"tests\""); }},
+        {.name = L"MetadataLocalVariables",
+         .callback =
+             [] { CHECK(GetMetadata(L"number x = 2; x * 2") == L"4"); }},
         {.name = L"MetadataImpureDoesNotExecute",
          .callback =
              [] {
