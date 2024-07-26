@@ -30,25 +30,25 @@ Line FrameLine(FrameOutputProducerOptions options) {
           : LineModifierSet();
   LineBuilder output;
   output.AppendString(options.prefix, line_modifiers);
-  output.AppendString(L"──", line_modifiers);
+  output.AppendString(LazyString{L"──"}, line_modifiers);
   if (!options.title.IsEmpty()) {
     output.AppendString(LazyString{L" "} + options.title + LazyString{L" "},
                         title_modifiers);
   }
   if (options.position_in_parent.has_value()) {
-    output.AppendString(L"─(", line_modifiers);
+    output.AppendString(LazyString{L"─("}, line_modifiers);
     // Add 1 because that matches what the repetitions do. Humans
     // typically start counting from 1.
     output.AppendString(
-        std::to_wstring(1 + options.position_in_parent.value()),
+        LazyString{std::to_wstring(1 + options.position_in_parent.value())},
         LineModifierSet{LineModifier::kBold, LineModifier::kCyan});
-    output.AppendString(L")", line_modifiers);
+    output.AppendString(LazyString{L")"}, line_modifiers);
   }
 
   if (!options.extra_information.size().IsZero()) {
-    output.AppendString(L"─<", line_modifiers);
+    output.AppendString(LazyString{L"─<"}, line_modifiers);
     output.AppendString(options.extra_information, line_modifiers);
-    output.AppendString(L">", line_modifiers);
+    output.AppendString(LazyString{L">"}, line_modifiers);
   }
 
   output.AppendString(

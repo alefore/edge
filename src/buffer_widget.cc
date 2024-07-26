@@ -55,7 +55,9 @@ static const auto kStatusFrameLines = LineNumberDelta(1);
 
 LineWithCursor ProducerForString(std::wstring src, LineModifierSet modifiers) {
   LineBuilder options;
-  options.AppendString(std::move(src), std::move(modifiers));
+  // TODO(easy, 2024-07-26): Receive `str` already as LazyString, avoid
+  // conversion.
+  options.AppendString(LazyString{std::move(src)}, std::move(modifiers));
   return LineWithCursor{.line = std::move(options).Build()};
 }
 

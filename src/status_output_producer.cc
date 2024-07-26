@@ -90,18 +90,22 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 
     auto active_cursors = options.buffer->active_cursors();
     if (active_cursors.size() != 1) {
-      output.AppendString(L" ", std::nullopt);
       output.AppendString(
-          options.buffer->Read(buffer_variables::multiple_cursors)
-              ? std::wstring(L"✨")
-              : std::wstring(L"👥"),
+          LazyString{L" "} +
+              (options.buffer->Read(buffer_variables::multiple_cursors)
+                   ? LazyString{L"✨"}
+                   : LazyString{L"👥"}),
           std::nullopt);
-      output.AppendString(L":", LineModifierSet{LineModifier::kDim});
-      output.AppendString(std::to_wstring(active_cursors.current_index() + 1),
-                          std::nullopt);
-      output.AppendString(L"/", LineModifierSet{LineModifier::kDim});
-      output.AppendString(std::to_wstring(active_cursors.size()), std::nullopt);
-      output.AppendString(L" ", std::nullopt);
+      output.AppendString(LazyString{L":"},
+                          LineModifierSet{LineModifier::kDim});
+      output.AppendString(
+          LazyString{std::to_wstring(active_cursors.current_index() + 1)},
+          std::nullopt);
+      output.AppendString(LazyString{L"/"},
+                          LineModifierSet{LineModifier::kDim});
+      output.AppendString(
+          LazyString{std::to_wstring(active_cursors.size())} + LazyString{L" "},
+          std::nullopt);
     }
 
     std::map<std::wstring, std::wstring> flags = options.buffer->Flags();

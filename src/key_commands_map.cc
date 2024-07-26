@@ -73,8 +73,8 @@ Line KeyCommandsMapSequence::SummaryLine() const {
       entries_by_category[entry.second].push_back(*regular_c);
   for (const std::pair<const KeyCommandsMap::Category, std::wstring>& category :
        entries_by_category) {
-    output.AppendString(L" ", std::nullopt);
-    output.AppendString(category.second, LineModifierSet{LineModifier::kDim});
+    output.AppendString(LazyString{L" "} + LazyString{category.second},
+                        LineModifierSet{LineModifier::kDim});
   }
   return std::move(output).Build();
 }

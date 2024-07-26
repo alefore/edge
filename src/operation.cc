@@ -59,17 +59,19 @@ using UndoCallback = std::function<futures::Value<EmptyValue>()>;
 
 void SerializeCall(std::wstring name, std::vector<std::wstring> arguments,
                    LineBuilder& output) {
-  output.AppendString(name, LineModifierSet{LineModifier::kCyan});
-  output.AppendString(L"(", LineModifierSet{LineModifier::kDim});
-  std::wstring separator = L"";
+  // TODO(easy, 2024-07-26): Receive `name` already as LazyString.
+  // TODO(easy, 2024-07-26): Receive `arguments` already as LazyString.
+  output.AppendString(LazyString{name}, LineModifierSet{LineModifier::kCyan});
+  output.AppendString(LazyString{L"("}, LineModifierSet{LineModifier::kDim});
+  LazyString separator;
   for (auto& a : arguments) {
     if (!a.empty()) {
       output.AppendString(separator, LineModifierSet{LineModifier::kDim});
-      output.AppendString(a, std::nullopt);
-      separator = L", ";
+      output.AppendString(LazyString{a}, std::nullopt);
+      separator = LazyString{L", "};
     }
   }
-  output.AppendString(L")", LineModifierSet{LineModifier::kDim});
+  output.AppendString(LazyString{L")"}, LineModifierSet{LineModifier::kDim});
 }
 
 std::wstring StructureToString(std::optional<Structure> structure) {
@@ -338,7 +340,7 @@ class State {
 
   void AppendStatusString(LineBuilder& output) const {
     for (const auto& op : commands_) {
-      output.AppendString(L" ", std::nullopt);
+      output.AppendString(LazyString{L" "}, std::nullopt);
       std::visit([&output](auto& t) { AppendStatus(t, output); }, op);
     }
   }
@@ -815,7 +817,7 @@ class OperationMode : public EditorMode {
   void ShowStatus() {
     LineBuilder output;
     AppendStatus(state_.top_command(), output);
-    output.AppendString(L":", LineModifierSet{LineModifier::kDim});
+    output.AppendString(LazyString{L":"}, LineModifierSet{LineModifier::kDim});
     state_.AppendStatusString(output);
     AppendStatusForCommandsAvailable(output);
     editor_state_.status().SetInformationText(std::move(output).Build());
@@ -950,7 +952,7 @@ class OperationMode : public EditorMode {
   }
 
   void AppendStatusForCommandsAvailable(LineBuilder& output) {
-    output.AppendString(L"    ", std::nullopt);
+    output.AppendString(LazyString{L"    "}, std::nullopt);
     output.Append(LineBuilder(GetGlobalKeyCommandsMap().SummaryLine()));
   }
 
@@ -1118,36 +1120,39 @@ class OperationMode : public EditorMode {
   static void AppendStatus(TopCommand top_command, LineBuilder& output) {
     switch (top_command.post_transformation_behavior) {
       case transformation::Stack::PostTransformationBehavior::kNone:
-        output.AppendString(L"🦋 Move", LineModifierSet{LineModifier::kBold,
-                                                        LineModifier::kCyan});
+        output.AppendString(
+            LazyString{L"🦋 Move"},
+            LineModifierSet{LineModifier::kBold, LineModifier::kCyan});
         return;
       case transformation::Stack::PostTransformationBehavior::kDeleteRegion:
         output.AppendString(
-            L"✂️  Delete",
+            LazyString{L"✂️  Delete"},
             LineModifierSet{LineModifier::kBold, LineModifier::kBgRed});
         return;
       case transformation::Stack::PostTransformationBehavior::kCopyRegion:
-        output.AppendString(L"📋 Copy", LineModifierSet{LineModifier::kBold,
-                                                        LineModifier::kYellow});
+        output.AppendString(
+            LazyString{L"📋 Copy"},
+            LineModifierSet{LineModifier::kBold, LineModifier::kYellow});
         return;
       case transformation::Stack::PostTransformationBehavior::kCommandSystem:
         output.AppendString(
-            L"🐚 System",
+            LazyString{L"🐚 System"},
             LineModifierSet{LineModifier::kBold, LineModifier::kGreen});
         return;
       case transformation::Stack::PostTransformationBehavior::kCommandCpp:
         output.AppendString(
-            L"🤖 Cpp",
+            LazyString{L"🤖 Cpp"},
             LineModifierSet{LineModifier::kBold, LineModifier::kGreen,
                             LineModifier::kUnderline});
         return;
       case transformation::Stack::PostTransformationBehavior::kCapitalsSwitch:
-        output.AppendString(L"🔠 Aa", LineModifierSet{LineModifier::kBold,
-                                                      LineModifier::kMagenta});
+        output.AppendString(
+            LazyString{L"🔠 Aa"},
+            LineModifierSet{LineModifier::kBold, LineModifier::kMagenta});
         return;
       case transformation::Stack::PostTransformationBehavior::kCursorOnEachLine:
         output.AppendString(
-            L"Ꮖ Cursor",
+            LazyString{L"Ꮖ Cursor"},
             LineModifierSet{LineModifier::kBold, LineModifier::kMagenta});
         return;
     }

@@ -160,11 +160,11 @@ Line Status::prompt_extra_information_line() const {
   const VersionPropertyReceiver::PropertyValues values = receiver->GetValues();
   LineBuilder options;
   if (!values.property_values.empty()) {
-    options.AppendString(L"    🛈  ", dim);
+    options.AppendString(LazyString{L"    🛈  "}, dim);
     bool need_separator = false;
     for (const auto& [key, value] : values.property_values) {
       if (need_separator) {
-        options.AppendString(L" ", empty);
+        options.AppendString(LazyString{L" "}, empty);
       }
       need_separator = true;
 
@@ -173,14 +173,22 @@ Line Status::prompt_extra_information_line() const {
                                           Value::Status::kExpired
                                   ? dim
                                   : empty;
-      options.AppendString(key.read(), modifiers);
+      // TODO(easy, 2024-07-26): Change the key to be a LazyString to avoid
+      // having to convert below.
+      options.AppendString(LazyString{key.read()}, modifiers);
       if (!std::holds_alternative<std::wstring>(value.value) ||
           std::get<std::wstring>(value.value) != L"") {
-        options.AppendString(L":", dim);
+        options.AppendString(LazyString{L":"}, dim);
         options.AppendString(
-            std::visit(overload{[](std::wstring v) { return v; },
-                                [](int v) { return std::to_wstring(v); }},
-                       value.value),
+            std::visit(
+                overload{[](std::wstring v) {
+                           // TODO(easy, 2024-07-26): Change the variant to
+                           // contain LazyString so that we don't have to
+                           // convert here.
+                           return LazyString{v};
+                         },
+                         [](int v) { return LazyString{std::to_wstring(v)}; }},
+                value.value),
             modifiers);
       }
     }
@@ -189,7 +197,7 @@ Line Status::prompt_extra_information_line() const {
     case VersionPropertyReceiver::VersionExecution::kDone:
       break;
     case VersionPropertyReceiver::VersionExecution::kRunning:
-      options.AppendString(L" …", dim);
+      options.AppendString(LazyString{L" …"}, dim);
       break;
   }
 

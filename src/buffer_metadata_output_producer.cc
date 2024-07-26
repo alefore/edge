@@ -65,8 +65,8 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
                     : connect_final_char;
 }
 
-std::wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
-                      const ParseTree& root) {
+LazyString DrawTree(LineNumber line, LineNumberDelta lines_size,
+                    const ParseTree& root) {
   static Tracker tracker(L"BufferMetadataOutput::DrawTree");
   auto call = tracker.Call();
 
@@ -129,7 +129,9 @@ std::wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
     index_begin++;
     index_end++;
   }
-  return output;
+  // TODO(easy, 2024-07-26): Turn `output` to a LazyString to avoid
+  // conversion.
+  return LazyString{output};
 }
 
 struct MetadataLine {
@@ -230,7 +232,9 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
     modifiers.insert(LineModifier::kCyan);
   }
   LineBuilder line_options;
-  line_options.AppendString(output_str, modifiers);
+  // TODO(trivial, 2024-07-26): Turn output_str into a LazyString, avoid
+  // conversion below.
+  line_options.AppendString(LazyString{output_str}, modifiers);
   return line_options;
 }
 
@@ -336,7 +340,8 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   }
 
   CHECK_LT(base_char, chars.size());
-  line_options.AppendString(std::wstring(1, chars[base_char]), modifiers);
+  line_options.AppendString(LazyString{ColumnNumberDelta{1}, chars[base_char]},
+                            modifiers);
   return line_options;
 }
 

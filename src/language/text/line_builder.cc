@@ -80,7 +80,7 @@ const bool line_tests_registration = tests::Register(
         std::move(future.consumer)(LazyString{L"Bar"});
         CHECK(*line.metadata() == LazyString{L"Bar"});
       }}});
-}
+}  // namespace
 
 LineBuilder::LineBuilder(const Line& line) : data_(line.data_.value()) {}
 
@@ -158,7 +158,7 @@ const bool line_set_character_tests_registration = tests::Register(
     L"LineTestsSetCharacter",
     {{.name = L"ConsecutiveSets", .callback = [] {
         LineBuilder options;
-        options.AppendString(std::wstring(L"ALEJANDRO"), std::nullopt);
+        options.AppendString(LazyString{L"ALEJANDRO"}, std::nullopt);
         CHECK(options.contents().ToString() == L"ALEJANDRO");
         CHECK(options.modifiers().empty());
 
@@ -277,13 +277,6 @@ void LineBuilder::AppendString(
   }
   Append(std::move(suffix_line));
   ValidateInvariants();
-}
-
-// TODO(trivial, 2024-01-02): Remove this conversion function, convert in
-// caller.
-void LineBuilder::AppendString(
-    std::wstring suffix, std::optional<LineModifierSet> suffix_modifiers) {
-  AppendString(LazyString{std::move(suffix)}, std::move(suffix_modifiers));
 }
 
 void LineBuilder::Append(LineBuilder line) {
