@@ -84,7 +84,7 @@ struct CommandReachPage {
 
 // Finds occurrences of a given string.
 struct CommandReachQuery {
-  std::wstring query;
+  language::lazy_string::LazyString query;
 };
 
 struct CommandReachBisect {

@@ -46,6 +46,7 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::VisitOptional;
+using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
@@ -142,13 +143,11 @@ void AppendStatus(const CommandReachPage& reach_line, LineBuilder& output) {
 }
 
 void AppendStatus(const CommandReachQuery& c, LineBuilder& output) {
-  // TODO(easy, 2024-07-26): Switch c.query to use Lazystring to avoid
-  // conversion.
   SerializeCall(
       kReachQuery.read(),
-      {LazyString{c.query} + LazyString{ColumnNumberDelta{static_cast<int>(
-                                            3 - std::min(3ul, c.query.size()))},
-                                        L'_'}},
+      {c.query + LazyString{ColumnNumberDelta(3) -
+                                std::min(ColumnNumberDelta(3), c.query.size()),
+                            L'_'}},
       output);
 }
 
@@ -299,11 +298,13 @@ transformation::Stack GetTransformation(
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
     CommandReachQuery reach_query) {
-  if (reach_query.query.empty()) return transformation::Stack{};
+  if (reach_query.query.IsEmpty()) return transformation::Stack{};
   transformation::Stack transformation;
+  // TODO(trivial, 2024-07-26): Change ReachQueryTransformation to receive the
+  // LazyString directly.
   transformation.push_back(
       MakeNonNullUnique<transformation::ReachQueryTransformation>(
-          reach_query.query));
+          reach_query.query.ToString()));
   return transformation;
 }
 
@@ -736,20 +737,25 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachPage* output, State*) {
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachQuery* output,
                        State*) {
-  if (output->query.size() < 3)
-    cmap.SetFallback(
-        {L'\n', ControlChar::kEscape, ControlChar::kBackspace},
-        [output](ExtendedChar extended_c) {
-          std::visit(overload{[](ControlChar) {},
-                              [&](wchar_t c) { output->query.push_back(c); }},
-                     extended_c);
-        });
-  cmap.Insert(
-      ControlChar::kBackspace,
-      {.category = KeyCommandsMap::Category::kStringControl,
-       .description = Description(L"Backspace"),
-       .active = !output->query.empty(),
-       .handler = [output](ExtendedChar) { output->query.pop_back(); }});
+  if (output->query.size() < ColumnNumberDelta{3})
+    cmap.SetFallback({L'\n', ControlChar::kEscape, ControlChar::kBackspace},
+                     [output](ExtendedChar extended_c) {
+                       std::visit(overload{[](ControlChar) {},
+                                           [&](wchar_t c) {
+                                             output->query += LazyString{
+                                                 ColumnNumberDelta{1}, c};
+                                           }},
+                                  extended_c);
+                     });
+  cmap.Insert(ControlChar::kBackspace,
+              {.category = KeyCommandsMap::Category::kStringControl,
+               .description = Description(L"Backspace"),
+               .active = !output->query.IsEmpty(),
+               .handler = [output](ExtendedChar) {
+                 output->query = output->query.Substring(
+                     ColumnNumber{},
+                     output->query.size() - ColumnNumberDelta{1});
+               }});
 }
 
 void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandReachBisect* output,
