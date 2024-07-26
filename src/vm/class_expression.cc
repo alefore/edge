@@ -60,7 +60,7 @@ gc::Root<Value> BuildSetter(gc::Pool& pool, Type class_type, Type field_type,
 
 gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                             Identifier field_name) {
-  gc::Root<Value> output = Value::NewFunction(
+  return Value::NewFunction(
       pool, PurityType{}, field_type, {class_type},
       [&pool, class_type, field_name, field_type](
           std::vector<gc::Root<Value>> args, Trampoline&) {
@@ -77,10 +77,6 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                            field_name.read());
             }));
       });
-  // TODO(2024-06-11, trivial): Why do we need this? Shouldn't the above call
-  // to Value::NewFunction already set it?
-  std::get<types::Function>(output.ptr()->type).function_purity = PurityType{};
-  return output;
 }
 }  // namespace
 
@@ -112,48 +108,42 @@ PossibleError FinishClassDeclaration(
             BuildSetter(pool, class_type, value->type, name).ptr());
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
-  auto purity = constructor_expression->purity();
-  gc::Root<Value> constructor = Value::NewFunction(
-      pool, PurityType{}, class_type, {},
-      [&pool, constructor_expression, class_environment, class_type](
-          std::vector<gc::Root<Value>>, Trampoline& trampoline) {
-        gc::Root<Environment> instance_environment = VisitOptional(
-            [](gc::Ptr<vm::Environment> parent) {
-              return Environment::New(std::move(parent));
-            },
-            [&pool] { return Environment::New(pool); },
-            class_environment.ptr()->parent_environment());
-        auto original_environment = trampoline.environment();
-        trampoline.SetEnvironment(instance_environment);
-        return trampoline.Bounce(constructor_expression, types::Void{})
-            .Transform([constructor_expression, original_environment,
-                        class_type, instance_environment,
-                        &trampoline](EvaluationOutput constructor_evaluation)
-                           -> language::ValueOrError<gc::Root<Value>> {
-              trampoline.SetEnvironment(original_environment);
-              switch (constructor_evaluation.type) {
-                case EvaluationOutput::OutputType::kReturn:
-                  return Error(
-                      L"Unexpected: return (inside class declaration).");
-                case EvaluationOutput::OutputType::kContinue:
-                  return Success(Value::NewObject(
-                      trampoline.pool(),
-                      std::get<types::ObjectName>(class_type),
-                      MakeNonNullShared<Instance>(
-                          Instance{.environment = instance_environment})));
-              }
-              language::Error error(L"Unhandled OutputType case.");
-              LOG(FATAL) << error;
-              return error;
-            });
-      });
-  // TODO(2024-06-11, trivial): Why do we need this? Why can't we just pass the
-  // purity directly in the call to Value::NewFunction?
-  std::get<types::Function>(constructor.ptr()->type).function_purity = purity;
-
   compilation.environment.ptr()->Define(
       Identifier(std::get<types::ObjectName>(class_type).read()),
-      std::move(constructor));
+      Value::NewFunction(
+          pool, constructor_expression->purity(), class_type, {},
+          [&pool, constructor_expression, class_environment, class_type](
+              std::vector<gc::Root<Value>>, Trampoline& trampoline) {
+            gc::Root<Environment> instance_environment = VisitOptional(
+                [](gc::Ptr<vm::Environment> parent) {
+                  return Environment::New(std::move(parent));
+                },
+                [&pool] { return Environment::New(pool); },
+                class_environment.ptr()->parent_environment());
+            auto original_environment = trampoline.environment();
+            trampoline.SetEnvironment(instance_environment);
+            return trampoline.Bounce(constructor_expression, types::Void{})
+                .Transform([constructor_expression, original_environment,
+                            class_type, instance_environment, &trampoline](
+                               EvaluationOutput constructor_evaluation)
+                               -> language::ValueOrError<gc::Root<Value>> {
+                  trampoline.SetEnvironment(original_environment);
+                  switch (constructor_evaluation.type) {
+                    case EvaluationOutput::OutputType::kReturn:
+                      return Error(
+                          L"Unexpected: return (inside class declaration).");
+                    case EvaluationOutput::OutputType::kContinue:
+                      return Success(Value::NewObject(
+                          trampoline.pool(),
+                          std::get<types::ObjectName>(class_type),
+                          MakeNonNullShared<Instance>(
+                              Instance{.environment = instance_environment})));
+                  }
+                  language::Error error(L"Unhandled OutputType case.");
+                  LOG(FATAL) << error;
+                  return error;
+                });
+          }));
   return Success();
 }
 
