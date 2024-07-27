@@ -28,6 +28,7 @@
 #include "src/language/observers.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
+#include "src/language/text/line_processor_map.h"
 #include "src/language/text/line_sequence.h"
 #include "src/language/text/mutable_line_sequence.h"
 #include "src/line_marks.h"
@@ -660,6 +661,8 @@ class OpenBuffer {
   language::NonNull<std::unique_ptr<infrastructure::FileAdapter>> file_adapter_;
 
   mutable infrastructure::FileSystemDriver file_system_driver_;
+
+  language::text::LineProcessorMap line_processor_map_;
 
   // Set by `Initialize`. Useful to retain references to this buffer (by turning
   // it into either a Root or WeakPtr).

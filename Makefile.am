@@ -190,6 +190,8 @@ src/language/text/line_column.cc \
 src/language/text/line_column.h \
 src/language/text/line_column_vm.cc \
 src/language/text/line_column_vm.h \
+src/language/text/line_processor_map.cc \
+src/language/text/line_processor_map.h \
 src/language/text/line_sequence.cc \
 src/language/text/line_sequence.h \
 src/language/text/line_sequence_functional.cc \

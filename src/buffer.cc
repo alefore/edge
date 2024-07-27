@@ -102,6 +102,7 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::GetSetWithKeys;
 using afc::language::IgnoreErrors;
+using afc::language::InsertOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NewError;
@@ -128,8 +129,14 @@ using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
+using afc::language::text::LineMetadataEntry;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineProcessorInput;
+using afc::language::text::LineProcessorKey;
+using afc::language::text::LineProcessorMap;
+using afc::language::text::LineProcessorOutput;
+using afc::language::text::LineProcessorOutputFuture;
 using afc::language::text::LineSequence;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::MutableLineSequenceObserver;
@@ -141,72 +148,93 @@ namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
 std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
+                                     const LineProcessorMap& line_processor_map,
                                      std::vector<Line> lines) {
   if (buffer.Read(buffer_variables::vm_lines_evaluation)) return lines;
 
   TRACK_OPERATION(OpenBuffer_UpdateLineMetadata);
   for (Line& line : lines)
     if (line.metadata().empty() && !line.empty())
-      std::visit(
-          overload{
-              [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
-                            language::gc::Root<vm::Environment>>
-                      compilation_result) {
-                futures::ListenableValue<LazyString> metadata_value(
-                    futures::Future<LazyString>().value);
-
-                LazyString description =
-                    LazyString{L"C++: "} +
-                    vm::TypesToString(compilation_result.first->Types());
-                if (!compilation_result.first->purity()
-                         .writes_external_outputs) {
-                  description += LazyString{L" ..."};
-                  if (compilation_result.first->Types() ==
-                      std::vector<vm::Type>({vm::types::Void{}})) {
-                    LineBuilder line_builder(std::move(line));
-                    line_builder.SetMetadata({});
-                    line = std::move(line_builder).Build();
-                  }
-                  NonNull<std::shared_ptr<vm::Expression>> expr =
-                      std::move(compilation_result.first);
-                  metadata_value = buffer.work_queue()->Wait(Now()).Transform(
-                      [buffer = buffer.NewRoot(), expr = std::move(expr),
-                       sub_environment =
-                           std::move(compilation_result.second)](EmptyValue) {
-                        return buffer.ptr()
-                            ->EvaluateExpression(expr, sub_environment)
-                            .Transform([](gc::Root<vm::Value> value) {
-                              std::ostringstream oss;
-                              oss << value.ptr().value();
-                              return Success(LazyString(
-                                  LazyString{FromByteString(oss.str())}));
-                            })
-                            .ConsumeErrors([](Error error) {
-                              return futures::Past(LazyString(
-                                  LazyString{L"E: "} +
-                                  LazyString{std::move(error.read())}));
-                            });
-                      });
-                }
-
-                LineBuilder line_builder(std::move(line));
-                line_builder.SetMetadata(
-                    {{LazyString{}, language::text::LineMetadataEntry{
-                                        .initial_value = description,
-                                        .value = std::move(metadata_value)}}});
-                line = std::move(line_builder).Build();
-              },
-              IgnoreErrors{}},
-          buffer.CompileString(line.contents()));
+      if (std::map<LineProcessorKey, LineProcessorOutputFuture> output =
+              line_processor_map.Process(LineProcessorInput(line.contents()));
+          !output.empty()) {
+        LineBuilder line_builder(std::move(line));
+        std::map<LazyString, LineMetadataEntry> line_metadata_map;
+        for (const auto& p : output)
+          InsertOrDie(
+              line_metadata_map,
+              {p.first.read(),
+               LineMetadataEntry{
+                   .initial_value = p.second.initial_value.read(),
+                   .value =
+                       std::move(p.second.value)
+                           .ToFuture()
+                           .Transform([](LineProcessorOutput output_value) {
+                             return output_value.read();
+                           })}});
+        line_builder.SetMetadata(std::move(line_metadata_map));
+        line = std::move(line_builder).Build();
+      }
   return lines;
 }
 
+ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
+    OpenBuffer& buffer, const LineProcessorInput& input) {
+  static const LineProcessorOutputFuture kEmptyOutput{
+      .initial_value = LineProcessorOutput(LazyString{}),
+      .value = futures::Past(LineProcessorOutput(LazyString{}))};
+  return std::visit(
+      overload{
+          [&](std::pair<language::NonNull<std::unique_ptr<vm::Expression>>,
+                        language::gc::Root<vm::Environment>>
+                  compilation_result)
+              -> ValueOrError<LineProcessorOutputFuture> {
+            LineProcessorOutputFuture output{
+                .initial_value = LineProcessorOutput(
+                    LazyString{L"C++: "} +
+                    vm::TypesToString(compilation_result.first->Types())),
+                .value = futures::Future<LineProcessorOutput>().value};
+            if (!compilation_result.first->purity().writes_external_outputs) {
+              output.initial_value = LineProcessorOutput(
+                  output.initial_value.read() + LazyString{L" ..."});
+              if (compilation_result.first->Types() ==
+                  std::vector<vm::Type>({vm::types::Void{}}))
+                return kEmptyOutput;
+              output.value = buffer.work_queue()->Wait(Now()).Transform(
+                  [buffer = buffer.NewRoot(),
+                   expr = std::move(compilation_result.first),
+                   sub_environment = std::move(compilation_result.second)](
+                      EmptyValue) mutable {
+                    return buffer.ptr()
+                        ->EvaluateExpression(std::move(expr), sub_environment)
+                        .Transform([](gc::Root<vm::Value> value) {
+                          std::ostringstream oss;
+                          oss << value.ptr().value();
+                          return Success(LineProcessorOutput(
+                              LazyString{FromByteString(oss.str())}));
+                        })
+                        .ConsumeErrors([](Error error) {
+                          return futures::Past(LineProcessorOutput(
+                              LazyString{L"E: "} +
+                              LazyString{std::move(error.read())}));
+                        });
+                  });
+            }
+            return output;
+          },
+          [](Error error) -> ValueOrError<LineProcessorOutputFuture> {
+            return error;
+          }},
+      buffer.CompileString(input.read()));
+}
+
 // We receive `contents` explicitly since `buffer` only gives us const access.
-void SetMutableLineSequenceLineMetadata(OpenBuffer& buffer,
-                                        MutableLineSequence& contents,
-                                        LineNumber position) {
-  contents.set_line(position, UpdateLineMetadata(
-                                  buffer, {buffer.contents().at(position)})[0]);
+void SetMutableLineSequenceLineMetadata(
+    OpenBuffer& buffer, const LineProcessorMap& line_processor_map,
+    MutableLineSequence& contents, LineNumber position) {
+  contents.set_line(position,
+                    UpdateLineMetadata(buffer, line_processor_map,
+                                       {buffer.contents().at(position)})[0]);
 }
 
 // next_scheduled_execution holds the smallest time at which we know we have
@@ -374,6 +402,11 @@ OpenBuffer::OpenBuffer(ConstructorAccessTag, Options options,
       UpdateTreeParser();
       return Observers::State::kAlive;
     });
+
+  line_processor_map_.Add(LineProcessorKey{LazyString{}},
+                          [this](LineProcessorInput input) {
+                            return LineMetadataCompilation(*this, input);
+                          });
 }
 
 OpenBuffer::~OpenBuffer() { LOG(INFO) << "Start destructor: " << name(); }
@@ -790,8 +823,9 @@ void OpenBuffer::AppendLines(
   if (lines_added.IsZero()) return;
   lines_read_rate_.IncrementAndGetEventsPerSecond(lines_added.read());
   LineNumberDelta start_new_section = contents_.size() - LineNumberDelta(1);
-  contents_.append_back(UpdateLineMetadata(*this, std::move(lines)),
-                        observer_behavior);
+  contents_.append_back(
+      UpdateLineMetadata(*this, line_processor_map_, std::move(lines)),
+      observer_behavior);
   if (Read(buffer_variables::contains_line_marks)) {
     static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
     auto tracker_call = tracker.Call();
@@ -1044,8 +1078,9 @@ void OpenBuffer::EraseLines(LineNumber first, LineNumber last) {
 }
 
 void OpenBuffer::InsertLine(LineNumber line_position, Line line) {
-  contents_.insert_line(line_position,
-                        UpdateLineMetadata(*this, {std::move(line)})[0]);
+  contents_.insert_line(
+      line_position,
+      UpdateLineMetadata(*this, line_processor_map_, {std::move(line)})[0]);
 }
 
 void OpenBuffer::AppendLine(LazyString str) {
@@ -1076,8 +1111,9 @@ void OpenBuffer::AppendRawLine(
 void OpenBuffer::AppendRawLine(
     Line line, MutableLineSequence::ObserverBehavior observer_behavior) {
   auto follower = GetEndPositionFollower();
-  contents_.append_back(UpdateLineMetadata(*this, {std::move(line)}),
-                        observer_behavior);
+  contents_.append_back(
+      UpdateLineMetadata(*this, line_processor_map_, {std::move(line)}),
+      observer_behavior);
 }
 
 void OpenBuffer::AppendToLastLine(LazyString str) {
@@ -1183,7 +1219,8 @@ void OpenBuffer::DeleteRange(const Range& range) {
   if (range.IsSingleLine()) {
     contents_.DeleteCharactersFromLine(
         range.begin(), range.end().column - range.begin().column);
-    SetMutableLineSequenceLineMetadata(*this, contents_, range.begin().line);
+    SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
+                                       range.begin().line);
   } else {
     contents_.DeleteToLineEnd(range.begin());
     contents_.DeleteCharactersFromLine(LineColumn(range.end().line),
@@ -1191,7 +1228,8 @@ void OpenBuffer::DeleteRange(const Range& range) {
     // Lines in the middle.
     EraseLines(range.begin().line + LineNumberDelta(1), range.end().line);
     contents_.FoldNextLine(range.begin().line);
-    SetMutableLineSequenceLineMetadata(*this, contents_, range.begin().line);
+    SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
+                                       range.begin().line);
   }
 }
 
@@ -1212,7 +1250,8 @@ LineColumn OpenBuffer::InsertInPosition(
   contents_.SplitLine(position);
   contents_.insert(position.line.next(), contents_to_insert, modifiers);
   contents_.FoldNextLine(position.line);
-  SetMutableLineSequenceLineMetadata(*this, contents_, position.line);
+  SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
+                                     position.line);
 
   LineNumber last_line =
       position.line + contents_to_insert.size() - LineNumberDelta(1);
@@ -1222,7 +1261,8 @@ LineColumn OpenBuffer::InsertInPosition(
   ColumnNumber column = line->EndColumn();
 
   contents_.FoldNextLine(last_line);
-  SetMutableLineSequenceLineMetadata(*this, contents_, last_line);
+  SetMutableLineSequenceLineMetadata(*this, line_processor_map_, contents_,
+                                     last_line);
   return LineColumn(last_line, column);
 }
 

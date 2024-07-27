@@ -427,14 +427,19 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
     info_char_modifier = LineModifier::kDim;
   }
 
-  if (LazyString metadata = Concatenate(std::views::transform(
-          contents.metadata(),
-          [](const std::pair<LazyString, LineMetadataEntry>& item) {
-            static Tracker tracker(
-                L"BufferMetadataOutput::Prepare:VisitContentsMetadata");
-            auto call = tracker.Call();
-            return item.second.get_value();
-          }));
+  if (LazyString metadata = Concatenate(
+          std::views::transform(
+              contents.metadata(),
+              [](const std::pair<LazyString, LineMetadataEntry>& item) {
+                static Tracker tracker(
+                    L"BufferMetadataOutput::Prepare:VisitContentsMetadata");
+                auto call = tracker.Call();
+                return item.first +
+                       (item.first.IsEmpty() ? LazyString{}
+                                             : LazyString{L":"}) +
+                       item.second.get_value();
+              }) |
+          std::views::filter([](const LazyString& a) { return !a.IsEmpty(); }));
       !metadata.IsEmpty())
     output.push_back(MetadataLine{L'>', LineModifier::kGreen,
                                   LineBuilder(metadata).Build(),
