@@ -17,9 +17,12 @@
 #include "src/language/overload.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column_vm.h"
+#include "src/language/wstring.h"
 #include "src/parse_tree.h"
 #include "src/transformation/vm.h"
+#include "src/vm/constant_expression.h"
 #include "src/vm/container.h"
+#include "src/vm/function_call.h"
 
 namespace gc = afc::language::gc;
 namespace numbers = afc::math::numbers;
@@ -34,6 +37,7 @@ using afc::infrastructure::VectorExtendedChar;
 using afc::infrastructure::screen::CursorsSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
+using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NewError;
@@ -51,6 +55,10 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineMetadataEntry;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
+using afc::language::text::LineProcessorInput;
+using afc::language::text::LineProcessorKey;
+using afc::language::text::LineProcessorOutput;
+using afc::language::text::LineProcessorOutputFuture;
 using afc::language::text::LineSequence;
 using afc::language::text::OutgoingLink;
 using afc::language::text::Range;
@@ -58,6 +66,8 @@ using afc::vm::Environment;
 using afc::vm::Identifier;
 using afc::vm::kPurityTypeReader;
 using afc::vm::kPurityTypeUnknown;
+using afc::vm::NewConstantExpression;
+using afc::vm::NewFunctionCall;
 using afc::vm::ObjectType;
 using afc::vm::PurityType;
 using afc::vm::Trampoline;
@@ -624,6 +634,51 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             return futures::Past(Error(L"Line has no value."));
           })
           .ptr());
+
+  buffer_object_type.ptr()->AddField(
+      Identifier(L"AddLineProcessor"),
+      vm::Value::NewFunction(
+          pool, PurityType{.writes_external_outputs = true}, vm::types::Void{},
+          {buffer_object_type.ptr()->type(), vm::types::String{},
+           vm::types::Function{.output = vm::Type{vm::types::String{}},
+                               .inputs = {vm::types::String{}}}},
+          [&pool](std::vector<gc::Root<vm::Value>> args) {
+            CHECK_EQ(args.size(), 3u);
+            gc::Ptr<OpenBuffer> buffer =
+                vm::VMTypeMapper<gc::Ptr<OpenBuffer>>::get(
+                    args[0].ptr().value());
+            buffer->AddLineProcessor(
+                LineProcessorKey{args[1].ptr()->get_string()},
+                [buffer,
+                 callback = std::move(args[2])](LineProcessorInput input) {
+                  return Success(LineProcessorOutputFuture{
+                      .initial_value = LineProcessorOutput(LazyString{L"…"}),
+                      .value =
+                          buffer
+                              ->EvaluateExpression(
+                                  NewFunctionCall(
+                                      NewConstantExpression(callback),
+                                      {NewConstantExpression(
+                                          vm::Value::NewString(
+                                              buffer->editor().gc_pool(),
+                                              input.read()))}),
+                                  buffer->environment().ToRoot())
+                              .Transform([](gc::Root<vm::Value> value) {
+                                std::ostringstream oss;
+                                oss << value.ptr().value();
+                                return Success(LineProcessorOutput(
+                                    LazyString{FromByteString(oss.str())}));
+                              })
+                              .ConsumeErrors([](Error error) {
+                                return futures::Past(LineProcessorOutput(
+                                    LazyString{L"E: "} +
+                                    LazyString{std::move(error.read())}));
+                              })});
+                });
+            return vm::Value::NewVoid(pool);
+          })
+          .ptr());
+
   environment.DefineType(buffer_object_type.ptr());
   vm::container::Export<std::vector<gc::Ptr<OpenBuffer>>>(pool, environment);
 }

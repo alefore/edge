@@ -398,6 +398,13 @@ class OpenBuffer {
       std::function<void(language::OnceOnlyFunction<void(OpenBuffer&)>)>;
   LockFunction GetLockFunction();
 
+  void AddLineProcessor(
+      language::text::LineProcessorKey key,
+      std::function<
+          language::ValueOrError<language::text::LineProcessorOutputFuture>(
+              language::text::LineProcessorInput)>
+          callback);
+
   /////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
 

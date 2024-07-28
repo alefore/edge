@@ -1215,6 +1215,15 @@ OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
   };
 }
 
+void OpenBuffer::AddLineProcessor(
+    language::text::LineProcessorKey key,
+    std::function<
+        language::ValueOrError<language::text::LineProcessorOutputFuture>(
+            language::text::LineProcessorInput)>
+        callback) {
+  line_processor_map_.Add(key, callback);
+}
+
 void OpenBuffer::DeleteRange(const Range& range) {
   if (range.IsSingleLine()) {
     contents_.DeleteCharactersFromLine(
