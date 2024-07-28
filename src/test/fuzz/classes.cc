@@ -12,6 +12,7 @@ extern "C" {
 }
 
 #include "src/args.h"
+#include "src/buffer_registry.h"
 #include "src/cpp_parse_tree.h"
 #include "src/editor.h"
 #include "src/infrastructure/audio.h"
@@ -34,7 +35,9 @@ int main(int argc, char** argv) {
   std::string class_name(argv[1]);
   auto audio_player = afc::infrastructure::audio::NewNullPlayer();
   EditorState editor(CommandLineValues(), audio_player.value());
-  OpenBuffer::Options options{.editor = editor};
+  OpenBuffer::Options options{
+      .editor = editor,
+      .name = editor.buffer_registry().NewAnonymousBufferName()};
   gc::Root<OpenBuffer> buffer = OpenBuffer::New(options);
   if (class_name == "MutableLineSequence") {
     fuzz_testable = std::make_unique<MutableLineSequence>();
