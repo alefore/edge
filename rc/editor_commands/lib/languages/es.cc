@@ -1,3 +1,6 @@
+// Contains logic to handle files in Spanish.
+//
+// For now, the only entry point is `CountSyllables`.
 namespace es {
 bool IsConsonant(string c) { return "bcdfghjklmnñpqrstvwxyz".find(c, 0) >= 0; }
 bool IsVowel(string c) { return "aeiouáéíóú".find(c, 0) >= 0; }
@@ -33,7 +36,7 @@ VectorString Syllables(string word) {
     number next_vowel = SkipConsonants(word, position);
     number end = SkipVowels(word, next_vowel);
     if (end >= next_vowel + 2 && IsHiatus(word.substr(next_vowel, 2))) {
-      // In the hiato, we always separate the vowels.
+      // In the hiatus, we always separate the vowels.
       end = next_vowel + 1;
     } else if (end >= next_vowel + 3 &&
                IsHiatus(word.substr(next_vowel + 1, 2))) {
@@ -71,7 +74,7 @@ VectorString Syllables(string word) {
       string candidate = word.substr(end - 1, 2);
       if (candidate == "ch" || candidate == "ll" || candidate == "gu" ||
           candidate == "qu" || candidate == "rr")
-        end--;  // Handle a di-graph (ch, ll).
+        end--;  // Handle a digraph (ch, ll).
     }
     output.push_back(word.substr(position, end - position));
     position = end;
@@ -157,15 +160,6 @@ string Validate() {
          Validate("construcción", "cons-truc-ción");
 }
 
-string Prepare(string line) {
-  string output = "";
-  for (number i = 0; i < line.size(); i++) {
-    string c = line.substr(i, 1);
-    if (c != " ") output += c;
-  }
-  return output.tolower();
-}
-
 VectorString BreakWords(string line) {
   VectorString output = VectorString();
   number position = 0;
@@ -186,22 +180,30 @@ VectorString BreakWords(string line) {
   return output;
 }
 
+bool CanJoinNextWordSynalepha(string word) {
+  return IsVowel(word.substr(word.size() - 1, 1)) || word == "y";
+}
+
+bool CanJoinPreviousWordSynalepha(string word) {
+  return IsVowel(word.substr(0, 1)) || word == "y" ||
+         (word.substr(0, 1) == "h" && word.size() >= 2 &&
+          IsVowel(word.substr(1, 1)));
+}
+
+// Adds to each line metadata with the count of the number of syllables it
+// contains (after applying synalepha to join syllables of different words).
 void CountSyllables(Buffer buffer) {
   buffer.AddLineProcessor("s", [](string line) -> string {
     number count = 0;
     VectorString words = BreakWords(line.tolower());
-    bool last_syllable_supports_synalepha = false;
     for (number i = 0; i < words.size(); i++) {
       string word = words.get(i);
-      VectorString syllables = Syllables(word);
-      count += syllables.size();
-      if (last_syllable_supports_synalepha &&
-          (IsVowel(word.substr(0, 1)) || word.substr(0, 1) == "y" ||
-           (word.substr(0, 1) == "h" && word.size() >= 2 &&
-            IsVowel(word.substr(1, 1)))))
+      count += Syllables(word).size();
+      if (i > 0 && CanJoinNextWordSynalepha(words.get(i - 1)) &&
+          CanJoinPreviousWordSynalepha(word) &&
+          (word != "y" || i + 1 == words.size() ||
+           !CanJoinPreviousWordSynalepha(words.get(i + 1))))
         count--;
-      last_syllable_supports_synalepha =
-          IsVowel(word.substr(word.size() - 1, 1));
     }
     return count.tostring();
   });
