@@ -202,7 +202,7 @@ void SeekToNext(SeekInput input) {
     case Structure::kLine:
       switch (input.direction) {
         case Direction::kForwards: {
-          auto seek = Seek(input.contents, input.position).WrappingLines();
+          Seek seek(input.contents, input.position).WrappingLines();
           if (seek.read() == L'\n') seek.Once();
           return;
         }
@@ -249,9 +249,9 @@ bool SeekToLimit(SeekInput input) {
 
     case Structure::kWord: {
       StartSeekToLimit(input);
-      auto seek = Seek(input.contents, input.position)
-                      .WithDirection(input.direction)
-                      .WrappingLines();
+      Seek seek(input.contents, input.position)
+          .WithDirection(input.direction)
+          .WrappingLines();
       if (input.direction == Direction::kForwards &&
           seek.WhileCurrentCharIsUpper() != Seek::DONE) {
         return false;
