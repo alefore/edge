@@ -413,6 +413,16 @@ BigInt& BigInt::operator++() {
   return *this;
 }
 
+BigInt& BigInt::operator+=(BigInt rhs) {
+  *this = std::move(*this) + std::move(rhs);
+  return *this;
+}
+
+BigInt& BigInt::operator*=(BigInt rhs) {
+  *this = std::move(*this) * std::move(rhs);
+  return *this;
+}
+
 namespace {
 const bool increment_tests_registration = tests::Register(
     L"numbers::BigInt::operator++", std::invoke([] {
@@ -869,6 +879,10 @@ NonZeroBigInt::NonZeroBigInt(BigInt validated_value)
   CHECK(!value_.IsZero());
 }
 
+NonZeroBigInt NonZeroBigInt::operator+(BigInt b) && {
+  return NonZeroBigInt(std::move(value_) + std::move(b));
+}
+
 NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
   return NonZeroBigInt(value_ * b.value_);
 }
@@ -890,6 +904,16 @@ const bool non_zero_big_int_multiplication_tests_registration = tests::Register(
                                          NonZeroBigInt::Constant<2117>());
                               }}});
 }  // namespace
+
+NonZeroBigInt& NonZeroBigInt::operator+=(NonZeroBigInt rhs) {
+  *this = std::move(*this) + std::move(rhs.value_);
+  return *this;
+}
+
+NonZeroBigInt& NonZeroBigInt::operator*=(NonZeroBigInt rhs) {
+  *this = std::move(*this) * std::move(rhs);
+  return *this;
+}
 
 NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
   // TODO(2024-04-09): Articulate better why the output is always positive.

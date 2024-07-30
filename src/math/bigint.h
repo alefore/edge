@@ -63,6 +63,9 @@ class BigInt {
   BigInt operator*(const BigInt& b) const;
   BigInt& operator++();
 
+  BigInt& operator+=(BigInt rhs);
+  BigInt& operator*=(BigInt rhs);
+
   friend BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator);
 
   BigInt Pow(BigInt exponent) &&;
@@ -123,7 +126,11 @@ class NonZeroBigInt {
   NonZeroBigInt& operator=(const NonZeroBigInt&) = default;
   NonZeroBigInt& operator=(NonZeroBigInt&&) = default;
 
+  NonZeroBigInt operator+(BigInt b) &&;
   NonZeroBigInt operator*(const NonZeroBigInt& b) const;
+
+  NonZeroBigInt& operator+=(NonZeroBigInt rhs);
+  NonZeroBigInt& operator*=(NonZeroBigInt rhs);
 
   NonZeroBigInt Pow(BigInt exponent) &&;
 
