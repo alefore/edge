@@ -308,7 +308,6 @@ int main(int argc, const char** argv) {
     LOG(INFO) << "Sending commands.";
     if (remote_server_fd.has_value()) {
       CHECK_NE(remote_server_fd.value(), FileDescriptor(-1));
-      // TODO(easy, 2023-12-31): Remove ToString:
       CHECK(!IsError(
           SyncSendCommandsToServer(remote_server_fd.value(), commands_to_run)));
     } else {
