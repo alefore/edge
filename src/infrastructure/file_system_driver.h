@@ -18,6 +18,8 @@ extern "C" {
 
 namespace afc::infrastructure {
 
+// TODO(2024-07-30): Ensure that it can't be -1. Do this by designing some other
+// alternative to GHOST_TYPE that lets us assert things on construction.
 GHOST_TYPE(FileDescriptor, int);
 GHOST_TYPE(UnixSignal, int);
 
