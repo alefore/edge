@@ -451,7 +451,7 @@ class InsertMode : public InputReceiver {
               options.escape_handler();  // Probably deletes us.
               options.editor_state.ResetRepetitions();
               options.editor_state.ResetInsertionModifier();
-              options.editor_state.set_keyboard_redirect(nullptr);
+              options.editor_state.set_keyboard_redirect(std::nullopt);
               return EmptyValue();
             });
         return;

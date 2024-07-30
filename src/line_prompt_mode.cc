@@ -1107,7 +1107,7 @@ InsertModeOptions PromptState::insert_mode_options() {
               VLOG(5) << "Running handler on empty input.";
               prompt_state->options().handler(LazyString());
             }
-            prompt_state->editor_state().set_keyboard_redirect(nullptr);
+            prompt_state->editor_state().set_keyboard_redirect(std::nullopt);
           },
       .new_line_handler =
           [prompt_state](OpenBuffer& buffer) {
@@ -1115,7 +1115,8 @@ InsertModeOptions PromptState::insert_mode_options() {
             AddLineToHistory(prompt_state->editor_state(),
                              prompt_state->options().history_file, input);
             auto ensure_survival_of_current_closure =
-                prompt_state->editor_state().set_keyboard_redirect(nullptr);
+                prompt_state->editor_state().set_keyboard_redirect(
+                    std::nullopt);
             prompt_state->Reset();
             return prompt_state->options().handler(input);
           },

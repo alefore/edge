@@ -82,7 +82,7 @@ class CommandArgumentMode : public EditorMode {
               [&editor_state = options_.editor_state, c](language::EmptyValue) {
                 editor_state.status().Reset();
                 auto& editor_state_copy = editor_state;
-                editor_state.set_keyboard_redirect(nullptr);
+                editor_state.set_keyboard_redirect(std::nullopt);
                 if (c != infrastructure::ExtendedChar(L'\n')) {
                   editor_state_copy.ProcessInput({c});
                 }

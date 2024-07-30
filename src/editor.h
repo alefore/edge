@@ -236,10 +236,6 @@ class EditorState {
   // Returns the old value.
   std::optional<language::gc::Root<InputReceiver>> set_keyboard_redirect(
       std::optional<language::gc::Root<InputReceiver>> keyboard_redirect);
-  // TODO(easy, 2024-06-14): Remove callers of this override. Switch them to the
-  // gc::Root version.
-  std::optional<language::gc::Root<InputReceiver>> set_keyboard_redirect(
-      std::unique_ptr<InputReceiver> keyboard_redirect);
 
   // Executes pending work from all buffers.
   void ExecutePendingWork();

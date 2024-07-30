@@ -359,7 +359,7 @@ class State {
 
   void Abort() {
     RunUndoCallback();
-    editor_state_.set_keyboard_redirect(nullptr);
+    editor_state_.set_keyboard_redirect(std::nullopt);
   }
 
   void Update() { Update(ApplicationType::kPreview); }
@@ -370,7 +370,7 @@ class State {
     // We make a copy because Update may delete us.
     EditorState& editor_state = editor_state_;
     Update(ApplicationType::kCommit);
-    editor_state.set_keyboard_redirect(nullptr);
+    editor_state.set_keyboard_redirect(std::nullopt);
   }
 
   void RunUndoCallback() {
@@ -1252,16 +1252,18 @@ gc::Root<afc::editor::Command> NewTopLevelCommand(std::wstring,
                                                   TopCommand top_command,
                                                   EditorState& editor_state,
                                                   Command command) {
-  return NewSetModeCommand({.editor_state = editor_state,
-                            .description = description,
-                            .category = LazyString{L"Edit"},
-                            .factory = [top_command, &editor_state, command] {
-                              auto output = std::make_unique<OperationMode>(
-                                  top_command, editor_state);
-                              output->PushCommand(command);
-                              output->ShowStatus();
-                              return output;
-                            }});
+  return NewSetModeCommand(
+      {.editor_state = editor_state,
+       .description = description,
+       .category = LazyString{L"Edit"},
+       .factory = [top_command, &editor_state, command] {
+         auto output =
+             MakeNonNullUnique<OperationMode>(top_command, editor_state);
+         output->PushCommand(command);
+         output->ShowStatus();
+         return editor_state.gc_pool().NewRoot<InputReceiver>(
+             std::move(output));
+       }});
 }
 
 }  // namespace afc::editor::operation

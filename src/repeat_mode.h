@@ -2,13 +2,14 @@
 #define __AFC_EDITOR_REPEAT_MODE_H__
 
 #include <functional>
-#include <memory>
+
+#include "src/language/gc.h"
 
 namespace afc::editor {
-class EditorMode;
+class InputReceiver;
 class EditorState;
-std::unique_ptr<EditorMode> NewRepeatMode(EditorState& editor_state,
-                                          std::function<void(int)> consumer);
+language::gc::Root<InputReceiver> NewRepeatMode(
+    EditorState& editor_state, std::function<void(int)> consumer);
 }  // namespace afc::editor
 
 #endif

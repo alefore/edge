@@ -10,13 +10,13 @@
 
 namespace afc::editor {
 class EditorState;
-class EditorMode;
+class InputReceiver;
 class Command;
 struct SetModeCommandOptions {
   EditorState& editor_state;
   language::lazy_string::LazyString description;
   language::lazy_string::LazyString category;
-  std::function<std::unique_ptr<EditorMode>()> factory;
+  std::function<language::gc::Root<InputReceiver>()> factory;
 };
 
 language::gc::Root<Command> NewSetModeCommand(SetModeCommandOptions options);

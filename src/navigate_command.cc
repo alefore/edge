@@ -340,8 +340,9 @@ gc::Root<Command> NewNavigateCommand(EditorState& editor_state) {
               return std::optional<Modifiers::CursorsAffected>();
             },
             options);
-        return std::make_unique<CommandArgumentMode<NavigateState>>(
-            std::move(options));
+        return editor_state.gc_pool().NewRoot<InputReceiver>(
+            MakeNonNullUnique<CommandArgumentMode<NavigateState>>(
+                std::move(options)));
       }});
 }
 

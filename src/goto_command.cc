@@ -168,7 +168,10 @@ class GotoCommand : public Command {
 
   void ProcessInput(ExtendedChar c) override {
     if (c != ExtendedChar('g')) {
-      auto old_mode = editor_state_.set_keyboard_redirect(nullptr);
+      // TODO(trivial, 2024-07-30): Allow the old redirect to be deleted; just
+      // make sure we use a copy of editor_state_ instead.
+      std::optional<language::gc::Root<InputReceiver>> old_mode =
+          editor_state_.set_keyboard_redirect(std::nullopt);
       editor_state_.ProcessInput({c});
       return;
     }
@@ -200,7 +203,8 @@ class GotoCommand : public Command {
     editor_state_.ResetDirection();
     editor_state_.ResetRepetitions();
     editor_state_.set_keyboard_redirect(
-        std::make_unique<GotoCommand>(editor_state_, calls_ + 1));
+        editor_state_.gc_pool().NewRoot<InputReceiver>(
+            MakeNonNullUnique<GotoCommand>(editor_state_, calls_ + 1)));
   }
 
   std::vector<NonNull<std::shared_ptr<gc::ObjectMetadata>>> Expand()

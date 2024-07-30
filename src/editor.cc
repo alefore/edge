@@ -108,17 +108,6 @@ EditorState::set_keyboard_redirect(
   return std::exchange(keyboard_redirect_, std::move(keyboard_redirect));
 }
 
-std::optional<language::gc::Root<InputReceiver>>
-EditorState::set_keyboard_redirect(
-    std::unique_ptr<InputReceiver> keyboard_redirect) {
-  return VisitPointer(
-      std::move(keyboard_redirect),
-      [&](NonNull<std::unique_ptr<InputReceiver>> input) {
-        return set_keyboard_redirect(gc_pool().NewRoot(std::move(input)));
-      },
-      [&] { return set_keyboard_redirect(std::nullopt); });
-}
-
 // Executes pending work from all buffers.
 void EditorState::ExecutePendingWork() {
   VLOG(5) << "Executing pending work.";
@@ -484,13 +473,12 @@ void EditorState::AddBuffer(gc::Root<OpenBuffer> buffer,
   buffer_tree().AddBuffer(buffer, insertion_type);
   AdjustWidgets();
 
-  if (initial_active_buffers != active_buffers()) {
-    // The set of buffers changed; if some mode was active, ... cancel it.
-    // Perhaps the keyboard redirect should have a method to react to this, so
-    // that it can decide what to do? Then again, does it make sense for any of
-    // them to do anything other than be canceled?
-    set_keyboard_redirect(nullptr);
-  }
+  // If the set of buffers changed and some keyboard redirect was active, ...
+  // cancel it. Perhaps the keyboard redirect should have a method to react to
+  // this, so that it can decide what to do? Then again, does it make sense for
+  // any of them to do anything other than be canceled?
+  if (initial_active_buffers != active_buffers())
+    set_keyboard_redirect(std::nullopt);
 }
 
 futures::Value<EmptyValue> EditorState::ForEachActiveBuffer(

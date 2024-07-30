@@ -13,7 +13,7 @@ using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
 using afc::language::EmptyValue;
 using afc::language::Error;
-using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
@@ -445,7 +445,7 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
 
 }  // namespace
 
-std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
+std::optional<gc::Root<InputReceiver>> NewSetBufferMode(EditorState& editor) {
   BuffersList& buffers_list = editor.buffer_tree();
   Data initial_value;
   if (editor.modifiers().repetitions.has_value()) {
@@ -455,29 +455,32 @@ std::unique_ptr<EditorMode> NewSetBufferMode(EditorState& editor) {
             buffers_list.BuffersCount()),
         CommandArgumentModeApplyMode::kFinal);
     editor.ResetRepetitions();
-    return nullptr;
+    return std::nullopt;
   }
-  CommandArgumentMode<Data>::Options options{
-      .editor_state = editor,
-      .initial_value = std::move(initial_value),
-      .char_consumer = &CharConsumer,
-      .status_factory = &BuildStatus,
-      .undo =
-          [&editor, initial_buffer = editor.buffer_tree().active_buffer()]() {
-            VisitPointer(
-                initial_buffer,
-                [&editor](gc::Root<OpenBuffer> initial_buffer_root) {
-                  editor.set_current_buffer(
-                      initial_buffer_root,
-                      CommandArgumentModeApplyMode::kFinal);
-                },
-                [] {});
-            editor.buffer_tree().set_filter(std::nullopt);
-            return futures::Past(EmptyValue());
-          },
-      .apply = [&editor](CommandArgumentModeApplyMode mode,
-                         Data data) { return Apply(editor, mode, data); }};
 
-  return std::make_unique<CommandArgumentMode<Data>>(std::move(options));
+  return editor.gc_pool().NewRoot<InputReceiver>(
+      MakeNonNullUnique<CommandArgumentMode<Data>>(
+          CommandArgumentMode<Data>::Options{
+              .editor_state = editor,
+              .initial_value = std::move(initial_value),
+              .char_consumer = &CharConsumer,
+              .status_factory = &BuildStatus,
+              .undo =
+                  [&editor,
+                   initial_buffer = editor.buffer_tree().active_buffer()]() {
+                    VisitPointer(
+                        initial_buffer,
+                        [&editor](gc::Root<OpenBuffer> initial_buffer_root) {
+                          editor.set_current_buffer(
+                              initial_buffer_root,
+                              CommandArgumentModeApplyMode::kFinal);
+                        },
+                        [] {});
+                    editor.buffer_tree().set_filter(std::nullopt);
+                    return futures::Past(EmptyValue());
+                  },
+              .apply = [&editor](
+                           CommandArgumentModeApplyMode mode,
+                           Data data) { return Apply(editor, mode, data); }}));
 }
 }  // namespace afc::editor

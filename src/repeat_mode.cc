@@ -7,8 +7,11 @@
 #include "src/infrastructure/extended_char.h"
 #include "src/language/overload.h"
 
+namespace gc = afc::language::gc;
+
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
+using afc::language::MakeNonNullUnique;
 using afc::language::overload;
 
 namespace afc::editor {
@@ -31,8 +34,10 @@ class RepeatMode : public EditorMode {
       consumer_(result_);
     } else {
       consumer_(result_);
+      // TODO(trivial, 2024-07-30): Allow the old redirect to be deleted; just
+      // make sure we use a copy of editor_state_ instead.
       auto old_mode_to_keep_this_alive =
-          editor_state_.set_keyboard_redirect(nullptr);
+          editor_state_.set_keyboard_redirect(std::nullopt);
       editor_state_.ProcessInput({input});
     }
   }
@@ -51,8 +56,9 @@ class RepeatMode : public EditorMode {
 };
 }  // namespace
 
-std::unique_ptr<EditorMode> NewRepeatMode(EditorState& editor_state,
-                                          std::function<void(int)> consumer) {
-  return std::make_unique<RepeatMode>(editor_state, std::move(consumer));
+gc::Root<InputReceiver> NewRepeatMode(EditorState& editor_state,
+                                      std::function<void(int)> consumer) {
+  return editor_state.gc_pool().NewRoot<InputReceiver>(
+      MakeNonNullUnique<RepeatMode>(editor_state, std::move(consumer)));
 }
 }  // namespace afc::editor
