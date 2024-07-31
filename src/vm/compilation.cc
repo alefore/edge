@@ -19,23 +19,20 @@ Compilation::Compilation(gc::Pool& input_pool,
 void Compilation::AddError(Error error) {
   // TODO: Enable this logging statement.
   // LOG(INFO) << "Compilation error: " << error;
-  std::wstring prefix;
+  LazyString prefix;
   for (auto it = source_.begin(); it != source_.end(); ++it) {
     Source& source = *it;
-    std::wstring location =
+    LazyString location{
         (source.path.has_value() ? (source.path->read() + L":") : L"") +
         std::to_wstring((source.line_column.line + LineNumberDelta(1)).read()) +
         L":" +
         std::to_wstring(
-            (source.line_column.column + ColumnNumberDelta(1)).read());
-    if (std::next(it) == source_.end())
-      prefix += location + L": ";
-    else
-      prefix += L"Include from " + location + L": ";
+            (source.line_column.column + ColumnNumberDelta(1)).read())};
+    if (std::next(it) != source_.end()) prefix += LazyString{L"Include from "};
+    prefix += location + LazyString{L": "};
   }
 
-  // TODO(easy, 2024-07-31): Turn `prefix` into LazyString.
-  errors_.push_back(AugmentError(LazyString{prefix}, std::move(error)));
+  errors_.push_back(AugmentError(prefix, std::move(error)));
 }
 
 const std::vector<Error>& Compilation::errors() const { return errors_; }
