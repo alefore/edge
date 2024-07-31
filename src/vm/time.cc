@@ -10,14 +10,15 @@
 #include "src/vm/types.h"
 #include "src/vm/value.h"
 
-using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::vm {
 
@@ -76,8 +77,8 @@ ValueOrError<struct tm> LocalTime(const time_t* time_input) {
   struct tm output;
   if (localtime_r(time_input, &output) == nullptr) {
     int localtime_error = errno;
-    return Error(L"localtime_r failure:" +
-                 FromByteString(strerror(localtime_error)));
+    return NewError(LazyString{L"localtime_r failure:"} +
+                    LazyString{FromByteString(strerror(localtime_error))});
   }
   return output;
 }
@@ -116,7 +117,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
             char buffer[2048];
             if (strftime(buffer, sizeof(buffer),
                          ToByteString(format_str).c_str(), &t) == 0) {
-              return futures::Past(Error(L"strftime error"));
+              return futures::Past(NewError(LazyString{L"strftime error"}));
             }
             return futures::Past(FromByteString(buffer));
           })
@@ -140,17 +141,20 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       Identifier(L"ParseTime"),
       vm::NewCallback(
           pool, kPurityTypePure,
-          [](std::wstring value,
-             std::wstring format) -> futures::ValueOrError<Time> {
+          [](LazyString value,
+             LazyString format) -> futures::ValueOrError<Time> {
             struct tm t = {};
-            if (strptime(ToByteString(value).c_str(),
-                         ToByteString(format).c_str(), &t) == nullptr)
-              return futures::Past(Error(L"strptime error: value: " + value +
-                                         L", format: " + format));
+            if (strptime(ToByteString(value.ToString()).c_str(),
+                         ToByteString(format.ToString()).c_str(),
+                         &t) == nullptr)
+              return futures::Past(
+                  NewError(LazyString{L"strptime error: value: "} + value +
+                           LazyString{L", format: "} + format));
             if (time_t output = mktime(&t); output != -1)
               return futures::Past(Time{.tv_sec = output, .tv_nsec = 0});
-            return futures::Past(Error(L"mktime error: value: " + value +
-                                       L", format: " + format));
+            return futures::Past(NewError(LazyString{L"mktime error: value: "} +
+                                          value + LazyString{L", format: "} +
+                                          format));
           }));
 
   gc::Root<ObjectType> duration_type =

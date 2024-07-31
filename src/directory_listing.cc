@@ -27,6 +27,7 @@ using afc::language::GetValueOrDefault;
 using afc::language::GetValueOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::Observers;
 using afc::language::Success;
@@ -56,8 +57,8 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
   BackgroundReadDirOutput output;
   auto dir = OpenDir(path.read());
   if (dir == nullptr) {
-    return Error(L"Unable to open directory: " +
-                 FromByteString(strerror(errno)));
+    return NewError(LazyString{L"Unable to open directory: "} +
+                    LazyString{FromByteString(strerror(errno))});
   }
   struct dirent* entry;
   while ((entry = readdir(dir.get())) != nullptr) {
