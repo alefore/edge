@@ -11,6 +11,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/text/line_column.h"
 #include "src/vm/environment.h"
@@ -43,7 +44,7 @@ struct Compilation {
   Namespace current_namespace;
   std::vector<Type> current_class = {};
   language::gc::Root<Environment> environment;
-  std::wstring last_token = L"";
+  language::lazy_string::LazyString last_token;
 
   Compilation(language::gc::Pool& input_pool,
               language::gc::Root<Environment> input_environment);

@@ -577,10 +577,12 @@ void CompileLine(Compilation& compilation, void* parser,
     if (token == SYMBOL || token == STRING) {
       CHECK(input.has_value()) << "No input with token: " << token;
       if (input.value().ptr()->IsSymbol())
-        compilation.last_token = input.value().ptr()->get_symbol().read();
+        // TODO(easy, 2024-07-31): Find a way to avoid the call to LazyString
+        // here.
+        compilation.last_token =
+            LazyString{input.value().ptr()->get_symbol().read()};
       else if (input.value().ptr()->IsString())
-        // TODO(2024-01-24): Avoid ToString.
-        compilation.last_token = input.value().ptr()->get_string().ToString();
+        compilation.last_token = input.value().ptr()->get_string();
       else
         LOG(FATAL) << "Invalid input.";
     }

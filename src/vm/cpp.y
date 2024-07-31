@@ -23,8 +23,8 @@ main ::= program(P) . {
 }
 
 main ::= error. {
-  compilation->AddError(
-      Error(L"Compilation error near: \"" + compilation->last_token + L"\""));
+  compilation->AddError(NewError(LazyString{L"Compilation error near: \""} +
+                                 compilation->last_token + LazyString{L"\""}));
 }
 
 %type program { Expression* }
