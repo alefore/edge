@@ -152,8 +152,8 @@ futures::Value<PossibleError> Save(
       break;
     case OpenBuffer::Options::SaveType::kBackup:
       path_future = OnError(buffer.GetEdgeStateDirectory(), [](Error error) {
-                      return futures::Past(
-                          AugmentError(L"Unable to backup buffer", error));
+                      return futures::Past(AugmentError(
+                          LazyString{L"Unable to backup buffer"}, error));
                     }).Transform([](Path state_directory) {
         return Success(
             Path::Join(state_directory, PathComponent::FromString(L"backup")));
@@ -476,7 +476,7 @@ gc::Root<OpenBuffer> CreateBuffer(
                 buffer_weak.Lock(),
                 [&error](gc::Root<OpenBuffer> buffer) {
                   buffer.ptr()->status().Set(
-                      AugmentError(L"🖫 Save failed", error));
+                      AugmentError(LazyString{L"🖫 Save failed"}, error));
                 },
                 [] {});
             return futures::Past(error);
