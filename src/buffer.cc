@@ -954,11 +954,12 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   }
   FUTURES_ASSIGN_OR_RETURN(
       Path file_path,
-      AugmentErrors(
-          std::wstring{L"Unable to persist buffer with invalid path "} +
-              (dirty() ? L" (dirty)" : L" (clean)") + L" " +
-              (disk_state_ == DiskState::kStale ? L"modified"
-                                                : L"not modified"),
+      AugmentError(
+          LazyString{L"Unable to persist buffer with invalid path "} +
+              (dirty() ? LazyString{L" (dirty)"} : LazyString{L" (clean)"}) +
+              LazyString{L" "} +
+              (disk_state_ == DiskState::kStale ? LazyString{L"modified"}
+                                                : LazyString{L"not modified"}),
           AbsolutePath::FromString(Read(buffer_variables::path))));
 
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
@@ -967,9 +968,9 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
               file_path.read())));
   }
 
-  FUTURES_ASSIGN_OR_RETURN(
-      std::list<PathComponent> file_path_components,
-      AugmentErrors(L"Unable to split path", file_path.DirectorySplit()));
+  FUTURES_ASSIGN_OR_RETURN(std::list<PathComponent> file_path_components,
+                           AugmentError(LazyString{L"Unable to split path"},
+                                        file_path.DirectorySplit()));
 
   file_path_components.push_front(EditorState::StatePathComponent());
 

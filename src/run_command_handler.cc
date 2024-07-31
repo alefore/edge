@@ -51,6 +51,7 @@ using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
+using afc::language::NewError;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -404,11 +405,11 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
 
 ValueOrError<Path> GetChildrenPath(EditorState& editor_state) {
   if (auto buffer = editor_state.current_buffer(); buffer.has_value()) {
-    return AugmentErrors(
-        L"Getting children path of buffer",
+    return AugmentError(
+        LazyString{L"Getting children path of buffer"},
         Path::FromString(buffer->ptr()->Read(buffer_variables::children_path)));
   }
-  return Error(L"Editor doesn't have a current buffer.");
+  return NewError(LazyString{L"Editor doesn't have a current buffer."});
 }
 
 class ForkEditorCommand : public Command {
@@ -524,7 +525,7 @@ class ForkEditorCommand : public Command {
     if (context_command_expression->Types().empty()) {
       prompt_state.base_command = std::nullopt;
       prompt_state.original_buffer.ptr()->status().InsertError(
-          Error(L"Unable to compile (type mismatch)."));
+          NewError(LazyString{L"Unable to compile (type mismatch)."}));
       return futures::Past(ColorizePromptOptions{
           .context = ColorizePromptOptions::ContextClear()});
     }

@@ -548,8 +548,9 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
               return NonNull<OpenBuffer*>::AddressOf(buffer);
             }) |
             std::views::filter([](const NonNull<OpenBuffer*>& buffer) {
-              return IsError(buffer->status().LogErrors(AugmentErrors(
-                  L"Unable to close", buffer->IsUnableToPrepareToClose())));
+              return IsError(buffer->status().LogErrors(
+                  AugmentError(LazyString{L"Unable to close"},
+                               buffer->IsUnableToPrepareToClose())));
             });
         !buffers_with_problems.empty()) {
       switch (status().InsertError(

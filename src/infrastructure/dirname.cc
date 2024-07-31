@@ -301,7 +301,8 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
     if (output.front().ToString() == path.path_) {
       return Success(output);
     }
-    ASSIGN_OR_RETURN(auto dir, AugmentErrors(L"Dirname error", path.Dirname()));
+    ASSIGN_OR_RETURN(
+        auto dir, AugmentError(LazyString{L"Dirname error"}, path.Dirname()));
     if (dir.path_.size() >= path.path_.size()) {
       LOG(INFO) << "Unable to advance: " << path << " -> " << dir;
       return Error(L"Unable to advance: " + path.read());

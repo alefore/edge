@@ -22,6 +22,7 @@ Error NewError(lazy_string::LazyString error);
 
 // Example: AugmentError(L"🖫 Save failed", error)
 Error AugmentError(std::wstring prefix, Error error);
+Error AugmentError(language::lazy_string::LazyString prefix, Error error);
 
 // Precondition: `errors` must be non-empty.
 Error MergeErrors(const std::vector<Error>& errors,
@@ -71,7 +72,8 @@ ValueOrError<T> Success(T t) {
 }
 
 template <typename T>
-ValueOrError<T> AugmentErrors(std::wstring prefix, ValueOrError<T> input) {
+ValueOrError<T> AugmentError(language::lazy_string::LazyString prefix,
+                             ValueOrError<T> input) {
   std::visit(
       overload{[&](Error& error) { error = AugmentError(prefix, error); },
                [](T&) {}},

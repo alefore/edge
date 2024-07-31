@@ -134,8 +134,9 @@ futures::Value<PossibleError> Save(
   auto& buffer = options.buffer;
   FUTURES_ASSIGN_OR_RETURN(
       Path immediate_path,
-      AugmentErrors(L"Buffer can't be saved: Invalid “path” variable",
-                    Path::FromString(buffer.Read(buffer_variables::path))));
+      AugmentError(
+          LazyString{L"Buffer can't be saved: Invalid “path” variable"},
+          Path::FromString(buffer.Read(buffer_variables::path))));
 
   futures::ValueOrError<Path> path_future = futures::Past(immediate_path);
 

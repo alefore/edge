@@ -415,8 +415,8 @@ futures::Value<EmptyValue> Apply(EditorState& editor,
       .Transform([&editor, mode, &buffers_list](State state) {
         if (state.pattern_error.has_value()) {
           // TODO: Find a better way to show it without hiding the input, ugh.
-          editor.status().Set(
-              AugmentError(L"Pattern error", state.pattern_error.value()));
+          editor.status().Set(AugmentError(LazyString{L"Pattern error"},
+                                           state.pattern_error.value()));
           return EmptyValue();
         }
         if (state.indices.empty()) {

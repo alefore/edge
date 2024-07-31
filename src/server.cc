@@ -148,9 +148,9 @@ ValueOrError<FileDescriptor> SyncConnectToParentServer() {
       server_address != nullptr) {
     ASSIGN_OR_RETURN(
         Path path,
-        AugmentErrors(
-            L"Value from environment variable " + FromByteString(variable),
-            Path::FromString(FromByteString(server_address))));
+        AugmentError(LazyString{L"Value from environment variable " +
+                                FromByteString(variable)},
+                     Path::FromString(FromByteString(server_address))));
     return SyncConnectToServer(path);
   }
   return Error(
@@ -174,8 +174,9 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
 
   ASSIGN_OR_RETURN(
       Path private_fifo,
-      AugmentErrors(L"Unable to create fifo for communication with server",
-                    CreateFifo({})));
+      AugmentError(
+          LazyString{L"Unable to create fifo for communication with server"},
+          CreateFifo({})));
   RETURN_IF_ERROR(SendPathToServer(FileDescriptor(server_fd), private_fifo));
   fd_deleter = nullptr;
 
@@ -224,8 +225,8 @@ futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
 
 ValueOrError<Path> StartServer(EditorState& editor_state,
                                std::optional<Path> address) {
-  ASSIGN_OR_RETURN(Path output,
-                   AugmentErrors(L"Creating Fifo", CreateFifo(address)));
+  ASSIGN_OR_RETURN(Path output, AugmentError(LazyString{L"Creating Fifo"},
+                                             CreateFifo(address)));
   LOG(INFO) << "Starting server: " << output.read();
   setenv("EDGE_PARENT_ADDRESS", ToByteString(output.read()).c_str(), 1);
   OpenServerBuffer(editor_state, output);

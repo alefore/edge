@@ -129,9 +129,10 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
 
   ASSIGN_OR_RETURN(
       Path path,
-      AugmentErrors(L"#include was unable to extract path; in line: " +
-                        str.ToString() + L"; error: ",
-                    Path::FromString(str.Substring(start, pos - start))));
+      AugmentError(
+          LazyString{L"#include was unable to extract path; in line: "} + str +
+              LazyString{L"; error: "},
+          Path::FromString(str.Substring(start, pos - start))));
 
   if (delimiter == '\"' && path.GetRootType() == Path::RootType::kRelative &&
       compilation.current_source_path().has_value()) {

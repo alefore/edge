@@ -14,7 +14,11 @@ Error NewError(lazy_string::LazyString error) {
 }
 
 Error AugmentError(std::wstring prefix, Error error) {
-  return Error(prefix + L": " + error.read());
+  return AugmentError(LazyString{std::move(prefix)}, std::move(error));
+}
+
+Error AugmentError(language::lazy_string::LazyString prefix, Error error) {
+  return NewError(prefix + LazyString{L": "} + LazyString{error.read()});
 }
 
 // Precondition: `errors` must be non-empty.
@@ -41,5 +45,5 @@ bool tests_register = tests::Register(
                          CHECK(!IsError(foo));
                          CHECK_EQ(std::get<int>(foo), int());
                        }}});
-}
+}  // namespace
 }  // namespace afc::language
