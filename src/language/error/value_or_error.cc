@@ -13,10 +13,6 @@ Error NewError(lazy_string::LazyString error) {
   return Error(error.ToString());
 }
 
-Error AugmentError(std::wstring prefix, Error error) {
-  return AugmentError(LazyString{std::move(prefix)}, std::move(error));
-}
-
 Error AugmentError(language::lazy_string::LazyString prefix, Error error) {
   return NewError(prefix + LazyString{L": "} + LazyString{error.read()});
 }

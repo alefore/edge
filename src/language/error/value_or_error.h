@@ -21,7 +21,6 @@ GHOST_TYPE(Error, std::wstring);
 Error NewError(lazy_string::LazyString error);
 
 // Example: AugmentError(L"🖫 Save failed", error)
-Error AugmentError(std::wstring prefix, Error error);
 Error AugmentError(language::lazy_string::LazyString prefix, Error error);
 
 // Precondition: `errors` must be non-empty.
