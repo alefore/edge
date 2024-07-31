@@ -566,13 +566,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                                     return Success();
                                   }),
                               [buffer, path](Error error) {
-                                buffer->status().Set(
-                                    // TODO(2024-01-05): Avoid call to ToString.
-                                    AugmentError(
-                                        (LazyString{L"Unable to resolve: "} +
-                                         path)
-                                            .ToString(),
-                                        std::move(error)));
+                                buffer->status().Set(AugmentError(
+                                    LazyString{L"Unable to resolve: "} + path,
+                                    std::move(error)));
                                 return futures::Past(Success());
                               });
                         });
