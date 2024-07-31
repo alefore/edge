@@ -355,19 +355,18 @@ void CompileLine(Compilation& compilation, void* parser,
             (str.get(pos) == '.' || str.get(pos) == 'e')) {
           if (str.get(pos) == '.') {
             pos++;
-            numbers::Number decimal_numerator = numbers::Number::FromInt64(0);
-            numbers::Number decimal_denominator = numbers::Number::FromInt64(1);
+            numbers::BigInt decimal_numerator = numbers::BigInt::FromNumber(0);
+            numbers::NonZeroBigInt decimal_denominator =
+                numbers::NonZeroBigInt::Constant<1>();
             while (pos.ToDelta() < str.size() && isdigit(str.get(pos))) {
-              decimal_numerator *= numbers::Number::FromInt64(10);
-              decimal_denominator *= numbers::Number::FromInt64(10);
+              decimal_numerator *= numbers::BigInt::FromNumber(10);
+              decimal_denominator *= numbers::NonZeroBigInt::Constant<10>();
               decimal_numerator +=
-                  numbers::Number::FromInt64(str.get(pos) - L'0');
+                  numbers::BigInt::FromNumber(str.get(pos) - L'0');
               pos++;
             }
-            // TODO(2024-03-16): Drop ValueOrDie. Use sub-type of Number that
-            // exclude zero and/or negatives.
-            value += ValueOrDie(std::move(decimal_numerator) /
-                                std::move(decimal_denominator));
+            value += numbers::Number(true, std::move(decimal_numerator),
+                                     std::move(decimal_denominator));
           }
           if (pos.ToDelta() < str.size() && str.get(pos) == 'e') {
             pos++;
