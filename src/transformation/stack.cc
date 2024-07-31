@@ -119,7 +119,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
       })
       .ConsumeErrors([input](Error error) {
         Result output(input.position);
-        error = AugmentError(L"💣 Runtime error", std::move(error));
+        error = AugmentError(LazyString{L"💣 Runtime error"}, std::move(error));
         input.buffer.status().Set(error);
         if (input.delete_buffer.has_value()) {
           input.delete_buffer->ptr()->AppendToLastLine(
