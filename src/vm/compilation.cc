@@ -4,6 +4,7 @@
 
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -33,7 +34,8 @@ void Compilation::AddError(Error error) {
       prefix += L"Include from " + location + L": ";
   }
 
-  errors_.push_back(AugmentError(prefix, std::move(error)));
+  // TODO(easy, 2024-07-31): Turn `prefix` into LazyString.
+  errors_.push_back(AugmentError(LazyString{prefix}, std::move(error)));
 }
 
 const std::vector<Error>& Compilation::errors() const { return errors_; }
