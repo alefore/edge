@@ -65,16 +65,23 @@ const bool constructors_tests_registration =
 /* static */ ValueOrError<BigInt> BigInt::FromString(
     const std::wstring& input) {
   if (input.empty()) return NewError(LazyString{L"Input string is empty."});
-  size_t start = input[0] == L'+' ? 1 : 0;
+  size_t i = input[0] == L'+' ? 1 : 0;
   std::vector<Digit> digits;
-  for (size_t i = start; i < input.size(); ++i) {
+  while (i < input.size() && input[i] != L'.') {
     if (input[i] < L'0' || input[i] > L'9') {
       return NewError(LazyString{L"Invalid character found: "} +
                       LazyString{ColumnNumberDelta{1}, input[i]});
     }
     digits.insert(digits.begin(), input[i] - L'0');
+    ++i;
   }
 
+  if (i < input.size()) {
+    CHECK(input[i] == L'.');
+    if (std::wstring::size_type pos = input.find_first_not_of(L'0', i + 1);
+        pos != std::wstring::npos)
+      return NewError(LazyString{L"Non-zero decimal part found."});
+  }
   if (digits.empty()) return NewError(LazyString{L"No digits found in input."});
 
   return BigInt(std::move(digits));
@@ -115,12 +122,13 @@ const bool from_string_tests_registration =
           test(L"999999999999999999999999999999999999", L"Large",
                L"999999999999999999999999999999999999"),
           test(std::wstring(100000, L'6'), L"VeryLarge"),
-          // TODO(trivial): Make this test pass?
-          // test(L"123.0", {}, L"123"),
+          test(L"123.0", {}, L"123"),
+          test(L"123.000000000000000", {}, L"123"),
           test_error(L"-1"),
           test_error(L"123x9"),
           test_error(L""),
           test_error(L"1.5"),
+          test_error(L"123.00000000000100000"),
       });
     }());
 }  // namespace
