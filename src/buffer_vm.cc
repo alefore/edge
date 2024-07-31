@@ -427,12 +427,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       pool, buffer_object_type, vm::types::Number{},
       [](const vm::Value& value) { return value.get_number(); });
 
-  DefineSortLinesByKey<std::wstring>(
+  DefineSortLinesByKey<LazyString>(
       pool, buffer_object_type, vm::types::String{},
-      [](const vm::Value& value) {
-        // TODO(2024-01-24): Get rid of call to ToString.
-        return Success(value.get_string().ToString());
-      });
+      [](const vm::Value& value) { return Success(value.get_string()); });
 
   buffer_object_type.ptr()->AddField(
       Identifier(L"tree"),
