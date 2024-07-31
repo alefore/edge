@@ -366,9 +366,11 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
   OnError(buffer.PrepareToClose(),
           [buffer = buffer.NewRoot()](Error error)
               -> futures::ValueOrError<OpenBuffer::PrepareToCloseOutput> {
-            error = AugmentError(L"🖝  Unable to close (“*ad” to ignore): " +
-                                     buffer.ptr()->Read(buffer_variables::name),
-                                 error);
+            error = AugmentError(
+                LazyString{L"🖝  Unable to close (“*ad” to ignore): "} +
+                    // TODO(easy, 2024-07-31): Avoid conversion to LazyString.
+                    LazyString{buffer.ptr()->Read(buffer_variables::name)},
+                error);
             switch (buffer.ptr()->status().InsertError(error, 30)) {
               case error::Log::InsertResult::kInserted:
                 return futures::Past(error);
