@@ -424,7 +424,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
         overload{
             [range](Error error) {
               LOG(INFO) << AugmentError(
-                  L"Unescaping string: " + range.first->second.ToString(),
+                  LazyString{L"Unescaping string: "} + range.first->second,
                   error);
             },
             [&](vm::EscapedString cpp_string) {
