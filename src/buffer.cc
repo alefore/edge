@@ -547,8 +547,9 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 
   return OnError(GetEdgeStateDirectory(),
                  [this](Error error) {
-                   error = AugmentError(L"Unable to get Edge state directory",
-                                        std::move(error));
+                   error = AugmentError(
+                       LazyString{L"Unable to get Edge state directory"},
+                       std::move(error));
                    status().Set(error);
                    return futures::Past(error);
                  })
@@ -562,8 +563,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
                                SerializeState(path, position(), variables_),
                                editor().thread_pool(), file_system_driver()),
             [root_this](Error error) {
-              error =
-                  AugmentError(L"Unable to persist state", std::move(error));
+              error = AugmentError(LazyString{L"Unable to persist state"},
+                                   std::move(error));
               root_this.ptr()->status().Set(error);
               return futures::Past(error);
             });
@@ -1161,7 +1162,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateString(
   LOG(INFO) << "Compiling code.";
   return std::visit(
       overload{[&](Error error) {
-                 error = AugmentError(L"🐜Compilation error", std::move(error));
+                 error = AugmentError(LazyString{L"🐜Compilation error"},
+                                      std::move(error));
                  status_.Set(error);
                  return futures::Past(
                      ValueOrError<gc::Root<Value>>(std::move(error)));
@@ -1180,8 +1182,9 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
   return std::visit(
       overload{[&](Error error) {
-                 error =
-                     AugmentError(path.read() + L": error: ", std::move(error));
+                 error = AugmentError(
+                     LazyString{path.read()} + LazyString{L": error: "},
+                     std::move(error));
                  status_.Set(error);
                  return futures::Past(ValueOrError<gc::Root<Value>>(error));
                },
