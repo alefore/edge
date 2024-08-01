@@ -15,6 +15,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::GetValueOrDefault;
 using afc::language::GetValueOrDie;
+using afc::language::IsError;
 using afc::language::NewError;
 using afc::language::overload;
 using afc::language::PossibleError;
@@ -23,8 +24,40 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::math::naive_bayes {
+namespace ghost_type_internal {
+template <typename Internal>
+concept HasValueType = requires { typename Internal::value_type; };
+
+template <typename Internal, bool = HasValueType<Internal>>
+struct ValueType {};
+
+// Specialization of GhostTypeValueType when Internal has value_type
+template <typename Internal>
+struct ValueType<Internal, true> {
+  using value_type = typename Internal::value_type;
+};
+
+template <typename Internal>
+concept HasSize = requires(Internal i) { i.size(); };
+
+template <typename Internal, typename Key>
+concept HasFind = requires(Internal i, Key key) {
+  { i.find(key) } -> std::same_as<typename Internal::iterator>;
+};
+
+template <typename Internal>
+concept HasBegin = requires(Internal i) {
+  { i.begin() } -> std::same_as<typename Internal::iterator>;
+};
+
+template <typename Internal>
+concept HasEnd = requires(Internal i) {
+  { i.end() } -> std::same_as<typename Internal::iterator>;
+};
+}  // namespace ghost_type_internal
+
 template <typename External, typename Internal>
-class GhostType {
+class GhostType : public ghost_type_internal::ValueType<Internal> {
   Internal value;
 
  public:
@@ -33,6 +66,8 @@ class GhostType {
     CHECK(!IsError(External::Validate(value)));
   }
   GhostType(const GhostType&) = default;
+
+  static PossibleError Validate(Internal) { return Success(); }
 
   template <typename T = External>
   static ValueOrError<External> New(Internal internal) {
@@ -43,6 +78,31 @@ class GhostType {
                  [](Error error) -> ValueOrError<External> { return error; }},
         T::Validate(internal));
   }  // namespace afc::math::naive_bayes
+
+  auto size() const
+    requires ghost_type_internal::HasSize<Internal>
+  {
+    return value.size();
+  }
+
+  template <typename Key>
+  auto find(const Key& key) const
+    requires ghost_type_internal::HasFind<Internal, Key>
+  {
+    return value.find(key);
+  }
+
+  auto begin() const
+    requires ghost_type_internal::HasBegin<Internal>
+  {
+    return value.begin();
+  }
+
+  auto end() const
+    requires ghost_type_internal::HasEnd<Internal>
+  {
+    return value.end();
+  }
 
   template <typename T = External>
   bool operator<(const T& other) const {
@@ -131,8 +191,14 @@ const bool probability_constructor_bad_inputs_tests_registration =
 
         });
 
+#if 0
 using EventProbabilityMapInternal = std::unordered_map<Event, Probability>;
 GHOST_TYPE_CONTAINER(EventProbabilityMap, EventProbabilityMapInternal);
+#endif
+
+class EventProbabilityMap
+    : public GhostType<EventProbabilityMap,
+                       std::unordered_map<Event, Probability>> {};
 
 using FeatureProbabilityMapInternal = std::unordered_map<Feature, Probability>;
 GHOST_TYPE_CONTAINER(FeatureProbabilityMap, FeatureProbabilityMapInternal);
