@@ -81,14 +81,24 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   }
   GhostType(const GhostType&) = default;
 
-  template <typename T,
-            typename = std::enable_if_t<std::is_constructible_v<Internal, T>>>
+  template <typename T>
   GhostType(T&& initial_value)
+    requires(
+        std::is_constructible_v<Internal, T> &&
+        !std::is_same_v<std::remove_cvref_t<T>, GhostType> &&
+        !std::is_same_v<std::remove_cvref_t<T>,
+                        std::initializer_list<typename Internal::value_type>>)
       : GhostType(Internal(std::forward<T>(initial_value))) {}
 
-  template <typename T, typename = std::enable_if_t<std::is_constructible_v<
-                            Internal, std::initializer_list<T>>>>
+  template <typename T>
   GhostType(std::initializer_list<T> init_list)
+    requires std::is_constructible_v<Internal, std::initializer_list<T>>
+      : GhostType(Internal(init_list)) {}
+
+  template <typename K, typename V>
+  GhostType(std::initializer_list<std::pair<const K, V>> init_list)
+    requires std::is_constructible_v<
+        Internal, std::initializer_list<std::pair<const K, V>>>
       : GhostType(Internal(init_list)) {}
 
   static PossibleError Validate(const Internal&) { return Success(); }
