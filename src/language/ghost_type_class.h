@@ -44,6 +44,13 @@ concept HasBegin = requires(Internal i) {
   { i.begin() } -> std::same_as<typename Internal::iterator>;
 };
 
+template <typename Internal, typename ElementValue>
+concept HasPushBack =
+    requires(Internal i, ElementValue element) { i.push_back(element); };
+
+template <typename Internal>
+concept HasPopBack = requires(Internal i) { i.pop_back(); };
+
 template <typename Internal>
 concept HasEnd = requires(Internal i) {
   { i.end() } -> std::same_as<typename Internal::iterator>;
@@ -147,6 +154,20 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value.insert(element);
   }
 
+  template <typename Value>
+  auto push_back(const Value& element)
+    requires ghost_type_internal::HasPushBack<Internal, Value>
+  {
+    return value.push_back(element);
+  }
+
+  template <typename Value>
+  auto pop_back()
+    requires ghost_type_internal::HasPopBack<Internal>
+  {
+    return value.pop_back();
+  }
+
   auto begin() const
     requires ghost_type_internal::HasBegin<Internal>
   {
@@ -218,6 +239,8 @@ inline std::ostream& operator<<(std::ostream& os,
 
 template <typename External, typename Internal>
 inline std::wstring to_wstring(const GhostType<External, Internal>& obj) {
+  using afc::language::to_wstring;
+  using std::to_wstring;
   return to_wstring(obj.value);
 }
 }  // namespace afc::language
