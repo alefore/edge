@@ -6,16 +6,131 @@
 #include "glog/logging.h"
 #include "src/infrastructure/tracker.h"
 #include "src/language/container.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
 using ::operator<<;
+using afc::language::EmptyValue;
+using afc::language::Error;
 using afc::language::GetValueOrDefault;
 using afc::language::GetValueOrDie;
+using afc::language::NewError;
+using afc::language::overload;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::math::naive_bayes {
-GHOST_TYPE_DOUBLE(Probability);
+template <typename External, typename Internal>
+class GhostType {
+  Internal value;
+
+ public:
+  GhostType() = default;
+  GhostType(Internal initial_value) : value(std::move(initial_value)) {
+    CHECK(!IsError(External::Validate(value)));
+  }
+  GhostType(const GhostType&) = default;
+
+  template <typename T = External>
+  static ValueOrError<External> New(Internal internal) {
+    return std::visit(
+        overload{[&internal](EmptyValue) -> ValueOrError<External> {
+                   return External(internal);
+                 },
+                 [](Error error) -> ValueOrError<External> { return error; }},
+        T::Validate(internal));
+  }  // namespace afc::math::naive_bayes
+
+  template <typename T = External>
+  bool operator<(const T& other) const {
+    return value < other.value;
+  }
+
+  template <typename T>
+  auto operator/(const T& other) const {
+    return External::New(value / other);
+  }
+
+  inline External& operator*=(double double_value) {
+    value *= double_value;
+    return *static_cast<External*>(this);
+  }
+
+  template <typename OtherExternal, typename OtherInternal>
+  inline External& operator*=(
+      const GhostType<OtherExternal, OtherInternal>& other) {
+    value *= other.value;
+    return *static_cast<External*>(this);
+  }
+
+  template <typename OtherExternal, typename OtherInternal>
+  inline bool operator==(
+      const GhostType<OtherExternal, OtherInternal>& other) const {
+    return value == other.value;
+  }
+
+  std::ostream& operator<<(std::ostream& os) { return os; }
+
+ private:
+  template <typename A, typename B>
+  friend std::ostream& operator<<(std::ostream& os, const GhostType<A, B>& obj);
+
+  template <typename A, typename B>
+  friend class GhostTypeFactory;
+};
+
+template <typename External, typename Internal>
+inline std::ostream& operator<<(std::ostream& os,
+                                const GhostType<External, Internal>& obj) {
+  using ::operator<<;
+  os << "[" /*name*/ ":" << obj.value << "]";
+  return os;
+}
+
+class Probability : public GhostType<Probability, double> {
+ public:
+  static PossibleError Validate(double input) {
+    if (input < 0)
+      return NewError(
+          LazyString{L"Invalid probability value (less than 0.0)."});
+    if (input > 1.0)
+      return NewError(
+          LazyString{L"Invalid probability value (greater than 1.0)."});
+    return Success();
+  }
+};
+
 namespace {
+const bool probability_constructor_good_inputs_tests_registration =
+    tests::Register(L"ProbabilityConstructorGoodInputs",
+                    {{.name = L"Zero", .callback = [] { Probability(0.0); }},
+                     {.name = L"One", .callback = [] { Probability(1.0); }},
+                     {.name = L"Half", .callback = [] { Probability(0.5); }}});
+
+const bool probability_constructor_bad_inputs_tests_registration =
+    tests::Register(
+        L"ProbabilityConstructorBadInputs",
+        {
+            {.name = L"Negative",
+             .callback = [] { CHECK(IsError(Probability::New(-1.0))); }},
+            {.name = L"NegativeCrash",
+             .callback =
+                 [] {
+                   tests::ForkAndWaitForFailure([] { Probability(-1.0); });
+                 }},
+            {.name = L"TooLarge",
+             .callback = [] { CHECK(IsError(Probability::New(1.01))); }},
+            {.name = L"TooLargeCrash",
+             .callback =
+                 [] {
+                   tests::ForkAndWaitForFailure([] { Probability(1.01); });
+                 }},
+
+        });
+
 using EventProbabilityMapInternal = std::unordered_map<Event, Probability>;
 GHOST_TYPE_CONTAINER(EventProbabilityMap, EventProbabilityMapInternal);
 
@@ -44,7 +159,8 @@ EventProbabilityMap GetEventProbability(const History& history) {
   return EventProbabilityMap(TransformValues(
       history,
       [&count](const Event&, const std::vector<FeaturesSet>& instances) {
-        return Probability(static_cast<double>(instances.size()) / count);
+        return ValueOrDie(
+            Probability::New(static_cast<double>(instances.size()) / count));
       }));
 }
 
@@ -238,8 +354,8 @@ std::vector<Event> Sort(const History& history,
             return GetFeatureProbability(instances);
           });
 
-  const Probability epsilon =
-      MinimalFeatureProbability(probability_of_feature_given_event) / 2;
+  const Probability epsilon = ValueOrDie(
+      MinimalFeatureProbability(probability_of_feature_given_event) / 2);
   VLOG(5) << "Found epsilon: " << epsilon;
 
   const std::unordered_map<Event, Probability> current_probability_value =
