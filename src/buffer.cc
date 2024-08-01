@@ -1761,7 +1761,8 @@ void OpenBuffer::InsertLines(std::vector<Line> lines_to_insert) {
 }
 
 futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
-    FileDescriptor input_fd, FileDescriptor input_error_fd, bool fd_is_terminal,
+    std::optional<FileDescriptor> input_fd,
+    std::optional<FileDescriptor> input_error_fd, bool fd_is_terminal,
     std::optional<ProcessId> child_pid) {
   CHECK(child_pid_ == std::nullopt);
   child_pid_ = child_pid;
@@ -1774,10 +1775,10 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
         .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); }});
   });
 
-  auto new_reader = [this](FileDescriptor fd, std::wstring name_suffix,
-                           LineModifierSet modifiers,
+  auto new_reader = [this](std::optional<FileDescriptor> fd,
+                           std::wstring name_suffix, LineModifierSet modifiers,
                            std::unique_ptr<FileDescriptorReader>& reader) {
-    if (fd == FileDescriptor(-1)) {
+    if (fd == std::nullopt) {
       reader = nullptr;
       return futures::Past(EmptyValue());
     }
@@ -1785,7 +1786,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     reader =
         std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
             .name = FileDescriptorName(to_wstring(name()) + L":" + name_suffix),
-            .fd = fd,
+            .fd = fd.value(),
             .receive_end_of_file =
                 [buffer = NewRoot(), this, &reader,
                  output_consumer = std::move(output.consumer)] mutable {
@@ -1860,7 +1861,7 @@ futures::Value<PossibleError> OpenBuffer::SetInputFromPath(
       .Transform([buffer = NewRoot(),
                   path](FileDescriptor fd) -> futures::Value<PossibleError> {
         LOG(INFO) << path << ": Opened file descriptor: " << fd;
-        return buffer.ptr()->SetInputFiles(fd, FileDescriptor(-1), false,
+        return buffer.ptr()->SetInputFiles(fd, std::nullopt, false,
                                            std::optional<ProcessId>());
       });
 }

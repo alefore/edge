@@ -177,8 +177,8 @@ bool tests_registration = tests::Register(
         editor->AddBuffer(buffer_root, BuffersList::AddBufferType ::kVisit);
 
         OpenBuffer& buffer = buffer_root.ptr().value();
-        buffer.SetInputFiles(FileDescriptor(pipefd_out[1]), FileDescriptor(-1),
-                             false, std::optional<ProcessId>());
+        buffer.SetInputFiles(FileDescriptor(pipefd_out[1]), std::nullopt, false,
+                             std::optional<ProcessId>());
         Paste(buffer.editor()).ProcessInput('x');
 
         char data[1024];

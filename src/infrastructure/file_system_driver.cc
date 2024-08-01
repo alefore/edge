@@ -32,6 +32,12 @@ using afc::language::view::ExtractErrors;
 
 namespace afc::infrastructure {
 
+PossibleError FileDescriptor::Validate(const int& fd) {
+  if (fd < 0)
+    return NewError(LazyString{L"Invalid file descriptor: negative value."});
+  return Success();
+}
+
 namespace {
 PossibleError SyscallReturnValue(std::wstring description, int return_value) {
   LOG(INFO) << "Syscall return value: " << description << ": " << return_value;
@@ -75,7 +81,7 @@ futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(
         ASSIGN_OR_RETURN(EmptyValue value,
                          SyscallReturnValue(L"Open: " + path.read(), fd));
         (void)value;
-        return Success(FileDescriptor(fd));
+        return FileDescriptor::New(fd);
       });
 }
 

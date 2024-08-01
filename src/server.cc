@@ -103,7 +103,6 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
   // We write the command to a temporary file and then instruct the server to
   // load the file. Otherwise, if the command is too long, it may not fit in the
   // size limit that the reader uses.
-  CHECK_NE(server_fd, FileDescriptor{-1});
   ColumnNumber pos{0};
   char* path = strdup("/tmp/edge-initial-commands-XXXXXX");
   int tmp_fd = mkstemp(path);
@@ -160,35 +159,34 @@ ValueOrError<FileDescriptor> SyncConnectToParentServer() {
 
 ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   LOG(INFO) << "Connecting to server: " << path.read();
-  int server_fd = open(ToByteString(path.read()).c_str(), O_WRONLY);
-  if (server_fd == -1) {
-    return Error(path.read() + L": Connecting to server: open failed: " +
-                 FromByteString(strerror(errno)));
-  }
+  ASSIGN_OR_RETURN(
+      FileDescriptor server_fd,
+      AugmentError(LazyString{path.read()} +
+                       LazyString{L": Connecting to server: open failed: "} +
+                       LazyString{FromByteString(strerror(errno))},
+                   FileDescriptor::New(
+                       open(ToByteString(path.read()).c_str(), O_WRONLY))));
   auto fd_deleter_callback = [](int* value) {
     close(*value);
     delete value;
   };
   std::unique_ptr<int, decltype(fd_deleter_callback)> fd_deleter(
-      new int(server_fd), fd_deleter_callback);
+      new int(server_fd.read()), fd_deleter_callback);
 
   ASSIGN_OR_RETURN(
       Path private_fifo,
       AugmentError(
           LazyString{L"Unable to create fifo for communication with server"},
           CreateFifo({})));
-  RETURN_IF_ERROR(SendPathToServer(FileDescriptor(server_fd), private_fifo));
+  RETURN_IF_ERROR(SendPathToServer(server_fd, private_fifo));
   fd_deleter = nullptr;
 
   LOG(INFO) << "Opening private fifo: " << private_fifo.read();
-  int private_fd = open(ToByteString(private_fifo.read()).c_str(), O_RDWR);
-  LOG(INFO) << "Connection fd: " << private_fd;
-  if (private_fd == -1) {
-    return Error(private_fifo.read() + L": open failed: " +
-                 FromByteString(strerror(errno)));
-  }
-  CHECK_GT(private_fd, -1);
-  return FileDescriptor(private_fd);
+  return AugmentError(LazyString{private_fifo.read()} +
+                          LazyString{L": open failed: "} +
+                          LazyString{FromByteString(strerror(errno))},
+                      FileDescriptor::New(open(
+                          ToByteString(private_fifo.read()).c_str(), O_RDWR)));
 }
 
 void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {

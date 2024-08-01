@@ -144,7 +144,8 @@ void EditorState::NotifyInternalEvent(EditorState::SharedData& data) {
         value = true;
         return old_value;
       }) &&
-      write(data.pipe_to_communicate_internal_events.second.read(), " ", 1) ==
+      data.pipe_to_communicate_internal_events.has_value() &&
+      write(data.pipe_to_communicate_internal_events->second.read(), " ", 1) ==
           -1) {
     data.status.InsertError(Error(L"Write to internal pipe failed: " +
                                   FromByteString(strerror(errno))));
@@ -184,13 +185,13 @@ EditorState::EditorState(CommandLineValues args,
                          infrastructure::audio::Player& audio_player)
     : args_(std::move(args)),
       shared_data_(MakeNonNullShared<SharedData>(SharedData{
-          .pipe_to_communicate_internal_events = std::invoke([] {
-            int output[2];
-            return pipe2(output, O_NONBLOCK) == -1
-                       ? std::make_pair(FileDescriptor(-1), FileDescriptor(-1))
-                       : std::make_pair(FileDescriptor(output[0]),
-                                        FileDescriptor(output[1]));
-          }),
+          .pipe_to_communicate_internal_events = std::invoke(
+              [] -> std::optional<std::pair<FileDescriptor, FileDescriptor>> {
+                int output[2];
+                if (pipe2(output, O_NONBLOCK) == -1) return std::nullopt;
+                return std::make_pair(FileDescriptor(output[0]),
+                                      FileDescriptor(output[1]));
+              }),
           .status = audio_player})),
       work_queue_(WorkQueue::New()),
       thread_pool_(MakeNonNullShared<ThreadPoolWithWorkQueue>(
@@ -983,18 +984,19 @@ void EditorState::ExecutionIteration(
       buffer_registry().buffers() | gc::view::Value,
       [&handler](OpenBuffer& buffer) { buffer.AddExecutionHandlers(handler); });
 
-  handler.AddHandler(
-      shared_data_->pipe_to_communicate_internal_events.first, POLLIN | POLLPRI,
-      [&](int) {
-        char buffer[4096];
-        VLOG(5) << "Internal events detected.";
-        while (
-            read(shared_data_->pipe_to_communicate_internal_events.first.read(),
-                 buffer, sizeof(buffer)) > 0)
-          continue;
-        shared_data_->has_internal_events.lock(
-            [](bool& value) { value = false; });
-      });
+  if (shared_data_->pipe_to_communicate_internal_events.has_value())
+    handler.AddHandler(
+        shared_data_->pipe_to_communicate_internal_events->first,
+        POLLIN | POLLPRI, [&](int) {
+          char buffer[4096];
+          VLOG(5) << "Internal events detected.";
+          while (read(shared_data_->pipe_to_communicate_internal_events->first
+                          .read(),
+                      buffer, sizeof(buffer)) > 0)
+            continue;
+          shared_data_->has_internal_events.lock(
+              [](bool& value) { value = false; });
+        });
 }
 
 BufferRegistry& EditorState::buffer_registry() {

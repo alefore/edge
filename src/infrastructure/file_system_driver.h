@@ -19,8 +19,11 @@ extern "C" {
 
 namespace afc::infrastructure {
 
-// TODO(trivial, 2024-07-30): Ensure that it can't be -1.
-class FileDescriptor : public language::GhostType<FileDescriptor, int> {};
+class FileDescriptor : public language::GhostType<FileDescriptor, int> {
+ public:
+  static language::PossibleError Validate(const int& fd);
+};
+
 class UnixSignal : public language::GhostType<UnixSignal, int> {};
 
 // Why define a GHOST_TYPE for `pid_t`, which is already a "specific" type?

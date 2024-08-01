@@ -438,9 +438,9 @@ class OpenBuffer {
   // Returns a future that is notified when the two files provided have been
   // fully read.
   futures::Value<language::EmptyValue> SetInputFiles(
-      infrastructure::FileDescriptor input_fd,
-      infrastructure::FileDescriptor input_fd_error, bool fd_is_terminal,
-      std::optional<infrastructure::ProcessId> child_pid);
+      std::optional<infrastructure::FileDescriptor> input_fd,
+      std::optional<infrastructure::FileDescriptor> input_fd_error,
+      bool fd_is_terminal, std::optional<infrastructure::ProcessId> child_pid);
   futures::Value<language::PossibleError> SetInputFromPath(
       const infrastructure::Path& path);
 

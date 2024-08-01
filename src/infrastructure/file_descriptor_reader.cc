@@ -27,9 +27,7 @@ namespace afc::editor {
 using ::operator<<;
 
 FileDescriptorReader::FileDescriptorReader(Options options)
-    : options_(MakeNonNullShared<Options>(std::move(options))) {
-  CHECK(fd() != FileDescriptor(-1));
-}
+    : options_(MakeNonNullShared<Options>(std::move(options))) {}
 
 FileDescriptorReader::~FileDescriptorReader() { close(fd().read()); }
 

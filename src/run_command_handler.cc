@@ -246,8 +246,8 @@ futures::Value<PossibleError> GenerateContents(
   LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
             << pipefd_err[parent_fd];
   return target
-      .SetInputFiles(FileDescriptor(pipefd_out[parent_fd]),
-                     FileDescriptor(pipefd_err[parent_fd]),
+      .SetInputFiles(OptionalFrom(FileDescriptor::New(pipefd_out[parent_fd])),
+                     OptionalFrom(FileDescriptor::New(pipefd_err[parent_fd])),
                      target.Read(buffer_variables::pts), child_pid)
       .Transform([&editor_state, data, &target](EmptyValue) {
         LOG(INFO) << "End of file notification.";

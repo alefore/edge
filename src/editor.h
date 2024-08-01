@@ -55,7 +55,8 @@ class EditorState {
     // We use has_internal_events to avoid redundantly notifying this. The
     // customer must call ResetInternalEventsNotifications to reset it just
     // before starting to process events.
-    std::pair<infrastructure::FileDescriptor, infrastructure::FileDescriptor>
+    std::optional<std::pair<infrastructure::FileDescriptor,
+                            infrastructure::FileDescriptor>>
         pipe_to_communicate_internal_events;
     concurrent::Protected<bool> has_internal_events =
         concurrent::Protected<bool>(false);
