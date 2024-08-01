@@ -48,6 +48,10 @@ bool Register(std::wstring name, std::vector<Test> tests);
 // If non-empty, must match the name of a test ("<group>.<test>").
 void Run(std::vector<std::wstring> tests_filter);
 void List();
+
+// Call this from a test to evaluate an expression (captured in `callable`) that
+// *should* trigger a crash. If the expression finishes successfully (without
+// crashing), the test will fail.
 void ForkAndWaitForFailure(std::function<void()> callable);
 
 }  // namespace afc::tests
