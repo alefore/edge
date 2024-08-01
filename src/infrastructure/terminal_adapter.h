@@ -13,6 +13,7 @@
 #include "src/infrastructure/file_system_driver.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
@@ -21,7 +22,7 @@
 
 namespace afc::infrastructure {
 // TODO(2023-12-02): This should use LazyString.
-GHOST_TYPE(TerminalName, std::wstring);
+class TerminalName : public language::GhostType<TerminalName, std::wstring> {};
 
 // Decodes input from a terminal-associated file descriptor.
 //

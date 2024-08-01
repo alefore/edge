@@ -11,6 +11,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -19,9 +20,17 @@ namespace afc::vm {
 // Represents a single VM identifier within a namespace (e.g., `Buffer` or
 // `lib`).
 //
-// TODO(easy, 2023-12-21): Find a way to assert that it only contains
-// alphanumeric characters and that it isn't empty.
-GHOST_TYPE(Identifier, std::wstring);
+// TODO(trivial, 2023-12-21): Assert that it only contains alphanumeric
+// characters.
+class Identifier : public language::GhostType<Identifier, std::wstring> {
+ public:
+  static language::PossibleError Validate(const InternalType& input) {
+    if (input.empty())
+      return language::NewError(
+          language::lazy_string::LazyString{L"Identifier can't be empty."});
+    return GhostType<Identifier, InternalType>::Validate(input);
+  }
+};
 
 language::ValueOrError<Identifier> IdentifierOrError(
     language::lazy_string::LazyString);
@@ -60,7 +69,7 @@ struct Bool {};
 struct Number {};
 struct String {};
 struct Symbol {};
-GHOST_TYPE(ObjectName, std::wstring);
+class ObjectName : public language::GhostType<ObjectName, std::wstring> {};
 
 // Function depends on `Type`, so we only forward declare it here.
 struct Function;
@@ -166,8 +175,5 @@ struct hash<afc::vm::Type> {
   size_t operator()(const afc::vm::Type& x) const;
 };
 }  // namespace std
-
-GHOST_TYPE_TOP_LEVEL(afc::vm::types::ObjectName);
-GHOST_TYPE_TOP_LEVEL(afc::vm::Identifier);
 
 #endif  // __AFC_VM_PUBLIC_TYPES_H__

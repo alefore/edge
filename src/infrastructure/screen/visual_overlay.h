@@ -6,7 +6,7 @@
 #include <variant>
 
 #include "src/infrastructure/screen/line_modifier.h"
-#include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
@@ -29,22 +29,20 @@ struct VisualOverlay {
   }
 };
 
-GHOST_TYPE(VisualOverlayKey, std::wstring);
+class VisualOverlayKey
+    : public language::GhostType<VisualOverlayKey, std::wstring> {};
 
 // Larger numbers take precedence.
-GHOST_TYPE(VisualOverlayPriority, int);
-}  // namespace afc::infrastructure::screen
+class VisualOverlayPriority
+    : public language::GhostType<VisualOverlayPriority, int> {};
 
-GHOST_TYPE_TOP_LEVEL(afc::infrastructure::screen::VisualOverlayKey);
-GHOST_TYPE_TOP_LEVEL(afc::infrastructure::screen::VisualOverlayPriority);
-
-namespace afc::infrastructure::screen {
-using VisualOverlayMapInternal = std::map<
-    VisualOverlayPriority,
-    std::map<VisualOverlayKey,
-             std::multimap<language::text::LineColumn, VisualOverlay>>>;
-
-GHOST_TYPE_CONTAINER(VisualOverlayMap, VisualOverlayMapInternal);
+class VisualOverlayMap
+    : public language::GhostType<
+          VisualOverlayMap,
+          std::map<VisualOverlayPriority,
+                   std::map<VisualOverlayKey,
+                            std::multimap<language::text::LineColumn,
+                                          VisualOverlay>>>> {};
 
 // Returns a copy of visual_overlay_map that only contains overlays that
 // intersect screen_line_range.

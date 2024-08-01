@@ -8,13 +8,16 @@
 #include <vector>
 
 #include "src/infrastructure/extended_char.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_sequence.h"
 
 namespace afc::editor::operation {
-GHOST_TYPE(Description, language::lazy_string::LazyString);
+class Description
+    : public language::GhostType<Description,
+                                 language::lazy_string::LazyString> {};
 
 // Contains a table of commands. Each command is an association of a chatacter
 // to a "handler" that should be executed when the command is pressed.

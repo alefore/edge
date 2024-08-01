@@ -20,6 +20,11 @@ struct ValueType<Internal, true> {
 template <typename Internal>
 concept HasSize = requires(Internal i) { i.size(); };
 
+template <typename Internal>
+concept HasEmpty = requires(Internal i) {
+  { i.empty() } -> std::same_as<bool>;
+};
+
 template <typename Internal, typename Key>
 concept HasFind = requires(Internal i, Key key) {
   { i.find(key) } -> std::same_as<typename Internal::iterator>;
@@ -67,6 +72,9 @@ struct IsGhostType<
     T, std::void_t<typename std::enable_if<std::is_base_of_v<
            afc::language::GhostType<T, typename T::InternalType>, T>>::type>>
     : std::true_type {};
+
+template <typename External, typename Internal>
+inline std::wstring to_wstring(const GhostType<External, Internal>& obj);
 
 template <typename External, typename Internal>
 class GhostType : public ghost_type_internal::ValueType<Internal> {
@@ -117,6 +125,12 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     requires ghost_type_internal::HasSize<Internal>
   {
     return value.size();
+  }
+
+  auto empty() const
+    requires ghost_type_internal::HasEmpty<Internal>
+  {
+    return value.empty();
   }
 
   template <typename Key>
@@ -189,6 +203,9 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   friend std::ostream& operator<<(std::ostream& os, const GhostType<A, B>& obj);
 
   friend struct std::hash<GhostType<External, Internal>>;
+
+  friend std::wstring to_wstring<External, Internal>(
+      const GhostType<External, Internal>& obj);
 };
 
 template <typename External, typename Internal>
@@ -197,6 +214,11 @@ inline std::ostream& operator<<(std::ostream& os,
   using ::operator<<;
   os << "[" /*name*/ ":" << obj.value << "]";
   return os;
+}
+
+template <typename External, typename Internal>
+inline std::wstring to_wstring(const GhostType<External, Internal>& obj) {
+  return to_wstring(obj.value);
 }
 }  // namespace afc::language
 namespace std {

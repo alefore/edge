@@ -13,7 +13,7 @@
 #include "src/futures/futures.h"
 #include "src/infrastructure/execution.h"
 #include "src/infrastructure/file_system_driver.h"
-#include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/once_only_function.h"
 #include "src/language/safe_types.h"
@@ -24,7 +24,8 @@ namespace editor {
 // Description of the file descriptor, used for logging/debugging.
 //
 // TODO(2023-12-02): This should use LazyString.
-GHOST_TYPE(FileDescriptorName, std::wstring);
+class FileDescriptorName
+    : public language::GhostType<FileDescriptorName, std::wstring> {};
 
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {

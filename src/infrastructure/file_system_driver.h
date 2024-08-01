@@ -14,19 +14,19 @@ extern "C" {
 #include "src/concurrent/thread_pool.h"
 #include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::infrastructure {
 
-// TODO(2024-07-30): Ensure that it can't be -1. Do this by designing some other
-// alternative to GHOST_TYPE that lets us assert things on construction.
-GHOST_TYPE(FileDescriptor, int);
-GHOST_TYPE(UnixSignal, int);
+// TODO(trivial, 2024-07-30): Ensure that it can't be -1.
+class FileDescriptor : public language::GhostType<FileDescriptor, int> {};
+class UnixSignal : public language::GhostType<UnixSignal, int> {};
 
 // Why define a GHOST_TYPE for `pid_t`, which is already a "specific" type?
 // Because pid_t is just a `using` or `typedef` alias, so incorrect usage isn't
 // detected by the compiler.
-GHOST_TYPE(ProcessId, pid_t);
+class ProcessId : public language::GhostType<ProcessId, pid_t> {};
 
 // Class used to interact with the file system. All operations are performed
 // asynchronously in a thread pool.
@@ -68,7 +68,5 @@ class FileSystemDriver {
 };
 
 }  // namespace afc::infrastructure
-
-GHOST_TYPE_TOP_LEVEL(afc::infrastructure::FileDescriptor);
 
 #endif  // __AFC_INFRASTRUCTURE_FILE_SYSTEM_DRIVER_H__
