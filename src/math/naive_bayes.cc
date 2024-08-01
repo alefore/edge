@@ -54,6 +54,11 @@ template <typename Internal>
 concept HasEnd = requires(Internal i) {
   { i.end() } -> std::same_as<typename Internal::iterator>;
 };
+
+template <typename Internal, typename Key>
+concept HasSubscriptOperator = requires(Internal i, Key key) {
+  { i[key] };
+};
 }  // namespace ghost_type_internal
 
 template <typename External, typename Internal>
@@ -102,6 +107,13 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     requires ghost_type_internal::HasEnd<Internal>
   {
     return value.end();
+  }
+
+  template <typename Key>
+  auto& operator[](const Key& key)
+    requires ghost_type_internal::HasSubscriptOperator<Internal, Key>
+  {
+    return value[key];
   }
 
   template <typename T = External>
@@ -191,17 +203,13 @@ const bool probability_constructor_bad_inputs_tests_registration =
 
         });
 
-#if 0
-using EventProbabilityMapInternal = std::unordered_map<Event, Probability>;
-GHOST_TYPE_CONTAINER(EventProbabilityMap, EventProbabilityMapInternal);
-#endif
-
 class EventProbabilityMap
     : public GhostType<EventProbabilityMap,
                        std::unordered_map<Event, Probability>> {};
 
-using FeatureProbabilityMapInternal = std::unordered_map<Feature, Probability>;
-GHOST_TYPE_CONTAINER(FeatureProbabilityMap, FeatureProbabilityMapInternal);
+class FeatureProbabilityMap
+    : public GhostType<FeatureProbabilityMap,
+                       std::unordered_map<Feature, Probability>> {};
 
 template <typename Container, typename Callable>
 auto TransformValues(const Container& container, Callable callable) {
