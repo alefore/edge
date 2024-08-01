@@ -22,12 +22,11 @@ class Event : public language::GhostType<Event, std::wstring> {};
 // - Today is Wednesday.
 // - A given process is currently executing.
 class Feature : public language::GhostType<Feature, std::wstring> {};
-}  // namespace afc::math::naive_bayes
 
-namespace afc::math::naive_bayes {
 // FeaturesSet represents a set of features. Typically this is used to capture
 // the state of the environment in which an event is executed.
-GHOST_TYPE_CONTAINER(FeaturesSet, std::unordered_set<Feature>);
+class FeaturesSet
+    : public language::GhostType<FeaturesSet, std::unordered_set<Feature>> {};
 
 // The history represents all the past executions of all events. For each
 // execution, we store the set of features that were present.

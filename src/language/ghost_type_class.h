@@ -25,6 +25,15 @@ concept HasFind = requires(Internal i, Key key) {
   { i.find(key) } -> std::same_as<typename Internal::iterator>;
 };
 
+template <typename Internal, typename ElementValue>
+concept HasInsert = requires(Internal container, ElementValue element) {
+  {
+    container.insert(element)
+  } -> std::same_as<std::pair<typename Internal::iterator, bool>>;
+} || requires(Internal container, ElementValue element) {
+  { container.insert(element) } -> std::same_as<typename Internal::iterator>;
+};
+
 template <typename Internal>
 concept HasBegin = requires(Internal i) {
   { i.begin() } -> std::same_as<typename Internal::iterator>;
@@ -77,6 +86,11 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   GhostType(T&& initial_value)
       : GhostType(Internal(std::forward<T>(initial_value))) {}
 
+  template <typename T, typename = std::enable_if_t<std::is_constructible_v<
+                            Internal, std::initializer_list<T>>>>
+  GhostType(std::initializer_list<T> init_list)
+      : GhostType(Internal(init_list)) {}
+
   static PossibleError Validate(const Internal&) { return Success(); }
 
   template <typename T = External>
@@ -100,6 +114,13 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     requires ghost_type_internal::HasFind<Internal, Key>
   {
     return value.find(key);
+  }
+
+  template <typename Value>
+  auto insert(const Value& element)
+    requires ghost_type_internal::HasInsert<Internal, Value>
+  {
+    return value.insert(element);
   }
 
   auto begin() const
