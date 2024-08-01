@@ -5,13 +5,14 @@
 #include <vector>
 
 #include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/wstring.h"
 
 namespace afc::math::naive_bayes {
 using ::operator<<;
 
 // An Event represents an arbitrary action, such as opening a specific file.
-GHOST_TYPE(Event, std::wstring);
+class Event : public language::GhostType<Event, std::wstring> {};
 
 // A Feature represents some arbitrary characteristic of the environment where
 // events take place.
@@ -20,11 +21,8 @@ GHOST_TYPE(Event, std::wstring);
 // - A given file is currently open.
 // - Today is Wednesday.
 // - A given process is currently executing.
-GHOST_TYPE(Feature, std::wstring);
+class Feature : public language::GhostType<Feature, std::wstring> {};
 }  // namespace afc::math::naive_bayes
-
-GHOST_TYPE_HASH(afc::math::naive_bayes::Event);
-GHOST_TYPE_HASH(afc::math::naive_bayes::Feature);
 
 namespace afc::math::naive_bayes {
 // FeaturesSet represents a set of features. Typically this is used to capture
