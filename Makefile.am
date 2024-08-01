@@ -152,6 +152,7 @@ src/language/error/view.h \
 src/language/function_traits.h \
 src/language/ghost_type.cc \
 src/language/ghost_type.h \
+src/language/ghost_type_class.h \
 src/language/ghost_type_test.cc \
 src/language/gc.cc \
 src/language/gc.h \
