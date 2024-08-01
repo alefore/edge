@@ -114,7 +114,7 @@ const bool get_probability_of_event_tests_registration =
             .callback =
                 [=] {
                   EventProbabilityMap result = GetEventProbability(
-                      History{{{e0, {FeaturesSet({f1, f2})}}}});
+                      History{{{e0, {FeaturesSet{{f1, f2}}}}}});
                   CHECK_EQ(result.size(), 1ul);
                   CHECK_EQ(GetValueOrDie(result, e0), Probability(1.0));
                 }},
@@ -124,9 +124,9 @@ const bool get_probability_of_event_tests_registration =
                   EventProbabilityMap result =
                       GetEventProbability(History{{{e0,
                                                     {
-                                                        FeaturesSet({f1, f2}),
-                                                        FeaturesSet({f1}),
-                                                        FeaturesSet({f2}),
+                                                        FeaturesSet{{f1, f2}},
+                                                        FeaturesSet{{f1}},
+                                                        FeaturesSet{{f2}},
                                                     }}}});
                   CHECK_EQ(result.size(), 1ul);
                   CHECK_EQ(GetValueOrDie(result, e0), Probability(1.0));
@@ -135,22 +135,22 @@ const bool get_probability_of_event_tests_registration =
               EventProbabilityMap result =
                   GetEventProbability(History{{{e0,
                                                 {
-                                                    FeaturesSet({f1}),
-                                                    FeaturesSet({f2}),
-                                                    FeaturesSet({f3}),
-                                                    FeaturesSet({f4}),
-                                                    FeaturesSet({f5}),
+                                                    FeaturesSet{{f1}},
+                                                    FeaturesSet{{f2}},
+                                                    FeaturesSet{{f3}},
+                                                    FeaturesSet{{f4}},
+                                                    FeaturesSet{{f5}},
                                                 }},
                                                {e1,
                                                 {
-                                                    FeaturesSet({f1}),
-                                                    FeaturesSet({f2}),
-                                                    FeaturesSet({f3}),
-                                                    FeaturesSet({f4}),
+                                                    FeaturesSet{{f1}},
+                                                    FeaturesSet{{f2}},
+                                                    FeaturesSet{{f3}},
+                                                    FeaturesSet{{f4}},
                                                 }},
                                                {e2,
                                                 {
-                                                    FeaturesSet({f1}),
+                                                    FeaturesSet{{f1}},
                                                 }}}});
               CHECK_EQ(result.size(), 3ul);
               CHECK_EQ(GetValueOrDie(result, e0), Probability(0.5));
@@ -184,18 +184,18 @@ const bool get_probability_of_feature_given_event_tests_registration =
             .callback =
                 [=] {
                   FeatureProbabilityMap result =
-                      GetFeatureProbability({FeaturesSet({f1, f2})});
+                      GetFeatureProbability({FeaturesSet{{f1, f2}}});
                   CHECK_EQ(result.size(), 2ul);
                   CHECK_EQ(GetValueOrDie(result, f1), Probability(1.0));
                   CHECK_EQ(GetValueOrDie(result, f2), Probability(1.0));
                 }},
            {.name = L"SingleEventMultipleInstances", .callback = [=] {
               FeatureProbabilityMap result = GetFeatureProbability({
-                  FeaturesSet({f1, f2, f3}),
-                  FeaturesSet({f1, f2}),
-                  FeaturesSet({f1}),
-                  FeaturesSet({f1}),
-                  FeaturesSet({f1}),
+                  FeaturesSet{{f1, f2, f3}},
+                  FeaturesSet{{f1, f2}},
+                  FeaturesSet{{f1}},
+                  FeaturesSet{{f1}},
+                  FeaturesSet{{f1}},
               });
               CHECK_EQ(result.size(), 3ul);
 
@@ -325,19 +325,19 @@ const bool bayes_sort_tests_probability_tests_registration =
       return std::vector<tests::Test>({
           {.name = L"EmptyHistoryAndFeatures",
            .callback =
-               [] { CHECK_EQ(Sort(History(), FeaturesSet()).size(), 0ul); }},
+               [] { CHECK_EQ(Sort(History(), FeaturesSet{}).size(), 0ul); }},
           {.name = L"EmptyHistory",
            .callback =
                [=] {
-                 CHECK_EQ(Sort(History(), FeaturesSet({f1, f2})).size(), 0ul);
+                 CHECK_EQ(Sort(History(), FeaturesSet{{f1, f2}}).size(), 0ul);
                }},
           {.name = L"EmptyFeatures",
            .callback =
                [=] {
                  History history;
-                 history[e0] = {FeaturesSet({f1}), FeaturesSet({f2})};
-                 history[e1] = {FeaturesSet({f3})};
-                 std::vector<Event> results = Sort(history, FeaturesSet());
+                 history[e0] = {FeaturesSet{{f1}}, FeaturesSet{{f2}}};
+                 history[e1] = {FeaturesSet{{f3}}};
+                 std::vector<Event> results = Sort(history, FeaturesSet{});
                  CHECK_EQ(results.size(), 2ul);
                  CHECK_EQ(results.front(), e1);
                  CHECK_EQ(results.back(), e0);
@@ -346,9 +346,9 @@ const bool bayes_sort_tests_probability_tests_registration =
            .callback =
                [=] {
                  History history;
-                 history[e0] = {FeaturesSet({f1}), FeaturesSet({f2})};
-                 history[e1] = {FeaturesSet({f3})};
-                 std::vector<Event> results = Sort(history, FeaturesSet({f4}));
+                 history[e0] = {FeaturesSet{{f1}}, FeaturesSet{{f2}}};
+                 history[e1] = {FeaturesSet{{f3}}};
+                 std::vector<Event> results = Sort(history, FeaturesSet{{f4}});
                  CHECK_EQ(results.size(), 2ul);
                  CHECK_EQ(results.front(), e1);
                  CHECK_EQ(results.back(), e0);
@@ -360,12 +360,12 @@ const bool bayes_sort_tests_probability_tests_registration =
                      Sort(History{{
                               {e0,
                                {
-                                   FeaturesSet({f1}),
-                                   FeaturesSet({f2}),
+                                   FeaturesSet{{f1}},
+                                   FeaturesSet{{f2}},
                                }},
-                              {e1, {FeaturesSet({f3})}},
+                              {e1, {FeaturesSet{{f3}}}},
                           }},
-                          FeaturesSet({f3}));
+                          FeaturesSet{{f3}});
                  CHECK_EQ(results.size(), 2ul);
                  CHECK_EQ(results.front(), e0);
                  CHECK_EQ(results.back(), e1);
@@ -377,12 +377,12 @@ const bool bayes_sort_tests_probability_tests_registration =
                      Sort(History{{
                               {e0,
                                {
-                                   FeaturesSet({f1}),
-                                   FeaturesSet({f2}),
+                                   FeaturesSet{{f1}},
+                                   FeaturesSet{{f2}},
                                }},
-                              {e1, {FeaturesSet({f1})}},
+                              {e1, {FeaturesSet{{f1}}}},
                           }},
-                          FeaturesSet({f2}));
+                          FeaturesSet{{f2}});
                  CHECK_EQ(results.size(), 2ul);
                  CHECK_EQ(results.front(), e1);
                  CHECK_EQ(results.back(), e0);
@@ -394,33 +394,33 @@ const bool bayes_sort_tests_probability_tests_registration =
                      Sort(History{{
                               {e0,
                                {
-                                   FeaturesSet({f1}),
-                                   FeaturesSet({f5, f6}),
-                                   FeaturesSet({f2}),
+                                   FeaturesSet{{f1}},
+                                   FeaturesSet{{f5, f6}},
+                                   FeaturesSet{{f2}},
                                }},
                               {e1,
                                {
-                                   FeaturesSet({f5}),
-                                   FeaturesSet({f6}),
-                                   FeaturesSet({f5}),
+                                   FeaturesSet{{f5}},
+                                   FeaturesSet{{f6}},
+                                   FeaturesSet{{f5}},
                                }},
                               {e2,
                                {
-                                   FeaturesSet({f5}),
-                                   FeaturesSet({f2}),
-                                   FeaturesSet({f3}),
+                                   FeaturesSet{{f5}},
+                                   FeaturesSet{{f2}},
+                                   FeaturesSet{{f3}},
                                }},
                               {e3,
                                {
-                                   FeaturesSet({f5, f2}),
-                                   FeaturesSet({f6}),
+                                   FeaturesSet{{f5, f2}},
+                                   FeaturesSet{{f6}},
                                }},
                               {e4,
                                {
-                                   FeaturesSet({f4}),
+                                   FeaturesSet{{f4}},
                                }},
                           }},
-                          FeaturesSet({f5, f6}));
+                          FeaturesSet{{f5, f6}});
                  CHECK_EQ(results.size(), 5ul);
                  CHECK(results[4] == e1);
                  CHECK(results[3] == e3);
