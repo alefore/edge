@@ -4,7 +4,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "src/language/ghost_type.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/wstring.h"
 
@@ -30,8 +29,11 @@ class FeaturesSet
 
 // The history represents all the past executions of all events. For each
 // execution, we store the set of features that were present.
-using InternalHistoryType = std::unordered_map<Event, std::vector<FeaturesSet>>;
-GHOST_TYPE_CONTAINER(History, InternalHistoryType);
+class History
+    : public language::GhostType<
+          History, std::unordered_map<Event, std::vector<FeaturesSet>>> {
+  using GhostType::GhostType;
+};
 
 // Given the history of all past executions of all events and the current state,
 // apply Naive Bayes to sort all events by their predicted proportional
