@@ -28,7 +28,7 @@ class Identifier : public language::GhostType<Identifier, std::wstring> {
     if (input.empty())
       return language::NewError(
           language::lazy_string::LazyString{L"Identifier can't be empty."});
-    return GhostType<Identifier, InternalType>::Validate(input);
+    return language::Success();
   }
 };
 

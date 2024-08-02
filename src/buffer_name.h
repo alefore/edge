@@ -2,13 +2,14 @@
 #define __AFC_EDITOR_BUFFER_NAME_H__
 
 #include "src/infrastructure/dirname.h"
-#include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/functional.h"
 
 namespace afc::editor {
 class OpenBuffer;
 
-GHOST_TYPE(BufferFileId, infrastructure::Path);
+class BufferFileId
+    : public language::GhostType<BufferFileId, infrastructure::Path> {};
 
 // Name of the buffer that holds the contents that the paste command should
 // paste, which corresponds to things that have been deleted recently.
@@ -57,18 +58,23 @@ struct PredictionsBufferName {
   bool operator<(const PredictionsBufferName&) const { return false; }
 };
 
-GHOST_TYPE(HistoryFile, std::wstring);
+class HistoryFile : public language::GhostType<HistoryFile, std::wstring> {};
 
 HistoryFile HistoryFileFiles();
 HistoryFile HistoryFileCommands();
 
-GHOST_TYPE(HistoryBufferName, HistoryFile);
+class HistoryBufferName
+    : public language::GhostType<HistoryBufferName, HistoryFile> {};
 
-GHOST_TYPE(ServerBufferName, infrastructure::Path);
+class ServerBufferName
+    : public language::GhostType<ServerBufferName, infrastructure::Path> {};
 
-GHOST_TYPE(CommandBufferName, language::lazy_string::LazyString);
+class CommandBufferName
+    : public language::GhostType<CommandBufferName,
+                                 language::lazy_string::LazyString> {};
 
-GHOST_TYPE(AnonymousBufferName, size_t);
+class AnonymousBufferName
+    : public language::GhostType<AnonymousBufferName, size_t> {};
 
 using BufferName =
     std::variant<BufferFileId, PasteBuffer, FuturePasteBuffer, BufferListId,
@@ -80,13 +86,6 @@ std::wstring to_wstring(const BufferName&);
 
 std::ostream& operator<<(std::ostream& os, const BufferName& p);
 }  // namespace afc::editor
-
-GHOST_TYPE_TOP_LEVEL(afc::editor::BufferFileId);
-GHOST_TYPE_TOP_LEVEL(afc::editor::ServerBufferName);
-GHOST_TYPE_TOP_LEVEL(afc::editor::HistoryFile);
-GHOST_TYPE_TOP_LEVEL(afc::editor::HistoryBufferName);
-GHOST_TYPE_TOP_LEVEL(afc::editor::CommandBufferName);
-GHOST_TYPE_TOP_LEVEL(afc::editor::AnonymousBufferName);
 
 namespace std {
 template <>

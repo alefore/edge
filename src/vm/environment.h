@@ -26,7 +26,8 @@ class ObjectName;
 // Represents a namespace in the VM environment, where symbols can be defined.
 // For example, a reference `lib::zk::Today` is actually the symbol "Today" in
 // the namespace `{"lib", "zk"}`.
-GHOST_TYPE_CONTAINER(Namespace, std::vector<Identifier>)
+class Namespace
+    : public language::GhostType<Namespace, std::vector<Identifier>> {};
 
 class Environment {
   struct ConstructorAccessTag {};

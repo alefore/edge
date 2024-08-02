@@ -9,6 +9,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/language/container.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -18,6 +19,7 @@ namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::FromByteString;
+using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
@@ -27,22 +29,28 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::infrastructure {
+
+using ::operator<<;
+
+/* static */ language::PossibleError PathComponent::Validate(
+    const std::wstring& input) {
+  if (input.empty()) return NewError(LazyString{L"Component can't be empty."});
+  if (input.find(L"/") != std::wstring::npos)
+    return NewError(LazyString{L"Component can't contain a slash: "} +
+                    LazyString{input});
+  return Success();
+}
+
 ValueOrError<PathComponent> PathComponent::FromString(std::wstring component) {
-  if (component.empty()) {
-    return Error(L"Component can't be empty.");
-  }
-  if (component.find(L"/") != std::wstring::npos) {
-    return Error(L"Component can't contain a slash: " + component);
-  }
-  return Success(PathComponent(std::move(component)));
+  return PathComponent::New(std::move(component));
 }
 
 /*  static */ PathComponent PathComponent::WithExtension(
     const PathComponent& path, const std::wstring& extension) {
-  auto index = path.component_.find_last_of(L".");
+  auto index = path.read().find_last_of(L".");
   return PathComponent((index == std::string::npos
-                            ? path.component_
-                            : path.component_.substr(0, index)) +
+                            ? path.read()
+                            : path.read().substr(0, index)) +
                        L"." + extension);
 }
 
@@ -75,15 +83,12 @@ const bool path_component_with_extension_tests_registration = tests::Register(
                  PathComponent::FromString(L"foo.blah.md"));
       }}});
 
-const std::wstring& PathComponent::ToString() const { return component_; }
-size_t PathComponent::size() const { return component_.size(); }
+const std::wstring& PathComponent::ToString() const { return read(); }
 
 ValueOrError<PathComponent> PathComponent::remove_extension() const {
-  auto index = component_.find_last_of(L".");
-  if (index == std::string::npos) {
-    return Success(*this);
-  }
-  return PathComponent::FromString(component_.substr(0, index));
+  if (auto index = read().find_last_of(L"."); index != std::string::npos)
+    return PathComponent::New(read().substr(0, index));
+  return Success(*this);
 }
 
 const bool path_component_remove_extension_tests_registration = tests::Register(
@@ -115,11 +120,9 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
       }}});
 
 std::optional<std::wstring> PathComponent::extension() const {
-  auto index = component_.find_last_of(L".");
-  if (index == std::string::npos) {
-    return std::nullopt;
-  }
-  return component_.substr(index + 1);
+  if (auto index = read().find_last_of(L"."); index != std::string::npos)
+    return read().substr(index + 1);
+  return std::nullopt;
 }
 
 const bool path_component_extension_tests_registration = tests::Register(
@@ -140,11 +143,8 @@ const bool path_component_extension_tests_registration = tests::Register(
               L"md");
       }}});
 
-PathComponent::PathComponent(std::wstring component)
-    : component_(std::move(component)) {}
-
 Path::Path(PathComponent path_component)
-    : path_(std::move(path_component.component_)) {}
+    : path_(std::move(path_component.read())) {}
 
 /* static */ Path Path::Join(Path a, Path b) {
   if (a.IsRoot() && b.IsRoot()) {
@@ -295,7 +295,8 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
   std::list<PathComponent> output;
   Path path = *this;
   while (!path.IsRoot() && path != Path::LocalDirectory()) {
-    ASSIGN_OR_RETURN(auto base, path.Basename());
+    ASSIGN_OR_RETURN(PathComponent base, path.Basename());
+    using ::operator<<;
     VLOG(5) << "DirectorySplit: PushFront: " << base;
     output.push_front(base);
     if (output.front().ToString() == path.path_) {
@@ -319,10 +320,10 @@ const bool directory_split_tests_registration = tests::Register(
         {.name = L"NoSplit",
          .callback =
              [] {
-               std::list<PathComponent> result =
-                   ValueOrDie(Path{PathComponent::FromString(L"alejo.txt")}
-                                  .DirectorySplit(),
-                              L"tests");
+               std::list<PathComponent> result = ValueOrDie(
+                   ValueOrDie(Path::FromString(L"alejo.txt"), L"tests")
+                       .DirectorySplit(),
+                   L"tests");
                CHECK_EQ(result.size(), 1ul);
                CHECK_EQ(result.front(),
                         PathComponent::FromString(L"alejo.txt"));
@@ -330,19 +331,22 @@ const bool directory_split_tests_registration = tests::Register(
         {.name = L"Directory",
          .callback =
              [] {
-               auto result = ValueOrDie(
-                   Path{PathComponent::FromString(L"alejo/")}.DirectorySplit(),
-                   L"tests");
+               LOG(INFO) << "XXXX: Start";
+               auto result =
+                   ValueOrDie(ValueOrDie(Path::FromString(L"alejo/"), L"tests")
+                                  .DirectorySplit(),
+                              L"tests");
+               LOG(INFO) << "XXXX: Check";
                CHECK_EQ(result.size(), 1ul);
                CHECK_EQ(result.front(), PathComponent::FromString(L"alejo"));
              }},
         {.name = L"LongSplit",
          .callback =
              [] {
-               auto result_list =
-                   ValueOrDie(Path{PathComponent::FromString(L"aaa/b/cc/ddd")}
-                                  .DirectorySplit(),
-                              L"tests");
+               auto result_list = ValueOrDie(
+                   Path{ValueOrDie(Path::FromString(L"aaa/b/cc/ddd"), L"tests")}
+                       .DirectorySplit(),
+                   L"tests");
                CHECK_EQ(result_list.size(), 4ul);
                std::vector<PathComponent> result(result_list.begin(),
                                                  result_list.end());

@@ -5,6 +5,20 @@
 
 namespace afc::language {
 namespace ghost_type_internal {
+template <typename External, typename Internal>
+class HasValidate {
+ private:
+  template <typename U>
+  static auto test(int) -> decltype(U::Validate(std::declval<Internal>()),
+                                    std::true_type());
+
+  template <typename>
+  static std::false_type test(...);
+
+ public:
+  static constexpr bool value = decltype(test<External>(0))::value;
+};
+
 template <typename Internal>
 concept HasValueType = requires { typename Internal::value_type; };
 
@@ -81,6 +95,26 @@ struct IsGhostType<
     : std::true_type {};
 
 template <typename External, typename Internal>
+auto operator+(const GhostType<External, Internal>& lhs,
+               const GhostType<External, Internal>& rhs);
+
+template <typename External, typename Internal>
+auto operator+(const GhostType<External, Internal>& lhs, const Internal& t);
+
+template <typename External, typename Internal>
+auto operator+(const Internal& t, const GhostType<External, Internal>& rhs);
+
+template <typename External, typename Internal>
+auto operator*(const GhostType<External, Internal>& lhs,
+               const GhostType<External, Internal>& rhs);
+
+template <typename External, typename Internal>
+auto operator*(const GhostType<External, Internal>& lhs, const Internal& t);
+
+template <typename External, typename Internal>
+auto operator*(const Internal& t, const GhostType<External, Internal>& rhs);
+
+template <typename External, typename Internal>
 inline std::wstring to_wstring(const GhostType<External, Internal>& obj);
 
 template <typename External, typename Internal>
@@ -92,7 +126,8 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
 
   GhostType() = default;
   GhostType(Internal initial_value) : value(std::move(initial_value)) {
-    CHECK(!IsError(External::Validate(value)));
+    if constexpr (ghost_type_internal::HasValidate<External, Internal>::value)
+      CHECK(!IsError(External::Validate(value)));
   }
   GhostType(const GhostType&) = default;
 
@@ -116,16 +151,25 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
         Internal, std::initializer_list<std::pair<const K, V>>>
       : GhostType(Internal(init_list)) {}
 
-  static PossibleError Validate(const Internal&) { return Success(); }
-
-  template <typename T = External>
-  static ValueOrError<External> New(Internal internal) {
+  // Implementation of `New` for when `External::Validate` is defined.
+  template <typename T = External, typename U = Internal>
+  static typename std::enable_if<ghost_type_internal::HasValidate<T, U>::value,
+                                 ValueOrError<External>>::type
+  New(Internal internal) {
     return std::visit(
         overload{[&internal](EmptyValue) -> ValueOrError<External> {
                    return External(internal);
                  },
                  [](Error error) -> ValueOrError<External> { return error; }},
         T::Validate(internal));
+  }
+
+  // Implementation of `New` for when `External::Validate` is not defined.
+  template <typename T = External, typename U = Internal>
+  static typename std::enable_if<!ghost_type_internal::HasValidate<T, U>::value,
+                                 External>::type
+  New(Internal internal) {
+    return External(internal);
   }
 
   auto size() const
@@ -161,7 +205,6 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value.push_back(element);
   }
 
-  template <typename Value>
   auto pop_back()
     requires ghost_type_internal::HasPopBack<Internal>
   {
@@ -215,11 +258,37 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value == other.value;
   }
 
-  std::ostream& operator<<(std::ostream& os) { return os; }
+  inline bool operator>=(const GhostType<External, Internal>& other) const {
+    return value >= other.value;
+  }
 
   const Internal& read() const { return value; }
 
  private:
+  friend auto operator+
+      <External, Internal>(const GhostType<External, Internal>&,
+                           const GhostType<External, Internal>&);
+
+  friend auto operator+
+      <External, Internal>(const GhostType<External, Internal>&,
+                           const Internal&);
+
+  friend auto operator+
+      <External, Internal>(const Internal&,
+                           const GhostType<External, Internal>&);
+
+  friend auto operator*
+      <External, Internal>(const GhostType<External, Internal>&,
+                           const GhostType<External, Internal>&);
+
+  friend auto operator*
+      <External, Internal>(const GhostType<External, Internal>&,
+                           const Internal&);
+
+  friend auto operator*
+      <External, Internal>(const Internal&,
+                           const GhostType<External, Internal>&);
+
   template <typename A, typename B>
   friend std::ostream& operator<<(std::ostream& os, const GhostType<A, B>& obj);
 
@@ -228,6 +297,38 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   friend std::wstring to_wstring<External, Internal>(
       const GhostType<External, Internal>& obj);
 };
+
+template <typename External, typename Internal>
+auto operator+(const GhostType<External, Internal>& lhs,
+               const GhostType<External, Internal>& rhs) {
+  return External::New(lhs.value + rhs.value);
+}
+
+template <typename External, typename Internal>
+auto operator+(const Internal& t, const GhostType<External, Internal>& rhs) {
+  return External::New(t + rhs.value);
+}
+
+template <typename External, typename Internal>
+auto operator+(const GhostType<External, Internal>& lhs, const Internal& t) {
+  return External::New(lhs.value + t);
+}
+
+template <typename External, typename Internal>
+auto operator*(const GhostType<External, Internal>& lhs,
+               const GhostType<External, Internal>& rhs) {
+  return External::New(lhs.value * rhs.value);
+}
+
+template <typename External, typename Internal>
+auto operator*(const Internal& t, const GhostType<External, Internal>& rhs) {
+  return External::New(t * rhs.value);
+}
+
+template <typename External, typename Internal>
+auto operator*(const GhostType<External, Internal>& lhs, const Internal& t) {
+  return External::New(lhs.value * t);
+}
 
 template <typename External, typename Internal>
 inline std::ostream& operator<<(std::ostream& os,

@@ -22,9 +22,9 @@ namespace afc::editor {
 URL URL::FromPath(Path path) { return URL(L"file:" + path.read()); }
 
 std::optional<URL::Schema> URL::schema() const {
-  auto colon = value_.find_first_of(L':');
+  auto colon = read().find_first_of(L':');
   if (colon == std::wstring::npos) return std::nullopt;
-  auto candidate = value_.substr(0, colon);
+  auto candidate = read().substr(0, colon);
   static const std::unordered_map<std::wstring, Schema> schemes = {
       {L"file", Schema::kFile},
       {L"http", Schema::kHttp},
@@ -49,13 +49,13 @@ const bool schema_tests_registration = tests::Register(
      {.name = L"URLStringFile", .callback = [] {
         CHECK(URL(L"file:foo/bar/hey").schema() == URL::Schema::kFile);
       }}});
-}
+}  // namespace
 
 ValueOrError<Path> URL::GetLocalFilePath() const {
   std::optional<Schema> s = schema();
-  if (!s.has_value()) return Path::FromString(value_);
+  if (!s.has_value()) return Path::FromString(read());
   if (s != Schema::kFile) return Error(L"Schema isn't file.");
-  return Path::FromString(value_.substr(sizeof("file:") - 1));
+  return Path::FromString(read().substr(sizeof("file:") - 1));
 }
 
 namespace {
@@ -83,9 +83,9 @@ const bool get_local_file_path_tests_registration = tests::Register(
         CHECK(ValueOrDie(URL(L"file:" + input).GetLocalFilePath()) ==
               ValueOrDie(Path::FromString(input)));
       }}});
-}
+}  // namespace
 
-LazyString URL::ToString() const { return LazyString{value_}; }
+LazyString URL::ToString() const { return LazyString{read()}; }
 
 std::vector<URL> GetLocalFileURLsWithExtensions(
     const LazyString& file_context_extensions, const URL& url) {

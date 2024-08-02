@@ -35,7 +35,7 @@ class Probability : public GhostType<Probability, double> {
     if (input > 1.0)
       return NewError(
           LazyString{L"Invalid probability value (greater than 1.0)."});
-    return GhostType<Probability, double>::Validate(input);
+    return Success();
   }
 };
 

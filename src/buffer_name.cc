@@ -4,6 +4,7 @@
 #include "src/language/wstring.h"
 
 using afc::language::overload;
+using afc::language::to_wstring;
 
 namespace afc::editor {
 

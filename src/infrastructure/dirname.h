@@ -15,16 +15,15 @@ extern "C" {
 
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
 
 namespace afc::infrastructure {
 
-class PathComponent {
+class PathComponent : public language::GhostType<PathComponent, std::wstring> {
  public:
-  using ValueType = std::wstring;
-
   // Compile-time version of FromString for string literals.
   template <size_t N>
   static PathComponent FromString(const wchar_t (&str)[N]) {
@@ -32,15 +31,17 @@ class PathComponent {
     return PathComponent{std::wstring{str}};
   }
 
+  static language::PossibleError Validate(const std::wstring& input);
+
+  // TODO(trivial, 2024-08-01): Get rid of this method. Just use `New`. Should
+  // probably add some good tests for it.
   static language::ValueOrError<PathComponent> FromString(
       std::wstring component);
   static PathComponent WithExtension(const PathComponent& path,
                                      const std::wstring& extension);
-  const std::wstring& ToString() const;
-  size_t size() const;
 
-  GHOST_TYPE_EQ(PathComponent, component_);
-  GHOST_TYPE_ORDER(PathComponent, component_);
+  // TODO(trivial, 2024-08-02): Get rid of this, just use to_wstring.
+  const std::wstring& ToString() const;
 
   // Can fail for ".md".
   language::ValueOrError<PathComponent> remove_extension() const;
@@ -49,17 +50,7 @@ class PathComponent {
   // "hey." => ""
   // "hey.xyz" => "xyz"
   std::optional<std::wstring> extension() const;
-
- private:
-  GHOST_TYPE_OUTPUT_FRIEND(PathComponent, component_);
-  friend class Path;
-  explicit PathComponent(std::wstring component);
-
-  ValueType component_;
 };
-
-using ::operator<<;
-GHOST_TYPE_OUTPUT(PathComponent, component_);
 
 class AbsolutePath;
 class Path {
@@ -117,7 +108,6 @@ class AbsolutePath : public Path {
   explicit AbsolutePath(std::wstring path);
 };
 
-std::ostream& operator<<(std::ostream& os, const PathComponent& p);
 std::ostream& operator<<(std::ostream& os, const Path& p);
 
 // TODO(easy): Remove this:
@@ -126,6 +116,7 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 // Wrapper around `opendir` that calls `closedir` in the deleter.
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
 
+// TODO(trivial, 2024-08-01): Convert `Path` to GhostType<> and remove this.
 inline std::wstring to_wstring(const afc::infrastructure::Path& obj) {
   return obj.read();
 }

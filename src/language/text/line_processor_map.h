@@ -7,14 +7,20 @@
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
 #include "src/language/error/value_or_error.h"
-#include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::language::text {
 
-GHOST_TYPE(LineProcessorKey, language::lazy_string::LazyString);
-GHOST_TYPE(LineProcessorInput, language::lazy_string::LazyString);
-GHOST_TYPE(LineProcessorOutput, language::lazy_string::LazyString);
+class LineProcessorKey
+    : public language::GhostType<LineProcessorKey,
+                                 language::lazy_string::LazyString> {};
+class LineProcessorInput
+    : public language::GhostType<LineProcessorInput,
+                                 language::lazy_string::LazyString> {};
+class LineProcessorOutput
+    : public language::GhostType<LineProcessorOutput,
+                                 language::lazy_string::LazyString> {};
 
 struct LineProcessorOutputFuture {
   LineProcessorOutput initial_value;

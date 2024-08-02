@@ -11,6 +11,7 @@
 #include "src/buffer_variables.h"
 #include "src/infrastructure/dirname.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -31,6 +32,7 @@ using afc::infrastructure::screen::CursorsSet;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::CaptureAndHash;
+using afc::language::GhostType;
 using afc::language::IgnoreErrors;
 using afc::language::IsError;
 using afc::language::MakeNonNullShared;
@@ -241,7 +243,7 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   return line_options;
 }
 
-GHOST_TYPE_SIZE_T(Rows);
+class Rows : public GhostType<Rows, size_t> {};
 
 LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
                                    LineNumber line) {
@@ -274,7 +276,9 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
   LineModifierSet modifiers;
 
   LineBuilder line_options;
-  Rows current = kRowsPerScreenLine * (line - initial_line(options)).read();
+  DCHECK_GE(line, initial_line(options));
+  Rows current = kRowsPerScreenLine *
+                 static_cast<size_t>((line - initial_line(options)).read());
 
   // Characters:
   // 01
@@ -329,7 +333,7 @@ LineBuilder ComputeScrollBarSuffix(const BufferMetadataOutputOptions& options,
       LineColumn begin_line(
           LineNumber((current + row).read() * buffer_lines_per_row));
       LineColumn end_line(
-          LineNumber((current + row + 1).read() * buffer_lines_per_row));
+          LineNumber((current + row + 1ul).read() * buffer_lines_per_row));
       if (begin_line == end_line) continue;
       if (marks.lower_bound(begin_line) != marks.lower_bound(end_line)) {
         active_marks = true;

@@ -9,37 +9,21 @@
 #include "src/language/error/log.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
-#include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 
 namespace afc::concurrent {
 
 // The key that uniquely identifies a given property.
-// TODO(easy, 2023-08-24): Why is this not just a single-line definition?
-class VersionPropertyKey {
- public:
-  using ValueType = std::wstring;
-  GHOST_TYPE_CONSTRUCTOR(VersionPropertyKey, std::wstring, value);
-  GHOST_TYPE_EQ(VersionPropertyKey, value);
-  GHOST_TYPE_ORDER(VersionPropertyKey, value);
-  GHOST_TYPE_OUTPUT_FRIEND(VersionPropertyKey, value);
-  GHOST_TYPE_HASH_FRIEND(VersionPropertyKey, value);
-
-  const std::wstring& read() const { return value; }
-
- private:
+class VersionPropertyKey
+    : public language::GhostType<VersionPropertyKey, std::wstring> {
   friend class VersionPropertyReceiver;
-  ValueType value;
 };
 
+// TODO(easy, 2024-08-02): Get rid of this `using` clause?
 using ::operator<<;
-GHOST_TYPE_OUTPUT(VersionPropertyKey, value);
-}  // namespace afc::concurrent
 
-GHOST_TYPE_HASH(afc::concurrent::VersionPropertyKey);
-
-namespace afc::concurrent {
 // This class is thread-safe.
 class VersionPropertyReceiver {
  public:
