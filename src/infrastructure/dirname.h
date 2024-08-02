@@ -53,18 +53,19 @@ class PathComponent : public language::GhostType<PathComponent, std::wstring> {
 };
 
 class AbsolutePath;
-class Path {
+class Path : public language::GhostType<Path, std::wstring> {
  public:
-  using ValueType = std::wstring;
+  using GhostType::GhostType;
 
-  Path(const Path&) = default;
-  Path(Path&&) = default;
+  static language::PossibleError Validate(const std::wstring& path);
+
   Path(PathComponent path_component);
 
   static Path LocalDirectory();  // Similar to FromString(L".").
   static Path Root();            // Similar to FromString(L"/").
 
   static Path Join(Path a, Path b);
+  // TODO(2024-08-02): Convert to `New` from GhostType<>.
   static language::ValueOrError<Path> FromString(std::wstring path);
   static language::ValueOrError<Path> FromString(
       language::lazy_string::LazyString path);
@@ -77,7 +78,6 @@ class Path {
   language::ValueOrError<PathComponent> Basename() const;
   std::optional<std::wstring> extension() const;
 
-  const std::wstring& read() const;
   language::ValueOrError<std::list<PathComponent>> DirectorySplit() const;
   bool IsRoot() const;
 
@@ -85,18 +85,6 @@ class Path {
   RootType GetRootType() const;
 
   language::ValueOrError<AbsolutePath> Resolve() const;
-
-  Path& operator=(Path path);
-
-  GHOST_TYPE_EQ(Path, path_);
-  GHOST_TYPE_ORDER(Path, path_);
-  GHOST_TYPE_HASH_FRIEND(Path, path_);
-
- protected:
-  explicit Path(std::wstring path);
-
- private:
-  ValueType path_;
 };
 
 class AbsolutePath : public Path {
@@ -115,11 +103,6 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 
 // Wrapper around `opendir` that calls `closedir` in the deleter.
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
-
-// TODO(trivial, 2024-08-01): Convert `Path` to GhostType<> and remove this.
-inline std::wstring to_wstring(const afc::infrastructure::Path& obj) {
-  return obj.read();
-}
 }  // namespace afc::infrastructure
 
 GHOST_TYPE_HASH(afc::infrastructure::Path);

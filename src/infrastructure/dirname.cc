@@ -22,6 +22,7 @@ using afc::language::FromByteString;
 using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
+using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrDie;
@@ -143,19 +144,18 @@ const bool path_component_extension_tests_registration = tests::Register(
               L"md");
       }}});
 
-Path::Path(PathComponent path_component)
-    : path_(std::move(path_component.read())) {}
+Path::Path(PathComponent path_component) : Path(path_component.read()) {}
 
 /* static */ Path Path::Join(Path a, Path b) {
   if (a.IsRoot() && b.IsRoot()) {
     return b;
   }
-  if (a == LocalDirectory() && b.path_[0] != L'/') {
+  if (a == LocalDirectory() && b.read()[0] != L'/') {
     return b;
   }
-  bool has_slash = a.path_[a.path_.size() - 1] == L'/' || b.path_[0] == L'/';
+  bool has_slash = a.read()[a.read().size() - 1] == L'/' || b.read()[0] == L'/';
   return ValueOrDie(
-      Path::FromString(a.path_ + (has_slash ? L"" : L"/") + b.path_),
+      Path::FromString(a.read() + (has_slash ? L"" : L"/") + b.read()),
       L"Path::Join");
 }
 
@@ -265,17 +265,17 @@ const bool expand_home_directory_tests_registration = tests::Register(
 }
 
 ValueOrError<Path> Path::Dirname() const {
-  VLOG(5) << "Dirname: " << path_;
+  VLOG(5) << "Dirname: " << read();
   std::unique_ptr<char, decltype(&std::free)> tmp(
-      strdup(ToByteString(path_).c_str()), &std::free);
+      strdup(ToByteString(read()).c_str()), &std::free);
   CHECK(tmp != nullptr);
   return Path::FromString(FromByteString(dirname(tmp.get())));
 }
 
 ValueOrError<PathComponent> Path::Basename() const {
-  VLOG(5) << "Pathname: " << path_;
+  VLOG(5) << "Pathname: " << read();
   std::unique_ptr<char, decltype(&std::free)> tmp(
-      strdup(ToByteString(path_).c_str()), &std::free);
+      strdup(ToByteString(read()).c_str()), &std::free);
   CHECK(tmp != nullptr);
   return PathComponent::FromString(FromByteString(basename(tmp.get())));
 }
@@ -289,8 +289,6 @@ std::optional<std::wstring> Path::extension() const {
       Basename());
 }
 
-const std::wstring& Path::read() const { return path_; }
-
 ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
   std::list<PathComponent> output;
   Path path = *this;
@@ -299,12 +297,12 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
     using ::operator<<;
     VLOG(5) << "DirectorySplit: PushFront: " << base;
     output.push_front(base);
-    if (output.front().ToString() == path.path_) {
+    if (output.front().ToString() == path.read()) {
       return Success(output);
     }
     ASSIGN_OR_RETURN(
         auto dir, AugmentError(LazyString{L"Dirname error"}, path.Dirname()));
-    if (dir.path_.size() >= path.path_.size()) {
+    if (dir.read().size() >= path.read().size()) {
       LOG(INFO) << "Unable to advance: " << path << " -> " << dir;
       return Error(L"Unable to advance: " + path.read());
     }
@@ -331,12 +329,10 @@ const bool directory_split_tests_registration = tests::Register(
         {.name = L"Directory",
          .callback =
              [] {
-               LOG(INFO) << "XXXX: Start";
                auto result =
                    ValueOrDie(ValueOrDie(Path::FromString(L"alejo/"), L"tests")
                                   .DirectorySplit(),
                               L"tests");
-               LOG(INFO) << "XXXX: Check";
                CHECK_EQ(result.size(), 1ul);
                CHECK_EQ(result.front(), PathComponent::FromString(L"alejo"));
              }},
@@ -373,26 +369,22 @@ const bool directory_split_tests_registration = tests::Register(
              }},
     });
 
-bool Path::IsRoot() const { return path_ == L"/"; }
+bool Path::IsRoot() const { return read() == L"/"; }
 
 Path::RootType Path::GetRootType() const {
-  return path_[0] == L'/' ? Path::RootType::kAbsolute
-                          : Path::RootType::kRelative;
+  return read()[0] == L'/' ? Path::RootType::kAbsolute
+                           : Path::RootType::kRelative;
 }
 
 ValueOrError<AbsolutePath> Path::Resolve() const {
-  char* result = realpath(ToByteString(path_).c_str(), nullptr);
+  char* result = realpath(ToByteString(read()).c_str(), nullptr);
   return result == nullptr ? Error(FromByteString(strerror(errno)))
                            : AbsolutePath::FromString(FromByteString(result));
 }
 
-Path& Path::operator=(Path path) {
-  this->path_ = std::move(path.path_);
-  return *this;
-}
-
-Path::Path(std::wstring path) : path_(std::move(path)) {
-  CHECK(!path_.empty());
+PossibleError Path::Validate(const std::wstring& path) {
+  if (path.empty()) return NewError(LazyString{L"Path can not be empty."});
+  return Success();
 }
 
 Path Path::LocalDirectory() {

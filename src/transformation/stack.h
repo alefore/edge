@@ -4,13 +4,14 @@
 #include <list>
 #include <memory>
 
+#include "src/language/ghost_type_class.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
 #include "src/transformation/type.h"
 
 namespace afc::editor {
 namespace transformation {
-GHOST_TYPE(ShellCommand, std::wstring);
+class ShellCommand : public language::GhostType<ShellCommand, std::wstring> {};
 
 struct Stack {
   using value_type = Variant;
