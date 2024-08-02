@@ -122,7 +122,7 @@ std::map<std::wstring, LazyString> LoadEnvironmentVariables(
                    }
                  }
                }},
-      PathComponent::FromString(command));
+      PathComponent::New(command));
   return environment;
 }
 
@@ -407,7 +407,7 @@ ValueOrError<Path> GetChildrenPath(EditorState& editor_state) {
   if (auto buffer = editor_state.current_buffer(); buffer.has_value()) {
     return AugmentError(
         LazyString{L"Getting children path of buffer"},
-        Path::FromString(buffer->ptr()->Read(buffer_variables::children_path)));
+        Path::New(buffer->ptr()->Read(buffer_variables::children_path)));
   }
   return NewError(LazyString{L"Editor doesn't have a current buffer."});
 }
@@ -629,7 +629,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
       vm::Identifier(L"set_children_path"),
       NewCallback(pool, vm::kPurityTypeUnknown,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
-                     std::wstring value) {
+                     LazyString value) {
                     options->children_path =
                         OptionalFrom(Path::FromString(std::move(value)));
                   })

@@ -24,10 +24,11 @@ namespace afc::infrastructure {
 
 class PathComponent : public language::GhostType<PathComponent, std::wstring> {
  public:
-  // Compile-time version of FromString for string literals.
+  // Compile-time version of `New` for string literals.
   template <size_t N>
   static PathComponent FromString(const wchar_t (&str)[N]) {
     static_assert(N > 1, "String cannot be empty");
+    // TODO(2024-08-02): This should also validate no slashes!
     return PathComponent{std::wstring{str}};
   }
 
@@ -43,6 +44,14 @@ class PathComponent : public language::GhostType<PathComponent, std::wstring> {
   // "hey." => ""
   // "hey.xyz" => "xyz"
   std::optional<std::wstring> extension() const;
+
+  // TODO(2024-08-02): Once we convert the inner type to LazyString, we can
+  // convert all readers to use this version. Then gradually migrate them all to
+  // the underlying LazyString-based read method.
+  std::wstring ToString() const { return read(); }
+  language::lazy_string::LazyString ToLazyString() const {
+    return language::lazy_string::LazyString{read()};
+  }
 };
 
 class AbsolutePath;
@@ -59,7 +68,6 @@ class Path : public language::GhostType<Path, std::wstring> {
 
   static Path Join(Path a, Path b);
   // TODO(2024-08-02): Convert to `New` from GhostType<>.
-  static language::ValueOrError<Path> FromString(std::wstring path);
   static language::ValueOrError<Path> FromString(
       language::lazy_string::LazyString path);
   static Path ExpandHomeDirectory(const Path& home_directory, const Path& path);
@@ -78,6 +86,14 @@ class Path : public language::GhostType<Path, std::wstring> {
   RootType GetRootType() const;
 
   language::ValueOrError<AbsolutePath> Resolve() const;
+
+  // TODO(2024-08-02): Once we convert the inner type to LazyString, we can
+  // convert all readers to use this version. Then gradually migrate them all to
+  // the underlying LazyString-based read method.
+  std::wstring ToString() const { return read(); }
+  language::lazy_string::LazyString ToLazyString() const {
+    return language::lazy_string::LazyString{read()};
+  }
 };
 
 class AbsolutePath : public Path {
@@ -88,8 +104,6 @@ class AbsolutePath : public Path {
  private:
   explicit AbsolutePath(std::wstring path);
 };
-
-std::ostream& operator<<(std::ostream& os, const Path& p);
 
 // TODO(easy): Remove this:
 std::wstring PathJoin(const std::wstring& a, const std::wstring& b);

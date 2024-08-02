@@ -102,7 +102,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
           PathComponent path,
           ColumnNumberDelta(path_full.size()) + separator_size <= columns
               ? path_full
-              : PathComponent::FromString(
+              : PathComponent::New(
                     output_items.empty()
                         ? path_full.ToString().substr(
                               path_full.size() -
@@ -116,11 +116,11 @@ ValueOrError<LineBuilder> GetOutputComponents(
                 [&](const PathComponent& path_without_extension) {
                   if (std::optional<std::wstring> extension = path.extension();
                       extension.has_value()) {
-                    Add(LazyString{path_without_extension.ToString()}, bold);
+                    Add(path_without_extension.ToLazyString(), bold);
                     Add(LazyString{L"."}, dim);
                     Add(LazyString{extension.value()}, bold);
                   } else {
-                    Add(LazyString{path.ToString()}, modifiers);
+                    Add(path.ToLazyString(), modifiers);
                   }
                 }},
             path.remove_extension());
@@ -144,10 +144,10 @@ ValueOrError<LineBuilder> GetOutputComponents(
 std::wstring GetOutputComponentsForTesting(std::wstring path,
                                            ColumnNumberDelta columns) {
   std::wstring output =
-      ValueOrDie(
-          GetOutputComponents(
-              ValueOrDie(ValueOrDie(Path::FromString(path)).DirectorySplit()),
-              columns, LineModifierSet{}, LineModifierSet{}, LineModifierSet{}))
+      ValueOrDie(GetOutputComponents(
+                     ValueOrDie(ValueOrDie(Path::New(path)).DirectorySplit()),
+                     columns, LineModifierSet{}, LineModifierSet{},
+                     LineModifierSet{}))
           .Build()
           .contents()
           .ToString();
@@ -350,7 +350,7 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
                            return ValueOrDie(path.DirectorySplit(),
                                              L"RemoveCommonPrefixesForTesting");
                          }},
-                Path::FromString(c));
+                Path::New(c));
           }))) |
       std::views::transform([](std::list<PathComponent> components) {
         return components.empty()
@@ -501,8 +501,8 @@ const bool get_buffer_visible_string_tests_registration = tests::Register(
                ColumnNumberDelta(48), L"name_irrelevant", LineSequence(),
                LineModifierSet{}, SelectionState::kIdle,
                ValueOrDie(
-                   ValueOrDie(Path::FromString(
-                                  L"edge-clang/edge/src/args.cc/.edge_state"))
+                   ValueOrDie(
+                       Path::New(L"edge-clang/edge/src/args.cc/.edge_state"))
                        .DirectorySplit()));
          }}});
 
@@ -572,7 +572,7 @@ ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
   if (path_str != buffer.Read(buffer_variables::name)) {
     return Error(L"name doesn't match path.");
   }
-  ASSIGN_OR_RETURN(Path path, Path::FromString(path_str));
+  ASSIGN_OR_RETURN(Path path, Path::New(path_str));
   ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());
   return components;
 }

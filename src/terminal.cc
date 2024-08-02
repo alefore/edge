@@ -149,11 +149,11 @@ std::wstring TransformCommandNameForStatus(std::wstring name) {
                       [&](Path first_path) {
                         std::visit(overload{IgnoreErrors{},
                                             [&](PathComponent basename) {
-                                              output = basename.ToString();
+                                              output = basename.read();
                                             }},
                                    first_path.Basename());
                       }},
-             Path::FromString(output));
+             Path::New(output));
 
   if (output.size() > kMaxLength) {
     output = output.substr(0, kMaxLength - kDefaultName.size()) + kDefaultName;

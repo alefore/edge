@@ -68,9 +68,8 @@ futures::ValueOrError<std::vector<Path>> FileSystemDriver::Glob(
     }
     return ExtractErrors(container::MaterializeVector(
         std::views::counted(output_glob.gl_pathv, output_glob.gl_pathc) |
-        std::views::transform([](char* input) {
-          return Path::FromString(FromByteString(input));
-        })));
+        std::views::transform(
+            [](char* input) { return Path::New(FromByteString(input)); })));
   });
 }
 

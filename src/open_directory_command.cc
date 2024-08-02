@@ -43,7 +43,7 @@ class OpenDirectoryCommand : public Command {
             [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
               ASSIGN_OR_RETURN(
                   Path path,
-                  Path::FromString(buffer.ptr()->Read(buffer_variables::name)));
+                  Path::New(buffer.ptr()->Read(buffer_variables::name)));
               return path.Dirname();
             },
             [] { return Path::LocalDirectory(); }))});

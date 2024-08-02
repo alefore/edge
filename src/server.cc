@@ -61,7 +61,7 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
     // will fail.
     Path output = input_path.has_value()
                       ? input_path.value()
-                      : ValueOrDie(Path::FromString(FromByteString(
+                      : ValueOrDie(Path::New(FromByteString(
                             mktemp(strdup("/tmp/edge-server-XXXXXX")))));
 
     char* path_str = strdup(ToByteString(output.read()).c_str());
@@ -146,10 +146,9 @@ ValueOrError<FileDescriptor> SyncConnectToParentServer() {
   if (char* server_address = getenv(variable.c_str());
       server_address != nullptr) {
     ASSIGN_OR_RETURN(
-        Path path,
-        AugmentError(LazyString{L"Value from environment variable " +
-                                FromByteString(variable)},
-                     Path::FromString(FromByteString(server_address))));
+        Path path, AugmentError(LazyString{L"Value from environment variable " +
+                                           FromByteString(variable)},
+                                Path::New(FromByteString(server_address))));
     return SyncConnectToServer(path);
   }
   return Error(
@@ -214,8 +213,8 @@ void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
 }
 
 futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
-  std::wstring address_str = target.Read(buffer_variables::path);
-  FUTURES_ASSIGN_OR_RETURN(Path path, Path::FromString(address_str));
+  FUTURES_ASSIGN_OR_RETURN(Path path,
+                           Path::New(target.Read(buffer_variables::path)));
 
   LOG(INFO) << L"Server starts: " << path;
   return target.SetInputFromPath(path);

@@ -133,7 +133,7 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
             input.path =
                 Path::ExpandHomeDirectory(input.home_directory, path).read();
           }},
-      Path::FromString(input.path));
+      Path::New(input.path));
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {Path::Root()};
   }
@@ -157,8 +157,8 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                           return Past(IterationControlCommand::kStop);
                         }
 
-                        ValueOrError<Path> input_path = Path::FromString(
-                            input.path.substr(0, state->str_end));
+                        ValueOrError<Path> input_path =
+                            Path::New(input.path.substr(0, state->str_end));
                         if (IsError(input_path)) {
                           state->str_end =
                               input.path.find_last_of(':', state->str_end - 1);

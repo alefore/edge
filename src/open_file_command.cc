@@ -155,7 +155,7 @@ futures::Value<ColorizePromptOptions> AdjustPath(
 
 std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                                    std::wstring buffer_path) {
-  std::optional<Path> path = OptionalFrom(Path::FromString(buffer_path));
+  std::optional<Path> path = OptionalFrom(Path::New(buffer_path));
   if (path == std::nullopt) return L"";
   struct stat stat_buffer;
   // TODO(blocking): Use FileSystemDriver here!

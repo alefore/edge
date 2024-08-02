@@ -209,10 +209,9 @@ EditorState::EditorState(CommandLineValues args,
       edge_path_(container::MaterializeVector(
           args_.config_paths |
           std::views::transform([](std::wstring s) -> ValueOrError<Path> {
-            // TODO(easy, 2023-11-25): Get rid of the
-            // Path::FromString(std::wstring) version (leaving only the one
-            // consuming a LazyString) and then get rid of the wrapping here.
-            return Path::FromString(s);
+            // TODO(easy, 2023-11-25): Change config_paths to be LazyString, to
+            // avoid need to wrap.
+            return Path::FromString(LazyString{s});
           }) |
           SkipErrors)),
       environment_([&] {
@@ -238,8 +237,8 @@ EditorState::EditorState(CommandLineValues args,
   });
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
-    auto path =
-        Path::Join(dir, ValueOrDie(Path::FromString(L"hooks/start.cc")));
+    auto path = Path::Join(
+        dir, ValueOrDie(Path::FromString(LazyString{L"hooks/start.cc"})));
     return std::visit(
         overload{
             [&](NonNull<std::unique_ptr<vm::Expression>> expression)
@@ -839,9 +838,9 @@ void EditorState::PushPosition(LineColumn position) {
                         .name = PositionsBufferName(),
                         .path = edge_path().empty()
                                     ? std::optional<Path>()
-                                    : Path::Join(edge_path().front(),
-                                                 ValueOrDie(Path::FromString(
-                                                     L"positions"))),
+                                    : Path::Join(
+                                          edge_path().front(),
+                                          ValueOrDie(Path::New(L"positions"))),
                         .insertion_type = BuffersList::AddBufferType::kIgnore})
                     .Transform([](gc::Root<OpenBuffer> buffer_root) {
                       OpenBuffer& output = buffer_root.ptr().value();

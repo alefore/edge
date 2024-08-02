@@ -198,7 +198,7 @@ bool predictor_transformation_tests_register = tests::Register(
                                 SortedLineSequence(LineSequence()))});
         CHECK(final_value.has_value());
       }}});
-}
+}  // namespace
 
 using OpenFileCallback =
     std::function<futures::ValueOrError<gc::Root<OpenBuffer>>(
@@ -221,9 +221,8 @@ class ReadAndInsert : public CompositeTransformation {
       return futures::Past(Output());
     }
     auto edge_path_front = input.buffer.editor().edge_path().front();
-    auto full_path =
-        Path::Join(edge_path_front,
-                   Path::Join(ValueOrDie(Path::FromString(L"expand")), path_));
+    auto full_path = Path::Join(
+        edge_path_front, Path::Join(ValueOrDie(Path::New(L"expand")), path_));
 
     return open_file_callback_(
                OpenFileOptions{
@@ -271,7 +270,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                std::optional<Path> path_opened;
                futures::Value<CompositeTransformation::Output> output =
                    ReadAndInsert(
-                       ValueOrDie(Path::FromString(L"unexistent")),
+                       ValueOrDie(Path::New(L"unexistent")),
                        [&](OpenFileOptions options) {
                          path_opened = options.path;
                          return futures::Past(Error(L"File does not exist."));
@@ -282,7 +281,7 @@ const bool read_and_insert_tests_registration = tests::Register(
                CHECK(output.has_value());
                CHECK(path_opened.has_value());
                CHECK(path_opened.value() ==
-                     ValueOrDie(Path::FromString(
+                     ValueOrDie(Path::New(
                          L"/home/edge-test-user/.edge/expand/unexistent")));
              }},
     });
@@ -355,8 +354,8 @@ class ExpandTransformation : public CompositeTransformation {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
           futures::Value<Predictor> predictor_future =
               futures::Past(SyntaxBasedPredictor);
-          if (ValueOrError<Path> path = Path::FromString(
-                  input.buffer.Read(buffer_variables::dictionary));
+          if (ValueOrError<Path> path =
+                  Path::New(input.buffer.Read(buffer_variables::dictionary));
               !IsError(path)) {
             predictor_future =
                 OpenFileIfFound(

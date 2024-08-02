@@ -49,7 +49,7 @@ static Path GetHomeDirectory() {
                                  return Path::Root();
                                },
                                [](Path path) { return path; }},
-                      Path::FromString(FromByteString(env)));
+                      Path::New(FromByteString(env)));
   }
   if (struct passwd* entry = getpwuid(getuid()); entry != nullptr) {
     return std::visit(
@@ -59,7 +59,7 @@ static Path GetHomeDirectory() {
                    return Path::Root();
                  },
                  [](Path path) { return path; }},
-        Path::FromString(FromByteString(entry->pw_dir)));
+        Path::New(FromByteString(entry->pw_dir)));
   }
   return Path::Root();  // What else?
 }
@@ -80,7 +80,7 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
     // TODO: stat it and don't add it if it doesn't exist.
     while (std::getline(text_stream, dir, ';')) {
       std::visit(overload{IgnoreErrors{}, push},
-                 Path::FromString(FromByteString(dir)));
+                 Path::New(FromByteString(dir)));
     }
   }
   return output;
@@ -161,7 +161,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                  if (input.empty()) {
                    return Success(std::optional<Path>());
                  }
-                 ValueOrError<Path> output = Path::FromString(input);
+                 ValueOrError<Path> output = Path::New(input);
                  if (std::holds_alternative<Error>(output)) {
                    return std::get<Error>(output);
                  }
@@ -175,7 +175,7 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                    L"Path to the pipe in which the daemon is listening")
           .Set(&CommandLineValues::client,
                [](std::wstring input) -> ValueOrError<std::optional<Path>> {
-                 ValueOrError<Path> output = Path::FromString(input);
+                 ValueOrError<Path> output = Path::New(input);
                  if (std::holds_alternative<Error>(output)) {
                    return std::get<Error>(output);
                  }

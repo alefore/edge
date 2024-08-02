@@ -248,10 +248,10 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
               .name = buffer_name,
               .path = editor_state.edge_path().empty()
                           ? std::nullopt
-                          : std::make_optional(
-                                Path::Join(editor_state.edge_path().front(),
-                                           ValueOrDie(PathComponent::FromString(
-                                               name.read() + L"_history")))),
+                          : std::make_optional(Path::Join(
+                                editor_state.edge_path().front(),
+                                ValueOrDie(PathComponent::New(name.read() +
+                                                              L"_history")))),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([&editor_state](gc::Root<OpenBuffer> buffer_root) {
         OpenBuffer& buffer = buffer_root.ptr().value();

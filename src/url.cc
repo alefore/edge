@@ -41,8 +41,9 @@ const bool schema_tests_registration = tests::Register(
      {.name = L"URLFromPath",
       .callback =
           [] {
-            CHECK(URL::FromPath(ValueOrDie(Path::FromString(L"foo/bar/hey")))
-                      .schema() == URL::Schema::kFile);
+            CHECK(
+                URL::FromPath(ValueOrDie(Path::New(L"foo/bar/hey"))).schema() ==
+                URL::Schema::kFile);
           }},
      {.name = L"URLRelative",
       .callback = [] { CHECK(!URL(L"foo/bar/hey").schema().has_value()); }},
@@ -53,9 +54,9 @@ const bool schema_tests_registration = tests::Register(
 
 ValueOrError<Path> URL::GetLocalFilePath() const {
   std::optional<Schema> s = schema();
-  if (!s.has_value()) return Path::FromString(read());
+  if (!s.has_value()) return Path::New(read());
   if (s != Schema::kFile) return Error(L"Schema isn't file.");
-  return Path::FromString(read().substr(sizeof("file:") - 1));
+  return Path::New(read().substr(sizeof("file:") - 1));
 }
 
 namespace {
@@ -69,19 +70,19 @@ const bool get_local_file_path_tests_registration = tests::Register(
      {.name = L"URLFromPath",
       .callback =
           [] {
-            Path input = ValueOrDie(Path::FromString(L"foo/bar/hey"));
+            Path input = ValueOrDie(Path::New(L"foo/bar/hey"));
             CHECK(ValueOrDie(URL::FromPath(input).GetLocalFilePath()) == input);
           }},
      {.name = L"URLRelative",
       .callback =
           [] {
-            Path input = ValueOrDie(Path::FromString(L"foo/bar/hey"));
+            Path input = ValueOrDie(Path::New(L"foo/bar/hey"));
             CHECK(ValueOrDie(URL(input.read()).GetLocalFilePath()) == input);
           }},
      {.name = L"URLStringFile", .callback = [] {
         std::wstring input = L"foo/bar/hey";
         CHECK(ValueOrDie(URL(L"file:" + input).GetLocalFilePath()) ==
-              ValueOrDie(Path::FromString(input)));
+              ValueOrDie(Path::New(input)));
       }}});
 }  // namespace
 

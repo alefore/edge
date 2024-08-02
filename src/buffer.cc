@@ -668,7 +668,7 @@ void OpenBuffer::RegisterProgress() {
 
 void OpenBuffer::UpdateTreeParser() {
   if (!ptr_this_.has_value()) return;
-  futures::Past(Path::FromString(Read(buffer_variables::dictionary)))
+  futures::Past(Path::New(Read(buffer_variables::dictionary)))
       .Transform([&](Path dictionary_path) {
         return OpenFileIfFound(OpenFileOptions{
             .editor_state = editor(),
@@ -799,7 +799,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                        });
                  }
                }},
-      Path::FromString(Read(buffer_variables::path)));
+      Path::New(Read(buffer_variables::path)));
 
   contents_observer_->SetOpenBuffer(weak_this);
 }
@@ -887,7 +887,7 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
              paths.begin(), paths.end(),
              [this](Path dir) {
                return EvaluateFile(
-                          Path::Join(dir, ValueOrDie(Path::FromString(
+                          Path::Join(dir, ValueOrDie(Path::New(
                                               L"hooks/buffer-reload.cc"))))
                    .Transform(
                        [](gc::Root<Value>)
@@ -961,7 +961,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
               LazyString{L" "} +
               (disk_state_ == DiskState::kStale ? LazyString{L"modified"}
                                                 : LazyString{L"not modified"}),
-          AbsolutePath::FromString(Read(buffer_variables::path))));
+          AbsolutePath::New(Read(buffer_variables::path))));
 
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
     return futures::Past(ValueOrError<Path>(
@@ -1934,7 +1934,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
       return {};
     }
 
-    auto path = Path::FromString(line);
+    auto path = Path::New(line);
     if (IsError(path)) {
       return {};
     }
@@ -1957,7 +1957,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
                                             }},
                                    path.Dirname());
                       }},
-             Path::FromString(buffer.Read(buffer_variables::path)));
+             Path::New(buffer.Read(buffer_variables::path)));
 
   std::vector<URL> urls = urls_with_extensions;
 

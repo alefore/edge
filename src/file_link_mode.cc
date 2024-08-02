@@ -84,8 +84,8 @@ futures::Value<PossibleError> GenerateContents(
     NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
     OpenBuffer& target) {
   CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
-  FUTURES_ASSIGN_OR_RETURN(
-      Path path, Path::FromString(target.Read(buffer_variables::path)));
+  FUTURES_ASSIGN_OR_RETURN(Path path,
+                           Path::New(target.Read(buffer_variables::path)));
   LOG(INFO) << "GenerateContents: " << path;
   return file_system_driver->Stat(path).Transform(
       [stat_buffer, file_system_driver, &target,
@@ -136,7 +136,7 @@ futures::Value<PossibleError> Save(
       Path immediate_path,
       AugmentError(
           LazyString{L"Buffer can't be saved: Invalid “path” variable"},
-          Path::FromString(buffer.Read(buffer_variables::path))));
+          Path::New(buffer.Read(buffer_variables::path))));
 
   futures::ValueOrError<Path> path_future = futures::Past(immediate_path);
 
@@ -181,8 +181,7 @@ futures::Value<PossibleError> Save(
                   buffer.ptr()->SetDiskState(OpenBuffer::DiskState::kCurrent);
                   for (const auto& dir : buffer.ptr()->editor().edge_path()) {
                     buffer.ptr()->EvaluateFile(Path::Join(
-                        dir, ValueOrDie(
-                                 Path::FromString(L"/hooks/buffer-save.cc"))));
+                        dir, ValueOrDie(Path::New(L"/hooks/buffer-save.cc"))));
                   }
                   if (buffer.ptr()->Read(
                           buffer_variables::trigger_reload_on_buffer_write)) {
@@ -247,7 +246,7 @@ futures::Value<PossibleError> SaveContentsToFile(
     FileSystemDriver& file_system_driver) {
   Path tmp_path =
       Path::Join(ValueOrDie(path.Dirname()),
-                 ValueOrDie(PathComponent::FromString(
+                 ValueOrDie(PathComponent::New(
                      ValueOrDie(path.Basename()).ToString() + L".tmp")));
   return futures::OnError(
              file_system_driver.Stat(path),
@@ -299,8 +298,8 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
                 OpenFileOptions{
                     .editor_state = editor_state,
                     .name = buffer_name,
-                    .path = Path::Join(edge_path, ValueOrDie(Path::FromString(
-                                                      L"/search_paths"))),
+                    .path = Path::Join(edge_path,
+                                       ValueOrDie(Path::New(L"/search_paths"))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore,
                     .use_search_paths = false})
                 .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
@@ -394,8 +393,8 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
               for (gc::Root<OpenBuffer> buffer :
                    editor_state.buffer_registry().buffers()) {
-                auto buffer_path = Path::FromString(
-                    buffer.ptr()->Read(buffer_variables::path));
+                auto buffer_path =
+                    Path::New(buffer.ptr()->Read(buffer_variables::path));
                 if (IsError(buffer_path)) continue;
                 ValueOrError<std::list<PathComponent>> buffer_components =
                     std::get<Path>(buffer_path).DirectorySplit();
