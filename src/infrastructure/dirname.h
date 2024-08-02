@@ -33,15 +33,8 @@ class PathComponent : public language::GhostType<PathComponent, std::wstring> {
 
   static language::PossibleError Validate(const std::wstring& input);
 
-  // TODO(trivial, 2024-08-01): Get rid of this method. Just use `New`. Should
-  // probably add some good tests for it.
-  static language::ValueOrError<PathComponent> FromString(
-      std::wstring component);
   static PathComponent WithExtension(const PathComponent& path,
                                      const std::wstring& extension);
-
-  // TODO(trivial, 2024-08-02): Get rid of this, just use to_wstring.
-  const std::wstring& ToString() const;
 
   // Can fail for ".md".
   language::ValueOrError<PathComponent> remove_extension() const;

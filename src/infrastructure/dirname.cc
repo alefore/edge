@@ -42,9 +42,39 @@ using ::operator<<;
   return Success();
 }
 
-ValueOrError<PathComponent> PathComponent::FromString(std::wstring component) {
-  return PathComponent::New(std::move(component));
-}
+namespace {
+const bool path_component_constructor_good_inputs_tests_registration =
+    tests::Register(
+        L"PathComponentConstructorGoodInputs",
+        {
+            {.name = L"Simple", .callback = [] { PathComponent(L"foo"); }},
+            {.name = L"WithExtension",
+             .callback = [] { PathComponent(L"foo.md"); }},
+        });
+
+const bool path_component_constructor_bad_inputs_tests_registration =
+    tests::Register(
+        L"PathComponentConstructorBadInputs",
+        {
+            {.name = L"Empty",
+             .callback = [] { CHECK(IsError(PathComponent::New(L""))); }},
+            {.name = L"EmptyCrash",
+             .callback =
+                 [] {
+                   tests::ForkAndWaitForFailure([] { PathComponent(L""); });
+                 }},
+            {.name = L"TooLarge",
+             .callback =
+                 [] { CHECK(IsError(PathComponent::New(L"foo/bar"))); }},
+            {.name = L"TooLargeCrash",
+             .callback =
+                 [] {
+                   tests::ForkAndWaitForFailure(
+                       [] { PathComponent(L"foo/bar"); });
+                 }},
+
+        });
+}  // namespace
 
 /*  static */ PathComponent PathComponent::WithExtension(
     const PathComponent& path, const std::wstring& extension) {
@@ -83,8 +113,6 @@ const bool path_component_with_extension_tests_registration = tests::Register(
                      PathComponent::FromString(L"foo.blah.txt"), L"md"),
                  PathComponent::FromString(L"foo.blah.md"));
       }}});
-
-const std::wstring& PathComponent::ToString() const { return read(); }
 
 ValueOrError<PathComponent> PathComponent::remove_extension() const {
   if (auto index = read().find_last_of(L"."); index != std::string::npos)
@@ -277,7 +305,7 @@ ValueOrError<PathComponent> Path::Basename() const {
   std::unique_ptr<char, decltype(&std::free)> tmp(
       strdup(ToByteString(read()).c_str()), &std::free);
   CHECK(tmp != nullptr);
-  return PathComponent::FromString(FromByteString(basename(tmp.get())));
+  return PathComponent::New(FromByteString(basename(tmp.get())));
 }
 
 std::optional<std::wstring> Path::extension() const {
@@ -297,9 +325,7 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
     using ::operator<<;
     VLOG(5) << "DirectorySplit: PushFront: " << base;
     output.push_front(base);
-    if (output.front().ToString() == path.read()) {
-      return Success(output);
-    }
+    if (output.front().read() == path.read()) return Success(output);
     ASSIGN_OR_RETURN(
         auto dir, AugmentError(LazyString{L"Dirname error"}, path.Dirname()));
     if (dir.read().size() >= path.read().size()) {
