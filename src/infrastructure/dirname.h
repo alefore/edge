@@ -117,5 +117,4 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
 }  // namespace afc::infrastructure
 
-GHOST_TYPE_HASH(afc::infrastructure::Path);
 #endif  // __AFC_EDITOR_DIRNAME_H__
