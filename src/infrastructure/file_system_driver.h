@@ -29,7 +29,7 @@ class FileDescriptor
 
 class UnixSignal : public language::GhostType<UnixSignal, int> {};
 
-// Why define a GHOST_TYPE for `pid_t`, which is already a "specific" type?
+// Why define a GhostType<> for `pid_t`, which is already a "specific" type?
 // Because pid_t is just a `using` or `typedef` alias, so incorrect usage isn't
 // detected by the compiler.
 class ProcessId : public language::GhostType<ProcessId, pid_t> {};
