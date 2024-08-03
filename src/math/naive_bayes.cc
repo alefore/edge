@@ -26,8 +26,7 @@ using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::math::naive_bayes {
-class Probability : public GhostType<Probability, double> {
- public:
+struct ProbabilityValidator {
   static PossibleError Validate(const double& input) {
     if (input < 0)
       return NewError(
@@ -38,6 +37,9 @@ class Probability : public GhostType<Probability, double> {
     return Success();
   }
 };
+
+class Probability
+    : public GhostType<Probability, double, ProbabilityValidator> {};
 
 namespace {
 const bool probability_constructor_good_inputs_tests_registration =

@@ -22,7 +22,12 @@ extern "C" {
 
 namespace afc::infrastructure {
 
-class PathComponent : public language::GhostType<PathComponent, std::wstring> {
+struct PathComponentValidator {
+  static language::PossibleError Validate(const std::wstring& input);
+};
+
+class PathComponent : public language::GhostType<PathComponent, std::wstring,
+                                                 PathComponentValidator> {
  public:
   // Compile-time version of `New` for string literals.
   template <size_t N>
@@ -31,8 +36,6 @@ class PathComponent : public language::GhostType<PathComponent, std::wstring> {
     // TODO(2024-08-02): This should also validate no slashes!
     return PathComponent{std::wstring{str}};
   }
-
-  static language::PossibleError Validate(const std::wstring& input);
 
   static PathComponent WithExtension(const PathComponent& path,
                                      const std::wstring& extension);
@@ -54,12 +57,14 @@ class PathComponent : public language::GhostType<PathComponent, std::wstring> {
   }
 };
 
+struct PathValidator {
+  static language::PossibleError Validate(const std::wstring& path);
+};
+
 class AbsolutePath;
-class Path : public language::GhostType<Path, std::wstring> {
+class Path : public language::GhostType<Path, std::wstring, PathValidator> {
  public:
   using GhostType::GhostType;
-
-  static language::PossibleError Validate(const std::wstring& path);
 
   Path(PathComponent path_component);
 

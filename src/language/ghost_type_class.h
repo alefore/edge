@@ -5,18 +5,26 @@
 
 namespace afc::language {
 namespace ghost_type_internal {
-template <typename External, typename Internal>
-class HasValidate {
- private:
-  template <typename U>
-  static auto test(int) -> decltype(U::Validate(std::declval<Internal>()),
-                                    std::true_type());
+class AlwaysValid {};
 
-  template <typename>
-  static std::false_type test(...);
+template <typename T>
+concept IsAlwaysValid = std::is_same_v<T, AlwaysValid>;
 
+template <typename External>
+class Factory {
  public:
-  static constexpr bool value = decltype(test<External>(0))::value;
+  static ValueOrError<External> New(typename External::InternalType value) {
+    RETURN_IF_ERROR(External::ValidatorType::Validate(value));
+    return External(value);
+  };
+};
+
+// Specialization for AlwaysValid type:
+template <typename External>
+  requires std::is_same_v<typename External::ValidatorType, AlwaysValid>
+class Factory<External> {
+ public:
+  static External New(External::InternalType value) { return External(value); };
 };
 
 template <typename Internal>
@@ -76,12 +84,12 @@ concept HasSubscriptOperator = requires(Internal i, Key key) {
 };
 }  // namespace ghost_type_internal
 
-template <typename External, typename Internal>
+template <typename External, typename Internal, typename Validator>
 class GhostType;
 }  // namespace afc::language
 namespace std {
-template <typename External, typename Internal>
-struct hash<afc::language::GhostType<External, Internal>>;
+template <typename External, typename Internal, typename Validator>
+struct hash<afc::language::GhostType<External, Internal, Validator>>;
 }
 namespace afc::language {
 
@@ -89,45 +97,52 @@ template <typename T, typename = void>
 struct IsGhostType : std::false_type {};
 
 template <typename T>
-struct IsGhostType<
-    T, std::void_t<typename std::enable_if<std::is_base_of_v<
-           afc::language::GhostType<T, typename T::InternalType>, T>>::type>>
-    : std::true_type {};
+struct IsGhostType<T, std::void_t<typename std::enable_if<std::is_base_of_v<
+                          afc::language::GhostType<T, typename T::InternalType,
+                                                   typename T::ValidatorType>,
+                          T>>::type>> : std::true_type {};
 
-template <typename External, typename Internal>
-auto operator+(const GhostType<External, Internal>& lhs,
-               const GhostType<External, Internal>& rhs);
+template <typename External, typename Internal, typename Validator>
+auto operator+(const GhostType<External, Internal, Validator>& lhs,
+               const GhostType<External, Internal, Validator>& rhs);
 
-template <typename External, typename Internal>
-auto operator+(const GhostType<External, Internal>& lhs, const Internal& t);
+template <typename External, typename Internal, typename Validator>
+auto operator+(const GhostType<External, Internal, Validator>& lhs,
+               const Internal& t);
 
-template <typename External, typename Internal>
-auto operator+(const Internal& t, const GhostType<External, Internal>& rhs);
+template <typename External, typename Internal, typename Validator>
+auto operator+(const Internal& t,
+               const GhostType<External, Internal, Validator>& rhs);
 
-template <typename External, typename Internal>
-auto operator*(const GhostType<External, Internal>& lhs,
-               const GhostType<External, Internal>& rhs);
+template <typename External, typename Internal, typename Validator>
+auto operator*(const GhostType<External, Internal, Validator>& lhs,
+               const GhostType<External, Internal, Validator>& rhs);
 
-template <typename External, typename Internal>
-auto operator*(const GhostType<External, Internal>& lhs, const Internal& t);
+template <typename External, typename Internal, typename Validator>
+auto operator*(const GhostType<External, Internal, Validator>& lhs,
+               const Internal& t);
 
-template <typename External, typename Internal>
-auto operator*(const Internal& t, const GhostType<External, Internal>& rhs);
+template <typename External, typename Internal, typename Validator>
+auto operator*(const Internal& t,
+               const GhostType<External, Internal, Validator>& rhs);
 
-template <typename External, typename Internal>
-inline std::wstring to_wstring(const GhostType<External, Internal>& obj);
+template <typename External, typename Internal, typename Validator>
+inline std::wstring to_wstring(
+    const GhostType<External, Internal, Validator>& obj);
 
-template <typename External, typename Internal>
+template <typename External, typename Internal,
+          typename Validator = ghost_type_internal::AlwaysValid>
 class GhostType : public ghost_type_internal::ValueType<Internal> {
   Internal value;
 
  public:
   using InternalType = Internal;
+  using ValidatorType = Validator;
 
   GhostType() = default;
   GhostType(Internal initial_value) : value(std::move(initial_value)) {
-    if constexpr (ghost_type_internal::HasValidate<External, Internal>::value)
-      CHECK(!IsError(External::Validate(value)));
+    if constexpr (!ghost_type_internal::IsAlwaysValid<Validator>)
+      CHECK(!IsError(External::ValidatorType::Validate(value)));
   }
   GhostType(const GhostType&) = default;
 
@@ -151,25 +166,8 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
         Internal, std::initializer_list<std::pair<const K, V>>>
       : GhostType(Internal(init_list)) {}
 
-  // Implementation of `New` for when `External::Validate` is defined.
-  template <typename T = External, typename U = Internal>
-  static typename std::enable_if<ghost_type_internal::HasValidate<T, U>::value,
-                                 ValueOrError<External>>::type
-  New(Internal internal) {
-    return std::visit(
-        overload{[&internal](EmptyValue) -> ValueOrError<External> {
-                   return External(internal);
-                 },
-                 [](Error error) -> ValueOrError<External> { return error; }},
-        T::Validate(internal));
-  }
-
-  // Implementation of `New` for when `External::Validate` is not defined.
-  template <typename T = External, typename U = Internal>
-  static typename std::enable_if<!ghost_type_internal::HasValidate<T, U>::value,
-                                 External>::type
-  New(Internal internal) {
-    return External(internal);
+  static auto New(Internal internal) {
+    return ghost_type_internal::Factory<External>::New(internal);
   }
 
   auto size() const
@@ -245,111 +243,120 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return *static_cast<External*>(this);
   }
 
-  template <typename OtherExternal, typename OtherInternal>
+  // TODO(trivial, 2024-08-03): Get rid of the Other* types.
+  template <typename OtherExternal, typename OtherInternal,
+            typename OtherValidator>
   inline External& operator*=(
-      const GhostType<OtherExternal, OtherInternal>& other) {
+      const GhostType<OtherExternal, OtherInternal, OtherValidator>& other) {
     value *= other.value;
     return *static_cast<External*>(this);
   }
 
-  template <typename OtherExternal, typename OtherInternal>
-  inline bool operator==(
-      const GhostType<OtherExternal, OtherInternal>& other) const {
+  // TODO(trivial, 2024-08-03): Get rid of the Other* types.
+  template <typename OtherExternal, typename OtherInternal,
+            typename OtherValidator>
+  inline bool operator==(const GhostType<OtherExternal, OtherInternal,
+                                         OtherValidator>& other) const {
     return value == other.value;
   }
 
-  inline bool operator>=(const GhostType<External, Internal>& other) const {
+  inline bool operator>=(
+      const GhostType<External, Internal, Validator>& other) const {
     return value >= other.value;
   }
 
   const Internal& read() const { return value; }
 
  private:
-  friend auto operator+
-      <External, Internal>(const GhostType<External, Internal>&,
-                           const GhostType<External, Internal>&);
+  friend auto operator+ <External, Internal, Validator>(
+      const GhostType<External, Internal, Validator>&,
+      const GhostType<External, Internal, Validator>&);
 
-  friend auto operator+
-      <External, Internal>(const GhostType<External, Internal>&,
-                           const Internal&);
+  friend auto operator+ <External, Internal, Validator>(
+      const GhostType<External, Internal, Validator>&, const Internal&);
 
-  friend auto operator+
-      <External, Internal>(const Internal&,
-                           const GhostType<External, Internal>&);
+  friend auto operator+ <External, Internal, Validator>(
+      const Internal&, const GhostType<External, Internal, Validator>&);
 
-  friend auto operator*
-      <External, Internal>(const GhostType<External, Internal>&,
-                           const GhostType<External, Internal>&);
+  friend auto operator* <External, Internal, Validator>(
+      const GhostType<External, Internal, Validator>&,
+      const GhostType<External, Internal, Validator>&);
 
-  friend auto operator*
-      <External, Internal>(const GhostType<External, Internal>&,
-                           const Internal&);
+  friend auto operator* <External, Internal, Validator>(
+      const GhostType<External, Internal, Validator>&, const Internal&);
 
-  friend auto operator*
-      <External, Internal>(const Internal&,
-                           const GhostType<External, Internal>&);
+  friend auto operator* <External, Internal, Validator>(
+      const Internal&, const GhostType<External, Internal, Validator>&);
 
-  template <typename A, typename B>
-  friend std::ostream& operator<<(std::ostream& os, const GhostType<A, B>& obj);
+  // TODO(trivial, 2024-08-03): Get rid of the A, B, C types.
+  template <typename A, typename B, typename C>
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const GhostType<A, B, C>& obj);
 
-  friend struct std::hash<GhostType<External, Internal>>;
+  friend struct std::hash<GhostType<External, Internal, Validator>>;
 
-  friend std::wstring to_wstring<External, Internal>(
-      const GhostType<External, Internal>& obj);
+  friend std::wstring to_wstring<External, Internal, Validator>(
+      const GhostType<External, Internal, Validator>& obj);
 };
 
-template <typename External, typename Internal>
-auto operator+(const GhostType<External, Internal>& lhs,
-               const GhostType<External, Internal>& rhs) {
+template <typename External, typename Internal, typename Validator>
+auto operator+(const GhostType<External, Internal, Validator>& lhs,
+               const GhostType<External, Internal, Validator>& rhs) {
   return External::New(lhs.value + rhs.value);
 }
 
-template <typename External, typename Internal>
-auto operator+(const Internal& t, const GhostType<External, Internal>& rhs) {
+template <typename External, typename Internal, typename Validator>
+auto operator+(const Internal& t,
+               const GhostType<External, Internal, Validator>& rhs) {
   return External::New(t + rhs.value);
 }
 
-template <typename External, typename Internal>
-auto operator+(const GhostType<External, Internal>& lhs, const Internal& t) {
+template <typename External, typename Internal, typename Validator>
+auto operator+(const GhostType<External, Internal, Validator>& lhs,
+               const Internal& t) {
   return External::New(lhs.value + t);
 }
 
-template <typename External, typename Internal>
-auto operator*(const GhostType<External, Internal>& lhs,
-               const GhostType<External, Internal>& rhs) {
+template <typename External, typename Internal, typename Validator>
+auto operator*(const GhostType<External, Internal, Validator>& lhs,
+               const GhostType<External, Internal, Validator>& rhs) {
   return External::New(lhs.value * rhs.value);
 }
 
-template <typename External, typename Internal>
-auto operator*(const Internal& t, const GhostType<External, Internal>& rhs) {
+template <typename External, typename Internal, typename Validator>
+auto operator*(const Internal& t,
+               const GhostType<External, Internal, Validator>& rhs) {
   return External::New(t * rhs.value);
 }
 
-template <typename External, typename Internal>
-auto operator*(const GhostType<External, Internal>& lhs, const Internal& t) {
+template <typename External, typename Internal, typename Validator>
+auto operator*(const GhostType<External, Internal, Validator>& lhs,
+               const Internal& t) {
   return External::New(lhs.value * t);
 }
 
-template <typename External, typename Internal>
-inline std::ostream& operator<<(std::ostream& os,
-                                const GhostType<External, Internal>& obj) {
+template <typename External, typename Internal, typename Validator>
+inline std::ostream& operator<<(
+    std::ostream& os, const GhostType<External, Internal, Validator>& obj) {
   using ::operator<<;
   os << "[" /*name*/ ":" << obj.value << "]";
   return os;
 }
 
-template <typename External, typename Internal>
-inline std::wstring to_wstring(const GhostType<External, Internal>& obj) {
+template <typename External, typename Internal, typename Validator>
+inline std::wstring to_wstring(
+    const GhostType<External, Internal, Validator>& obj) {
   using afc::language::to_wstring;
   using std::to_wstring;
   return to_wstring(obj.value);
 }
 }  // namespace afc::language
 namespace std {
-template <typename External, typename Internal>
-struct hash<afc::language::GhostType<External, Internal>> {
+template <typename External, typename Internal, typename Validator>
+struct hash<afc::language::GhostType<External, Internal, Validator>> {
   std::size_t operator()(
-      const afc::language::GhostType<External, Internal>& self) const noexcept {
+      const afc::language::GhostType<External, Internal, Validator>& self)
+      const noexcept {
     return std::hash<Internal>()(self.value);
   }
 };
@@ -358,7 +365,8 @@ template <typename T>
   requires ::afc::language::IsGhostType<T>::value
 struct hash<T> {
   std::size_t operator()(const T& self) const noexcept {
-    using BaseType = ::afc::language::GhostType<T, typename T::InternalType>;
+    using BaseType = ::afc::language::GhostType<T, typename T::InternalType,
+                                                typename T::ValidatorType>;
     return std::hash<BaseType>()(self);
   }
 };

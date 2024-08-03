@@ -33,7 +33,7 @@ namespace afc::infrastructure {
 
 using ::operator<<;
 
-/* static */ language::PossibleError PathComponent::Validate(
+/* static */ language::PossibleError PathComponentValidator::Validate(
     const std::wstring& input) {
   if (input.empty()) return NewError(LazyString{L"Component can't be empty."});
   if (input.find(L"/") != std::wstring::npos)
@@ -394,7 +394,7 @@ ValueOrError<AbsolutePath> Path::Resolve() const {
                            : AbsolutePath::FromString(FromByteString(result));
 }
 
-PossibleError Path::Validate(const std::wstring& path) {
+PossibleError PathValidator::Validate(const std::wstring& path) {
   if (path.empty()) return NewError(LazyString{L"Path can not be empty."});
   return Success();
 }

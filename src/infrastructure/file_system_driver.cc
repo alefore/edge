@@ -34,7 +34,7 @@ namespace afc::infrastructure {
 
 using ::operator<<;
 
-PossibleError FileDescriptor::Validate(const int& fd) {
+PossibleError FileDescriptorValidator::Validate(const int& fd) {
   if (fd < 0)
     return NewError(LazyString{L"Invalid file descriptor: negative value."});
   return Success();

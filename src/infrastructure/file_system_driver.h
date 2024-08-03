@@ -19,9 +19,12 @@ extern "C" {
 
 namespace afc::infrastructure {
 
-class FileDescriptor : public language::GhostType<FileDescriptor, int> {
- public:
+struct FileDescriptorValidator {
   static language::PossibleError Validate(const int& fd);
+};
+
+class FileDescriptor
+    : public language::GhostType<FileDescriptor, int, FileDescriptorValidator> {
 };
 
 class UnixSignal : public language::GhostType<UnixSignal, int> {};
