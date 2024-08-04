@@ -764,7 +764,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   Set(buffer_variables::name, to_wstring(options_.name));
   if (options_.path.has_value()) {
-    Set(buffer_variables::path, options_.path.value().read().ToString());
+    Set(buffer_variables::path, options_.path.value().read());
   }
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
@@ -1099,7 +1099,7 @@ void OpenBuffer::AppendLine(LazyString str) {
 
   if (contents_.size() == LineNumberDelta(1) &&
       contents_.back().EndColumn().IsZero()) {
-    if (str.ToString() == L"EDGE PARSER v1.0") {
+    if (str == LazyString{L"EDGE PARSER v1.0"}) {
       reading_from_parser_ = true;
       return;
     }
@@ -1714,7 +1714,9 @@ std::optional<Line> OpenBuffer::LineAt(LineNumber line_number) const {
   return contents_.at(line_number);
 }
 
-wstring OpenBuffer::ToString() const { return contents_.snapshot().ToString(); }
+std::wstring OpenBuffer::ToString() const {
+  return contents_.snapshot().ToString();
+}
 
 const struct timespec OpenBuffer::time_last_exit() const {
   return time_last_exit_;
@@ -2026,7 +2028,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                    data->source.Lock(),
                    [&](gc::Root<OpenBuffer> buffer) {
                      auto& editor = buffer.ptr()->editor();
-                     VLOG(5) << "Checking URL: " << url.ToString();
+                     VLOG(5) << "Checking URL: " << url;
                      if (url.schema().value_or(URL::Schema::kFile) !=
                          URL::Schema::kFile) {
                        switch (remote_url_behavior) {
