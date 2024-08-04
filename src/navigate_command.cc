@@ -30,6 +30,7 @@ using afc::language::overload;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 
@@ -71,17 +72,17 @@ struct NavigateOperation {
   size_t number = 0;
 };
 
-std::wstring DescribeForStatus(const NavigateOperation& operation) {
+LineBuilder DescribeForStatus(const NavigateOperation& operation) {
   switch (operation.type) {
     case NavigateOperation::Type::kForward:
-      return L"⮞";
+      return LineBuilder{LazyString{L"⮞"}};
     case NavigateOperation::Type::kBackward:
-      return L"⮜";
+      return LineBuilder{LazyString{L"⮜"}};
     case NavigateOperation::Type::kNumber:
-      return std::to_wstring(operation.number + 1);
+      return LineBuilder{LazyString{std::to_wstring(operation.number + 1)}};
     default:
       LOG(FATAL) << "Invalid operation type.";
-      return L"";
+      return LineBuilder{};
   }
 }
 
@@ -173,12 +174,13 @@ SearchRange GetRange(const NavigateState& navigate_state,
   return range;
 }
 
-std::wstring BuildStatus(const NavigateState& state) {
-  std::wstring output = L"navigate";
+Line BuildStatus(const NavigateState& state) {
+  LineBuilder output{LazyString{L"navigate"}};
   for (const auto& operation : state.operations) {
-    output = output + L" " + DescribeForStatus(operation);
+    output.AppendString(LazyString{L" "});
+    output.Append(DescribeForStatus(operation));
   }
-  return output;
+  return std::move(output).Build();
 }
 
 class NavigateTransformation : public CompositeTransformation {
@@ -227,12 +229,13 @@ class NavigateTransformation : public CompositeTransformation {
   }
 
  private:
-  // Receives one of the ends of the range (as `index`) and deletes from that
-  // point on (in the direction specified).
+  // Receives one of the ends of the range (as `index`) and deletes from
+  // that point on (in the direction specified).
   void DeleteExterior(size_t index, Direction direction, LineColumn position,
                       Output* output) const {
     if (index == 0 && direction == Direction::kBackwards) {
-      // Otherwise we'll be saying that we want to delete the previous line.
+      // Otherwise we'll be saying that we want to delete the previous
+      // line.
       return;
     }
     output->Push(transformation::SetPosition(WriteIndex(position, index)));

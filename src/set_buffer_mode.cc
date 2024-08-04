@@ -1,5 +1,6 @@
 #include "src/set_buffer_mode.h"
 
+#include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/tokenize.h"
@@ -11,6 +12,8 @@ namespace gc = afc::language::gc;
 using afc::concurrent::ChannelLast;
 using afc::infrastructure::ControlChar;
 using afc::infrastructure::ExtendedChar;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
@@ -21,6 +24,8 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::TokenizeBySpaces;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
 
 namespace afc::editor {
@@ -156,50 +161,61 @@ bool CharConsumer(ExtendedChar c, Data& data) {
   return false;
 }
 
-std::wstring BuildStatus(const Data& data) {
+Line BuildStatus(const Data& data) {
   static const LazyString initial_value{L"set-buffer"};
-  LazyString output = initial_value;
+  LineBuilder output(initial_value);
   // TODO(trivial, 2023-12-30): Avoid explicit for loop, Concatenate.
   for (size_t i = 0; i < data.operations.size(); ++i) {
     const auto& operation = data.operations[i];
-    output += LazyString{L" "};
+    output.AppendString(LazyString{L" "});
     switch (operation.type) {
       case Operation::Type::kForward:
-        output += LazyString{L"⮞"};
+        output.AppendString(LazyString{L"⮞"});
         break;
       case Operation::Type::kBackward:
-        output += LazyString{L"⮜"};
+        output.AppendString(LazyString{L"⮜"});
         break;
       case Operation::Type::kPrevious:
-        output += LazyString{L"⮝"};
+        output.AppendString(LazyString{L"⮝"});
         break;
       case Operation::Type::kNext:
-        output += LazyString{L"⮟"};
+        output.AppendString(LazyString{L"⮟"});
         break;
       case Operation::Type::kNumber:
-        output += LazyString{std::to_wstring(operation.number)};
+        output.AppendString(LazyString{std::to_wstring(operation.number)});
         break;
       case Operation::Type::kFilter:
-        output += LazyString{L" w:"} + operation.text_input;
+        output.AppendString(LazyString{L"w"},
+                            LineModifierSet{LineModifier::kCyan});
+        output.AppendString(LazyString{L":"},
+                            LineModifierSet{LineModifier::kDim});
+        output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingFilter) {
-          output += LazyString{L"…"};
+          output.AppendString(LazyString{L"…"},
+                              LineModifierSet{LineModifier::kYellow});
         }
         break;
       case Operation::Type::kWarningFilter:
-        output += LazyString{L" !"};
+        output.AppendString(LazyString{L" !"},
+                            LineModifierSet{LineModifier::kRed});
         break;
       case Operation::Type::kSearch:
-        output += LazyString{L" /:"} + operation.text_input;
+        output.AppendString(LazyString{L"/"},
+                            LineModifierSet{LineModifier::kGreen});
+        output.AppendString(LazyString{L":"},
+                            LineModifierSet{LineModifier::kDim});
+
+        output.AppendString(operation.text_input);
         if (i == data.operations.size() - 1 &&
             data.state == Data::State::kReadingSearch) {
-          output += LazyString{L"…"};
+          output.AppendString(LazyString{L"…"},
+                              LineModifierSet{LineModifier::kYellow});
         }
         break;
     }
   }
-  // TODO(trivial, 2023-12-30): Avoid ToString.
-  return output.ToString();
+  return std::move(output).Build();
 }
 
 futures::Value<EmptyValue> Apply(EditorState& editor,
