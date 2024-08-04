@@ -1926,23 +1926,21 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
       }
 
   if (!initial_url.has_value()) {
-    std::wstring line = GetCurrentToken(
+    LazyString line = GetCurrentToken(
         {.contents = buffer.contents().snapshot(),
          .line_column = adjusted_position,
          .token_characters = buffer.Read(buffer_variables::path_characters)});
 
-    if (line.find_first_not_of(L"/.:") == wstring::npos) {
+    if (FindLastNotOf(line, {L'/', L'.', L':'}) == std::nullopt) {
       // If there are only slashes, colons or dots, it's probably not very
       // useful to show the contents of this path.
       return {};
     }
 
-    // TODO(trivial, 2024-08-04): Convert line to LazyString above, not here.
-    auto path = Path::New(LazyString{line});
-    if (IsError(path)) {
+    if (auto path = Path::New(line); !IsError(path))
+      initial_url = URL::FromPath(ValueOrDie(std::move(path)));
+    else
       return {};
-    }
-    initial_url = URL::FromPath(ValueOrDie(std::move(path)));
   }
 
   std::vector<URL> urls_with_extensions = GetLocalFileURLsWithExtensions(

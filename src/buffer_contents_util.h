@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/text/line_column.h"
 #include "src/language/text/line_sequence.h"
 
@@ -13,6 +14,6 @@ struct CurrentTokenOptions {
   language::text::LineColumn line_column;
   std::wstring token_characters;
 };
-std::wstring GetCurrentToken(CurrentTokenOptions options);
+language::lazy_string::LazyString GetCurrentToken(CurrentTokenOptions options);
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_BUFFER_CONTENTS_UTIL_H__

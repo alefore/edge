@@ -1,6 +1,9 @@
 #include "src/buffer_contents_util.h"
+
+using afc::language::lazy_string::LazyString;
+
 namespace afc::editor {
-std::wstring GetCurrentToken(CurrentTokenOptions options) {
+LazyString GetCurrentToken(CurrentTokenOptions options) {
   std::wstring line = options.contents.at(options.line_column.line).ToString();
   // Scroll back to the first character outside of the token. If we're in not
   // inside a token, this is a no-op.
@@ -23,6 +26,7 @@ std::wstring GetCurrentToken(CurrentTokenOptions options) {
     line = line.substr(0, end);
   }
 
-  return line;
+  // TODO(trivial, 2024-08-04): Define line directly as LazyString.
+  return LazyString{line};
 }
 }  // namespace afc::editor
