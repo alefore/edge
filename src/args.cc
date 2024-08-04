@@ -247,9 +247,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                   return CommandLineValues::ViewMode::kAllBuffers;
                 if (input == L"default")
                   return CommandLineValues::ViewMode::kDefault;
-                return Error(
+                return Error{LazyString{
                     L"Invalid value (valid values are `all` and `default`): " +
-                    input);
+                    input}};
               }),
 
       Handler<CommandLineValues>({L"fps"}, L"Frames per second")

@@ -4,13 +4,16 @@
 
 #include "glog/logging.h"
 #include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/tests/tests.h"
 
+using afc::language::EmptyValue;
+using afc::language::Error;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::futures {
-using language::EmptyValue;
-using language::Error;
-using language::PossibleError;
-using language::Success;
 
 Value<language::ValueOrError<EmptyValue>> IgnoreErrors(
     Value<PossibleError> value) {
@@ -42,7 +45,7 @@ const bool futures_ignore_errors_tests_registration = tests::Register(
              [] {
                bool run = false;
                IgnoreErrors(futures::Past(PossibleError(
-                                Error(L"Something bad happened"))))
+                                Error{LazyString{L"Something bad happened"}})))
                    .Transform([&run](EmptyValue) {
                      run = true;
                      return futures::Past(Success());
@@ -52,7 +55,8 @@ const bool futures_ignore_errors_tests_registration = tests::Register(
         {.name = L"SanityCheck",
          .callback =
              [] {
-               futures::Past(PossibleError(Error(L"Something bad happened")))
+               futures::Past(
+                   PossibleError(Error{LazyString{L"Something bad happened"}}))
                    .Transform([](EmptyValue) {
                      CHECK(false);
                      return futures::Past(Success());
@@ -77,7 +81,7 @@ const bool futures_transform_tests_registration = tests::Register(
                    .SetConsumer([&](language::ValueOrError<bool> result) {
                      final_result = result;
                    });
-               std::move(inner_value.consumer)(Error(L"xyz"));
+               std::move(inner_value.consumer)(Error{LazyString{L"xyz"}});
                CHECK(final_result.has_value());
              }},
         {.name = L"CorrectlyReturnsError",
@@ -90,9 +94,10 @@ const bool futures_transform_tests_registration = tests::Register(
                    .SetConsumer([&](language::ValueOrError<bool> result) {
                      final_result = result;
                    });
-               std::move(inner_value.consumer)(Error(L"xyz"));
+               std::move(inner_value.consumer)(Error{LazyString{L"xyz"}});
                CHECK(final_result.has_value());
-               CHECK_EQ(std::get<Error>(final_result.value()), Error(L"xyz"));
+               CHECK_EQ(std::get<Error>(final_result.value()),
+                        Error{LazyString{L"xyz"}});
              }},
         {.name = L"CanConvertToParentWithPreviousValue",
          .callback =
@@ -133,18 +138,19 @@ const bool futures_on_error_tests_registration = tests::Register(
             auto external =
                 OnError(std::move(internal.value), [&](Error error) {
                   executed = true;
-                  CHECK_EQ(error, Error(L"Foo"));
+                  CHECK_EQ(error, Error{LazyString{L"Foo"}});
                   return futures::Past(error);
                 });
             CHECK(!executed);
-            std::move(internal.consumer)(Error(L"Foo"));
+            std::move(internal.consumer)(Error{LazyString{L"Foo"}});
             CHECK(executed);
           }},
      {.name = L"OverridesReturnedValue",
       .callback =
           [] {
             std::optional<language::ValueOrError<int>> value;
-            OnError(futures::Past(language::ValueOrError<int>(Error(L"Foo"))),
+            OnError(futures::Past(
+                        language::ValueOrError<int>(Error{LazyString{L"Foo"}})),
                     [&](Error) { return futures::Past(Success(27)); })
                 .SetConsumer([&](language::ValueOrError<int> result) {
                   value = result;
