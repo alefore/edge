@@ -399,7 +399,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
       if (condition) {
         // We don't use AugmentError because we'd rather append to the
         // end of the description, not the beginning.
-        error = Error(error.read() + L": " + line.contents().ToString());
+        Error error{error.read() + LazyString{L": "} + line.contents()};
         VLOG(5) << "Found error: " << error;
         output.errors.push_back(error);
       }

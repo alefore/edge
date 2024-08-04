@@ -45,6 +45,7 @@ using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -260,9 +261,12 @@ bool tests_parse_registration = tests::Register(
                       SearchNamespaces(buffer.ptr().value()));
             Error error = std::get<Error>(output);
             LOG(INFO) << "Error: " << error;
-            CHECK_GT(error.read().size(), sizeof("Unknown "));
-            CHECK(error.read().substr(0, sizeof("Unknown ") - 1) ==
-                  L"Unknown ");
+            CHECK_GT(error.read().size(),
+                     ColumnNumberDelta{sizeof("Unknown ")});
+            CHECK(error.read().Substring(
+                      ColumnNumber{},
+                      ColumnNumberDelta{sizeof("Unknown ") - 1}) ==
+                  LazyString{L"Unknown "});
           }},
      {.name = L"CommandMatch", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
@@ -472,9 +476,8 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
   SearchNamespaces search_namespaces(buffer->ptr().value());
   return std::visit(
       overload{[&](Error error) {
-                 if (!error.read().empty()) {
+                 if (!error.read().IsEmpty())
                    buffer->ptr()->status().Set(error);
-                 }
                  return Past(ValueOrError<gc::Root<vm::Value>>(
                      Error(L"Unable to parse command")));
                },

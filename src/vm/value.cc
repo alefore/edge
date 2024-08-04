@@ -8,8 +8,8 @@
 
 namespace gc = afc::language::gc;
 
+using afc::language::Error;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
@@ -146,27 +146,26 @@ ValueOrError<double> Value::ToDouble() const {
   return std::visit(
       overload{
           [](const types::Void&) -> ValueOrError<double> {
-            return NewError(LazyString{L"Unable to convert to double: void"});
+            return Error{LazyString{L"Unable to convert to double: void"}};
           },
           [](const types::Bool&) -> ValueOrError<double> {
-            return NewError(LazyString{L"Unable to convert to double: bool"});
+            return Error{LazyString{L"Unable to convert to double: bool"}};
           },
           [&](const types::Number&) -> ValueOrError<double> {
             return get_number().ToDouble();
           },
           [&](const types::String&) -> ValueOrError<double> {
-            return NewError(LazyString{L"Unable to convert to double: string"});
+            return Error{LazyString{L"Unable to convert to double: string"}};
           },
           [&](const types::Symbol&) -> ValueOrError<double> {
-            return NewError(LazyString{L"Unable to convert to double: symbol"});
+            return Error{LazyString{L"Unable to convert to double: symbol"}};
           },
           [&](const types::ObjectName& object) -> ValueOrError<double> {
-            return NewError(
-                LazyString{L"Unable to convert to double: " + object.read()});
+            return Error{
+                LazyString{L"Unable to convert to double: " + object.read()}};
           },
           [](const types::Function&) -> ValueOrError<double> {
-            return NewError(
-                LazyString{L"Unable to convert to double: function"});
+            return Error{LazyString{L"Unable to convert to double: function"}};
           }},
       type);
 }
@@ -226,7 +225,7 @@ bool value_gc_tests_registration = tests::Register(
                 pool, kPurityTypePure, types::Void{}, {},
                 [child_ptr = child.ptr()](std::vector<gc::Root<Value>>,
                                           Trampoline&) {
-                  return futures::Past(NewError(LazyString{L"Some error."}));
+                  return futures::Past(Error{LazyString{L"Some error."}});
                 },
                 [child_frame = child.ptr().object_metadata()] {
                   return std::vector<

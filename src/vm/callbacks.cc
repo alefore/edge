@@ -35,9 +35,10 @@ bool tests_extract_first_error = tests::Register(
           }},
      {.name = L"Error", .callback = [] {
         std::tuple tuple{1, L"foo", Success(4),
-                         ValueOrError<int>(Error(L"quux")), Success(L"bar")};
+                         ValueOrError<int>{Error{LazyString{L"quux"}}},
+                         Success(L"bar")};
         std::optional<Error> error = ExtractFirstError(tuple);
-        CHECK(error->read() == L"quux");
+        CHECK(error->read() == LazyString{L"quux"});
       }}});
 }  // namespace
 

@@ -9,6 +9,8 @@
 using afc::language::lazy_string::LazyString;
 
 namespace afc::language {
+Error::Error(std::wstring input) : Error{LazyString{std::move(input)}} {}
+
 Error NewError(lazy_string::LazyString error) {
   return Error(error.ToString());
 }

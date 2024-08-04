@@ -22,6 +22,8 @@ using afc::language::NewError;
 using afc::language::overload;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::math::numbers {
@@ -284,7 +286,8 @@ const bool int_tests_registration = tests::Register(
                 std::get<Error>(
                     (Number::FromInt64(input) + Number::FromInt64(1)).ToInt64())
                     .read()
-                    .substr(0, 10) == L"Overflow: ");
+                    .Substring(ColumnNumber{}, ColumnNumberDelta{10}) ==
+                LazyString{L"Overflow: "});
           }},
      {.name = L"OverflowNegative",
       .callback =
@@ -294,12 +297,15 @@ const bool int_tests_registration = tests::Register(
                 std::get<Error>(
                     (Number::FromInt64(input) - Number::FromInt64(1)).ToInt64())
                     .read()
-                    .substr(0, 10) == L"Overflow: ");
+                    .Substring(ColumnNumber{}, ColumnNumberDelta{10}) ==
+                LazyString{L"Overflow: "});
           }},
      {.name = L"Inexact", .callback = [] {
         ValueOrError<int64_t> value = Number::FromDouble(1.5).ToInt64();
         LOG(INFO) << "Output: " << value;
-        CHECK(std::get<Error>(value).read().substr(0, 8) == L"Inexact:");
+        CHECK(std::get<Error>(value).read().Substring(ColumnNumber{},
+                                                      ColumnNumberDelta{8}) ==
+              LazyString{L"Inexact:"});
       }}});
 
 }  // namespace
@@ -339,19 +345,23 @@ const bool to_size_t_tests_registration = tests::Register(
                        Number::FromSizeT(std::numeric_limits<size_t>::max()))
                           .ToSizeT())
                       .read()
-                      .substr(0, 10) == L"Overflow: ");
+                      .Substring(ColumnNumber{}, ColumnNumberDelta{10}) ==
+                  LazyString{L"Overflow: "});
           }},
      {.name = L"Negative",
       .callback =
           [] {
             CHECK(std::get<Error>(Number::FromInt64(-1).ToSizeT())
                       .read()
-                      .substr(0, 9) == L"Negative:");
+                      .Substring(ColumnNumber{}, ColumnNumberDelta{9}) ==
+                  LazyString{L"Negative:"});
           }},
      {.name = L"Inexact", .callback = [] {
         ValueOrError<size_t> value = Number::FromDouble(1.5).ToSizeT();
         LOG(INFO) << "Output: " << value;
-        CHECK(std::get<Error>(value).read().substr(0, 8) == L"Inexact:");
+        CHECK(std::get<Error>(value).read().Substring(ColumnNumber{},
+                                                      ColumnNumberDelta{8}) ==
+              LazyString{L"Inexact:"});
       }}});
 
 ValueOrError<double> Number::ToDouble() const {

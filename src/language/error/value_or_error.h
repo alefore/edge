@@ -14,10 +14,16 @@
 #include "src/language/wstring.h"
 
 namespace afc::language {
-class Error : public GhostType<Error, std::wstring> {};
+class Error : public GhostType<Error, language::lazy_string::LazyString> {
+ public:
+  using GhostType::GhostType;
 
-// TODO(easy, 2023-12-02): Convert all callers of `Error` to call `NewError` and
-// change the internal type.
+  // Compatibility function.
+  // TODO(2024-08-04, easy): Remove.
+  Error(std::wstring);
+};
+
+// TODO(easy, 2023-12-02): Convert all callers to `Error`
 Error NewError(lazy_string::LazyString error);
 
 // Example: AugmentError(L"🖫 Save failed", error)
