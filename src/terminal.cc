@@ -120,53 +120,6 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
   screen.Flush();
 }
 
-// Adjust the name of a buffer to a string suitable to be shown in the Status
-// with progress indicators surrounding it.
-//
-// Empty strings -> "…"
-// "$ xyz" -> "xyz"
-// "$ abc/def/ghi" -> "ghi"
-//
-// The thinking is to return at most a single-character, and pick the most
-// meaningful.
-//
-// TODO(trivial, 2024-08-04): This appears to be dead code.
-std::wstring TransformCommandNameForStatus(std::wstring name) {
-  static const std::wstring kDefaultName = L"…";
-  static const size_t kMaxLength = 5;
-
-  size_t index = 0;
-  if (name.size() > 2 && name[0] == L'$' && name[1] == L' ') {
-    index = 2;
-  }
-
-  index = name.find_first_not_of(L' ', index);  // Skip spaces.
-  if (index == std::wstring::npos) {
-    return kDefaultName;
-  }
-  size_t end = name.find_first_of(L' ', index);
-  std::wstring output = name.substr(
-      index, end == std::wstring::npos ? std::wstring::npos : end - index);
-  std::visit(overload{IgnoreErrors{},
-                      [&](Path first_path) {
-                        std::visit(overload{IgnoreErrors{},
-                                            [&](PathComponent basename) {
-                                              // TODO(trivial, 2024-08-04):
-                                              // Change this function to return
-                                              // a LazyString and avoid
-                                              // conversion here.
-                                              output = basename.ToString();
-                                            }},
-                                   first_path.Basename());
-                      }},
-             Path::New(output));
-
-  if (output.size() > kMaxLength) {
-    output = output.substr(0, kMaxLength - kDefaultName.size()) + kDefaultName;
-  }
-  return output;
-}
-
 void FlushModifiers(Screen& screen, const LineModifierSet& modifiers) {
   screen.SetModifier(LineModifier::kReset);
   for (const auto& m : modifiers) {
