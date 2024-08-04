@@ -48,7 +48,7 @@ class LazyString {
   //
   // Equivalent to:
   //
-  //     Substring(pos, size() - pos);
+  //     Substring(column, size() - column);
   LazyString Substring(ColumnNumber column) const;
 
   // Returns the contents in [pos, pos + len).
