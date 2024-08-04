@@ -47,6 +47,9 @@ void ForEachColumn(const LazyString& input, Callback callback) {
 std::optional<ColumnNumber> FindFirstOf(const LazyString& input,
                                         std::unordered_set<wchar_t> chars);
 
+std::optional<ColumnNumber> FindLastOf(const LazyString& input,
+                                       std::unordered_set<wchar_t> chars);
+
 std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
                                           std::unordered_set<wchar_t> chars);
 

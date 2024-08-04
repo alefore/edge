@@ -9,6 +9,14 @@ std::optional<ColumnNumber> FindFirstOf(const LazyString& input,
       });
 }
 
+std::optional<ColumnNumber> FindLastOf(const LazyString& input,
+                                       std::unordered_set<wchar_t> chars) {
+  return FindLastColumnWithPredicate(
+      input, [chars = std::move(chars)](ColumnNumber, wchar_t c) {
+        return chars.contains(c);
+      });
+}
+
 std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
                                           std::unordered_set<wchar_t> chars) {
   return FindLastColumnWithPredicate(
