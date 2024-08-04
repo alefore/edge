@@ -166,8 +166,9 @@ class ProgressAggregator {
           if (data->children_created > 1) {
             data->aggregates
                 .values[VersionPropertyKey{LazyString{L"buffers"}}] =
-                std::to_wstring(data->buffers_with_matches) + L"/" +
-                std::to_wstring(data->children_created);
+                LazyString{std::to_wstring(data->buffers_with_matches)} +
+                LazyString{L"/"} +
+                LazyString{std::to_wstring(data->children_created)};
           }
 
           data->parent_channel->Push(data->aggregates);
@@ -288,7 +289,7 @@ class SearchCommand : public Command {
                               progress_channel->Push(
                                   {.values = {
                                        {VersionPropertyKey{LazyString{L"case"}},
-                                        L"on"}}});
+                                        LazyString{L"on"}}}});
                             }
                             if (line.size().IsZero()) {
                               return futures::Past(Control::kContinue);

@@ -312,9 +312,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
             progress_channel->Push(
                 {.values = {
                      {VersionPropertyKey{LazyString{L"type"}},
-                      // TODO(easy, 2024-01-03): Avoid call to ToString.
-                      vm::TypesToString(compilation_result.first->Types())
-                          .ToString()}}});
+                      vm::TypesToString(compilation_result.first->Types())}}});
             ColorizePromptOptions output{
                 .tokens = {{.token = {.value = LazyString{},
                                       .begin = ColumnNumber(0),
@@ -334,13 +332,16 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                   oss << value.ptr().value();
                   progress_channel->Push(
                       {.values = {{VersionPropertyKey{LazyString{L"value"}},
-                                   FromByteString(oss.str())}}});
+                                   LazyString{FromByteString(oss.str())}}}});
                   return futures::Past(Success());
                 })
                 .ConsumeErrors([progress_channel](Error error) {
                   progress_channel->Push(
                       {.values = {{VersionPropertyKey{LazyString{L"runtime"}},
-                                   error.read()}}});
+                                   // TODO(easy, 2024-08-04): Change error to
+                                   // embraze LazyString, making the following
+                                   // `LazyString{}` wrapping redundant.
+                                   LazyString{error.read()}}}});
                   return futures::Past(EmptyValue());
                 })
                 .Transform([output](EmptyValue) { return output; });
@@ -348,7 +349,10 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
           [&](Error error) {
             progress_channel->Push(
                 {.values = {{VersionPropertyKey{LazyString{L"error"}},
-                             error.read()}}});
+                             // TODO(easy, 2024-08-04): Change error to embraze
+                             // LazyString, making the following `LazyString{}`
+                             // wrapping redundant.
+                             LazyString{error.read()}}}});
             return futures::Past(ColorizePromptOptions());
           }},
       buffer->ptr()->CompileString(line));

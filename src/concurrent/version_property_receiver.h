@@ -34,7 +34,8 @@ class VersionPropertyReceiver {
     kDone
   };
 
-  using VersionPropertyValue = std::variant<std::wstring, int, size_t>;
+  using VersionPropertyValue =
+      std::variant<language::lazy_string::LazyString, int, size_t>;
 
  private:
   struct Data {

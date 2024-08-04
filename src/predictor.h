@@ -22,7 +22,8 @@ class EditorState;
 class OpenBuffer;
 
 struct ProgressInformation {
-  std::map<concurrent::VersionPropertyKey, std::wstring> values = {};
+  std::map<concurrent::VersionPropertyKey, language::lazy_string::LazyString>
+      values = {};
 
   // Similar to `values` but will be added in the case where multiple values are
   // reported from predictions that run independently (whereas for values the

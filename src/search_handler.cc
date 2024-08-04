@@ -89,8 +89,11 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
                           GetRegexTraits(options.case_sensitive));
   } catch (std::regex_error& e) {
     Error error(L"Regex failure: " + FromByteString(e.what()));
+    // TODO(easy, 2024-08-04): Change error.read to return a LazyString and
+    // avoid the redundant conversion below:
     options.progress_channel->Push(
-        {.values = {{VersionPropertyKey{LazyString{L"!"}}, error.read()}}});
+        {.values = {{VersionPropertyKey{LazyString{L"!"}},
+                     LazyString{error.read()}}}});
     return error;
   }
 
@@ -112,7 +115,8 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
          options.required_positions.value() > positions.size()))
       return true;
     options.progress_channel->Push(ProgressInformation{
-        .values = {{VersionPropertyKey{LazyString{L"partial"}}, L""}}});
+        .values = {
+            {VersionPropertyKey{LazyString{L"partial"}}, LazyString{}}}});
     return false;
   });
   VLOG(5) << "Perform search found matches: " << positions.size();

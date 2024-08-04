@@ -173,17 +173,12 @@ Line Status::prompt_extra_information_line() const {
                                   ? dim
                                   : empty;
       options.AppendString(key.read(), modifiers);
-      if (!std::holds_alternative<std::wstring>(value.value) ||
-          std::get<std::wstring>(value.value) != L"") {
+      if (!std::holds_alternative<LazyString>(value.value) ||
+          !std::get<LazyString>(value.value).IsEmpty()) {
         options.AppendString(LazyString{L":"}, dim);
         options.AppendString(
             std::visit(
-                overload{[](std::wstring v) {
-                           // TODO(easy, 2024-07-26): Change the variant to
-                           // contain LazyString so that we don't have to
-                           // convert here.
-                           return LazyString{v};
-                         },
+                overload{[](LazyString v) { return v; },
                          [](int v) { return LazyString{std::to_wstring(v)}; }},
                 value.value),
             modifiers);
