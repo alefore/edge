@@ -40,8 +40,9 @@ class PathComponent
     return PathComponent{language::lazy_string::LazyString{str}};
   }
 
-  static PathComponent WithExtension(const PathComponent& path,
-                                     const std::wstring& extension);
+  static PathComponent WithExtension(
+      const PathComponent& path,
+      const language::lazy_string::LazyString& extension);
 
   // Can fail for ".md".
   language::ValueOrError<PathComponent> remove_extension() const;
@@ -49,13 +50,10 @@ class PathComponent
   // "hey" => nullopt
   // "hey." => ""
   // "hey.xyz" => "xyz"
-  std::optional<std::wstring> extension() const;
+  std::optional<language::lazy_string::LazyString> extension() const;
 
   // TODO(2024-08-02): Remove.
   std::wstring ToString() const { return read().ToString(); }
-
-  // TODO(2024-08-02): Remove. Callers should use read().
-  language::lazy_string::LazyString ToLazyString() const { return read(); }
 };
 
 struct PathValidator {
@@ -83,7 +81,7 @@ class Path : public language::GhostType<Path, std::wstring, PathValidator> {
 
   language::ValueOrError<Path> Dirname() const;
   language::ValueOrError<PathComponent> Basename() const;
-  std::optional<std::wstring> extension() const;
+  std::optional<language::lazy_string::LazyString> extension() const;
 
   language::ValueOrError<std::list<PathComponent>> DirectorySplit() const;
   bool IsRoot() const;

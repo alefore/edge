@@ -89,16 +89,14 @@ const bool path_component_constructor_bad_inputs_tests_registration =
 }  // namespace
 
 /*  static */ PathComponent PathComponent::WithExtension(
-    const PathComponent& path, const std::wstring& extension) {
-  // TODO(trivial, 2024-08-04): Change WithExtension to receive a LazyString and
-  // avoid conversion below.
+    const PathComponent& path, const LazyString& extension) {
   return PathComponent(
       VisitOptional(
           [&path](ColumnNumber index) {
             return path.read().Substring(ColumnNumber{}, index.ToDelta());
           },
           [&path] { return path.read(); }, FindLastOf(path.read(), {L'.'})) +
-      LazyString{L"."} + LazyString{extension});
+      LazyString{L"."} + extension);
 }
 
 const bool path_component_with_extension_tests_registration = tests::Register(
@@ -107,27 +105,29 @@ const bool path_component_with_extension_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(PathComponent::WithExtension(
-                         PathComponent::FromString(L"foo"), L"md"),
+                         PathComponent::FromString(L"foo"), LazyString{L"md"}),
                      PathComponent::FromString(L"foo.md"));
           }},
      {.name = L"Empty",
       .callback =
           [] {
             CHECK_EQ(PathComponent::WithExtension(
-                         PathComponent::FromString(L"foo"), L""),
+                         PathComponent::FromString(L"foo"), LazyString{}),
                      PathComponent::FromString(L"foo."));
           }},
      {.name = L"Present",
       .callback =
           [] {
-            CHECK_EQ(PathComponent::WithExtension(
-                         PathComponent::FromString(L"foo.txt"), L"md"),
-                     PathComponent::FromString(L"foo.md"));
+            CHECK_EQ(
+                PathComponent::WithExtension(
+                    PathComponent::FromString(L"foo.txt"), LazyString{L"md"}),
+                PathComponent::FromString(L"foo.md"));
           }},
      {.name = L"MultipleReplacesOnlyLast", .callback = [] {
-        CHECK_EQ(PathComponent::WithExtension(
-                     PathComponent::FromString(L"foo.blah.txt"), L"md"),
-                 PathComponent::FromString(L"foo.blah.md"));
+        CHECK_EQ(
+            PathComponent::WithExtension(
+                PathComponent::FromString(L"foo.blah.txt"), LazyString{L"md"}),
+            PathComponent::FromString(L"foo.blah.md"));
       }}});
 
 ValueOrError<PathComponent> PathComponent::remove_extension() const {
@@ -167,16 +167,12 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
                        L"tests") == PathComponent::FromString(L"foo"));
       }}});
 
-std::optional<std::wstring> PathComponent::extension() const {
+std::optional<LazyString> PathComponent::extension() const {
   return VisitOptional(
-      [this](ColumnNumber index) -> std::optional<std::wstring> {
-        // TODO(trivial, 2024-08-04): Avoid call to ToString.
-        return read().Substring(index + ColumnNumberDelta{1}).ToString();
+      [this](ColumnNumber index) -> std::optional<LazyString> {
+        return read().Substring(index + ColumnNumberDelta{1});
       },
-      [] { return std::optional<std::wstring>(); }, FindLastOf(read(), {L'.'}));
-  if (auto index = ToString().find_last_of(L"."); index != std::string::npos)
-    return ToString().substr(index + 1);
-  return std::nullopt;
+      [] { return std::nullopt; }, FindLastOf(read(), {L'.'}));
 }
 
 const bool path_component_extension_tests_registration = tests::Register(
@@ -189,12 +185,14 @@ const bool path_component_extension_tests_registration = tests::Register(
      {.name = L"Empty",
       .callback =
           [] {
-            CHECK(
-                PathComponent::FromString(L"foo.").extension().value().empty());
+            CHECK(PathComponent::FromString(L"foo.")
+                      .extension()
+                      .value()
+                      .IsEmpty());
           }},
      {.name = L"Present", .callback = [] {
         CHECK(PathComponent::FromString(L"foo.md").extension().value() ==
-              L"md");
+              LazyString{L"md"});
       }}});
 
 Path::Path(PathComponent path_component) : Path(path_component.ToString()) {}
@@ -299,10 +297,12 @@ const bool expand_home_directory_tests_registration = tests::Register(
 
 /* static */ Path Path::WithExtension(const Path& path,
                                       const std::wstring& extension) {
-  return Path::Join(
-      ValueOrDie(path.Dirname(), L"Path::WithExtension"),
-      PathComponent::WithExtension(
-          ValueOrDie(path.Basename(), L"Path::WithExtension"), extension));
+  // TODO(trivial, 2024-08-04): Avoid this conversion to LazyString: receive
+  // extension as LazyString.
+  return Path::Join(ValueOrDie(path.Dirname(), L"Path::WithExtension"),
+                    PathComponent::WithExtension(
+                        ValueOrDie(path.Basename(), L"Path::WithExtension"),
+                        LazyString{extension}));
 }
 
 ValueOrError<Path> Path::Dirname() const {
@@ -321,11 +321,11 @@ ValueOrError<PathComponent> Path::Basename() const {
   return PathComponent::New(LazyString{FromByteString(basename(tmp.get()))});
 }
 
-std::optional<std::wstring> Path::extension() const {
+std::optional<LazyString> Path::extension() const {
   return std::visit(
-      overload{[](Error) { return std::optional<std::wstring>(); },
+      overload{[](Error) { return std::optional<LazyString>(); },
                [](PathComponent component) {
-                 return std::optional<std::wstring>(component.extension());
+                 return std::optional<LazyString>(component.extension());
                }},
       Basename());
 }

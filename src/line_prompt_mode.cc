@@ -128,26 +128,24 @@ std::unordered_multimap<std::wstring, LazyString> GetSyntheticFeatures(
     const std::unordered_multimap<std::wstring, LazyString>& input) {
   std::unordered_multimap<std::wstring, LazyString> output;
   std::unordered_set<Path> directories;
-  std::unordered_set<std::wstring> extensions;
+  std::unordered_set<LazyString> extensions;
   VLOG(5) << "Generating features from input: " << input.size();
   for (const auto& [name, value] : input) {
     if (name == L"name") {
       std::visit(
-          overload{IgnoreErrors{},
-                   [&](const Path& path) {
-                     std::visit(
-                         overload{IgnoreErrors{},
-                                  [&](Path directory) {
-                                    if (directory != Path::LocalDirectory())
-                                      directories.insert(directory);
-                                  }},
-                         path.Dirname());
-                     VisitOptional(
-                         [&](std::wstring extension) {
-                           extensions.insert(extension);
-                         },
-                         [] {}, path.extension());
-                   }},
+          overload{
+              IgnoreErrors{},
+              [&](const Path& path) {
+                std::visit(overload{IgnoreErrors{},
+                                    [&](Path directory) {
+                                      if (directory != Path::LocalDirectory())
+                                        directories.insert(directory);
+                                    }},
+                           path.Dirname());
+                VisitOptional(
+                    [&](LazyString extension) { extensions.insert(extension); },
+                    [] {}, path.extension());
+              }},
           Path::FromString(value));
     }
   }
@@ -157,8 +155,8 @@ std::unordered_multimap<std::wstring, LazyString> GetSyntheticFeatures(
     output.insert({L"directory", LazyString{dir.read()}});
 
   VLOG(5) << "Generating features from extensions.";
-  for (const std::wstring& extension : extensions)
-    output.insert({L"extension", LazyString{extension}});
+  for (const LazyString& extension : extensions)
+    output.insert({L"extension", extension});
 
   VLOG(5) << "Done generating synthetic features.";
   return output;

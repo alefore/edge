@@ -114,13 +114,13 @@ ValueOrError<LineBuilder> GetOutputComponents(
             overload{
                 [&](Error) { Add(LazyString{path.ToString()}, modifiers); },
                 [&](const PathComponent& path_without_extension) {
-                  if (std::optional<std::wstring> extension = path.extension();
+                  if (std::optional<LazyString> extension = path.extension();
                       extension.has_value()) {
-                    Add(path_without_extension.ToLazyString(), bold);
+                    Add(path_without_extension.read(), bold);
                     Add(LazyString{L"."}, dim);
-                    Add(LazyString{extension.value()}, bold);
+                    Add(extension.value(), bold);
                   } else {
-                    Add(path.ToLazyString(), modifiers);
+                    Add(path.read(), modifiers);
                   }
                 }},
             path.remove_extension());
