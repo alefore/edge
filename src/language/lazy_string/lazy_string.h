@@ -44,11 +44,13 @@ class LazyString {
 
   std::wstring ToString() const;
 
-  // Returns the substring from pos to the end of the string.
+  // Returns the substring from `column` to the end of the string.
   //
   // Equivalent to:
   //
   //     Substring(column, size() - column);
+  //
+  // LazyString{L"alejo"}.Substring(ColumnNumber{2}) => LazyString{L"ejo"}
   LazyString Substring(ColumnNumber column) const;
 
   // Returns the contents in [pos, pos + len).
