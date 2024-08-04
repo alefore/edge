@@ -27,11 +27,11 @@ std::optional<ColumnNumber> FindFirstColumnWithPredicate(
 
 template <typename Predicate>
 std::optional<ColumnNumber> FindLastColumnWithPredicate(const LazyString& input,
-                                                        const Predicate& f,
-                                                        ColumnNumber start) {
-  CHECK_LT(start.ToDelta(), input.size());
-  for (ColumnNumberDelta delta; delta <= start.ToDelta(); ++delta)
-    if (ColumnNumber column = start - delta; f(column, input.get(column)))
+                                                        const Predicate& f) {
+  for (ColumnNumberDelta delta; delta < input.size(); ++delta)
+    if (ColumnNumber column =
+            ColumnNumber{} + input.size() - delta - ColumnNumberDelta{1};
+        f(column, input.get(column)))
       return column;
   return std::nullopt;
 }
@@ -44,9 +44,11 @@ void ForEachColumn(const LazyString& input, Callback callback) {
   });
 }
 
+std::optional<ColumnNumber> FindFirstOf(const LazyString& input,
+                                        std::unordered_set<wchar_t> chars);
+
 std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
-                                          std::unordered_set<wchar_t> chars,
-                                          ColumnNumber start);
+                                          std::unordered_set<wchar_t> chars);
 
 }  // namespace afc::language::lazy_string
 namespace std {

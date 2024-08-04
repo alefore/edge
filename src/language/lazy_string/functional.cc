@@ -1,15 +1,20 @@
 #include "src/language/lazy_string/functional.h"
 
 namespace afc::language::lazy_string {
+std::optional<ColumnNumber> FindFirstOf(const LazyString& input,
+                                        std::unordered_set<wchar_t> chars) {
+  return FindFirstColumnWithPredicate(
+      input, [chars = std::move(chars)](ColumnNumber, wchar_t c) {
+        return chars.contains(c);
+      });
+}
+
 std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
-                                          std::unordered_set<wchar_t> chars,
-                                          ColumnNumber start) {
+                                          std::unordered_set<wchar_t> chars) {
   return FindLastColumnWithPredicate(
-      input,
-      [chars = std::move(chars)](ColumnNumber, wchar_t c) {
+      input, [chars = std::move(chars)](ColumnNumber, wchar_t c) {
         return !chars.contains(c);
-      },
-      start);
+      });
 }
 }  // namespace afc::language::lazy_string
 

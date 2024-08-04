@@ -63,8 +63,8 @@ LazyString GetToken(const CompositeTransformation::Input& input,
       },
       [] { return ColumnNumber(0); },
       FindLastNotOf(
-          line, std::unordered_set<wchar_t>(chars_str.begin(), chars_str.end()),
-          end));
+          line.Substring(ColumnNumber{}, end.ToDelta()),
+          std::unordered_set<wchar_t>(chars_str.begin(), chars_str.end())));
 
   return line.Substring(symbol_start,
                         end - symbol_start + ColumnNumberDelta(1));
