@@ -853,7 +853,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
                              ->LineAt(filtered_history.ptr()->EndLine())
                              ->empty();
                      status_value_viewer->SetStatusValue(
-                         VersionPropertyKey(L"history"),
+                         VersionPropertyKey{LazyString{L"history"}},
                          filtered_history.ptr()->lines_size().read() -
                              (last_line_empty ? 1 : 0));
                    }
@@ -1132,7 +1132,7 @@ InsertModeOptions PromptState::insert_mode_options() {
             NonNull<std::unique_ptr<ProgressChannel>> progress_channel =
                 prompt_state->NewProgressChannel(status_version_value);
             progress_channel->Push(ProgressInformation{
-                .values = {{VersionPropertyKey(L"🔮"), L"…"}}});
+                .values = {{VersionPropertyKey{LazyString{L"🔮"}}, L"…"}}});
             Predict(
                 prompt_state->options().predictor,
                 PredictorInput{
@@ -1147,7 +1147,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                             input](std::optional<PredictResults> results) {
                   if (!results.has_value()) {
                     status_version_value->SetStatusValue(
-                        VersionPropertyKey(L"🔮"), L"empty");
+                        VersionPropertyKey{LazyString{L"🔮"}}, L"empty");
                     return EmptyValue();
                   }
                   if (results.value().common_prefix.has_value() &&
@@ -1157,7 +1157,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     LOG(INFO) << "Prediction advanced from " << input << " to "
                               << results.value();
                     status_version_value->SetStatusValue(
-                        VersionPropertyKey(L"🔮"), L"advanced");
+                        VersionPropertyKey{LazyString{L"🔮"}}, L"advanced");
 
                     prompt_state->prompt_buffer().ptr()->ApplyToCursors(
                         transformation::Delete{
@@ -1181,7 +1181,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                   }
                   LOG(INFO) << "Prediction didn't advance.";
                   status_version_value->SetStatusValue(
-                      VersionPropertyKey(L"🔮"), L"stuck");
+                      VersionPropertyKey{LazyString{L"🔮"}}, L"stuck");
                   auto buffers =
                       prompt_state->editor_state().buffer_registry().buffers();
                   if (std::optional<gc::Root<OpenBuffer>> predictions_buffer =

@@ -90,7 +90,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
   } catch (std::regex_error& e) {
     Error error(L"Regex failure: " + FromByteString(e.what()));
     options.progress_channel->Push(
-        {.values = {{VersionPropertyKey(L"!"), error.read()}}});
+        {.values = {{VersionPropertyKey{LazyString{L"!"}}, error.read()}}});
     return error;
   }
 
@@ -105,14 +105,14 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
         std::back_inserter(positions));
     if (positions.size() > initial_size)
       options.progress_channel->Push(ProgressInformation{
-          .counters = {{VersionPropertyKey(L"matches"),
+          .counters = {{VersionPropertyKey{LazyString{L"matches"}},
                         previously_found_matches + positions.size()}}});
     if (!options.abort_value.has_value() &&
         (!options.required_positions.has_value() ||
          options.required_positions.value() > positions.size()))
       return true;
-    options.progress_channel->Push(
-        ProgressInformation{.values = {{VersionPropertyKey(L"partial"), L""}}});
+    options.progress_channel->Push(ProgressInformation{
+        .values = {{VersionPropertyKey{LazyString{L"partial"}}, L""}}});
     return false;
   });
   VLOG(5) << "Perform search found matches: " << positions.size();
@@ -374,7 +374,7 @@ bool tests_search_handler_register = tests::Register(L"SearchHandler", [] {
                                 }));
         }}});
 }());
-}
+}  // namespace
 
 ValueOrError<LineColumn> GetNextMatch(Direction direction,
                                       const SearchOptions& options,

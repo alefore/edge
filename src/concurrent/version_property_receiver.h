@@ -10,6 +10,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
 #include "src/language/ghost_type_class.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/safe_types.h"
 
@@ -17,7 +18,8 @@ namespace afc::concurrent {
 
 // The key that uniquely identifies a given property.
 class VersionPropertyKey
-    : public language::GhostType<VersionPropertyKey, std::wstring> {
+    : public language::GhostType<VersionPropertyKey,
+                                 language::lazy_string::LazyString> {
   friend class VersionPropertyReceiver;
 };
 

@@ -311,7 +311,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
             modifiers.insert(LineModifier::kCyan);
             progress_channel->Push(
                 {.values = {
-                     {VersionPropertyKey(L"type"),
+                     {VersionPropertyKey{LazyString{L"type"}},
                       // TODO(easy, 2024-01-03): Avoid call to ToString.
                       vm::TypesToString(compilation_result.first->Types())
                           .ToString()}}});
@@ -333,21 +333,22 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                   std::ostringstream oss;
                   oss << value.ptr().value();
                   progress_channel->Push(
-                      {.values = {{VersionPropertyKey(L"value"),
+                      {.values = {{VersionPropertyKey{LazyString{L"value"}},
                                    FromByteString(oss.str())}}});
                   return futures::Past(Success());
                 })
                 .ConsumeErrors([progress_channel](Error error) {
                   progress_channel->Push(
-                      {.values = {
-                           {VersionPropertyKey(L"runtime"), error.read()}}});
+                      {.values = {{VersionPropertyKey{LazyString{L"runtime"}},
+                                   error.read()}}});
                   return futures::Past(EmptyValue());
                 })
                 .Transform([output](EmptyValue) { return output; });
           },
           [&](Error error) {
             progress_channel->Push(
-                {.values = {{VersionPropertyKey(L"error"), error.read()}}});
+                {.values = {{VersionPropertyKey{LazyString{L"error"}},
+                             error.read()}}});
             return futures::Past(ColorizePromptOptions());
           }},
       buffer->ptr()->CompileString(line));

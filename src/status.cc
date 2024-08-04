@@ -13,7 +13,6 @@
 #include "src/language/text/line.h"
 #include "src/language/text/line_builder.h"
 
-using afc::concurrent::VersionPropertyKey;
 using afc::concurrent::VersionPropertyReceiver;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
@@ -173,9 +172,7 @@ Line Status::prompt_extra_information_line() const {
                                           Value::Status::kExpired
                                   ? dim
                                   : empty;
-      // TODO(easy, 2024-07-26): Change the key to be a LazyString to avoid
-      // having to convert below.
-      options.AppendString(LazyString{key.read()}, modifiers);
+      options.AppendString(key.read(), modifiers);
       if (!std::holds_alternative<std::wstring>(value.value) ||
           std::get<std::wstring>(value.value) != L"") {
         options.AppendString(LazyString{L":"}, dim);
