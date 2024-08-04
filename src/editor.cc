@@ -66,7 +66,6 @@ using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language ::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::Observers;
 using afc::language::OnceOnlyFunction;
@@ -556,15 +555,15 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             });
         !buffers_with_problems.empty()) {
       switch (status().InsertError(
-          NewError(
-              LazyString{L"🖝  Dirty buffers (pre):"} +
-              Concatenate(container::MaterializeVector(
-                  buffers_with_problems |
-                  std::views::transform(
-                      [](const NonNull<OpenBuffer*>& buffer) -> LazyString {
-                        return LazyString{L" "} +
-                               LazyString{buffer->Read(buffer_variables::name)};
-                      })))),
+          Error{LazyString{L"🖝  Dirty buffers (pre):"} +
+                Concatenate(container::MaterializeVector(
+                    buffers_with_problems |
+                    std::views::transform(
+                        [](const NonNull<OpenBuffer*>& buffer) -> LazyString {
+                          return LazyString{L" "} +
+                                 LazyString{
+                                     buffer->Read(buffer_variables::name)};
+                        })))},
           30)) {
         case error::Log::InsertResult::kInserted:
           return;
@@ -618,15 +617,15 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
             LOG(INFO) << "Checking buffers state for termination.";
             if (!data->buffers_with_problems.empty()) {
               switch (status().InsertError(
-                  NewError(
-                      LazyString{L"🖝  Dirty buffers (post):"} +
-                      Concatenate(std::move(data->buffers_with_problems) |
-                                  gc::view::Value |
-                                  std::views::transform(
-                                      [](const OpenBuffer& b) -> LazyString {
-                                        return LazyString{L" "} +
-                                               LazyString{to_wstring(b.name())};
-                                      }))),
+                  Error{LazyString{L"🖝  Dirty buffers (post):"} +
+                        Concatenate(std::move(data->buffers_with_problems) |
+                                    gc::view::Value |
+                                    std::views::transform(
+                                        [](const OpenBuffer& b) -> LazyString {
+                                          return LazyString{L" "} +
+                                                 LazyString{
+                                                     to_wstring(b.name())};
+                                        }))},
                   5)) {
                 case error::Log::InsertResult::kInserted:
                   return futures::Past(EmptyValue());

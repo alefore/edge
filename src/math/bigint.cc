@@ -11,7 +11,6 @@
 
 using afc::language::Error;
 using afc::language::IsError;
-using afc::language::NewError;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -64,13 +63,13 @@ const bool constructors_tests_registration =
 
 /* static */ ValueOrError<BigInt> BigInt::FromString(
     const std::wstring& input) {
-  if (input.empty()) return NewError(LazyString{L"Input string is empty."});
+  if (input.empty()) return Error{LazyString{L"Input string is empty."}};
   size_t i = input[0] == L'+' ? 1 : 0;
   std::vector<Digit> digits;
   while (i < input.size() && input[i] != L'.') {
     if (input[i] < L'0' || input[i] > L'9') {
-      return NewError(LazyString{L"Invalid character found: "} +
-                      LazyString{ColumnNumberDelta{1}, input[i]});
+      return Error{LazyString{L"Invalid character found: "} +
+                   LazyString{ColumnNumberDelta{1}, input[i]}};
     }
     digits.insert(digits.begin(), input[i] - L'0');
     ++i;
@@ -80,9 +79,9 @@ const bool constructors_tests_registration =
     CHECK(input[i] == L'.');
     if (std::wstring::size_type pos = input.find_first_not_of(L'0', i + 1);
         pos != std::wstring::npos)
-      return NewError(LazyString{L"Non-zero decimal part found."});
+      return Error{LazyString{L"Non-zero decimal part found."}};
   }
-  if (digits.empty()) return NewError(LazyString{L"No digits found in input."});
+  if (digits.empty()) return Error{LazyString{L"No digits found in input."}};
 
   return BigInt(std::move(digits));
 }
@@ -299,7 +298,7 @@ const bool addition_tests_registration =
 }  // namespace
 
 ValueOrError<BigInt> BigInt::operator-(BigInt b) && {
-  if (*this < b) return NewError(LazyString{L"Subtraction would underflow."});
+  if (*this < b) return Error{LazyString{L"Subtraction would underflow."}};
 
   std::vector<Digit> output_digits;
   int borrow = 0;
@@ -464,8 +463,8 @@ language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator) {
   DECLARE_OR_RETURN(BigIntDivideOutput values,
                     Divide(std::move(numerator), std::move(denominator)));
   if (values.remainder != BigInt::FromNumber(0))
-    return NewError(LazyString{L"Non-empty reminder: "} +
-                    LazyString{values.remainder.ToString()});
+    return Error{LazyString{L"Non-empty reminder: "} +
+                 LazyString{values.remainder.ToString()}};
   return values.quotient;
 }
 
@@ -852,7 +851,7 @@ const bool big_int_to_double_tests_registration =
 
 /* static */ language::ValueOrError<NonZeroBigInt> NonZeroBigInt::New(
     BigInt value) {
-  if (value.IsZero()) return NewError(LazyString{L"Expected non-zero value."});
+  if (value.IsZero()) return Error{LazyString{L"Expected non-zero value."}};
   return NonZeroBigInt(std::move(value));
 }
 

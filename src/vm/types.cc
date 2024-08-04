@@ -13,8 +13,8 @@
 
 namespace container = afc::language::container;
 
+using afc::language::Error;
 using afc::language::GetValueOrDie;
-using afc::language::NewError;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
@@ -79,7 +79,8 @@ using language::overload;
 namespace gc = language::gc;
 
 language::ValueOrError<Identifier> IdentifierOrError(LazyString input) {
-  if (input.IsEmpty()) return NewError(LazyString{L"Identifier is empty"});
+  // TODO(2024-08-04, trivial): Remove this function! Just use Identifier::New.
+  if (input.IsEmpty()) return Error{LazyString{L"Identifier is empty"}};
   // TODO(trivial, 2023-12-30): Start checking characters (e.g., only alnum).
   return Identifier(input.ToString());
 }

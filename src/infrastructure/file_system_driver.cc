@@ -21,7 +21,6 @@ namespace container = afc::language::container;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
-using afc::language::NewError;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -36,7 +35,7 @@ using ::operator<<;
 
 PossibleError FileDescriptorValidator::Validate(const int& fd) {
   if (fd < 0)
-    return NewError(LazyString{L"Invalid file descriptor: negative value."});
+    return Error{LazyString{L"Invalid file descriptor: negative value."}};
   return Success();
 }
 
@@ -60,11 +59,11 @@ futures::ValueOrError<std::vector<Path>> FileSystemDriver::Glob(
     switch (glob(ToByteString(pattern.ToString()).c_str(), 0, nullptr,
                  &output_glob)) {
       case GLOB_NOSPACE:
-        return NewError(LazyString{L"Out of memory"});
+        return Error{LazyString{L"Out of memory"}};
       case GLOB_ABORTED:
-        return NewError(LazyString{L"Aborted"});
+        return Error{LazyString{L"Aborted"}};
       case GLOB_NOMATCH:
-        return NewError(LazyString{L"No match"});
+        return Error{LazyString{L"No match"}};
     }
     return ExtractErrors(container::MaterializeVector(
         std::views::counted(output_glob.gl_pathv, output_glob.gl_pathc) |
@@ -110,9 +109,9 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
                                path)]() -> language::ValueOrError<struct stat> {
     struct stat output;
     if (stat(path.ToByteString().c_str(), &output) == -1) {
-      Error error = NewError(LazyString{L"Stat failed: `"} + path.read() +
-                             LazyString{L"`: "} +
-                             LazyString{FromByteString(strerror(errno))});
+      Error error{LazyString{L"Stat failed: `"} + path.read() +
+                  LazyString{L"`: "} +
+                  LazyString{FromByteString(strerror(errno))}};
       LOG(INFO) << error;
       return error;
     }
