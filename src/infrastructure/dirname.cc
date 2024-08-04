@@ -30,6 +30,7 @@ using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindFirstOf;
 using afc::language::lazy_string::FindLastOf;
 using afc::language::lazy_string::LazyString;
@@ -167,7 +168,12 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
       }}});
 
 std::optional<std::wstring> PathComponent::extension() const {
-  // TODO(trivial, 2024-08-04): Avoid calls to ToString.
+  return VisitOptional(
+      [this](ColumnNumber index) -> std::optional<std::wstring> {
+        // TODO(trivial, 2024-08-04): Avoid call to ToString.
+        return read().Substring(index + ColumnNumberDelta{1}).ToString();
+      },
+      [] { return std::optional<std::wstring>(); }, FindLastOf(read(), {L'.'}));
   if (auto index = ToString().find_last_of(L"."); index != std::string::npos)
     return ToString().substr(index + 1);
   return std::nullopt;
