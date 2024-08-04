@@ -92,9 +92,6 @@ const bool get_local_file_path_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-// TODO(2024-08-04, trivial): Get rid of this wrapper.
-LazyString URL::ToString() const { return read(); }
-
 std::vector<URL> GetLocalFileURLsWithExtensions(
     const LazyString& file_context_extensions, const URL& url) {
   std::vector<URL> output = {url};

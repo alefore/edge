@@ -17,9 +17,6 @@ class URL : public language::GhostType<URL, language::lazy_string::LazyString> {
   std::optional<Schema> schema() const;
 
   language::ValueOrError<infrastructure::Path> GetLocalFilePath() const;
-
-  // TODO(easy, 2024-08-02): Change customers to to_wstring?
-  language::lazy_string::LazyString ToString() const;
 };
 
 // If `url` is a local file, returns a vector with variations adding all the

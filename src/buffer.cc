@@ -2039,7 +2039,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                AddSeconds(Now(), 1.0),
                                editor.status().SetExpiringInformationText(
                                    LineBuilder{LazyString{L"Open: "} +
-                                               url.ToString()}
+                                               url.read()}
                                        .Build()));
                            // TODO(easy, 2023-09-11): Extend ShellEscape to work
                            // with LazyString and avoid conversion to
@@ -2049,7 +2049,7 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                ForkCommandOptions{
                                    .command = LazyString{L"xdg-open "} +
                                               LazyString{ShellEscape(
-                                                  url.ToString().ToString())},
+                                                  url.read().ToString())},
                                    .insertion_type =
                                        BuffersList::AddBufferType::kIgnore,
                                });
