@@ -427,9 +427,7 @@ ValueOrError<URL> FindLinkTarget(const ParseTree& tree,
                                  const LineSequence& contents) {
   if (tree.properties().find(ParseTreeProperty::LinkTarget()) !=
       tree.properties().end()) {
-    // TODO(2023-09-10, easy): Change URL to use LazyString and avoid call to
-    // ToString here.
-    return URL(contents.ViewRange(tree.range()).ToString());
+    return URL{contents.ViewRange(tree.range()).ToLazyString()};
   }
   for (const auto& child : tree.children())
     if (ValueOrError<URL> output = FindLinkTarget(child, contents);

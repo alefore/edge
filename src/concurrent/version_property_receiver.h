@@ -21,9 +21,6 @@ class VersionPropertyKey
   friend class VersionPropertyReceiver;
 };
 
-// TODO(easy, 2024-08-02): Get rid of this `using` clause?
-using ::operator<<;
-
 // This class is thread-safe.
 class VersionPropertyReceiver {
  public:

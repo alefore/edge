@@ -3,15 +3,18 @@
 #include <string>
 
 #include "src/infrastructure/dirname.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/tests/tests.h"
 
 using afc::infrastructure::Path;
 using afc::language::Error;
+using afc::language::GetValueOrDefault;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
@@ -19,25 +22,24 @@ using afc::language::lazy_string::TokenizeBySpaces;
 namespace afc::editor {
 
 /* static */
-URL URL::FromPath(Path path) { return URL(L"file:" + path.read().ToString()); }
+URL URL::FromPath(Path path) { return URL{LazyString{L"file:"} + path.read()}; }
 
 std::optional<URL::Schema> URL::schema() const {
-  auto colon = read().find_first_of(L':');
-  if (colon == std::wstring::npos) return std::nullopt;
-  auto candidate = read().substr(0, colon);
-  static const std::unordered_map<std::wstring, Schema> schemes = {
-      {L"file", Schema::kFile},
-      {L"http", Schema::kHttp},
-      {L"https", Schema::kHttps}};
-  auto it = schemes.find(candidate);
-  return it == schemes.end() ? std::nullopt : std::make_optional(it->second);
+  std::optional<ColumnNumber> colon = FindFirstOf(read(), {L':'});
+  if (colon == std::nullopt) return std::nullopt;
+  LazyString candidate = read().Substring(ColumnNumber{}, colon->ToDelta());
+  static const std::unordered_map<LazyString, std::optional<Schema>> schemes = {
+      {LazyString{L"file"}, Schema::kFile},
+      {LazyString{L"http"}, Schema::kHttp},
+      {LazyString{L"https"}, Schema::kHttps}};
+  return GetValueOrDefault(schemes, candidate, std::optional<Schema>{});
 }
 
 namespace {
 const bool schema_tests_registration = tests::Register(
     L"URL::Schema",
     {{.name = L"EmptyURL",
-      .callback = [] { CHECK(!URL(L"").schema().has_value()); }},
+      .callback = [] { CHECK(!URL(LazyString{}).schema().has_value()); }},
      {.name = L"URLFromPath",
       .callback =
           [] {
@@ -46,19 +48,19 @@ const bool schema_tests_registration = tests::Register(
                     .schema() == URL::Schema::kFile);
           }},
      {.name = L"URLRelative",
-      .callback = [] { CHECK(!URL(L"foo/bar/hey").schema().has_value()); }},
+      .callback =
+          [] { CHECK(!URL(LazyString{L"foo/bar/hey"}).schema().has_value()); }},
      {.name = L"URLStringFile", .callback = [] {
-        CHECK(URL(L"file:foo/bar/hey").schema() == URL::Schema::kFile);
+        CHECK(URL(LazyString{L"file:foo/bar/hey"}).schema() ==
+              URL::Schema::kFile);
       }}});
 }  // namespace
 
 ValueOrError<Path> URL::GetLocalFilePath() const {
   std::optional<Schema> s = schema();
-  // TODO(trivial, 2024-08-04): Get rid of LazyString.
-  if (!s.has_value()) return Path::New(LazyString{read()});
+  if (!s.has_value()) return Path::New(read());
   if (s != Schema::kFile) return Error(L"Schema isn't file.");
-  // TODO(trivial, 2024-08-04): Get rid of LazyString.
-  return Path::New(LazyString{read().substr(sizeof("file:") - 1)});
+  return Path::New(read().Substring(ColumnNumber{sizeof("file:") - 1}));
 }
 
 namespace {
@@ -67,7 +69,8 @@ const bool get_local_file_path_tests_registration = tests::Register(
     {{.name = L"EmptyURL",
       .callback =
           [] {
-            CHECK(std::holds_alternative<Error>(URL(L"").GetLocalFilePath()));
+            CHECK(std::holds_alternative<Error>(
+                URL(LazyString{}).GetLocalFilePath()));
           }},
      {.name = L"URLFromPath",
       .callback =
@@ -79,17 +82,18 @@ const bool get_local_file_path_tests_registration = tests::Register(
       .callback =
           [] {
             Path input = ValueOrDie(Path::New(LazyString{L"foo/bar/hey"}));
-            CHECK(ValueOrDie(URL(input.read().ToString()).GetLocalFilePath()) ==
-                  input);
+            CHECK(ValueOrDie(URL(input.read()).GetLocalFilePath()) == input);
           }},
      {.name = L"URLStringFile", .callback = [] {
         LazyString input{L"foo/bar/hey"};
-        CHECK(ValueOrDie(URL(L"file:" + input.ToString()).GetLocalFilePath()) ==
-              ValueOrDie(Path::New(input)));
+        CHECK(
+            ValueOrDie(URL(LazyString{L"file:"} + input).GetLocalFilePath()) ==
+            ValueOrDie(Path::New(input)));
       }}});
 }  // namespace
 
-LazyString URL::ToString() const { return LazyString{read()}; }
+// TODO(2024-08-04, trivial): Get rid of this wrapper.
+LazyString URL::ToString() const { return read(); }
 
 std::vector<URL> GetLocalFileURLsWithExtensions(
     const LazyString& file_context_extensions, const URL& url) {

@@ -9,7 +9,7 @@
 
 namespace afc::editor {
 
-class URL : public language::GhostType<URL, std::wstring> {
+class URL : public language::GhostType<URL, language::lazy_string::LazyString> {
  public:
   static URL FromPath(infrastructure::Path path);
 
