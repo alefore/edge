@@ -130,10 +130,12 @@ const bool path_component_with_extension_tests_registration = tests::Register(
       }}});
 
 ValueOrError<PathComponent> PathComponent::remove_extension() const {
-  // TODO(trivial, 2024-08-04): Avoid calls to ToString.
-  if (auto index = ToString().find_last_of(L"."); index != std::string::npos)
-    return PathComponent::New(LazyString{ToString().substr(0, index)});
-  return Success(*this);
+  return VisitOptional(
+      [this](ColumnNumber index) {
+        return PathComponent::New(
+            read().Substring(ColumnNumber{}, index.ToDelta()));
+      },
+      [this] { return Success(*this); }, FindLastOf(read(), {L'.'}));
 }
 
 const bool path_component_remove_extension_tests_registration = tests::Register(
