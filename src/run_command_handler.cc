@@ -90,13 +90,10 @@ std::map<std::wstring, LazyString> LoadEnvironmentVariables(
     return environment;
   }
   size_t end = full_command.find_first_of(whitespace, start);
-  if (end == full_command.npos || end <= start) {
-    return environment;
-  }
-  std::wstring command = full_command.substr(start, end - start);
+  if (end == full_command.npos || end <= start) return environment;
   std::visit(
       overload{IgnoreErrors{},
-               [&](PathComponent command_component) {
+               [&path, &environment](PathComponent command_component) {
                  auto environment_local_path = Path::Join(
                      PathComponent::FromString(L"commands"),
                      Path::Join(command_component,
@@ -122,7 +119,8 @@ std::map<std::wstring, LazyString> LoadEnvironmentVariables(
                    }
                  }
                }},
-      PathComponent::New(command));
+      // TODO(trivial, 2024-08-04): Avoid call to LazyString.
+      PathComponent::New(LazyString{full_command.substr(start, end - start)}));
   return environment;
 }
 

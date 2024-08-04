@@ -11,6 +11,7 @@ extern "C" {
 #include "src/language/container.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
@@ -27,6 +28,8 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::FindFirstOf;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::infrastructure {
@@ -34,9 +37,10 @@ namespace afc::infrastructure {
 using ::operator<<;
 
 /* static */ language::PossibleError PathComponentValidator::Validate(
-    const std::wstring& input) {
-  if (input.empty()) return NewError(LazyString{L"Component can't be empty."});
-  if (input.find(L"/") != std::wstring::npos)
+    const LazyString& input) {
+  if (input.IsEmpty())
+    return NewError(LazyString{L"Component can't be empty."});
+  if (FindFirstOf(input, {L'/'}).has_value())
     return NewError(LazyString{L"Component can't contain a slash: "} +
                     LazyString{input});
   return Success();
@@ -47,9 +51,10 @@ const bool path_component_constructor_good_inputs_tests_registration =
     tests::Register(
         L"PathComponentConstructorGoodInputs",
         {
-            {.name = L"Simple", .callback = [] { PathComponent(L"foo"); }},
+            {.name = L"Simple",
+             .callback = [] { PathComponent{LazyString{L"foo"}}; }},
             {.name = L"WithExtension",
-             .callback = [] { PathComponent(L"foo.md"); }},
+             .callback = [] { PathComponent{LazyString{L"foo.md"}}; }},
         });
 
 const bool path_component_constructor_bad_inputs_tests_registration =
@@ -57,20 +62,24 @@ const bool path_component_constructor_bad_inputs_tests_registration =
         L"PathComponentConstructorBadInputs",
         {
             {.name = L"Empty",
-             .callback = [] { CHECK(IsError(PathComponent::New(L""))); }},
+             .callback =
+                 [] { CHECK(IsError(PathComponent::New(LazyString{}))); }},
             {.name = L"EmptyCrash",
              .callback =
                  [] {
-                   tests::ForkAndWaitForFailure([] { PathComponent(L""); });
+                   tests::ForkAndWaitForFailure(
+                       [] { PathComponent{LazyString{}}; });
                  }},
             {.name = L"TooLarge",
              .callback =
-                 [] { CHECK(IsError(PathComponent::New(L"foo/bar"))); }},
+                 [] {
+                   CHECK(IsError(PathComponent::New(LazyString{L"foo/bar"})));
+                 }},
             {.name = L"TooLargeCrash",
              .callback =
                  [] {
                    tests::ForkAndWaitForFailure(
-                       [] { PathComponent(L"foo/bar"); });
+                       [] { PathComponent{LazyString{L"foo/bar"}}; });
                  }},
 
         });
@@ -78,11 +87,12 @@ const bool path_component_constructor_bad_inputs_tests_registration =
 
 /*  static */ PathComponent PathComponent::WithExtension(
     const PathComponent& path, const std::wstring& extension) {
-  auto index = path.read().find_last_of(L".");
-  return PathComponent((index == std::string::npos
-                            ? path.read()
-                            : path.read().substr(0, index)) +
-                       L"." + extension);
+  // TODO(trivial, 2024-08-04): Avoid calls to ToString.
+  auto index = path.ToString().find_last_of(L".");
+  return PathComponent{LazyString{(index == std::string::npos
+                                       ? path.ToString()
+                                       : path.ToString().substr(0, index)) +
+                                  L"." + extension}};
 }
 
 const bool path_component_with_extension_tests_registration = tests::Register(
@@ -115,8 +125,9 @@ const bool path_component_with_extension_tests_registration = tests::Register(
       }}});
 
 ValueOrError<PathComponent> PathComponent::remove_extension() const {
-  if (auto index = read().find_last_of(L"."); index != std::string::npos)
-    return PathComponent::New(read().substr(0, index));
+  // TODO(trivial, 2024-08-04): Avoid calls to ToString.
+  if (auto index = ToString().find_last_of(L"."); index != std::string::npos)
+    return PathComponent::New(LazyString{ToString().substr(0, index)});
   return Success(*this);
 }
 
@@ -149,8 +160,9 @@ const bool path_component_remove_extension_tests_registration = tests::Register(
       }}});
 
 std::optional<std::wstring> PathComponent::extension() const {
-  if (auto index = read().find_last_of(L"."); index != std::string::npos)
-    return read().substr(index + 1);
+  // TODO(trivial, 2024-08-04): Avoid calls to ToString.
+  if (auto index = ToString().find_last_of(L"."); index != std::string::npos)
+    return ToString().substr(index + 1);
   return std::nullopt;
 }
 
@@ -172,7 +184,7 @@ const bool path_component_extension_tests_registration = tests::Register(
               L"md");
       }}});
 
-Path::Path(PathComponent path_component) : Path(path_component.read()) {}
+Path::Path(PathComponent path_component) : Path(path_component.ToString()) {}
 
 /* static */ Path Path::Join(Path a, Path b) {
   if (a.IsRoot() && b.IsRoot()) {
@@ -293,7 +305,7 @@ ValueOrError<PathComponent> Path::Basename() const {
   std::unique_ptr<char, decltype(&std::free)> tmp(
       strdup(ToByteString(read()).c_str()), &std::free);
   CHECK(tmp != nullptr);
-  return PathComponent::New(FromByteString(basename(tmp.get())));
+  return PathComponent::New(LazyString{FromByteString(basename(tmp.get()))});
 }
 
 std::optional<std::wstring> Path::extension() const {
@@ -313,7 +325,7 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
     using ::operator<<;
     VLOG(5) << "DirectorySplit: PushFront: " << base;
     output.push_front(base);
-    if (output.front().read() == path.read()) return Success(output);
+    if (output.front().ToString() == path.read()) return Success(output);
     ASSIGN_OR_RETURN(
         auto dir, AugmentError(LazyString{L"Dirname error"}, path.Dirname()));
     if (dir.read().size() >= path.read().size()) {

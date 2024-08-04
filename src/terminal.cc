@@ -129,6 +129,8 @@ void Terminal::Display(const EditorState& editor_state, Screen& screen,
 //
 // The thinking is to return at most a single-character, and pick the most
 // meaningful.
+//
+// TODO(trivial, 2024-08-04): This appears to be dead code.
 std::wstring TransformCommandNameForStatus(std::wstring name) {
   static const std::wstring kDefaultName = L"…";
   static const size_t kMaxLength = 5;
@@ -149,7 +151,11 @@ std::wstring TransformCommandNameForStatus(std::wstring name) {
                       [&](Path first_path) {
                         std::visit(overload{IgnoreErrors{},
                                             [&](PathComponent basename) {
-                                              output = basename.read();
+                                              // TODO(trivial, 2024-08-04):
+                                              // Change this function to return
+                                              // a LazyString and avoid
+                                              // conversion here.
+                                              output = basename.ToString();
                                             }},
                                    first_path.Basename());
                       }},

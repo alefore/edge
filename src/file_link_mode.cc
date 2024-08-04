@@ -63,6 +63,7 @@ using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ToByteString;
+using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
@@ -244,10 +245,10 @@ futures::Value<PossibleError> SaveContentsToFile(
     const Path& path, LineSequence contents,
     ThreadPoolWithWorkQueue& thread_pool,
     FileSystemDriver& file_system_driver) {
-  Path tmp_path =
-      Path::Join(ValueOrDie(path.Dirname()),
-                 ValueOrDie(PathComponent::New(
-                     ValueOrDie(path.Basename()).ToString() + L".tmp")));
+  Path tmp_path = Path::Join(
+      ValueOrDie(path.Dirname()),
+      ValueOrDie(PathComponent::New(ValueOrDie(path.Basename()).read() +
+                                    LazyString{L".tmp"})));
   return futures::OnError(
              file_system_driver.Stat(path),
              [](Error error) {

@@ -23,18 +23,21 @@ extern "C" {
 namespace afc::infrastructure {
 
 struct PathComponentValidator {
-  static language::PossibleError Validate(const std::wstring& input);
+  static language::PossibleError Validate(
+      const language::lazy_string::LazyString& input);
 };
 
-class PathComponent : public language::GhostType<PathComponent, std::wstring,
-                                                 PathComponentValidator> {
+class PathComponent
+    : public language::GhostType<PathComponent,
+                                 language::lazy_string::LazyString,
+                                 PathComponentValidator> {
  public:
   // Compile-time version of `New` for string literals.
   template <size_t N>
   static PathComponent FromString(const wchar_t (&str)[N]) {
     static_assert(N > 1, "String cannot be empty");
     // TODO(2024-08-02): This should also validate no slashes!
-    return PathComponent{std::wstring{str}};
+    return PathComponent{language::lazy_string::LazyString{str}};
   }
 
   static PathComponent WithExtension(const PathComponent& path,
@@ -48,13 +51,11 @@ class PathComponent : public language::GhostType<PathComponent, std::wstring,
   // "hey.xyz" => "xyz"
   std::optional<std::wstring> extension() const;
 
-  // TODO(2024-08-02): Once we convert the inner type to LazyString, we can
-  // convert all readers to use this version. Then gradually migrate them all to
-  // the underlying LazyString-based read method.
-  std::wstring ToString() const { return read(); }
-  language::lazy_string::LazyString ToLazyString() const {
-    return language::lazy_string::LazyString{read()};
-  }
+  // TODO(2024-08-02): Remove.
+  std::wstring ToString() const { return read().ToString(); }
+
+  // TODO(2024-08-02): Remove. Callers should use read().
+  language::lazy_string::LazyString ToLazyString() const { return read(); }
 };
 
 struct PathValidator {

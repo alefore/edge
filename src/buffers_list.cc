@@ -104,11 +104,11 @@ ValueOrError<LineBuilder> GetOutputComponents(
               ? path_full
               : PathComponent::New(
                     output_items.empty()
-                        ? path_full.ToString().substr(
-                              path_full.size() -
-                              (columns + separator_size).read())
-                        : path_full.ToString().substr(
-                              0, (columns - separator_size).read())));
+                        ? path_full.read().Substring(ColumnNumber{} +
+                                                     path_full.size() -
+                                                     columns + separator_size)
+                        : path_full.read().Substring(
+                              ColumnNumber{}, columns - separator_size)));
       if (output_items.empty())
         std::visit(
             overload{
