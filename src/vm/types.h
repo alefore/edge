@@ -26,8 +26,8 @@ class Identifier : public language::GhostType<Identifier, std::wstring> {
  public:
   static language::PossibleError Validate(const InternalType& input) {
     if (input.empty())
-      return language::NewError(
-          language::lazy_string::LazyString{L"Identifier can't be empty."});
+      return language::Error{
+          language::lazy_string::LazyString{L"Identifier can't be empty."}};
     return language::Success();
   }
 };

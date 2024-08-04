@@ -18,7 +18,6 @@ using afc::language::GetValueOrDefault;
 using afc::language::GetValueOrDie;
 using afc::language::GhostType;
 using afc::language::IsError;
-using afc::language::NewError;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -29,11 +28,10 @@ namespace afc::math::naive_bayes {
 struct ProbabilityValidator {
   static PossibleError Validate(const double& input) {
     if (input < 0)
-      return NewError(
-          LazyString{L"Invalid probability value (less than 0.0)."});
+      return Error{LazyString{L"Invalid probability value (less than 0.0)."}};
     if (input > 1.0)
-      return NewError(
-          LazyString{L"Invalid probability value (greater than 1.0)."});
+      return Error{
+          LazyString{L"Invalid probability value (greater than 1.0)."}};
     return Success();
   }
 };

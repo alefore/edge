@@ -7,7 +7,6 @@
 
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::ValueOrError;
@@ -78,20 +77,19 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
   }
 
   if (!condition->IsBool()) {
-    Error error =
-        NewError(LazyString{L"Expected bool value for condition of \"if\" "
-                            L"expression but found "} +
-                 TypesToString(condition->Types()) + LazyString{L"."});
+    Error error{LazyString{L"Expected bool value for condition of \"if\" "
+                           L"expression but found "} +
+                TypesToString(condition->Types()) + LazyString{L"."}};
     compilation.AddError(error);
     return error;
   }
 
   if (!(true_case->Types() == false_case->Types())) {
-    Error error = NewError(
+    Error error{
         LazyString{
             L"Type mismatch between branches of conditional expression: "} +
         TypesToString(true_case->Types()) + LazyString{L" and "} +
-        TypesToString(false_case->Types()) + LazyString{L"."});
+        TypesToString(false_case->Types()) + LazyString{L"."}};
     compilation.AddError(error);
     return error;
   }

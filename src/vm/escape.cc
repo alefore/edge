@@ -6,7 +6,6 @@
 #include "src/tests/tests.h"
 
 using afc::language::Error;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::ValueOrDie;
 using afc::language::lazy_string::ColumnNumber;
@@ -37,8 +36,8 @@ namespace afc::vm {
             original_string += input.Substring(i, ColumnNumberDelta(1));
             break;
           default:
-            return NewError(LazyString{L"Unknown escaped character: "} +
-                            input.Substring(i, ColumnNumberDelta(1)));
+            return Error{LazyString{L"Unknown escaped character: "} +
+                         input.Substring(i, ColumnNumberDelta(1))};
         }
         break;
       default:
@@ -119,5 +118,5 @@ bool cpp_unescape_string_tests_registration =
           fail(L"EndsInEscape", L"foo\\"),
       });
     }());
-}
+}  // namespace
 }  // namespace afc::vm

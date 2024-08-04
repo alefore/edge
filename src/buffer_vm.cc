@@ -40,7 +40,6 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
@@ -354,7 +353,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
       Identifier(L"SetWarningStatus"),
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](gc::Ptr<OpenBuffer> buffer, LazyString s) {
-                        buffer->status().InsertError(NewError(s));
+                        buffer->status().InsertError(Error{s});
                       })
           .ptr());
 

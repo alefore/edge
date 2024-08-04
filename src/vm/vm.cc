@@ -46,7 +46,6 @@ using afc::language::Error;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
@@ -92,7 +91,7 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
   std::wifstream infile(path.ToByteString());
   infile.imbue(std::locale(""));
   if (infile.fail()) {
-    compilation.AddError(NewError(path.read() + LazyString{L": open failed"}));
+    compilation.AddError(Error{path.read() + LazyString{L": open failed"}});
   } else {
     CompileStream(infile, compilation, parser);
   }
@@ -111,9 +110,9 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
   if (pos.ToDelta() >= str.size() ||
       (str.get(pos) != '\"' && str.get(pos) != '<')) {
     VLOG(5) << "Processing #include failed: Expected opening delimiter";
-    return NewError(
+    return Error{
         LazyString{L"#include expects \"FILENAME\" or <FILENAME>; in line: "} +
-        str);
+        str};
   }
   wchar_t delimiter = str.get(pos) == L'<' ? L'>' : L'\"';
   ++pos;
@@ -121,10 +120,10 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
   while (pos.ToDelta() < str.size() && str.get(pos) != delimiter) ++pos;
   if (pos.ToDelta() >= str.size()) {
     VLOG(5) << "Processing #include failed: Expected closing delimiter";
-    return NewError(
+    return Error{
         LazyString{L"#include expects \"FILENAME\" or <FILENAME>, failed to "
                    L"find closing character; in line: "} +
-        str);
+        str};
   }
 
   ASSIGN_OR_RETURN(
@@ -287,8 +286,8 @@ void CompileLine(Compilation& compilation, void* parser,
             HandleInclude(compilation, parser, str, &pos);
           else
             compilation.AddError(
-                NewError(LazyString{L"Invalid preprocessing directive #"} +
-                         symbol_contents));
+                Error{LazyString{L"Invalid preprocessing directive #"} +
+                      symbol_contents});
           continue;
         }
         break;
@@ -569,9 +568,9 @@ void CompileLine(Compilation& compilation, void* parser,
 
       default:
         compilation.AddError(
-            NewError(LazyString{L"Unhandled character at position: "} +
-                     LazyString{std::to_wstring(pos.read())} +
-                     LazyString{L" in line: "} + str));
+            Error{LazyString{L"Unhandled character at position: "} +
+                  LazyString{std::to_wstring(pos.read())} +
+                  LazyString{L" in line: "} + str});
         return;
     }
     if (token == SYMBOL || token == STRING) {

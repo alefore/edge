@@ -18,7 +18,6 @@ namespace container = afc::language::container;
 
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
-using afc::language::NewError;
 using afc::language::overload;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
@@ -78,7 +77,7 @@ Number Number::Negate() && {
 ValueOrError<Number> Number::Reciprocal() && {
   return std::visit(
       overload{[](Error) -> ValueOrError<Number> {
-                 return NewError(LazyString{L"Zero has no reciprocal."});
+                 return Error{LazyString{L"Zero has no reciprocal."}};
                },
                [&](NonZeroBigInt new_denominator) -> ValueOrError<Number> {
                  return Number{positive_, std::move(denominator_).value(),
@@ -234,9 +233,9 @@ afc::language::ValueOrError<int32_t> Number::ToInt32() const {
     return CheckedMultiply<int32_t, int32_t>(abs_value, positive_ ? 1 : -1);
   }
 
-  return NewError(
-      LazyString{L"Inexact: Number can't be represented as int32_t: "
-                 L"fractional part is non-zero."});
+  return Error{
+      LazyString{L"Inexact: Number can't be represented as int32_t: fractional "
+                 L"part is non-zero."}};
 }
 
 afc::language::ValueOrError<int64_t> Number::ToInt64() const {
@@ -244,9 +243,9 @@ afc::language::ValueOrError<int64_t> Number::ToInt64() const {
       tmp.remainder.IsZero())
     return tmp.quotient.ToInt64(positive_);
 
-  return NewError(
-      LazyString{L"Inexact: Number can't be represented as int64_t: "
-                 L"fractional part is non-zero."});
+  return Error{
+      LazyString{L"Inexact: Number can't be represented as int64_t: fractional "
+                 L"part is non-zero."}};
 }
 
 namespace {
@@ -312,16 +311,16 @@ const bool int_tests_registration = tests::Register(
 
 afc::language::ValueOrError<size_t> Number::ToSizeT() const {
   if (!positive_)
-    return NewError(
-        LazyString{L"Negative: Number can't be represented as size_t."});
+    return Error{
+        LazyString{L"Negative: Number can't be represented as size_t."}};
 
   if (BigIntDivideOutput tmp = Divide(numerator_, denominator_);
       tmp.remainder.IsZero())
     return tmp.quotient.ToSizeT();
 
-  return NewError(
-      LazyString{L"Inexact: Number can't be represented as size_t: "
-                 L"fractional part is non-zero."});
+  return Error{
+      LazyString{L"Inexact: Number can't be represented as size_t: fractional "
+                 L"part is non-zero."}};
 }
 
 const bool to_size_t_tests_registration = tests::Register(

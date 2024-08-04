@@ -105,7 +105,6 @@ using afc::language::IgnoreErrors;
 using afc::language::InsertOrDie;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::ObservableValue;
 using afc::language::Observers;
@@ -968,9 +967,9 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
           AbsolutePath::New(LazyString{Read(buffer_variables::path)})));
 
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
-    return futures::Past(ValueOrError<Path>(NewError(
-        LazyString{L"Unable to persist buffer without absolute path: "} +
-        file_path.read())));
+    return futures::Past(ValueOrError<Path>(
+        Error{LazyString{L"Unable to persist buffer without absolute path: "} +
+              file_path.read()}));
   }
 
   FUTURES_ASSIGN_OR_RETURN(std::list<PathComponent> file_path_components,
@@ -991,9 +990,9 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                      if (S_ISDIR(stat_buffer.st_mode)) {
                        return Success(IterationControlCommand::kContinue);
                      }
-                     *error = NewError(
+                     *error = Error{
                          LazyString{L"Oops, exists, but is not a directory: "} +
-                         path->read());
+                         path->read()};
                      return Success(IterationControlCommand::kStop);
                    })
                    .ConsumeErrors([this, path, error](Error) {

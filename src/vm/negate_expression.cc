@@ -11,7 +11,6 @@ namespace gc = afc::language::gc;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::lazy_string::LazyString;
@@ -58,8 +57,8 @@ std::unique_ptr<Expression> NewNegateExpression(
   }
   if (!expr->SupportsType(expected_type)) {
     compilation.AddError(
-        NewError(LazyString{L"Can't negate an expression of type: \""} +
-                 TypesToString(expr->Types()) + LazyString{L"\""}));
+        Error{LazyString{L"Can't negate an expression of type: \""} +
+              TypesToString(expr->Types()) + LazyString{L"\""}});
     return nullptr;
   }
   return std::make_unique<NegateExpression>(

@@ -8,7 +8,6 @@ namespace gc = afc::language::gc;
 
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::Success;
@@ -71,9 +70,9 @@ ValueOrError<std::unordered_set<Type>> CombineReturnTypes(
   if (a.empty()) return Success(b);
   if (b.empty()) return Success(a);
   if (a != b) {
-    return NewError(LazyString{L"Incompatible return types found: `"} +
-                    ToString(*a.cbegin()) + LazyString{L"` and `"} +
-                    ToString(*b.cbegin()) + LazyString{L"`."});
+    return Error{LazyString{L"Incompatible return types found: `"} +
+                 ToString(*a.cbegin()) + LazyString{L"` and `"} +
+                 ToString(*b.cbegin()) + LazyString{L"`."}};
   }
   return Success(a);
 }

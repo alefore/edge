@@ -10,7 +10,6 @@
 
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::ValueOrError;
@@ -69,14 +68,14 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewLogicalExpression(
     return Error(L"Missing inputs");
   }
   if (!a->IsBool()) {
-    Error error = NewError(LazyString{L"Expected `bool` value but found: "} +
-                           TypesToString(a->Types()));
+    Error error{LazyString{L"Expected `bool` value but found: "} +
+                TypesToString(a->Types())};
     compilation.AddError(error);
     return error;
   }
   if (!b->IsBool()) {
-    Error error = NewError(LazyString{L"Expected `bool` value but found: "} +
-                           TypesToString(b->Types()));
+    Error error{LazyString{L"Expected `bool` value but found: "} +
+                TypesToString(b->Types())};
     compilation.AddError(error);
     return error;
   }

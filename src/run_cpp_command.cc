@@ -38,7 +38,6 @@ using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
@@ -135,8 +134,8 @@ ValueOrError<ParsedCommand> Parse(
   }
 
   if (functions.empty()) {
-    Error error = NewError(LazyString{L"Unknown symbol: "} +
-                           function_name_prefix + output_tokens[0].value);
+    Error error{LazyString{L"Unknown symbol: "} + function_name_prefix +
+                output_tokens[0].value};
     VLOG(5) << "Parse: " << error;
     return error;
   }
@@ -194,10 +193,10 @@ ValueOrError<ParsedCommand> Parse(
         std::get<vm::types::Function>(output_function.value().ptr()->type);
     size_t expected_arguments = function_type.inputs.size();
     if (output_tokens.size() - 1 > expected_arguments) {
-      return NewError(LazyString{L"Too many arguments given for `"} +
-                      output_tokens[0].value + LazyString{L"` (expected: "} +
-                      LazyString{std::to_wstring(expected_arguments)} +
-                      LazyString{L")"});
+      return Error{LazyString{L"Too many arguments given for `"} +
+                   output_tokens[0].value + LazyString{L"` (expected: "} +
+                   LazyString{std::to_wstring(expected_arguments)} +
+                   LazyString{L")"}};
     }
 
     for (auto it = output_tokens.begin() + 1; it != output_tokens.end(); ++it) {
@@ -210,12 +209,11 @@ ValueOrError<ParsedCommand> Parse(
           vm::NewConstantExpression(vm::Value::NewString(pool, LazyString{})));
     }
   } else if (!all_types_found.empty()) {
-    return NewError(LazyString{L"Incompatible type found: "} +
-                    output_tokens[0].value + LazyString{L": "} +
-                    TypesToString(all_types_found));
+    return Error{LazyString{L"Incompatible type found: "} +
+                 output_tokens[0].value + LazyString{L": "} +
+                 TypesToString(all_types_found)};
   } else {
-    return NewError(LazyString{L"No definition found: "} +
-                    output_tokens[0].value);
+    return Error{LazyString{L"No definition found: "} + output_tokens[0].value};
   }
   return ParsedCommand{
       .tokens = std::move(output_tokens),

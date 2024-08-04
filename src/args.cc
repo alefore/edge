@@ -29,7 +29,6 @@ using afc::infrastructure::PathComponent;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
-using afc::language::NewError;
 using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrDie;
@@ -226,14 +225,14 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                     benchmarks.end()) {
                   return input;
                 }
-                return NewError(LazyString{L"Invalid value (valid values: "} +
-                                Concatenate(benchmarks |
-                                            std::views::transform(
-                                                [](const std::wstring& b) {
-                                                  return LazyString{b};
-                                                }) |
-                                            Intersperse(LazyString{L", "})) +
-                                LazyString{L")"});
+                return Error{LazyString{L"Invalid value (valid values: "} +
+                             Concatenate(benchmarks |
+                                         std::views::transform(
+                                             [](const std::wstring& b) {
+                                               return LazyString{b};
+                                             }) |
+                                         Intersperse(LazyString{L", "})) +
+                             LazyString{L")"}};
               }),
 
       Handler<CommandLineValues>({L"view"}, L"Widget mode")

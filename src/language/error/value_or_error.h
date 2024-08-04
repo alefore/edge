@@ -23,9 +23,6 @@ class Error : public GhostType<Error, language::lazy_string::LazyString> {
   Error(std::wstring);
 };
 
-// TODO(easy, 2023-12-02): Convert all callers to `Error`
-Error NewError(lazy_string::LazyString error);
-
 // Example: AugmentError(L"🖫 Save failed", error)
 Error AugmentError(language::lazy_string::LazyString prefix, Error error);
 

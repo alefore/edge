@@ -10,7 +10,6 @@
 
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
@@ -97,10 +96,9 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
     return Error(L"Input missing.");
   }
   if (!condition->IsBool()) {
-    Error error =
-        NewError(LazyString{L"Expected bool value for condition of \"while\" "
-                            L"loop but found: "} +
-                 TypesToString(condition->Types()) + LazyString{L"."});
+    Error error{LazyString{L"Expected bool value for condition of \"while\" "
+                           L"loop but found: "} +
+                TypesToString(condition->Types()) + LazyString{L"."}};
     compilation.AddError(error);
     return error;
   }

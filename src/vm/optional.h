@@ -59,9 +59,9 @@ void Export(language::gc::Pool& pool, Environment& environment) {
       vm::NewCallback(pool, kPurityTypePure,
                       [](FullType v) -> language::ValueOrError<T> {
                         if (v->has_value()) return v->value();
-                        return language::NewError(
+                        return language::Error{
                             language::lazy_string::LazyString{
-                                L"Optional value has no value."});
+                                L"Optional value has no value."}};
                       })
           .ptr());
   object_type.ptr()->AddField(

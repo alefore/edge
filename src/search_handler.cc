@@ -25,7 +25,6 @@ using afc::language::EraseIf;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -388,7 +387,7 @@ ValueOrError<LineColumn> GetNextMatch(Direction direction,
       results.has_value() && !results->empty())
     return results->at(0);
 
-  return NewError(LazyString{L"No matches: "} + options.search_query);
+  return Error{LazyString{L"No matches: "} + options.search_query};
 }
 
 void HandleSearchResults(

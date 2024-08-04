@@ -41,7 +41,6 @@ using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -73,8 +72,8 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 
     if (input_path.has_value()) {
       // No point retrying.
-      return NewError(output.read() + LazyString{L": "} +
-                      LazyString{FromByteString(strerror(errno))});
+      return Error{output.read() + LazyString{L": "} +
+                   LazyString{FromByteString(strerror(errno))}};
     }
   }
 }
@@ -92,8 +91,8 @@ PossibleError SendPathToServer(FileDescriptor server_fd,
       ");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(server_fd.read(), command.c_str(), command.size()) == -1) {
-    return NewError(input_path.read() + LazyString{L": write failed: "} +
-                    LazyString{FromByteString(strerror(errno))});
+    return Error{input_path.read() + LazyString{L": write failed: "} +
+                 LazyString{FromByteString(strerror(errno))}};
   }
   return Success();
 }
@@ -128,8 +127,8 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
   }
   if (close(tmp_fd) != 0) {
     std::string failure = strerror(errno);
-    return NewError(LazyString{L"close("} + path_str + LazyString{L"): "} +
-                    LazyString{FromByteString(failure)});
+    return Error{LazyString{L"close("} + path_str + LazyString{L"): "} +
+                 LazyString{FromByteString(failure)}};
   }
   DECLARE_OR_RETURN(Path input_path, Path::New(path_str));
   std::string command =

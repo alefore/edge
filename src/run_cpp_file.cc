@@ -20,7 +20,6 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -60,7 +59,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
                  }),
              [buffer, input](Error error) {
                buffer->ptr()->status().InsertError(
-                   NewError(LazyString{L"🗱  File not found: "} + input));
+                   Error{LazyString{L"🗱  File not found: "} + input});
                return futures::Past(error);
              })
       .Transform([buffer, &editor_state,

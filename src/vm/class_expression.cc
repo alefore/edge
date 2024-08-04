@@ -11,9 +11,9 @@
 
 namespace gc = afc::language::gc;
 
+using afc::language::Error;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
-using afc::language::NewError;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
@@ -76,9 +76,8 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
             [&]() {
               // TODO(easy, 2024-07-31): Change the inner type of Identifier to
               // a LazyString, to avoid the need to convert to LazyString here.
-              return NewError(
-                  LazyString{L"Unexpected: variable value is null: "} +
-                  LazyString{field_name.read()});
+              return Error{LazyString{L"Unexpected: variable value is null: "} +
+                           LazyString{field_name.read()}};
             }));
       });
 }
@@ -134,8 +133,8 @@ PossibleError FinishClassDeclaration(
                   trampoline.SetEnvironment(original_environment);
                   switch (constructor_evaluation.type) {
                     case EvaluationOutput::OutputType::kReturn:
-                      return NewError(LazyString{
-                          L"Unexpected: return (inside class declaration)."});
+                      return Error{LazyString{
+                          L"Unexpected: return (inside class declaration)."}};
                     case EvaluationOutput::OutputType::kContinue:
                       return Success(Value::NewObject(
                           trampoline.pool(),

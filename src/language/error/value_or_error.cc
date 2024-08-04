@@ -11,12 +11,8 @@ using afc::language::lazy_string::LazyString;
 namespace afc::language {
 Error::Error(std::wstring input) : Error{LazyString{std::move(input)}} {}
 
-Error NewError(lazy_string::LazyString error) {
-  return Error(error.ToString());
-}
-
 Error AugmentError(language::lazy_string::LazyString prefix, Error error) {
-  return NewError(prefix + LazyString{L": "} + LazyString{error.read()});
+  return Error{prefix + LazyString{L": "} + error.read()};
 }
 
 // Precondition: `errors` must be non-empty.
@@ -26,8 +22,7 @@ Error MergeErrors(const std::vector<Error>& errors,
   return Error(Concatenate(errors | std::views::transform([](const Error& e) {
                              return LazyString{e.read()};
                            }) |
-                           Intersperse(LazyString{separator}))
-                   .ToString());
+                           Intersperse(LazyString{separator})));
 }
 
 ValueOrError<EmptyValue> Success() {
