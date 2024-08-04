@@ -28,8 +28,10 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::FindFirstOf;
+using afc::language::lazy_string::FindLastOf;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::infrastructure {
@@ -87,12 +89,15 @@ const bool path_component_constructor_bad_inputs_tests_registration =
 
 /*  static */ PathComponent PathComponent::WithExtension(
     const PathComponent& path, const std::wstring& extension) {
-  // TODO(trivial, 2024-08-04): Avoid calls to ToString.
-  auto index = path.ToString().find_last_of(L".");
-  return PathComponent{LazyString{(index == std::string::npos
-                                       ? path.ToString()
-                                       : path.ToString().substr(0, index)) +
-                                  L"." + extension}};
+  // TODO(trivial, 2024-08-04): Change WithExtension to receive a LazyString and
+  // avoid conversion below.
+  return PathComponent(
+      VisitOptional(
+          [&path](ColumnNumber index) {
+            return path.read().Substring(ColumnNumber{}, index.ToDelta());
+          },
+          [&path] { return path.read(); }, FindLastOf(path.read(), {L'.'})) +
+      LazyString{L"."} + LazyString{extension});
 }
 
 const bool path_component_with_extension_tests_registration = tests::Register(
