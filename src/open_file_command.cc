@@ -50,7 +50,7 @@ futures::Value<EmptyValue> OpenFileHandler(EditorState& editor_state,
   return OpenOrCreateFile(
              OpenFileOptions{
                  .editor_state = editor_state,
-                 .path = OptionalFrom(Path::FromString(name)),
+                 .path = OptionalFrom(Path::New(name)),
                  .insertion_type = BuffersList::AddBufferType::kVisit})
       .Transform([](gc::Root<OpenBuffer>) { return EmptyValue(); });
 }
@@ -61,7 +61,7 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
   futures::Value<std::optional<gc::Root<OpenBuffer>>> output =
       futures::Past(std::optional<gc::Root<OpenBuffer>>());
   if (results.predictor_output.found_exact_match) {
-    ValueOrError<Path> path_or_error = Path::FromString(line);
+    ValueOrError<Path> path_or_error = Path::New(line);
     Path* path = std::get_if<Path>(&path_or_error);
     if (path == nullptr) {
       return futures::Past(std::optional<gc::Root<OpenBuffer>>());
@@ -154,12 +154,12 @@ futures::Value<ColorizePromptOptions> AdjustPath(
 }
 
 std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
-                                   std::wstring buffer_path) {
+                                   LazyString buffer_path) {
   std::optional<Path> path = OptionalFrom(Path::New(buffer_path));
   if (path == std::nullopt) return L"";
   struct stat stat_buffer;
   // TODO(blocking): Use FileSystemDriver here!
-  if (stat(ToByteString(path->read()).c_str(), &stat_buffer) == -1 ||
+  if (stat(ToByteString(path->read().ToString()).c_str(), &stat_buffer) == -1 ||
       !S_ISDIR(stat_buffer.st_mode)) {
     LOG(INFO) << "Taking dirname for prompt: " << *path;
     std::visit(overload{IgnoreErrors{}, [&](Path dir) { path = dir; }},
@@ -197,58 +197,75 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                         }},
                path->DirectorySplit());
   }
-  return path->read() + L"/";
+  // TODO(trivial, 2024-08-04): Return a LazyString here.
+  return path->read().ToString() + L"/";
 }
 
 const bool get_initial_prompt_value_tests_registration = tests::Register(
     L"GetInitialPromptValue",
     {
         {.name = L"EmptyNoRepetitions",
-         .callback = [] { CHECK(GetInitialPromptValue({}, L"") == L""); }},
+         .callback =
+             [] { CHECK(GetInitialPromptValue({}, LazyString{}) == L""); }},
         {.name = L"EmptyRepetitions",
-         .callback = [] { CHECK(GetInitialPromptValue(5, L"") == L""); }},
+         .callback =
+             [] { CHECK(GetInitialPromptValue(5, LazyString{}) == L""); }},
         {.name = L"NoRepetitionsRelative",
          .callback =
-             [] { CHECK(GetInitialPromptValue({}, L"foo/bar") == L"foo/"); }},
+             [] {
+               CHECK(GetInitialPromptValue({}, LazyString{L"foo/bar"}) ==
+                     L"foo/");
+             }},
         {.name = L"NoRepetitionsAbsolute",
          .callback =
-             [] { CHECK(GetInitialPromptValue({}, L"/foo/bar") == L"/foo/"); }},
+             [] {
+               CHECK(GetInitialPromptValue({}, LazyString{L"/foo/bar"}) ==
+                     L"/foo/");
+             }},
         {.name = L"ZeroRepetitionsRelative",
          .callback =
-             [] { CHECK(GetInitialPromptValue(0, L"foo/bar") == L""); }},
+             [] {
+               CHECK(GetInitialPromptValue(0, LazyString{L"foo/bar"}) == L"");
+             }},
         {.name = L"ZeroRepetitionsAbsolute",
          .callback =
-             [] { CHECK(GetInitialPromptValue(0, L"/foo/bar") == L""); }},
+             [] {
+               CHECK(GetInitialPromptValue(0, LazyString{L"/foo/bar"}) == L"");
+             }},
         {.name = L"LowRepetitionsRelative",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(2, L"a0/b1/c2/d3") == L"a0/b1/");
+               CHECK(GetInitialPromptValue(2, LazyString{L"a0/b1/c2/d3"}) ==
+                     L"a0/b1/");
              }},
         {.name = L"LowRepetitionsAbsolute",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(2, L"/a0/b1/c2/d3") == L"/a0/b1/");
+               CHECK(GetInitialPromptValue(2, LazyString{L"/a0/b1/c2/d3"}) ==
+                     L"/a0/b1/");
              }},
         {.name = L"BoundaryRepetitionsRelative",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(3, L"a0/b1/c2/d3") == L"a0/b1/c2/");
+               CHECK(GetInitialPromptValue(3, LazyString{L"a0/b1/c2/d3"}) ==
+                     L"a0/b1/c2/");
              }},
         {.name = L"BoundaryRepetitionsAbsolute",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(3, L"/a0/b1/c2/d3") ==
+               CHECK(GetInitialPromptValue(3, LazyString{L"/a0/b1/c2/d3"}) ==
                      L"/a0/b1/c2/");
              }},
         {.name = L"HighRepetitionsRelative",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(40, L"a0/b1/c2/d3") == L"a0/b1/c2/");
+               CHECK(GetInitialPromptValue(40, LazyString{L"a0/b1/c2/d3"}) ==
+                     L"a0/b1/c2/");
              }},
         {.name = L"HighRepetitionsAbsolute",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(40, L"/a0/b1/c2/d3") ==
+               CHECK(GetInitialPromptValue(40, LazyString{L"/a0/b1/c2/d3"}) ==
                      L"/a0/b1/c2/");
              }},
     });
@@ -265,9 +282,9 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
         .initial_value =
             source_buffers.empty()
                 ? L""
-                : GetInitialPromptValue(
-                      editor.modifiers().repetitions,
-                      source_buffers[0].ptr()->Read(buffer_variables::path)),
+                : GetInitialPromptValue(editor.modifiers().repetitions,
+                                        source_buffers[0].ptr()->ReadLazyString(
+                                            buffer_variables::path)),
         .colorize_options_provider =
             std::bind_front(AdjustPath, std::ref(editor)),
         .handler = std::bind_front(OpenFileHandler, std::ref(editor)),

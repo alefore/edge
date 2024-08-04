@@ -668,7 +668,8 @@ void OpenBuffer::RegisterProgress() {
 
 void OpenBuffer::UpdateTreeParser() {
   if (!ptr_this_.has_value()) return;
-  futures::Past(Path::New(Read(buffer_variables::dictionary)))
+  // TODO(trivial, 2024-08-04): Avoid call to LazyString.
+  futures::Past(Path::New(LazyString{Read(buffer_variables::dictionary)}))
       .Transform([&](Path dictionary_path) {
         return OpenFileIfFound(OpenFileOptions{
             .editor_state = editor(),
@@ -763,7 +764,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   Set(buffer_variables::name, to_wstring(options_.name));
   if (options_.path.has_value()) {
-    Set(buffer_variables::path, options_.path.value().read());
+    Set(buffer_variables::path, options_.path.value().read().ToString());
   }
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
@@ -799,7 +800,8 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                        });
                  }
                }},
-      Path::New(Read(buffer_variables::path)));
+      // TODO(easy): Avoid conversion to LazyString.
+      Path::New(LazyString{Read(buffer_variables::path)}));
 
   contents_observer_->SetOpenBuffer(weak_this);
 }
@@ -887,8 +889,8 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
              paths.begin(), paths.end(),
              [this](Path dir) {
                return EvaluateFile(
-                          Path::Join(dir, ValueOrDie(Path::New(
-                                              L"hooks/buffer-reload.cc"))))
+                          Path::Join(dir, ValueOrDie(Path::New(LazyString{
+                                              L"hooks/buffer-reload.cc"}))))
                    .Transform(
                        [](gc::Root<Value>)
                            -> futures::ValueOrError<IterationControlCommand> {
@@ -961,12 +963,12 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
               LazyString{L" "} +
               (disk_state_ == DiskState::kStale ? LazyString{L"modified"}
                                                 : LazyString{L"not modified"}),
-          AbsolutePath::New(Read(buffer_variables::path))));
+          AbsolutePath::New(LazyString{Read(buffer_variables::path)})));
 
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
-    return futures::Past(ValueOrError<Path>(
-        Error(L"Unable to persist buffer without absolute path: " +
-              file_path.read())));
+    return futures::Past(ValueOrError<Path>(NewError(
+        LazyString{L"Unable to persist buffer without absolute path: "} +
+        file_path.read())));
   }
 
   FUTURES_ASSIGN_OR_RETURN(std::list<PathComponent> file_path_components,
@@ -987,8 +989,9 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
                      if (S_ISDIR(stat_buffer.st_mode)) {
                        return Success(IterationControlCommand::kContinue);
                      }
-                     *error = Error(L"Oops, exists, but is not a directory: " +
-                                    path->read());
+                     *error = NewError(
+                         LazyString{L"Oops, exists, but is not a directory: "} +
+                         path->read());
                      return Success(IterationControlCommand::kStop);
                    })
                    .ConsumeErrors([this, path, error](Error) {
@@ -1934,7 +1937,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
       return {};
     }
 
-    auto path = Path::New(line);
+    // TODO(trivial, 2024-08-04): Convert line to LazyString above, not here.
+    auto path = Path::New(LazyString{line});
     if (IsError(path)) {
       return {};
     }
@@ -1957,7 +1961,8 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
                                             }},
                                    path.Dirname());
                       }},
-             Path::New(buffer.Read(buffer_variables::path)));
+             // TODO(easy, 2024-08-04): Avoid conversion to LazyString here.
+             Path::New(LazyString{buffer.Read(buffer_variables::path)}));
 
   std::vector<URL> urls = urls_with_extensions;
 
@@ -2222,6 +2227,16 @@ void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
   Set(variable, editor().modifiers().repetitions.has_value()
                     ? editor().modifiers().repetitions != 0
                     : !Read(variable));
+}
+
+LazyString OpenBuffer::ReadLazyString(
+    const EdgeVariable<std::wstring>* variable) const {
+  return LazyString{Read(variable)};
+}
+
+void OpenBuffer::Set(const EdgeVariable<std::wstring>* variable,
+                     LazyString value) {
+  Set(variable, value.ToString());
 }
 
 const wstring& OpenBuffer::Read(const EdgeVariable<wstring>* variable) const {

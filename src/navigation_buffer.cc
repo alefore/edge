@@ -115,8 +115,9 @@ futures::Value<PossibleError> GenerateContents(
     OpenBuffer& target) {
   for (const auto& dir : editor_state.edge_path()) {
     target.EvaluateFile(Path::Join(
-        dir, ValueOrDie(Path::New(L"hooks/navigation-buffer-reload.cc"),
-                        L"navigation buffer: GenerateContents")));
+        dir,
+        ValueOrDie(Path::New(LazyString{L"hooks/navigation-buffer-reload.cc"}),
+                   L"navigation buffer: GenerateContents")));
   }
   std::optional<gc::Root<OpenBuffer>> source = source_weak.Lock();
   if (!source.has_value()) {

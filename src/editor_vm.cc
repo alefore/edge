@@ -444,7 +444,7 @@ gc::Root<Environment> BuildEditorEnvironment(
              bool visit) -> futures::ValueOrError<gc::Root<OpenBuffer>> {
             return OpenOrCreateFile(OpenFileOptions{
                 .editor_state = editor_arg,
-                .path = OptionalFrom(Path::FromString(path_str)),
+                .path = OptionalFrom(Path::New(path_str)),
                 .insertion_type = visit ? BuffersList::AddBufferType::kVisit
                                         : BuffersList::AddBufferType::kIgnore});
           })

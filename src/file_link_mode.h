@@ -76,6 +76,8 @@ struct ResolvePathOptions {
 
   // This is not a Path because it may contain various embedded tokens such as
   // a ':LINE:COLUMN' suffix. A Path will be extracted from it.
+  //
+  // TODO(trivial, 2024-08-04): Convert to LazyString.
   std::wstring path = L"";
   std::vector<infrastructure::Path> search_paths = {};
   infrastructure::Path home_directory;
@@ -126,14 +128,16 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
     input.search_paths.push_back(Path::LocalDirectory());
   }
 
-  std::visit(
-      overload{
-          IgnoreErrors{},
-          [&](Path path) {
-            input.path =
-                Path::ExpandHomeDirectory(input.home_directory, path).read();
-          }},
-      Path::New(input.path));
+  std::visit(overload{IgnoreErrors{},
+                      [&](Path path) {
+                        input.path = Path::ExpandHomeDirectory(
+                                         input.home_directory, path)
+                                         .read()
+                                         .ToString();
+                      }},
+             // TODO(trivial, 2024-08-04): Convert input.path to LazyString and
+             // get rid of this conversion.
+             Path::New(language::lazy_string::LazyString{input.path}));
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {Path::Root()};
   }
@@ -157,8 +161,11 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
                           return Past(IterationControlCommand::kStop);
                         }
 
+                        // TODO(trivial, 2024-08-04): Get rid of this LazyString
+                        // conversion.
                         ValueOrError<Path> input_path =
-                            Path::New(input.path.substr(0, state->str_end));
+                            Path::New(language::lazy_string::LazyString{
+                                input.path.substr(0, state->str_end)});
                         if (IsError(input_path)) {
                           state->str_end =
                               input.path.find_last_of(':', state->str_end - 1);

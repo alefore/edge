@@ -500,7 +500,17 @@ class OpenBuffer {
   void Set(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
+  // TODO(2024-08-04): Unify with LazyString. EdgeVariable<LazyString> should
+  // replace EdgeVariable<std::wstring>. Then this wrapper could be removed.
+  language::lazy_string::LazyString ReadLazyString(
+      const EdgeVariable<std::wstring>* variable) const;
+  void Set(const EdgeVariable<std::wstring>* variable,
+           language::lazy_string::LazyString value);
+
   const std::wstring& Read(const EdgeVariable<std::wstring>* variable) const;
+
+  // TODO(2024-08-04): Unify with LazyString. EdgeVariable<LazyString> should
+  // replace EdgeVariable<std::wstring>. Then this wrapper could be removed.
   void Set(const EdgeVariable<std::wstring>* variable, std::wstring value);
 
   const int& Read(const EdgeVariable<int>* variable) const;

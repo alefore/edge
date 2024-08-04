@@ -22,11 +22,13 @@ void Compilation::AddError(Error error) {
   LazyString prefix;
   for (auto it = source_.begin(); it != source_.end(); ++it) {
     Source& source = *it;
-    LazyString location{
-        (source.path.has_value() ? (source.path->read() + L":") : L"") +
-        std::to_wstring((source.line_column.line + LineNumberDelta(1)).read()) +
-        L":" +
-        std::to_wstring(
+    LazyString location =
+        (source.path.has_value() ? (source.path->read() + LazyString{L":"})
+                                 : LazyString{}) +
+        LazyString{std::to_wstring(
+            (source.line_column.line + LineNumberDelta(1)).read())} +
+        LazyString{L":"} +
+        LazyString{std::to_wstring(
             (source.line_column.column + ColumnNumberDelta(1)).read())};
     if (std::next(it) != source_.end()) prefix += LazyString{L"Include from "};
     prefix += location + LazyString{L": "};

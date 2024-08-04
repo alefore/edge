@@ -49,7 +49,7 @@ static Path GetHomeDirectory() {
                                  return Path::Root();
                                },
                                [](Path path) { return path; }},
-                      Path::New(FromByteString(env)));
+                      Path::New(LazyString{FromByteString(env)}));
   }
   if (struct passwd* entry = getpwuid(getuid()); entry != nullptr) {
     return std::visit(
@@ -59,7 +59,7 @@ static Path GetHomeDirectory() {
                    return Path::Root();
                  },
                  [](Path path) { return path; }},
-        Path::New(FromByteString(entry->pw_dir)));
+        Path::New(LazyString{FromByteString(entry->pw_dir)}));
   }
   return Path::Root();  // What else?
 }
@@ -68,9 +68,9 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
   std::vector<std::wstring> output;
   std::unordered_set<Path> output_set;
   auto push = [&output, &output_set](Path path) {
-    if (output_set.insert(path).second) {
-      output.push_back(path.read());
-    }
+    if (output_set.insert(path).second)
+      // TODO(trivial, 2024-08-04): Avoid the calls to ToString.
+      output.push_back(path.read().ToString());
   };
   push(Path::Join(home, PathComponent::FromString(L".edge")));
   LOG(INFO) << "Pushing config path: " << output[0];
@@ -80,7 +80,7 @@ static std::vector<std::wstring> GetEdgeConfigPath(const Path& home) {
     // TODO: stat it and don't add it if it doesn't exist.
     while (std::getline(text_stream, dir, ';')) {
       std::visit(overload{IgnoreErrors{}, push},
-                 Path::New(FromByteString(dir)));
+                 Path::New(LazyString{FromByteString(dir)}));
     }
   }
   return output;
@@ -161,7 +161,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                  if (input.empty()) {
                    return Success(std::optional<Path>());
                  }
-                 ValueOrError<Path> output = Path::New(input);
+                 // TODO(easy, 2024-08-04): Receive input already as LazyString
+                 // and avoid explicit conversion.
+                 ValueOrError<Path> output = Path::New(LazyString{input});
                  if (std::holds_alternative<Error>(output)) {
                    return std::get<Error>(output);
                  }
@@ -175,7 +177,9 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                    L"Path to the pipe in which the daemon is listening")
           .Set(&CommandLineValues::client,
                [](std::wstring input) -> ValueOrError<std::optional<Path>> {
-                 ValueOrError<Path> output = Path::New(input);
+                 // TODO(easy, 2024-08-04): Receive input already as LazyString
+                 // and avoid explicit conversion.
+                 ValueOrError<Path> output = Path::New(LazyString{input});
                  if (std::holds_alternative<Error>(output)) {
                    return std::get<Error>(output);
                  }

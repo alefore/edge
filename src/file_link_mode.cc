@@ -85,8 +85,8 @@ futures::Value<PossibleError> GenerateContents(
     NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
     OpenBuffer& target) {
   CHECK(target.disk_state() == OpenBuffer::DiskState::kCurrent);
-  FUTURES_ASSIGN_OR_RETURN(Path path,
-                           Path::New(target.Read(buffer_variables::path)));
+  FUTURES_ASSIGN_OR_RETURN(
+      Path path, Path::New(target.ReadLazyString(buffer_variables::path)));
   LOG(INFO) << "GenerateContents: " << path;
   return file_system_driver->Stat(path).Transform(
       [stat_buffer, file_system_driver, &target,
@@ -137,7 +137,7 @@ futures::Value<PossibleError> Save(
       Path immediate_path,
       AugmentError(
           LazyString{L"Buffer can't be saved: Invalid “path” variable"},
-          Path::New(buffer.Read(buffer_variables::path))));
+          Path::New(buffer.ReadLazyString(buffer_variables::path))));
 
   futures::ValueOrError<Path> path_future = futures::Past(immediate_path);
 
@@ -182,7 +182,8 @@ futures::Value<PossibleError> Save(
                   buffer.ptr()->SetDiskState(OpenBuffer::DiskState::kCurrent);
                   for (const auto& dir : buffer.ptr()->editor().edge_path()) {
                     buffer.ptr()->EvaluateFile(Path::Join(
-                        dir, ValueOrDie(Path::New(L"/hooks/buffer-save.cc"))));
+                        dir, ValueOrDie(Path::New(
+                                 LazyString{L"/hooks/buffer-save.cc"}))));
                   }
                   if (buffer.ptr()->Read(
                           buffer_variables::trigger_reload_on_buffer_write)) {
@@ -200,7 +201,8 @@ futures::Value<PossibleError> Save(
                           reload_buffer.Reload();
                         });
                   }
-                  stat(ToByteString(path.read()).c_str(), &stat_buffer.value());
+                  stat(ToByteString(path.read().ToString()).c_str(),
+                       &stat_buffer.value());
                   break;
                 case OpenBuffer::Options::SaveType::kBackup:
                   break;
@@ -222,7 +224,7 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
       std::string str = (position == LineNumber(0) ? "" : "\n") +
                         ToByteString(line.ToString());
       if (write(fd.read(), str.c_str(), str.size()) == -1) {
-        Error write_error(path.read() + L": write failed: " +
+        Error write_error(path.read().ToString() + L": write failed: " +
                           std::to_wstring(fd.read()) + L": " +
                           FromByteString(strerror(errno)));
         LOG(INFO) << original_path
@@ -299,8 +301,9 @@ futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
                 OpenFileOptions{
                     .editor_state = editor_state,
                     .name = buffer_name,
-                    .path = Path::Join(edge_path,
-                                       ValueOrDie(Path::New(L"/search_paths"))),
+                    .path = Path::Join(
+                        edge_path,
+                        ValueOrDie(Path::New(LazyString{L"/search_paths"}))),
                     .insertion_type = BuffersList::AddBufferType::kIgnore,
                     .use_search_paths = false})
                 .Transform([&editor_state](gc::Root<OpenBuffer> buffer) {
@@ -337,7 +340,7 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
                      std::ranges::copy(
                          buffer.ptr()->contents().snapshot() |
                              std::views::transform([](const Line& line) {
-                               return Path::FromString(line.contents());
+                               return Path::New(line.contents());
                              }) |
                              language::view::SkipErrors |
                              std::views::transform(
@@ -394,8 +397,8 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
                            -> futures::ValueOrError<gc::Root<OpenBuffer>> {
               for (gc::Root<OpenBuffer> buffer :
                    editor_state.buffer_registry().buffers()) {
-                auto buffer_path =
-                    Path::New(buffer.ptr()->Read(buffer_variables::path));
+                auto buffer_path = Path::New(
+                    buffer.ptr()->ReadLazyString(buffer_variables::path));
                 if (IsError(buffer_path)) continue;
                 ValueOrError<std::list<PathComponent>> buffer_components =
                     std::get<Path>(buffer_path).DirectorySplit();
@@ -408,7 +411,10 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
             });
       }};
   if (path.has_value()) {
-    resolve_path_options.path = editor_state.expand_path(path.value()).read();
+    // TODO(trivial, 2024-08-04): Change `path` to LazyString and remove this
+    // conversion.
+    resolve_path_options.path =
+        editor_state.expand_path(path.value()).read().ToString();
   }
 
   return ResolvePath(resolve_path_options)
@@ -568,6 +574,7 @@ futures::ValueOrError<gc::Root<OpenBuffer>> OpenFileIfFound(
                                      ? options.editor_state
                                            .expand_path(options.path.value())
                                            .read()
+                                           .ToString()
                                      : L"",
                              .search_paths = std::move(search_paths),
                              .home_directory =
@@ -656,10 +663,9 @@ class TestDriver {
 
   futures::Value<ValueOrError<gc::Root<OpenBuffer>>> OpenAndReadPath(
       LazyString path, std::optional<LineSequence> expected_content) {
-    return OpenFileIfFound(
-               OpenFileOptions{.editor_state = editor_.value(),
-                               .path = ValueOrDie(Path::FromString(path)),
-                               .use_search_paths = true})
+    return OpenFileIfFound(OpenFileOptions{.editor_state = editor_.value(),
+                                           .path = ValueOrDie(Path::New(path)),
+                                           .use_search_paths = true})
         .Transform([expected_content](gc::Root<OpenBuffer> buffer) {
           return buffer.ptr()->WaitForEndOfFile().Transform(
               [expected_content, buffer](EmptyValue) {

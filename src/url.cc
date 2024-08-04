@@ -19,7 +19,7 @@ using afc::language::lazy_string::TokenizeBySpaces;
 namespace afc::editor {
 
 /* static */
-URL URL::FromPath(Path path) { return URL(L"file:" + path.read()); }
+URL URL::FromPath(Path path) { return URL(L"file:" + path.read().ToString()); }
 
 std::optional<URL::Schema> URL::schema() const {
   auto colon = read().find_first_of(L':');
@@ -42,8 +42,8 @@ const bool schema_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(
-                URL::FromPath(ValueOrDie(Path::New(L"foo/bar/hey"))).schema() ==
-                URL::Schema::kFile);
+                URL::FromPath(ValueOrDie(Path::New(LazyString{L"foo/bar/hey"})))
+                    .schema() == URL::Schema::kFile);
           }},
      {.name = L"URLRelative",
       .callback = [] { CHECK(!URL(L"foo/bar/hey").schema().has_value()); }},
@@ -54,9 +54,11 @@ const bool schema_tests_registration = tests::Register(
 
 ValueOrError<Path> URL::GetLocalFilePath() const {
   std::optional<Schema> s = schema();
-  if (!s.has_value()) return Path::New(read());
+  // TODO(trivial, 2024-08-04): Get rid of LazyString.
+  if (!s.has_value()) return Path::New(LazyString{read()});
   if (s != Schema::kFile) return Error(L"Schema isn't file.");
-  return Path::New(read().substr(sizeof("file:") - 1));
+  // TODO(trivial, 2024-08-04): Get rid of LazyString.
+  return Path::New(LazyString{read().substr(sizeof("file:") - 1)});
 }
 
 namespace {
@@ -70,18 +72,19 @@ const bool get_local_file_path_tests_registration = tests::Register(
      {.name = L"URLFromPath",
       .callback =
           [] {
-            Path input = ValueOrDie(Path::New(L"foo/bar/hey"));
+            Path input = ValueOrDie(Path::New(LazyString{L"foo/bar/hey"}));
             CHECK(ValueOrDie(URL::FromPath(input).GetLocalFilePath()) == input);
           }},
      {.name = L"URLRelative",
       .callback =
           [] {
-            Path input = ValueOrDie(Path::New(L"foo/bar/hey"));
-            CHECK(ValueOrDie(URL(input.read()).GetLocalFilePath()) == input);
+            Path input = ValueOrDie(Path::New(LazyString{L"foo/bar/hey"}));
+            CHECK(ValueOrDie(URL(input.read().ToString()).GetLocalFilePath()) ==
+                  input);
           }},
      {.name = L"URLStringFile", .callback = [] {
-        std::wstring input = L"foo/bar/hey";
-        CHECK(ValueOrDie(URL(L"file:" + input).GetLocalFilePath()) ==
+        LazyString input{L"foo/bar/hey"};
+        CHECK(ValueOrDie(URL(L"file:" + input.ToString()).GetLocalFilePath()) ==
               ValueOrDie(Path::New(input)));
       }}});
 }  // namespace
@@ -98,8 +101,8 @@ std::vector<URL> GetLocalFileURLsWithExtensions(
                      TokenizeBySpaces(file_context_extensions);
                  for (const Token& extension_token : extensions) {
                    CHECK(!extension_token.value.IsEmpty());
-                   output.push_back(URL::FromPath(Path::WithExtension(
-                       path, extension_token.value.ToString())));
+                   output.push_back(URL::FromPath(
+                       Path::WithExtension(path, extension_token.value)));
                  }
                  return output;
                }},

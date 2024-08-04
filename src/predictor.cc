@@ -204,7 +204,9 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
                                                 std::wstring path) {
   DescendDirectoryTreeOutput output;
   VLOG(6) << "Starting search at: " << search_path;
-  output.dir = OpenDir(search_path.read());
+  // TODO(trivial, 2024-08-04): Change OpenDir to receive a LazyString or Path
+  // directly.
+  output.dir = OpenDir(search_path.read().ToString());
   if (output.dir == nullptr) {
     VLOG(5) << "Unable to open search_path: " << search_path;
     return output;
@@ -224,7 +226,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
       ++next_candidate;
     }
     auto test_path =
-        PathJoin(search_path.read(), path.substr(0, next_candidate));
+        PathJoin(search_path.read().ToString(), path.substr(0, next_candidate));
     VLOG(8) << "Considering: " << test_path;
     auto subdir = OpenDir(test_path);
     if (subdir == nullptr) {
@@ -311,9 +313,11 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                        return predictor_input.input.ToString();
                      },
                      [&](Path path) {
-                       return predictor_input.editor.expand_path(path).read();
+                       return predictor_input.editor.expand_path(path)
+                           .read()
+                           .ToString();
                      }},
-            Path::FromString(predictor_input.input));
+            Path::New(predictor_input.input));
 
         // TODO: Don't use sources_buffers[0], ignoring the other buffers.
         std::wregex noise_regex =

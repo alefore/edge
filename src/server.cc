@@ -61,10 +61,10 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
     // will fail.
     Path output = input_path.has_value()
                       ? input_path.value()
-                      : ValueOrDie(Path::New(FromByteString(
-                            mktemp(strdup("/tmp/edge-server-XXXXXX")))));
+                      : ValueOrDie(Path::New(LazyString{FromByteString(
+                            mktemp(strdup("/tmp/edge-server-XXXXXX")))}));
 
-    char* path_str = strdup(ToByteString(output.read()).c_str());
+    char* path_str = strdup(ToByteString(output.read().ToString()).c_str());
     int mkfifo_result = mkfifo(path_str, 0600);
     free(path_str);
     if (mkfifo_result != -1) {
@@ -73,7 +73,8 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 
     if (input_path.has_value()) {
       // No point retrying.
-      return Error(output.read() + L": " + FromByteString(strerror(errno)));
+      return NewError(output.read() + LazyString{L": "} +
+                      LazyString{FromByteString(strerror(errno))});
     }
   }
 }
@@ -91,8 +92,8 @@ PossibleError SendPathToServer(FileDescriptor server_fd,
       ");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(server_fd.read(), command.c_str(), command.size()) == -1) {
-    return Error(input_path.read() + L": write failed: " +
-                 FromByteString(strerror(errno)));
+    return NewError(input_path.read() + LazyString{L": write failed: "} +
+                    LazyString{FromByteString(strerror(errno))});
   }
   return Success();
 }
@@ -130,7 +131,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
     return NewError(LazyString{L"close("} + path_str + LazyString{L"): "} +
                     LazyString{FromByteString(failure)});
   }
-  DECLARE_OR_RETURN(Path input_path, Path::FromString(path_str));
+  DECLARE_OR_RETURN(Path input_path, Path::New(path_str));
   std::string command =
       "#include \"" + ToByteString(path_str.ToString()) + "\"\n";
   if (write(server_fd.read(), command.c_str(), command.size()) !=
@@ -146,9 +147,10 @@ ValueOrError<FileDescriptor> SyncConnectToParentServer() {
   if (char* server_address = getenv(variable.c_str());
       server_address != nullptr) {
     ASSIGN_OR_RETURN(
-        Path path, AugmentError(LazyString{L"Value from environment variable " +
-                                           FromByteString(variable)},
-                                Path::New(FromByteString(server_address))));
+        Path path,
+        AugmentError(LazyString{L"Value from environment variable " +
+                                FromByteString(variable)},
+                     Path::New(LazyString{FromByteString(server_address)})));
     return SyncConnectToServer(path);
   }
   return Error(
@@ -160,11 +162,12 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   LOG(INFO) << "Connecting to server: " << path.read();
   ASSIGN_OR_RETURN(
       FileDescriptor server_fd,
-      AugmentError(LazyString{path.read()} +
-                       LazyString{L": Connecting to server: open failed: "} +
-                       LazyString{FromByteString(strerror(errno))},
-                   FileDescriptor::New(
-                       open(ToByteString(path.read()).c_str(), O_WRONLY))));
+      AugmentError(
+          LazyString{path.read()} +
+              LazyString{L": Connecting to server: open failed: "} +
+              LazyString{FromByteString(strerror(errno))},
+          FileDescriptor::New(
+              open(ToByteString(path.read().ToString()).c_str(), O_WRONLY))));
   auto fd_deleter_callback = [](int* value) {
     close(*value);
     delete value;
@@ -181,11 +184,11 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   fd_deleter = nullptr;
 
   LOG(INFO) << "Opening private fifo: " << private_fifo.read();
-  return AugmentError(LazyString{private_fifo.read()} +
-                          LazyString{L": open failed: "} +
-                          LazyString{FromByteString(strerror(errno))},
-                      FileDescriptor::New(open(
-                          ToByteString(private_fifo.read()).c_str(), O_RDWR)));
+  return AugmentError(
+      LazyString{private_fifo.read()} + LazyString{L": open failed: "} +
+          LazyString{FromByteString(strerror(errno))},
+      FileDescriptor::New(
+          open(ToByteString(private_fifo.read().ToString()).c_str(), O_RDWR)));
 }
 
 void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
@@ -213,8 +216,8 @@ void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
 }
 
 futures::Value<PossibleError> GenerateContents(OpenBuffer& target) {
-  FUTURES_ASSIGN_OR_RETURN(Path path,
-                           Path::New(target.Read(buffer_variables::path)));
+  FUTURES_ASSIGN_OR_RETURN(
+      Path path, Path::New(target.ReadLazyString(buffer_variables::path)));
 
   LOG(INFO) << L"Server starts: " << path;
   return target.SetInputFromPath(path);
@@ -225,7 +228,8 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
   ASSIGN_OR_RETURN(Path output, AugmentError(LazyString{L"Creating Fifo"},
                                              CreateFifo(address)));
   LOG(INFO) << "Starting server: " << output.read();
-  setenv("EDGE_PARENT_ADDRESS", ToByteString(output.read()).c_str(), 1);
+  setenv("EDGE_PARENT_ADDRESS", ToByteString(output.read().ToString()).c_str(),
+         1);
   OpenServerBuffer(editor_state, output);
   return output;
 }

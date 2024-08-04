@@ -195,18 +195,22 @@ const bool path_component_extension_tests_registration = tests::Register(
               LazyString{L"md"});
       }}});
 
-Path::Path(PathComponent path_component) : Path(path_component.ToString()) {}
+Path::Path(PathComponent path_component) : Path(path_component.read()) {}
 
 /* static */ Path Path::Join(Path a, Path b) {
   if (a.IsRoot() && b.IsRoot()) {
     return b;
   }
-  if (a == LocalDirectory() && b.read()[0] != L'/') {
+  if (a == LocalDirectory() && b.read().get(ColumnNumber{}) != L'/') {
     return b;
   }
-  bool has_slash = a.read()[a.read().size() - 1] == L'/' || b.read()[0] == L'/';
-  return ValueOrDie(Path::New(a.read() + (has_slash ? L"" : L"/") + b.read()),
-                    L"Path::Join");
+  bool has_slash = a.read().get(ColumnNumber{} + a.read().size() -
+                                ColumnNumberDelta(1)) == L'/' ||
+                   b.read().get(ColumnNumber{}) == L'/';
+  return ValueOrDie(
+      Path::New(a.read() + (has_slash ? LazyString{L""} : LazyString{L"/"}) +
+                b.read()),
+      L"Path::Join");
 }
 
 const bool path_join_tests_registration = tests::Register(
@@ -215,20 +219,16 @@ const bool path_join_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK_EQ(Path::Join(Path::LocalDirectory(),
-                                ValueOrDie(Path::New(L"alejo.txt"), L"tests")),
-                     ValueOrDie(Path::New(L"alejo.txt"), L"tests"));
+                                ValueOrDie(Path::New(LazyString{L"alejo.txt"}),
+                                           L"tests")),
+                     ValueOrDie(Path::New(LazyString{L"alejo.txt"}), L"tests"));
           }},
      {.name = L"LocalImportant", .callback = [] {
         CHECK_EQ(Path::Join(Path::LocalDirectory(),
-                            ValueOrDie(Path::New(L"/alejo.txt"), L"tests")),
-                 ValueOrDie(Path::New(L"./alejo.txt"), L"tests"));
+                            ValueOrDie(Path::New(LazyString{L"/alejo.txt"}),
+                                       L"tests")),
+                 ValueOrDie(Path::New(LazyString{L"./alejo.txt"}), L"tests"));
       }}});
-
-/* static */
-ValueOrError<Path> Path::FromString(LazyString path) {
-  // TODO(easy, 2022-06-10): Avoid call to ToString.
-  return New(path.ToString());
-}
 
 Path Path::ExpandHomeDirectory(const Path& home_directory, const Path& path) {
   // TODO: Also support ~user/foo.
@@ -254,69 +254,79 @@ const bool expand_home_directory_tests_registration = tests::Register(
         {.name = L"NoExpansion",
          .callback =
              [] {
-               CHECK_EQ(Path::ExpandHomeDirectory(
-                            ValueOrDie(Path::New(L"/home/alejo"), L"tests"),
-                            ValueOrDie(Path::New(L"foo/bar"), L"tests")),
-                        ValueOrDie(Path::New(L"foo/bar"), L"tests"));
+               CHECK_EQ(
+                   Path::ExpandHomeDirectory(
+                       ValueOrDie(Path::New(LazyString{L"/home/alejo"}),
+                                  L"tests"),
+                       ValueOrDie(Path::New(LazyString{L"foo/bar"}), L"tests")),
+                   ValueOrDie(Path::New(LazyString{L"foo/bar"}), L"tests"));
              }},
         {.name = L"MinimalExpansion",
          .callback =
              [] {
-               CHECK_EQ(Path::ExpandHomeDirectory(
-                            ValueOrDie(Path::New(L"/home/alejo"), L"tests"),
-                            ValueOrDie(Path::New(L"~"), L"tests")),
-                        ValueOrDie(Path::New(L"/home/alejo"), L"tests"));
+               CHECK_EQ(
+                   Path::ExpandHomeDirectory(
+                       ValueOrDie(Path::New(LazyString{L"/home/alejo"}),
+                                  L"tests"),
+                       ValueOrDie(Path::New(LazyString{L"~"}), L"tests")),
+                   ValueOrDie(Path::New(LazyString{L"/home/alejo"}), L"tests"));
              }},
         {.name = L"SmallExpansion",
          .callback =
              [] {
-               CHECK_EQ(Path::ExpandHomeDirectory(
-                            ValueOrDie(Path::New(L"/home/alejo"), L"tests"),
-                            ValueOrDie(Path::New(L"~/"), L"tests")),
-                        ValueOrDie(Path::New(L"/home/alejo"), L"tests"));
+               CHECK_EQ(
+                   Path::ExpandHomeDirectory(
+                       ValueOrDie(Path::New(LazyString{L"/home/alejo"}),
+                                  L"tests"),
+                       ValueOrDie(Path::New(LazyString{L"~/"}), L"tests")),
+                   ValueOrDie(Path::New(LazyString{L"/home/alejo"}), L"tests"));
              }},
         {.name = L"LongExpansion",
          .callback =
              [] {
                CHECK_EQ(
                    Path::ExpandHomeDirectory(
-                       ValueOrDie(Path::New(L"/home/alejo"), L"tests"),
-                       ValueOrDie(Path::New(L"~/foo/bar"), L"tests")),
-                   ValueOrDie(Path::New(L"/home/alejo/foo/bar"), L"tests"));
+                       ValueOrDie(Path::New(LazyString{L"/home/alejo"}),
+                                  L"tests"),
+                       ValueOrDie(Path::New(LazyString{L"~/foo/bar"}),
+                                  L"tests")),
+                   ValueOrDie(Path::New(LazyString{L"/home/alejo/foo/bar"}),
+                              L"tests"));
              }},
         {.name = L"LongExpansionRedundantSlash",
          .callback =
              [] {
                CHECK_EQ(
                    Path::ExpandHomeDirectory(
-                       ValueOrDie(Path::New(L"/home/alejo/"), L"tests"),
-                       ValueOrDie(Path::New(L"~/foo/bar"), L"tests")),
-                   ValueOrDie(Path::New(L"/home/alejo/foo/bar"), L"tests"));
+                       ValueOrDie(Path::New(LazyString{L"/home/alejo/"}),
+                                  L"tests"),
+                       ValueOrDie(Path::New(LazyString{L"~/foo/bar"}),
+                                  L"tests")),
+                   ValueOrDie(Path::New(LazyString{L"/home/alejo/foo/bar"}),
+                              L"tests"));
              }},
     });
 
 /* static */ Path Path::WithExtension(const Path& path,
-                                      const std::wstring& extension) {
-  // TODO(trivial, 2024-08-04): Avoid this conversion to LazyString: receive
-  // extension as LazyString.
-  return Path::Join(ValueOrDie(path.Dirname(), L"Path::WithExtension"),
-                    PathComponent::WithExtension(
-                        ValueOrDie(path.Basename(), L"Path::WithExtension"),
-                        LazyString{extension}));
+                                      const LazyString& extension) {
+  return Path::Join(
+      ValueOrDie(path.Dirname(), L"Path::WithExtension"),
+      PathComponent::WithExtension(
+          ValueOrDie(path.Basename(), L"Path::WithExtension"), extension));
 }
 
 ValueOrError<Path> Path::Dirname() const {
   VLOG(5) << "Dirname: " << read();
   std::unique_ptr<char, decltype(&std::free)> tmp(
-      strdup(ToByteString(read()).c_str()), &std::free);
+      strdup(ToByteString().c_str()), &std::free);
   CHECK(tmp != nullptr);
-  return Path::New(FromByteString(dirname(tmp.get())));
+  return Path::New(LazyString{FromByteString(dirname(tmp.get()))});
 }
 
 ValueOrError<PathComponent> Path::Basename() const {
   VLOG(5) << "Pathname: " << read();
   std::unique_ptr<char, decltype(&std::free)> tmp(
-      strdup(ToByteString(read()).c_str()), &std::free);
+      strdup(ToByteString().c_str()), &std::free);
   CHECK(tmp != nullptr);
   return PathComponent::New(LazyString{FromByteString(basename(tmp.get()))});
 }
@@ -338,12 +348,12 @@ ValueOrError<std::list<PathComponent>> Path::DirectorySplit() const {
     using ::operator<<;
     VLOG(5) << "DirectorySplit: PushFront: " << base;
     output.push_front(base);
-    if (output.front().ToString() == path.read()) return Success(output);
+    if (output.front().read() == path.read()) return Success(output);
     ASSIGN_OR_RETURN(
         auto dir, AugmentError(LazyString{L"Dirname error"}, path.Dirname()));
     if (dir.read().size() >= path.read().size()) {
       LOG(INFO) << "Unable to advance: " << path << " -> " << dir;
-      return Error(L"Unable to advance: " + path.read());
+      return NewError(LazyString{L"Unable to advance: "} + path.read());
     }
     VLOG(5) << "DirectorySplit: Advance: " << dir;
     path = std::move(dir);
@@ -357,10 +367,10 @@ const bool directory_split_tests_registration = tests::Register(
         {.name = L"NoSplit",
          .callback =
              [] {
-               std::list<PathComponent> result =
-                   ValueOrDie(ValueOrDie(Path::New(L"alejo.txt"), L"tests")
-                                  .DirectorySplit(),
-                              L"tests");
+               std::list<PathComponent> result = ValueOrDie(
+                   ValueOrDie(Path::New(LazyString{L"alejo.txt"}), L"tests")
+                       .DirectorySplit(),
+                   L"tests");
                CHECK_EQ(result.size(), 1ul);
                CHECK_EQ(result.front(),
                         PathComponent::FromString(L"alejo.txt"));
@@ -369,7 +379,7 @@ const bool directory_split_tests_registration = tests::Register(
          .callback =
              [] {
                auto result = ValueOrDie(
-                   ValueOrDie(Path::New(L"alejo/"), L"tests").DirectorySplit(),
+                   ValueOrDie(Path::New(LazyString{L"alejo/"}), L"tests").DirectorySplit(),
                    L"tests");
                CHECK_EQ(result.size(), 1ul);
                CHECK_EQ(result.front(), PathComponent::FromString(L"alejo"));
@@ -378,7 +388,7 @@ const bool directory_split_tests_registration = tests::Register(
          .callback =
              [] {
                auto result_list = ValueOrDie(
-                   Path{ValueOrDie(Path::New(L"aaa/b/cc/ddd"), L"tests")}
+                   Path{ValueOrDie(Path::New(LazyString{L"aaa/b/cc/ddd"}), L"tests")}
                        .DirectorySplit(),
                    L"tests");
                CHECK_EQ(result_list.size(), 4ul);
@@ -393,7 +403,7 @@ const bool directory_split_tests_registration = tests::Register(
          .callback =
              [] {
                auto result_list = ValueOrDie(
-                   ValueOrDie(Path::New(L"aaa////b////cc/////ddd"), L"tests")
+                   ValueOrDie(Path::New(LazyString{L"aaa////b////cc/////ddd"}), L"tests")
                        .DirectorySplit(),
                    L"tests");
                CHECK_EQ(result_list.size(), 4ul);
@@ -406,40 +416,44 @@ const bool directory_split_tests_registration = tests::Register(
              }},
     });
 
-bool Path::IsRoot() const { return read() == L"/"; }
+bool Path::IsRoot() const { return read() == LazyString{L"/"}; }
 
 Path::RootType Path::GetRootType() const {
-  return read()[0] == L'/' ? Path::RootType::kAbsolute
+  return read().get(ColumnNumber{}) == L'/' ? Path::RootType::kAbsolute
                            : Path::RootType::kRelative;
 }
 
 ValueOrError<AbsolutePath> Path::Resolve() const {
-  char* result = realpath(ToByteString(read()).c_str(), nullptr);
+  char* result = realpath(ToByteString().c_str(), nullptr);
   return result == nullptr ? Error(FromByteString(strerror(errno)))
-                           : AbsolutePath::FromString(FromByteString(result));
+                           : AbsolutePath::FromString(LazyString{FromByteString(result)});
 }
 
-PossibleError PathValidator::Validate(const std::wstring& path) {
-  if (path.empty()) return NewError(LazyString{L"Path can not be empty."});
+PossibleError PathValidator::Validate(const LazyString& path) {
+  if (path.IsEmpty()) return NewError(LazyString{L"Path can not be empty."});
   return Success();
 }
 
 Path Path::LocalDirectory() {
-  return ValueOrDie(Path::New(L"."), L"Path::LocalDirectory");
+  return ValueOrDie(Path::New(LazyString{L"."}), L"Path::LocalDirectory");
 }
-Path Path::Root() { return ValueOrDie(Path::New(L"/"), L"Path::Root"); }
+Path Path::Root() { return ValueOrDie(Path::New(LazyString{L"/"}), L"Path::Root"); }
 
-ValueOrError<AbsolutePath> AbsolutePath::FromString(std::wstring path) {
-  if (path.empty()) {
+std::string Path::ToByteString() const {
+  return afc::language::ToByteString(read().ToString());
+}
+
+ValueOrError<AbsolutePath> AbsolutePath::FromString(LazyString path) {
+  if (path.IsEmpty()) {
     return Error(L"Path can't be empty");
   }
-  if (path[0] != L'/') {
+  if (path.get(ColumnNumber{}) != L'/') {
     return Error(L"Absolute path must start with /");
   }
   return Success(AbsolutePath(std::move(path)));
 }
 
-AbsolutePath::AbsolutePath(std::wstring path) : Path(std::move(path)) {}
+AbsolutePath::AbsolutePath(LazyString path) : Path(std::move(path)) {}
 
 std::ostream& operator<<(std::ostream& os, const Path& p) {
   os << p.read();
@@ -453,9 +467,9 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b) {
   if (b.empty()) {
     return a;
   }
-  return Path::Join(ValueOrDie(Path::New(a), L"PathJoin"),
-                    ValueOrDie(Path::New(b), L"PathJoin"))
-      .read();
+  return Path::Join(ValueOrDie(Path::New(LazyString{a}), L"PathJoin"),
+                    ValueOrDie(Path::New(LazyString{b}), L"PathJoin"))
+      .read().ToString();
 }
 
 std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path) {

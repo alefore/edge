@@ -100,7 +100,8 @@ std::map<std::wstring, LazyString> LoadEnvironmentVariables(
                                 PathComponent::FromString(L"environment")));
                  for (auto dir : path) {
                    Path full_path = Path::Join(dir, environment_local_path);
-                   std::ifstream infile(ToByteString(full_path.read()));
+                   std::ifstream infile(
+                       ToByteString(full_path.read().ToString()));
                    if (!infile.is_open()) {
                      continue;
                    }
@@ -403,9 +404,9 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
 
 ValueOrError<Path> GetChildrenPath(EditorState& editor_state) {
   if (auto buffer = editor_state.current_buffer(); buffer.has_value()) {
-    return AugmentError(
-        LazyString{L"Getting children path of buffer"},
-        Path::New(buffer->ptr()->Read(buffer_variables::children_path)));
+    return AugmentError(LazyString{L"Getting children path of buffer"},
+                        Path::New(buffer->ptr()->ReadLazyString(
+                            buffer_variables::children_path)));
   }
   return NewError(LazyString{L"Editor doesn't have a current buffer."});
 }
@@ -629,7 +630,7 @@ void ForkCommandOptions::Register(gc::Pool& pool,
                   [](NonNull<std::shared_ptr<ForkCommandOptions>> options,
                      LazyString value) {
                     options->children_path =
-                        OptionalFrom(Path::FromString(std::move(value)));
+                        OptionalFrom(Path::New(std::move(value)));
                   })
           .ptr());
 
@@ -662,10 +663,11 @@ gc::Root<OpenBuffer> ForkCommand(EditorState& editor_state,
       .describe_status = [command_data](const OpenBuffer& buffer_arg) {
         return Flags(command_data.value(), buffer_arg);
       }});
-  buffer.ptr()->Set(
-      buffer_variables::children_path,
-      options.children_path.has_value() ? options.children_path->read() : L"");
-  buffer.ptr()->Set(buffer_variables::command, options.command.ToString());
+  buffer.ptr()->Set(buffer_variables::children_path,
+                    options.children_path.has_value()
+                        ? options.children_path->read()
+                        : LazyString{});
+  buffer.ptr()->Set(buffer_variables::command, options.command);
   buffer.ptr()->Reload();
 
   editor_state.AddBuffer(buffer, options.insertion_type);

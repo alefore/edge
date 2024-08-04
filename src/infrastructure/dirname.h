@@ -16,6 +16,7 @@ extern "C" {
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type.h"
 #include "src/language/ghost_type_class.h"
+#include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/wstring.h"
@@ -51,17 +52,16 @@ class PathComponent
   // "hey." => ""
   // "hey.xyz" => "xyz"
   std::optional<language::lazy_string::LazyString> extension() const;
-
-  // TODO(2024-08-02): Remove.
-  std::wstring ToString() const { return read().ToString(); }
 };
 
 struct PathValidator {
-  static language::PossibleError Validate(const std::wstring& path);
+  static language::PossibleError Validate(
+      const language::lazy_string::LazyString& path);
 };
 
 class AbsolutePath;
-class Path : public language::GhostType<Path, std::wstring, PathValidator> {
+class Path : public language::GhostType<Path, language::lazy_string::LazyString,
+                                        PathValidator> {
  public:
   using GhostType::GhostType;
 
@@ -71,13 +71,11 @@ class Path : public language::GhostType<Path, std::wstring, PathValidator> {
   static Path Root();            // Similar to FromString(L"/").
 
   static Path Join(Path a, Path b);
-  // TODO(2024-08-02): Convert to `New` from GhostType<>.
-  static language::ValueOrError<Path> FromString(
-      language::lazy_string::LazyString path);
   static Path ExpandHomeDirectory(const Path& home_directory, const Path& path);
 
   // If an extension was already present, replaces it with the new value.
-  static Path WithExtension(const Path& path, const std::wstring& extension);
+  static Path WithExtension(const Path& path,
+                            const language::lazy_string::LazyString& extension);
 
   language::ValueOrError<Path> Dirname() const;
   language::ValueOrError<PathComponent> Basename() const;
@@ -91,22 +89,17 @@ class Path : public language::GhostType<Path, std::wstring, PathValidator> {
 
   language::ValueOrError<AbsolutePath> Resolve() const;
 
-  // TODO(2024-08-02): Once we convert the inner type to LazyString, we can
-  // convert all readers to use this version. Then gradually migrate them all to
-  // the underlying LazyString-based read method.
-  std::wstring ToString() const { return read(); }
-  language::lazy_string::LazyString ToLazyString() const {
-    return language::lazy_string::LazyString{read()};
-  }
+  std::string ToByteString() const;
 };
 
 class AbsolutePath : public Path {
  public:
   // Doesn't do any resolution; path must begin with '/'.
-  static language::ValueOrError<AbsolutePath> FromString(std::wstring path);
+  static language::ValueOrError<AbsolutePath> FromString(
+      language::lazy_string::LazyString path);
 
  private:
-  explicit AbsolutePath(std::wstring path);
+  explicit AbsolutePath(language::lazy_string::LazyString path);
 };
 
 // TODO(easy): Remove this:

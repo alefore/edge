@@ -65,7 +65,7 @@ LineSequence AddVariables(std::wstring type_name,
 LineSequence SerializeState(Path path, LineColumn position,
                             const BufferVariablesInstance& variables) {
   MutableLineSequence contents;
-  contents.push_back(L"// State of file: " + path.read());
+  contents.push_back(L"// State of file: " + path.read().ToString());
   contents.push_back(L"");
 
   // TODO(2023-11-26, P1): Turn this into an entry in LineColumnStruct.

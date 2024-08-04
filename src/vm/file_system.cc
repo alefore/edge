@@ -44,7 +44,9 @@ void RegisterFileSystemFunctions(
                       MakeNonNullShared<Protected<std::vector<std::wstring>>>(
                           MakeProtected(language::container::MaterializeVector(
                               input | std::views::transform([](Path& path) {
-                                return path.read();
+                                // TODO(2024-08-04): Change VectorString to use
+                                // LazyString and avoid the call to ToString.
+                                return path.read().ToString();
                               })))));
                 });
           }));

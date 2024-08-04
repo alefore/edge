@@ -41,9 +41,9 @@ class OpenDirectoryCommand : public Command {
         .path = OptionalFrom(VisitPointer(
             editor_state_.current_buffer(),
             [](gc::Root<OpenBuffer> buffer) -> ValueOrError<Path> {
-              ASSIGN_OR_RETURN(
-                  Path path,
-                  Path::New(buffer.ptr()->Read(buffer_variables::name)));
+              ASSIGN_OR_RETURN(Path path,
+                               Path::New(buffer.ptr()->ReadLazyString(
+                                   buffer_variables::name)));
               return path.Dirname();
             },
             [] { return Path::LocalDirectory(); }))});

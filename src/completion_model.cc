@@ -266,7 +266,7 @@ const bool completion_model_manager_tests_registration =
         return MakeNonNullUnique<DictionaryManager>([paths](Path path) {
           LOG(INFO) << "Creating buffer for: " << path;
           paths->push_back(path);
-          if (path == ValueOrDie(Path::FromString(LazyString{L"en"}))) {
+          if (path == ValueOrDie(Path::New(LazyString{L"en"}))) {
             return futures::Past(
                 LineSequence::ForTests({L"", L"bb baby", L"f fox", L"i i"}));
           } else {
@@ -281,7 +281,7 @@ const bool completion_model_manager_tests_registration =
              std::wstring compressed_text) {
             std::vector<infrastructure::Path> model_paths;
             for (const std::wstring& path : models)
-              model_paths.push_back(ValueOrDie(Path::New(path)));
+              model_paths.push_back(ValueOrDie(Path::New(LazyString{path})));
             return manager
                 ->Query(model_paths,
                         DictionaryManager::Key(LazyString{compressed_text}))
@@ -299,18 +299,16 @@ const bool completion_model_manager_tests_registration =
                 [GetManager, TestQuery, paths] {
                   CHECK(std::holds_alternative<DictionaryManager::NothingFound>(
                       TestQuery(GetManager(), {L"en"}, L"nothing").value()));
-                  CHECK(paths.value() ==
-                        std::vector<Path>{
-                            ValueOrDie(Path::FromString(LazyString{L"en"}))});
+                  CHECK(paths.value() == std::vector<Path>{ValueOrDie(
+                                             Path::New(LazyString{L"en"}))});
                 }},
            {.name = L"SimpleQueryWithMatch",
             .callback =
                 [GetManager, TestQuery, paths] {
                   DictionaryManager::QueryOutput output =
                       TestQuery(GetManager(), {L"en"}, L"f").value();
-                  CHECK(paths.value() ==
-                        std::vector<Path>{
-                            ValueOrDie(Path::FromString(LazyString{L"en"}))});
+                  CHECK(paths.value() == std::vector<Path>{ValueOrDie(
+                                             Path::New(LazyString{L"en"}))});
                   CHECK(std::get<DictionaryManager::WordData>(output) ==
                         DictionaryManager::WordData{.replacement =
                                                         LazyString{L"fox"}});
@@ -320,9 +318,8 @@ const bool completion_model_manager_tests_registration =
                 [GetManager, TestQuery, paths] {
                   DictionaryManager::QueryOutput output =
                       TestQuery(GetManager(), {L"en"}, L"fox").value();
-                  CHECK(paths.value() ==
-                        std::vector<Path>{
-                            ValueOrDie(Path::FromString(LazyString{L"en"}))});
+                  CHECK(paths.value() == std::vector<Path>{ValueOrDie(
+                                             Path::New(LazyString{L"en"}))});
                   CHECK(std::get<DictionaryManager::Suggestion>(output).key ==
                         DictionaryManager::Key(LazyString{L"f"}));
                 }},

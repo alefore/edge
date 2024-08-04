@@ -89,10 +89,10 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
 
   compilation.PushSource(path);
 
-  std::wifstream infile(ToByteString(path.read()));
+  std::wifstream infile(path.ToByteString());
   infile.imbue(std::locale(""));
   if (infile.fail()) {
-    compilation.AddError(Error(path.read() + L": open failed"));
+    compilation.AddError(NewError(path.read() + LazyString{L": open failed"}));
   } else {
     CompileStream(infile, compilation, parser);
   }
@@ -132,7 +132,7 @@ PossibleError HandleInclude(Compilation& compilation, void* parser,
       AugmentError(
           LazyString{L"#include was unable to extract path; in line: "} + str +
               LazyString{L"; error: "},
-          Path::FromString(str.Substring(start, pos - start))));
+          Path::New(str.Substring(start, pos - start))));
 
   if (delimiter == '\"' && path.GetRootType() == Path::RootType::kRelative &&
       compilation.current_source_path().has_value()) {

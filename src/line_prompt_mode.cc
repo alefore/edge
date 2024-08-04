@@ -146,7 +146,7 @@ std::unordered_multimap<std::wstring, LazyString> GetSyntheticFeatures(
                     [&](LazyString extension) { extensions.insert(extension); },
                     [] {}, path.extension());
               }},
-          Path::FromString(value));
+          Path::New(value));
     }
   }
 

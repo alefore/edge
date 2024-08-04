@@ -894,7 +894,7 @@ class InsertMode : public InputReceiver {
         TokenizeBySpaces(
             LazyString{buffer.Read(buffer_variables::completion_model_paths)}) |
         std::views::transform([](Token path_str) {
-          return OptionalFrom(Path::FromString(path_str.value));
+          return OptionalFrom(Path::New(path_str.value));
         }) |
         std::views::filter(
             [](const std::optional<Path>& t) { return t.has_value(); }) |

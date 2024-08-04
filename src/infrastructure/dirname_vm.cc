@@ -13,7 +13,9 @@ namespace afc::vm {
 const Type VMTypeMapper<Path>::vmtype = types::String{};
 
 ValueOrError<Path> vm::VMTypeMapper<Path>::get(Value& value) {
-  return Path::FromString(value.get_string());
+  // TODO(2024-08-04): Change get_string to return a LazyString and remove this
+  // explicit conversion.
+  return Path::New(LazyString{value.get_string()});
 }
 
 /* static */ gc::Root<vm::Value> VMTypeMapper<Path>::New(gc::Pool& pool,

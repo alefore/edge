@@ -211,7 +211,7 @@ EditorState::EditorState(CommandLineValues args,
           std::views::transform([](std::wstring s) -> ValueOrError<Path> {
             // TODO(easy, 2023-11-25): Change config_paths to be LazyString, to
             // avoid need to wrap.
-            return Path::FromString(LazyString{s});
+            return Path::New(LazyString{s});
           }) |
           SkipErrors)),
       environment_([&] {
@@ -237,8 +237,8 @@ EditorState::EditorState(CommandLineValues args,
   });
   auto paths = edge_path();
   futures::ForEach(paths.begin(), paths.end(), [this](Path dir) {
-    auto path = Path::Join(
-        dir, ValueOrDie(Path::FromString(LazyString{L"hooks/start.cc"})));
+    auto path =
+        Path::Join(dir, ValueOrDie(Path::New(LazyString{L"hooks/start.cc"})));
     return std::visit(
         overload{
             [&](NonNull<std::unique_ptr<vm::Expression>> expression)
@@ -836,11 +836,12 @@ void EditorState::PushPosition(LineColumn position) {
                     OpenFileOptions{
                         .editor_state = *this,
                         .name = PositionsBufferName(),
-                        .path = edge_path().empty()
-                                    ? std::optional<Path>()
-                                    : Path::Join(
-                                          edge_path().front(),
-                                          ValueOrDie(Path::New(L"positions"))),
+                        .path =
+                            edge_path().empty()
+                                ? std::optional<Path>()
+                                : Path::Join(edge_path().front(),
+                                             ValueOrDie(Path::New(
+                                                 LazyString{L"positions"}))),
                         .insertion_type = BuffersList::AddBufferType::kIgnore})
                     .Transform([](gc::Root<OpenBuffer> buffer_root) {
                       OpenBuffer& output = buffer_root.ptr().value();

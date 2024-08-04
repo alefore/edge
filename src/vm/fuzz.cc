@@ -36,8 +36,8 @@ int main(int, char** argv) {
   gc::Root<afc::vm::Environment> environment = afc::vm::Environment::New(pool);
   ValueOrError<NonNull<std::shared_ptr<Expression>>> expr =
       ValueOrDie(afc::vm::CompileFile(
-          ValueOrDie(Path::FromString(FromByteString("/dev/"
-                                                     "stdin"))),
+          ValueOrDie(Path::New(LazyString{FromByteString("/dev/"
+                                                         "stdin")})),
           pool, environment));
   if (IsError(expr)) return 0;
 

@@ -83,11 +83,11 @@ bool server_tests_registration = tests::Register(
                     return output;
                   },
                   [has_buffer](EditorState& editor) {
-                    return has_buffer(BufferName{BufferFileId{
-                                          ValueOrDie(Path::New(L"/foo/bar"))}},
+                    return has_buffer(BufferName{BufferFileId{ValueOrDie(
+                                          Path::New(LazyString{L"/foo/bar"}))}},
                                       editor) &&
-                           has_buffer(BufferName{BufferFileId{
-                                          ValueOrDie(Path::New(L"/tmp"))}},
+                           has_buffer(BufferName{BufferFileId{ValueOrDie(
+                                          Path::New(LazyString{L"/tmp"}))}},
                                       editor);
                   })};
     }));

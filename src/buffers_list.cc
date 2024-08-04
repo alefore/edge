@@ -110,22 +110,21 @@ ValueOrError<LineBuilder> GetOutputComponents(
                         : path_full.read().Substring(
                               ColumnNumber{}, columns - separator_size)));
       if (output_items.empty())
-        std::visit(
-            overload{
-                [&](Error) { Add(LazyString{path.ToString()}, modifiers); },
-                [&](const PathComponent& path_without_extension) {
-                  if (std::optional<LazyString> extension = path.extension();
-                      extension.has_value()) {
-                    Add(path_without_extension.read(), bold);
-                    Add(LazyString{L"."}, dim);
-                    Add(extension.value(), bold);
-                  } else {
-                    Add(path.read(), modifiers);
-                  }
-                }},
-            path.remove_extension());
+        std::visit(overload{[&](Error) { Add(path.read(), modifiers); },
+                            [&](const PathComponent& path_without_extension) {
+                              if (std::optional<LazyString> extension =
+                                      path.extension();
+                                  extension.has_value()) {
+                                Add(path_without_extension.read(), bold);
+                                Add(LazyString{L"."}, dim);
+                                Add(extension.value(), bold);
+                              } else {
+                                Add(path.read(), modifiers);
+                              }
+                            }},
+                   path.remove_extension());
       else if (columns > ColumnNumberDelta(1)) {
-        Add(LazyString{path.ToString()}, modifiers);
+        Add(path.read(), modifiers);
         Add(path == path_full ? LazyString{L"/"} : LazyString{L"…"}, dim);
       }
     }
@@ -144,10 +143,11 @@ ValueOrError<LineBuilder> GetOutputComponents(
 std::wstring GetOutputComponentsForTesting(std::wstring path,
                                            ColumnNumberDelta columns) {
   std::wstring output =
-      ValueOrDie(GetOutputComponents(
-                     ValueOrDie(ValueOrDie(Path::New(path)).DirectorySplit()),
-                     columns, LineModifierSet{}, LineModifierSet{},
-                     LineModifierSet{}))
+      ValueOrDie(
+          GetOutputComponents(
+              ValueOrDie(
+                  ValueOrDie(Path::New(LazyString{path})).DirectorySplit()),
+              columns, LineModifierSet{}, LineModifierSet{}, LineModifierSet{}))
           .Build()
           .contents()
           .ToString();
@@ -350,7 +350,7 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
                            return ValueOrDie(path.DirectorySplit(),
                                              L"RemoveCommonPrefixesForTesting");
                          }},
-                Path::New(c));
+                Path::New(LazyString{c}));
           }))) |
       std::views::transform([](std::list<PathComponent> components) {
         return components.empty()
@@ -360,7 +360,8 @@ std::vector<std::wstring> RemoveCommonPrefixesForTesting(
                            return p.has_value() ? Path::Join(*p, c) : c;
                          },
                          std::optional<Path>(), components)
-                         ->read();
+                         ->read()
+                         .ToString();
       }));
 }
 
@@ -501,8 +502,8 @@ const bool get_buffer_visible_string_tests_registration = tests::Register(
                ColumnNumberDelta(48), L"name_irrelevant", LineSequence(),
                LineModifierSet{}, SelectionState::kIdle,
                ValueOrDie(
-                   ValueOrDie(
-                       Path::New(L"edge-clang/edge/src/args.cc/.edge_state"))
+                   ValueOrDie(Path::New(LazyString{
+                                  L"edge-clang/edge/src/args.cc/.edge_state"}))
                        .DirectorySplit()));
          }}});
 
@@ -568,10 +569,9 @@ bool divide_line_tests = tests::Register(
 
 ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
     const OpenBuffer& buffer) {
-  auto path_str = buffer.Read(buffer_variables::path);
-  if (path_str != buffer.Read(buffer_variables::name)) {
+  LazyString path_str{buffer.Read(buffer_variables::path)};
+  if (path_str != LazyString{buffer.Read(buffer_variables::name)})
     return Error(L"name doesn't match path.");
-  }
   ASSIGN_OR_RETURN(Path path, Path::New(path_str));
   ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());
   return components;
