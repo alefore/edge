@@ -58,6 +58,7 @@ using afc::language::Success;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
@@ -82,15 +83,14 @@ struct CommandData {
 };
 
 std::map<std::wstring, LazyString> LoadEnvironmentVariables(
-    const std::vector<Path>& path, const std::wstring& full_command,
+    const std::vector<Path>& path, const LazyString& full_command,
     std::map<std::wstring, LazyString> environment) {
-  static const std::wstring whitespace = L"\t ";
-  size_t start = full_command.find_first_not_of(whitespace);
-  if (start == full_command.npos) {
-    return environment;
-  }
-  size_t end = full_command.find_first_of(whitespace, start);
-  if (end == full_command.npos || end <= start) return environment;
+  static const std::unordered_set whitespace = {L'\t', L' '};
+  std::optional<ColumnNumber> start = FindFirstNotOf(full_command, whitespace);
+  if (start == std::nullopt) return environment;
+  std::optional<ColumnNumber> end =
+      FindFirstOf(full_command.Substring(*start), whitespace);
+  if (end == std::nullopt) return environment;
   std::visit(
       overload{IgnoreErrors{},
                [&path, &environment](PathComponent command_component) {
@@ -120,8 +120,7 @@ std::map<std::wstring, LazyString> LoadEnvironmentVariables(
                    }
                  }
                }},
-      // TODO(trivial, 2024-08-04): Avoid call to LazyString.
-      PathComponent::New(LazyString{full_command.substr(start, end - start)}));
+      PathComponent::New(full_command.Substring(*start, end->ToDelta())));
   return environment;
 }
 
@@ -217,8 +216,8 @@ futures::Value<PossibleError> GenerateContents(
     }
     environment[L"TERM"] = LazyString{L"screen"};
     environment = LoadEnvironmentVariables(
-        editor_state.edge_path(), target.Read(buffer_variables::command),
-        environment);
+        editor_state.edge_path(),
+        target.ReadLazyString(buffer_variables::command), environment);
 
     char** envp =
         static_cast<char**>(calloc(environment.size() + 1, sizeof(char*)));
