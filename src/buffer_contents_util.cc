@@ -1,32 +1,37 @@
 #include "src/buffer_contents_util.h"
 
+#include "src/language/lazy_string/functional.h"
+
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::FindFirstOf;
+using afc::language::lazy_string::FindLastNotOf;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 LazyString GetCurrentToken(CurrentTokenOptions options) {
-  std::wstring line = options.contents.at(options.line_column.line).ToString();
+  std::unordered_set<wchar_t> token_characters{options.token_characters.begin(),
+                                               options.token_characters.end()};
+
+  LazyString line = options.contents.at(options.line_column.line).contents();
   // Scroll back to the first character outside of the token. If we're in not
   // inside a token, this is a no-op.
-  size_t start = line.find_last_not_of(options.token_characters,
-                                       options.line_column.column.read());
-  if (start == line.npos) {
-    start = 0;
-  }
+  line = line.Substring(
+      FindLastNotOf(
+          line.Substring(ColumnNumber{}, options.line_column.column.ToDelta()),
+          token_characters)
+          .value_or(ColumnNumber{}));
 
   // Scroll past any non-token characters. Typically this will just skip the
   // character we landed at in the block above. However, if we started in a
   // sequence of non-token characters, we skip them all.
-  start = line.find_first_of(options.token_characters, start);
-  if (start != line.npos) {
-    line = line.substr(start);
-  }
+  if (std::optional<ColumnNumber> start = FindFirstOf(line, token_characters);
+      start.has_value())
+    line = line.Substring(*start);
 
-  size_t end = line.find_first_not_of(options.token_characters);
-  if (end != line.npos) {
-    line = line.substr(0, end);
-  }
+  if (std::optional<ColumnNumber> end = FindFirstNotOf(line, token_characters);
+      end.has_value())
+    line = line.Substring(ColumnNumber{}, end->ToDelta());
 
-  // TODO(trivial, 2024-08-04): Define line directly as LazyString.
-  return LazyString{line};
+  return line;
 }
 }  // namespace afc::editor
