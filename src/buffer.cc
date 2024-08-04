@@ -216,7 +216,9 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
                         .ConsumeErrors([](Error error) {
                           return futures::Past(LineProcessorOutput(
                               LazyString{L"E: "} +
-                              LazyString{std::move(error.read())}));
+                              // TODO(trivial, 2024-08-04): Make the following
+                              // call to LazyString irrelevant and remove it.
+                              LazyString{error.read()}));
                         });
                   });
             }

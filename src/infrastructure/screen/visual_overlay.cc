@@ -2,7 +2,9 @@
 
 #include "src/language/text/line_builder.h"
 
+using ::operator<<;
 namespace afc::infrastructure::screen {
+
 using language::MakeNonNullShared;
 using language::NonNull;
 using language::overload;

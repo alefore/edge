@@ -244,7 +244,8 @@ void Status::Set(Error error) {
     return;
   }
   LineBuilder text;
-  text.AppendString(LazyString{std::move(error.read())},
+  // TODO(easy, 2024-08-04): Remove this redundant LazyString call.
+  text.AppendString(LazyString{error.read()},
                     LineModifierSet({LineModifier::kRed, LineModifier::kBold}));
   data_ = MakeNonNullShared<Data>(
       Data{.type = Type::kWarning, .text = std::move(text).Build()});

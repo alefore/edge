@@ -1,7 +1,24 @@
 #ifndef __AFC_EDITOR_GHOST_TYPE_CLASS_H__
 #define __AFC_EDITOR_GHOST_TYPE_CLASS_H__
 
-#include "src/language/error/value_or_error.h"
+#include <glog/logging.h>
+
+#include <variant>
+
+#include "src/language/wstring.h"
+
+// Declarations redundant with symbols from src/language/error/value_or_error.h.
+// We provide them here so that we don't have to depend on that header, allowing
+// that header to depend on this one.
+namespace afc::language {
+class Error;
+
+template <typename T>
+using ValueOrError = std::variant<T, Error>;
+
+template <typename T>
+bool IsError(const T&);
+}  // namespace afc::language
 
 namespace afc::language {
 namespace ghost_type_internal {
@@ -14,7 +31,9 @@ template <typename External>
 class Factory {
  public:
   static ValueOrError<External> New(typename External::InternalType value) {
-    RETURN_IF_ERROR(External::ValidatorType::Validate(value));
+    if (auto possible_error = External::ValidatorType::Validate(value);
+        std::holds_alternative<Error>(possible_error))
+      return std::get<Error>(possible_error);
     return External(value);
   };
 };
@@ -338,6 +357,8 @@ inline std::ostream& operator<<(
   os << "[" /*name*/ ":" << obj.value << "]";
   return os;
 }
+
+std::wstring to_wstring(std::wstring s);
 
 template <typename External, typename Internal, typename Validator>
 inline std::wstring to_wstring(
