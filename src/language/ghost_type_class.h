@@ -127,6 +127,10 @@ auto operator*(const Internal& t,
                const GhostType<External, Internal, Validator>& rhs);
 
 template <typename External, typename Internal, typename Validator>
+inline std::ostream& operator<<(
+    std::ostream& os, const GhostType<External, Internal, Validator>& obj);
+
+template <typename External, typename Internal, typename Validator>
 inline std::wstring to_wstring(
     const GhostType<External, Internal, Validator>& obj);
 
@@ -243,20 +247,14 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return *static_cast<External*>(this);
   }
 
-  // TODO(trivial, 2024-08-03): Get rid of the Other* types.
-  template <typename OtherExternal, typename OtherInternal,
-            typename OtherValidator>
   inline External& operator*=(
-      const GhostType<OtherExternal, OtherInternal, OtherValidator>& other) {
+      const GhostType<External, Internal, Validator>& other) {
     value *= other.value;
     return *static_cast<External*>(this);
   }
 
-  // TODO(trivial, 2024-08-03): Get rid of the Other* types.
-  template <typename OtherExternal, typename OtherInternal,
-            typename OtherValidator>
-  inline bool operator==(const GhostType<OtherExternal, OtherInternal,
-                                         OtherValidator>& other) const {
+  inline bool operator==(
+      const GhostType<External, Internal, Validator>& other) const {
     return value == other.value;
   }
 
@@ -288,10 +286,8 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
   friend auto operator* <External, Internal, Validator>(
       const Internal&, const GhostType<External, Internal, Validator>&);
 
-  // TODO(trivial, 2024-08-03): Get rid of the A, B, C types.
-  template <typename A, typename B, typename C>
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const GhostType<A, B, C>& obj);
+  friend std::ostream& operator<< <External, Internal, Validator>(
+      std::ostream& os, const GhostType<External, Internal, Validator>& obj);
 
   friend struct std::hash<GhostType<External, Internal, Validator>>;
 
