@@ -50,10 +50,10 @@ void AddMethod(const Identifier& name, language::gc::Pool& pool,
 void RegisterStringType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> string_type = ObjectType::New(pool, types::String{});
   AddMethod(
-      Identifier(L"size"), pool,
+      Identifier{LazyString{L"size"}}, pool,
       [](const std::wstring& str) { return str.size(); }, string_type);
   AddMethod(
-      Identifier(L"toint"), pool,
+      Identifier{LazyString{L"toint"}}, pool,
       [](const std::wstring& str) -> futures::ValueOrError<int> {
         try {
           return futures::Past(Success(std::stoi(str)));
@@ -67,26 +67,26 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier(L"empty"), pool,
+      Identifier{LazyString{L"empty"}}, pool,
       [](const std::wstring& str) { return str.empty(); }, string_type);
   AddMethod(
-      Identifier(L"tolower"), pool,
+      Identifier{LazyString{L"tolower"}}, pool,
       [](std::wstring str) {
         for (auto& i : str) i = std::tolower(i, std::locale(""));
         return str;
       },
       string_type);
   AddMethod(
-      Identifier(L"toupper"), pool,
+      Identifier{LazyString{L"toupper"}}, pool,
       [](std::wstring str) {
         for (auto& i : str) i = std::toupper(i, std::locale(""));
         return str;
       },
       string_type);
-  AddMethod(Identifier(L"shell_escape"), pool, language::ShellEscape,
-            string_type);
+  AddMethod(Identifier{LazyString{L"shell_escape"}}, pool,
+            language::ShellEscape, string_type);
   AddMethod(
-      Identifier(L"substr"), pool,
+      Identifier{LazyString{L"substr"}}, pool,
       [](const std::wstring& str, size_t pos,
          size_t len) -> futures::ValueOrError<std::wstring> {
         if (static_cast<size_t>(pos + len) > str.size()) {
@@ -97,7 +97,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier(L"starts_with"), pool,
+      Identifier{LazyString{L"starts_with"}}, pool,
       [](const std::wstring& str, const std::wstring& prefix) {
         return prefix.size() <= str.size() &&
                (std::mismatch(prefix.begin(), prefix.end(), str.begin())
@@ -105,7 +105,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier(L"find"), pool,
+      Identifier{LazyString{L"find"}}, pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find(pattern, start_pos);
@@ -114,7 +114,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier(L"find_last_of"), pool,
+      Identifier{LazyString{L"find_last_of"}}, pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_last_of(pattern, start_pos);
@@ -123,7 +123,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier(L"find_last_not_of"), pool,
+      Identifier{LazyString{L"find_last_not_of"}}, pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_last_not_of(pattern, start_pos);
@@ -132,7 +132,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier(L"find_first_of"), pool,
+      Identifier{LazyString{L"find_first_of"}}, pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_first_of(pattern, start_pos);
@@ -141,7 +141,7 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       },
       string_type);
   AddMethod(
-      Identifier(L"find_first_not_of"), pool,
+      Identifier{LazyString{L"find_first_not_of"}}, pool,
       [](const std::wstring& str, const std::wstring& pattern,
          size_t start_pos) {
         size_t pos = str.find_first_not_of(pattern, start_pos);

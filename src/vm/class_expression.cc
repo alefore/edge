@@ -107,12 +107,12 @@ PossibleError FinishClassDeclaration(
         class_object_type.ptr()->AddField(
             name, BuildGetter(pool, class_type, value->type, name).ptr());
         class_object_type.ptr()->AddField(
-            Identifier(L"set_" + name.read()),
+            Identifier(LazyString{L"set_"} + name.read()),
             BuildSetter(pool, class_type, value->type, name).ptr());
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
   compilation.environment.ptr()->Define(
-      Identifier(std::get<types::ObjectName>(class_type).read()),
+      Identifier(std::get<types::ObjectName>(class_type).ReadLazyString()),
       Value::NewFunction(
           pool, constructor_expression->purity(), class_type, {},
           [&pool, constructor_expression, class_environment, class_type](

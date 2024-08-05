@@ -56,7 +56,7 @@ class VariableLookup : public Expression {
         },
         [this]() {
           return Error{LazyString{L"Unexpected: variable value is null: "} +
-                       symbol_.ReadLazyString()};
+                       symbol_.read()};
         }));
   }
 };

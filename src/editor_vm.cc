@@ -78,7 +78,9 @@ void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
                           const std::wstring& name, PurityType purity_type,
                           MethodReturnType (OpenBuffer::*method)(void)) {
   editor_type.AddField(
-      Identifier(name),
+      // TODO(trivial, 2024-08-05): Receive `name` already as Lazystring. Avoid
+      // conversion here.
+      Identifier{LazyString{name}},
       vm::NewCallback(pool, purity_type, [method](EditorState& editor) {
         return editor
             .ForEachActiveBuffer([method](OpenBuffer& buffer) {
@@ -111,7 +113,7 @@ void RegisterVariableFields(
     CHECK(variable != nullptr);
     // Getter.
     editor_type.AddField(
-        Identifier(variable->name()),
+        Identifier{LazyString{variable->name()}},
         vm::NewCallback(pool, kPurityTypeReader,
                         [reader, variable](EditorState& editor) {
                           return (editor.*reader)(variable);
@@ -120,7 +122,7 @@ void RegisterVariableFields(
 
     // Setter.
     editor_type.AddField(
-        Identifier(L"set_" + variable->name()),
+        Identifier{LazyString{L"set_"} + LazyString{variable->name()}},
         vm::NewCallback(
             pool, kPurityTypeUnknown,
             [variable, setter](EditorState& editor, FieldVmValue value)
@@ -145,32 +147,32 @@ gc::Root<Environment> BuildEditorEnvironment(
   using PV = Protected<std::vector<ExtendedChar>>;
   using VSP = NonNull<std::shared_ptr<PV>>;
   value.Define(
-      Identifier(L"terminal_backspace"),
+      Identifier{LazyString{L"terminal_backspace"}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
           MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kBackspace}))));
   value.Define(
-      Identifier(L"terminal_control_a"),
+      Identifier{LazyString{L"terminal_control_a"}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
           MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlA}))));
   value.Define(
-      Identifier(L"terminal_control_e"),
+      Identifier{LazyString{L"terminal_control_e"}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
           MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlE}))));
   value.Define(
-      Identifier(L"terminal_control_d"),
+      Identifier{LazyString{L"terminal_control_d"}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
           MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlD}))));
   value.Define(
-      Identifier(L"terminal_control_k"),
+      Identifier{LazyString{L"terminal_control_k"}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
           MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlK}))));
   value.Define(
-      Identifier(L"terminal_control_u"),
+      Identifier{LazyString{L"terminal_control_u"}},
       vm::Value::NewObject(
           pool, VMTypeMapper<VSP>::object_type_name,
           MakeNonNullShared<PV>(MakeProtected(V{ControlChar::kCtrlU}))));
@@ -192,13 +194,13 @@ gc::Root<Environment> BuildEditorEnvironment(
       &EditorState::Read, &EditorState::Set);
 
   editor_type.ptr()->AddField(
-      Identifier(L"EnterSetBufferMode"),
+      Identifier{LazyString{L"EnterSetBufferMode"}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState& editor_arg) {
         editor_arg.set_keyboard_redirect(NewSetBufferMode(editor_arg));
       }).ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"SetActiveBuffer"),
+      Identifier{LazyString{L"SetActiveBuffer"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, int delta) {
                         editor_arg.SetActiveBuffer(delta);
@@ -206,7 +208,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"AdvanceActiveBuffer"),
+      Identifier{LazyString{L"AdvanceActiveBuffer"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, int delta) {
                         editor_arg.AdvanceActiveBuffer(delta);
@@ -214,7 +216,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"SetVariablePrompt"),
+      Identifier{LazyString{L"SetVariablePrompt"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, LazyString variable) {
                         SetVariableCommandHandler(editor_arg, variable);
@@ -222,13 +224,13 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"home"),
+      Identifier{LazyString{L"home"}},
       vm::NewCallback(pool, kPurityTypePure, [](EditorState& editor_arg) {
         return editor_arg.home_directory().read();
       }).ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"pop_repetitions"),
+      Identifier{LazyString{L"pop_repetitions"}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState& editor_arg) {
         int value_arg = static_cast<int>(editor_arg.repetitions().value_or(1));
         editor_arg.ResetRepetitions();
@@ -238,7 +240,7 @@ gc::Root<Environment> BuildEditorEnvironment(
   // Define one version for pure functions and one for non-pure, and adjust the
   // purity of this one.
   editor_type.ptr()->AddField(
-      Identifier(L"ForEachActiveBuffer"),
+      Identifier{LazyString{L"ForEachActiveBuffer"}},
       vm::Value::NewFunction(
           pool, kPurityTypeUnknown, vm::types::Void{},
           {GetVMType<EditorState>::vmtype(),
@@ -280,7 +282,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"ForEachActiveBufferWithRepetitions"),
+      Identifier{LazyString{L"ForEachActiveBufferWithRepetitions"}},
       vm::Value::NewFunction(
           pool, kPurityTypeUnknown, vm::types::Void{},
           {GetVMType<EditorState>::vmtype(),
@@ -313,14 +315,14 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"ProcessInput"),
+      Identifier{LazyString{L"ProcessInput"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](EditorState& editor_arg, int c) { editor_arg.ProcessInput({c}); })
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"ConnectTo"),
+      Identifier{LazyString{L"ConnectTo"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, Path target_path)
                           -> futures::ValueOrError<EmptyValue> {
@@ -330,7 +332,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"WaitForClose"),
+      Identifier{LazyString{L"WaitForClose"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](EditorState& editor_arg,
@@ -363,7 +365,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"SendExitTo"),
+      Identifier{LazyString{L"SendExitTo"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState&, LazyString args) {
                         int fd = open(ToByteString(args.ToString()).c_str(),
@@ -375,14 +377,14 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"Exit"),
+      Identifier{LazyString{L"Exit"}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState&, int status) {
         LOG(INFO) << "Exit: " << status;
         exit(status);
       }).ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"SetStatus"),
+      Identifier{LazyString{L"SetStatus"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, LazyString s) {
                         editor_arg.status().SetInformationText(
@@ -391,13 +393,13 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"PromptAndOpenFile"),
+      Identifier{LazyString{L"PromptAndOpenFile"}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](EditorState& editor_arg) {
         NewOpenFileCommand(editor_arg).ptr()->ProcessInput(0);
       }).ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"set_screen_needs_hard_redraw"),
+      Identifier{LazyString{L"set_screen_needs_hard_redraw"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, bool value_arg) {
                         editor_arg.set_screen_needs_hard_redraw(value_arg);
@@ -405,7 +407,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"set_exit_value"),
+      Identifier{LazyString{L"set_exit_value"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, int exit_value) {
                         editor_arg.set_exit_value(exit_value);
@@ -413,7 +415,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"ForkCommand"),
+      Identifier{LazyString{L"ForkCommand"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg,
                          NonNull<std::shared_ptr<ForkCommandOptions>> options) {
@@ -422,14 +424,14 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"repetitions"),
+      Identifier{LazyString{L"repetitions"}},
       vm::NewCallback(pool, kPurityTypePure, [](EditorState& editor_arg) {
         // TODO: Somehow expose the optional to the VM.
         return static_cast<int>(editor_arg.repetitions().value_or(1));
       }).ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"set_repetitions"),
+      Identifier{LazyString{L"set_repetitions"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState& editor_arg, int times) {
                         editor_arg.set_repetitions(times);
@@ -437,7 +439,7 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"OpenFile"),
+      Identifier{LazyString{L"OpenFile"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](EditorState& editor_arg, LazyString path_str,
@@ -451,12 +453,12 @@ gc::Root<Environment> BuildEditorEnvironment(
           .ptr());
 
   editor_type.ptr()->AddField(
-      Identifier(L"ShowInsertHistoryBuffer"),
+      Identifier{LazyString{L"ShowInsertHistoryBuffer"}},
       vm::NewCallback(pool, kPurityTypeUnknown, ShowInsertHistoryBuffer).ptr());
 
   // Version of AddBinding that receives a VectorExtendedChar.
   editor_type.ptr()->AddField(
-      Identifier(L"AddBinding"),
+      Identifier{LazyString{L"AddBinding"}},
       vm::Value::NewFunction(
           pool, kPurityTypeUnknown, vm::types::Void{},
           {GetVMType<EditorState>::vmtype(),
@@ -479,7 +481,7 @@ gc::Root<Environment> BuildEditorEnvironment(
 
   // Version of AddBinding that receives a String.
   editor_type.ptr()->AddField(
-      Identifier(L"AddBinding"),
+      Identifier{LazyString{L"AddBinding"}},
       vm::Value::NewFunction(
           pool, kPurityTypeUnknown, vm::types::Void{},
           {GetVMType<EditorState>::vmtype(), vm::types::String{},

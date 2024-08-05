@@ -108,8 +108,8 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
   StartClassDeclaration(
-      *compilation,
-      types::ObjectName(std::move(name)->value().ptr()->get_symbol().read()));
+      *compilation, types::ObjectName(
+          std::move(name)->value().ptr()->get_symbol().read().ToString()));
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
@@ -242,7 +242,7 @@ assignment_statement(OUT) ::= function_declaration_params(FUNC). {
   } else {
     CHECK(func->name.has_value());
     std::optional<Type> result = NewDefineTypeExpression(
-        *compilation, Identifier(L"auto"), *func->name, func->type);
+        *compilation, Identifier{LazyString{L"auto"}}, *func->name, func->type);
     if (result == std::nullopt) {
       OUT = nullptr;
       func->Abort(*compilation);
@@ -323,10 +323,9 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
       // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
       Identifier(type->value().ptr()->get_symbol()));
   if (type_def == nullptr) {
-    compilation->AddError(
-        Error{LazyString{L"Unknown type: \""} +
-              type->value().ptr()->get_symbol().ReadLazyString() +
-              LazyString{L"\""}});
+    compilation->AddError(Error{LazyString{L"Unknown type: \""} +
+                                type->value().ptr()->get_symbol().read() +
+                                LazyString{L"\""}});
     OUT = nullptr;
   } else {
     OUT = new std::vector<std::pair<Type, Identifier>>();
@@ -349,10 +348,9 @@ non_empty_function_declaration_arguments(OUT) ::=
         // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
         Identifier(type->value().ptr()->get_symbol()));
     if (type_def == nullptr) {
-    compilation->AddError(
-        Error{LazyString{L"Unknown type: \""} +
-              type->value().ptr()->get_symbol().ReadLazyString() +
-              LazyString{L"\""}});
+    compilation->AddError(Error{LazyString{L"Unknown type: \""} +
+                          type->value().ptr()->get_symbol().read() +
+                          LazyString{L"\""}});
       OUT = nullptr;
     } else {
       OUT = list.release();

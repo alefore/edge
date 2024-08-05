@@ -78,20 +78,13 @@ using language::overload;
 
 namespace gc = language::gc;
 
-language::ValueOrError<Identifier> IdentifierOrError(LazyString input) {
-  // TODO(2024-08-04, trivial): Remove this function! Just use Identifier::New.
-  if (input.IsEmpty()) return Error{LazyString{L"Identifier is empty"}};
-  // TODO(trivial, 2023-12-30): Start checking characters (e.g., only alnum).
-  return Identifier(input.ToString());
-}
-
 const Identifier& IdentifierAuto() {
-  static const auto output = new Identifier(L"auto");
+  static const auto output = new Identifier{LazyString{L"auto"}};
   return *output;
 }
 
 const Identifier& IdentifierInclude() {
-  static const auto output = new Identifier(L"include");
+  static const auto output = new Identifier{LazyString{L"include"}};
   return *output;
 }
 

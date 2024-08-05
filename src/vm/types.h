@@ -20,8 +20,9 @@ namespace afc::vm {
 // TODO(trivial, 2023-12-21): Assert that it only contains alphanumeric
 // characters.
 struct IdentifierValidator {
-  static language::PossibleError Validate(const std::wstring& input) {
-    if (input.empty())
+  static language::PossibleError Validate(
+      const language::lazy_string::LazyString& input) {
+    if (input.IsEmpty())
       return language::Error{
           language::lazy_string::LazyString{L"Identifier can't be empty."}};
     return language::Success();
@@ -30,17 +31,9 @@ struct IdentifierValidator {
 
 // Represents a single VM identifier within a namespace (e.g., `Buffer` or
 // `lib`).
-class Identifier : public language::GhostType<Identifier, std::wstring,
-                                              IdentifierValidator> {
- public:
-  // TODO(trivial, 2024-08-05): Convert to LazyString and remove.
-  language::lazy_string::LazyString ReadLazyString() const {
-    return language::lazy_string::LazyString{read()};
-  }
-};
-
-language::ValueOrError<Identifier> IdentifierOrError(
-    language::lazy_string::LazyString);
+class Identifier
+    : public language::GhostType<Identifier, language::lazy_string::LazyString,
+                                 IdentifierValidator> {};
 
 // Return the identifier for "auto".
 const Identifier& IdentifierAuto();

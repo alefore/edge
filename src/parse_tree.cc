@@ -376,7 +376,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
                 NonNull<std::shared_ptr<const ParseTree>>>::object_type_name);
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier(L"children"),
+      Identifier{LazyString{L"children"}},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {
@@ -396,7 +396,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           .ptr());
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier(L"range"),
+      Identifier{LazyString{L"range"}},
       vm::NewCallback(pool, kPurityTypeReader,
                       [](NonNull<std::shared_ptr<const ParseTree>> tree) {
                         return tree->range();
@@ -404,7 +404,7 @@ void RegisterParseTreeFunctions(language::gc::Pool& pool,
           .ptr());
 
   parse_tree_object_type.ptr()->AddField(
-      Identifier(L"properties"),
+      Identifier{LazyString{L"properties"}},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [](NonNull<std::shared_ptr<const ParseTree>> tree) {

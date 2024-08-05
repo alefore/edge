@@ -87,7 +87,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> time_type =
       ObjectType::New(pool, VMTypeMapper<Time>::object_type_name);
   time_type.ptr()->AddField(
-      Identifier(L"tostring"),
+      Identifier{LazyString{L"tostring"}},
       vm::NewCallback(pool, kPurityTypePure,
                       std::function<std::wstring(Time)>([](Time t) {
                         std::wstring decimal = std::to_wstring(t.tv_nsec);
@@ -97,7 +97,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                       }))
           .ptr());
   time_type.ptr()->AddField(
-      Identifier(L"AddDays"),
+      Identifier{LazyString{L"AddDays"}},
       vm::NewCallback(pool, kPurityTypePure,
                       [](Time input, int days) -> futures::ValueOrError<Time> {
                         FUTURES_ASSIGN_OR_RETURN(struct tm t,
@@ -108,7 +108,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                       })
           .ptr());
   time_type.ptr()->AddField(
-      Identifier(L"format"),
+      Identifier{LazyString{L"format"}},
       vm::NewCallback(
           pool, kPurityTypePure,
           [](Time input,
@@ -123,7 +123,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           })
           .ptr());
   time_type.ptr()->AddField(
-      Identifier(L"year"),
+      Identifier{LazyString{L"year"}},
       vm::NewCallback(pool, kPurityTypePure,
                       [](Time input) -> futures::ValueOrError<int> {
                         FUTURES_ASSIGN_OR_RETURN(struct tm t,
@@ -131,14 +131,14 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
                         return futures::Past(t.tm_year);
                       })
           .ptr());
-  environment.Define(Identifier(L"Now"),
+  environment.Define(Identifier{LazyString{L"Now"}},
                      vm::NewCallback(pool, kPurityTypeReader, []() {
                        Time output;
                        CHECK_NE(clock_gettime(0, &output), -1);
                        return output;
                      }));
   environment.Define(
-      Identifier(L"ParseTime"),
+      Identifier{LazyString{L"ParseTime"}},
       vm::NewCallback(
           pool, kPurityTypePure,
           [](LazyString value,
@@ -160,18 +160,18 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
   gc::Root<ObjectType> duration_type =
       ObjectType::New(pool, VMTypeMapper<Duration>::object_type_name);
   duration_type.ptr()->AddField(
-      Identifier(L"days"),
+      Identifier{LazyString{L"days"}},
       vm::NewCallback(pool, kPurityTypePure,
                       std::function<int(Duration)>([](Duration input) {
                         return input.value.tv_sec / (24 * 60 * 60);
                       }))
           .ptr());
-  environment.Define(Identifier(L"Seconds"),
+  environment.Define(Identifier{LazyString{L"Seconds"}},
                      vm::NewCallback(pool, kPurityTypePure, [](int input) {
                        return Duration{.value{.tv_sec = input, .tv_nsec = 0}};
                      }));
 
-  environment.Define(Identifier(L"DurationBetween"),
+  environment.Define(Identifier{LazyString{L"DurationBetween"}},
                      vm::NewCallback(pool, kPurityTypePure, [](Time a, Time b) {
                        b.tv_sec -= a.tv_sec;
                        if (b.tv_nsec < a.tv_nsec) {

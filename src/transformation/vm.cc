@@ -7,6 +7,7 @@
 #include "src/editor.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
@@ -28,6 +29,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::Success;
+using afc::language::lazy_string::LazyString;
 using afc::vm::GetVMType;
 using afc::vm::kPurityTypePure;
 using afc::vm::VMTypeMapper;
@@ -87,7 +89,7 @@ void RegisterTransformations(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   environment.Define(
-      vm::Identifier(L"FunctionTransformation"),
+      vm::Identifier{LazyString{L"FunctionTransformation"}},
       vm::Value::NewFunction(
           pool, kPurityTypePure,
           GetVMType<NonNull<std::shared_ptr<editor::transformation::Variant>>>::

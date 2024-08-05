@@ -26,6 +26,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::VisitOptional;
+using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
 
 namespace afc::vm {
@@ -66,21 +67,22 @@ const ObjectType* Environment::LookupObjectType(
 }
 
 const Type* Environment::LookupType(const Identifier& symbol) const {
-  if (symbol == Identifier(L"void")) {
+  if (symbol == Identifier{LazyString{L"void"}}) {
     static Type output = types::Void{};
     return &output;
-  } else if (symbol == Identifier(L"bool")) {
+  } else if (symbol == Identifier{LazyString{L"bool"}}) {
     static Type output = types::Bool{};
     return &output;
-  } else if (symbol == Identifier(L"number")) {
+  } else if (symbol == Identifier{LazyString{L"number"}}) {
     static Type output = types::Number{};
     return &output;
-  } else if (symbol == Identifier(L"string")) {
+  } else if (symbol == Identifier{LazyString{L"string"}}) {
     static Type output = types::String{};
     return &output;
   }
 
-  auto object_type = LookupObjectType(types::ObjectName(symbol.read()));
+  auto object_type =
+      LookupObjectType(types::ObjectName(symbol.read().ToString()));
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 
@@ -207,7 +209,8 @@ void Environment::CaseInsensitiveLookup(
       environment != nullptr) {
     environment->data_.lock([&output, &symbol](const Data& data) {
       for (auto& item : data.table)
-        if (wcscasecmp(item.first.read().c_str(), symbol.read().c_str()) == 0)
+        if (wcscasecmp(item.first.read().ToString().c_str(),
+                       symbol.read().ToString().c_str()) == 0)
           std::ranges::copy(item.second | std::views::values | gc::view::Root,
                             std::back_inserter(*output));
     });

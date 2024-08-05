@@ -248,26 +248,26 @@ class HelpCommand : public Command {
         L"available methods is given.");
     output.push_back(L"");
 
-    environment->ForEachType([&](const vm::types::ObjectName& name,
-                                 vm::ObjectType& type) {
-      StartSection(L"#### " + name.read(), output);
-      type.ForEachField([&](const vm::Identifier& field_name,
-                            vm::Value& value) {
-        std::stringstream value_stream;
-        value_stream << value;
-        const static int kPaddingSize = 40;
-        std::wstring padding(field_name.read().size() > kPaddingSize
-                                 ? 0
-                                 : kPaddingSize - field_name.read().size(),
-                             L' ');
-        output.push_back(LineBuilder{
-            LazyString{L"* `"} + field_name.ReadLazyString() +
-            LazyString{L"`"} + LazyString{std::move(padding)} +
-            LazyString{L"`"} + LazyString{FromByteString(value_stream.str())} +
-            LazyString{L"`"}}.Build());
-      });
-      output.push_back(L"");
-    });
+    environment->ForEachType(
+        [&](const vm::types::ObjectName& name, vm::ObjectType& type) {
+          StartSection(L"#### " + name.read(), output);
+          type.ForEachField([&](const vm::Identifier& field_name,
+                                vm::Value& value) {
+            std::stringstream value_stream;
+            value_stream << value;
+            const static ColumnNumberDelta kPaddingSize{40};
+            LazyString padding{field_name.read().size() > kPaddingSize
+                                   ? ColumnNumberDelta{}
+                                   : kPaddingSize - field_name.read().size(),
+                               L' '};
+            output.push_back(LineBuilder{
+                LazyString{L"* `"} + field_name.read() + LazyString{L"`"} +
+                std::move(padding) + LazyString{L"`"} +
+                LazyString{FromByteString(value_stream.str())} +
+                LazyString{L"`"}}.Build());
+          });
+          output.push_back(L"");
+        });
     output.push_back(L"");
 
     StartSection(L"### Variables", output);
@@ -279,18 +279,16 @@ class HelpCommand : public Command {
 
     environment->ForEach(
         [&output](const vm::Identifier& name, const gc::Ptr<vm::Value>& value) {
-          const static int kPaddingSize = 40;
-          std::wstring padding(name.read().size() >= kPaddingSize
-                                   ? 1
-                                   : kPaddingSize - name.read().size(),
-                               L' ');
-
           std::stringstream value_stream;
           value_stream << value.value();
-
+          const static ColumnNumberDelta kPaddingSize{40};
+          LazyString padding{name.read().size() > kPaddingSize
+                                 ? ColumnNumberDelta{}
+                                 : kPaddingSize - name.read().size(),
+                             L' '};
           output.push_back(LineBuilder{
-              LazyString{L"* `"} + name.ReadLazyString() + LazyString{L"`"} +
-              LazyString{std::move(padding)} + LazyString{L"`"} +
+              LazyString{L"* `"} + name.read() + LazyString{L"`"} +
+              std::move(padding) + LazyString{L"`"} +
               LazyString{FromByteString(value_stream.str())} +
               LazyString{L"`"}}.Build());
         });

@@ -137,7 +137,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
 
   // Constructors.
   environment.Define(
-      Identifier(L"RemoteScreen"),
+      Identifier{LazyString{L"RemoteScreen"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [&editor](Path path)
@@ -153,14 +153,14 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
 
   // Methods for Screen.
   screen_type.ptr()->AddField(
-      Identifier(L"Flush"),
+      Identifier{LazyString{L"Flush"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen) { screen->Flush(); })
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"HardRefresh"),
+      Identifier{LazyString{L"HardRefresh"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen) {
                         screen->HardRefresh();
@@ -168,21 +168,21 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"Refresh"),
+      Identifier{LazyString{L"Refresh"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen) { screen->Refresh(); })
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"Clear"),
+      Identifier{LazyString{L"Clear"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen) { screen->Clear(); })
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"SetCursorVisibility"),
+      Identifier{LazyString{L"SetCursorVisibility"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen,
                          std::wstring cursor_visibility) {
@@ -193,14 +193,14 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"Move"),
+      Identifier{LazyString{L"Move"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](NonNull<std::shared_ptr<Screen>> screen,
                          LineColumn position) { screen->Move(position); })
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"WriteString"),
+      Identifier{LazyString{L"WriteString"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
@@ -211,7 +211,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"SetModifier"),
+      Identifier{LazyString{L"SetModifier"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen, std::wstring str) {
@@ -220,7 +220,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"set_size"),
+      Identifier{LazyString{L"set_size"}},
       vm::NewCallback(
           pool, kPurityTypeUnknown,
           [](NonNull<std::shared_ptr<Screen>> screen,
@@ -241,7 +241,7 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
           .ptr());
 
   screen_type.ptr()->AddField(
-      Identifier(L"size"),
+      Identifier{LazyString{L"size"}},
       vm::NewCallback(pool, kPurityTypeReader,
                       [](NonNull<std::shared_ptr<Screen>> screen) {
                         return screen->size();

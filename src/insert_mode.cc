@@ -514,7 +514,7 @@ class InsertMode : public InputReceiver {
         std::optional<gc::Root<vm::Value>> callback =
             options_.editor_state.environment().ptr()->Lookup(
                 options_.editor_state.gc_pool(), vm::Namespace(),
-                vm::Identifier(L"HandleKeyboardControlU"),
+                vm::Identifier{LazyString{L"HandleKeyboardControlU"}},
                 vm::types::Function{
                     .output = vm::Type{vm::types::Void{}},
                     .inputs = {vm::GetVMType<gc::Ptr<OpenBuffer>>::vmtype()}});

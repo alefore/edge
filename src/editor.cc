@@ -219,7 +219,7 @@ EditorState::EditorState(CommandLineValues args,
             gc_pool_,
             MakeNonNullUnique<FileSystemDriver>(thread_pool_.value()));
         output.ptr()->Define(
-            vm::Identifier(L"editor"),
+            vm::Identifier{LazyString{L"editor"}},
             vm::Value::NewObject(
                 gc_pool_,
                 vm::VMTypeMapper<editor::EditorState>::object_type_name,

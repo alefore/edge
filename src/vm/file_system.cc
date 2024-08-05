@@ -23,14 +23,14 @@ void RegisterFileSystemFunctions(
     language::NonNull<std::shared_ptr<FileSystemDriver>> file_system_driver,
     Environment& environment) {
   environment.Define(
-      Identifier(L"Unlink"),
+      Identifier{LazyString{L"Unlink"}},
       vm::NewCallback(pool, PurityType{.writes_external_outputs = true},
                       [file_system_driver](Path target_path)
                           -> futures::ValueOrError<EmptyValue> {
                         return file_system_driver->Unlink(target_path);
                       }));
   environment.Define(
-      Identifier(L"Glob"),
+      Identifier{LazyString{L"Glob"}},
       vm::NewCallback(
           pool, kPurityTypeReader,
           [file_system_driver](LazyString pattern)

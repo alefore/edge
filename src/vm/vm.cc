@@ -281,8 +281,7 @@ void CompileLine(Compilation& compilation, void* parser,
                  (iswalnum(str.get(pos)) || str.get(pos) == '_'))
             ++pos;
           LazyString symbol_contents = str.Substring(start, pos - start);
-          if (IdentifierOrError(symbol_contents) ==
-              Success(IdentifierInclude()))
+          if (Identifier::New(symbol_contents) == Success(IdentifierInclude()))
             HandleInclude(compilation, parser, str, &pos);
           else
             compilation.AddError(
@@ -511,32 +510,32 @@ void CompileLine(Compilation& compilation, void* parser,
                 str.get(pos) == '~'))
           ++pos;
         Identifier symbol =
-            ValueOrDie(IdentifierOrError(str.Substring(start, pos - start)));
+            ValueOrDie(Identifier::New(str.Substring(start, pos - start)));
         struct Keyword {
           int token;
           std::function<gc::Root<Value>()> value_supplier = nullptr;
         };
         static const auto* const keywords =
             new std::unordered_map<Identifier, Keyword>(
-                {{Identifier(L"true"),
+                {{Identifier{LazyString{L"true"}},
                   {.token = BOOL,
                    .value_supplier =
                        [&pool = compilation.pool] {
                          return Value::NewBool(pool, true);
                        }}},
-                 {Identifier(L"false"),
+                 {Identifier{LazyString{L"false"}},
                   {.token = BOOL,
                    .value_supplier =
                        [&pool = compilation.pool] {
                          return Value::NewBool(pool, false);
                        }}},
-                 {Identifier(L"while"), {.token = WHILE}},
-                 {Identifier(L"for"), {.token = FOR}},
-                 {Identifier(L"if"), {.token = IF}},
-                 {Identifier(L"else"), {.token = ELSE}},
-                 {Identifier(L"return"), {.token = RETURN}},
-                 {Identifier(L"namespace"), {.token = NAMESPACE}},
-                 {Identifier(L"class"), {.token = CLASS}}});
+                 {Identifier{LazyString{L"while"}}, {.token = WHILE}},
+                 {Identifier{LazyString{L"for"}}, {.token = FOR}},
+                 {Identifier{LazyString{L"if"}}, {.token = IF}},
+                 {Identifier{LazyString{L"else"}}, {.token = ELSE}},
+                 {Identifier{LazyString{L"return"}}, {.token = RETURN}},
+                 {Identifier{LazyString{L"namespace"}}, {.token = NAMESPACE}},
+                 {Identifier{LazyString{L"class"}}, {.token = CLASS}}});
         if (auto it = keywords->find(symbol); it != keywords->end()) {
           token = it->second.token;
           if (auto supplier = it->second.value_supplier; supplier != nullptr)
@@ -577,8 +576,7 @@ void CompileLine(Compilation& compilation, void* parser,
     if (token == SYMBOL || token == STRING) {
       CHECK(input.has_value()) << "No input with token: " << token;
       if (input.value().ptr()->IsSymbol())
-        compilation.last_token =
-            input.value().ptr()->get_symbol().ReadLazyString();
+        compilation.last_token = input.value().ptr()->get_symbol().read();
       else if (input.value().ptr()->IsString())
         compilation.last_token = input.value().ptr()->get_string();
       else

@@ -39,7 +39,7 @@ using afc::math::numbers::Number;
 namespace afc::editor {
 namespace {
 
-const vm::Identifier kDepthSymbol(L"navigation_buffer_depth");
+const vm::Identifier kDepthSymbol{LazyString{L"navigation_buffer_depth"}};
 
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,

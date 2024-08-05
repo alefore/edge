@@ -742,11 +742,11 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
 
   gc::Root<OpenBuffer> root = NewRoot();
   environment_->Define(
-      Identifier(L"buffer"),
+      Identifier{LazyString{L"buffer"}},
       VMTypeMapper<gc::Ptr<editor::OpenBuffer>>::New(editor().gc_pool(), root));
 
   environment_->Define(
-      Identifier(L"sleep"),
+      Identifier{LazyString{L"sleep"}},
       vm::NewCallback(editor().gc_pool(),
                       PurityType{.reads_external_inputs = true},
                       [weak_this](double delay_seconds) {

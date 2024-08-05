@@ -41,7 +41,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
   environment.Define(
-      Identifier(object_type_name.read()),
+      Identifier(object_type_name.ReadLazyString()),
       Value::NewFunction(pool, kPurityTypePure, vmtype, {},
                          [&pool](std::vector<language::gc::Root<Value>> args) {
                            CHECK(args.empty());
@@ -50,12 +50,12 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                                language::MakeNonNullShared<std::optional<T>>());
                          }));
   object_type.ptr()->AddField(
-      Identifier(L"has_value"),
+      Identifier{language::lazy_string::LazyString{L"has_value"}},
       vm::NewCallback(pool, kPurityTypePure, [](FullType v) {
         return v->has_value();
       }).ptr());
   object_type.ptr()->AddField(
-      Identifier(L"value"),
+      Identifier{language::lazy_string::LazyString{L"value"}},
       vm::NewCallback(pool, kPurityTypePure,
                       [](FullType v) -> language::ValueOrError<T> {
                         if (v->has_value()) return v->value();
@@ -65,12 +65,12 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                       })
           .ptr());
   object_type.ptr()->AddField(
-      Identifier(L"reset"),
+      Identifier{language::lazy_string::LazyString{L"reset"}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](FullType v) {
         v.value() = std::nullopt;
       }).ptr());
   object_type.ptr()->AddField(
-      Identifier(L"set"),
+      Identifier{language::lazy_string::LazyString{L"set"}},
       vm::NewCallback(pool, kPurityTypeUnknown, [](FullType o, T t) {
         o.value() = std::move(t);
       }).ptr());

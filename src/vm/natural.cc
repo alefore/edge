@@ -102,11 +102,9 @@ class ParseState {
       // validate here that the input can be correctly converted to an
       // Identifier. Otherwise this can crash if there's a mismatch. It should,
       // instead, just fail (return an error).
-      for (gc::Root<Value> value :
-           LookUp(first_token
-                      ? Identifier(
-                            (token.value + function_name_prefix_).ToString())
-                      : Identifier(token.value.ToString())))
+      for (gc::Root<Value> value : LookUp(
+               first_token ? Identifier{(token.value + function_name_prefix_)}
+                           : Identifier{token.value}))
         PushValue(value, extended_candidates);
       PushValue(Value::NewString(pool_, token.value), extended_candidates);
       if (extended_candidates.empty())
@@ -285,7 +283,7 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier(L"SomeFunction"),
+                   Identifier{LazyString{L"SomeFunction"}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    []() -> std::wstring { return L"quux"; }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
@@ -304,7 +302,7 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier(L"Moo"),
+                   Identifier{LazyString{L"Moo"}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    [](std::wstring a, std::wstring b,
                                       std::wstring c) -> std::wstring {
@@ -332,7 +330,7 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier(L"UnaryFunction"),
+                   Identifier{LazyString{L"UnaryFunction"}},
                    vm::NewCallback(pool, kPurityTypePure,
                                    [](std::wstring a) -> std::wstring {
                                      CHECK(a == L"bar");
@@ -354,7 +352,7 @@ bool tests_registration = tests::Register(
                language::gc::Root<Environment> environment =
                    afc::vm::NewDefaultEnvironment(pool);
                environment.ptr()->Define(
-                   Identifier(L"SomeFunction"),
+                   Identifier{LazyString{L"SomeFunction"}},
                    vm::NewCallback(
                        pool, kPurityTypePure,
                        [](std::wstring a, std::wstring b) -> std::wstring {
@@ -378,7 +376,7 @@ bool tests_registration = tests::Register(
                afc::vm::NewDefaultEnvironment(pool);
            size_t calls = 0;
            environment.ptr()->Define(
-               Identifier(L"foo"),
+               Identifier{LazyString{L"foo"}},
                vm::NewCallback(pool, kPurityTypePure,
                                [&calls](std::wstring a) -> std::wstring {
                                  calls++;

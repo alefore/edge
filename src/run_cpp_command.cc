@@ -15,6 +15,7 @@
 #include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
 #include "src/line_prompt_mode.h"
@@ -46,6 +47,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::LowerCase;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -64,8 +66,7 @@ struct SearchNamespaces {
           auto var =
               LazyString{buffer.Read(buffer_variables::cpp_prompt_namespaces)};
           for (auto& token : TokenizeBySpaces(var)) {
-            output.push_back(
-                vm::Namespace({Identifier(token.value.ToString())}));
+            output.push_back(vm::Namespace({Identifier{token.value}}));
           }
           return output;
         }()) {}
@@ -124,12 +125,10 @@ ValueOrError<ParsedCommand> Parse(
   CHECK(!search_namespaces.namespaces.empty());
   std::vector<gc::Root<vm::Value>> functions;
   for (const auto& n : search_namespaces.namespaces) {
-    environment.CaseInsensitiveLookup(
-        n,
-        Identifier(
-            function_name_prefix.Append(LazyString{output_tokens[0].value})
-                .ToString()),
-        &functions);
+    environment.CaseInsensitiveLookup(n,
+                                      Identifier{function_name_prefix.Append(
+                                          LazyString{output_tokens[0].value})},
+                                      &functions);
     if (!functions.empty()) break;
   }
 
@@ -272,7 +271,8 @@ bool tests_parse_registration = tests::Register(
         gc::Pool pool({});
         gc::Root<vm::Environment> environment = vm::Environment::New(pool);
         environment.ptr()->Define(
-            Identifier(L"foo"), vm::Value::NewString(pool, LazyString{L"bar"}));
+            Identifier{LazyString{L"foo"}},
+            vm::Value::NewString(pool, LazyString{L"bar"}));
         ValueOrError<ParsedCommand> output = Parse(
             pool, LazyString{L"foo"}, environment.ptr().value(), LazyString(),
             std::unordered_set<vm::Type>({vm::types::String{}}),
@@ -447,10 +447,9 @@ std::vector<std::wstring> GetCppTokens(
           // TODO(easy, 2023-09-16): Would be good to filter more stringently.
           VLOG(10) << "Checking symbol: " << name;
           if (value->IsFunction()) {
-            std::wstring name_str = name.read();
-            std::transform(name_str.begin(), name_str.end(), name_str.begin(),
-                           std::towlower);
-            if (output_set.insert(name).second) output.push_back(name_str);
+            if (output_set.insert(name).second)
+              // TODO(easy, 2024-08-05): Get rid of ToString.
+              output.push_back(LowerCase(name.read()).ToString());
           }
         });
   VLOG(4) << "Found tokens: " << output.size();

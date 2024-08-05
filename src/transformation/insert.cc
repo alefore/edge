@@ -121,13 +121,13 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
   gc::Root<ObjectType> builder = ObjectType::New(
       pool, VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name);
   environment.Define(
-      Identifier(
+      Identifier{
           VMTypeMapper<NonNull<std::shared_ptr<Insert>>>::object_type_name
-              .read()),
+              .ReadLazyString()},
       vm::NewCallback(pool, PurityType{}, MakeNonNullShared<Insert>));
 
   builder.ptr()->AddField(
-      Identifier(L"set_text"),
+      Identifier{LazyString{L"set_text"}},
       vm::NewCallback(
           pool, vm::PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Insert>> options, std::wstring text) {
@@ -151,7 +151,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      Identifier(L"set_modifiers"),
+      Identifier{LazyString{L"set_modifiers"}},
       vm::NewCallback(pool, vm::PurityType{.writes_external_outputs = true},
                       [](NonNull<std::shared_ptr<Insert>> options,
                          NonNull<std::shared_ptr<Modifiers>> modifiers) {
@@ -161,7 +161,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      Identifier(L"set_position"),
+      Identifier{LazyString{L"set_position"}},
       NewCallback(
           pool, vm::PurityType{.writes_external_outputs = true},
           [](NonNull<std::shared_ptr<Insert>> options, LineColumn position) {
@@ -171,7 +171,7 @@ void RegisterInsert(gc::Pool& pool, vm::Environment& environment) {
           .ptr());
 
   builder.ptr()->AddField(
-      Identifier(L"build"),
+      Identifier{LazyString{L"build"}},
       NewCallback(pool, PurityType{},
                   [](NonNull<std::shared_ptr<Insert>> options) {
                     return MakeNonNullShared<Variant>(options.value());

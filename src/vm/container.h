@@ -131,7 +131,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
   environment.Define(
-      Identifier(object_type_name.read()),
+      Identifier(object_type_name.ReadLazyString()),
       Value::NewFunction(
           pool, kPurityTypePure, vmtype, {},
           [&pool](std::vector<language::gc::Root<Value>> args) {
@@ -147,17 +147,17 @@ void Export(language::gc::Pool& pool, Environment& environment) {
           }));
 
   object_type.ptr()->AddField(
-      Identifier(L"empty"),
+      Identifier{LazyString{L"empty"}},
       vm::NewCallback(pool, kPurityTypePure, [](ContainerPtr ptr) {
         return ptr->lock([](Container& c) { return c.empty(); });
       }).ptr());
   object_type.ptr()->AddField(
-      Identifier(L"size"),
+      Identifier{LazyString{L"size"}},
       vm::NewCallback(pool, kPurityTypePure, [](ContainerPtr ptr) {
         return ptr->lock([](Container& c) { return c.size(); });
       }).ptr());
   object_type.ptr()->AddField(
-      Identifier(L"get"),
+      Identifier{LazyString{L"get"}},
       Value::NewFunction(
           pool, kPurityTypePure,
           GetVMType<typename Container::value_type>::vmtype(),
@@ -190,7 +190,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
 
   if constexpr (T::has_set_at_index)
     object_type.ptr()->AddField(
-        Identifier(L"set"),
+        Identifier{LazyString{L"set"}},
         Value::NewFunction(
             pool, kPurityTypePure, types::Void{},
             {vmtype, types::Number{},
@@ -233,7 +233,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
             .ptr());
 
   object_type.ptr()->AddField(
-      Identifier(L"filter"),
+      Identifier{LazyString{L"filter"}},
       Value::NewFunction(
           pool, kPurityTypeUnknown, vmtype,
           {vmtype,
@@ -292,7 +292,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
           .ptr());
 
   object_type.ptr()->AddField(
-      Identifier(L"ForEach"),
+      Identifier{LazyString{L"ForEach"}},
       Value::NewFunction(
           pool, kPurityTypeUnknown, types::Void{},
           {vmtype,
@@ -335,28 +335,28 @@ void Export(language::gc::Pool& pool, Environment& environment) {
 
   if constexpr (T::has_contains)
     object_type.ptr()->AddField(
-        Identifier(L"contains"),
+        Identifier{LazyString{L"contains"}},
         vm::NewCallback(pool, kPurityTypePure, T::Contains).ptr());
 
   if constexpr (T::has_erase_by_index) {
     object_type.ptr()->AddField(
-        Identifier(L"erase"),
+        Identifier{LazyString{L"erase"}},
         vm::NewCallback(pool, kPurityTypeUnknown, T::EraseByIndex).ptr());
   }
 
   if constexpr (T::has_erase_by_element)
     object_type.ptr()->AddField(
-        Identifier(L"erase"),
+        Identifier{LazyString{L"erase"}},
         vm::NewCallback(pool, kPurityTypeUnknown, T::EraseByElement).ptr());
 
   if constexpr (T::has_insert)
     object_type.ptr()->AddField(
-        Identifier(L"insert"),
+        Identifier{LazyString{L"insert"}},
         vm::NewCallback(pool, kPurityTypeUnknown, T::Insert).ptr());
 
   if constexpr (T::has_push_back)
     object_type.ptr()->AddField(
-        Identifier(L"push_back"),
+        Identifier{LazyString{L"push_back"}},
         vm::NewCallback(pool, kPurityTypeUnknown, T::PushBack).ptr());
 
   environment.DefineType(object_type.ptr());
