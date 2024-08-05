@@ -17,21 +17,22 @@
 #include "src/language/wstring.h"
 
 namespace afc::vm {
-// Represents a single VM identifier within a namespace (e.g., `Buffer` or
-// `lib`).
-//
 // TODO(trivial, 2023-12-21): Assert that it only contains alphanumeric
 // characters.
-class Identifier : public language::GhostType<Identifier, std::wstring> {
- public:
-  // TODO(trivial, 2024-08-05): Move to a Validator!
-  static language::PossibleError Validate(const InternalType& input) {
+struct IdentifierValidator {
+  static language::PossibleError Validate(const std::wstring& input) {
     if (input.empty())
       return language::Error{
           language::lazy_string::LazyString{L"Identifier can't be empty."}};
     return language::Success();
   }
+};
 
+// Represents a single VM identifier within a namespace (e.g., `Buffer` or
+// `lib`).
+class Identifier : public language::GhostType<Identifier, std::wstring,
+                                              IdentifierValidator> {
+ public:
   // TODO(trivial, 2024-08-05): Convert to LazyString and remove.
   language::lazy_string::LazyString ReadLazyString() const {
     return language::lazy_string::LazyString{read()};
