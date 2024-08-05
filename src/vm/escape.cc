@@ -25,7 +25,7 @@ namespace afc::vm {
     switch (input.get(i)) {
       case '\\':
         if ((++i).ToDelta() >= input.size())
-          return Error(L"String ends in escape character.");
+          return Error{LazyString{L"String ends in escape character."}};
         switch (input.get(i)) {
           case 'n':
             original_string += LazyString{L"\n"};

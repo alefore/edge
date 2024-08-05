@@ -142,7 +142,8 @@ PossibleError FinishClassDeclaration(
                           MakeNonNullShared<Instance>(
                               Instance{.environment = instance_environment})));
                   }
-                  language::Error error(L"Unhandled OutputType case.");
+                  language::Error error{
+                      LazyString{L"Unhandled OutputType case."}};
                   LOG(FATAL) << error;
                   return error;
                 });

@@ -75,7 +75,7 @@ ValueOrError<PredictResults> BuildResults(
     EditorState& editor, PredictorOutput predictor_output,
     DeleteNotification::Value& abort_value) {
   TRACK_OPERATION(Predictor_BuildResults);
-  if (abort_value.has_value()) return Error(L"Aborted");
+  if (abort_value.has_value()) return Error{LazyString{L"Aborted"}};
 
   std::optional<std::wstring> common_prefix;
   predictor_output.contents.sorted_lines().lines().EveryLine(
@@ -113,7 +113,7 @@ ValueOrError<PredictResults> BuildResults(
         }
         return true;
       });
-  if (abort_value.has_value()) return Error(L"Aborted");
+  if (abort_value.has_value()) return Error{LazyString{L"Aborted"}};
   CHECK(predictor_output.contents.sorted_lines().lines().EndLine() ==
             LineNumber(0) ||
         !predictor_output.contents.sorted_lines()
@@ -180,7 +180,7 @@ futures::Value<std::optional<PredictResults>> Predict(
                  -> ValueOrError<PredictResults> {
         DECLARE_OR_RETURN(auto results,
                           BuildResults(editor, predictor_output, abort_value));
-        if (abort_value.has_value()) return Error(L"Aborted");
+        if (abort_value.has_value()) return Error{LazyString{L"Aborted"}};
         return results;
       })
       .Transform(

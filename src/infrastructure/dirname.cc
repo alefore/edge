@@ -427,7 +427,7 @@ Path::RootType Path::GetRootType() const {
 ValueOrError<AbsolutePath> Path::Resolve() const {
   char* result = realpath(ToByteString().c_str(), nullptr);
   return result == nullptr
-             ? Error(FromByteString(strerror(errno)))
+             ? Error{LazyString{FromByteString(strerror(errno))}}
              : AbsolutePath::FromString(LazyString{FromByteString(result)});
 }
 
@@ -449,10 +449,10 @@ std::string Path::ToByteString() const {
 
 ValueOrError<AbsolutePath> AbsolutePath::FromString(LazyString path) {
   if (path.IsEmpty()) {
-    return Error(L"Path can't be empty");
+    return Error{LazyString{L"Path can't be empty"}};
   }
   if (path.get(ColumnNumber{}) != L'/') {
-    return Error(L"Absolute path must start with /");
+    return Error{LazyString{L"Absolute path must start with /"}};
   }
   return Success(AbsolutePath(std::move(path)));
 }

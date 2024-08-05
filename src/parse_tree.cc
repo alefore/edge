@@ -29,6 +29,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
@@ -433,7 +434,7 @@ ValueOrError<URL> FindLinkTarget(const ParseTree& tree,
     if (ValueOrError<URL> output = FindLinkTarget(child, contents);
         std::holds_alternative<URL>(output))
       return output;
-  return Error(L"Unable to find link.");
+  return Error{LazyString{L"Unable to find link."}};
 }
 }  // namespace afc::editor
 namespace afc::vm {

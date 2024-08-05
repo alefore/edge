@@ -124,6 +124,7 @@ template <typename Container>
 void Export(language::gc::Pool& pool, Environment& environment) {
   using T = Traits<Container>;
   using ContainerPtr = typename T::ContainerPtr;
+  using language::lazy_string::LazyString;
   const types::ObjectName& object_type_name =
       VMTypeMapper<ContainerPtr>::object_type_name;
   const vm::Type vmtype = GetVMType<ContainerPtr>::vmtype();
@@ -172,10 +173,13 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                 [object_type_name, index, &trampoline](Container& c)
                     -> futures::ValueOrError<language::gc::Root<Value>> {
                   if (index < 0 || static_cast<size_t>(index) >= c.size()) {
-                    return futures::Past(language::Error(
-                        object_type_name.read() + L": Index out of range " +
-                        std::to_wstring(index) + L" (size: " +
-                        std::to_wstring(c.size()) + L")"));
+                    return futures::Past(
+                        language::Error{LazyString{object_type_name.read()} +
+                                        LazyString{L": Index out of range "} +
+                                        LazyString{std::to_wstring(index)} +
+                                        LazyString{L" (size: "} +
+                                        LazyString{std::to_wstring(c.size())} +
+                                        LazyString{L")"}});
                   }
                   return futures::Past(language::Success(
                       VMTypeMapper<typename Container::value_type>::New(
@@ -202,10 +206,13 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                   [object_type_name, index, &args, &trampoline](Container& c)
                       -> futures::ValueOrError<language::gc::Root<Value>> {
                     if (index < 0 || static_cast<size_t>(index) >= c.size()) {
-                      return futures::Past(language::Error(
-                          object_type_name.read() + L": Index out of range " +
-                          std::to_wstring(index) + L" (size: " +
-                          std::to_wstring(c.size()) + L")"));
+                      return futures::Past(language::Error{
+                          LazyString{object_type_name.read()} +
+                          LazyString{L": Index out of range "} +
+                          LazyString{std::to_wstring(index)} +
+                          LazyString{L" (size: "} +
+                          LazyString{std::to_wstring(c.size())} +
+                          LazyString{L")"}});
                     }
                     auto value =
                         VMTypeMapper<typename Container::value_type>::get(

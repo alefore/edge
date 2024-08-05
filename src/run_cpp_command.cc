@@ -118,7 +118,7 @@ ValueOrError<ParsedCommand> Parse(
 
   if (output_tokens.empty()) {
     // Deliberately empty so as to not trigger a status update.
-    return Error(L"");
+    return Error{LazyString{}};
   }
 
   CHECK(!search_namespaces.namespaces.empty());
@@ -243,7 +243,7 @@ bool tests_parse_registration = tests::Register(
                 pool, LazyString(), environment.ptr().value(), LazyString(),
                 std::unordered_set<vm::Type>({vm::types::String{}}),
                 SearchNamespaces(buffer.ptr().value()));
-            CHECK_EQ(std::get<Error>(output), Error(L""));
+            CHECK_EQ(std::get<Error>(output), Error{LazyString{}});
           }},
      {.name = L"NonEmptyCommandNoMatch",
       .callback =
@@ -285,7 +285,8 @@ futures::ValueOrError<gc::Root<vm::Value>> Execute(
     OpenBuffer& buffer, ParsedCommand parsed_command) {
   if (parsed_command.expression->Types().empty()) {
     // TODO: Show the error.
-    return futures::Past(Error(L"Unable to compile (type mismatch)."));
+    return futures::Past(
+        Error{LazyString{L"Unable to compile (type mismatch)."}});
   }
   return buffer.EvaluateExpression(std::move(parsed_command.expression),
                                    buffer.environment().ToRoot());
@@ -433,7 +434,8 @@ futures::Value<ColorizePromptOptions> ColorizeOptionsProvider(
                         LazyString{L"Preview"},
                         {vm::GetVMType<gc::Ptr<editor::OpenBuffer>>::vmtype()},
                         search_namespaces)
-                : ValueOrError<ParsedCommand>(Error(L"Buffer has no value")));
+                : ValueOrError<ParsedCommand>(
+                      Error{LazyString{L"Buffer has no value"}}));
       })
       .Transform([output](EmptyValue) {
         return futures::Past(std::move(output.value()));
@@ -467,7 +469,8 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
   using futures::Past;
   auto buffer = editor_state.current_buffer();
   if (!buffer.has_value()) {
-    return Past(ValueOrError<gc::Root<vm::Value>>(Error(L"No active buffer.")));
+    return Past(ValueOrError<gc::Root<vm::Value>>(
+        Error{LazyString{L"No active buffer."}}));
   }
   buffer->ptr()->ResetMode();
 
@@ -477,7 +480,7 @@ futures::ValueOrError<gc::Root<vm::Value>> RunCppCommandShell(
                  if (!error.read().IsEmpty())
                    buffer->ptr()->status().Set(error);
                  return Past(ValueOrError<gc::Root<vm::Value>>(
-                     Error(L"Unable to parse command")));
+                     Error{LazyString{L"Unable to parse command"}}));
                },
                [&](ParsedCommand parsed_command) {
                  return futures::OnError(

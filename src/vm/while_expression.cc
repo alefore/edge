@@ -75,11 +75,11 @@ class WhileExpression : public Expression {
                                        std::move(body));
                     }
                     LOG(FATAL) << "Error: Unsupported EvaluationOutput type.";
-                    return futures::Past(Error(L"Internal error."));
+                    return futures::Past(Error{LazyString{L"Internal error."}});
                   });
           }
           LOG(FATAL) << "Error: Unsupported EvaluationOutput type.";
-          return futures::Past(Error(L"Internal error."));
+          return futures::Past(Error{LazyString{L"Internal error."}});
         });
   }
 
@@ -93,7 +93,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewWhileExpression(
     Compilation& compilation, std::unique_ptr<Expression> condition,
     std::unique_ptr<Expression> body) {
   if (condition == nullptr || body == nullptr) {
-    return Error(L"Input missing.");
+    return Error{LazyString{L"Input missing."}};
   }
   if (!condition->IsBool()) {
     Error error{LazyString{L"Expected bool value for condition of \"while\" "
@@ -114,7 +114,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewForExpression(
     std::unique_ptr<Expression> body) {
   if (init == nullptr || condition == nullptr || update == nullptr ||
       body == nullptr) {
-    return Error(L"Input missing.");
+    return Error{LazyString{L"Input missing."}};
   }
   ASSIGN_OR_RETURN(
       NonNull<std::unique_ptr<Expression>> body_expression,

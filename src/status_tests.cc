@@ -26,7 +26,7 @@ const bool prompt_tests_registration = tests::Register(
             Status status(editor->audio_player());
             gc::Root<OpenBuffer> prompt = NewBufferForTests(editor.value());
             status.set_prompt(LazyString{L">"}, prompt);
-            status.InsertError(Error(L"Foobar"));
+            status.InsertError(Error{LazyString{L"Foobar"}});
             CHECK(status.text().ToString() == L">");
             CHECK(&status.prompt_buffer().value().ptr().value() ==
                   &prompt.ptr().value());

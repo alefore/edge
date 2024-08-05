@@ -532,7 +532,7 @@ class InsertMode : public InputReceiver {
                               buffer.editor().gc_pool(), buffer.NewRoot())})});
               if (expression->Types().empty()) {
                 buffer.status().InsertError(
-                    Error(L"Unable to compile (type mismatch)."));
+                    Error{LazyString{L"Unable to compile (type mismatch)."}});
                 return futures::Past(EmptyValue());
               }
               return buffer
@@ -883,7 +883,8 @@ class InsertMode : public InputReceiver {
             std::string bytes = ToByteString(line_buffer);
             if (write(fd->fd().read(), bytes.c_str(), bytes.size()) == -1)
               buffer.status().InsertError(
-                  Error(L"Write failed: " + FromByteString(strerror(errno))));
+                  Error{LazyString{L"Write failed: "} +
+                        LazyString{FromByteString(strerror(errno))}});
           }
         });
   }

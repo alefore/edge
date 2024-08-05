@@ -132,6 +132,17 @@ const bool from_string_tests_registration =
     }());
 }  // namespace
 
+std::wstring BigInt::ToString() const {
+  if (digits.empty()) return L"0";
+
+  std::wstring result;
+  for (auto it = digits.rbegin(); it != digits.rend(); ++it)
+    result += static_cast<wchar_t>(L'0' + *it);
+  return result;
+}
+
+LazyString BigInt::ToLazyString() const { return LazyString{ToString()}; }
+
 bool BigInt::IsZero() const { return digits.empty(); }
 
 namespace {

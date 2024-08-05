@@ -135,10 +135,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                   if (ss.eof() && !ss.fail()) {
                     editor_state.Set(var, value);
                   } else {
-                    // TODO(easy, 2022-06-05): Get rid of ToString.
-                    default_error_status.InsertError(
-                        Error(L"Invalid value for double value “" +
-                              var->name() + L"”: " + input.ToString()));
+                    default_error_status.InsertError(Error{
+                        LazyString{L"Invalid value for double value “"} +
+                        LazyString{var->name()} + LazyString{L"”: "} + input});
                   }
                   return futures::Past(EmptyValue());
                 },
@@ -177,8 +176,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                 value = stoi(input.ToString());
               } catch (const std::invalid_argument& ia) {
                 default_error_status.InsertError(
-                    Error(L"Invalid value for integer value “" + var->name() +
-                          L"”: " + FromByteString(ia.what())));
+                    Error{LazyString{L"Invalid value for integer value “"} +
+                          LazyString{var->name()} + LazyString{L"”: "} +
+                          LazyString{FromByteString(ia.what())}});
                 return futures::Past(EmptyValue());
               }
               editor_state.ForEachActiveBuffer(
@@ -215,8 +215,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
               } else {
                 // TODO(easy, 2022-06-05): Get rid of ToString.
                 default_error_status.InsertError(
-                    Error(L"Invalid value for double value “" + var->name() +
-                          L"”: " + input.ToString()));
+                    Error{LazyString{L"Invalid value for double value “"} +
+                          LazyString{var->name()} + LazyString{L"”: "} +
+                          LazyString{input.ToString()}});
               }
               return futures::Past(EmptyValue());
             },
@@ -225,7 +226,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     return futures::Past(EmptyValue());
   }
 
-  default_error_status.InsertError(Error(L"Unknown variable: " + name));
+  default_error_status.InsertError(
+      Error{LazyString{L"Unknown variable: "} + LazyString{name}});
   return futures::Past(EmptyValue());
 }
 

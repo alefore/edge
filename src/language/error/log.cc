@@ -2,10 +2,11 @@
 
 #include <ranges>
 
-#include "src/tests/tests.h"
 #include "src/language/container.h"
+#include "src/tests/tests.h"
 
 using afc::language::EraseIf;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::language::error {
 Log::InsertResult Log::Insert(language::Error error,
@@ -29,33 +30,35 @@ Log::InsertResult Log::Insert(language::Error error,
 
 namespace {
 const bool tests_registration = tests::Register(
-    L"error::Log",
-    {{.name = L"Creation", .callback = [] { Log(); }},
-     {.name = L"InsertIndependent",
-      .callback =
-          [] {
-            Log log;
-            CHECK(log.Insert(Error(L"Foo"), 1000) ==
-                  Log::InsertResult::kInserted);
-            CHECK(log.Insert(Error(L"Bar"), 1000) ==
-                  Log::InsertResult::kInserted);
-          }},
-     {.name = L"InsertFinds",
-      .callback =
-          [] {
-            Log log;
-            CHECK(log.Insert(Error(L"Foo"), 1000) ==
-                  Log::InsertResult::kInserted);
-            CHECK(log.Insert(Error(L"Foo"), 1000) ==
-                  Log::InsertResult::kAlreadyFound);
-          }},
-     {.name = L"InsertExpires", .callback = [] {
-        Log log;
-        CHECK(log.Insert(Error(L"Foo"), 1) == Log::InsertResult::kInserted);
-        CHECK(log.Insert(Error(L"Foo"), 1) == Log::InsertResult::kAlreadyFound);
-        sleep(2);
-        CHECK(log.Insert(Error(L"Foo"), 1) == Log::InsertResult::kInserted);
-      }}});
-}
+    L"error::Log", {{.name = L"Creation", .callback = [] { Log(); }},
+                    {.name = L"InsertIndependent",
+                     .callback =
+                         [] {
+                           Log log;
+                           CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1000) ==
+                                 Log::InsertResult::kInserted);
+                           CHECK(log.Insert(Error{LazyString{L"Bar"}}, 1000) ==
+                                 Log::InsertResult::kInserted);
+                         }},
+                    {.name = L"InsertFinds",
+                     .callback =
+                         [] {
+                           Log log;
+                           CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1000) ==
+                                 Log::InsertResult::kInserted);
+                           CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1000) ==
+                                 Log::InsertResult::kAlreadyFound);
+                         }},
+                    {.name = L"InsertExpires", .callback = [] {
+                       Log log;
+                       CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1) ==
+                             Log::InsertResult::kInserted);
+                       CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1) ==
+                             Log::InsertResult::kAlreadyFound);
+                       sleep(2);
+                       CHECK(log.Insert(Error{LazyString{L"Foo"}}, 1) ==
+                             Log::InsertResult::kInserted);
+                     }}});
+}  // namespace
 
 }  // namespace afc::language::error

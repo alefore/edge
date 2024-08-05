@@ -93,9 +93,11 @@ class Handler {
                      -> language::ValueOrError<TestsBehavior> {
                    if (input == L"run") return TestsBehavior::kRunAndExit;
                    if (input == L"list") return TestsBehavior::kListAndExit;
-                   return language::Error(
-                       L"Invalid value (valid values are `run` and `list`): " +
-                       input);
+                   return language::Error{
+                       language::lazy_string::LazyString{
+                           L"Invalid value (valid values are `run` and "
+                           L"`list`): "} +
+                       language::lazy_string::LazyString{input}};
                  }),
         Handler<ParsedValues>({L"tests_filter"}, L"Run specific tests")
             .Require(

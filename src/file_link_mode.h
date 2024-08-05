@@ -264,7 +264,8 @@ futures::ValueOrError<ResolvePathOutput<ValidatorOutput>> ResolvePath(
 
         // TODO(easy): Give a better error. Perhaps include the paths in
         // which we searched? Perhaps the last result of the validator?
-        return Error(L"Unable to resolve file.");
+        return Error{
+            language::lazy_string::LazyString{L"Unable to resolve file."}};
       });
 }
 

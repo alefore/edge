@@ -164,9 +164,8 @@ class InsertHistoryTransformation : public CompositeTransformation {
               transformation::Insert{.contents_to_insert = std::move(text)});
         },
         [&] {
-          // TODO(easy, 2023-10-06): Get rid of ToString.
           input.editor.status().InsertError(
-              Error(L"No matches: " + search_options_.query.ToString()));
+              Error{LazyString{L"No matches: "} + search_options_.query});
         });
     return futures::Past(std::move(output));
   }
@@ -274,7 +273,8 @@ const bool read_and_insert_tests_registration = tests::Register(
                        ValueOrDie(Path::New(LazyString{L"unexistent"})),
                        [&](OpenFileOptions options) {
                          path_opened = options.path;
-                         return futures::Past(Error(L"File does not exist."));
+                         return futures::Past(
+                             Error{LazyString{L"File does not exist."}});
                        })
                        .Apply(CompositeTransformation::Input{
                            .editor = buffer.ptr()->editor(),

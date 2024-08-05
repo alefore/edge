@@ -213,7 +213,7 @@ void CompileLine(Compilation& compilation, void* parser,
           token = AND;
           break;
         }
-        compilation.AddError(Error(L"Unhandled character: &"));
+        compilation.AddError(Error{LazyString{L"Unhandled character: &"}});
         return;
 
       case '[':
@@ -233,7 +233,7 @@ void CompileLine(Compilation& compilation, void* parser,
           token = OR;
           break;
         }
-        compilation.AddError(Error(L"Unhandled character: |"));
+        compilation.AddError(Error{LazyString{L"Unhandled character: |"}});
         return;
 
       case '<':
@@ -387,9 +387,9 @@ void CompileLine(Compilation& compilation, void* parser,
               // The template type (int) doesn't matter, but we need to resolve
               // the ambiguity:
               compilation.RegisterErrors<int>(
-                  Error(L"Cowardly refusing to create a number with very large "
-                        L"exponent: " +
-                        exponent.ToString()));
+                  Error{LazyString{L"Cowardly refusing to create a number with "
+                                   L"very large exponent: "} +
+                        exponent.ToLazyString()});
               return;
             }
             numbers::Number exponent_factor = numbers::Number::FromBigInt(
@@ -435,7 +435,8 @@ void CompileLine(Compilation& compilation, void* parser,
           }
         }
         if (pos.ToDelta() == str.size()) {
-          compilation.AddError(Error(L"Missing terminating \" character."));
+          compilation.AddError(
+              Error{LazyString{L"Missing terminating \" character."}});
           return;
         }
         input = Value::NewString(compilation.pool,
@@ -608,7 +609,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> ResultsFromCompilation(
   return language::VisitPointer(
       std::move(compilation.expr),
       &language::Success<NonNull<std::unique_ptr<Expression>>>,
-      []() { return Error(L"Unexpected empty expression."); });
+      []() { return Error{LazyString{L"Unexpected empty expression."}}; });
 }
 }  // namespace
 

@@ -74,7 +74,7 @@ class AssignExpression : public Expression {
                   return Success(
                       EvaluationOutput::New(std::move(value_output.value)));
               }
-              language::Error error(L"Unhandled OutputType case.");
+              language::Error error{LazyString{L"Unhandled OutputType case."}};
               LOG(FATAL) << error;
               return error;
             });
@@ -88,15 +88,17 @@ std::optional<Type> NewDefineTypeExpression(Compilation& compilation,
   Type type_def;
   if (type == IdentifierAuto()) {
     if (default_type == std::nullopt) {
-      compilation.AddError(Error(L"Unable to deduce type."));
+      compilation.AddError(Error{LazyString{L"Unable to deduce type."}});
       return std::nullopt;
     }
     type_def = default_type.value();
   } else {
     auto type_ptr = compilation.environment.ptr()->LookupType(type);
     if (type_ptr == nullptr) {
-      compilation.AddError(Error(L"Unknown type: `" + type.read() +
-                                 L"` for symbol `" + symbol.read() + L"`."));
+      compilation.AddError(Error{LazyString{L"Unknown type: `"} +
+                                 type.ReadLazyString() +
+                                 LazyString{L"` for symbol `"} +
+                                 symbol.ReadLazyString() + LazyString{L"`."}});
       return std::nullopt;
     }
     type_def = *type_ptr;
@@ -114,8 +116,9 @@ std::unique_ptr<Expression> NewDefineExpression(
   if (type == IdentifierAuto()) {
     auto types = value->Types();
     if (types.size() != 1) {
-      compilation.AddError(Error(L"Unable to deduce type for symbol: `" +
-                                 symbol.read() + L"`."));
+      compilation.AddError(
+          Error{LazyString{L"Unable to deduce type for symbol: `"} +
+                symbol.ReadLazyString() + LazyString{L"`."}});
       return nullptr;
     }
     default_type = *types.cbegin();
@@ -144,8 +147,8 @@ std::unique_ptr<Expression> NewAssignExpression(
   std::vector<Environment::LookupResult> variables =
       compilation.environment.ptr()->PolyLookup(kEmptyNamespace, symbol);
   if (variables.empty()) {
-    compilation.AddError(
-        Error(L"Variable not found: \"" + symbol.read() + L"\""));
+    compilation.AddError(Error{LazyString{L"Variable not found: \""} +
+                               symbol.ReadLazyString() + LazyString{L"\""}});
     return nullptr;
   }
 

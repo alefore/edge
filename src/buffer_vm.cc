@@ -623,7 +623,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
             if (const auto metadata_it = metadata_map.find(LazyString{});
                 metadata_it != metadata_map.end())
               return metadata_it->second.value.ToFuture();
-            return futures::Past(Error(L"Line has no value."));
+            return futures::Past(Error{LazyString{L"Line has no value."}});
           })
           .ptr());
 
@@ -663,11 +663,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
                               })
                               .ConsumeErrors([](Error error) {
                                 return futures::Past(LineProcessorOutput(
-                                    LazyString{L"E: "} +
-                                    // TODO(trivial, 2024-08-04): Change Error
-                                    // to LazyString and make this explicit
-                                    // conversion redundant.
-                                    LazyString{error.read()}));
+                                    LazyString{L"E: "} + error.read()));
                               })});
                 });
             return vm::Value::NewVoid(pool);

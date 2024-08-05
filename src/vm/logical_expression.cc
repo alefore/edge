@@ -47,7 +47,7 @@ class LogicalExpression : public Expression {
                          ? trampoline.Bounce(expr_b, type)
                          : futures::Past(Success(std::move(a_output)));
           }
-          language::Error error(L"Unhandled OutputType case.");
+          language::Error error{LazyString{L"Unhandled OutputType case."}};
           LOG(FATAL) << error;
           return futures::Past(error);
         });
@@ -65,7 +65,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewLogicalExpression(
     Compilation& compilation, bool identity, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
-    return Error(L"Missing inputs");
+    return Error{LazyString{L"Missing inputs"}};
   }
   if (!a->IsBool()) {
     Error error{LazyString{L"Expected `bool` value but found: "} +

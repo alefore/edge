@@ -125,7 +125,7 @@ void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
         Line(L"🌷Directory changed in disk since last read."));
   } else {
     buffer.status().InsertError(
-        Error(L"🌷File changed in disk since last read."));
+        Error{LazyString{L"🌷File changed in disk since last read."}});
   }
 }
 
@@ -144,8 +144,8 @@ futures::Value<PossibleError> Save(
   if (S_ISDIR(stat_buffer->st_mode)) {
     return options.save_type == OpenBuffer::Options::SaveType::kBackup
                ? futures::Past(Success())
-               : futures::Past(PossibleError(
-                     Error(L"Buffer can't be saved: Buffer is a directory.")));
+               : futures::Past(PossibleError(Error{LazyString{
+                     L"Buffer can't be saved: Buffer is a directory."}}));
   }
 
   switch (options.save_type) {
@@ -224,9 +224,10 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
       std::string str = (position == LineNumber(0) ? "" : "\n") +
                         ToByteString(line.ToString());
       if (write(fd.read(), str.c_str(), str.size()) == -1) {
-        Error write_error(path.read().ToString() + L": write failed: " +
-                          std::to_wstring(fd.read()) + L": " +
-                          FromByteString(strerror(errno)));
+        Error write_error{path.read() + LazyString{L": write failed: "} +
+                          LazyString{std::to_wstring(fd.read())} +
+                          LazyString{L": "} +
+                          LazyString{FromByteString(strerror(errno))}};
         LOG(INFO) << original_path
                   << ": SaveContentsToOpenFile: Error: " << write_error;
         error = std::move(write_error);
@@ -407,7 +408,7 @@ FindAlreadyOpenBuffer(EditorState& editor_state, std::optional<Path> path) {
                   return futures::Past(buffer);
                 }
               }
-              return futures::Past(Error(L"Unable to find buffer"));
+              return futures::Past(Error{LazyString{L"Unable to find buffer"}});
             });
       }};
   if (path.has_value()) {

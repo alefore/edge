@@ -282,10 +282,10 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
               delta.line = LineNumberDelta(stoul(sequence));
             }
           } catch (const std::invalid_argument& ia) {
-            data_->receiver->Warn(Error(
-                L"Unable to parse sequence from terminal in 'home' command: "
-                L"\"" +
-                FromByteString(sequence) + L"\""));
+            data_->receiver->Warn(Error{
+                LazyString{L"Unable to parse sequence from terminal in 'home' "
+                           L"command: \""} +
+                LazyString{FromByteString(sequence)} + LazyString{L"\""}});
           }
           DLOG(INFO) << "Move cursor home: line: " << delta.line
                      << ", column: " << delta.column;
@@ -410,8 +410,8 @@ void TerminalAdapter::InternalUpdateSize(Data& data) {
 
   if (ioctl(fd->read(), TIOCSWINSZ, &screen_size) == -1) {
     LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
-    data.receiver->Warn(
-        Error(L"ioctl TIOCSWINSZ failed: " + FromByteString(strerror(errno))));
+    data.receiver->Warn(Error{LazyString{L"ioctl TIOCSWINSZ failed: "} +
+                              LazyString{FromByteString(strerror(errno))}});
   }
 }
 

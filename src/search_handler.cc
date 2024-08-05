@@ -87,7 +87,8 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     pattern = std::wregex(options.search_query.ToString(),
                           GetRegexTraits(options.case_sensitive));
   } catch (std::regex_error& e) {
-    Error error(L"Regex failure: " + FromByteString(e.what()));
+    Error error{LazyString{L"Regex failure: "} +
+                LazyString{FromByteString(e.what())}};
     // TODO(easy, 2024-08-04): Change error.read to return a LazyString and
     // avoid the redundant conversion below:
     options.progress_channel->Push(

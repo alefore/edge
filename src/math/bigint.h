@@ -29,14 +29,8 @@ class BigInt {
 
   static language::ValueOrError<BigInt> FromString(const std::wstring& input);
 
-  std::wstring ToString() const {
-    if (digits.empty()) return L"0";
-
-    std::wstring result;
-    for (auto it = digits.rbegin(); it != digits.rend(); ++it)
-      result += static_cast<wchar_t>(L'0' + *it);
-    return result;
-  }
+  std::wstring ToString() const;
+  language::lazy_string::LazyString ToLazyString() const;
 
   template <typename NumberType>
   static BigInt FromNumber(NumberType value) {

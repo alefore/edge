@@ -164,7 +164,8 @@ futures::Value<PossibleError> GenerateContents(
 
   ProcessId child_pid = ProcessId(fork());
   if (child_pid == ProcessId(-1)) {
-    Error error(L"fork failed: " + FromByteString(strerror(errno)));
+    Error error{LazyString{L"fork failed: "} +
+                LazyString{FromByteString(strerror(errno))}};
     target.status().Set(error);
     return futures::Past(error);
   }
@@ -498,7 +499,8 @@ class ForkEditorCommand : public Command {
       std::optional<gc::Root<OpenBuffer>> buffer =
           editor_state_.current_buffer();
       (buffer.has_value() ? buffer->ptr()->status() : editor_state_.status())
-          .InsertError(Error(L"Oops, that structure is not handled."));
+          .InsertError(
+              Error{LazyString{L"Oops, that structure is not handled."}});
     }
     editor_state_.ResetStructure();
   }

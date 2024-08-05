@@ -398,9 +398,9 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
       if (condition) {
         // We don't use AugmentError because we'd rather append to the
         // end of the description, not the beginning.
-        Error error{error.read() + LazyString{L": "} + line.contents()};
-        VLOG(5) << "Found error: " << error;
-        output.errors.push_back(error);
+        Error wrapper_error{error.read() + LazyString{L": "} + line.contents()};
+        VLOG(5) << "Found error: " << wrapper_error;
+        output.errors.push_back(wrapper_error);
       }
       return condition;
     };
@@ -415,9 +415,9 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
     auto range = line_keys->equal_range(L"prompt");
     int prompt_count = std::distance(range.first, range.second);
     if (warn_if(prompt_count == 0,
-                Error(L"Line is missing `prompt` section")) ||
+                Error{LazyString{L"Line is missing `prompt` section"}}) ||
         warn_if(prompt_count != 1,
-                Error(L"Line has multiple `prompt` sections"))) {
+                Error{LazyString{L"Line has multiple `prompt` sections"}})) {
       return !abort_value.has_value();
     }
 
@@ -1204,9 +1204,10 @@ InsertModeOptions PromptState::insert_mode_options() {
                           prompt_state->status());
                     }
                   } else {
-                    prompt_state->editor_state().status().InsertError(Error(
-                        L"Error: Predict: predictions buffer not found: " +
-                        to_wstring(PredictionsBufferName{})));
+                    prompt_state->editor_state().status().InsertError(Error{
+                        LazyString{
+                            L"Error: Predict: predictions buffer not found: "} +
+                        LazyString{to_wstring(PredictionsBufferName{})}});
                   }
                   return EmptyValue();
                 });

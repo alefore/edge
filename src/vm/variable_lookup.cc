@@ -7,6 +7,7 @@
 #include "compilation.h"
 #include "src/language/container.h"
 #include "src/language/gc_view.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
@@ -19,6 +20,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Success;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::vm {
 namespace {
@@ -53,8 +55,8 @@ class VariableLookup : public Expression {
           return Success(EvaluationOutput::New(std::move(value)));
         },
         [this]() {
-          return Error(L"Unexpected: variable value is null: " +
-                       symbol_.read());
+          return Error{LazyString{L"Unexpected: variable value is null: "} +
+                       symbol_.ReadLazyString()};
         }));
   }
 };
@@ -77,7 +79,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation& compilation,
       compilation.environment.ptr()->PolyLookup(symbol_namespace, symbol);
   if (result.empty()) {
     compilation.AddError(
-        Error(L"Unknown variable: `" + to_wstring(symbol) + L"`"));
+        Error{LazyString{L"Unknown variable: `" + to_wstring(symbol) + L"`"}});
     return nullptr;
   }
 

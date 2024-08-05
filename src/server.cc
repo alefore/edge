@@ -122,7 +122,8 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
     int bytes_written = write(tmp_fd, commands_to_run_str.c_str() + pos.read(),
                               commands_to_run_str.size() - pos.read());
     if (bytes_written == -1)
-      return Error(L"write: " + FromByteString(strerror(errno)));
+      return Error{LazyString{L"write: "} +
+                   LazyString{FromByteString(strerror(errno))}};
     pos += ColumnNumberDelta(bytes_written);
   }
   if (close(tmp_fd) != 0) {
@@ -152,9 +153,9 @@ ValueOrError<FileDescriptor> SyncConnectToParentServer() {
                      Path::New(LazyString{FromByteString(server_address)})));
     return SyncConnectToServer(path);
   }
-  return Error(
-      L"Unable to find remote address (through environment variable "
-      L"EDGE_PARENT_ADDRESS).");
+  return Error{
+      LazyString{L"Unable to find remote address (through environment variable "
+                 L"EDGE_PARENT_ADDRESS)."}};
 }
 
 ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {

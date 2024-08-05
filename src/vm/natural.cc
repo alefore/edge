@@ -109,7 +109,8 @@ class ParseState {
                       : Identifier(token.value.ToString())))
         PushValue(value, extended_candidates);
       PushValue(Value::NewString(pool_, token.value), extended_candidates);
-      if (extended_candidates.empty()) return Error(L"No valid parses found.");
+      if (extended_candidates.empty())
+        return Error{LazyString{L"No valid parses found."}};
       first_token = false;
       candidates_ = std::move(extended_candidates);
       for (auto& c : candidates_) VLOG(6) << "Extended Candidate: " << c;
@@ -127,7 +128,7 @@ class ParseState {
             }));
     LOG(INFO) << "Natural results: " << valid_outputs.size();
     if (valid_outputs.empty())
-      return Error(L"No valid parses found (post compilation).");
+      return Error{LazyString{L"No valid parses found (post compilation)."}};
 
     // Safe because we've dropped null values above.
     return NonNull<std::shared_ptr<Expression>>::Unsafe(valid_outputs.front());

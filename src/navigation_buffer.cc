@@ -154,7 +154,7 @@ class NavigationBufferCommand : public Command {
     std::optional<gc::Root<OpenBuffer>> source = editor_state_.current_buffer();
     if (!source.has_value()) {
       editor_state_.status().InsertError(
-          Error(L"NavigationBuffer needs an existing buffer."));
+          Error{LazyString{L"NavigationBuffer needs an existing buffer."}});
       return;
     }
 

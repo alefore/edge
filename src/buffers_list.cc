@@ -55,7 +55,7 @@ ValueOrError<LineBuilder> GetOutputComponents(
     const std::list<PathComponent>& components, ColumnNumberDelta columns,
     const LineModifierSet& modifiers, const LineModifierSet& bold,
     const LineModifierSet& dim) {
-  if (components.empty()) return Error(L"Empty components");
+  if (components.empty()) return Error{LazyString{L"Empty components"}};
 
   std::list<LineBuilder> output_items;
 
@@ -514,7 +514,7 @@ ValueOrError<std::vector<ColumnNumberDelta>> DivideLine(
   CHECK_GE(columns, 1ul);
   ColumnNumberDelta total_padding = separator_padding * (columns - 1);
   if (total_length < total_padding)
-    return Error(L"DivideLine: total_length is too short.");
+    return Error{LazyString{L"DivideLine: total_length is too short."}};
 
   std::vector<ColumnNumberDelta> output(
       columns, (total_length - total_padding) / columns);
@@ -571,7 +571,7 @@ ValueOrError<std::list<PathComponent>> GetPathComponentsForBuffer(
     const OpenBuffer& buffer) {
   LazyString path_str{buffer.Read(buffer_variables::path)};
   if (path_str != LazyString{buffer.Read(buffer_variables::name)})
-    return Error(L"name doesn't match path.");
+    return Error{LazyString{L"name doesn't match path."}};
   ASSIGN_OR_RETURN(Path path, Path::New(path_str));
   ASSIGN_OR_RETURN(std::list<PathComponent> components, path.DirectorySplit());
   return components;

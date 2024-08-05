@@ -8,6 +8,7 @@
 #include "src/buffer_variables.h"
 #include "src/direction.h"
 #include "src/editor.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/text/line_column.h"
 #include "src/line_marks.h"
 #include "src/operation_scope.h"
@@ -16,12 +17,14 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
 
+using afc::infrastructure::screen::CursorsSet;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::editor {
-using infrastructure::screen::CursorsSet;
-using language::Error;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
 
 namespace transformation {
 futures::Value<Result> ApplyBase(const SwapActiveCursor& swap_active_cursor,
@@ -84,8 +87,9 @@ class MoveTransformation : public CompositeTransformation {
     if (!position.has_value()) {
       std::ostringstream oss;
       oss << structure;
-      input.buffer.status().InsertError(Error(
-          L"Unhandled structure: " + language::FromByteString(oss.str())));
+      input.buffer.status().InsertError(
+          Error{LazyString{L"Unhandled structure: "} +
+                LazyString{language::FromByteString(oss.str())}});
       return futures::Past(Output());
     }
 

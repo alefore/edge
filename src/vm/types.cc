@@ -211,7 +211,7 @@ LazyString ToString(const Type& type) {
           [](const types::String&) { return LazyString{L"string"}; },
           [](const types::Symbol&) { return LazyString{L"symbol"}; },
           [](const types::ObjectName& object) {
-            return LazyString{object.read()};
+            return object.ReadLazyString();
           },
           [](const types::Function& function_type) {
             return std::invoke([&] {

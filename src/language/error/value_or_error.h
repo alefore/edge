@@ -14,14 +14,7 @@
 #include "src/language/wstring.h"
 
 namespace afc::language {
-class Error : public GhostType<Error, language::lazy_string::LazyString> {
- public:
-  using GhostType::GhostType;
-
-  // Compatibility function.
-  // TODO(2024-08-04, easy): Remove.
-  Error(std::wstring);
-};
+class Error : public GhostType<Error, language::lazy_string::LazyString> {};
 
 // Example: AugmentError(L"🖫 Save failed", error)
 Error AugmentError(language::lazy_string::LazyString prefix, Error error);
@@ -148,7 +141,7 @@ namespace error {
 template <typename T>
 ValueOrError<T> FromOptional(std::optional<T> value) {
   if (value.has_value()) return value.value();
-  return Error(L"No value.");
+  return Error{language::lazy_string::LazyString{L"No value."}};
 }
 }  // namespace error
 }  // namespace afc::language

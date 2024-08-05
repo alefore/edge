@@ -34,7 +34,8 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
   // TODO(easy): Honor `multiple_buffers`.
   std::optional<gc::Root<OpenBuffer>> buffer = editor_state.current_buffer();
   if (!buffer.has_value()) {
-    return futures::Past(ValueOrError<EmptyValue>(Error(L"No current buffer")));
+    return futures::Past(
+        ValueOrError<EmptyValue>(Error{LazyString{L"No current buffer"}}));
   }
   if (editor_state.structure() == Structure::kLine) {
     if (std::optional<OutgoingLink> outgoing_link =

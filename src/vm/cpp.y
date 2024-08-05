@@ -323,9 +323,10 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
       // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
       Identifier(type->value().ptr()->get_symbol()));
   if (type_def == nullptr) {
-    compilation->AddError(Error(L"Unknown type: \"" +
-                                type->value().ptr()->get_symbol().read() +
-                                L"\""));
+    compilation->AddError(
+        Error{LazyString{L"Unknown type: \""} +
+              type->value().ptr()->get_symbol().ReadLazyString() +
+              LazyString{L"\""}});
     OUT = nullptr;
   } else {
     OUT = new std::vector<std::pair<Type, Identifier>>();
@@ -348,9 +349,10 @@ non_empty_function_declaration_arguments(OUT) ::=
         // TODO(easy, 2023-12-22): Make `get_symbol` return an Identifier.
         Identifier(type->value().ptr()->get_symbol()));
     if (type_def == nullptr) {
-    compilation->AddError(Error(L"Unknown type: \"" +
-                                type->value().ptr()->get_symbol().read() +
-                                L"\""));
+    compilation->AddError(
+        Error{LazyString{L"Unknown type: \""} +
+              type->value().ptr()->get_symbol().ReadLazyString() +
+              LazyString{L"\""}});
       OUT = nullptr;
     } else {
       OUT = list.release();
@@ -486,9 +488,9 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
                     try {
                       output += a;
                     } catch (const std::bad_alloc& e) {
-                      return Error(L"Bad Alloc");
+                      return Error{LazyString{L"Bad Alloc"}};
                     } catch (const std::length_error& e) {
-                      return Error(L"Length Error");
+                      return Error{LazyString{L"Length Error"}};
                     }
                   }
                   return Success(output);
@@ -916,9 +918,9 @@ expr(OUT) ::= expr(A) TIMES expr(B). {
                 try {
                   output += a_str;
                 } catch (const std::bad_alloc& e) {
-                  return Error(L"Bad Alloc");
+                  return Error{LazyString{L"Bad Alloc"}};
                 } catch (const std::length_error& e) {
-                  return Error(L"Length Error");
+                  return Error{LazyString{L"Length Error"}};
                 }
               }
               return Success(output);

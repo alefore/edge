@@ -9,8 +9,6 @@
 using afc::language::lazy_string::LazyString;
 
 namespace afc::language {
-Error::Error(std::wstring input) : Error{LazyString{std::move(input)}} {}
-
 Error AugmentError(language::lazy_string::LazyString prefix, Error error) {
   return Error{prefix + LazyString{L": "} + error.read()};
 }

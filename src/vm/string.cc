@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "src/concurrent/protected.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/vm/container.h"
 #include "src/vm/environment.h"
 #include "src/vm/expression.h"
@@ -17,6 +18,7 @@ using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::Success;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
 
 namespace afc::language::gc {
@@ -56,11 +58,11 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
         try {
           return futures::Past(Success(std::stoi(str)));
         } catch (const std::out_of_range& ia) {
-          return futures::Past(
-              Error(L"toint: stoi failure: " + FromByteString(ia.what())));
+          return futures::Past(Error{LazyString{L"toint: stoi failure: "} +
+                                     LazyString{FromByteString(ia.what())}});
         } catch (const std::invalid_argument& ia) {
-          return futures::Past(
-              Error(L"toint: stoi failure: " + FromByteString(ia.what())));
+          return futures::Past(Error{LazyString{L"toint: stoi failure: "} +
+                                     LazyString{FromByteString(ia.what())}});
         }
       },
       string_type);
@@ -88,8 +90,8 @@ void RegisterStringType(gc::Pool& pool, Environment& environment) {
       [](const std::wstring& str, size_t pos,
          size_t len) -> futures::ValueOrError<std::wstring> {
         if (static_cast<size_t>(pos + len) > str.size()) {
-          return futures::Past(
-              Error(L"substr: Invalid index (past end of string)."));
+          return futures::Past(Error{
+              LazyString{L"substr: Invalid index (past end of string)."}});
         }
         return futures::Past(Success(str.substr(pos, len)));
       },

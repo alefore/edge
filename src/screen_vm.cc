@@ -234,8 +234,8 @@ void RegisterScreenType(EditorState& editor, Environment& environment) {
                   return language::EmptyValue();
                 },
                 []() -> PossibleError {
-                  return Error(
-                      L"Screen type does not support set_size method.");
+                  return Error{LazyString{
+                      L"Screen type does not support set_size method."}};
                 }));
           })
           .ptr());

@@ -146,8 +146,9 @@ void EditorState::NotifyInternalEvent(EditorState::SharedData& data) {
       data.pipe_to_communicate_internal_events.has_value() &&
       write(data.pipe_to_communicate_internal_events->second.read(), " ", 1) ==
           -1) {
-    data.status.InsertError(Error(L"Write to internal pipe failed: " +
-                                  FromByteString(strerror(errno))));
+    data.status.InsertError(
+        Error{LazyString{L"Write to internal pipe failed: "} +
+              LazyString{FromByteString(strerror(errno))}});
   }
 }
 

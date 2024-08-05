@@ -42,9 +42,10 @@ PossibleError FileDescriptorValidator::Validate(const int& fd) {
 namespace {
 PossibleError SyscallReturnValue(std::wstring description, int return_value) {
   LOG(INFO) << "Syscall return value: " << description << ": " << return_value;
-  return return_value == -1 ? Error(description + L" failed: " +
-                                    FromByteString(strerror(errno)))
-                            : Success();
+  return return_value == -1
+             ? Error{LazyString{description} + LazyString{L" failed: "} +
+                     LazyString{FromByteString(strerror(errno))}}
+             : Success();
 }
 }  // namespace
 
@@ -141,7 +142,7 @@ futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
 
 PossibleError FileSystemDriver::Kill(ProcessId pid, UnixSignal sig) {
   if (kill(pid.read(), sig.read()) == -1)
-    Error(L"Kill: " + FromByteString(strerror(errno)));
+    Error(LazyString{L"Kill: "} + LazyString{FromByteString(strerror(errno))});
   return Success();
 }
 
@@ -150,7 +151,8 @@ FileSystemDriver::WaitPid(ProcessId pid, int options) {
   return thread_pool_.Run([pid, options]() -> ValueOrError<WaitPidOutput> {
     int wstatus;
     if (waitpid(pid.read(), &wstatus, options) == -1)
-      return Error(L"Waitpid: " + FromByteString(strerror(errno)));
+      return Error(LazyString{L"Waitpid: "} +
+                   LazyString{FromByteString(strerror(errno))});
     return WaitPidOutput{.pid = pid, .wstatus = wstatus};
   });
 }
@@ -164,7 +166,7 @@ ValueOrError<std::vector<ProcessId>> ReadChildrenBlocking(ProcessId pid) {
     int child_pid_int;
     while (infile >> child_pid_int) output.push_back(ProcessId(child_pid_int));
   } catch (const std::exception& e) {
-    return Error(FromByteString(e.what()));
+    return Error(LazyString{FromByteString(e.what())});
   }
   return output;
 }

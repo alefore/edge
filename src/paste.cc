@@ -40,24 +40,24 @@ class Paste : public Command {
         editor_state_.buffer_registry().Find(PasteBuffer{});
     if (paste_buffer == std::nullopt) {
       LOG(INFO) << "Attempted to paste without a paste buffer.";
-      const static std::wstring errors[] = {
-          L"No text to paste.",
-          L"Try deleting something first.",
-          L"You can't paste what you haven't deleted.",
-          L"First delete; then paste.",
-          L"I have nothing to paste.",
-          L"The paste buffer is empty.",
-          L"There's nothing to paste.",
-          L"Nope.",
-          L"Let's see, is there's something to paste? Nope.",
-          L"The paste buffer is desolate.",
-          L"Paste what?",
-          L"I'm sorry, Dave, I'm afraid I can't do that.",
-          L"",
+      const static Error errors[] = {
+          Error{LazyString{L"No text to paste."}},
+          Error{LazyString{L"Try deleting something first."}},
+          Error{LazyString{L"You can't paste what you haven't deleted."}},
+          Error{LazyString{L"First delete; then paste."}},
+          Error{LazyString{L"I have nothing to paste."}},
+          Error{LazyString{L"The paste buffer is empty."}},
+          Error{LazyString{L"There's nothing to paste."}},
+          Error{LazyString{L"Nope."}},
+          Error{LazyString{L"Let's see, is there's something to paste? Nope."}},
+          Error{LazyString{L"The paste buffer is desolate."}},
+          Error{LazyString{L"Paste what?"}},
+          Error{LazyString{L"I'm sorry, Dave, I'm afraid I can't do that."}},
+          Error{LazyString{}},
       };
       static int current_message = 0;
-      editor_state_.status().InsertError(Error(errors[current_message++]));
-      if (errors[current_message].empty()) {
+      editor_state_.status().InsertError(errors[current_message++]);
+      if (errors[current_message].read().IsEmpty()) {
         current_message = 0;
       }
       return;
@@ -68,22 +68,26 @@ class Paste : public Command {
                                  OpenBuffer& buffer) {
           if (&paste_buffer.ptr().value() == &buffer) {
             LOG(INFO) << "Attempted to paste into paste buffer.";
-            const static std::wstring errors[] = {
-                L"You shall not paste into the paste buffer.",
-                L"Nope.",
-                L"Bad things would happen if you pasted into the buffer.",
-                L"There could be endless loops if you pasted into this "
-                L"buffer.",
-                L"This is not supported.",
-                L"Go to a different buffer first?",
-                L"The paste buffer is not for pasting into.",
-                L"This editor is too important for me to allow you to "
-                L"jeopardize it.",
-                L"",
+            const static Error errors[] = {
+                Error{
+                    LazyString{L"You shall not paste into the paste buffer."}},
+                Error{LazyString{L"Nope."}},
+                Error{LazyString{
+                    L"Bad things would happen if you pasted into the buffer."}},
+                Error{LazyString{
+                    L"There could be endless loops if you pasted into this "
+                    L"buffer."}},
+                Error{LazyString{L"This is not supported."}},
+                Error{LazyString{L"Go to a different buffer first?"}},
+                Error{LazyString{L"The paste buffer is not for pasting into."}},
+                Error{LazyString{
+                    L"This editor is too important for me to allow you "
+                    L"to jeopardize it."}},
+                Error{LazyString{}},
             };
             static int current_message = 0;
-            buffer.status().InsertError(Error(errors[current_message++]));
-            if (errors[current_message].empty()) {
+            buffer.status().InsertError(errors[current_message++]);
+            if (errors[current_message].read().IsEmpty()) {
               current_message = 0;
             }
             return futures::Past(EmptyValue());
@@ -95,7 +99,8 @@ class Paste : public Command {
                  i++) {
               if (write(buffer.fd()->fd().read(), text.c_str(), text.size()) ==
                   -1) {
-                buffer.status().InsertError(Error(L"Unable to paste."));
+                buffer.status().InsertError(
+                    Error{LazyString{L"Unable to paste."}});
                 break;
               }
             }

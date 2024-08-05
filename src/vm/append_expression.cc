@@ -1,16 +1,19 @@
 #include "src/vm/append_expression.h"
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/vm/compilation.h"
 #include "src/vm/expression.h"
 #include "src/vm/value.h"
 
+using afc::language::Error;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Success;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::vm {
 namespace {
-using language::Error;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Success;
-using language::ValueOrError;
 
 class AppendExpression : public Expression {
  public:
@@ -44,7 +47,7 @@ class AppendExpression : public Expression {
             case EvaluationOutput::OutputType::kContinue:
               return trampoline.Bounce(e1, e1->Types()[0]);
           }
-          language::Error error(L"Unhandled OutputType case.");
+          language::Error error(LazyString{L"Unhandled OutputType case."});
           LOG(FATAL) << error;
           return futures::Past(error);
         });
@@ -62,7 +65,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewAppendExpression(
     Compilation& compilation, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
-    return Error(L"Missing input.");
+    return Error(LazyString{L"Missing input."});
   }
   return compilation.RegisterErrors(NewAppendExpression(
       NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(a)),

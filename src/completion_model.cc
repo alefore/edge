@@ -54,7 +54,9 @@ ValueOrError<ParsedLine> Parse(const Line& line) {
                 .replacement =
                     line.Substring(first_space + ColumnNumberDelta(1))}};
       },
-      [] { return ValueOrError<ParsedLine>(Error(L"No space found.")); },
+      [] {
+        return ValueOrError<ParsedLine>(Error{LazyString{L"No space found."}});
+      },
       FindFirstColumnWithPredicate(
           line.contents(), [](ColumnNumber, wchar_t c) { return c == L' '; }));
 }

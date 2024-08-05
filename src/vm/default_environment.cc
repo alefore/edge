@@ -3,6 +3,7 @@
 #include "src/futures/futures.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/math/numbers.h"
 #include "src/vm/callbacks.h"
@@ -15,6 +16,7 @@ namespace gc = afc::language::gc;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::PossibleError;
+using afc::language::lazy_string::LazyString;
 using afc::math::numbers::Number;
 using afc::vm::kPurityTypePure;
 
@@ -45,8 +47,8 @@ language::gc::Root<Environment> NewDefaultEnvironment(
 
   environment_value.Define(
       Identifier(L"Error"),
-      NewCallback(pool, kPurityTypePure, [](std::wstring description) {
-        return futures::Past(PossibleError(Error(description)));
+      NewCallback(pool, kPurityTypePure, [](LazyString description) {
+        return futures::Past(PossibleError(Error{description}));
       }));
 
   container::Export<std::vector<int>>(pool, environment_value);

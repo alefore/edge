@@ -2,8 +2,10 @@
 
 #include "src/language/text/line_column.h"
 
+using afc::language::Error;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::language::text {
 Range::Range(LineColumn input_begin, LineColumn input_end)
@@ -31,7 +33,7 @@ bool Range::Disjoint(const Range& other) const {
 
 language::ValueOrError<Range> Range::Union(const Range& other) const {
   if (end() < other.begin() || begin() > other.end())
-    return language::Error(L"Gap found between the ranges.");
+    return Error{LazyString{L"Gap found between the ranges."}};
   return Range(std::min(begin(), other.begin()), std::max(end(), other.end()));
 }
 
@@ -82,7 +84,7 @@ void Range::set_end_column(ColumnNumber value) {
 
 /* static */ language::ValueOrError<LineRange> LineRange::New(Range input) {
   if (input.begin().line != input.end().line)
-    return Error(L"Range spans multiple lines.");
+    return Error{LazyString{L"Range spans multiple lines."}};
   CHECK_GT(input.end().column, input.begin().column);
   return LineRange(input.begin(), input.end().column - input.begin().column);
 }

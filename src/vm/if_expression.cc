@@ -53,7 +53,7 @@ class IfExpression : public Expression {
                   cond_output.value.ptr()->get_bool() ? true_case : false_case,
                   type);
           }
-          language::Error error(L"Unhandled OutputType case.");
+          language::Error error{LazyString{L"Unhandled OutputType case."}};
           LOG(FATAL) << error;
           return futures::Past(error);
         });
@@ -73,7 +73,7 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> NewIfExpression(
     std::unique_ptr<Expression> true_case,
     std::unique_ptr<Expression> false_case) {
   if (condition == nullptr || true_case == nullptr || false_case == nullptr) {
-    return Error(L"Missing input parameter");
+    return Error{LazyString{L"Missing input parameter"}};
   }
 
   if (!condition->IsBool()) {

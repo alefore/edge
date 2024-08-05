@@ -420,10 +420,9 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor.modifiers().strength > Modifiers::Strength::kNormal) {
     return Success();
   }
-  if (child_pid_.has_value() && !Read(buffer_variables::term_on_close)) {
-    return Error(L"Running subprocess (pid: " +
-                 std::to_wstring(child_pid_->read()) + L")");
-  }
+  if (child_pid_.has_value() && !Read(buffer_variables::term_on_close))
+    return Error{LazyString{L"Running subprocess (pid: " +
+                            std::to_wstring(child_pid_->read()) + L")"}};
   return Success();
 }
 
@@ -448,8 +447,8 @@ OpenBuffer::PrepareToClose() {
                   if (child_pid_.has_value()) {
                     if (Read(buffer_variables::term_on_close)) {
                       if (on_exit_handler_.has_value()) {
-                        return futures::Past(
-                            Error(L"Already waiting for termination."));
+                        return futures::Past(Error{
+                            LazyString{L"Already waiting for termination."}});
                       }
                       LOG(INFO) << "Sending termination and preparing handler: "
                                 << Read(buffer_variables::name);
@@ -779,28 +778,28 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
   ClearContents();
 
   std::visit(
-      overload{IgnoreErrors{},
-               [&](Path buffer_path) {
-                 for (const auto& dir : options_.editor.edge_path()) {
-                   Path state_path = Path::Join(
-                       Path::Join(dir, EditorState::StatePathComponent()),
-                       Path::Join(buffer_path,
-                                  PathComponent::FromString(L".edge_state")));
-                   file_system_driver_.Stat(state_path)
-                       .Transform([state_path, weak_this](struct stat) {
-                         return VisitPointer(
-                             weak_this.Lock(),
-                             [&](gc::Root<OpenBuffer> root_this) {
-                               return root_this.ptr()->EvaluateFile(state_path);
-                             },
-                             [] {
-                               return futures::Past(
-                                   ValueOrError<gc::Root<Value>>(
-                                       Error(L"Buffer has been deleted.")));
-                             });
-                       });
-                 }
-               }},
+      overload{
+          IgnoreErrors{},
+          [&](Path buffer_path) {
+            for (const auto& dir : options_.editor.edge_path()) {
+              Path state_path = Path::Join(
+                  Path::Join(dir, EditorState::StatePathComponent()),
+                  Path::Join(buffer_path,
+                             PathComponent::FromString(L".edge_state")));
+              file_system_driver_.Stat(state_path)
+                  .Transform([state_path, weak_this](struct stat) {
+                    return VisitPointer(
+                        weak_this.Lock(),
+                        [&](gc::Root<OpenBuffer> root_this) {
+                          return root_this.ptr()->EvaluateFile(state_path);
+                        },
+                        [] {
+                          return futures::Past(ValueOrError<gc::Root<Value>>(
+                              Error{LazyString{L"Buffer has been deleted."}}));
+                        });
+                  });
+            }
+          }},
       // TODO(easy): Avoid conversion to LazyString.
       Path::New(LazyString{Read(buffer_variables::path)}));
 
@@ -878,10 +877,11 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
       break;
     case ReloadState::kOngoing:
       reload_state_ = ReloadState::kPending;
-      return futures::Past(Error(L"Reload is already in progress."));
-    case ReloadState::kPending:
       return futures::Past(
-          Error(L"Reload is already in progress and new one scheduled."));
+          Error{LazyString{L"Reload is already in progress."}});
+    case ReloadState::kPending:
+      return futures::Past(Error{
+          LazyString{L"Reload is already in progress and new one scheduled."}});
   }
 
   auto paths = editor().edge_path();
@@ -945,8 +945,9 @@ futures::Value<PossibleError> OpenBuffer::Reload() {
 futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
   if (options_.handle_save == nullptr) {
-    status_.InsertError(Error(L"Buffer can't be saved."));
-    return futures::Past(PossibleError(Error(L"Buffer can't be saved.")));
+    status_.InsertError(Error{LazyString{L"Buffer can't be saved."}});
+    return futures::Past(
+        PossibleError(Error{LazyString{L"Buffer can't be saved."}}));
   }
   return options_.handle_save({.buffer = *this, .save_type = save_type});
 }
@@ -954,7 +955,8 @@ futures::Value<PossibleError> OpenBuffer::Save(Options::SaveType save_type) {
 futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
   auto path_vector = editor().edge_path();
   if (path_vector.empty()) {
-    return futures::Past(ValueOrError<Path>(Error(L"Empty edge path.")));
+    return futures::Past(
+        ValueOrError<Path>(Error{LazyString{L"Empty edge path."}}));
   }
   FUTURES_ASSIGN_OR_RETURN(
       Path file_path,
@@ -1374,7 +1376,8 @@ void OpenBuffer::PushActiveCursors() {
 void OpenBuffer::PopActiveCursors() {
   auto stack_size = cursors_tracker_.Pop();
   if (stack_size == 0) {
-    status_.InsertError(Error(L"cursors stack: -: Stack is empty!"));
+    status_.InsertError(
+        Error{LazyString{L"cursors stack: -: Stack is empty!"}});
     return;
   }
   status_.SetInformationText(LineBuilder{
@@ -1398,7 +1401,7 @@ void OpenBuffer::SetActiveCursorsToMarks() {
           return {};
       });
   if (cursors.empty())
-    status_.InsertError(Error(L"Buffer has no marks!"));
+    status_.InsertError(Error{LazyString{L"Buffer has no marks!"}});
   else
     set_active_cursors(std::vector<LineColumn>(cursors.begin(), cursors.end()));
 }
@@ -1739,8 +1742,8 @@ void OpenBuffer::PushSignal(UnixSignal signal) {
       }
   }
 
-  status_.InsertError(
-      Error(L"Unhandled signal received: " + std::to_wstring(signal.read())));
+  status_.InsertError(Error{LazyString{L"Unhandled signal received: "} +
+                            LazyString{std::to_wstring(signal.read())}});
 }
 
 FileSystemDriver& OpenBuffer::file_system_driver() const {
@@ -1986,19 +1989,22 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
 language::PossibleError CheckLocalFile(struct stat st) {
   switch (st.st_mode & S_IFMT) {
     case S_IFBLK:
-      return Error(L"Path for URL has unexpected type: block device\n");
+      return Error{
+          LazyString{L"Path for URL has unexpected type: block device\n"}};
     case S_IFCHR:
-      return Error(L"Path for URL has unexpected type: character device\n");
+      return Error{
+          LazyString{L"Path for URL has unexpected type: character device\n"}};
     case S_IFIFO:
-      return Error(L"Path for URL has unexpected type: FIFO/pipe\n");
+      return Error{
+          LazyString{L"Path for URL has unexpected type: FIFO/pipe\n"}};
     case S_IFSOCK:
-      return Error(L"Path for URL has unexpected type: socket\n");
+      return Error{LazyString{L"Path for URL has unexpected type: socket\n"}};
     case S_IFLNK:
     case S_IFREG:
     case S_IFDIR:
       return Success();
     default:
-      return Error(L"Path for URL has unexpected type: unknown\n");
+      return Error{LazyString{L"Path for URL has unexpected type: unknown\n"}};
   }
 }
 
@@ -2083,8 +2089,8 @@ OpenBuffer::OpenBufferForCurrentPosition(
                                          ->contents()
                                          .AdjustLineColumn(
                                              locked_buffer.ptr()->position())) {
-                                   data->output =
-                                       Error(L"Computation was cancelled.");
+                                   data->output = Error{LazyString{
+                                       L"Computation was cancelled."}};
                                    return futures::Past(ICC::kStop);
                                  }
                                  return futures::Past(ICC::kContinue);

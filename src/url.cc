@@ -59,7 +59,7 @@ const bool schema_tests_registration = tests::Register(
 ValueOrError<Path> URL::GetLocalFilePath() const {
   std::optional<Schema> s = schema();
   if (!s.has_value()) return Path::New(read());
-  if (s != Schema::kFile) return Error(L"Schema isn't file.");
+  if (s != Schema::kFile) return Error{LazyString{L"Schema isn't file."}};
   return Path::New(read().Substring(ColumnNumber{sizeof("file:") - 1}));
 }
 

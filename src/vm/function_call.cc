@@ -48,9 +48,10 @@ PossibleError CheckFunctionArguments(
   }
 
   if (function_type->inputs.size() != args.size()) {
-    return Error(L"Invalid number of arguments: Expected " +
-                 std::to_wstring(function_type->inputs.size()) +
-                 L" but found " + std::to_wstring(args.size()));
+    return Error{LazyString{L"Invalid number of arguments: Expected "} +
+                 LazyString{std::to_wstring(function_type->inputs.size())} +
+                 LazyString{L" but found "} +
+                 LazyString{std::to_wstring(args.size())}};
   }
 
   for (size_t argument = 0; argument < args.size(); argument++) {
@@ -175,7 +176,7 @@ class FunctionCall : public Expression {
                   DVLOG(6) << "Recursive call.";
                   return CaptureArgs(trampoline, args, values, callback);
               }
-              Error error(L"Unsupported value type.");
+              Error error{LazyString{L"Unsupported value type."}};
               LOG(FATAL) << error;
               return futures::Past(ValueOrError<EvaluationOutput>(error));
             });
@@ -340,7 +341,8 @@ std::unique_ptr<Expression> NewMethodLookup(
                             << type << ", candidates: "
                             << TypesToString(external_types.value());
                     }
-                    language::Error error(L"Unhandled OutputType case.");
+                    language::Error error{
+                        LazyString{L"Unhandled OutputType case."}};
                     LOG(FATAL) << error;
                     return error;
                   });
