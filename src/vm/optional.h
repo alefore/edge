@@ -41,7 +41,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
   language::gc::Root<ObjectType> object_type = ObjectType::New(pool, vmtype);
 
   environment.Define(
-      Identifier(object_type_name.ReadLazyString()),
+      Identifier(object_type_name.read()),
       Value::NewFunction(pool, kPurityTypePure, vmtype, {},
                          [&pool](std::vector<language::gc::Root<Value>> args) {
                            CHECK(args.empty());

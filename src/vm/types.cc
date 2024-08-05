@@ -7,6 +7,8 @@
 #include "src/language/hash.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
@@ -152,16 +154,25 @@ std::ostream& operator<<(std::ostream& os, const PurityType& value) {
 
 types::ObjectName NameForType(Type variant_type) {
   return std::visit(
-      overload{
-          [](const types::Void&) { return types::ObjectName(L"void"); },
-          [](const types::Bool&) { return types::ObjectName(L"bool"); },
-          [](const types::Number&) { return types::ObjectName(L"number"); },
-          [](const types::String&) { return types::ObjectName(L"string"); },
-          [](const types::Symbol&) { return types::ObjectName(L"symbol"); },
-          [](const types::ObjectName& object) { return object; },
-          [](const types::Function&) {
-            return types::ObjectName(L"function");
-          }},
+      overload{[](const types::Void&) {
+                 return types::ObjectName{LazyString{L"void"}};
+               },
+               [](const types::Bool&) {
+                 return types::ObjectName{LazyString{L"bool"}};
+               },
+               [](const types::Number&) {
+                 return types::ObjectName{LazyString{L"number"}};
+               },
+               [](const types::String&) {
+                 return types::ObjectName{LazyString{L"string"}};
+               },
+               [](const types::Symbol&) {
+                 return types::ObjectName{LazyString{L"symbol"}};
+               },
+               [](const types::ObjectName& object) { return object; },
+               [](const types::Function&) {
+                 return types::ObjectName{LazyString{L"function"}};
+               }},
       variant_type);
 }
 
@@ -203,9 +214,7 @@ LazyString ToString(const Type& type) {
           [](const types::Number&) { return LazyString{L"number"}; },
           [](const types::String&) { return LazyString{L"string"}; },
           [](const types::Symbol&) { return LazyString{L"symbol"}; },
-          [](const types::ObjectName& object) {
-            return object.ReadLazyString();
-          },
+          [](const types::ObjectName& object) { return object.read(); },
           [](const types::Function& function_type) {
             return std::invoke([&] {
                      if (function_type.function_purity.writes_external_outputs)

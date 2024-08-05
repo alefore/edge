@@ -16,7 +16,7 @@ namespace afc::vm {
 template <>
 const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<editor::Modifiers>>>::object_type_name =
-    types::ObjectName(L"Modifiers");
+    types::ObjectName{LazyString{L"Modifiers"}};
 }  // namespace afc::vm
 namespace afc::editor {
 

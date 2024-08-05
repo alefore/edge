@@ -575,7 +575,7 @@ namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<editor::ForkCommandOptions>>>::object_type_name =
-    types::ObjectName(L"ForkCommandOptions");
+    types::ObjectName{LazyString{L"ForkCommandOptions"}};
 }  // namespace vm
 namespace editor {
 /* static */

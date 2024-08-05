@@ -24,12 +24,12 @@ namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     editor::CompositeTransformation::Output>>>::object_type_name =
-    types::ObjectName(L"TransformationOutput");
+    types::ObjectName{LazyString{L"TransformationOutput"}};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     editor::CompositeTransformation::Input>>>::object_type_name =
-    types::ObjectName(L"TransformationInput");
+    types::ObjectName{LazyString{L"TransformationInput"}};
 }  // namespace vm
 namespace editor {
 namespace transformation {
@@ -160,8 +160,7 @@ void RegisterCompositeTransformation(language::gc::Pool& pool,
 
   environment.Define(
       vm::Identifier{VMTypeMapper<NonNull<std::shared_ptr<
-          editor::CompositeTransformation::Output>>>::object_type_name
-                         .ReadLazyString()},
+          editor::CompositeTransformation::Output>>>::object_type_name.read()},
       vm::NewCallback(pool, kPurityTypePure,
                       MakeNonNullShared<CompositeTransformation::Output>));
 

@@ -62,9 +62,9 @@ struct VMTypeMapper<Duration> {
 };
 
 const vm::types::ObjectName VMTypeMapper<Time>::object_type_name =
-    vm::types::ObjectName(L"Time");
+    vm::types::ObjectName{LazyString{L"Time"}};
 const vm::types::ObjectName VMTypeMapper<Duration>::object_type_name =
-    vm::types::ObjectName(L"Duration");
+    vm::types::ObjectName{LazyString{L"Duration"}};
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const std::wstring& name, gc::Pool& pool,

@@ -161,8 +161,8 @@ ValueOrError<double> Value::ToDouble() const {
             return Error{LazyString{L"Unable to convert to double: symbol"}};
           },
           [&](const types::ObjectName& object) -> ValueOrError<double> {
-            return Error{
-                LazyString{L"Unable to convert to double: " + object.read()}};
+            return Error{LazyString{L"Unable to convert to double: "} +
+                         object.read()};
           },
           [](const types::Function&) -> ValueOrError<double> {
             return Error{LazyString{L"Unable to convert to double: function"}};

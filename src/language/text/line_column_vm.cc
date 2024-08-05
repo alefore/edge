@@ -28,17 +28,17 @@ namespace afc::vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::vector<language::text::LineColumn>>>>>::object_type_name =
-    types::ObjectName(L"VectorLineColumn");
+    types::ObjectName{LazyString{L"VectorLineColumn"}};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<
     Protected<std::set<language::text::LineColumn>>>>>::object_type_name =
-    types::ObjectName(L"SetLineColumn");
+    types::ObjectName{LazyString{L"SetLineColumn"}};
 
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<std::optional<language::text::Range>>>>::object_type_name =
-    types::ObjectName(L"OptionalRange");
+    types::ObjectName{LazyString{L"OptionalRange"}};
 
 /* static */
 language::text::LineColumn VMTypeMapper<language::text::LineColumn>::get(
@@ -56,7 +56,7 @@ gc::Root<Value> VMTypeMapper<language::text::LineColumn>::New(
 
 const types::ObjectName
     VMTypeMapper<language::text::LineColumn>::object_type_name =
-        types::ObjectName(L"LineColumn");
+        types::ObjectName{LazyString{L"LineColumn"}};
 
 /* static */
 language::text::LineColumnDelta
@@ -75,7 +75,7 @@ gc::Root<Value> VMTypeMapper<language::text::LineColumnDelta>::New(
 
 const types::ObjectName
     VMTypeMapper<language::text::LineColumnDelta>::object_type_name =
-        types::ObjectName(L"LineColumnDelta");
+        types::ObjectName{LazyString{L"LineColumnDelta"}};
 
 /* static */
 language::text::Range VMTypeMapper<language::text::Range>::get(Value& value) {
@@ -90,7 +90,7 @@ gc::Root<Value> VMTypeMapper<language::text::Range>::New(
 }
 
 const types::ObjectName VMTypeMapper<language::text::Range>::object_type_name =
-    types::ObjectName(L"Range");
+    types::ObjectName{LazyString{L"Range"}};
 }  // namespace afc::vm
 namespace afc::language::text {
 using vm::Environment;

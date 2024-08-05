@@ -44,7 +44,7 @@ namespace afc::vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<Protected<
     std::vector<NonNull<std::shared_ptr<const editor::ParseTree>>>>>>>::
-    object_type_name = types::ObjectName(L"VectorParseTree");
+    object_type_name = types::ObjectName{LazyString{L"VectorParseTree"}};
 }
 
 namespace afc::editor {
@@ -463,6 +463,6 @@ VMTypeMapper<NonNull<std::shared_ptr<const editor::ParseTree>>>::New(
 
 const vm::types::ObjectName vm::VMTypeMapper<
     NonNull<std::shared_ptr<const ParseTree>>>::object_type_name =
-    vm::types::ObjectName(L"ParseTree");
+    vm::types::ObjectName{LazyString{L"ParseTree"}};
 
 }  // namespace afc::vm

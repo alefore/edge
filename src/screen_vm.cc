@@ -51,7 +51,7 @@ namespace vm {
 template <>
 const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<Screen>>>::object_type_name =
-        types::ObjectName(L"Screen");
+        types::ObjectName{LazyString{L"Screen"}};
 }  // namespace vm
 namespace editor {
 

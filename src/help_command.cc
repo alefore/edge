@@ -250,7 +250,7 @@ class HelpCommand : public Command {
 
     environment->ForEachType(
         [&](const vm::types::ObjectName& name, vm::ObjectType& type) {
-          StartSection(L"#### " + name.read(), output);
+          StartSection(L"#### " + name.read().ToString(), output);
           type.ForEachField([&](const vm::Identifier& field_name,
                                 vm::Value& value) {
             std::stringstream value_stream;

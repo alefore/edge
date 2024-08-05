@@ -4,17 +4,19 @@
 
 #include "src/concurrent/protected.h"
 #include "src/infrastructure/extended_char.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/vm/callbacks.h"
 #include "src/vm/container.h"
 #include "src/vm/types.h"
 
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::vm {
 const types::ObjectName
     VMTypeMapper<infrastructure::ExtendedChar>::object_type_name =
-        types::ObjectName(L"ExtendedChar");
+        types::ObjectName{LazyString{L"ExtendedChar"}};
 
 language::gc::Root<Value> VMTypeMapper<infrastructure::ExtendedChar>::New(
     language::gc::Pool& pool, infrastructure::ExtendedChar value) {
@@ -33,7 +35,7 @@ template <>
 const types::ObjectName
     VMTypeMapper<NonNull<std::shared_ptr<concurrent::Protected<
         std::vector<infrastructure::ExtendedChar>>>>>::object_type_name =
-        types::ObjectName(L"VectorExtendedChar");
+        types::ObjectName{LazyString{L"VectorExtendedChar"}};
 
 }  // namespace afc::vm
 namespace afc::infrastructure {

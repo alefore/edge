@@ -109,7 +109,7 @@ class_declaration ::= CLASS SYMBOL(NAME) . {
 
   StartClassDeclaration(
       *compilation, types::ObjectName(
-          std::move(name)->value().ptr()->get_symbol().read().ToString()));
+          std::move(name)->value().ptr()->get_symbol().read()));
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {

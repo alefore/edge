@@ -1,6 +1,7 @@
 #include "src/transformation/repetitions.h"
 
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/server.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
@@ -9,15 +10,16 @@
 #include "src/transformation/type.h"
 #include "src/transformation/vm.h"
 
-namespace afc {
-using language::NonNull;
+namespace gc = afc::language::gc;
 
-namespace gc = language::gc;
+using afc::language::NonNull;
+using afc::language::lazy_string::LazyString;
+namespace afc {
 namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
     std::shared_ptr<editor::transformation::Repetitions>>>::object_type_name =
-    types::ObjectName(L"RepetitionsTransformationBuilder");
+    types::ObjectName{LazyString{L"RepetitionsTransformationBuilder"}};
 }  // namespace vm
 namespace editor::transformation {
 futures::Value<Result> ApplyBase(const Repetitions& options, Input input) {

@@ -69,13 +69,9 @@ struct Bool {};
 struct Number {};
 struct String {};
 struct Symbol {};
-class ObjectName : public language::GhostType<ObjectName, std::wstring> {
- public:
-  // TODO(trivial, 2024-08-05): Convert to LazyString and remove.
-  language::lazy_string::LazyString ReadLazyString() const {
-    return language::lazy_string::LazyString{read()};
-  }
-};
+class ObjectName
+    : public language::GhostType<ObjectName,
+                                 language::lazy_string::LazyString> {};
 
 // Function depends on `Type`, so we only forward declare it here.
 struct Function;

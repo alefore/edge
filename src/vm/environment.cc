@@ -36,12 +36,12 @@ using ::operator<<;
 template <>
 const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<Protected<std::vector<int>>>>>::object_type_name =
-    types::ObjectName(L"VectorInt");
+    types::ObjectName{LazyString{L"VectorInt"}};
 
 template <>
 const types::ObjectName VMTypeMapper<
     NonNull<std::shared_ptr<Protected<std::set<int>>>>>::object_type_name =
-    types::ObjectName(L"SetInt");
+    types::ObjectName{LazyString{L"SetInt"}};
 
 // TODO(easy, 2022-12-03): Get rid of this? Now that we have GC, shouldn't be
 // needed.
@@ -81,8 +81,7 @@ const Type* Environment::LookupType(const Identifier& symbol) const {
     return &output;
   }
 
-  auto object_type =
-      LookupObjectType(types::ObjectName(symbol.read().ToString()));
+  auto object_type = LookupObjectType(types::ObjectName(symbol.read()));
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 

@@ -112,7 +112,7 @@ PossibleError FinishClassDeclaration(
       });
   compilation.environment.ptr()->DefineType(class_object_type.ptr());
   compilation.environment.ptr()->Define(
-      Identifier(std::get<types::ObjectName>(class_type).ReadLazyString()),
+      Identifier(std::get<types::ObjectName>(class_type).read()),
       Value::NewFunction(
           pool, constructor_expression->purity(), class_type, {},
           [&pool, constructor_expression, class_environment, class_type](
