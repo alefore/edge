@@ -312,7 +312,7 @@ bool tests_registration = tests::Register(
                                             L"}";
                                    }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
-                   Compile(LazyString{L"Moo Moo"}, LazyString(),
+                   Compile(LazyString{L"Moo Moo"}, LazyString{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                LOG(INFO) << "Evaluating.";
                // TODO(2023-12-18): Why the fuck do we need ToByteString here?

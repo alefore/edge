@@ -127,7 +127,7 @@ language::text::LineMetadataEntry GetMetadata(OpenBuffer& target,
               .ConsumeErrors([](Error error) {
                 VLOG(7) << "Evaluation error: " << error;
                 return futures::Past(
-                    LazyString{L"E: "} + LazyString{std::move(error.read())});
+                    LazyString{L"E: "} + std::move(error.read()));
               })};
 }
 #endif
@@ -191,8 +191,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
   output.Set(buffer_variables::atomic_lines, true);
   output.Set(buffer_variables::allow_dirty_delete, true);
   output.Set(buffer_variables::tree_parser, L"md");
-  output.AppendToLastLine(LazyString{L"# 🗁  File listing: "} +
-                          LazyString{path.read()});
+  output.AppendToLastLine(LazyString{L"# 🗁  File listing: "} + path.read());
   output.AppendEmptyLine();
 
   return output.editor()
@@ -229,7 +228,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
       .ConsumeErrors([&output](Error error) {
         auto disk_state_freezer = output.FreezeDiskState();
         output.status().InsertError(error);
-        output.AppendLine(LazyString{std::move(error).read()});
+        output.AppendLine(std::move(error).read());
         return futures::Past(EmptyValue());
       });
 }

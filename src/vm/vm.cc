@@ -577,10 +577,8 @@ void CompileLine(Compilation& compilation, void* parser,
     if (token == SYMBOL || token == STRING) {
       CHECK(input.has_value()) << "No input with token: " << token;
       if (input.value().ptr()->IsSymbol())
-        // TODO(easy, 2024-07-31): Find a way to avoid the call to LazyString
-        // here.
         compilation.last_token =
-            LazyString{input.value().ptr()->get_symbol().read()};
+            input.value().ptr()->get_symbol().ReadLazyString();
       else if (input.value().ptr()->IsString())
         compilation.last_token = input.value().ptr()->get_string();
       else

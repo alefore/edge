@@ -65,7 +65,7 @@ LazyString EscapedString::EscapedRepresentation() const {
         output += LazyString{L"\\'"};
         break;
       default:
-        output += LazyString{std::wstring(1, c)};
+        output += LazyString{ColumnNumberDelta(1), c};
     }
   });
   return output;

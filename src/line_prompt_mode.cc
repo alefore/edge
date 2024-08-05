@@ -150,8 +150,7 @@ std::unordered_multimap<std::wstring, LazyString> GetSyntheticFeatures(
   }
 
   VLOG(5) << "Generating features from directories.";
-  for (auto& dir : directories)
-    output.insert({L"directory", LazyString{dir.read()}});
+  for (auto& dir : directories) output.insert({L"directory", dir.read()});
 
   VLOG(5) << "Generating features from extensions.";
   for (const LazyString& extension : extensions)
@@ -491,6 +490,8 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   for (math::naive_bayes::Event& key :
        math::naive_bayes::Sort(history_data, current_features)) {
     output.lines.push_back(
+        // TODO(easy, 2024-08-05): Convert Event to LazyString and remove
+        // redundant wrapping below.
         ColorizeLine(LazyString{key.read()},
                      container::MaterializeVector(
                          history_prompt_tokens[key] |
@@ -620,8 +621,8 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
         if (!output.errors.empty()) {
           editor_state.work_queue()->DeleteLater(
               AddSeconds(Now(), 1.0),
-              editor_state.status().SetExpiringInformationText(LineBuilder{
-                  LazyString{output.errors.front().read()}}.Build()));
+              editor_state.status().SetExpiringInformationText(
+                  LineBuilder{output.errors.front().read()}.Build()));
         }
         if (!abort_value.has_value()) {
           filter_buffer.AppendLines(std::move(output.lines));

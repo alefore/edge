@@ -261,7 +261,7 @@ class HelpCommand : public Command {
                                  : kPaddingSize - field_name.read().size(),
                              L' ');
         output.push_back(LineBuilder{
-            LazyString{L"* `"} + LazyString{field_name.read()} +
+            LazyString{L"* `"} + field_name.ReadLazyString() +
             LazyString{L"`"} + LazyString{std::move(padding)} +
             LazyString{L"`"} + LazyString{FromByteString(value_stream.str())} +
             LazyString{L"`"}}.Build());
@@ -289,7 +289,7 @@ class HelpCommand : public Command {
           value_stream << value.value();
 
           output.push_back(LineBuilder{
-              LazyString{L"* `"} + LazyString{name.read()} + LazyString{L"`"} +
+              LazyString{L"* `"} + name.ReadLazyString() + LazyString{L"`"} +
               LazyString{std::move(padding)} + LazyString{L"`"} +
               LazyString{FromByteString(value_stream.str())} +
               LazyString{L"`"}}.Build());

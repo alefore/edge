@@ -76,9 +76,9 @@ futures::Value<PossibleError> PreviewCppExpression(
                      return Success();
                    })
                    .ConsumeErrors([&buffer](Error error) {
-                     buffer.status().SetInformationText(LineBuilder{
-                         LazyString{L"E: "} +
-                         LazyString{error.read()}}.Build());
+                     buffer.status().SetInformationText(
+                         LineBuilder{LazyString{L"E: "} + error.read()}
+                             .Build());
                      return futures::Past(EmptyValue());
                    })
                    .Transform(
@@ -123,7 +123,7 @@ futures::Value<Result> HandleCommandCpp(Input input,
         input.buffer.status().Set(error);
         if (input.delete_buffer.has_value()) {
           input.delete_buffer->ptr()->AppendToLastLine(
-              LineBuilder{LazyString{error.read()}}.Build());
+              LineBuilder{error.read()}.Build());
           input.delete_buffer->ptr()->AppendRawLine(Line());
           output.added_to_paste_buffer = true;
         }
@@ -390,14 +390,14 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
                 input.buffer.editor(),
                 ForkCommandOptions{
                     .command = copy->shell.has_value()
-                                   ? LazyString{copy->shell->read()} +
+                                   ? copy->shell->ReadLazyString() +
                                          LazyString{L" $EDGE_INPUT"}
                                    : LazyString{input.buffer.Read(
                                          buffer_variables::shell_command)},
                     .environment = {{L"EDGE_INPUT", LazyString{tmp_path}},
                                     {L"EDGE_PARENT_BUFFER_PATH",
-                                     LazyString{input.buffer.Read(
-                                         buffer_variables::path)}}},
+                                     input.buffer.ReadLazyString(
+                                         buffer_variables::path)}},
                     .existing_buffer_behavior =
                         ForkCommandOptions::ExistingBufferBehavior::kIgnore});
             return futures::Past(std::move(*output));

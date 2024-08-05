@@ -92,8 +92,7 @@ ValueOrError<std::vector<LineColumn>> PerformSearch(
     // TODO(easy, 2024-08-04): Change error.read to return a LazyString and
     // avoid the redundant conversion below:
     options.progress_channel->Push(
-        {.values = {{VersionPropertyKey{LazyString{L"!"}},
-                     LazyString{error.read()}}}});
+        {.values = {{VersionPropertyKey{LazyString{L"!"}}, error.read()}}});
     return error;
   }
 

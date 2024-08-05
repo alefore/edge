@@ -132,10 +132,8 @@ futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
 futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
                                                       mode_t mode) const {
   return thread_pool_.Run([path, mode] {
-    // TODO(2024-07-31, easy): Avoid need to call LazyString below. Make paths
-    // already use LazyString internally.
     return AugmentError(
-        LazyString{path.read()},
+        path.read(),
         SyscallReturnValue(L"Mkdir", mkdir(path.ToByteString().c_str(), mode)));
   });
 }

@@ -17,10 +17,9 @@ Error AugmentError(language::lazy_string::LazyString prefix, Error error) {
 Error MergeErrors(const std::vector<Error>& errors,
                   const std::wstring& separator) {
   CHECK(!errors.empty());
-  return Error(Concatenate(errors | std::views::transform([](const Error& e) {
-                             return LazyString{e.read()};
-                           }) |
-                           Intersperse(LazyString{separator})));
+  return Error(Concatenate(
+      errors | std::views::transform([](const Error& e) { return e.read(); }) |
+      Intersperse(LazyString{separator})));
 }
 
 ValueOrError<EmptyValue> Success() {

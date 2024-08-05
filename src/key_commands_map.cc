@@ -112,7 +112,7 @@ LineSequence KeyCommandsMapSequence::Help() const {
     for (const std::pair<const Description, std::set<ExtendedChar>>& entry :
          inverted_map) {
       category_line.AppendString(LazyString{L" "});
-      category_line.AppendString(LazyString{entry.first.read()},
+      category_line.AppendString(entry.first.read(),
                                  LineModifierSet{LineModifier::kCyan});
       category_line.AppendString(LazyString{L":"},
                                  LineModifierSet{LineModifier::kDim});

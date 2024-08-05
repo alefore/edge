@@ -85,7 +85,7 @@ PossibleError SendPathToServer(FileDescriptor server_fd,
   // TODO(trivial, 2023-12-31): Remove call to ToString.
   std::string command =
       "editor.ConnectTo(" +
-      ToByteString(EscapedString::FromString(LazyString{input_path.read()})
+      ToByteString(EscapedString::FromString(input_path.read())
                        .CppRepresentation()
                        .ToString()) +
       ");\n";
@@ -163,8 +163,7 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   ASSIGN_OR_RETURN(
       FileDescriptor server_fd,
       AugmentError(
-          LazyString{path.read()} +
-              LazyString{L": Connecting to server: open failed: "} +
+          path.read() + LazyString{L": Connecting to server: open failed: "} +
               LazyString{FromByteString(strerror(errno))},
           FileDescriptor::New(
               open(ToByteString(path.read().ToString()).c_str(), O_WRONLY))));
@@ -185,7 +184,7 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
 
   LOG(INFO) << "Opening private fifo: " << private_fifo.read();
   return AugmentError(
-      LazyString{private_fifo.read()} + LazyString{L": open failed: "} +
+      private_fifo.read() + LazyString{L": open failed: "} +
           LazyString{FromByteString(strerror(errno))},
       FileDescriptor::New(
           open(ToByteString(private_fifo.read().ToString()).c_str(), O_RDWR)));

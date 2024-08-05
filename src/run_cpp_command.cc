@@ -341,10 +341,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
                 .ConsumeErrors([progress_channel](Error error) {
                   progress_channel->Push(
                       {.values = {{VersionPropertyKey{LazyString{L"runtime"}},
-                                   // TODO(easy, 2024-08-04): Change error to
-                                   // embraze LazyString, making the following
-                                   // `LazyString{}` wrapping redundant.
-                                   LazyString{error.read()}}}});
+                                   error.read()}}});
                   return futures::Past(EmptyValue());
                 })
                 .Transform([output](EmptyValue) { return output; });
@@ -352,10 +349,7 @@ futures::Value<ColorizePromptOptions> CppColorizeOptionsProvider(
           [&](Error error) {
             progress_channel->Push(
                 {.values = {{VersionPropertyKey{LazyString{L"error"}},
-                             // TODO(easy, 2024-08-04): Change error to embraze
-                             // LazyString, making the following `LazyString{}`
-                             // wrapping redundant.
-                             LazyString{error.read()}}}});
+                             error.read()}}});
             return futures::Past(ColorizePromptOptions());
           }},
       buffer->ptr()->CompileString(line));

@@ -214,10 +214,7 @@ ValueOrError<LineProcessorOutputFuture> LineMetadataCompilation(
                         })
                         .ConsumeErrors([](Error error) {
                           return futures::Past(LineProcessorOutput(
-                              LazyString{L"E: "} +
-                              // TODO(trivial, 2024-08-04): Make the following
-                              // call to LazyString irrelevant and remove it.
-                              LazyString{error.read()}));
+                              LazyString{L"E: "} + error.read()));
                         });
                   });
             }
@@ -1188,9 +1185,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
     const Path& path) {
   return std::visit(
       overload{[&](Error error) {
-                 error = AugmentError(
-                     LazyString{path.read()} + LazyString{L": error: "},
-                     std::move(error));
+                 error = AugmentError(path.read() + LazyString{L": error: "},
+                                      std::move(error));
                  status_.Set(error);
                  return futures::Past(ValueOrError<gc::Root<Value>>(error));
                },

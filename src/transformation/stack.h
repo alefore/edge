@@ -5,13 +5,19 @@
 #include <memory>
 
 #include "src/language/ghost_type_class.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/transformation/input.h"
 #include "src/transformation/result.h"
 #include "src/transformation/type.h"
 
 namespace afc::editor {
 namespace transformation {
-class ShellCommand : public language::GhostType<ShellCommand, std::wstring> {};
+class ShellCommand : public language::GhostType<ShellCommand, std::wstring> {
+ public:
+  language::lazy_string::LazyString ReadLazyString() const {
+    return language::lazy_string::LazyString{read()};
+  }
+};
 
 struct Stack {
   using value_type = Variant;
