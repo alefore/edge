@@ -32,6 +32,7 @@ using afc::infrastructure::Path;
 using afc::language::FromByteString;
 using afc::language::MakeNonNullShared;
 using afc::language::ValueOrDie;
+using afc::language::lazy_string::LazyString;
 
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -41,7 +42,8 @@ int main(int, char** argv) {
       .operation_factory = std::make_shared<OperationFactory>(
           MakeNonNullShared<afc::concurrent::ThreadPool>(6))});
 
-  afc::vm::CompileFile(ValueOrDie(Path::FromString(FromByteString(argv[1]))),
-                       pool, afc::vm::NewDefaultEnvironment(pool));
+  afc::vm::CompileFile(
+      ValueOrDie(Path::New(LazyString{FromByteString(argv[1])})), pool,
+      afc::vm::NewDefaultEnvironment(pool));
   return 0;
 }

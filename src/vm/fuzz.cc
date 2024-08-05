@@ -23,6 +23,7 @@ using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
 using afc::vm::Expression;
 
 int main(int, char** argv) {
