@@ -21,8 +21,9 @@
 #include "src/tests/fuzz_testable.h"
 
 namespace afc::infrastructure {
-// TODO(2023-12-02): This should use LazyString.
-class TerminalName : public language::GhostType<TerminalName, std::wstring> {};
+class TerminalName
+    : public language::GhostType<TerminalName,
+                                 language::lazy_string::LazyString> {};
 
 // Decodes input from a terminal-associated file descriptor.
 //

@@ -1651,8 +1651,10 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
     void AppendEmptyLine() override { buffer_.AppendEmptyLine(); }
 
     infrastructure::TerminalName name() override {
-      return infrastructure::TerminalName(L"Terminal:" +
-                                          to_wstring(buffer_.name()));
+      // TODO(easy, 2024-08-06): Change to_wstring to to_lazystring and remove
+      // extra wrapping here.
+      return infrastructure::TerminalName{
+          LazyString{L"Terminal:"} + LazyString{to_wstring(buffer_.name())}};
     }
 
     std::optional<infrastructure::FileDescriptor> fd() override {
