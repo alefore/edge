@@ -298,11 +298,10 @@ int main(int argc, const char** argv) {
   LazyString commands_to_run = CommandsToRun(args);
   if (!commands_to_run.IsEmpty()) {
     if (connected_to_parent) {
-      commands_to_run +=
-          LazyString{L"editor.SendExitTo("} +
-          afc::vm::EscapedString::FromString(LazyString{server_path.read()})
-              .CppRepresentation() +
-          LazyString{L");"};
+      commands_to_run += LazyString{L"editor.SendExitTo("} +
+                         afc::vm::EscapedString::FromString(server_path.read())
+                             .CppRepresentation() +
+                         LazyString{L");"};
     }
 
     LOG(INFO) << "Sending commands.";

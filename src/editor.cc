@@ -526,7 +526,7 @@ void EditorState::set_exit_value(int exit_value) { exit_value_ = exit_value; }
 std::optional<LazyString> EditorState::GetExitNotice() const {
   if (dirty_buffers_saved_to_backup_.empty()) return std::nullopt;
   return LazyString{L"Dirty contents backed up (in "} +
-         LazyString{Path::Join(edge_path()[0], StatePathComponent()).read()} +
+         Path::Join(edge_path()[0], StatePathComponent()).read() +
          LazyString{L"):\n"} +
          Concatenate(dirty_buffers_saved_to_backup_ |
                      std::views::transform([](const BufferName& name) {

@@ -74,10 +74,8 @@ gc::Root<Value> BuildGetter(gc::Pool& pool, Type class_type, Type field_type,
                                       field_type),
             [](gc::Root<Value> value) { return Success(std::move(value)); },
             [&]() {
-              // TODO(easy, 2024-07-31): Change the inner type of Identifier to
-              // a LazyString, to avoid the need to convert to LazyString here.
               return Error{LazyString{L"Unexpected: variable value is null: "} +
-                           LazyString{field_name.read()}};
+                           field_name.read()};
             }));
       });
 }

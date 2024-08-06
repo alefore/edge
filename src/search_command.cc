@@ -258,7 +258,7 @@ class SearchCommand : public Command {
     Prompt(
         {.editor_state = editor_state_,
          .prompt = LazyString{L"🔎 "},
-         .history_file = HistoryFile(L"search"),
+         .history_file = HistoryFile{LazyString{L"search"}},
          .colorize_options_provider =
              [&editor_state = editor_state_,
               buffers = std::make_shared<std::vector<gc::Root<OpenBuffer>>>(

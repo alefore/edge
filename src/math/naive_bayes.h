@@ -5,13 +5,18 @@
 #include <vector>
 
 #include "src/language/ghost_type_class.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/wstring.h"
-
 namespace afc::math::naive_bayes {
 using ::operator<<;
 
 // An Event represents an arbitrary action, such as opening a specific file.
-class Event : public language::GhostType<Event, std::wstring> {};
+class Event : public language::GhostType<Event, std::wstring> {
+ public:
+  language::lazy_string::LazyString ReadLazyString() const {
+    return language::lazy_string::LazyString{read()};
+  }
+};
 
 // A Feature represents some arbitrary characteristic of the environment where
 // events take place.

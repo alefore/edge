@@ -4,6 +4,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::editor {
 class OpenBuffer;
@@ -58,7 +59,9 @@ struct PredictionsBufferName {
   bool operator<(const PredictionsBufferName&) const { return false; }
 };
 
-class HistoryFile : public language::GhostType<HistoryFile, std::wstring> {};
+class HistoryFile
+    : public language::GhostType<HistoryFile,
+                                 language::lazy_string::LazyString> {};
 
 HistoryFile HistoryFileFiles();
 HistoryFile HistoryFileCommands();

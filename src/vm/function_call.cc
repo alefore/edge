@@ -257,15 +257,13 @@ std::unique_ptr<Expression> NewMethodLookup(
                 });
             std::vector<Identifier> close_alternatives =
                 FilterSimilarNames(method_name, std::move(alternatives));
-            errors.push_back(
-                Error{LazyString{L"Unknown method: \""} +
-                      LazyString{object_type->ToString()} + LazyString{L"::"} +
-                      LazyString{method_name.read()} + LazyString{L"\""} +
-                      (close_alternatives.empty()
-                           ? LazyString{}
-                           : (LazyString{L" (did you mean \""} +
-                              LazyString{close_alternatives[0].read()} +
-                              LazyString{L"\"?)"}))});
+            errors.push_back(Error{
+                LazyString{L"Unknown method: \""} + object_type->ToString() +
+                LazyString{L"::"} + method_name.read() + LazyString{L"\""} +
+                (close_alternatives.empty()
+                     ? LazyString{}
+                     : (LazyString{L" (did you mean \""} +
+                        close_alternatives[0].read() + LazyString{L"\"?)"}))});
             continue;
           }
 

@@ -130,7 +130,7 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
       .editor_state = buffer.editor(),
       .prompt = LazyString{L"unlink "} + LazyString{details} +
                 LazyString{L"? [yes/no] "},
-      .history_file = HistoryFile(L"confirmation"),
+      .history_file = HistoryFile{LazyString{L"confirmation"}},
       .handler =
           [buffer = buffer.NewRoot(), observers](LazyString input) {
             if (input == LazyString{L"yes"}) {

@@ -242,16 +242,12 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
   return OpenOrCreateFile(
              {.editor_state = editor_state,
               .name = buffer_name,
-              .path =
-                  editor_state.edge_path().empty()
-                      ? std::nullopt
-                      : std::make_optional(Path::Join(
-                            editor_state.edge_path().front(),
-                            ValueOrDie(PathComponent::New(
-                                // TODO(trivial, 2024-08-04): Convert name.read
-                                // to a LazyString and avoid conversion here.
-                                LazyString{name.read()} +
-                                LazyString{L"_history"})))),
+              .path = editor_state.edge_path().empty()
+                          ? std::nullopt
+                          : std::make_optional(Path::Join(
+                                editor_state.edge_path().front(),
+                                ValueOrDie(PathComponent::New(
+                                    name.read() + LazyString{L"_history"})))),
               .insertion_type = BuffersList::AddBufferType::kIgnore})
       .Transform([&editor_state](gc::Root<OpenBuffer> buffer_root) {
         OpenBuffer& buffer = buffer_root.ptr().value();
@@ -489,17 +485,15 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
 
   for (math::naive_bayes::Event& key :
        math::naive_bayes::Sort(history_data, current_features)) {
-    output.lines.push_back(
-        // TODO(easy, 2024-08-05): Convert Event to LazyString and remove
-        // redundant wrapping below.
-        ColorizeLine(LazyString{key.read()},
-                     container::MaterializeVector(
-                         history_prompt_tokens[key] |
-                         std::views::transform([](const Token& token) {
-                           VLOG(6) << "Add token BOLD: " << token;
-                           return TokenAndModifiers{
-                               token, LineModifierSet{LineModifier::kBold}};
-                         }))));
+    output.lines.push_back(ColorizeLine(
+        key.ReadLazyString(), container::MaterializeVector(
+                                  history_prompt_tokens[key] |
+                                  std::views::transform([](const Token& token) {
+                                    VLOG(6) << "Add token BOLD: " << token;
+                                    return TokenAndModifiers{
+                                        token,
+                                        LineModifierSet{LineModifier::kBold}};
+                                  }))));
   }
   return output;
 }
@@ -1063,8 +1057,10 @@ class LinePromptCommand : public Command {
 
 }  // namespace
 
-HistoryFile HistoryFileFiles() { return HistoryFile(L"files"); }
-HistoryFile HistoryFileCommands() { return HistoryFile(L"commands"); }
+HistoryFile HistoryFileFiles() { return HistoryFile{LazyString{L"files"}}; }
+HistoryFile HistoryFileCommands() {
+  return HistoryFile{LazyString{L"commands"}};
+}
 
 // input must not be escaped.
 void AddLineToHistory(EditorState& editor, const HistoryFile& history_file,

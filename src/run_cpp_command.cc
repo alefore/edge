@@ -502,7 +502,7 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
   CHECK(!description.empty());
   return NewLinePromptCommand(
       editor_state, description, [&editor_state, mode]() {
-        std::wstring prompt;
+        LazyString prompt;
         std::function<futures::Value<EmptyValue>(LazyString input)> handler;
         PromptOptions::ColorizeFunction colorize_options_provider;
         Predictor predictor = EmptyPredictor;
@@ -510,14 +510,14 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
           case CppCommandMode::kLiteral:
             handler = std::bind_front(RunCppCommandLiteralHandler,
                                       std::ref(editor_state));
-            prompt = L"cpp";
+            prompt = LazyString{L"cpp"};
             colorize_options_provider = std::bind_front(
                 CppColorizeOptionsProvider, std::ref(editor_state));
             break;
           case CppCommandMode::kShell:
             handler = std::bind_front(RunCppCommandShellHandler,
                                       std::ref(editor_state));
-            prompt = L":";
+            prompt = LazyString{L":"};
             auto buffer = editor_state.current_buffer();
             CHECK(buffer.has_value());
             // TODO(easy, 2023-09-16): Make it possible to disable the use of a
@@ -532,9 +532,10 @@ gc::Root<Command> NewRunCppCommand(EditorState& editor_state,
         }
         return PromptOptions{
             .editor_state = editor_state,
-            .prompt = LazyString{prompt} + LazyString{L" "},
-            .history_file =
-                prompt == L":" ? HistoryFile(L"colon") : HistoryFile(prompt),
+            .prompt = prompt + LazyString{L" "},
+            .history_file = prompt == LazyString{L":"}
+                                ? HistoryFile{LazyString{L"colon"}}
+                                : HistoryFile{prompt},
             .colorize_options_provider = std::move(colorize_options_provider),
             .handler = std::move(handler),
             .cancel_handler = []() { /* Nothing. */ },

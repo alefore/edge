@@ -174,7 +174,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                     -> futures::ValueOrError<language::gc::Root<Value>> {
                   if (index < 0 || static_cast<size_t>(index) >= c.size()) {
                     return futures::Past(
-                        language::Error{LazyString{object_type_name.read()} +
+                        language::Error{object_type_name.read() +
                                         LazyString{L": Index out of range "} +
                                         LazyString{std::to_wstring(index)} +
                                         LazyString{L" (size: "} +
@@ -207,7 +207,7 @@ void Export(language::gc::Pool& pool, Environment& environment) {
                       -> futures::ValueOrError<language::gc::Root<Value>> {
                     if (index < 0 || static_cast<size_t>(index) >= c.size()) {
                       return futures::Past(language::Error{
-                          LazyString{object_type_name.read()} +
+                          object_type_name.read() +
                           LazyString{L": Index out of range "} +
                           LazyString{std::to_wstring(index)} +
                           LazyString{L" (size: "} +

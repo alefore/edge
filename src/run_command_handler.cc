@@ -380,8 +380,7 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
       {L"EDGE_RUN", LazyString{std::to_wstring(i)}},
       {L"EDGE_RUNS", LazyString{std::to_wstring(n)}}};
   LazyString name =
-      (children_path.has_value() ? LazyString{children_path->read()}
-                                 : LazyString{}) +
+      (children_path.has_value() ? children_path->read() : LazyString{}) +
       LazyString{L"$"};
   if (n > 1) {
     name += Concatenate(environment | std::views::transform([](auto it) {
@@ -453,9 +452,7 @@ class ForkEditorCommand : public Command {
       Prompt(PromptOptions{
           .editor_state = editor_state_,
           .prompt = std::visit(overload{[](Error) { return LazyString{}; },
-                                        [](Path path) -> LazyString {
-                                          return LazyString{path.read()};
-                                        }},
+                                        [](Path path) { return path.read(); }},
                                children_path) +
                     LazyString{L"$ "},
           .history_file = HistoryFileCommands(),
