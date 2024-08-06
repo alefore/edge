@@ -12,12 +12,9 @@
 
 namespace afc::editor {
 namespace transformation {
-class ShellCommand : public language::GhostType<ShellCommand, std::wstring> {
- public:
-  language::lazy_string::LazyString ReadLazyString() const {
-    return language::lazy_string::LazyString{read()};
-  }
-};
+class ShellCommand
+    : public language::GhostType<ShellCommand,
+                                 language::lazy_string::LazyString> {};
 
 struct Stack {
   using value_type = Variant;

@@ -93,7 +93,7 @@ struct CommandReachBisect {
 };
 
 struct CommandSetShell {
-  std::wstring input;
+  language::lazy_string::LazyString input;
 };
 
 using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,

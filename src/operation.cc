@@ -804,15 +804,22 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
   cmap.Insert(ControlChar::kBackspace,
               {.category = KeyCommandsMap::Category::kStringControl,
                .description = Description{LazyString{L"Backspace"}},
-               .active = !output->input.empty(),
-               .handler = [output](ExtendedChar) { output->input.pop_back(); }})
-      .SetFallback(
-          {'\n', ControlChar::kEscape, ControlChar::kBackspace},
-          [output](ExtendedChar extended_c) {
-            std::visit(overload{[](ControlChar) {},
-                                [&](wchar_t c) { output->input.push_back(c); }},
-                       extended_c);
-          });
+               .active = !output->input.IsEmpty(),
+               .handler =
+                   [output](ExtendedChar) {
+                     output->input = output->input.Substring(
+                         ColumnNumber{0},
+                         output->input.size() - ColumnNumberDelta{1});
+                   }})
+      .SetFallback({'\n', ControlChar::kEscape, ControlChar::kBackspace},
+                   [output](ExtendedChar extended_c) {
+                     std::visit(overload{[](ControlChar) {},
+                                         [&](wchar_t c) {
+                                           output->input += LazyString{
+                                               ColumnNumberDelta{1}, c};
+                                         }},
+                                extended_c);
+                   });
 }
 
 class OperationMode : public EditorMode {
