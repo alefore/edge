@@ -53,11 +53,9 @@ namespace {
 static const auto kTopFrameLines = LineNumberDelta(1);
 static const auto kStatusFrameLines = LineNumberDelta(1);
 
-LineWithCursor ProducerForString(std::wstring src, LineModifierSet modifiers) {
+LineWithCursor ProducerForString(LazyString src, LineModifierSet modifiers) {
   LineBuilder options;
-  // TODO(easy, 2024-07-26): Receive `str` already as LazyString, avoid
-  // conversion.
-  options.AppendString(LazyString{std::move(src)}, std::move(modifiers));
+  options.AppendString(std::move(src), std::move(modifiers));
   return LineWithCursor{.line = std::move(options).Build()};
 }
 
@@ -69,11 +67,11 @@ LineWithCursor::Generator::Vector AddLeftFrame(
 
   LineWithCursor::Generator::Vector rows;
   if (lines.size() > LineNumberDelta(1)) {
-    rows = RepeatLine(ProducerForString(L"│", modifiers),
+    rows = RepeatLine(ProducerForString(LazyString{L"│"}, modifiers),
                       lines.size() - LineNumberDelta(1));
   }
-  rows.Append(
-      RepeatLine(ProducerForString(L"╰", modifiers), LineNumberDelta(1)));
+  rows.Append(RepeatLine(ProducerForString(LazyString{L"╰"}, modifiers),
+                         LineNumberDelta(1)));
 
   columns_vector.push_back(
       {.lines = std::move(rows), .width = ColumnNumberDelta(1)});
