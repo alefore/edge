@@ -21,15 +21,6 @@
 namespace afc {
 namespace vm {
 
-using std::function;
-using std::map;
-using std::pair;
-using std::shared_ptr;
-using std::string;
-using std::unique_ptr;
-using std::vector;
-using std::wstring;
-
 // TODO(easy, 2023-10-04): Get rid of these fwd-declarations.
 class Environment;
 class Evaluation;

@@ -693,12 +693,13 @@ void OpenBuffer::UpdateTreeParser() {
         buffer_syntax_parser_.UpdateParser(
             {.parser_name = Read(buffer_variables::tree_parser),
              .typos_set =
-                 std::unordered_set<wstring>{
+                 std::unordered_set<std::wstring>{
                      std::istream_iterator<std::wstring, wchar_t>(typos_stream),
                      std::istream_iterator<std::wstring, wchar_t>()},
-             .language_keywords = std::unordered_set<wstring>(
-                 std::istream_iterator<wstring, wchar_t>(language_keywords),
-                 std::istream_iterator<wstring, wchar_t>()),
+             .language_keywords = std::unordered_set<std::wstring>(
+                 std::istream_iterator<std::wstring, wchar_t>(
+                     language_keywords),
+                 std::istream_iterator<std::wstring, wchar_t>()),
              .symbol_characters = Read(buffer_variables::symbol_characters),
              .identifier_behavior =
                  Read(buffer_variables::identifier_behavior) == L"color-by-hash"
@@ -1307,11 +1308,11 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
-CursorsSet& OpenBuffer::FindOrCreateCursors(const wstring& name) {
+CursorsSet& OpenBuffer::FindOrCreateCursors(const std::wstring& name) {
   return cursors_tracker_.FindOrCreateCursors(name);
 }
 
-const CursorsSet* OpenBuffer::FindCursors(const wstring& name) const {
+const CursorsSet* OpenBuffer::FindCursors(const std::wstring& name) const {
   return cursors_tracker_.FindCursors(name);
 }
 
@@ -1326,10 +1327,9 @@ const CursorsSet& OpenBuffer::active_cursors() const {
   return Pointer(cursors).Reference();
 }
 
-void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
-  if (positions.empty()) {
-    return;
-  }
+void OpenBuffer::set_active_cursors(const std::vector<LineColumn>& positions) {
+  if (positions.empty()) return;
+
   CursorsSet& cursors = active_cursors();
   FindOrCreateCursors(kOldCursors).swap(&cursors);
   cursors.clear();
@@ -2132,8 +2132,8 @@ bool OpenBuffer::dirty() const {
            WEXITSTATUS(child_exit_status_.value()) != 0));
 }
 
-std::map<wstring, wstring> OpenBuffer::Flags() const {
-  std::map<wstring, wstring> output;
+std::map<std::wstring, std::wstring> OpenBuffer::Flags() const {
+  std::map<std::wstring, std::wstring> output;
   if (options_.describe_status) {
     output = options_.describe_status(*this);
   }
@@ -2173,7 +2173,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     if (Read(buffer_variables::follow_end_of_file)) {
       output.insert({L"↓", L""});
     }
-    wstring pts_path = Read(buffer_variables::pts_path);
+    std::wstring pts_path = Read(buffer_variables::pts_path);
     if (!pts_path.empty()) {
       output.insert({L"💻", pts_path});
     }
@@ -2213,7 +2213,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
 }
 
 /* static */ LazyString OpenBuffer::FlagsToString(
-    std::map<wstring, wstring> flags) {
+    std::map<std::wstring, std::wstring> flags) {
   return Concatenate(flags | std::views::transform([](const auto& f) {
                        return LazyString{f.first} + LazyString{f.second};
                      }) |
@@ -2244,11 +2244,13 @@ void OpenBuffer::Set(const EdgeVariable<std::wstring>* variable,
   Set(variable, value.ToString());
 }
 
-const wstring& OpenBuffer::Read(const EdgeVariable<wstring>* variable) const {
+const std::wstring& OpenBuffer::Read(
+    const EdgeVariable<std::wstring>* variable) const {
   return variables_.string_variables.Get(variable);
 }
 
-void OpenBuffer::Set(const EdgeVariable<wstring>* variable, wstring value) {
+void OpenBuffer::Set(const EdgeVariable<std::wstring>* variable,
+                     std::wstring value) {
   variables_.string_variables.Set(variable, value);
 }
 

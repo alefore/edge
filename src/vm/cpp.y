@@ -298,11 +298,13 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
 
 // Arguments in the declaration of a function
 
-%type function_declaration_arguments { vector<pair<Type, Identifier>>* }
+%type function_declaration_arguments {
+  std::vector<std::pair<Type, Identifier>>*
+}
 %destructor function_declaration_arguments { delete $$; }
 
 function_declaration_arguments(OUT) ::= . {
-  OUT = new vector<pair<Type, Identifier>>();
+  OUT = new std::vector<std::pair<Type, Identifier>>();
 }
 
 function_declaration_arguments(OUT) ::=
@@ -311,7 +313,7 @@ function_declaration_arguments(OUT) ::=
 }
 
 %type non_empty_function_declaration_arguments {
-  vector<pair<Type, Identifier>>*
+  std::vector<std::pair<Type, Identifier>>*
 }
 %destructor non_empty_function_declaration_arguments { delete $$; }
 
@@ -337,7 +339,7 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
 non_empty_function_declaration_arguments(OUT) ::=
     non_empty_function_declaration_arguments(LIST) COMMA SYMBOL(TYPE)
     SYMBOL(NAME). {
-  std::unique_ptr<vector<pair<Type, Identifier>>> list(LIST);
+  std::unique_ptr<std::vector<std::pair<Type, Identifier>>> list(LIST);
   std::unique_ptr<std::optional<gc::Root<Value>>> type(TYPE);
   std::unique_ptr<std::optional<gc::Root<Value>>> name(NAME);
 
@@ -580,7 +582,8 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
   std::unique_ptr<Expression> b(B);
-  std::unique_ptr<vector<language::NonNull<shared_ptr<Expression>>>> args(ARGS);
+  std::unique_ptr<std::vector<language::NonNull<std::shared_ptr<Expression>>>>
+      args(ARGS);
 
   if (b == nullptr || args == nullptr) {
     OUT = nullptr;
@@ -596,11 +599,13 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
 
 // Arguments list
 
-%type arguments_list { vector<language::NonNull<shared_ptr<Expression>>>* }
+%type arguments_list {
+  std::vector<language::NonNull<std::shared_ptr<Expression>>>*
+}
 %destructor arguments_list { delete $$; }
 
 arguments_list(OUT) ::= . {
-  OUT = new vector<language::NonNull<shared_ptr<Expression>>>();
+  OUT = new std::vector<language::NonNull<std::shared_ptr<Expression>>>();
 }
 
 arguments_list(OUT) ::= non_empty_arguments_list(L). {
@@ -608,7 +613,7 @@ arguments_list(OUT) ::= non_empty_arguments_list(L). {
 }
 
 %type non_empty_arguments_list {
-   vector<language::NonNull<shared_ptr<Expression>>>*
+   std::vector<language::NonNull<std::shared_ptr<Expression>>>*
 }
 %destructor non_empty_arguments_list { delete $$; }
 
@@ -618,14 +623,14 @@ non_empty_arguments_list(OUT) ::= expr(E). {
   if (e == nullptr) {
     OUT = nullptr;
   } else {
-    OUT = new vector<NonNull<shared_ptr<Expression>>>();
+    OUT = new std::vector<NonNull<std::shared_ptr<Expression>>>();
     OUT->push_back(
         language::NonNull<std::unique_ptr<Expression>>::Unsafe(std::move(e)));
   }
 }
 
 non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
-  std::unique_ptr<std::vector<NonNull<shared_ptr<Expression>>>> l(L);
+  std::unique_ptr<std::vector<NonNull<std::shared_ptr<Expression>>>> l(L);
   std::unique_ptr<Expression> e(E);
 
   if (l == nullptr || e == nullptr) {
