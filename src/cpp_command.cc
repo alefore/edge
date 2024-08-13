@@ -18,59 +18,63 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::OnceOnlyFunction;
 using afc::language::ValueOrError;
+using afc::language::VisitOptional;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 namespace {
-std::wstring GetFirstLine(std::wstring code) {
-  size_t end = code.find(L'\n');
-  if (end == code.npos) {
-    return code;
-  }
-  auto first_line = code.substr(0, end);
+LazyString GetFirstLine(LazyString code) {
+  std::optional<ColumnNumber> end = FindFirstOf(code, {L'\n'});
+  if (end == std::nullopt) return code;
+  LazyString first_line = code.Substring(ColumnNumber{}, end->ToDelta());
   DVLOG(5) << "First line: " << first_line;
-  std::wstring prefix = L"// ";
-  if (first_line.size() < prefix.size() || first_line.substr(0, 3) != prefix) {
-    return first_line;
-  }
-  return first_line.substr(prefix.size());
+  if (LazyString prefix = LazyString{L"// "}; StartsWith(first_line, prefix))
+    return first_line.Substring(ColumnNumber{} + prefix.size());
+  return first_line;
 }
 
-std::wstring GetDescriptionString(std::wstring code) {
-  auto first_line = GetFirstLine(code);
-  auto colon = first_line.find(L':');
-  return colon == std::wstring::npos ? first_line
-                                     : first_line.substr(colon + 1);
+LazyString GetDescriptionString(LazyString code) {
+  LazyString first_line = GetFirstLine(code);
+  return VisitOptional(
+      [&first_line](ColumnNumber colon) {
+        return first_line.Substring(colon + ColumnNumberDelta{1});
+      },
+      [&] { return first_line; }, FindFirstOf(first_line, {L':'}));
 }
 
-std::wstring GetCategoryString(std::wstring code) {
-  auto first_line = GetFirstLine(code);
-  auto colon = first_line.find(L':');
-  return colon == std::wstring::npos ? L"Unknown" : first_line.substr(0, colon);
+LazyString GetCategoryString(LazyString code) {
+  LazyString first_line = GetFirstLine(code);
+  return VisitOptional(
+      [&first_line](ColumnNumber colon) {
+        return first_line.Substring(ColumnNumber{}, colon.ToDelta());
+      },
+      [&first_line] { return first_line; }, FindFirstOf(first_line, {L':'}));
 }
 
 class CppCommand : public Command {
   EditorState& editor_state_;
   const NonNull<std::shared_ptr<vm::Expression>> expression_;
-  const std::wstring code_;
+  const LazyString code_;
   const LazyString description_;
-  const std::wstring category_;
+  const LazyString category_;
   const gc::Ptr<vm::Environment> environment_;
 
  public:
   CppCommand(EditorState& editor_state,
              NonNull<std::unique_ptr<afc::vm::Expression>> expression,
-             std::wstring code, gc::Ptr<vm::Environment> environment)
+             LazyString code, gc::Ptr<vm::Environment> environment)
       : editor_state_(editor_state),
         expression_(std::move(expression)),
         code_(std::move(code)),
-        // TODO(2024-01-24): Get rid of LazyString{}.
-        description_(LazyString{GetDescriptionString(code_)}),
+        description_(GetDescriptionString(code_)),
         category_(GetCategoryString(code_)),
         environment_(std::move(environment)) {}
 
   LazyString Description() const override { return description_; }
-  std::wstring Category() const override { return category_; }
+  // TODO(trivial, 2024-08-13): Get rid of ToString.
+  std::wstring Category() const override { return category_.ToString(); }
 
   void ProcessInput(ExtendedChar) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
@@ -96,8 +100,10 @@ ValueOrError<gc::Root<Command>> NewCppCommand(
   ASSIGN_OR_RETURN(
       NonNull<std::unique_ptr<vm::Expression>> result,
       vm::CompileString(code, editor_state.gc_pool(), environment));
+  // TODO(2024-01-24): Get rid of LazyString{}.
   return editor_state.gc_pool().NewRoot(MakeNonNullUnique<CppCommand>(
-      editor_state, std::move(result), std::move(code), environment.ptr()));
+      editor_state, std::move(result), LazyString{std::move(code)},
+      environment.ptr()));
 }
 
 }  // namespace afc::editor
