@@ -56,6 +56,7 @@ std::optional<ColumnNumber> FindLastOf(const LazyString& input,
 std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
                                           std::unordered_set<wchar_t> chars);
 
+bool StartsWith(const LazyString& input, const LazyString& prefix);
 }  // namespace afc::language::lazy_string
 namespace std {
 template <>

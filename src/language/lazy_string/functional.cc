@@ -1,5 +1,7 @@
 #include "src/language/lazy_string/functional.h"
 
+#include "src/tests/tests.h"
+
 namespace afc::language::lazy_string {
 std::optional<ColumnNumber> FindFirstOf(const LazyString& input,
                                         std::unordered_set<wchar_t> chars) {
@@ -32,6 +34,36 @@ std::optional<ColumnNumber> FindLastNotOf(const LazyString& input,
         return !chars.contains(c);
       });
 }
+
+bool StartsWith(const LazyString& input, const LazyString& prefix) {
+  return input.SubstringWithRangeChecks(ColumnNumber{}, prefix.size()) ==
+         prefix;
+}
+
+namespace {
+const bool starts_with_tests_registration = tests::Register(
+    L"LazyString.StartsWith",
+    {
+        {.name = L"AllEmpty",
+         .callback = [] { CHECK(StartsWith(LazyString{}, LazyString{})); }},
+        {.name = L"EmptyInput",
+         .callback =
+             [] { CHECK(!StartsWith(LazyString{}, LazyString{L"foo"})); }},
+        {.name = L"EmptyPrefix",
+         .callback =
+             [] { CHECK(StartsWith(LazyString{L"foo"}, LazyString{})); }},
+        {.name = L"HasPrefix",
+         .callback =
+             [] {
+               CHECK(StartsWith(LazyString{L"foobar"}, LazyString{L"foob"}));
+             }},
+        {.name = L"DifferentPrefix",
+         .callback =
+             [] {
+               CHECK(!StartsWith(LazyString{L"foobar"}, LazyString{L"foab"}));
+             }},
+    });
+}  // namespace
 }  // namespace afc::language::lazy_string
 
 namespace std {
