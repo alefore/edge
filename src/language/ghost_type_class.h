@@ -282,7 +282,9 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     return value >= other.value;
   }
 
-  const Internal& read() const { return value; }
+  const Internal& read() const& { return value; }
+
+  Internal read() && { return std::move(value); }
 
  private:
   friend auto operator+ <External, Internal, Validator>(
