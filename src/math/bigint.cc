@@ -9,6 +9,7 @@
 #include "src/math/checked_operation.h"
 #include "src/tests/tests.h"
 
+using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::IsError;
 using afc::language::ValueOrDie;
@@ -860,10 +861,10 @@ const bool big_int_to_double_tests_registration =
     }());
 }  // namespace
 
-/* static */ language::ValueOrError<NonZeroBigInt> NonZeroBigInt::New(
-    BigInt value) {
+/* static */ language::PossibleError NonZeroBigIntValidator::Validate(
+    const BigInt& value) {
   if (value.IsZero()) return Error{LazyString{L"Expected non-zero value."}};
-  return NonZeroBigInt(std::move(value));
+  return EmptyValue{};
 }
 
 namespace {
@@ -880,8 +881,6 @@ const bool non_zero_big_int_factory_tests_registration = tests::Register(
          }}});
 }  // namespace
 
-const BigInt& NonZeroBigInt::value() const { return value_; }
-
 namespace {
 const bool non_zero_big_int_value_tests_registration = tests::Register(
     L"numbers::NonZeroBigInt::Value",
@@ -892,17 +891,12 @@ const bool non_zero_big_int_value_tests_registration = tests::Register(
                               }}});
 }  // namespace
 
-NonZeroBigInt::NonZeroBigInt(BigInt validated_value)
-    : value_(std::move(validated_value)) {
-  CHECK(!value_.IsZero());
-}
-
 NonZeroBigInt NonZeroBigInt::operator+(BigInt b) && {
-  return NonZeroBigInt(std::move(value_) + std::move(b));
+  return ValueOrDie(NonZeroBigInt::New(std::move(*this).read() + std::move(b)));
 }
 
 NonZeroBigInt NonZeroBigInt::operator*(const NonZeroBigInt& b) const {
-  return NonZeroBigInt(value_ * b.value_);
+  return NonZeroBigInt(read() * b.read());
 }
 
 namespace {
@@ -924,7 +918,7 @@ const bool non_zero_big_int_multiplication_tests_registration = tests::Register(
 }  // namespace
 
 NonZeroBigInt& NonZeroBigInt::operator+=(NonZeroBigInt rhs) {
-  *this = std::move(*this) + std::move(rhs.value_);
+  *this = std::move(*this) + std::move(rhs).read();
   return *this;
 }
 
@@ -935,7 +929,8 @@ NonZeroBigInt& NonZeroBigInt::operator*=(NonZeroBigInt rhs) {
 
 NonZeroBigInt NonZeroBigInt::Pow(BigInt exponent) && {
   // TODO(2024-04-09): Articulate better why the output is always positive.
-  return NonZeroBigInt(std::move(value_).Pow(std::move(exponent)));
+  return ValueOrDie(
+      NonZeroBigInt::New(std::move(*this).read().Pow(std::move(exponent))));
 }
 
 namespace {

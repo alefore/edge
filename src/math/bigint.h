@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/ghost_type_class.h"
 #include "src/math/checked_operation.h"
 
 namespace afc::math::numbers {
@@ -102,23 +103,21 @@ language::ValueOrError<BigIntDivideOutput> Divide(BigInt numerator,
 language::ValueOrError<BigInt> operator%(BigInt numerator, BigInt denominator);
 language::ValueOrError<BigInt> operator/(BigInt numerator, BigInt denominator);
 
-class NonZeroBigInt {
-  BigInt value_;  // Non-const to enable move-construction.
+struct NonZeroBigIntValidator {
+  static language::PossibleError Validate(const BigInt& input);
+};
 
+class NonZeroBigInt : public language::GhostType<NonZeroBigInt, BigInt,
+                                                 NonZeroBigIntValidator> {
  public:
-  static language::ValueOrError<NonZeroBigInt> New(BigInt value);
-  const BigInt& value() const;
+  // TODO(trivial, 2024-08-13): Remove.
+  const BigInt& value() const { return read(); }
 
   template <int N>
   static NonZeroBigInt Constant() {
     static_assert(N > 0, "N must be greater than 0.");
     return NonZeroBigInt(BigInt::FromNumber(N));
   }
-
-  NonZeroBigInt(const NonZeroBigInt&) = default;
-  NonZeroBigInt(NonZeroBigInt&&) = default;
-  NonZeroBigInt& operator=(const NonZeroBigInt&) = default;
-  NonZeroBigInt& operator=(NonZeroBigInt&&) = default;
 
   NonZeroBigInt operator+(BigInt b) &&;
   NonZeroBigInt operator*(const NonZeroBigInt& b) const;
@@ -129,9 +128,6 @@ class NonZeroBigInt {
   NonZeroBigInt Pow(BigInt exponent) &&;
 
   NonZeroBigInt GreatestCommonDivisor(const NonZeroBigInt& other) const;
-
- private:
-  NonZeroBigInt(BigInt validated_value);
 };
 
 bool operator==(const NonZeroBigInt& a, const NonZeroBigInt& b);
