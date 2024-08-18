@@ -194,7 +194,7 @@ futures::Value<std::optional<PredictResults>> Predict(
 }
 
 struct DescendDirectoryTreeOutput {
-  std::unique_ptr<DIR, std::function<void(DIR*)>> dir;
+  ValueOrError<NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>> dir;
   // The length of the longest prefix of path that corresponds to a valid
   // directory.
   size_t valid_prefix_length = 0;
@@ -204,12 +204,10 @@ struct DescendDirectoryTreeOutput {
 // TODO(easy): Receive Path rather than std::wstrings.
 DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
                                                 std::wstring path) {
-  DescendDirectoryTreeOutput output;
   VLOG(6) << "Starting search at: " << search_path;
-  // TODO(trivial, 2024-08-04): Change OpenDir to receive a LazyString or Path
-  // directly.
+  DescendDirectoryTreeOutput output;
   output.dir = OpenDir(search_path);
-  if (output.dir == nullptr) {
+  if (IsError(output.dir)) {
     VLOG(5) << "Unable to open search_path: " << search_path;
     return output;
   }
@@ -235,9 +233,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
         Path::Join(search_path, ValueOrDie(std::move(path_next_candidate)));
     VLOG(8) << "Considering: " << test_path;
     auto subdir = OpenDir(test_path);
-    if (subdir == nullptr) {
-      return output;
-    }
+    if (IsError(subdir)) return output;
     CHECK_GT(next_candidate, output.valid_prefix_length);
     output.dir = std::move(subdir);
     output.valid_prefix_length = next_candidate;
@@ -247,7 +243,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
 
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
-void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
+void ScanDirectory(DIR& dir, const std::wregex& noise_regex,
                    std::wstring pattern, std::wstring prefix, int* matches,
                    ProgressChannel& progress_channel,
                    DeleteNotification::Value& abort_value,
@@ -256,13 +252,12 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   static Tracker top_tracker(L"FilePredictor::ScanDirectory");
   auto top_call = top_tracker.Call();
 
-  CHECK(dir != nullptr);
   VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
   struct dirent* entry;
 
-  while ((entry = readdir(dir)) != nullptr) {
+  while ((entry = readdir(&dir)) != nullptr) {
     if (abort_value.has_value()) return;
     std::string entry_path = entry->d_name;
     auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
@@ -366,7 +361,7 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 VLOG(4) << "Considering search path: " << search_path;
                 DescendDirectoryTreeOutput descend_results =
                     DescendDirectoryTree(search_path, path_input);
-                if (descend_results.dir == nullptr) {
+                if (IsError(descend_results.dir)) {
                   LOG(WARNING) << "Unable to descend: " << search_path;
                   continue;
                 }
@@ -377,7 +372,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                 CHECK_LE(descend_results.valid_prefix_length,
                          path_input.size());
                 ScanDirectory(
-                    descend_results.dir.get(), noise_regex,
+                    ValueOrDie(std::move(descend_results.dir)).value(),
+                    noise_regex,
                     path_input.substr(descend_results.valid_prefix_length,
                                       path_input.size()),
                     path_input.substr(0, descend_results.valid_prefix_length),

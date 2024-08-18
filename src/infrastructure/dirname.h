@@ -106,7 +106,9 @@ class AbsolutePath : public Path {
 std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 
 // Wrapper around `opendir` that calls `closedir` in the deleter.
-std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(Path path);
+language::ValueOrError<
+    language::NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>>
+OpenDir(Path path);
 }  // namespace afc::infrastructure
 
 #endif  // __AFC_EDITOR_DIRNAME_H__

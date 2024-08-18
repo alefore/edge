@@ -477,10 +477,16 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b) {
       .ToString();
 }
 
-std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(Path path) {
+ValueOrError<NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>> OpenDir(
+    Path path) {
   VLOG(10) << "Open dir: " << path;
-  return std::unique_ptr<DIR, std::function<void(DIR*)>>(
+  std::unique_ptr<DIR, std::function<void(DIR*)>> output(
       opendir(ToByteString(to_wstring(path)).c_str()), closedir);
+  if (output == nullptr)
+    return Error(path.read() + LazyString{L": Unable to open directory: "} +
+                 LazyString{FromByteString(strerror(errno))});
+  return NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>::Unsafe(
+      std::move(output));
 }
 
 }  // namespace afc::infrastructure
