@@ -63,10 +63,11 @@ void IfObj(std::weak_ptr<T> p, Callable callable) {
 }
 
 template <typename P>
-class NonNull {};
-
+class NonNull;
 template <typename T>
 class NonNull<std::unique_ptr<T>>;
+template <typename T, typename D>
+class NonNull<std::unique_ptr<T, D>>;
 template <typename T>
 class NonNull<std::shared_ptr<T>>;
 
@@ -97,6 +98,7 @@ class NonNull<T*> {
 
  private:
   friend class NonNull<std::unique_ptr<T>>;
+
   friend class NonNull<std::shared_ptr<T>>;
 
   explicit NonNull(T* value) : value_(value) {}
@@ -167,7 +169,7 @@ class NonNull<std::unique_ptr<T, D>> {
     return NonNull(std::move(value));
   }
 
-  NonNull() : value_(std::make_unique<T, D>()) {}
+  NonNull() : value_(std::unique_ptr<T, D>()) {}
 
   // Use the `Other` type for types where `std::unique_ptr<Other>` can be
   // converted to `std::unique_ptr<T, D>`.
@@ -178,12 +180,21 @@ class NonNull<std::unique_ptr<T, D>> {
   }
 
   template <typename... Arg>
-  explicit NonNull(Arg&&... arg) : value_(std::make_unique<T, D>(arg...)) {}
+  explicit NonNull(Arg&&... arg)
+      : value_(std::unique_ptr<T, D>(std::forward<Arg>(arg)...)) {}
 
   T& value() const { return *value_; }
   T* operator->() const { return value_.get(); }
-  NonNull<T*> get() const { return NonNull<T*>(value_.get()); }
-  NonNull<T*> release() { return NonNull<T*>(value_.release()); }
+  NonNull<T*> get() const {
+    // TODO(2024-08-19): Find a way to make this class a friend of NonNull<T*>
+    // and just call the constructor directly.
+    return NonNull<T*>::Unsafe(value_.get());
+  }
+  NonNull<T*> release() && {
+    // TODO(2024-08-19): Find a way to make this class a friend of NonNull<T*>
+    // and just call the constructor directly.
+    return NonNull<T*>::Unsafe(value_.release());
+  }
   std::unique_ptr<T, D>& get_unique() { return value_; }
 
  private:
