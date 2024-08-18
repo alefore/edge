@@ -477,10 +477,10 @@ std::wstring PathJoin(const std::wstring& a, const std::wstring& b) {
       .ToString();
 }
 
-std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path) {
+std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(Path path) {
   VLOG(10) << "Open dir: " << path;
   return std::unique_ptr<DIR, std::function<void(DIR*)>>(
-      opendir(ToByteString(path).c_str()), closedir);
+      opendir(ToByteString(to_wstring(path)).c_str()), closedir);
 }
 
 }  // namespace afc::infrastructure

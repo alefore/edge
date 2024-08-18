@@ -47,6 +47,7 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::FromByteString;
 using afc::language::IgnoreErrors;
+using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
@@ -54,6 +55,7 @@ using afc::language::OptionalFrom;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
+using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
@@ -206,7 +208,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
   VLOG(6) << "Starting search at: " << search_path;
   // TODO(trivial, 2024-08-04): Change OpenDir to receive a LazyString or Path
   // directly.
-  output.dir = OpenDir(search_path.read().ToString());
+  output.dir = OpenDir(search_path);
   if (output.dir == nullptr) {
     VLOG(5) << "Unable to open search_path: " << search_path;
     return output;
@@ -225,8 +227,12 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
     } else {
       ++next_candidate;
     }
-    auto test_path =
-        PathJoin(search_path.read().ToString(), path.substr(0, next_candidate));
+    // TODO(trivial, 2024-08-19): Avoid LazyString{} conversion.
+    auto path_next_candidate =
+        Path::New(LazyString{path.substr(0, next_candidate)});
+    if (IsError(path_next_candidate)) continue;
+    Path test_path =
+        Path::Join(search_path, ValueOrDie(std::move(path_next_candidate)));
     VLOG(8) << "Considering: " << test_path;
     auto subdir = OpenDir(test_path);
     if (subdir == nullptr) {

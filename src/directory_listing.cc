@@ -54,7 +54,7 @@ ValueOrError<BackgroundReadDirOutput> ReadDir(Path path,
                                               std::wregex noise_regex) {
   TRACK_OPERATION(GenerateDirectoryListing_ReadDir);
   BackgroundReadDirOutput output;
-  auto dir = OpenDir(path.read().ToString());
+  auto dir = OpenDir(path);
   if (dir == nullptr)
     return Error{LazyString{L"Unable to open directory: "} +
                  LazyString{FromByteString(strerror(errno))}};
