@@ -123,7 +123,13 @@ copy the contents). Among other things, Edge will read most of its initial key
 bindings from `~/.edge/hooks/start.cc` so you won't get very far if that file
 is missing.
 
-TODO: Document the list of dependencies.
+Edge depends on a few libraries and development programs.
+In Debian, you can install it with the following packages:
+`libtool`,
+`make`,
+`g++` (version 14.0 or above),
+`libncursesw6`,
+`libncurses-dev`
 
 
 ### 2.1. Basic commands
