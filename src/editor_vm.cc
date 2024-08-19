@@ -75,23 +75,20 @@ namespace gc = language::gc;
 namespace {
 template <typename MethodReturnType>
 void RegisterBufferMethod(gc::Pool& pool, ObjectType& editor_type,
-                          const std::wstring& name, PurityType purity_type,
+                          Identifier name, PurityType purity_type,
                           MethodReturnType (OpenBuffer::*method)(void)) {
   editor_type.AddField(
-      // TODO(trivial, 2024-08-05): Receive `name` already as Lazystring. Avoid
-      // conversion here.
-      Identifier{LazyString{name}},
-      vm::NewCallback(pool, purity_type, [method](EditorState& editor) {
-        return editor
-            .ForEachActiveBuffer([method](OpenBuffer& buffer) {
-              (buffer.*method)();
-              return futures::Past(EmptyValue());
-            })
-            .Transform([&editor](EmptyValue) -> PossibleError {
-              editor.ResetModifiers();
-              return EmptyValue();
-            });
-      }).ptr());
+      name, vm::NewCallback(pool, purity_type, [method](EditorState& editor) {
+              return editor
+                  .ForEachActiveBuffer([method](OpenBuffer& buffer) {
+                    (buffer.*method)();
+                    return futures::Past(EmptyValue());
+                  })
+                  .Transform([&editor](EmptyValue) -> PossibleError {
+                    editor.ResetModifiers();
+                    return EmptyValue();
+                  });
+            }).ptr());
 }
 
 template <typename T>
@@ -498,30 +495,34 @@ gc::Root<Environment> BuildEditorEnvironment(
           })
           .ptr());
 
-  RegisterBufferMethod(pool, editor_type.ptr().value(), L"ToggleActiveCursors",
+  RegisterBufferMethod(pool, editor_type.ptr().value(),
+                       Identifier{LazyString{L"ToggleActiveCursors"}},
                        PurityType{.writes_external_outputs = true},
                        &OpenBuffer::ToggleActiveCursors);
-  RegisterBufferMethod(pool, editor_type.ptr().value(), L"PushActiveCursors",
+  RegisterBufferMethod(pool, editor_type.ptr().value(),
+                       Identifier{LazyString{L"PushActiveCursors"}},
                        PurityType{.writes_external_outputs = true},
                        &OpenBuffer::PushActiveCursors);
-  RegisterBufferMethod(pool, editor_type.ptr().value(), L"PopActiveCursors",
+  RegisterBufferMethod(pool, editor_type.ptr().value(),
+                       Identifier{LazyString{L"PopActiveCursors"}},
                        PurityType{.writes_external_outputs = true},
                        &OpenBuffer::PopActiveCursors);
   RegisterBufferMethod(pool, editor_type.ptr().value(),
-                       L"SetActiveCursorsToMarks",
+                       Identifier{LazyString{L"SetActiveCursorsToMarks"}},
                        PurityType{.writes_external_outputs = true},
                        &OpenBuffer::SetActiveCursorsToMarks);
-  RegisterBufferMethod(pool, editor_type.ptr().value(), L"CreateCursor",
-                       PurityType{.writes_external_outputs = true},
-                       &OpenBuffer::CreateCursor);
-  RegisterBufferMethod(pool, editor_type.ptr().value(), L"DestroyCursor",
-                       PurityType{.writes_external_outputs = true},
-                       &OpenBuffer::DestroyCursor);
-  RegisterBufferMethod(pool, editor_type.ptr().value(), L"DestroyOtherCursors",
+  RegisterBufferMethod(
+      pool, editor_type.ptr().value(), Identifier{LazyString{L"CreateCursor"}},
+      PurityType{.writes_external_outputs = true}, &OpenBuffer::CreateCursor);
+  RegisterBufferMethod(
+      pool, editor_type.ptr().value(), Identifier{LazyString{L"DestroyCursor"}},
+      PurityType{.writes_external_outputs = true}, &OpenBuffer::DestroyCursor);
+  RegisterBufferMethod(pool, editor_type.ptr().value(),
+                       Identifier{LazyString{L"DestroyOtherCursors"}},
                        PurityType{.writes_external_outputs = true},
                        &OpenBuffer::DestroyOtherCursors);
   RegisterBufferMethod(pool, editor_type.ptr().value(),
-                       L"RepeatLastTransformation",
+                       Identifier{LazyString{L"RepeatLastTransformation"}},
                        PurityType{.writes_external_outputs = true},
                        &OpenBuffer::RepeatLastTransformation);
 
