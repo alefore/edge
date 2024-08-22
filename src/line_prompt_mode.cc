@@ -632,24 +632,47 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
 
 class StatusVersionAdapter;
 
+gc::Root<OpenBuffer> GetPromptBuffer(EditorState& editor,
+                                     std::wstring prompt_contents_type,
+                                     Line initial_value) {
+  BufferName name(L"- prompt");
+  gc::Root<OpenBuffer> output =
+      editor.buffer_registry().MaybeAdd(name, [&editor, &name] {
+        return OpenBuffer::New({.editor = editor, .name = name});
+      });
+
+  OpenBuffer& buffer = output.ptr().value();
+  buffer.Set(buffer_variables::allow_dirty_delete, true);
+  buffer.Set(buffer_variables::show_in_buffers_list, false);
+  buffer.Set(buffer_variables::delete_into_paste_buffer, false);
+  buffer.Set(buffer_variables::save_on_close, false);
+  buffer.Set(buffer_variables::persist_state, false);
+  buffer.Set(buffer_variables::completion_model_paths, L"");
+  buffer.Reload();
+  buffer.Set(buffer_variables::contents_type, prompt_contents_type);
+  buffer.ApplyToCursors(transformation::Insert{
+      .contents_to_insert = LineSequence::WithLine(initial_value)});
+  return output;
+}
+
 // Holds the state required to show and update a prompt.
 class PromptState : public std::enable_shared_from_this<PromptState> {
   struct ConstructorAccessKey {};
 
  public:
   static NonNull<std::shared_ptr<PromptState>> New(
-      PromptOptions options, gc::Root<OpenBuffer> history) {
+      PromptOptions options, gc::Root<OpenBuffer> history,
+      gc::Root<OpenBuffer> prompt_buffer) {
     return MakeNonNullShared<PromptState>(
-        std::move(options), std::move(history), ConstructorAccessKey());
+        std::move(options), std::move(history), std::move(prompt_buffer),
+        ConstructorAccessKey());
   }
 
   PromptState(PromptOptions options, gc::Root<OpenBuffer> history,
-              ConstructorAccessKey)
+              gc::Root<OpenBuffer> prompt_buffer, ConstructorAccessKey)
       : options_(std::move(options)),
         history_(std::move(history)),
-        prompt_buffer_(GetPromptBuffer(options_.editor_state,
-                                       options_.prompt_contents_type,
-                                       Line(options_.initial_value))),
+        prompt_buffer_(std::move(prompt_buffer)),
         status_buffer_([&]() -> std::optional<gc::Root<OpenBuffer>> {
           if (options.status == PromptOptions::Status::kEditor)
             return std::nullopt;
@@ -685,29 +708,6 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
 
   NonNull<std::unique_ptr<ProgressChannel>> NewProgressChannel(
       NonNull<std::shared_ptr<StatusVersionAdapter>> status_value_viewer);
-
-  static gc::Root<OpenBuffer> GetPromptBuffer(EditorState& editor,
-                                              std::wstring prompt_contents_type,
-                                              Line initial_value) {
-    BufferName name(L"- prompt");
-    gc::Root<OpenBuffer> output =
-        editor.buffer_registry().MaybeAdd(name, [&editor, &name] {
-          return OpenBuffer::New({.editor = editor, .name = name});
-        });
-
-    OpenBuffer& buffer = output.ptr().value();
-    buffer.Set(buffer_variables::allow_dirty_delete, true);
-    buffer.Set(buffer_variables::show_in_buffers_list, false);
-    buffer.Set(buffer_variables::delete_into_paste_buffer, false);
-    buffer.Set(buffer_variables::save_on_close, false);
-    buffer.Set(buffer_variables::persist_state, false);
-    buffer.Set(buffer_variables::completion_model_paths, L"");
-    buffer.Reload();
-    buffer.Set(buffer_variables::contents_type, prompt_contents_type);
-    buffer.ApplyToCursors(transformation::Insert{
-        .contents_to_insert = LineSequence::WithLine(initial_value)});
-    return output;
-  }
 
   // status_buffer is the buffer with the contents of the prompt. tokens_future
   // is received as a future so that we can detect if the prompt input changes
@@ -1219,11 +1219,16 @@ void Prompt(PromptOptions options) {
         history.ptr()->set_current_position_line(
             LineNumber(0) + history.ptr()->contents().size());
 
-        auto prompt_state = PromptState::New(options, history);
+        gc::Root<OpenBuffer> prompt_buffer =
+            GetPromptBuffer(options.editor_state, options.prompt_contents_type,
+                            Line(options.initial_value));
+
+        auto prompt_state =
+            PromptState::New(options, history, std::move(prompt_buffer));
         EnterInsertMode(prompt_state->insert_mode_options());
 
-        // We do this after `EnterInsertMode` because `EnterInsertMode`
-        // resets the status.
+        // We do this after `EnterInsertMode` because `EnterInsertMode` resets
+        // the status.
         prompt_state->status().set_prompt(options.prompt,
                                           prompt_state->prompt_buffer());
         prompt_state->OnModify();
