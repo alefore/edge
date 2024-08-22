@@ -1244,7 +1244,7 @@ void Prompt(PromptOptions options) {
 
         futures::Value<gc::Root<OpenBuffer>> prompt_buffer_future =
             GetPromptBuffer(options.editor_state, options.prompt_contents_type,
-                            Line(options.initial_value));
+                            options.initial_value);
         return std::move(prompt_buffer_future)
             .Transform([options = std::move(options),
                         history = std::move(history)](

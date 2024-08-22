@@ -25,6 +25,7 @@ using afc::language::PossibleError;
 using afc::language::Success;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
+using afc::language::text::Line;
 using afc::language::text::OutgoingLink;
 
 namespace afc::editor {
@@ -107,8 +108,8 @@ class RunCppFileCommand : public Command {
         {.editor_state = editor_state_,
          .prompt = LazyString{L"cmd "},
          .history_file = HistoryFile{LazyString{L"editor_commands"}},
-         .initial_value =
-             buffer->ptr()->Read(buffer_variables::editor_commands_path),
+         .initial_value = Line{buffer->ptr()->ReadLazyString(
+             buffer_variables::editor_commands_path)},
          .handler =
              [&editor = editor_state_](LazyString input) {
                return RunCppFileHandler(editor, input).ConsumeErrors([](Error) {

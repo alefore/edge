@@ -89,7 +89,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     Prompt({.editor_state = editor_state,
             .prompt = LazyString{name} + LazyString{L" := "},
             .history_file = history_file,
-            .initial_value = active_buffers[0].ptr()->Read(var),
+            .initial_value = Line{active_buffers[0].ptr()->ReadLazyString(var)},
             .handler =
                 [&editor_state, var](LazyString input) {
                   editor_state.ResetRepetitions();
@@ -125,7 +125,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     Prompt({.editor_state = editor_state,
             .prompt = LazyString{name} + LazyString{L" := "},
             .history_file = history_file,
-            .initial_value = std::to_wstring(editor_state.Read(var)),
+            .initial_value =
+                Line{LazyString{std::to_wstring(editor_state.Read(var))}},
             .handler =
                 [&editor_state, var, &default_error_status](LazyString input) {
                   // TODO(easy, 2022-06-05): Get rid of ToString.
@@ -167,7 +168,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
         .editor_state = editor_state,
         .prompt = LazyString{name} + LazyString{L" := "},
         .history_file = history_file,
-        .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
+        .initial_value = Line{LazyString{
+            std::to_wstring(active_buffers[0].ptr()->Read(var))}},
         .handler =
             [&editor_state, var, &default_error_status](LazyString input) {
               int value;
@@ -199,7 +201,8 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
         .editor_state = editor_state,
         .prompt = LazyString{name} + LazyString{L" := "},
         .history_file = history_file,
-        .initial_value = std::to_wstring(active_buffers[0].ptr()->Read(var)),
+        .initial_value = Line{LazyString{
+            std::to_wstring(active_buffers[0].ptr()->Read(var))}},
         .handler =
             [&editor_state, var, &default_error_status](LazyString input) {
               // TODO(easy, 2022-06-05): Get rid of ToString.

@@ -40,6 +40,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
+using afc::language::text::Line;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 
@@ -153,10 +154,10 @@ futures::Value<ColorizePromptOptions> AdjustPath(
       });
 }
 
-std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
-                                   LazyString buffer_path) {
+Line GetInitialPromptValue(std::optional<unsigned int> repetitions,
+                           LazyString buffer_path) {
   std::optional<Path> path = OptionalFrom(Path::New(buffer_path));
-  if (path == std::nullopt) return L"";
+  if (path == std::nullopt) return Line{};
   struct stat stat_buffer;
   // TODO(blocking): Use FileSystemDriver here!
   if (stat(ToByteString(path->read().ToString()).c_str(), &stat_buffer) == -1 ||
@@ -166,11 +167,11 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                path->Dirname());
   }
   if (*path == Path::LocalDirectory()) {
-    return L"";
+    return Line{};
   }
   if (repetitions.has_value()) {
     if (repetitions.value() == 0) {
-      return L"";
+      return Line{};
     }
     std::visit(overload{IgnoreErrors{},
                         [&](std::list<PathComponent> split) {
@@ -197,8 +198,7 @@ std::wstring GetInitialPromptValue(std::optional<unsigned int> repetitions,
                         }},
                path->DirectorySplit());
   }
-  // TODO(trivial, 2024-08-04): Return a LazyString here.
-  return path->read().ToString() + L"/";
+  return Line{path->read() + LazyString{L"/"}};
 }
 
 const bool get_initial_prompt_value_tests_registration = tests::Register(
@@ -206,67 +206,85 @@ const bool get_initial_prompt_value_tests_registration = tests::Register(
     {
         {.name = L"EmptyNoRepetitions",
          .callback =
-             [] { CHECK(GetInitialPromptValue({}, LazyString{}) == L""); }},
+             [] {
+               CHECK_EQ(GetInitialPromptValue({}, LazyString{}).contents(),
+                        LazyString{});
+             }},
         {.name = L"EmptyRepetitions",
          .callback =
-             [] { CHECK(GetInitialPromptValue(5, LazyString{}) == L""); }},
+             [] {
+               CHECK_EQ(GetInitialPromptValue(5, LazyString{}).contents(),
+                        LazyString{});
+             }},
         {.name = L"NoRepetitionsRelative",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue({}, LazyString{L"foo/bar"}) ==
-                     L"foo/");
+               CHECK_EQ(
+                   GetInitialPromptValue({}, LazyString{L"foo/bar"}).contents(),
+                   LazyString{L"foo/"});
              }},
         {.name = L"NoRepetitionsAbsolute",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue({}, LazyString{L"/foo/bar"}) ==
-                     L"/foo/");
+               CHECK_EQ(GetInitialPromptValue({}, LazyString{L"/foo/bar"})
+                            .contents(),
+                        LazyString{L"/foo/"});
              }},
         {.name = L"ZeroRepetitionsRelative",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(0, LazyString{L"foo/bar"}) == L"");
+               CHECK_EQ(
+                   GetInitialPromptValue(0, LazyString{L"foo/bar"}).contents(),
+                   LazyString{});
              }},
         {.name = L"ZeroRepetitionsAbsolute",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(0, LazyString{L"/foo/bar"}) == L"");
+               CHECK_EQ(
+                   GetInitialPromptValue(0, LazyString{L"/foo/bar"}).contents(),
+                   LazyString{});
              }},
         {.name = L"LowRepetitionsRelative",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(2, LazyString{L"a0/b1/c2/d3"}) ==
-                     L"a0/b1/");
+               CHECK_EQ(GetInitialPromptValue(2, LazyString{L"a0/b1/c2/d3"})
+                            .contents(),
+                        LazyString{L"a0/b1/"});
              }},
         {.name = L"LowRepetitionsAbsolute",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(2, LazyString{L"/a0/b1/c2/d3"}) ==
-                     L"/a0/b1/");
+               CHECK_EQ(GetInitialPromptValue(2, LazyString{L"/a0/b1/c2/d3"})
+                            .contents(),
+                        LazyString{L"/a0/b1/"});
              }},
         {.name = L"BoundaryRepetitionsRelative",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(3, LazyString{L"a0/b1/c2/d3"}) ==
-                     L"a0/b1/c2/");
+               CHECK_EQ(GetInitialPromptValue(3, LazyString{L"a0/b1/c2/d3"})
+                            .contents(),
+                        LazyString{L"a0/b1/c2/"});
              }},
         {.name = L"BoundaryRepetitionsAbsolute",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(3, LazyString{L"/a0/b1/c2/d3"}) ==
-                     L"/a0/b1/c2/");
+               CHECK_EQ(GetInitialPromptValue(3, LazyString{L"/a0/b1/c2/d3"})
+                            .contents(),
+                        LazyString{L"/a0/b1/c2/"});
              }},
         {.name = L"HighRepetitionsRelative",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(40, LazyString{L"a0/b1/c2/d3"}) ==
-                     L"a0/b1/c2/");
+               CHECK_EQ(GetInitialPromptValue(40, LazyString{L"a0/b1/c2/d3"})
+                            .contents(),
+                        LazyString{L"a0/b1/c2/"});
              }},
         {.name = L"HighRepetitionsAbsolute",
          .callback =
              [] {
-               CHECK(GetInitialPromptValue(40, LazyString{L"/a0/b1/c2/d3"}) ==
-                     L"/a0/b1/c2/");
+               CHECK_EQ(GetInitialPromptValue(40, LazyString{L"/a0/b1/c2/d3"})
+                            .contents(),
+                        LazyString{L"/a0/b1/c2/"});
              }},
     });
 }  // namespace
@@ -281,7 +299,7 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
         .history_file = HistoryFileFiles(),
         .initial_value =
             source_buffers.empty()
-                ? L""
+                ? Line{LazyString{}}
                 : GetInitialPromptValue(editor.modifiers().repetitions,
                                         source_buffers[0].ptr()->ReadLazyString(
                                             buffer_variables::path)),

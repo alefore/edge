@@ -11,6 +11,7 @@
 #include "src/futures/delete_notification.h"
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/tokenize.h"
+#include "src/language/text/line.h"
 #include "src/predictor.h"
 
 namespace afc::editor {
@@ -52,8 +53,8 @@ struct PromptOptions {
   // Name of the file with the history for this type of prompt.
   HistoryFile history_file;
 
-  // Optional. Initial value for the prompt. Defaults to empty.
-  std::wstring initial_value = L"";
+  // Optional. Initial value for the prompt.
+  language::text::Line initial_value = language::text::Line{};
 
   using ColorizeFunction = std::function<futures::Value<ColorizePromptOptions>(
       const language::lazy_string::LazyString& line,
