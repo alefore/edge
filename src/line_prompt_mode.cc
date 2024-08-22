@@ -20,6 +20,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/insert_mode.h"
 #include "src/language/container.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -632,9 +633,9 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
 
 class StatusVersionAdapter;
 
-gc::Root<OpenBuffer> GetPromptBuffer(EditorState& editor,
-                                     std::wstring prompt_contents_type,
-                                     Line initial_value) {
+futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
+    EditorState& editor, std::wstring prompt_contents_type,
+    Line initial_value) {
   BufferName name(L"- prompt");
   gc::Root<OpenBuffer> output =
       editor.buffer_registry().MaybeAdd(name, [&editor, &name] {
@@ -648,11 +649,16 @@ gc::Root<OpenBuffer> GetPromptBuffer(EditorState& editor,
   buffer.Set(buffer_variables::save_on_close, false);
   buffer.Set(buffer_variables::persist_state, false);
   buffer.Set(buffer_variables::completion_model_paths, L"");
-  buffer.Reload();
-  buffer.Set(buffer_variables::contents_type, prompt_contents_type);
-  buffer.ApplyToCursors(transformation::Insert{
-      .contents_to_insert = LineSequence::WithLine(initial_value)});
-  return output;
+  return buffer.Reload()
+      .ConsumeErrors([](Error) { return futures::Past(EmptyValue{}); })
+      .Transform([&buffer, prompt_contents_type, initial_value](EmptyValue) {
+        buffer.Set(buffer_variables::contents_type, prompt_contents_type);
+        return buffer.ApplyToCursors(transformation::Insert{
+            .contents_to_insert = LineSequence::WithLine(initial_value)});
+      })
+      .Transform([output = std::move(output)](EmptyValue) mutable {
+        return std::move(output);
+      });
 }
 
 // Holds the state required to show and update a prompt.
@@ -1219,20 +1225,24 @@ void Prompt(PromptOptions options) {
         history.ptr()->set_current_position_line(
             LineNumber(0) + history.ptr()->contents().size());
 
-        gc::Root<OpenBuffer> prompt_buffer =
+        futures::Value<gc::Root<OpenBuffer>> prompt_buffer_future =
             GetPromptBuffer(options.editor_state, options.prompt_contents_type,
                             Line(options.initial_value));
+        return std::move(prompt_buffer_future)
+            .Transform([options = std::move(options),
+                        history = std::move(history)](
+                           gc::Root<OpenBuffer> prompt_buffer) {
+              auto prompt_state =
+                  PromptState::New(options, history, std::move(prompt_buffer));
+              EnterInsertMode(prompt_state->insert_mode_options());
 
-        auto prompt_state =
-            PromptState::New(options, history, std::move(prompt_buffer));
-        EnterInsertMode(prompt_state->insert_mode_options());
-
-        // We do this after `EnterInsertMode` because `EnterInsertMode` resets
-        // the status.
-        prompt_state->status().set_prompt(options.prompt,
-                                          prompt_state->prompt_buffer());
-        prompt_state->OnModify();
-        return futures::Past(EmptyValue());
+              // We do this after `EnterInsertMode` because
+              // `EnterInsertMode` resets the status.
+              prompt_state->status().set_prompt(options.prompt,
+                                                prompt_state->prompt_buffer());
+              prompt_state->OnModify();
+              return futures::Past(EmptyValue());
+            });
       });
 }
 
