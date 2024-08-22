@@ -17,6 +17,7 @@ extern "C" {
 #include "src/command_mode.h"
 #include "src/completion_model.h"
 #include "src/concurrent/work_queue.h"
+#include "src/delay_input_receiver.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_link_mode.h"
@@ -71,6 +72,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ToByteString;
+using afc::language::VisitOptional;
 using afc::language::VisitOptionalCallback;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
@@ -1043,19 +1045,30 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
     buffer.status().SetInformationText(
         Line(buffer.fd() == nullptr ? L"🔡" : L"🔡 (raw)"));
 
-  options.editor_state.set_keyboard_redirect(
-      options.editor_state.gc_pool().NewRoot(MakeNonNullUnique<InsertMode>(
-          options,
-          options.editor_state.gc_pool()
-              .NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<OpenBuffer>>>(
-                  container::MaterializeVector(
-                      options.buffers.value_or(
-                          std::vector<gc::Root<OpenBuffer>>{}) |
-                      std::views::transform(
-                          [](const gc::Root<OpenBuffer>& buffer) {
-                            return buffer.ptr();
-                          }))))
-              .ptr())));
+  std::optional<gc::Root<InputReceiver>> optional_old_input_receiver =
+      options.editor_state.set_keyboard_redirect(
+          options.editor_state.gc_pool().NewRoot(MakeNonNullUnique<InsertMode>(
+              options,
+              options.editor_state.gc_pool()
+                  .NewRoot(MakeNonNullUnique<std::vector<gc::Ptr<OpenBuffer>>>(
+                      container::MaterializeVector(
+                          options.buffers.value_or(
+                              std::vector<gc::Root<OpenBuffer>>{}) |
+                          std::views::transform(
+                              [](const gc::Root<OpenBuffer>& buffer) {
+                                return buffer.ptr();
+                              }))))
+                  .ptr())));
+  VisitOptional(
+      [&](gc::Root<InputReceiver> old_input_receiver) {
+        if (const DelayInputReceiver* delay_input_receiver =
+                dynamic_cast<DelayInputReceiver*>(
+                    &old_input_receiver.ptr().value());
+            delay_input_receiver != nullptr)
+          options.editor_state.ProcessInput(delay_input_receiver->input());
+      },
+      [] {}, optional_old_input_receiver);
+
   if (std::ranges::any_of(
           options.buffers.value() | gc::view::Value, [](OpenBuffer& buffer) {
             return buffer.active_cursors().size() > 1 &&
@@ -1177,11 +1190,6 @@ void EnterInsertMode(InsertModeOptions options) {
             return true;
           };
         }
-
-        shared_options->editor_state.status().Reset();
-        for (OpenBuffer& buffer :
-             shared_options->buffers.value() | gc::view::Value)
-          buffer.status().Reset();
 
         if (shared_options->editor_state.structure() == Structure::kChar ||
             shared_options->editor_state.structure() == Structure::kLine) {

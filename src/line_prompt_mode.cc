@@ -13,6 +13,7 @@
 #include "src/command.h"
 #include "src/command_argument_mode.h"
 #include "src/command_mode.h"
+#include "src/delay_input_receiver.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
 #include "src/file_link_mode.h"
@@ -829,15 +830,15 @@ NonNull<std::unique_ptr<ProgressChannel>> PromptState::NewProgressChannel(
 futures::Value<EmptyValue> PromptState::OnModify() {
   Line line = prompt_buffer_.ptr()->contents().at(LineNumber());
 
-  auto status_value_viewer = MakeNonNullShared<StatusVersionAdapter>(
-      NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()));
-
   abort_notification_ = MakeNonNullShared<DeleteNotification>();
   auto abort_notification_value = abort_notification_->listenable_value();
 
   if (options().colorize_options_provider == nullptr ||
       status().GetType() != Status::Type::kPrompt)
     return futures::Past(EmptyValue());
+
+  auto status_value_viewer = MakeNonNullShared<StatusVersionAdapter>(
+      NonNull<std::shared_ptr<PromptState>>::Unsafe(shared_from_this()));
 
   return JoinValues(
              FilterHistory(editor_state(), history(), abort_notification_value,
@@ -1219,6 +1220,22 @@ InsertModeOptions PromptState::insert_mode_options() {
 void Prompt(PromptOptions options) {
   CHECK(options.handler != nullptr);
   EditorState& editor_state = options.editor_state;
+  NonNull<std::unique_ptr<InputReceiver>> delay_input_receiver =
+      MakeNonNullUnique<DelayInputReceiver>(
+          std::invoke([insertion = editor_state.modifiers().insertion] {
+            switch (insertion) {
+              case Modifiers::ModifyMode::kShift:
+                return EditorMode::CursorMode::kInserting;
+              case Modifiers::ModifyMode::kOverwrite:
+                return EditorMode::CursorMode::kOverwriting;
+            }
+            LOG(FATAL) << "Invalid insertion mode.";
+            return EditorMode::CursorMode::kDefault;
+          }));
+
+  editor_state.set_keyboard_redirect(
+      options.editor_state.gc_pool().NewRoot(std::move(delay_input_receiver)));
+
   HistoryFile history_file = options.history_file;
   GetHistoryBuffer(editor_state, history_file)
       .Transform([options = std::move(options)](gc::Root<OpenBuffer> history) {
@@ -1234,12 +1251,10 @@ void Prompt(PromptOptions options) {
                            gc::Root<OpenBuffer> prompt_buffer) {
               auto prompt_state =
                   PromptState::New(options, history, std::move(prompt_buffer));
-              EnterInsertMode(prompt_state->insert_mode_options());
-
-              // We do this after `EnterInsertMode` because
-              // `EnterInsertMode` resets the status.
               prompt_state->status().set_prompt(options.prompt,
                                                 prompt_state->prompt_buffer());
+              EnterInsertMode(prompt_state->insert_mode_options());
+
               prompt_state->OnModify();
               return futures::Past(EmptyValue());
             });

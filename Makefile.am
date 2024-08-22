@@ -72,6 +72,8 @@ src/concurrent/version_property_receiver.cc \
 src/concurrent/version_property_receiver.h \
 src/concurrent/work_queue.cc \
 src/concurrent/work_queue.h \
+src/delay_input_receiver.cc \
+src/delay_input_receiver.h \
 src/direction.cc \
 src/directory_listing.h \
 src/directory_listing.cc \
