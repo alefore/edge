@@ -647,7 +647,9 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
               ConstructorAccessKey)
       : options_(std::move(options)),
         history_(std::move(history)),
-        prompt_buffer_(GetPromptBuffer()),
+        prompt_buffer_(GetPromptBuffer(options_.editor_state,
+                                       options_.prompt_contents_type,
+                                       Line(options_.initial_value))),
         status_buffer_([&]() -> std::optional<gc::Root<OpenBuffer>> {
           if (options.status == PromptOptions::Status::kEditor)
             return std::nullopt;
@@ -684,12 +686,13 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
   NonNull<std::unique_ptr<ProgressChannel>> NewProgressChannel(
       NonNull<std::shared_ptr<StatusVersionAdapter>> status_value_viewer);
 
-  gc::Root<OpenBuffer> GetPromptBuffer() const {
+  static gc::Root<OpenBuffer> GetPromptBuffer(EditorState& editor,
+                                              std::wstring prompt_contents_type,
+                                              Line initial_value) {
     BufferName name(L"- prompt");
     gc::Root<OpenBuffer> output =
-        options_.editor_state.buffer_registry().MaybeAdd(name, [&] {
-          return OpenBuffer::New(
-              {.editor = options_.editor_state, .name = name});
+        editor.buffer_registry().MaybeAdd(name, [&editor, &name] {
+          return OpenBuffer::New({.editor = editor, .name = name});
         });
 
     OpenBuffer& buffer = output.ptr().value();
@@ -700,15 +703,10 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     buffer.Set(buffer_variables::persist_state, false);
     buffer.Set(buffer_variables::completion_model_paths, L"");
     buffer.Reload();
-    InitializePromptBuffer(buffer);
+    buffer.Set(buffer_variables::contents_type, prompt_contents_type);
+    buffer.ApplyToCursors(transformation::Insert{
+        .contents_to_insert = LineSequence::WithLine(initial_value)});
     return output;
-  }
-
-  void InitializePromptBuffer(OpenBuffer& buffer) const {
-    buffer.Set(buffer_variables::contents_type, options_.prompt_contents_type);
-    buffer.ApplyToCursors(transformation::Insert(
-        {.contents_to_insert =
-             LineSequence::WithLine(Line(options_.initial_value))}));
   }
 
   // status_buffer is the buffer with the contents of the prompt. tokens_future
