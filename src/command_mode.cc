@@ -476,25 +476,28 @@ void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<bool>* variable,
                     MapModeCommands& map_mode) {
-  auto name = variable->name();
-  std::wstring command;
+  // TODO(2024-08-23): Drop explicit LazyString conversion.
+  LazyString name = LazyString{variable->name()};
+  LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
-      command = L"// Variables: Toggle buffer variable (bool): " + name +
-                L"\neditor.ForEachActiveBuffer([](Buffer buffer) -> void {\n"
-                L"buffer.set_" +
-                name + L"(editor.repetitions() == 0 ? false : !buffer." + name +
-                L"()); buffer.SetStatus((buffer." + name +
-                L"() ? \"🗸\" : \"⛶\") + \" " + name +
-                L"\"); }); editor.set_repetitions(1);";
+      command =
+          LazyString{L"// Variables: Toggle buffer variable (bool): "} + name +
+          LazyString{
+              L"\neditor.ForEachActiveBuffer([](Buffer buffer) -> void {\n"
+              L"buffer.set_"} +
+          name + LazyString{L"(editor.repetitions() == 0 ? false : !buffer."} +
+          name + LazyString{L"()); buffer.SetStatus((buffer."} + name +
+          LazyString{L"() ? \"🗸\" : \"⛶\") + \" "} + name +
+          LazyString{L"\"); }); editor.set_repetitions(1);"};
       break;
     case VariableLocation::kEditor:
-      command = L"// Variables: Toggle editor variable: " + name +
-                L"\neditor.set_" + name +
-                L"(editor.repetitions() == 0 ? false : !editor." + name +
-                L"()); editor.SetStatus((editor." + name +
-                L"() ? \"🗸\" : \"⛶\") + \" " + name +
-                L"\"); editor.set_repetitions(1);";
+      command = LazyString{L"// Variables: Toggle editor variable: "} + name +
+                LazyString{L"\neditor.set_"} + name +
+                LazyString{L"(editor.repetitions() == 0 ? false : !editor."} +
+                name + LazyString{L"()); editor.SetStatus((editor."} + name +
+                LazyString{L"() ? \"🗸\" : \"⛶\") + \" "} + name +
+                LazyString{L"\"); editor.set_repetitions(1);"};
       break;
   }
   VLOG(5) << "Command: " << command;
@@ -526,11 +529,14 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   VLOG(5) << "Command: " << command;
-  map_mode.Add(VectorExtendedChar(L"v" + variable->key()),
-               ValueOrDie(NewCppCommand(editor_state,
-                                        editor_state.environment(), command),
-                          L"ToggleVariable<std::wstring> Definition")
-                   .ptr());
+  // TODO(trivial, 2024-08-23): Change `command` to be a LazyString and avoid
+  // the conversion below.
+  map_mode.Add(
+      VectorExtendedChar(L"v" + variable->key()),
+      ValueOrDie(NewCppCommand(editor_state, editor_state.environment(),
+                               LazyString{command}),
+                 L"ToggleVariable<std::wstring> Definition")
+          .ptr());
 }
 
 void ToggleVariable(EditorState& editor_state,
@@ -558,11 +564,14 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   VLOG(5) << "Command: " << command;
-  map_mode.Add(VectorExtendedChar(L"v" + variable->key()),
-               ValueOrDie(NewCppCommand(editor_state,
-                                        editor_state.environment(), command),
-                          L"ToggleVariable<int> definition")
-                   .ptr());
+  // TODO(trivial, 2024-08-23): Change `command` to be a LazyString and avoid
+  // the conversion below.
+  map_mode.Add(
+      VectorExtendedChar(L"v" + variable->key()),
+      ValueOrDie(NewCppCommand(editor_state, editor_state.environment(),
+                               LazyString{command}),
+                 L"ToggleVariable<int> definition")
+          .ptr());
 }
 
 template <typename T>
