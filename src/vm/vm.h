@@ -1,16 +1,9 @@
 #ifndef __AFC_VM_PUBLIC_VM_H__
 #define __AFC_VM_PUBLIC_VM_H__
 
-#include <functional>
-#include <list>
-#include <map>
 #include <memory>
-#include <string>
-#include <unordered_set>
 #include <utility>
-#include <vector>
 
-#include "src/futures/futures.h"
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
