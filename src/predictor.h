@@ -124,8 +124,9 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput input);
 
 futures::Value<PredictorOutput> EmptyPredictor(PredictorInput input);
 
-Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
-                               wchar_t separator);
+Predictor PrecomputedPredictor(
+    const std::vector<language::lazy_string::LazyString>& predictions,
+    wchar_t separator);
 
 Predictor DictionaryPredictor(language::gc::Root<const OpenBuffer> dictionary);
 

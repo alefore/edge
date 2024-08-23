@@ -416,20 +416,17 @@ std::vector<LazyString> RegisterVariations(LazyString prediction,
 
 }  // namespace
 
-Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
+Predictor PrecomputedPredictor(const std::vector<LazyString>& predictions,
                                wchar_t separator) {
   const NonNull<std::shared_ptr<std::multimap<LazyString, LazyString>>>
       contents;
-  for (const std::wstring& prediction_raw : predictions) {
-    // TODO(2024-08-23, trivial): Avoid conversion to LazyString here.
-    const LazyString prediction{prediction_raw};
+  for (const LazyString& prediction : predictions)
     std::ranges::copy(
         RegisterVariations(prediction, separator) |
             std::views::transform([&prediction](const LazyString& key) {
               return std::make_pair(key, prediction);
             }),
         std::inserter(contents.value(), contents->end()));
-  }
   return [contents](PredictorInput input) {
     MutableLineSequence output_contents;
     for (auto it = contents->lower_bound(input.input); it != contents->end();
@@ -456,7 +453,9 @@ namespace {
 const bool buffer_tests_registration =
     tests::Register(L"PrecomputedPredictor", [] {
       const static Predictor test_predictor = PrecomputedPredictor(
-          {L"foo", L"bar", L"bard", L"foo_bar", L"alejo"}, L'_');
+          {LazyString{L"foo"}, LazyString{L"bar"}, LazyString{L"bard"},
+           LazyString{L"foo_bar"}, LazyString{L"alejo"}},
+          L'_');
       auto predict = [&](std::wstring input) {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         PredictorOutput output =

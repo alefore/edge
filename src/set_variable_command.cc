@@ -64,7 +64,9 @@ Predictor VariablesPredictor() {
                           buffer_variables::IntStruct()->VariableNames()),
                       container::MaterializeVector(
                           buffer_variables::DoubleStruct()->VariableNames())} |
-          std::views::join),
+          std::views::join |
+          // TODO(easy, 2024-08-23): Avoid conversion to LazyString here.
+          std::views::transform([](std::wstring i) { return LazyString{i}; })),
       '_');
 }
 }  // namespace
