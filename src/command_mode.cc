@@ -516,12 +516,15 @@ void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<std::wstring>* variable,
                     MapModeCommands& map_mode) {
-  auto name = variable->name();
-  std::wstring command;
+  // TODO(trivial, 2024-08-23): Change variable->name to return LazyString and
+  // avoid conversion.
+  LazyString name{variable->name()};
+  LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
-      command = L"// Variables: Toggle buffer variable (string): " + name +
-                L"\neditor.SetVariablePrompt(\"" + name + L"\");";
+      command = LazyString{L"// Variables: Toggle buffer variable (string): "} +
+                name + LazyString{L"\neditor.SetVariablePrompt(\""} + name +
+                LazyString{L"\");"};
       break;
     case VariableLocation::kEditor:
       // TODO: Implement.
@@ -529,14 +532,11 @@ void ToggleVariable(EditorState& editor_state,
       break;
   }
   VLOG(5) << "Command: " << command;
-  // TODO(trivial, 2024-08-23): Change `command` to be a LazyString and avoid
-  // the conversion below.
-  map_mode.Add(
-      VectorExtendedChar(L"v" + variable->key()),
-      ValueOrDie(NewCppCommand(editor_state, editor_state.environment(),
-                               LazyString{command}),
-                 L"ToggleVariable<std::wstring> Definition")
-          .ptr());
+  map_mode.Add(VectorExtendedChar(L"v" + variable->key()),
+               ValueOrDie(NewCppCommand(editor_state,
+                                        editor_state.environment(), command),
+                          L"ToggleVariable<std::wstring> Definition")
+                   .ptr());
 }
 
 void ToggleVariable(EditorState& editor_state,
@@ -544,34 +544,36 @@ void ToggleVariable(EditorState& editor_state,
                     const EdgeVariable<int>* variable,
                     MapModeCommands& map_mode) {
   // TODO: Honor variable_location.
-  auto name = variable->name();
-  std::wstring command;
+  // TODO(trivial, 2024-08-23): Change variable->name to return LazyString and
+  // avoid conversion.
+  LazyString name{variable->name()};
+  LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
-      command = L"// Variables: Toggle buffer variable (int): " + name +
-                L"\neditor.ForEachActiveBuffer([](Buffer buffer) -> void {\n"
-                L"buffer.set_" +
-                name + L"(editor.repetitions());buffer.SetStatus(\"" + name +
-                L" := \" + buffer." + name +
-                L"().tostring()); }); editor.set_repetitions(1);\n";
+      command =
+          LazyString{L"// Variables: Toggle buffer variable (int): "} + name +
+          LazyString{
+              L"\neditor.ForEachActiveBuffer([](Buffer buffer) -> void {\n"
+              L"buffer.set_"} +
+          name + LazyString{L"(editor.repetitions());buffer.SetStatus(\""} +
+          name + LazyString{L" := \" + buffer."} + name +
+          LazyString{L"().tostring()); }); editor.set_repetitions(1);\n"};
       break;
     case VariableLocation::kEditor:
-      command = L"// Variables: Toggle editor variable (int): " + name +
-                L"\neditor.set_" + name +
-                L"(editor.repetitions());editor.SetStatus(\"editor." + name +
-                L" := \" + editor." + name +
-                L"().tostring());editor.set_repetitions(1);\n";
+      command =
+          LazyString{L"// Variables: Toggle editor variable (int): "} + name +
+          LazyString{L"\neditor.set_"} + name +
+          LazyString{L"(editor.repetitions());editor.SetStatus(\"editor."} +
+          name + LazyString{L" := \" + editor."} + name +
+          LazyString{L"().tostring());editor.set_repetitions(1);\n"};
       break;
   }
   VLOG(5) << "Command: " << command;
-  // TODO(trivial, 2024-08-23): Change `command` to be a LazyString and avoid
-  // the conversion below.
-  map_mode.Add(
-      VectorExtendedChar(L"v" + variable->key()),
-      ValueOrDie(NewCppCommand(editor_state, editor_state.environment(),
-                               LazyString{command}),
-                 L"ToggleVariable<int> definition")
-          .ptr());
+  map_mode.Add(VectorExtendedChar(L"v" + variable->key()),
+               ValueOrDie(NewCppCommand(editor_state,
+                                        editor_state.environment(), command),
+                          L"ToggleVariable<int> definition")
+                   .ptr());
 }
 
 template <typename T>
