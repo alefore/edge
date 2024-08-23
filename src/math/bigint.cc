@@ -998,12 +998,6 @@ const bool non_zero_big_int_gcd_tests =
     }());
 }  // namespace
 
-// TODO(trivial, 2024-08-23): This shouldn't be necessary. This should be
-// handled by GhostType.
-bool operator==(const NonZeroBigInt& a, const NonZeroBigInt& b) {
-  return a.read() == b.read();
-}
-
 namespace {
 const auto non_zero_big_int_eq_tests = tests::Register(
     L"numbers::NonZeroBigInt::OperatorEq",
@@ -1039,12 +1033,6 @@ const auto non_zero_big_int_modulo_tests = tests::Register(
          }}});
 }  // namespace
 
-// TODO(trivial, 2024-08-23): This shouldn't be necessary. This should be
-// handled by GhostType.
-std::ostream& operator<<(std::ostream& os, const NonZeroBigInt& p) {
-  return os << p.read();
-}
-
 namespace {
 const bool non_zero_big_int_ostream_tests_registration =
     tests::Register(L"numbers::NonZeroBigInt::OstreamOperator", [] {
@@ -1059,8 +1047,9 @@ const bool non_zero_big_int_ostream_tests_registration =
       };
 
       return std::vector<tests::Test>(
-          {test(L"Simple", NonZeroBigInt::Constant<42>(), "42"),
-           test(L"MultipleDigits", NonZeroBigInt::Constant<1234>(), "1234")});
+          {test(L"Simple", NonZeroBigInt::Constant<42>(), "[:42]"),
+           test(L"MultipleDigits", NonZeroBigInt::Constant<1234>(),
+                "[:1234]")});
     }());
 }  // namespace
 
