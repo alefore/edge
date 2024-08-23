@@ -617,10 +617,12 @@ ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileFile(
   return ResultsFromCompilation(std::move(compilation));
 }
 
-ValueOrError<NonNull<std::unique_ptr<Expression>>> CompileString(
-    const std::wstring& str, gc::Pool& pool,
-    gc::Root<Environment> environment) {
-  std::wstringstream instr(str, std::ios_base::in);
+language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
+CompileString(const LazyString& str, language::gc::Pool& pool,
+              language::gc::Root<Environment> environment) {
+  // TODO(easy, 2024-08-23): Find a better way, calling `CompileLine` directly,
+  // similar to what `CompileStream` does.
+  std::wstringstream instr(str.ToString(), std::ios_base::in);
   Compilation compilation(pool, std::move(environment));
   compilation.PushSource(std::nullopt);
   CompileStream(instr, compilation, GetParser(compilation).get());

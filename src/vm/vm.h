@@ -14,6 +14,7 @@
 #include "src/infrastructure/dirname.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/gc.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/vm/expression.h"
 #include "src/vm/types.h"
@@ -33,7 +34,8 @@ CompileFile(infrastructure::Path path, language::gc::Pool& pool,
             language::gc::Root<Environment> environment);
 
 language::ValueOrError<language::NonNull<std::unique_ptr<Expression>>>
-CompileString(const std::wstring& str, language::gc::Pool& pool,
+CompileString(const language::lazy_string::LazyString& str,
+              language::gc::Pool& pool,
               language::gc::Root<Environment> environment);
 
 }  // namespace vm

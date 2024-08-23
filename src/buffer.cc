@@ -1143,10 +1143,9 @@ ValueOrError<
     std::pair<NonNull<std::unique_ptr<Expression>>, gc::Root<Environment>>>
 OpenBuffer::CompileString(const LazyString& code) const {
   gc::Root<Environment> sub_environment = Environment::New(environment_);
-  // TODO(trivial, 2023-12-31): Remove call to ToString.
-  ASSIGN_OR_RETURN(NonNull<std::unique_ptr<Expression>> expression,
-                   afc::vm::CompileString(code.ToString(), editor().gc_pool(),
-                                          sub_environment));
+  ASSIGN_OR_RETURN(
+      NonNull<std::unique_ptr<Expression>> expression,
+      afc::vm::CompileString(code, editor().gc_pool(), sub_environment));
   return std::make_pair(std::move(expression), sub_environment);
 }
 
