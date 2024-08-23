@@ -419,25 +419,22 @@ void RegisterVariations(const std::wstring& prediction, wchar_t separator,
 
 Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
                                wchar_t separator) {
-  const auto contents =
-      std::make_shared<std::multimap<std::wstring, LazyString>>();
+  const NonNull<std::shared_ptr<std::multimap<LazyString, LazyString>>>
+      contents;
   for (const std::wstring& prediction_raw : predictions) {
     std::vector<std::wstring> variations;
     RegisterVariations(prediction_raw, separator, &variations);
     const LazyString prediction{prediction_raw};
     for (auto& variation : variations) {
-      contents->insert(make_pair(variation, prediction));
+      // TODO(2024-08-23, trivial): Avoid conversion to LazyString here.
+      contents->insert(make_pair(LazyString{variation}, prediction));
     }
   }
   return [contents](PredictorInput input) {
-    // TODO(2023-12-02): Find a way to avoid the call to `ToString`.
-    std::wstring input_str = input.input.ToString();
     MutableLineSequence output_contents;
-    for (auto it = contents->lower_bound(input_str); it != contents->end();
+    for (auto it = contents->lower_bound(input.input); it != contents->end();
          ++it) {
-      if (auto result =
-              mismatch(input_str.begin(), input_str.end(), (*it).first.begin());
-          result.first == input_str.end()) {
+      if (StartsWith((*it).first, input.input)) {
         output_contents.push_back(LineBuilder(it->second).Build());
       } else {
         break;
