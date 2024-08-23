@@ -34,8 +34,8 @@ Number Number::operator+(Number other) && {
   if (!positive_) return std::move(other) - std::move(*this).Negate();
   if (!other.positive_) return std::move(*this) - std::move(other).Negate();
 
-  BigInt new_numerator = std::move(numerator_) * other.denominator_.value() +
-                         denominator_.value() * std::move(other.numerator_);
+  BigInt new_numerator = std::move(numerator_) * other.denominator_.read() +
+                         denominator_.read() * std::move(other.numerator_);
   NonZeroBigInt new_denominator =
       std::move(denominator_) * std::move(other.denominator_);
   return Number(true, std::move(new_numerator), std::move(new_denominator));
@@ -48,8 +48,8 @@ Number Number::operator-(Number other) && {
     return (std::move(*this).Negate() + std::move(other)).Negate();
   if (!other.positive_) return std::move(*this) + std::move(other);
 
-  BigInt a = std::move(numerator_) * other.denominator_.value();
-  BigInt b = std::move(other.numerator_) * denominator_.value();
+  BigInt a = std::move(numerator_) * other.denominator_.read();
+  BigInt b = std::move(other.numerator_) * denominator_.read();
   BigInt new_numerator = ValueOrDie(a >= b ? std::move(a) - std::move(b)
                                            : std::move(b) - std::move(a));
   NonZeroBigInt new_denominator =
@@ -80,7 +80,7 @@ ValueOrError<Number> Number::Reciprocal() && {
                  return Error{LazyString{L"Zero has no reciprocal."}};
                },
                [&](NonZeroBigInt new_denominator) -> ValueOrError<Number> {
-                 return Number{positive_, std::move(denominator_).value(),
+                 return Number{positive_, std::move(denominator_).read(),
                                std::move(new_denominator)};
                }},
       NonZeroBigInt::New(std::move(numerator_)));
@@ -97,13 +97,13 @@ void Number::Optimize() {
                      non_zero_numerator.GreatestCommonDivisor(denominator_);
                  {
                    BigIntDivideOutput divided_numerator =
-                       Divide(std::move(non_zero_numerator).value(), gcd);
+                       Divide(std::move(non_zero_numerator).read(), gcd);
                    CHECK(divided_numerator.remainder.IsZero());
                    numerator_ = divided_numerator.quotient;
                  }
                  {
                    BigIntDivideOutput divided_denominator =
-                       Divide(std::move(denominator_).value(), gcd);
+                       Divide(std::move(denominator_).read(), gcd);
                    CHECK(divided_denominator.remainder.IsZero());
                    // TODO(2024-04-09, P2): Find a way to use types to
                    // avoid this ValueOrDie:
@@ -365,7 +365,7 @@ const bool to_size_t_tests_registration = tests::Register(
 
 ValueOrError<double> Number::ToDouble() const {
   DECLARE_OR_RETURN(double numerator_double, numerator_.ToDouble());
-  DECLARE_OR_RETURN(double denominator_double, denominator_.value().ToDouble());
+  DECLARE_OR_RETURN(double denominator_double, denominator_.read().ToDouble());
   return numerator_double / denominator_double;
 }
 
@@ -464,8 +464,7 @@ Number Number::Pow(BigInt exponent) && {
 
 bool Number::operator==(const Number& other) const {
   return positive_ == other.positive_ &&
-         numerator_ * other.denominator_.value() ==
-             denominator_.value() * other.numerator_;
+         numerator_ * other.denominator_ == denominator_ * other.numerator_;
 }
 
 bool Number::operator>(const Number& other) const {
@@ -473,8 +472,8 @@ bool Number::operator>(const Number& other) const {
     return Number{*this}.Negate() < Number{other}.Negate();
   if (!other.positive_) return true;
   if (!positive_) return false;
-  return numerator_ * other.denominator_.value() >
-         other.numerator_ * denominator_.value();
+  return numerator_ * other.denominator_.read() >
+         other.numerator_ * denominator_.read();
 }
 
 bool Number::operator<(const Number& other) const { return other > *this; }

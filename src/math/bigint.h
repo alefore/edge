@@ -110,9 +110,6 @@ struct NonZeroBigIntValidator {
 class NonZeroBigInt : public language::GhostType<NonZeroBigInt, BigInt,
                                                  NonZeroBigIntValidator> {
  public:
-  // TODO(trivial, 2024-08-13): Remove.
-  const BigInt& value() const { return read(); }
-
   template <int N>
   static NonZeroBigInt Constant() {
     static_assert(N > 0, "N must be greater than 0.");

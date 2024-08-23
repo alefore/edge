@@ -586,16 +586,14 @@ BigIntDivideOutput Divide(BigInt numerator, NonZeroBigInt denominator) {
 
     // Largest number such that denominator * x <= current_dividend:
     size_t x = 0;
-    while (denominator.value() * BigInt::FromNumber(x + 1) <=
-           current_dividend) {
+    while (denominator.read() * BigInt::FromNumber(x + 1) <= current_dividend) {
       ++x;
       CHECK_LE(x, 10UL);
     }
 
     if (x > 0)
-      current_dividend =
-          ValueOrDie(std::move(current_dividend) -
-                     denominator.value() * BigInt::FromNumber(x));
+      current_dividend = ValueOrDie(std::move(current_dividend) -
+                                    denominator.read() * BigInt::FromNumber(x));
     CHECK_LE(x, 9ul);
     quotient.digits.insert(quotient.digits.begin(), x);
   }
@@ -876,7 +874,7 @@ const bool non_zero_big_int_factory_tests_registration = tests::Register(
         {.name = L"Positive", .callback = [] {
            CHECK_EQ(
                ValueOrDie(NonZeroBigInt::New(BigInt::FromNumber(1)), L"tests")
-                   .value(),
+                   .read(),
                BigInt::FromNumber(1));
          }}});
 }  // namespace
@@ -885,9 +883,8 @@ namespace {
 const bool non_zero_big_int_value_tests_registration = tests::Register(
     L"numbers::NonZeroBigInt::Value",
     std::vector<tests::Test>{{.name = L"Constant", .callback = [] {
-                                CHECK_EQ(
-                                    NonZeroBigInt::Constant<7385>().value(),
-                                    BigInt::FromNumber(7385));
+                                CHECK_EQ(NonZeroBigInt::Constant<7385>().read(),
+                                         BigInt::FromNumber(7385));
                               }}});
 }  // namespace
 
@@ -907,7 +904,7 @@ const bool non_zero_big_int_multiplication_tests_registration = tests::Register(
                                   [] {
                                     CHECK_EQ((NonZeroBigInt::Constant<7385>() *
                                               NonZeroBigInt::Constant<1>())
-                                                 .value(),
+                                                 .read(),
                                              BigInt::FromNumber(7385));
                                   }},
                              {.name = L"Numbers", .callback = [] {
@@ -962,7 +959,7 @@ NonZeroBigInt NonZeroBigInt::GreatestCommonDivisor(
   ValueOrError<NonZeroBigInt> b = other;
 
   while (!IsError(b)) {
-    BigInt remainder = a.value() % std::get<NonZeroBigInt>(b);
+    BigInt remainder = a.read() % std::get<NonZeroBigInt>(b);
     a = ValueOrDie(std::move(b));
     b = NonZeroBigInt::New(remainder);
   }
@@ -983,7 +980,7 @@ const bool non_zero_big_int_gcd_tests =
               CHECK(result == ValueOrDie(NonZeroBigInt::New(
                                   BigInt::FromNumber(expectation))))
                   << "Unexpected GCD result for: " << input1 << " and "
-                  << input2 << " yields " << result.value()
+                  << input2 << " yields " << result.read()
                   << ", expected: " << expectation;
             }};
       };
@@ -1001,8 +998,10 @@ const bool non_zero_big_int_gcd_tests =
     }());
 }  // namespace
 
+// TODO(trivial, 2024-08-23): This shouldn't be necessary. This should be
+// handled by GhostType.
 bool operator==(const NonZeroBigInt& a, const NonZeroBigInt& b) {
-  return a.value() == b.value();
+  return a.read() == b.read();
 }
 
 namespace {
@@ -1040,8 +1039,10 @@ const auto non_zero_big_int_modulo_tests = tests::Register(
          }}});
 }  // namespace
 
+// TODO(trivial, 2024-08-23): This shouldn't be necessary. This should be
+// handled by GhostType.
 std::ostream& operator<<(std::ostream& os, const NonZeroBigInt& p) {
-  return os << p.value();
+  return os << p.read();
 }
 
 namespace {
