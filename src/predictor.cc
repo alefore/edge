@@ -397,22 +397,21 @@ futures::Value<PredictorOutput> EmptyPredictor(PredictorInput) {
 }
 
 namespace {
-void RegisterVariations(const std::wstring& prediction, wchar_t separator,
-                        std::vector<std::wstring>* output) {
-  size_t start = 0;
+std::vector<LazyString> RegisterVariations(LazyString prediction,
+                                           wchar_t separator) {
+  std::vector<LazyString> output;
   DVLOG(5) << "Generating predictions for: " << prediction;
   while (true) {
-    start = prediction.find_first_not_of(separator, start);
-    if (start == std::wstring::npos) {
-      return;
-    }
-    output->push_back(prediction.substr(start));
-    DVLOG(6) << "Prediction: " << output->back();
-    start = prediction.find_first_of(separator, start);
-    if (start == std::wstring::npos) {
-      return;
-    }
+    std::optional<ColumnNumber> next = FindFirstNotOf(prediction, {separator});
+    if (next == std::nullopt) return output;
+    prediction = prediction.Substring(*next);
+    output.push_back(prediction);
+    DVLOG(6) << "Prediction: " << prediction;
+    next = FindFirstOf(prediction, {separator});
+    if (next == std::nullopt) return output;
+    prediction = prediction.Substring(*next);
   }
+  return output;
 }
 
 }  // namespace
@@ -422,13 +421,14 @@ Predictor PrecomputedPredictor(const std::vector<std::wstring>& predictions,
   const NonNull<std::shared_ptr<std::multimap<LazyString, LazyString>>>
       contents;
   for (const std::wstring& prediction_raw : predictions) {
-    std::vector<std::wstring> variations;
-    RegisterVariations(prediction_raw, separator, &variations);
+    // TODO(2024-08-23, trivial): Avoid conversion to LazyString here.
     const LazyString prediction{prediction_raw};
-    for (auto& variation : variations) {
-      // TODO(2024-08-23, trivial): Avoid conversion to LazyString here.
-      contents->insert(make_pair(LazyString{variation}, prediction));
-    }
+    std::ranges::copy(
+        RegisterVariations(prediction, separator) |
+            std::views::transform([&prediction](const LazyString& key) {
+              return std::make_pair(key, prediction);
+            }),
+        std::inserter(contents.value(), contents->end()));
   }
   return [contents](PredictorInput input) {
     MutableLineSequence output_contents;
