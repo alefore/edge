@@ -713,18 +713,16 @@ class InsertMode : public InputReceiver {
                     .Transform([buffer_root,
                                 token](DictionaryManager::QueryOutput output) {
                       std::visit(
-                          overload{
-                              [](DictionaryManager::NothingFound) {},
-                              [&](DictionaryManager::Suggestion suggestion) {
-                                ShowSuggestion(buffer_root.ptr().value(),
-                                               suggestion.key, token.read());
-                              },
-                              [&](DictionaryManager::WordData word_data) {
-                                if (word_data.replacement.has_value())
-                                  ShowSuggestion(buffer_root.ptr().value(),
-                                                 token,
-                                                 word_data.replacement.value());
-                              }},
+                          overload{[](DictionaryManager::NothingFound) {},
+                                   [&](DictionaryKey key) {
+                                     ShowSuggestion(
+                                         buffer_root.ptr().value(), key,
+                                         DictionaryValue{token.read()});
+                                   },
+                                   [&](DictionaryValue value) {
+                                     ShowSuggestion(buffer_root.ptr().value(),
+                                                    token, value);
+                                   }},
                           output);
                       return futures::Past(EmptyValue{});
                     });
@@ -934,12 +932,12 @@ class InsertMode : public InputReceiver {
   }
 
   static void ShowSuggestion(OpenBuffer& buffer, DictionaryKey key,
-                             LazyString value) {
+                             DictionaryValue value) {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
         buffer.status().SetExpiringInformationText(LineBuilder{
             LazyString{L"`"} + key.read() + LazyString{L"` is an alias for `"} +
-            value + LazyString{L"`"}}.Build()));
+            value.read() + LazyString{L"`"}}.Build()));
   }
 
   static futures::Value<EmptyValue> ApplyCompletionModel(
@@ -1000,19 +998,15 @@ class InsertMode : public InputReceiver {
                token_range = LineRange(
                    LineColumn(position.line, position.column - token.size()),
                    token.size()),
-               modify_mode](DictionaryManager::WordData word_data) {
-                if (!word_data.replacement.has_value())
-                  return futures::Past(EmptyValue());
+               modify_mode](DictionaryValue value) {
                 transformation::Stack stack;
                 stack.push_back(transformation::Delete{
                     .range = token_range.read(),
                     .initiator = transformation::Delete::Initiator::kInternal});
-                const ColumnNumberDelta completion_text_size =
-                    word_data.replacement.value().size();
+                const ColumnNumberDelta completion_text_size = value.size();
                 stack.push_back(transformation::Insert{
                     .contents_to_insert = LineSequence::WithLine(
-                        LineBuilder(std::move(word_data.replacement.value()))
-                            .Build()),
+                        LineBuilder(std::move(value).read()).Build()),
                     .modifiers = {.insertion = modify_mode},
                     .position = token_range.read().begin()});
                 stack.push_back(transformation::SetPosition(
@@ -1020,9 +1014,9 @@ class InsertMode : public InputReceiver {
                     ColumnNumberDelta(1)));
                 return buffer_root.ptr()->ApplyToCursors(std::move(stack));
               },
-              [buffer_root, token](DictionaryManager::Suggestion suggestion) {
-                ShowSuggestion(buffer_root.ptr().value(), suggestion.key,
-                               token.read());
+              [buffer_root, token](DictionaryKey key) {
+                ShowSuggestion(buffer_root.ptr().value(), key,
+                               DictionaryValue{token.read()});
                 return futures::Past(EmptyValue());
               },
               [](DictionaryManager::NothingFound) {

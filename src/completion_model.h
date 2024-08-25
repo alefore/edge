@@ -17,30 +17,27 @@ struct DictionaryKey
     : public language::GhostType<DictionaryKey,
                                  language::lazy_string::LazyString> {};
 
+struct DictionaryValue
+    : public language::GhostType<DictionaryValue,
+                                 language::lazy_string::LazyString> {};
+
 class DictionaryManager {
  public:
-  // Suggest that the input key should be replaced with this text.
-  struct WordData {
-    using Text = language::lazy_string::LazyString;
-    std::optional<Text> replacement;
-
-    bool operator==(const WordData&) const;
-  };
-
   struct NothingFound {};
-
-  // The key given to Query is actually the expansion of a different key. We
-  // shoud suggest that the user should have used the other key.
-  struct Suggestion {
-    DictionaryKey key;
-  };
 
   using BufferLoader =
       std::function<futures::Value<language::text::LineSequence>(
           infrastructure::Path)>;
   DictionaryManager(BufferLoader buffer_loader);
 
-  using QueryOutput = std::variant<WordData, Suggestion, NothingFound>;
+  // We return:
+  // * A DictionaryValue if we want to suggest that the key should be
+  //   expanded to a given value.
+  // * A DictionaryKey if we want to suggest that the user should have typed a
+  //   different (shorter) key to produce the key given. In other words, the
+  //   output key would have expanded to the input.
+  using QueryOutput =
+      std::variant<DictionaryValue, DictionaryKey, NothingFound>;
   futures::Value<QueryOutput> Query(std::vector<infrastructure::Path> models,
                                     DictionaryKey key);
 
@@ -65,7 +62,7 @@ class DictionaryManager {
 
   struct Data {
     ModelsMap models;
-    std::map<std::wstring, std::map<infrastructure::Path, DictionaryKey>>
+    std::map<DictionaryValue, std::map<infrastructure::Path, DictionaryKey>>
         reverse_table;
   };
 
