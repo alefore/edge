@@ -85,7 +85,7 @@ void Range::set_end_column(ColumnNumber value) {
 /* static */ PossibleError LineRangeValidator::Validate(const Range& input) {
   if (input.begin().line != input.end().line)
     return Error{LazyString{L"Range spans multiple lines."}};
-  CHECK_GT(input.end().column, input.begin().column);
+  CHECK_GE(input.end().column, input.begin().column);
   return Success();
 }
 
@@ -100,7 +100,6 @@ LineRange::LineRange(LineColumn begin, ColumnNumberDelta size)
 
 LineNumber LineRange::line() const { return read().begin().line; }
 
-bool LineRange::IsEmpty() const { return read().IsEmpty(); }
 ColumnNumber LineRange::begin_column() const { return read().begin().column; }
 ColumnNumber LineRange::end_column() const { return read().end().column; }
 
