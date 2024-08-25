@@ -47,13 +47,13 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
   explicit WorkQueue(ConstructorAccessTag);
 
   struct Callback {
-    struct timespec time = infrastructure::Now();
+    infrastructure::Time time = infrastructure::Now();
     language::OnceOnlyFunction<void()> callback = [] {};
   };
 
   void Schedule(Callback callback);
 
-  futures::Value<language::EmptyValue> Wait(struct timespec time);
+  futures::Value<language::EmptyValue> Wait(infrastructure::Time time);
 
   // Takes all the scheduled callbacks at a time in the past and executes them.
   // Any new callbacks that they transitively schedule may not (and typically
@@ -62,13 +62,13 @@ class WorkQueue : public std::enable_shared_from_this<WorkQueue> {
   void Execute(std::function<infrastructure::Time()> clock);
 
   template <typename Object>
-  void DeleteLater(struct timespec time, Object object) {
+  void DeleteLater(infrastructure::Time time, Object object) {
     Schedule({.time = time, .callback = [object = std::move(object)] {}});
   }
 
   // Returns the time at which the earliest callback wants to run, or nullopt if
   // there are no pending callbacks.
-  std::optional<struct timespec> NextExecution();
+  std::optional<infrastructure::Time> NextExecution();
 
   // Returns a value between 0.0 and 1.0 that indicates how much time this
   // WorkQueue is spending running callbacks, recently.
