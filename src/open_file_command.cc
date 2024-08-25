@@ -83,7 +83,7 @@ futures::Value<std::optional<gc::Root<OpenBuffer>>> StatusContext(
       [results](std::optional<gc::Root<OpenBuffer>> buffer)
           -> std::optional<gc::Root<OpenBuffer>> {
         if (buffer.has_value()) return buffer;
-        if (results.predictions_buffer.ptr()->contents().range().IsEmpty())
+        if (results.predictions_buffer.ptr()->contents().range().empty())
           return std::nullopt;
         LOG(INFO) << "Setting context: "
                   << results.predictions_buffer.ptr()->Read(

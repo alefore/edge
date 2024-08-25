@@ -702,7 +702,7 @@ class InsertMode : public InputReceiver {
                 TRACK_OPERATION(InsertMode_ProcessInput_Regular_ShowCompletion);
                 LineRange token_range =
                     GetTokenRange(buffer_root.ptr().value());
-                if (token_range.IsEmpty()) return futures::Past(EmptyValue{});
+                if (token_range.empty()) return futures::Past(EmptyValue{});
                 DictionaryManager::Key token = GetCompletionToken(
                     buffer_root.ptr()->contents().snapshot(), token_range);
                 return completion_model_supplier
@@ -963,7 +963,7 @@ class InsertMode : public InputReceiver {
     const Line line = buffer.value.contents().at(position.line);
 
     auto buffer_root = buffer.value.NewRoot();
-    if (token_range.IsEmpty()) {
+    if (token_range.empty()) {
       VLOG(5) << "Unable to rewind for completion token.";
       static const wchar_t kCompletionDisableSuffix = L'-';
       if (token_range.end_column() >= ColumnNumber(2) &&

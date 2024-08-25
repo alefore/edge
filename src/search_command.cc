@@ -213,9 +213,7 @@ class SearchCommand : public Command {
                                     editor_state_](OpenBuffer& buffer) {
             Range range = buffer.FindPartialRange(editor_state.modifiers(),
                                                   buffer.position());
-            if (range.IsEmpty()) {
-              return futures::Past(EmptyValue());
-            }
+            if (range.empty()) return futures::Past(EmptyValue());
             VLOG(5) << "FindPartialRange: [position:" << buffer.position()
                     << "][range:" << range
                     << "][modifiers:" << editor_state.modifiers() << "]";
@@ -233,7 +231,7 @@ class SearchCommand : public Command {
             }
             CHECK_EQ(range.begin().line, range.end().line);
             if (range.begin() == range.end()) {
-              return futures::Past(EmptyValue());
+              return futures::Past(EmptyValue{});
             }
             CHECK_LT(range.begin().column, range.end().column);
             buffer.set_position(range.begin());
@@ -245,12 +243,12 @@ class SearchCommand : public Command {
                                         ->Substring(range.begin().column,
                                                     range.end().column -
                                                         range.begin().column)});
-            return futures::Past(EmptyValue());
+            return futures::Past(EmptyValue{});
           })
           .Transform([&editor_state = editor_state_](EmptyValue) {
             editor_state.ResetStructure();
             editor_state.ResetDirection();
-            return EmptyValue();
+            return EmptyValue{};
           });
       return;
     }
@@ -388,7 +386,7 @@ class SearchCommand : public Command {
     } else {
       Range range =
           buffer.FindPartialRange(editor.modifiers(), buffer.position());
-      if (range.IsEmpty()) {
+      if (range.empty()) {
         buffer.status().SetInformationText(Line(L"Unable to extract region."));
         return std::nullopt;
       }

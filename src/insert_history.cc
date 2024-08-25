@@ -17,7 +17,7 @@ namespace afc::editor {
 using ::operator<<;
 
 void InsertHistory::Append(const LineSequence& insertion) {
-  if (insertion.range().IsEmpty()) return;
+  if (insertion.range().empty()) return;
   VLOG(5) << "Inserting to history: " << insertion.ToString();
   history_.push_back(insertion);
 }

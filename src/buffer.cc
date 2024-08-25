@@ -1433,12 +1433,10 @@ void OpenBuffer::CreateCursor() {
     Modifiers tmp_modifiers = options_.editor.modifiers();
     tmp_modifiers.structure = Structure::kCursor;
     Range range = FindPartialRange(tmp_modifiers, position());
-    if (range.IsEmpty()) {
-      return;
-    }
+    if (range.empty()) return;
     options_.editor.set_direction(Direction::kForwards);
     LOG(INFO) << "Range for cursors: " << range;
-    while (!range.IsEmpty()) {
+    while (!range.empty()) {
       LineColumn tmp_first = range.begin();
       SeekToNext(NewSeekInput(structure, Direction::kForwards, &tmp_first));
       if (tmp_first > range.begin() && tmp_first < range.end()) {

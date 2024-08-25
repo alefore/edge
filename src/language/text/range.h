@@ -24,7 +24,7 @@ struct Range {
       callback(line);
   }
 
-  bool IsEmpty() const { return begin_ >= end_; }
+  bool empty() const { return begin_ >= end_; }
 
   bool Contains(const Range& subset) const;
   bool Contains(const LineColumn& position) const;
@@ -72,7 +72,6 @@ class LineRange : public GhostType<LineRange, Range, LineRangeValidator> {
 
   LineNumber line() const;
 
-  bool IsEmpty() const;
   lazy_string::ColumnNumber begin_column() const;
   lazy_string::ColumnNumber end_column() const;
 };

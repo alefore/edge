@@ -161,7 +161,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     range = input.buffer.FindPartialRange(options.modifiers, output->position);
     range.set_begin(std::min(range.begin(), output->position));
     range.set_end(std::max(range.end(), output->position));
-    if (range.IsEmpty()) {
+    if (range.empty()) {
       switch (options.modifiers.direction) {
         case Direction::kForwards:
           range.set_end(input.adapter.contents().PositionAfter(range.end()));
@@ -175,7 +175,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
   }
   range = Range(input.adapter.contents().AdjustLineColumn(range.begin()),
                 input.adapter.contents().AdjustLineColumn(range.end()));
-  if (range.IsEmpty()) {
+  if (range.empty()) {
     VLOG(5) << "Nothing to delete.";
     return futures::Past(std::move(*output));
   }

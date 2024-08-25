@@ -226,7 +226,7 @@ ValueOrError<std::vector<LineColumn>> SearchHandler(
 
   // We should skip the current position. Start searching strictly after the
   // current position. But avoid adjusting the range if it's already empty.
-  if (!range_after.IsEmpty())
+  if (!range_after.empty())
     range_after.set_begin(LineColumn(range_after.begin().line,
                                      range_after.begin().column.next()));
 

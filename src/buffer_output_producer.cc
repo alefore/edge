@@ -109,7 +109,7 @@ void GetSyntaxModifiersForLine(
     LineRange range, const ParseTree& tree, LineModifierSet syntax_modifiers,
     std::map<ColumnNumber, LineModifierSet>& output) {
   VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
-  if (range.read().Intersection(tree.range()).IsEmpty()) return;
+  if (range.read().Intersection(tree.range()).empty()) return;
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
     if (tree_position.line != range.line()) return;
     auto column = tree_position.column.MinusHandlingOverflow(
