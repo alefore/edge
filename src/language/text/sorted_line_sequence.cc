@@ -23,8 +23,7 @@ SortedLineSequence::SortedLineSequence(LineSequence input,
             std::sort(lines.begin(), lines.end(), compare);
             MutableLineSequence builder;
             builder.append_back(std::move(lines));
-            if (builder.size() > LineNumberDelta(1))
-              builder.EraseLines(LineNumber(), LineNumber(1));
+            builder.MaybeEraseEmptyFirstLine();
             return builder.snapshot();
           }(),
           compare) {}
@@ -55,8 +54,7 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
               if (builder.size().IsZero() || !(builder.back() == line))
                 builder.push_back(line);
             });
-            if (builder.size() > LineNumberDelta(1))
-              builder.EraseLines(LineNumber(), LineNumber(1));
+            builder.MaybeEraseEmptyFirstLine();
             return SortedLineSequence(
                 SortedLineSequence::TrustedConstructorTag{}, builder.snapshot(),
                 sorted_lines.compare_);
