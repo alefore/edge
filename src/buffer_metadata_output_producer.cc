@@ -214,7 +214,7 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
   // TODO(2023-12-08, trivial): Switch to LineRange.
   Range range = MapScreenLineToContentsRange(
       Range(LineColumn(LineNumber(initial_line(options))),
-            options.screen_lines.back().range.value.begin()),
+            options.screen_lines.back().range.read().begin()),
       line, options.buffer.lines_size());
   int count = 0;
   auto cursors_end = cursors.lower_bound(range.end());
@@ -454,10 +454,10 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   auto call_generic_marks_logic = tracker_generic_marks_logic.Call();
 
   std::list<LineMarks::Mark> marks =
-      PushMarks(options.buffer.GetLineMarks(), range.value);
+      PushMarks(options.buffer.GetLineMarks(), range.read());
 
   std::list<LineMarks::ExpiredMark> expired_marks =
-      PushMarks(options.buffer.GetExpiredLineMarks(), range.value);
+      PushMarks(options.buffer.GetExpiredLineMarks(), range.read());
 
   for (const auto& mark : marks) {
     TRACK_OPERATION(BufferMetadataOutput_Prepare_AddMetadataForMark);

@@ -29,11 +29,11 @@ VisualOverlayMap FilterOverlays(const VisualOverlayMap& visual_overlay_map,
          priority_entry.second) {
       DVLOG(5) << "Visiting overlay key: " << key_entry.first;
       if (auto overlay_it =
-              key_entry.second.lower_bound(screen_line_range.value.begin());
+              key_entry.second.lower_bound(screen_line_range.read().begin());
           overlay_it != key_entry.second.end() &&
-          overlay_it->first < screen_line_range.value.end()) {
+          overlay_it->first < screen_line_range.read().end()) {
         while (overlay_it != key_entry.second.end() &&
-               overlay_it->first < screen_line_range.value.end()) {
+               overlay_it->first < screen_line_range.read().end()) {
           CHECK_EQ(overlay_it->first.line, screen_line_range.line());
           CHECK_GE(overlay_it->first.column, screen_line_range.begin_column());
           output[priority_entry.first][key_entry.first].insert(std::make_pair(

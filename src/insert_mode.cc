@@ -978,7 +978,7 @@ class InsertMode : public InputReceiver {
                   LineRange(LineColumn(position.line,
                                        position.column - ColumnNumberDelta(1)),
                             ColumnNumberDelta(1))
-                      .value,
+                      .read(),
               .initiator = transformation::Delete::Initiator::kInternal});
           stack.push_back(transformation::SetPosition(position.column));
           return buffer_root.ptr()->ApplyToCursors(std::move(stack));
@@ -1005,7 +1005,7 @@ class InsertMode : public InputReceiver {
                   return futures::Past(EmptyValue());
                 transformation::Stack stack;
                 stack.push_back(transformation::Delete{
-                    .range = token_range.value,
+                    .range = token_range.read(),
                     .initiator = transformation::Delete::Initiator::kInternal});
                 const ColumnNumberDelta completion_text_size =
                     word_data.replacement.value().size();
@@ -1014,7 +1014,7 @@ class InsertMode : public InputReceiver {
                         LineBuilder(std::move(word_data.replacement.value()))
                             .Build()),
                     .modifiers = {.insertion = modify_mode},
-                    .position = token_range.value.begin()});
+                    .position = token_range.read().begin()});
                 stack.push_back(transformation::SetPosition(
                     token_range.begin_column() + completion_text_size +
                     ColumnNumberDelta(1)));

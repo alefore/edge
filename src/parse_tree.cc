@@ -296,7 +296,7 @@ class WordsTreeParser : public TreeParser {
         auto keyword =
             contents.contents().Substring(begin, column - begin).ToString();
         ParseTree child = delegate_->FindChildren(
-            buffer, LineRange(LineColumn(line, begin), column - begin).value);
+            buffer, LineRange(LineColumn(line, begin), column - begin).read());
         if (typos_.find(keyword) != typos_.end()) {
           child.InsertModifier(LineModifier::kRed);
         }

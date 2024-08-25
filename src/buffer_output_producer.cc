@@ -109,7 +109,7 @@ void GetSyntaxModifiersForLine(
     LineRange range, const ParseTree& tree, LineModifierSet syntax_modifiers,
     std::map<ColumnNumber, LineModifierSet>& output) {
   VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
-  if (range.value.Intersection(tree.range()).IsEmpty()) return;
+  if (range.read().Intersection(tree.range()).IsEmpty()) return;
   auto PushCurrentModifiers = [&](LineColumn tree_position) {
     if (tree_position.line != range.line()) return;
     auto column = tree_position.column.MinusHandlingOverflow(
@@ -119,16 +119,16 @@ void GetSyntaxModifiersForLine(
 
   PushCurrentModifiers(tree.range().end());
   syntax_modifiers.insert(tree.modifiers().begin(), tree.modifiers().end());
-  PushCurrentModifiers(std::max(range.value.begin(), tree.range().begin()));
+  PushCurrentModifiers(std::max(range.read().begin(), tree.range().begin()));
 
   const auto& children = tree.children();
   auto it = std::upper_bound(
-      children.begin(), children.end(), range.value.begin(),
+      children.begin(), children.end(), range.read().begin(),
       [](const LineColumn& position, const ParseTree& candidate) {
         return position < candidate.range().end();
       });
 
-  while (it != children.end() && (*it).range().begin() <= range.value.end()) {
+  while (it != children.end() && (*it).range().begin() <= range.read().end()) {
     GetSyntaxModifiersForLine(range, *it, syntax_modifiers, output);
     ++it;
   }

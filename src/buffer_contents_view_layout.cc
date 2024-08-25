@@ -48,15 +48,15 @@ std::list<ColumnRange> ComputeBreaks(
 LineNumber FindPositionInScreen(const std::list<LineRange>& screen_lines,
                                 LineColumn position) {
   CHECK(!screen_lines.empty());
-  if (position < screen_lines.front().value.begin()) return LineNumber();
+  if (position < screen_lines.front().read().begin()) return LineNumber();
 
-  if (screen_lines.back().value.end() < position)  // Optimization.
+  if (screen_lines.back().read().end() < position)  // Optimization.
     return LineNumber(screen_lines.size()) - LineNumberDelta(1);
 
   LineNumber output;
   for (auto it = std::next(screen_lines.cbegin()); it != screen_lines.cend();
        ++it) {
-    if (position < it->value.begin()) {
+    if (position < it->read().begin()) {
       return output;
     }
     ++output;
@@ -140,9 +140,9 @@ LineRange GetRange(const LineSequence& contents, LineNumber line,
 BufferContentsViewLayout::Line RangeToLine(
     const LineRange& range, std::optional<LineColumn> active_position,
     const std::set<ColumnNumber>& cursors) {
-  LineNumber line = range.value.begin().line;
+  LineNumber line = range.read().begin().line;
   auto contains_cursor = [&](ColumnNumber column) {
-    return range.value.Contains(LineColumn(line, column));
+    return range.read().Contains(LineColumn(line, column));
   };
 
   return BufferContentsViewLayout::Line{
@@ -163,7 +163,7 @@ const bool get_screen_line_tests_registration = tests::Register(
                 GetRange(LineSequence::ForTests({L"foo"}), LineNumber(0),
                          ColumnRange{ColumnNumber(0), ColumnNumber(3)}),
                 std::nullopt, {});
-            CHECK_EQ(output.range.value.end(),
+            CHECK_EQ(output.range.read().end(),
                      LineColumn(LineNumber(0),
                                 std::numeric_limits<ColumnNumber>::max()));
           }},
@@ -222,7 +222,7 @@ std::list<LineRange> AdjustToHonorMargin(
        --line) {
     LineNumberDelta original_length(output.size());
     std::list<LineRange> prefix = ComputePrefixLines(
-        options, line, lines_desired(), output.front().value.begin());
+        options, line, lines_desired(), output.front().read().begin());
     output.insert(output.begin(), prefix.begin(), prefix.end());
     CHECK_GE(LineNumberDelta(output.size()), original_length);
     position_line.value() += LineNumberDelta(output.size()) - original_length;
@@ -235,7 +235,7 @@ std::optional<LineNumberDelta> GetCursorIndex(
     const std::list<LineRange>& ranges, LineColumn active_position) {
   auto view = std::ranges::views::enumerate(ranges) |
               std::views::filter([&](const auto& item) {
-                return std::get<1>(item).value.Contains(active_position);
+                return std::get<1>(item).read().Contains(active_position);
               });
   if (auto it = view.begin(); it != view.end())
     return LineNumberDelta(std::get<0>(*it));
@@ -334,7 +334,7 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
                 .read()));
     output.view_start = output_ranges.empty()
                             ? options.begin
-                            : output_ranges.front().value.begin();
+                            : output_ranges.front().read().begin();
   } else if (LineNumberDelta(output_ranges.size()) <= lines_to_drop) {
     output_ranges.clear();
   } else {
@@ -342,7 +342,7 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
                         output_ranges.end());
     output.view_start = output_ranges.empty()
                             ? options.begin
-                            : output_ranges.front().value.begin();
+                            : output_ranges.front().read().begin();
   }
 
   std::map<LineNumber, std::set<ColumnNumber>> cursors;
@@ -351,7 +351,7 @@ BufferContentsViewLayout BufferContentsViewLayout::Get(
   output.lines = container::MaterializeVector(
       output_ranges | std::views::transform([&](const LineRange& range) {
         return RangeToLine(range, options.active_position,
-                           GetValueOrDefault(cursors, range.value.begin().line,
+                           GetValueOrDefault(cursors, range.read().begin().line,
                                              std::set<ColumnNumber>()));
       }));
 

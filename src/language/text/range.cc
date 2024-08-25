@@ -82,27 +82,27 @@ void Range::set_end_column(ColumnNumber value) {
   CHECK_LE(begin_, end_);
 }
 
-/* static */ language::ValueOrError<LineRange> LineRange::New(Range input) {
+/* static */ PossibleError LineRangeValidator::Validate(const Range& input) {
   if (input.begin().line != input.end().line)
     return Error{LazyString{L"Range spans multiple lines."}};
   CHECK_GT(input.end().column, input.begin().column);
-  return LineRange(input.begin(), input.end().column - input.begin().column);
+  return Success();
 }
 
 LineRange::LineRange(LineColumn begin, ColumnNumberDelta size)
-    : value(Range(
+    : GhostType<LineRange, Range, LineRangeValidator>(Range{
           begin,
           LineColumn(begin.line,
                      std::numeric_limits<ColumnNumberDelta>::max() - size <=
                              begin.column.ToDelta()
                          ? std::numeric_limits<ColumnNumber>::max()
-                         : begin.column + size))) {}
+                         : begin.column + size)}) {}
 
-LineNumber LineRange::line() const { return value.begin().line; }
+LineNumber LineRange::line() const { return read().begin().line; }
 
-bool LineRange::IsEmpty() const { return value.IsEmpty(); }
-ColumnNumber LineRange::begin_column() const { return value.begin().column; }
-ColumnNumber LineRange::end_column() const { return value.end().column; }
+bool LineRange::IsEmpty() const { return read().IsEmpty(); }
+ColumnNumber LineRange::begin_column() const { return read().begin().column; }
+ColumnNumber LineRange::end_column() const { return read().end().column; }
 
 std::ostream& operator<<(std::ostream& os, const Range& range) {
   os << "[" << range.begin() << ", " << range.end() << ")";
@@ -111,19 +111,6 @@ std::ostream& operator<<(std::ostream& os, const Range& range) {
 
 bool operator<(const Range& a, const Range& b) {
   return a.begin() < b.begin() || (a.begin() == b.begin() && a.end() < b.end());
-}
-
-std::ostream& operator<<(std::ostream& os, const LineRange& range) {
-  os << "lr:" << range.value;
-  return os;
-}
-
-bool operator<(const LineRange& a, const LineRange& b) {
-  return a.value < b.value;
-}
-
-bool operator==(const LineRange& a, const LineRange& b) {
-  return a.value == b.value;
 }
 
 }  // namespace afc::language::text

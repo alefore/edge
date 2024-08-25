@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/hash.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
@@ -57,13 +58,16 @@ struct Range {
 std::ostream& operator<<(std::ostream& os, const Range& range);
 bool operator<(const Range& a, const Range& b);
 
+struct LineRangeValidator {
+  static language::PossibleError Validate(const Range& input);
+};
+
 // Wrapper around `Range` that guarantees that the range is entirely in a single
 // line (i.e., value.begin().line == value.end().line).
 //
 // This can be used by preconditions/postconditions.
-struct LineRange {
-  static language::ValueOrError<LineRange> New(Range input);
-
+class LineRange : public GhostType<LineRange, Range, LineRangeValidator> {
+ public:
   LineRange(LineColumn start, lazy_string::ColumnNumberDelta size);
 
   LineNumber line() const;
@@ -71,26 +75,14 @@ struct LineRange {
   bool IsEmpty() const;
   lazy_string::ColumnNumber begin_column() const;
   lazy_string::ColumnNumber end_column() const;
-
-  const Range value;
 };
 
-std::ostream& operator<<(std::ostream& os, const LineRange& range);
-bool operator<(const LineRange& a, const LineRange& b);
-bool operator==(const LineRange& a, const LineRange& b);
 }  // namespace afc::language::text
 namespace std {
 template <>
 struct hash<afc::language::text::Range> {
   std::size_t operator()(const afc::language::text::Range& range) const {
     return afc::language::compute_hash(range.begin(), range.end());
-  }
-};
-
-template <>
-struct hash<afc::language::text::LineRange> {
-  std::size_t operator()(const afc::language::text::LineRange& range) const {
-    return afc::language::compute_hash(459076ul, range.value);
   }
 };
 }  // namespace std
