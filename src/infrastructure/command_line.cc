@@ -4,6 +4,10 @@
 
 namespace afc::command_line_arguments {
 void HonorStandardArguments(const StandardArguments& arguments) {
+  if (!arguments.tests_filter.empty()) {
+    tests::Run(arguments.tests_filter);
+    exit(0);
+  }
   switch (arguments.tests_behavior) {
     case TestsBehavior::kRunAndExit:
       tests::Run(arguments.tests_filter);

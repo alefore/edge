@@ -55,6 +55,8 @@ struct StandardArguments {
   std::vector<std::wstring> config_paths;
 
   TestsBehavior tests_behavior = TestsBehavior::kIgnore;
+  // If non-empty, tests given will be run despite the value of
+  // `tests_behavior`.
   std::vector<std::wstring> tests_filter;
 
   // Output parameter with the name of the binary.
