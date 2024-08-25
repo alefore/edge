@@ -122,21 +122,23 @@ bool find_token_tests = tests::Register(
 //   expanded.
 // * `token_expanded`: The token that was expanded.
 // * `lines`: A sequence of lines found that are suitable to expand the token.
-LineSequence TransformLines(const LazyString& input, const Token& token,
-                            LineSequence lines) {
+SortedLineSequenceUniqueLines TransformLines(const LazyString& input,
+                                             const Token& token,
+                                             LineSequence lines) {
   LineBuilder head(input);
   head.DeleteSuffix(token.begin);
 
   LineBuilder tail(input);
   tail.DeleteCharacters(ColumnNumber(), token.end.ToDelta());
-  return lines.Map([&](const Line& expansion) -> Line {
-    if (expansion.empty()) return expansion;
-    LineBuilder output;
-    output.Append(head.Copy());
-    output.Append(LineBuilder(expansion));
-    output.Append(tail.Copy());
-    return std::move(output).Build();
-  });
+  return SortedLineSequenceUniqueLines(
+      SortedLineSequence(lines.Map([&](const Line& expansion) -> Line {
+        if (expansion.empty()) return expansion;
+        LineBuilder output;
+        output.Append(head.Copy());
+        output.Append(LineBuilder(expansion));
+        output.Append(tail.Copy());
+        return std::move(output).Build();
+      })));
 }
 
 bool transform_lines_tests = tests::Register(
@@ -144,7 +146,7 @@ bool transform_lines_tests = tests::Register(
     {{.name = L"BasicFunctionality",
       .callback =
           [] {
-            LineSequence result = TransformLines(
+            SortedLineSequenceUniqueLines result = TransformLines(
                 LazyString{L"foo src/buf blah"},
                 Token{.value = LazyString{L"src/buf"},
                       .begin = ColumnNumber(4),
@@ -152,12 +154,12 @@ bool transform_lines_tests = tests::Register(
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"}));
             LineSequence expected = LineSequence::ForTests(
                 {L"foo src/buffer.cc blah", L"foo src/buffer.h blah"});
-            CHECK(result.ToString() == expected.ToString());
+            CHECK(result.read().lines().ToString() == expected.ToString());
           }},
      {.name = L"SingleToken",
       .callback =
           [] {
-            LineSequence result = TransformLines(
+            SortedLineSequenceUniqueLines result = TransformLines(
                 LazyString{L"src/buf"},
                 Token{.value = LazyString{L"src/buf"},
                       .begin = ColumnNumber(0),
@@ -165,12 +167,12 @@ bool transform_lines_tests = tests::Register(
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"}));
             LineSequence expected =
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"});
-            CHECK(result.ToString() == expected.ToString());
+            CHECK(result.read().lines().ToString() == expected.ToString());
           }},
      {.name = L"RepeatedTokenSpecificExpansion",
       .callback =
           [] {
-            LineSequence result =
+            SortedLineSequenceUniqueLines result =
                 TransformLines(LazyString{L"src/buf and again src/buf"},
                                Token{.value = LazyString{L"src/buf"},
                                      .begin = ColumnNumber(18),
@@ -178,17 +180,17 @@ bool transform_lines_tests = tests::Register(
                                LineSequence::ForTests({L"src/buffer.cc"}));
             LineSequence expected =
                 LineSequence::ForTests({L"src/buf and again src/buffer.cc"});
-            CHECK(result.ToString() == expected.ToString());
+            CHECK(result.read().lines().ToString() == expected.ToString());
           }},
      {.name = L"ExactMatchLinesSequence", .callback = [] {
-        LineSequence result =
+        SortedLineSequenceUniqueLines result =
             TransformLines(LazyString{L"foo src/buf blah"},
                            Token{.value = LazyString{L"src/buf"},
                                  .begin = ColumnNumber(4),
                                  .end = ColumnNumber(11)},
                            LineSequence::ForTests({L"src/buf"}));
         LineSequence expected = LineSequence::ForTests({L"foo src/buf blah"});
-        CHECK(result.ToString() == expected.ToString());
+        CHECK(result.read().lines().ToString() == expected.ToString());
       }}});
 }  // namespace
 
@@ -210,10 +212,9 @@ Predictor TokenPredictor(Predictor predictor) {
                     .longest_directory_match = output.longest_directory_match +
                                                token_to_expand.begin.ToDelta(),
                     .found_exact_match = output.found_exact_match,
-                    .contents = SortedLineSequenceUniqueLines(
-                        language::text::SortedLineSequence(TransformLines(
-                            original_input, token_to_expand,
-                            output.contents.sorted_lines().lines())))});
+                    .contents = TransformLines(
+                        original_input, token_to_expand,
+                        output.contents.sorted_lines().lines())});
               });
         },
         [&input, &predictor] {
