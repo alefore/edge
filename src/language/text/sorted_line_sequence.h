@@ -45,13 +45,10 @@ class SortedLineSequence {
 };
 
 // Similar to SortedLineSequence, but ensures that there are no duplicate lines.
-class SortedLineSequenceUniqueLines {
+class SortedLineSequenceUniqueLines
+    : public language::GhostType<SortedLineSequenceUniqueLines,
+                                 SortedLineSequence> {
  public:
-  SortedLineSequenceUniqueLines(const SortedLineSequenceUniqueLines&) = default;
-  SortedLineSequenceUniqueLines(SortedLineSequenceUniqueLines&&) = default;
-  SortedLineSequenceUniqueLines& operator=(
-      const SortedLineSequenceUniqueLines&) = default;
-
   explicit SortedLineSequenceUniqueLines(SortedLineSequence sorted_lines);
 
   // Precondition: `a` and `b` must have the exact sampe Compare procedure.
@@ -60,10 +57,13 @@ class SortedLineSequenceUniqueLines {
   SortedLineSequenceUniqueLines(SortedLineSequenceUniqueLines a,
                                 SortedLineSequenceUniqueLines b);
 
-  const SortedLineSequence& sorted_lines() const { return sorted_lines_; }
+  // TODO(trivial, 2024-08-25): Get rid of this. Convert everybody to `read`.
+  const SortedLineSequence& sorted_lines() const { return read(); }
 
  private:
-  SortedLineSequence sorted_lines_;
+  struct TrustedConstructorTag {};
+  explicit SortedLineSequenceUniqueLines(TrustedConstructorTag,
+                                         SortedLineSequence sorted_lines);
 };
 
 }  // namespace afc::language::text

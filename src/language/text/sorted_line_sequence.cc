@@ -48,11 +48,28 @@ SortedLineSequence SortedLineSequence::FilterLines(
 
 SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
     SortedLineSequence sorted_lines)
-    : sorted_lines_(std::move(sorted_lines)) {}
+    : SortedLineSequenceUniqueLines(
+          TrustedConstructorTag{}, std::invoke([&] {
+            MutableLineSequence builder;
+            sorted_lines.lines().ForEach([&builder](const Line& line) {
+              if (builder.size().IsZero() || !(builder.back() == line))
+                builder.push_back(line);
+            });
+            if (builder.size() > LineNumberDelta(1))
+              builder.EraseLines(LineNumber(), LineNumber(1));
+            return SortedLineSequence(
+                SortedLineSequence::TrustedConstructorTag{}, builder.snapshot(),
+                sorted_lines.compare_);
+          })) {}
+
+SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
+    TrustedConstructorTag, SortedLineSequence sorted_lines)
+    : GhostType<SortedLineSequenceUniqueLines, SortedLineSequence>(
+          std::move(sorted_lines)) {}
 
 SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
     SortedLineSequenceUniqueLines a, SortedLineSequenceUniqueLines b)
-    : SortedLineSequenceUniqueLines([&] {
+    : SortedLineSequenceUniqueLines(TrustedConstructorTag{}, [&] {
         LineNumber a_line;
         LineNumber b_line;
         const LineSequence& a_lines = a.sorted_lines().lines();
@@ -72,9 +89,9 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
           } else {
             const Line& a_str = a_lines.at(a_line);
             const Line& b_str = b_lines.at(b_line);
-            if (a.sorted_lines_.compare_(a_str, b_str)) {
+            if (a.read().compare_(a_str, b_str)) {
               advance(a_lines, a_line);
-            } else if (a.sorted_lines_.compare_(b_str, a_str)) {
+            } else if (a.read().compare_(b_str, a_str)) {
               advance(b_lines, b_line);
             } else {
               advance(a_lines, a_line);
@@ -83,6 +100,6 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
           }
         }
         return SortedLineSequence(SortedLineSequence::TrustedConstructorTag(),
-                                  builder.snapshot(), a.sorted_lines_.compare_);
+                                  builder.snapshot(), a.read().compare_);
       }()) {}
 }  // namespace afc::language::text
