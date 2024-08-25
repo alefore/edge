@@ -75,6 +75,7 @@ class Line {
   size_t hash() const { return hash_; }
 
   Line& operator=(const Line&) = default;
+  bool operator==(const Line& other) const;
 
  private:
   struct Data {
@@ -112,7 +113,7 @@ class Line {
   size_t hash_;
 };
 
-std::ostream& operator<<(std::ostream& os, const afc::language::text::Line&);
+std::ostream& operator<<(std::ostream& os, const Line&);
 }  // namespace afc::language::text
 namespace std {
 template <>

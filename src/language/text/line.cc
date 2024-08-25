@@ -122,8 +122,13 @@ Line::Line(Line::Data data)
 #endif
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const afc::language::text::Line& line) {
+bool Line::operator==(const Line& a) const {
+  return data_->contents == a.data_->contents &&
+         data_->modifiers == a.data_->modifiers &&
+         data_->end_of_line_modifiers == a.data_->end_of_line_modifiers;
+}
+
+std::ostream& operator<<(std::ostream& os, const Line& line) {
   os << line.contents();
   return os;
 }
