@@ -72,8 +72,8 @@ SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(
     : SortedLineSequenceUniqueLines(TrustedConstructorTag{}, [&] {
         LineNumber a_line;
         LineNumber b_line;
-        const LineSequence& a_lines = a.sorted_lines().lines();
-        const LineSequence& b_lines = b.sorted_lines().lines();
+        const LineSequence& a_lines = a.read().lines();
+        const LineSequence& b_lines = b.read().lines();
         MutableLineSequence builder;
         auto advance = [&](const LineSequence& input, LineNumber& line) {
           CHECK_LT(line.ToDelta(), input.size());

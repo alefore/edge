@@ -80,7 +80,7 @@ ValueOrError<PredictResults> BuildResults(
   if (abort_value.has_value()) return Error{LazyString{L"Aborted"}};
 
   std::optional<std::wstring> common_prefix;
-  predictor_output.contents.sorted_lines().lines().EveryLine(
+  predictor_output.contents.read().lines().EveryLine(
       [&common_prefix, &abort_value](LineNumber, const Line& line) {
         if (abort_value.has_value()) return false;
         if (line.empty()) {
@@ -116,12 +116,8 @@ ValueOrError<PredictResults> BuildResults(
         return true;
       });
   if (abort_value.has_value()) return Error{LazyString{L"Aborted"}};
-  CHECK(predictor_output.contents.sorted_lines().lines().EndLine() ==
-            LineNumber(0) ||
-        !predictor_output.contents.sorted_lines()
-             .lines()
-             .at(LineNumber())
-             .empty());
+  CHECK(predictor_output.contents.read().lines().EndLine() == LineNumber(0) ||
+        !predictor_output.contents.read().lines().at(LineNumber()).empty());
   gc::Root<OpenBuffer> predictions_buffer = OpenBuffer::New(
       OpenBuffer::Options{.editor = editor, .name = PredictionsBufferName{}});
   predictions_buffer.ptr()->Set(buffer_variables::show_in_buffers_list, false);
@@ -129,19 +125,18 @@ ValueOrError<PredictResults> BuildResults(
   predictions_buffer.ptr()->Set(buffer_variables::paste_mode, true);
   TRACK_OPERATION(Predictor_BuildResult_InsertInPosition);
   predictions_buffer.ptr()->InsertInPosition(
-      predictor_output.contents.sorted_lines().lines(), LineColumn(),
-      std::nullopt);
+      predictor_output.contents.read().lines(), LineColumn(), std::nullopt);
   return PredictResults{
       .common_prefix = common_prefix,
       .predictions_buffer = predictions_buffer,
-      .matches = predictor_output.contents.sorted_lines().lines().EndLine() ==
-                             LineNumber(0) &&
-                         predictor_output.contents.sorted_lines()
-                             .lines()
-                             .at(LineNumber())
-                             .empty()
-                     ? 0
-                     : predictions_buffer.ptr()->lines_size().read(),
+      .matches =
+          predictor_output.contents.read().lines().EndLine() == LineNumber(0) &&
+                  predictor_output.contents.read()
+                      .lines()
+                      .at(LineNumber())
+                      .empty()
+              ? 0
+              : predictions_buffer.ptr()->lines_size().read(),
       .predictor_output = predictor_output};
 }
 }  // namespace
@@ -470,7 +465,7 @@ const bool buffer_tests_registration =
                             [](ProgressInformation) {})})
                 .Get()
                 .value();
-        LineSequence lines = output.contents.sorted_lines().lines();
+        LineSequence lines = output.contents.read().lines();
         LOG(INFO) << "Contents: " << lines.ToString();
         return lines.ToString();
       };
@@ -538,7 +533,7 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
 
   return [contents](PredictorInput input) {
     Line input_line = LineBuilder(input.input).Build();
-    LineNumber line = contents.sorted_lines().upper_bound(input_line);
+    LineNumber line = contents.read().upper_bound(input_line);
 
     // TODO(2023-12-02): Find a way to do this without `ToString`.
     const std::wstring input_str = input.input.ToString();
@@ -547,8 +542,8 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).
-    while (line < contents.sorted_lines().lines().EndLine()) {
-      const Line& line_contents = contents.sorted_lines().lines().at(line);
+    while (line < contents.read().lines().EndLine()) {
+      const Line& line_contents = contents.read().lines().at(line);
       auto line_str = line_contents.ToString();
       auto result =
           mismatch(input_str.begin(), input_str.end(), line_str.begin());

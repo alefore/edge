@@ -57,9 +57,6 @@ class SortedLineSequenceUniqueLines
   SortedLineSequenceUniqueLines(SortedLineSequenceUniqueLines a,
                                 SortedLineSequenceUniqueLines b);
 
-  // TODO(trivial, 2024-08-25): Get rid of this. Convert everybody to `read`.
-  const SortedLineSequence& sorted_lines() const { return read(); }
-
  private:
   struct TrustedConstructorTag {};
   explicit SortedLineSequenceUniqueLines(TrustedConstructorTag,
