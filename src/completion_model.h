@@ -13,6 +13,10 @@
 #include "src/language/text/line_sequence.h"
 
 namespace afc::editor {
+struct DictionaryKey
+    : public language::GhostType<DictionaryKey,
+                                 language::lazy_string::LazyString> {};
+
 class DictionaryManager {
  public:
   struct WordData {
@@ -22,10 +26,8 @@ class DictionaryManager {
     bool operator==(const WordData&) const;
   };
 
-  // TODO(templates, 2023-09-02): Use GHOST_TYPE. That is tricky because we need
-  // to be able to selectively disable some constructors, which requires finicky
-  // SFINAE. And operator<<.
-  using Key = language::lazy_string::LazyString;
+  // TODO(trivial, 2024-08-25): Remove this `using` declaration?
+  using Key = DictionaryKey;
 
   struct NothingFound {};
 

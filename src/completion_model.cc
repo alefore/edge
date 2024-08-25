@@ -96,24 +96,23 @@ std::optional<DictionaryManager::WordData> FindCompletionInModel(
     const SortedLineSequence& contents,
     const DictionaryManager::Key& compressed_text) {
   VLOG(3) << "Starting completion with model with size: "
-          << contents.lines().size()
-          << " token: " << compressed_text.ToString();
-  LineNumber line = contents.upper_bound(LineBuilder(compressed_text).Build());
+          << contents.lines().size() << " token: " << compressed_text;
+  LineNumber line =
+      contents.upper_bound(LineBuilder(compressed_text.read()).Build());
 
   if (line > contents.lines().EndLine()) return std::nullopt;
 
   LazyString line_contents = contents.lines().at(line).contents();
   // TODO(easy, 2023-09-01): Avoid calls to ToString, ugh.
-  VLOG(5) << "Check: " << compressed_text.ToString()
+  VLOG(5) << "Check: " << compressed_text
           << " against: " << line_contents.ToString();
   return std::visit(
       overload{
           [&](const ParsedLine& parsed_line)
               -> std::optional<DictionaryManager::WordData> {
             if (compressed_text != parsed_line.compressed_text) {
-              VLOG(5) << "No match: [" << parsed_line.compressed_text.ToString()
-                      << "] != [" << parsed_line.compressed_text.ToString()
-                      << "]";
+              VLOG(5) << "No match: [" << compressed_text << "] != ["
+                      << parsed_line.compressed_text << "]";
               return std::nullopt;
             }
 
@@ -123,8 +122,8 @@ std::optional<DictionaryManager::WordData> FindCompletionInModel(
               return std::nullopt;
             }
 
-            VLOG(2) << "Found compression: "
-                    << parsed_line.compressed_text.ToString() << " -> "
+            VLOG(2) << "Found compression: " << parsed_line.compressed_text
+                    << " -> "
                     << parsed_line.word_data.replacement.value().ToString();
             return parsed_line.word_data;
           },
@@ -189,7 +188,7 @@ DictionaryManager::FindWordDataWithIndex(
   if (index == models_list->size())
     return futures::Past(
         data->lock([&](const Data& locked_data) -> QueryOutput {
-          WordData text{.replacement = compressed_text};
+          WordData text{.replacement = compressed_text.read()};
           if (auto text_it = locked_data.reverse_table.find(
                   text.replacement.value().ToString());
               text_it != locked_data.reverse_table.end()) {

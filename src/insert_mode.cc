@@ -717,7 +717,7 @@ class InsertMode : public InputReceiver {
                               [](DictionaryManager::NothingFound) {},
                               [&](DictionaryManager::Suggestion suggestion) {
                                 ShowSuggestion(buffer_root.ptr().value(),
-                                               suggestion.key, token);
+                                               suggestion.key, token.read());
                               },
                               [&](DictionaryManager::WordData word_data) {
                                 if (word_data.replacement.has_value())
@@ -924,11 +924,11 @@ class InsertMode : public InputReceiver {
 
   static DictionaryManager::Key GetCompletionToken(
       const LineSequence& buffer_contents, LineRange token_range) {
-    DictionaryManager::Key output = LowerCase(
+    DictionaryManager::Key output{LowerCase(
         buffer_contents.at(token_range.line())
             .contents()
             .Substring(token_range.begin_column(),
-                       token_range.end_column() - token_range.begin_column()));
+                       token_range.end_column() - token_range.begin_column()))};
     VLOG(6) << "Found completion token: " << output;
     return output;
   }
@@ -938,7 +938,7 @@ class InsertMode : public InputReceiver {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
         buffer.status().SetExpiringInformationText(LineBuilder{
-            LazyString{L"`"} + key + LazyString{L"` is an alias for `"} +
+            LazyString{L"`"} + key.read() + LazyString{L"` is an alias for `"} +
             value + LazyString{L"`"}}.Build()));
   }
 
@@ -1022,7 +1022,7 @@ class InsertMode : public InputReceiver {
               },
               [buffer_root, token](DictionaryManager::Suggestion suggestion) {
                 ShowSuggestion(buffer_root.ptr().value(), suggestion.key,
-                               token);
+                               token.read());
                 return futures::Past(EmptyValue());
               },
               [](DictionaryManager::NothingFound) {
