@@ -2,13 +2,13 @@
 
 #include "src/language/lazy_string/lazy_string.h"
 
+using afc::language::Error;
+using afc::language::Success;
 using afc::language::lazy_string::LazyString;
 
 namespace afc::infrastructure {
 language::ValueOrError<std::wstring> HumanReadableTime(
     const struct timespec& time) {
-  using language::Error;
-  using language::Success;
   struct tm tm_value;
   if (localtime_r(&time.tv_sec, &tm_value) == nullptr)
     return Error{LazyString{L"localtime_r failed"}};

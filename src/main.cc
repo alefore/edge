@@ -226,8 +226,6 @@ void RedrawScreens(const CommandLineValues& args,
 
 int main(int argc, const char** argv) {
   using namespace afc::editor;
-  using std::cerr;
-  using std::unique_ptr;
 
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
