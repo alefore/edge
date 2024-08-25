@@ -703,7 +703,7 @@ class InsertMode : public InputReceiver {
                 LineRange token_range =
                     GetTokenRange(buffer_root.ptr().value());
                 if (token_range.empty()) return futures::Past(EmptyValue{});
-                DictionaryManager::Key token = GetCompletionToken(
+                DictionaryKey token = GetCompletionToken(
                     buffer_root.ptr()->contents().snapshot(), token_range);
                 return completion_model_supplier
                     ->Query(std::move(
@@ -922,9 +922,9 @@ class InsertMode : public InputReceiver {
     return LineRange(LineColumn(position.line, start), position.column - start);
   }
 
-  static DictionaryManager::Key GetCompletionToken(
-      const LineSequence& buffer_contents, LineRange token_range) {
-    DictionaryManager::Key output{LowerCase(
+  static DictionaryKey GetCompletionToken(const LineSequence& buffer_contents,
+                                          LineRange token_range) {
+    DictionaryKey output{LowerCase(
         buffer_contents.at(token_range.line())
             .contents()
             .Substring(token_range.begin_column(),
@@ -933,7 +933,7 @@ class InsertMode : public InputReceiver {
     return output;
   }
 
-  static void ShowSuggestion(OpenBuffer& buffer, DictionaryManager::Key key,
+  static void ShowSuggestion(OpenBuffer& buffer, DictionaryKey key,
                              LazyString value) {
     buffer.work_queue()->DeleteLater(
         AddSeconds(Now(), 2.0),
@@ -987,7 +987,7 @@ class InsertMode : public InputReceiver {
       return output;
     }
 
-    DictionaryManager::Key token =
+    DictionaryKey token =
         GetCompletionToken(buffer.value.contents().snapshot(), token_range);
     return std::move(output).Transform([model_paths = std::move(model_paths),
                                         token, position, modify_mode,

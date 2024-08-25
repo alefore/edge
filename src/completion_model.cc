@@ -40,19 +40,18 @@ using ::operator<<;
 
 namespace {
 struct ParsedLine {
-  DictionaryManager::Key compressed_text;
+  DictionaryKey compressed_text;
   DictionaryManager::WordData word_data;
 };
 
 ValueOrError<ParsedLine> Parse(const Line& line) {
   return VisitOptional(
       [&line](ColumnNumber first_space) -> ValueOrError<ParsedLine> {
-        return ParsedLine{
-            .compressed_text = DictionaryManager::Key(
-                line.Substring(ColumnNumber(), first_space.ToDelta())),
-            .word_data = DictionaryManager::WordData{
-                .replacement =
-                    line.Substring(first_space + ColumnNumberDelta(1))}};
+        return ParsedLine{.compressed_text = DictionaryKey(line.Substring(
+                              ColumnNumber(), first_space.ToDelta())),
+                          .word_data = DictionaryManager::WordData{
+                              .replacement = line.Substring(
+                                  first_space + ColumnNumberDelta(1))}};
       },
       [] {
         return ValueOrError<ParsedLine>(Error{LazyString{L"No space found."}});
@@ -93,8 +92,7 @@ const bool prepare_buffer_tests_registration = tests::Register(
       }}});
 
 std::optional<DictionaryManager::WordData> FindCompletionInModel(
-    const SortedLineSequence& contents,
-    const DictionaryManager::Key& compressed_text) {
+    const SortedLineSequence& contents, const DictionaryKey& compressed_text) {
   VLOG(3) << "Starting completion with model with size: "
           << contents.lines().size() << " token: " << compressed_text;
   LineNumber line =
@@ -137,28 +135,27 @@ const bool find_completion_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(FindCompletionInModel(SortedLineSequence(LineSequence()),
-                                        DictionaryManager::Key(LazyString{
-                                            L"foo"})) == std::nullopt);
+                                        DictionaryKey(LazyString{L"foo"})) ==
+                  std::nullopt);
           }},
      {.name = L"NoMatch",
       .callback =
           [] {
             CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                        DictionaryManager::Key(LazyString{
-                                            L"foo"})) == std::nullopt);
+                                        DictionaryKey(LazyString{L"foo"})) ==
+                  std::nullopt);
           }},
      {.name = L"Match",
       .callback =
           [] {
-            CHECK(
-                FindCompletionInModel(CompletionModelForTests(),
-                                      DictionaryManager::Key(LazyString{L"f"}))
-                    .value()
-                    .replacement.value() == LazyString{L"fox"});
+            CHECK(FindCompletionInModel(CompletionModelForTests(),
+                                        DictionaryKey(LazyString{L"f"}))
+                      .value()
+                      .replacement.value() == LazyString{L"fox"});
           }},
      {.name = L"IdenticalMatch", .callback = [] {
         CHECK(FindCompletionInModel(CompletionModelForTests(),
-                                    DictionaryManager::Key(LazyString{L"i"})) ==
+                                    DictionaryKey(LazyString{L"i"})) ==
               std::nullopt);
       }}});
 }  // namespace
@@ -171,7 +168,7 @@ DictionaryManager::DictionaryManager(BufferLoader buffer_loader)
     : buffer_loader_(std::move(buffer_loader)) {}
 
 futures::Value<DictionaryManager::QueryOutput> DictionaryManager::Query(
-    std::vector<Path> models, DictionaryManager::Key compressed_text) {
+    std::vector<Path> models, DictionaryKey compressed_text) {
   return FindWordDataWithIndex(
       buffer_loader_, data_,
       std::make_shared<std::vector<Path>>(std::move(models)),
@@ -184,7 +181,7 @@ DictionaryManager::FindWordDataWithIndex(
     BufferLoader buffer_loader,
     NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
     std::shared_ptr<std::vector<Path>> models_list,
-    DictionaryManager::Key compressed_text, size_t index) {
+    DictionaryKey compressed_text, size_t index) {
   if (index == models_list->size())
     return futures::Past(
         data->lock([&](const Data& locked_data) -> QueryOutput {
@@ -284,8 +281,7 @@ const bool completion_model_manager_tests_registration =
             for (const std::wstring& path : models)
               model_paths.push_back(ValueOrDie(Path::New(LazyString{path})));
             return manager
-                ->Query(model_paths,
-                        DictionaryManager::Key(LazyString{compressed_text}))
+                ->Query(model_paths, DictionaryKey(LazyString{compressed_text}))
                 .Get();
           };
       return std::vector<tests::Test>(
@@ -322,7 +318,7 @@ const bool completion_model_manager_tests_registration =
                   CHECK(paths.value() == std::vector<Path>{ValueOrDie(
                                              Path::New(LazyString{L"en"}))});
                   CHECK(std::get<DictionaryManager::Suggestion>(output).key ==
-                        DictionaryManager::Key(LazyString{L"f"}));
+                        DictionaryKey(LazyString{L"f"}));
                 }},
            {.name = L"RepeatedQuerySameModel",
             .callback =

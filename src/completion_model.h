@@ -19,6 +19,7 @@ struct DictionaryKey
 
 class DictionaryManager {
  public:
+  // Suggest that the input key should be replaced with this text.
   struct WordData {
     using Text = language::lazy_string::LazyString;
     std::optional<Text> replacement;
@@ -26,13 +27,12 @@ class DictionaryManager {
     bool operator==(const WordData&) const;
   };
 
-  // TODO(trivial, 2024-08-25): Remove this `using` declaration?
-  using Key = DictionaryKey;
-
   struct NothingFound {};
 
+  // The key given to Query is actually the expansion of a different key. We
+  // shoud suggest that the user should have used the other key.
   struct Suggestion {
-    Key key;
+    DictionaryKey key;
   };
 
   using BufferLoader =
@@ -42,7 +42,7 @@ class DictionaryManager {
 
   using QueryOutput = std::variant<WordData, Suggestion, NothingFound>;
   futures::Value<QueryOutput> Query(std::vector<infrastructure::Path> models,
-                                    Key key);
+                                    DictionaryKey key);
 
  private:
   using DictionaryInput = language::text::SortedLineSequence;
@@ -57,15 +57,16 @@ class DictionaryManager {
   static futures::Value<QueryOutput> FindWordDataWithIndex(
       BufferLoader buffer_loader,
       language::NonNull<std::shared_ptr<concurrent::Protected<Data>>> data,
-      std::shared_ptr<std::vector<infrastructure::Path>> models, Key key,
-      size_t index);
+      std::shared_ptr<std::vector<infrastructure::Path>> models,
+      DictionaryKey key, size_t index);
 
   static void UpdateReverseTable(Data& data, const infrastructure::Path& path,
                                  const language::text::LineSequence& contents);
 
   struct Data {
     ModelsMap models;
-    std::map<std::wstring, std::map<infrastructure::Path, Key>> reverse_table;
+    std::map<std::wstring, std::map<infrastructure::Path, DictionaryKey>>
+        reverse_table;
   };
 
   const BufferLoader buffer_loader_;
