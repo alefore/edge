@@ -253,7 +253,8 @@ class MarkdownParser : public LineOrientedTreeParser {
     }
 
     static const auto modifiers_by_depth = new std::vector<LineModifierSet>(
-        {{LineModifier::kReverse, LineModifier::kUnderline},
+        {{LineModifier::kReverse, LineModifier::kUnderline,
+          LineModifier::kWhite},
          {LineModifier::kCyan, LineModifier::kReverse,
           LineModifier::kUnderline},
          {LineModifier::kBold, LineModifier::kUnderline},
