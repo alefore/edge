@@ -665,8 +665,7 @@ void OpenBuffer::RegisterProgress() {
 
 void OpenBuffer::UpdateTreeParser() {
   if (!ptr_this_.has_value()) return;
-  // TODO(trivial, 2024-08-04): Avoid call to LazyString.
-  futures::Past(Path::New(LazyString{Read(buffer_variables::dictionary)}))
+  futures::Past(Path::New(ReadLazyString(buffer_variables::dictionary)))
       .Transform([&](Path dictionary_path) {
         return OpenFileIfFound(OpenFileOptions{
             .editor_state = editor(),
