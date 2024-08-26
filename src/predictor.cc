@@ -59,6 +59,7 @@ using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::FindFirstOf;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -192,13 +193,12 @@ struct DescendDirectoryTreeOutput {
   ValueOrError<NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>> dir;
   // The length of the longest prefix of path that corresponds to a valid
   // directory.
-  size_t valid_prefix_length = 0;
-  size_t valid_proper_prefix_length = 0;
+  ColumnNumberDelta valid_prefix_length;
+  ColumnNumberDelta valid_proper_prefix_length;
 };
 
-// TODO(easy): Receive Path rather than std::wstrings.
 DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
-                                                std::wstring path) {
+                                                LazyString path) {
   VLOG(6) << "Starting search at: " << search_path;
   DescendDirectoryTreeOutput output;
   output.dir = OpenDir(search_path);
@@ -210,28 +210,31 @@ DescendDirectoryTreeOutput DescendDirectoryTree(Path search_path,
   // We don't use DirectorySplit in order to handle adjacent slashes.
   while (output.valid_prefix_length < path.size()) {
     output.valid_proper_prefix_length = output.valid_prefix_length;
-    VLOG(6) << "Iterating at: " << path.substr(0, output.valid_prefix_length);
-    auto next_candidate = path.find_first_of(L'/', output.valid_prefix_length);
-    if (next_candidate == std::wstring::npos) {
-      next_candidate = path.size();
-    } else if (next_candidate == output.valid_prefix_length) {
+    VLOG(6) << "Iterating at: "
+            << path.Substring(ColumnNumber{}, output.valid_prefix_length);
+    std::optional<ColumnNumber> next_candidate = FindFirstOf(
+        path.Substring(ColumnNumber{} + output.valid_prefix_length), {L'/'});
+    if (next_candidate != std::nullopt)
+      *next_candidate += output.valid_prefix_length;
+
+    if (next_candidate == std::nullopt) {
+      next_candidate = ColumnNumber{} + path.size();
+    } else if (next_candidate->ToDelta() == output.valid_prefix_length) {
       ++output.valid_prefix_length;
       continue;
     } else {
-      ++next_candidate;
+      ++*next_candidate;
     }
-    // TODO(trivial, 2024-08-19): Avoid LazyString{} conversion.
     auto path_next_candidate =
-        Path::New(LazyString{path.substr(0, next_candidate)});
+        Path::New(path.Substring(ColumnNumber{}, next_candidate->ToDelta()));
     if (IsError(path_next_candidate)) continue;
     Path test_path =
         Path::Join(search_path, ValueOrDie(std::move(path_next_candidate)));
     VLOG(8) << "Considering: " << test_path;
     auto subdir = OpenDir(test_path);
     if (IsError(subdir)) return output;
-    CHECK_GT(next_candidate, output.valid_prefix_length);
     output.dir = std::move(subdir);
-    output.valid_prefix_length = next_candidate;
+    output.valid_prefix_length = next_candidate->ToDelta();
   }
   return output;
 }
@@ -304,15 +307,10 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
       .Transform([predictor_input](std::vector<Path> search_paths) {
         // We can't use a Path type because this comes from the prompt and ...
         // may not actually be a valid path.
-        std::wstring path_input = std::visit(
-            overload{[&](Error) {
-                       // TODO(easy, 2023-12-02): Get rid of ToString.
-                       return predictor_input.input.ToString();
-                     },
+        LazyString path_input = std::visit(
+            overload{[&](Error) { return predictor_input.input; },
                      [&](Path path) {
-                       return predictor_input.editor.expand_path(path)
-                           .read()
-                           .ToString();
+                       return predictor_input.editor.expand_path(path).read();
                      }},
             Path::New(predictor_input.input));
 
@@ -326,7 +324,8 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
             [path_input, search_paths, noise_regex](
                 NonNull<std::shared_ptr<ProgressChannel>> progress_channel,
                 DeleteNotification::Value abort_value) mutable {
-              if (!path_input.empty() && *path_input.begin() == L'/') {
+              if (!path_input.IsEmpty() &&
+                  path_input.get(ColumnNumber{}) == L'/') {
                 search_paths = {Path::Root()};
               } else {
                 search_paths = container::MaterializeVector(
@@ -366,12 +365,18 @@ futures::Value<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
                                  descend_results.valid_proper_prefix_length));
                 CHECK_LE(descend_results.valid_prefix_length,
                          path_input.size());
+                // TODO(trivial, 2024-08-26): Get rid of ToString.
                 ScanDirectory(
                     ValueOrDie(std::move(descend_results.dir)).value(),
                     noise_regex,
-                    path_input.substr(descend_results.valid_prefix_length,
-                                      path_input.size()),
-                    path_input.substr(0, descend_results.valid_prefix_length),
+                    path_input
+                        .Substring(ColumnNumber{} +
+                                   descend_results.valid_prefix_length)
+                        .ToString(),
+                    path_input
+                        .Substring(ColumnNumber{},
+                                   descend_results.valid_prefix_length)
+                        .ToString(),
                     &matches, progress_channel.value(), abort_value,
                     predictions, predictor_output);
                 if (abort_value.has_value()) return PredictorOutput{};
