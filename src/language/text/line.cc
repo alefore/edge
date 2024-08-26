@@ -91,6 +91,16 @@ Line::modifiers() const {
   return data_->modifiers;
 }
 
+afc::infrastructure::screen::LineModifierSet Line::modifiers_at_position(
+    language::lazy_string::ColumnNumber column) const {
+  if (data_->modifiers.empty()) return LineModifierSet{};
+  auto bound = data_->modifiers.lower_bound(column);
+  if (bound != data_->modifiers.end() && bound->first == column)
+    return bound->second;  // Exact match.
+  if (bound == data_->modifiers.begin()) return LineModifierSet{};
+  return std::prev(bound)->second;
+}
+
 afc::infrastructure::screen::LineModifierSet Line::end_of_line_modifiers()
     const {
   return data_->end_of_line_modifiers;

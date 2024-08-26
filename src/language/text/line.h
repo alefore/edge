@@ -66,6 +66,10 @@ class Line {
                  afc::infrastructure::screen::LineModifierSet>&
   modifiers() const;
 
+  // Returns the modifiers that should be applied at a given column.
+  afc::infrastructure::screen::LineModifierSet modifiers_at_position(
+      language::lazy_string::ColumnNumber column) const;
+
   afc::infrastructure::screen::LineModifierSet end_of_line_modifiers() const;
 
   std::function<void()> explicit_delete_observer() const;

@@ -83,6 +83,57 @@ const bool line_tests_registration = tests::Register(
         CHECK(line.metadata().at(LazyString{}).get_value() ==
               LazyString{L"Bar"});
       }}});
+
+const bool line_modifiers_at_position_tests_registration = tests::Register(
+    L"LineModifiersAtPosition",
+    {{.name = L"EmptyModifiers",
+      .callback =
+          [] {
+            Line line = LineBuilder(LazyString{L"alejo"}).Build();
+            CHECK(line.modifiers_at_position(ColumnNumber{}).empty());
+            CHECK(line.modifiers_at_position(ColumnNumber{3}).empty());
+            CHECK(line.modifiers_at_position(ColumnNumber{999}).empty());
+          }},
+     {.name = L"ExactMatch",
+      .callback =
+          [] {
+            LineBuilder builder{LazyString{L"alejandro"}};
+            builder.InsertModifier(ColumnNumber(2), LineModifier::kRed);
+            builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
+            Line line = std::move(builder).Build();
+            CHECK(line.modifiers_at_position(ColumnNumber{2}) ==
+                  LineModifierSet{LineModifier::kRed});
+            CHECK(line.modifiers_at_position(ColumnNumber{5}) ==
+                  LineModifierSet{LineModifier::kBlue});
+          }},
+     {.name = L"PositionBeforeModifiers",
+      .callback =
+          [] {
+            LineBuilder builder{LazyString{L"alejandro"}};
+            builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
+            CHECK(std::move(builder)
+                      .Build()
+                      .modifiers_at_position(ColumnNumber{2})
+                      .empty());
+          }},
+     {.name = L"InexactMatch",
+      .callback =
+          [] {
+            LineBuilder builder{LazyString{L"alejandro"}};
+            builder.InsertModifier(ColumnNumber(2), LineModifier::kGreen);
+            builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
+            CHECK(std::move(builder).Build().modifiers_at_position(ColumnNumber{
+                      4}) == LineModifierSet{LineModifier::kGreen});
+          }},
+     {.name = L"InexactMatchAfterLast", .callback = [] {
+        LineBuilder builder{LazyString{L"alejandro"}};
+        builder.InsertModifier(ColumnNumber(5), LineModifier::kBlue);
+        CHECK(std::move(builder).Build().modifiers_at_position(
+                  ColumnNumber{8}) == LineModifierSet{LineModifier::kBlue});
+      }}});
+// ./edge --tests_filter LineModifiersAtPosition.EmptyModifiers
+// ./edge --tests_filter LineModifiersAtPosition.InexactMatchAfterLast
+// ./edge --tests_filter LineModifiersAtPosition.PositionBeforeModifiers
 }  // namespace
 
 LineBuilder::LineBuilder(const Line& line) : data_(line.data_.value()) {}
