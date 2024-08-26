@@ -283,8 +283,6 @@ LineWithCursor::Generator::Vector ProduceBufferView(
             MakeWithHash(line_contents, compute_hash(*line_contents)),
             screen_line, buffer.Read(buffer_variables::atomic_lines),
             buffer.Read(buffer_variables::multiple_cursors), buffer.position(),
-            // TODO(P0, 2024-06-14, trivial): We need to capture the root!
-            // editor_keyboard_redirect may be deallocated under our feet.
             (editor_keyboard_redirect.has_value()
                  ? editor_keyboard_redirect->ptr().value()
                  : buffer.mode())
