@@ -2,13 +2,14 @@
 
 // Set of commands that should just be run directly.
 SetString shell_prompt_preview_execution = SetString();
-shell_prompt_preview_execution.insert("grep");
 shell_prompt_preview_execution.insert("grep-code");
 shell_prompt_preview_execution.insert("ls");
 
-// Set of commands for which `man` should be run.
-SetString shell_prompt_help_programs_man = SetString();
-shell_prompt_help_programs_man.insert("look");
+// Set of commands for which `man` should be run. If they have at least one
+// argument, we should just run them.
+SetString shell_prompt_man_preview_execution = SetString();
+shell_prompt_man_preview_execution.insert("look");
+shell_prompt_man_preview_execution.insert("grep");
 
 // Set of commands for which `$command --help` should be run.
 SetString shell_prompt_help_programs = SetString();
@@ -109,9 +110,9 @@ string GetShellPromptContextProgram(string input) {
     return input;
   }
 
-  if (shell_prompt_help_programs_man.contains(base_command)) {
-    return "man " + base_command;
-  }
+  if (shell_prompt_man_preview_execution.contains(base_command))
+    return GetSubCommand(input).empty() ? "man " + base_command : input;
+
   string sub_command = "";
   if (base_command == "blaze") {
     sub_command = LookUpSubCommand(blaze_sub_commands, input);
