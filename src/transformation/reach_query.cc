@@ -177,15 +177,19 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
       Line line = input.buffer.contents().snapshot().at(match.second.line);
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second,
-          afc::infrastructure::screen::VisualOverlay{
+          infrastructure::screen::VisualOverlay{
               .content = line.Substring(match.second.column, kQueryLength),
-              .modifiers = {LineModifier::kUnderline}}));
+              .modifiers = {LineModifier::kUnderline},
+              .behavior =
+                  infrastructure::screen::VisualOverlay::Behavior::kToggle}));
       overlays[kPriority][kKey].insert(std::make_pair(
           match.second + kQueryLength,
-          afc::infrastructure::screen::VisualOverlay{
+          infrastructure::screen::VisualOverlay{
               .content = LazyString{ColumnNumberDelta{1}, match.first},
-              .modifiers = LineModifierSet{LineModifier::kReverse,
-                                           LineModifier::kWhite}}));
+              .modifiers =
+                  LineModifierSet{LineModifier::kReverse, LineModifier::kWhite},
+              .behavior =
+                  infrastructure::screen::VisualOverlay::Behavior::kToggle}));
     }
   }
   return futures::Past(
