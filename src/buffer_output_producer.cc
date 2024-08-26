@@ -134,6 +134,27 @@ void GetSyntaxModifiersForLine(
   }
 }
 
+std::optional<LineModifier> GetColor(const LineModifierSet& input) {
+  if (input.find(LineModifier::kWhite) != input.end())
+    return LineModifier::kWhite;
+  return std::nullopt;
+}
+
+void ChangeColor(LineModifierSet& modifiers, LineModifier color) {
+  EraseOrDie(modifiers, color);
+  modifiers.insert(color == LineModifier::kWhite ? LineModifier::kCyan
+                                                 : LineModifier::kWhite);
+}
+
+LineModifierSet MergeSets(const LineModifierSet& parent,
+                          const LineModifierSet& syntax) {
+  LineModifierSet output = parent.empty() ? syntax : parent;
+  if (std::optional<LineModifier> parent_color = GetColor(parent);
+      parent_color.has_value() && parent_color == GetColor(syntax))
+    ChangeColor(output, parent_color.value());
+  return output;
+}
+
 LineWithCursor::Generator ParseTreeHighlighterTokens(
     NonNull<std::shared_ptr<const ParseTree>> root, LineRange range,
     LineWithCursor::Generator generator) {
@@ -179,9 +200,12 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
       CHECK(syntax_it != syntax_modifiers.end());
       CHECK_LE(parent_it->first, syntax_it->first);
       current_parent_modifiers = parent_it->second;
-      merged_modifiers[parent_it->first] = current_parent_modifiers.empty()
-                                               ? current_syntax_modifiers
-                                               : current_parent_modifiers;
+      if (syntax_it->first == parent_it->first) {
+        current_syntax_modifiers = syntax_it->second;
+        ++syntax_it;
+      }
+      merged_modifiers[parent_it->first] =
+          MergeSets(current_parent_modifiers, current_syntax_modifiers);
       ++parent_it;
     }
     options.set_modifiers(std::move(merged_modifiers));
