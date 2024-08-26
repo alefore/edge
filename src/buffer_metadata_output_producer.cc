@@ -226,10 +226,10 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
 
   if (count == 0) return LineBuilder{LazyString{L" "}};
 
-  std::wstring output_str = std::wstring(1, L'0' + count);
+  LazyString output_str{ColumnNumberDelta{1}, L'0' + count};
   LineModifierSet modifiers;
   if (count == kStopCount) {
-    output_str = L"+";
+    output_str = LazyString{L"+"};
     modifiers.insert(LineModifier::kBold);
   }
   if (range.Contains(*cursors.active())) {
@@ -237,9 +237,7 @@ LineBuilder ComputeCursorsSuffix(const BufferMetadataOutputOptions& options,
     modifiers.insert(LineModifier::kCyan);
   }
   LineBuilder line_options;
-  // TODO(trivial, 2024-07-26): Turn output_str into a LazyString, avoid
-  // conversion below.
-  line_options.AppendString(LazyString{output_str}, modifiers);
+  line_options.AppendString(output_str, modifiers);
   return line_options;
 }
 
@@ -476,28 +474,29 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   // When an expired mark appears again, no need to show it redundantly (as
   // expired). We use `marks_strings` to detect this.
   // TODO(easy, 2023-12-14): This should use Line directly?
-  std::set<std::wstring> marks_strings;
-  for (const auto& mark : marks) {
+  std::set<LazyString> marks_strings;
+  for (const auto& mark : marks)
     VisitOptional(
         [&](gc::Root<OpenBuffer> source) {
           if (mark.source_line <
               LineNumber(0) + source.ptr()->contents().size()) {
             marks_strings.insert(
-                source.ptr()->contents().at(mark.source_line).ToString());
+                source.ptr()->contents().at(mark.source_line).contents());
           }
         },
         [] {},
         options.buffer.editor().buffer_registry().Find(mark.source_buffer));
-  }
 
   for (const auto& mark : expired_marks) {
     static Tracker tracker(
         L"BufferMetadataOutput::Prepare:AddMetadataForExpiredMark");
     auto call = tracker.Call();
-    if (auto mark_contents = mark.source_line_content.ToString();
-        !marks_strings.contains(mark_contents)) {
+    if (const Line& mark_contents = mark.source_line_content;
+        !marks_strings.contains(mark_contents.contents())) {
+      LineBuilder wrapper(LazyString{L"👻 "});
+      wrapper.Append(LineBuilder(mark_contents));
       output.push_back(MetadataLine{'!', LineModifier::kRed,
-                                    Line(L"👻 " + mark_contents),
+                                    std::move(wrapper).Build(),
                                     MetadataLine::Type::kMark});
     }
   }
