@@ -692,10 +692,13 @@ void OpenBuffer::UpdateTreeParser() {
             Read(buffer_variables::language_keywords));
         buffer_syntax_parser_.UpdateParser(
             {.parser_name = Read(buffer_variables::tree_parser),
-             .typos_set =
-                 std::unordered_set<std::wstring>{
+             .typos_set = language::container::Materialize<
+                 std::unordered_set<LazyString>>(
+                 std::vector<std::wstring>{
                      std::istream_iterator<std::wstring, wchar_t>(typos_stream),
-                     std::istream_iterator<std::wstring, wchar_t>()},
+                     std::istream_iterator<std::wstring, wchar_t>()} |
+                 std::views::transform(
+                     [](std::wstring i) { return LazyString{i}; })),
              .language_keywords = std::unordered_set<std::wstring>(
                  std::istream_iterator<std::wstring, wchar_t>(
                      language_keywords),

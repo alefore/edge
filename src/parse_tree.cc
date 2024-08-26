@@ -267,7 +267,7 @@ class NullTreeParser : public TreeParser {
 class WordsTreeParser : public TreeParser {
  public:
   WordsTreeParser(std::wstring symbol_characters,
-                  std::unordered_set<std::wstring> typos,
+                  std::unordered_set<LazyString> typos,
                   NonNull<std::unique_ptr<TreeParser>> delegate)
       : symbol_characters_(symbol_characters),
         typos_(typos),
@@ -292,9 +292,8 @@ class WordsTreeParser : public TreeParser {
         while (column < line_end && !IsSpace(contents, column)) ++column;
         if (begin == column) return;
 
-        // TODO(2022-04-22): Find a way to avoid the call to ToString?
-        auto keyword =
-            contents.contents().Substring(begin, column - begin).ToString();
+        LazyString keyword =
+            contents.contents().Substring(begin, column - begin);
         ParseTree child = delegate_->FindChildren(
             buffer, LineRange(LineColumn(line, begin), column - begin).read());
         if (typos_.find(keyword) != typos_.end()) {
@@ -313,7 +312,7 @@ class WordsTreeParser : public TreeParser {
   }
 
   const std::wstring symbol_characters_;
-  const std::unordered_set<std::wstring> typos_;
+  const std::unordered_set<LazyString> typos_;
   const NonNull<std::unique_ptr<TreeParser>> delegate_;
 };
 
@@ -353,7 +352,7 @@ NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser() {
 }
 
 NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
-    std::wstring symbol_characters, std::unordered_set<std::wstring> typos,
+    std::wstring symbol_characters, std::unordered_set<LazyString> typos,
     NonNull<std::unique_ptr<TreeParser>> delegate) {
   return MakeNonNullUnique<WordsTreeParser>(
       std::move(symbol_characters), std::move(typos), std::move(delegate));

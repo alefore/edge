@@ -19,7 +19,7 @@ class BufferSyntaxParser {
  public:
   struct ParserOptions {
     std::wstring parser_name;
-    std::unordered_set<std::wstring> typos_set;
+    std::unordered_set<language::lazy_string::LazyString> typos_set;
     std::unordered_set<std::wstring> language_keywords;
     std::wstring symbol_characters;
     IdentifierBehavior identifier_behavior;
