@@ -606,9 +606,9 @@ class InsertMode : public InputReceiver {
                 return futures::Past(EmptyValue());
               });
           if (started_completion) {
-            // Whatever was being typed, was probably just for
-            // completion purposes; we might as well not let it be
-            // added to the history (so as to not pollute it).
+            // Whatever was being typed, was probably just for completion
+            // purposes; we might as well not let it be added to the history (so
+            // as to not pollute it).
             current_insertion_->DeleteToLineEnd(LineColumn());
             return 1;
           }
@@ -619,8 +619,8 @@ class InsertMode : public InputReceiver {
       case '\n':
         ResetScrollBehavior();
 
-        // TODO(2022-05-22): Not sure StartNewInsertion is the best to
-        // do here; would be better to leave a \n in the insertion?
+        // TODO(2022-05-22): Not sure StartNewInsertion is the best to do here;
+        // would be better to leave a \n in the insertion?
         StartNewInsertion();
 
         ForEachActiveBuffer(buffers_, {'\n'}, [&](OpenBuffer& buffer) {
@@ -633,6 +633,8 @@ class InsertMode : public InputReceiver {
           // Optimization: space should be handled like any regular character.
           break;
         ResetScrollBehavior();
+        current_insertion_->AppendToLine(current_insertion_->EndLine(),
+                                         Line{LazyString{L" "}});
         ForEachActiveBuffer(
             buffers_, {' '},
             [modify_mode = options_.editor_state.modifiers().insertion,
