@@ -509,8 +509,13 @@ void CompileLine(Compilation& compilation, void* parser,
                (iswalnum(str.get(pos)) || str.get(pos) == '_' ||
                 str.get(pos) == '~'))
           ++pos;
-        Identifier symbol =
-            ValueOrDie(Identifier::New(str.Substring(start, pos - start)));
+        ValueOrError<Identifier> symbol_or_error =
+            Identifier::New(str.Substring(start, pos - start));
+        if (IsError(symbol_or_error)) {
+          compilation.RegisterErrors<Identifier>(symbol_or_error);
+          return;
+        }
+        Identifier symbol = ValueOrDie(std::move(symbol_or_error));
         struct Keyword {
           int token;
           std::function<gc::Root<Value>()> value_supplier = nullptr;
