@@ -164,8 +164,10 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
 
   GhostType() = default;
   GhostType(Internal initial_value) : value(std::move(initial_value)) {
-    if constexpr (!ghost_type_internal::IsAlwaysValid<Validator>)
-      CHECK(!IsError(External::ValidatorType::Validate(value)));
+    if constexpr (!ghost_type_internal::IsAlwaysValid<Validator>) {
+      auto result = External::ValidatorType::Validate(value);
+      CHECK(!IsError(result)) << std::get<Error>(result);
+    }
   }
   GhostType(const GhostType&) = default;
 
