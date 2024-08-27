@@ -21,12 +21,7 @@ namespace afc::vm {
 // characters.
 struct IdentifierValidator {
   static language::PossibleError Validate(
-      const language::lazy_string::LazyString& input) {
-    if (input.IsEmpty())
-      return language::Error{
-          language::lazy_string::LazyString{L"Identifier can't be empty."}};
-    return language::Success();
-  }
+      const language::lazy_string::LazyString& input);
 };
 
 // Represents a single VM identifier within a namespace (e.g., `Buffer` or
