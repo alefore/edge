@@ -7,18 +7,19 @@
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
 
-namespace afc::editor {
-using futures::DeleteNotification;
-using infrastructure::Tracker;
-using language::MakeNonNullShared;
-using language::MakeNonNullUnique;
-using language::NonNull;
-using language::Observers;
-using language::text::LineColumn;
-using language::text::LineNumberDelta;
-using language::text::LineSequence;
-using language::text::Range;
+using afc::futures::DeleteNotification;
+using afc::infrastructure::Tracker;
+using afc::language::MakeNonNullShared;
+using afc::language::MakeNonNullUnique;
+using afc::language::NonNull;
+using afc::language::Observers;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumberDelta;
+using afc::language::text::LineSequence;
+using afc::language::text::Range;
 
+namespace afc::editor {
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {
     if (options.parser_name == L"text") {
@@ -30,7 +31,7 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
                            options.identifier_behavior);
     } else if (options.parser_name == L"diff") {
       data.tree_parser = parsers::NewDiffTreeParser();
-    } else if (options.parser_name == L"md") {
+    } else if (LazyString{options.parser_name} == parsers::MarkdownParserId()) {
       data.tree_parser = parsers::NewMarkdownTreeParser(
           options.symbol_characters, options.dictionary);
     } else if (options.parser_name == L"csv") {

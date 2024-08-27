@@ -3,11 +3,14 @@
 
 #include <memory>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/sorted_line_sequence.h"
 #include "src/parse_tree.h"
 
 namespace afc::editor::parsers {
+const language::lazy_string::LazyString& MarkdownParserId();
+
 language::NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
     std::wstring symbol_characters,
     language::text::SortedLineSequence dictionary);

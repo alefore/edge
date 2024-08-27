@@ -762,12 +762,12 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                             [&] { return futures::Past(EmptyValue()); });
                       }));
 
-  Set(buffer_variables::name, to_wstring(options_.name));
-  if (options_.path.has_value()) {
+  // TODO(easy, 2024-08-27): Change to_wstring for to_lazystring.
+  Set(buffer_variables::name, LazyString{to_wstring(options_.name)});
+  if (options_.path.has_value())
     Set(buffer_variables::path, options_.path.value().read());
-  }
-  Set(buffer_variables::pts_path, L"");
-  Set(buffer_variables::command, L"");
+  Set(buffer_variables::pts_path, LazyString{});
+  Set(buffer_variables::command, LazyString{});
   Set(buffer_variables::reload_after_exit, false);
   if (std::holds_alternative<PasteBuffer>(name()) ||
       std::holds_alternative<FuturePasteBuffer>(name())) {
@@ -2238,13 +2238,6 @@ const LazyString& OpenBuffer::ReadLazyString(
   return variables_.string_variables.Get(variable);
 }
 
-void OpenBuffer::Set(const EdgeVariable<LazyString>* variable,
-                     std::wstring value) {
-  // TODO(easy, 2024-08-27): Get rid of LazyString; receive value already as
-  // one.
-  Set(variable, LazyString{value});
-}
-
 std::wstring OpenBuffer::Read(const EdgeVariable<LazyString>* variable) const {
   // TODO(easy, 2024-08-27): Get rid of ToString. Just return the LazyString.
   return ReadLazyString(variable).ToString();
@@ -2396,8 +2389,10 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
                          editor().buffer_registry().Find(FuturePasteBuffer{});
                      paste_buffer.has_value()) {
             editor().buffer_registry().Remove(FuturePasteBuffer{});
-            paste_buffer->ptr()->Set(buffer_variables::name,
-                                     to_wstring(BufferName{PasteBuffer{}}));
+            // TODO(easy, 2024-08-27): Change from to_wstring to to_lazystring.
+            paste_buffer->ptr()->Set(
+                buffer_variables::name,
+                LazyString{to_wstring(BufferName{PasteBuffer{}})});
             editor().buffer_registry().Add(PasteBuffer{},
                                            paste_buffer->ptr().ToWeakPtr());
           }

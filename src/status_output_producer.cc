@@ -233,8 +233,8 @@ auto status_basic_info_tests_registration = tests::Register(
     {{.name = L"BufferNameHasEnter", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-        buffer.ptr()->Set(buffer_variables::name, L"foo\nbar\nhey");
-        buffer.ptr()->Set(buffer_variables::path, L"");
+        buffer.ptr()->Set(buffer_variables::name, LazyString{L"foo\nbar\nhey"});
+        buffer.ptr()->Set(buffer_variables::path, LazyString{L""});
         StatusBasicInfo(StatusOutputOptions{
             .status = buffer.ptr()->status(),
             .buffer = &buffer.ptr().value(),

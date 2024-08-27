@@ -10,6 +10,7 @@
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
 #include "src/line_prompt_mode.h"
+#include "src/parsers/markdown.h"
 #include "src/vm/constant_expression.h"
 #include "src/vm/function_call.h"
 
@@ -193,7 +194,7 @@ futures::Value<EmptyValue> GenerateDirectoryListing(Path path,
   LOG(INFO) << "GenerateDirectoryListing: " << path;
   output.Set(buffer_variables::atomic_lines, true);
   output.Set(buffer_variables::allow_dirty_delete, true);
-  output.Set(buffer_variables::tree_parser, L"md");
+  output.Set(buffer_variables::tree_parser, parsers::MarkdownParserId());
   output.AppendToLastLine(LazyString{L"# 🗁  File listing: "} + path.read());
   output.AppendEmptyLine();
 

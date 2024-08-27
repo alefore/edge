@@ -147,7 +147,8 @@ futures::Value<PossibleError> GenerateContents(
     }
     pipefd_out[parent_fd] = master_fd;
     char* pts_path = ptsname(master_fd);
-    target.Set(buffer_variables::pts_path, FromByteString(pts_path));
+    target.Set(buffer_variables::pts_path,
+               LazyString{FromByteString(pts_path)});
     pipefd_out[child_fd] = open(pts_path, O_RDWR);
     if (pipefd_out[child_fd] == -1) {
       cerr << "open failed: " << pts_path << ": "

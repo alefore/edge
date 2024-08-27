@@ -6,6 +6,7 @@
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/safe_types.h"
+#include "src/parsers/markdown.h"
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
@@ -102,24 +103,24 @@ class Impl : public Command {
 
   void ProcessInput(ExtendedChar) override {
     BufferName name(L"Marks");
-    gc::Root<OpenBuffer> buffer_root =
-        editor_.FindOrBuildBuffer(name, [this, &name] {
-          LOG(INFO) << "Building Marks Buffer.";
-          gc::Root<OpenBuffer> output = OpenBuffer::New(OpenBuffer::Options{
-              .editor = editor_,
-              .name = name,
-              .generate_contents =
-                  std::bind_front(GenerateContents, std::ref(editor_))});
-          OpenBuffer& buffer = output.ptr().value();
-          buffer.Set(buffer_variables::push_positions_to_history, false);
-          buffer.Set(buffer_variables::allow_dirty_delete, true);
-          buffer.Set(buffer_variables::reload_on_enter, true);
-          buffer.Set(buffer_variables::tree_parser, L"md");
-          buffer.Reload();
-          editor_.StartHandlingInterrupts();
-          buffer.ResetMode();
-          return output;
-        });
+    gc::Root<OpenBuffer> buffer_root = editor_.FindOrBuildBuffer(name, [this,
+                                                                        &name] {
+      LOG(INFO) << "Building Marks Buffer.";
+      gc::Root<OpenBuffer> output = OpenBuffer::New(OpenBuffer::Options{
+          .editor = editor_,
+          .name = name,
+          .generate_contents =
+              std::bind_front(GenerateContents, std::ref(editor_))});
+      OpenBuffer& buffer = output.ptr().value();
+      buffer.Set(buffer_variables::push_positions_to_history, false);
+      buffer.Set(buffer_variables::allow_dirty_delete, true);
+      buffer.Set(buffer_variables::reload_on_enter, true);
+      buffer.Set(buffer_variables::tree_parser, parsers::MarkdownParserId());
+      buffer.Reload();
+      editor_.StartHandlingInterrupts();
+      buffer.ResetMode();
+      return output;
+    });
     LOG(INFO) << "Installing Marks Buffer.";
     editor_.AddBuffer(buffer_root, BuffersList::AddBufferType::kVisit);
     editor_.set_current_buffer(buffer_root,

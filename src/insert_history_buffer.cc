@@ -6,6 +6,7 @@
 #include "src/editor.h"
 #include "src/insert_history.h"
 #include "src/language/text/line_sequence.h"
+#include "src/parsers/markdown.h"
 
 namespace gc = afc::language::gc;
 
@@ -37,7 +38,7 @@ void ShowInsertHistoryBuffer(EditorState& editor) {
                        .generate_contents = &InsertHistoryBufferContents});
   OpenBuffer& buffer = buffer_root.ptr().value();
 
-  buffer.Set(buffer_variables::tree_parser, L"md");
+  buffer.Set(buffer_variables::tree_parser, parsers::MarkdownParserId());
   buffer.Set(buffer_variables::wrap_from_content, true);
   buffer.Set(buffer_variables::allow_dirty_delete, true);
 

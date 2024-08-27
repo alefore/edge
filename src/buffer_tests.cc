@@ -36,7 +36,7 @@ namespace {
 std::wstring GetMetadata(std::wstring line) {
   NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
   gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-  buffer.ptr()->Set(buffer_variables::name, L"tests");
+  buffer.ptr()->Set(buffer_variables::name, LazyString{L"tests"});
 
   // We add this so that tests can refer to it.
   buffer.ptr()->AppendToLastLine(LazyString{L"5.0/2.0"});
@@ -361,7 +361,7 @@ const bool buffer_positions_tests_registration = tests::Register(
     {{.name = L"DeleteCursorLeavingOtherPastRange", .callback = [] {
         NonNull<std::unique_ptr<EditorState>> editor = EditorForTests();
         gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
-        buffer.ptr()->Set(buffer_variables::name, L"tests");
+        buffer.ptr()->Set(buffer_variables::name, LazyString{L"tests"});
         for (int i = 0; i < 10; i++) buffer.ptr()->AppendEmptyLine();
         CHECK_EQ(buffer.ptr()->position(), LineColumn(LineNumber(0)));
         CHECK_EQ(buffer.ptr()->contents().size(), LineNumberDelta(10 + 1));

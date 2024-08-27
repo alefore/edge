@@ -635,7 +635,7 @@ futures::Value<gc::Root<OpenBuffer>> FilterHistory(
 class StatusVersionAdapter;
 
 futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
-    EditorState& editor, std::wstring prompt_contents_type,
+    EditorState& editor, const LazyString& prompt_contents_type,
     Line initial_value) {
   BufferName name(L"- prompt");
   gc::Root<OpenBuffer> output =
@@ -649,7 +649,7 @@ futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
   buffer.Set(buffer_variables::delete_into_paste_buffer, false);
   buffer.Set(buffer_variables::save_on_close, false);
   buffer.Set(buffer_variables::persist_state, false);
-  buffer.Set(buffer_variables::completion_model_paths, L"");
+  buffer.Set(buffer_variables::completion_model_paths, LazyString{});
   return buffer.Reload()
       .ConsumeErrors([](Error) { return futures::Past(EmptyValue{}); })
       .Transform([&buffer, prompt_contents_type, initial_value](EmptyValue) {
@@ -1242,8 +1242,11 @@ void Prompt(PromptOptions options) {
         history.ptr()->set_current_position_line(
             LineNumber(0) + history.ptr()->contents().size());
 
+        // TODO(trivial, 2024-08-27): Avoid the need to wrap
+        // prompt_contents_type here. Convert it natively to LazyString.
         futures::Value<gc::Root<OpenBuffer>> prompt_buffer_future =
-            GetPromptBuffer(options.editor_state, options.prompt_contents_type,
+            GetPromptBuffer(options.editor_state,
+                            LazyString{options.prompt_contents_type},
                             options.initial_value);
         return std::move(prompt_buffer_future)
             .Transform([options = std::move(options),

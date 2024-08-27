@@ -97,8 +97,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                   editor_state.ResetRepetitions();
                   return editor_state.ForEachActiveBuffer(
                       [var, input](OpenBuffer& buffer) {
-                        // TODO(easy, 2022-06-05): Get rid of calls to ToString.
-                        buffer.Set(var, input.ToString());
+                        buffer.Set(var, input);
                         buffer.status().SetInformationText(
                             LineBuilder(LazyString{var->name()} +
                                         LazyString{L" := "} + input)
