@@ -27,8 +27,10 @@ using afc::language::text::MutableLineSequence;
 int main(int, char** argv) {
   google::InitGoogleLogging(argv[0]);
   auto parser = NewCppTreeParser(
-      {L"auto", L"int", L"char", L"if", L"while", L"const", L"for"},
-      {L"optoins"}, IdentifierBehavior::kNone);
+      {LazyString{L"auto"}, LazyString{L"int"}, LazyString{L"char"},
+       LazyString{L"if"}, LazyString{L"while"}, LazyString{L"const"},
+       LazyString{L"for"}},
+      {LazyString{L"optoins"}}, IdentifierBehavior::kNone);
 
   std::wifstream input(argv[1]);
 
