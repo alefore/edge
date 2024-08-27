@@ -1,8 +1,10 @@
 #include "src/vm/natural.h"
 
 #include "src/language/container.h"
+#include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"  // For tests.
 #include "src/language/lazy_string/tokenize.h"
+#include "src/language/overload.h"
 #include "src/language/wstring.h"
 #include "src/math/numbers.h"
 #include "src/tests/tests.h"
@@ -15,8 +17,10 @@ namespace container = afc::language::container;
 namespace gc = afc::language::gc;
 
 using afc::language::Error;
+using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
+using afc::language::overload;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
@@ -98,14 +102,14 @@ class ParseState {
                 pool_, math::numbers::Number::FromInt64(
                            atoi(ToByteString(token.value.ToString()).c_str()))),
             extended_candidates);
-      // TODO(easy, 2023-12-30): Before adding validation to Identifier,
-      // validate here that the input can be correctly converted to an
-      // Identifier. Otherwise this can crash if there's a mismatch. It should,
-      // instead, just fail (return an error).
-      for (gc::Root<Value> value : LookUp(
-               first_token ? Identifier{(token.value + function_name_prefix_)}
-                           : Identifier{token.value}))
-        PushValue(value, extended_candidates);
+      std::visit(overload{[&](Identifier identifier) {
+                            for (gc::Root<Value> value : LookUp(identifier))
+                              PushValue(value, extended_candidates);
+                          },
+                          IgnoreErrors{}},
+                 first_token
+                     ? Identifier::New(token.value + function_name_prefix_)
+                     : Identifier::New(token.value));
       PushValue(Value::NewString(pool_, token.value), extended_candidates);
       if (extended_candidates.empty())
         return Error{LazyString{L"No valid parses found."}};
@@ -338,6 +342,28 @@ bool tests_registration = tests::Register(
                                    }));
                NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                    Compile(LazyString{L"UnaryFunction bar"}, LazyString{},
+                           environment.ptr().value(), {kEmptyNamespace}, pool));
+               CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
+                                    .Get()
+                                    .value())
+                         .ptr()
+                         ->get_string() == LazyString{L"quux"});
+             }},
+        {.name = L"UnaryFunctionUnquotedArgumentWithDot",
+         .callback =
+             [] {
+               gc::Pool pool({});
+               language::gc::Root<Environment> environment =
+                   afc::vm::NewDefaultEnvironment(pool);
+               environment.ptr()->Define(
+                   Identifier{LazyString{L"UnaryFunction"}},
+                   vm::NewCallback(pool, kPurityTypePure,
+                                   [](std::wstring a) -> std::wstring {
+                                     CHECK(a == L"ba.r");
+                                     return L"quux";
+                                   }));
+               NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
+                   Compile(LazyString{L"UnaryFunction ba.r"}, LazyString{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                CHECK(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
                                     .Get()
