@@ -325,15 +325,13 @@ class SetStrengthCommand : public Command {
 
 class NumberMode : public Command {
   EditorState& editor_state_;
-  const LazyString description_;
 
  public:
-  NumberMode(EditorState& editor_state) : NumberMode(editor_state, L"") {}
-  // TODO(2024-01-24): Get rid of LazyString{}.
-  NumberMode(EditorState& editor_state, const std::wstring& description)
-      : editor_state_(editor_state), description_(LazyString{description}) {}
+  NumberMode(EditorState& editor_state) : editor_state_(editor_state) {}
 
-  LazyString Description() const override { return description_; }
+  LazyString Description() const override {
+    return LazyString{L"sets repetitions for the next command."};
+  }
   std::wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(ExtendedChar c) override {
