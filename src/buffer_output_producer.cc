@@ -12,6 +12,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/infrastructure/screen/visual_overlay.h"
 #include "src/infrastructure/tracker.h"
+#include "src/language/container.h"
 #include "src/language/hash.h"
 #include "src/language/text/line.h"
 #include "src/language/text/line_column.h"
@@ -20,6 +21,7 @@
 #include "src/tests/tests.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::infrastructure::Tracker;
 using afc::infrastructure::screen::LineModifier;
@@ -106,7 +108,7 @@ LineWithCursor::Generator ParseTreeHighlighter(
 // already subtracted it. In other words, the columns in the output are
 // relative to range.begin().column, rather than absolute.
 void GetSyntaxModifiersForLine(
-    LineRange range, const ParseTree& tree, LineModifierSet syntax_modifiers,
+    LineRange range, const ParseTree& tree, LineModifierSet child_modifiers,
     std::map<ColumnNumber, LineModifierSet>& output) {
   VLOG(5) << "Getting syntax for " << range << " from " << tree.range();
   if (range.read().Intersection(tree.range()).empty()) return;
@@ -114,11 +116,11 @@ void GetSyntaxModifiersForLine(
     if (tree_position.line != range.line()) return;
     auto column = tree_position.column.MinusHandlingOverflow(
         range.begin_column().ToDelta());
-    output[column] = syntax_modifiers;
+    output[column] = child_modifiers;
   };
 
   PushCurrentModifiers(tree.range().end());
-  syntax_modifiers.insert(tree.modifiers().begin(), tree.modifiers().end());
+  child_modifiers.insert(tree.modifiers().begin(), tree.modifiers().end());
   PushCurrentModifiers(std::max(range.read().begin(), tree.range().begin()));
 
   const auto& children = tree.children();
@@ -129,7 +131,7 @@ void GetSyntaxModifiersForLine(
       });
 
   while (it != children.end() && (*it).range().begin() <= range.read().end()) {
-    GetSyntaxModifiersForLine(range, *it, syntax_modifiers, output);
+    GetSyntaxModifiersForLine(range, *it, child_modifiers, output);
     ++it;
   }
 }
@@ -147,11 +149,54 @@ void ChangeColor(LineModifierSet& modifiers, LineModifier color) {
 }
 
 LineModifierSet MergeSets(const LineModifierSet& parent,
-                          const LineModifierSet& syntax) {
-  LineModifierSet output = parent.empty() ? syntax : parent;
+                          const LineModifierSet& child) {
+  if (parent.empty()) return child;
+  LineModifierSet output = parent;
   if (std::optional<LineModifier> parent_color = GetColor(parent);
-      parent_color.has_value() && parent_color == GetColor(syntax))
+      parent_color.has_value() && parent_color == GetColor(child))
     ChangeColor(output, parent_color.value());
+  return output;
+}
+
+std::map<ColumnNumber, LineModifierSet> MergeModifiers(
+    const std::map<ColumnNumber, LineModifierSet>& parent_modifiers,
+    const std::map<ColumnNumber, LineModifierSet>& child_modifiers,
+    ColumnNumber end_column) {
+  std::map<ColumnNumber, LineModifierSet> output;
+  auto parent_it = parent_modifiers.begin();
+  auto child_it = child_modifiers.begin();
+  LineModifierSet current_parent_modifiers;
+  LineModifierSet current_child_modifiers;
+  while ((child_it != child_modifiers.end() && child_it->first <= end_column) ||
+         parent_it != parent_modifiers.end()) {
+    ColumnNumber position;
+    if (child_it == child_modifiers.end() || child_it->first > end_column) {
+      VLOG(5) << "Applying parent modifiers (no more children).";
+      current_parent_modifiers = parent_it->second;
+      position = parent_it->first;
+      ++parent_it;
+    } else if (parent_it == parent_modifiers.end() ||
+               parent_it->first > child_it->first) {
+      VLOG(5) << "Applying child modifiers.";
+      current_child_modifiers = child_it->second;
+      position = child_it->first;
+      ++child_it;
+    } else {
+      VLOG(5) << "Applying parent modifiers.";
+      CHECK(parent_it != parent_modifiers.end());
+      CHECK(child_it != child_modifiers.end());
+      CHECK_LE(parent_it->first, child_it->first);
+      current_parent_modifiers = parent_it->second;
+      if (child_it->first == parent_it->first) {
+        current_child_modifiers = child_it->second;
+        ++child_it;
+      }
+      position = parent_it->first;
+      ++parent_it;
+    }
+    InsertOrDie(output, {position, MergeSets(current_parent_modifiers,
+                                             current_child_modifiers)});
+  }
   return output;
 }
 
@@ -165,51 +210,12 @@ LineWithCursor::Generator ParseTreeHighlighterTokens(
     LineWithCursor input = generator.generate();
     LineBuilder options(input.line);
 
-    std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
-    GetSyntaxModifiersForLine(range, root.value(), {}, syntax_modifiers);
-    VLOG(8) << "Syntax tokens for " << range << ": " << syntax_modifiers.size();
+    std::map<ColumnNumber, LineModifierSet> child_modifiers;
+    GetSyntaxModifiersForLine(range, root.value(), {}, child_modifiers);
+    VLOG(8) << "Syntax tokens for " << range << ": " << child_modifiers.size();
 
-    // Merge them.
-    std::map<ColumnNumber, LineModifierSet> merged_modifiers;
-    auto options_modifiers = options.modifiers();
-    auto parent_it = options_modifiers.begin();
-    auto syntax_it = syntax_modifiers.begin();
-    LineModifierSet current_parent_modifiers;
-    LineModifierSet current_syntax_modifiers;
-    while ((syntax_it != syntax_modifiers.end() &&
-            syntax_it->first <= options.EndColumn()) ||
-           parent_it != options_modifiers.end()) {
-      if (syntax_it == syntax_modifiers.end()) {
-        merged_modifiers.insert(*parent_it);
-        ++parent_it;
-        if (parent_it == options_modifiers.end()) {
-          current_parent_modifiers = options.copy_end_of_line_modifiers();
-        }
-        continue;
-      }
-      if (parent_it == options_modifiers.end() ||
-          parent_it->first > syntax_it->first) {
-        current_syntax_modifiers = syntax_it->second;
-        if (current_parent_modifiers.empty()) {
-          merged_modifiers[syntax_it->first] = current_syntax_modifiers;
-        }
-        ++syntax_it;
-        continue;
-      }
-      CHECK(parent_it != options_modifiers.end());
-      CHECK(syntax_it != syntax_modifiers.end());
-      CHECK_LE(parent_it->first, syntax_it->first);
-      current_parent_modifiers = parent_it->second;
-      if (syntax_it->first == parent_it->first) {
-        current_syntax_modifiers = syntax_it->second;
-        ++syntax_it;
-      }
-      merged_modifiers[parent_it->first] =
-          MergeSets(current_parent_modifiers, current_syntax_modifiers);
-      ++parent_it;
-    }
-    options.set_modifiers(std::move(merged_modifiers));
-
+    options.set_modifiers(MergeModifiers(options.modifiers(), child_modifiers,
+                                         options.EndColumn()));
     input.line = std::move(options).Build();
     return input;
   };
