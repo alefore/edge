@@ -1,13 +1,14 @@
 #ifndef __AFC_EDITOR_EDITOR_VARIABLES_H__
 #define __AFC_EDITOR_EDITOR_VARIABLES_H__
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/variables.h"
 #include "src/vm/value.h"
 
 namespace afc::editor::editor_variables {
 
-EdgeStruct<std::wstring>* StringStruct();
-extern EdgeVariable<std::wstring>* const buffer_sort_order;
+EdgeStruct<language::lazy_string::LazyString>* StringStruct();
+extern EdgeVariable<language::lazy_string::LazyString>* const buffer_sort_order;
 
 EdgeStruct<bool>* BoolStruct();
 extern EdgeVariable<bool>* const multiple_buffers;

@@ -182,7 +182,7 @@ gc::Root<Environment> BuildEditorEnvironment(
       pool, editor_variables::BoolStruct(), editor_type.ptr().value(),
       &EditorState::Read, &EditorState::Set);
 
-  RegisterVariableFields<EdgeStruct<std::wstring>, std::wstring>(
+  RegisterVariableFields<EdgeStruct<LazyString>, LazyString>(
       pool, editor_variables::StringStruct(), editor_type.ptr().value(),
       &EditorState::Read, &EditorState::Set);
 

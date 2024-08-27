@@ -187,12 +187,20 @@ class HelpCommand : public Command {
 
     DescribeVariables(
         L"bool", buffer, output, buffer_variables::BoolStruct(),
-        [](const bool& value) { return value ? L"true" : L"false"; });
+        [](const bool& value) {
+          return value ? LazyString{L"true"} : LazyString{L"false"};
+        },
+        &OpenBuffer::Read);
     DescribeVariables(
         L"string", buffer, output, buffer_variables::StringStruct(),
-        [](const std::wstring& value) { return L"`" + value + L"`"; });
-    DescribeVariables(L"int", buffer, output, buffer_variables::IntStruct(),
-                      [](const int& value) { return std::to_wstring(value); });
+        [](const LazyString& value) {
+          return LazyString{L"`"} + value + LazyString{L"`"};
+        },
+        &OpenBuffer::ReadLazyString);
+    DescribeVariables(
+        L"int", buffer, output, buffer_variables::IntStruct(),
+        [](const int& value) { return LazyString{std::to_wstring(value)}; },
+        &OpenBuffer::Read);
 
     CommandLineVariables(output);
     return output.snapshot();
@@ -295,11 +303,13 @@ class HelpCommand : public Command {
     output.push_back(L"");
   }
 
+  // TODO(trivial, 2024-08-27): Once OpenBuffer::Read returns a LazyString,
+  // get rid of parameter reader.
   template <typename T, typename C>
-  static void DescribeVariables(std::wstring type_name,
-                                const OpenBuffer& source,
-                                MutableLineSequence& output,
-                                EdgeStruct<T>* variables, C print) {
+  static void DescribeVariables(
+      std::wstring type_name, const OpenBuffer& source,
+      MutableLineSequence& output, EdgeStruct<T>* variables, C print,
+      const T& (OpenBuffer::*reader)(const EdgeVariable<T>*) const) {
     StartSection(L"### " + type_name, output);
     for (const auto& variable : variables->variables()) {
       output.push_back(LineBuilder{LazyString{L"#### "} +
@@ -310,12 +320,11 @@ class HelpCommand : public Command {
       output.push_back(L"");
       output.push_back(
           LineBuilder{LazyString{L"* Value: "} +
-                      LazyString{print(source.Read(&variable.second.value()))}}
+                      print((source.*reader)(&variable.second.value()))}
               .Build());
-      output.push_back(
-          LineBuilder{LazyString{L"* Default: "} +
-                      LazyString{print(variable.second->default_value())}}
-              .Build());
+      output.push_back(LineBuilder{LazyString{L"* Default: "} +
+                                   print(variable.second->default_value())}
+                           .Build());
 
       if (!variable.second->key().empty()) {
         output.push_back(L"* Related commands: `v" + variable.second->key() +

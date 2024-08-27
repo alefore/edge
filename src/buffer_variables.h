@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_BUFFER_VARIABLES_H__
 #define __AFC_EDITOR_BUFFER_VARIABLES_H__
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/text/line_column.h"
 #include "src/variables.h"
 #include "src/vm/value.h"
@@ -43,30 +44,39 @@ extern EdgeVariable<bool>* const pin;
 extern EdgeVariable<bool>* const vm_lines_evaluation;
 extern EdgeVariable<bool>* const view_center_lines;
 
-EdgeStruct<std::wstring>* StringStruct();
-extern EdgeVariable<std::wstring>* const name;
-extern EdgeVariable<std::wstring>* const symbol_characters;
-extern EdgeVariable<std::wstring>* const path_characters;
-extern EdgeVariable<std::wstring>* const path;
-extern EdgeVariable<std::wstring>* const pts_path;
-extern EdgeVariable<std::wstring>* const children_path;
-extern EdgeVariable<std::wstring>* const command;
-extern EdgeVariable<std::wstring>* const editor_commands_path;
-extern EdgeVariable<std::wstring>* const line_prefix_characters;
-extern EdgeVariable<std::wstring>* const paragraph_line_prefix_characters;
-extern EdgeVariable<std::wstring>* const line_suffix_superfluous_characters;
-extern EdgeVariable<std::wstring>* const dictionary;
-extern EdgeVariable<std::wstring>* const tree_parser;
-extern EdgeVariable<std::wstring>* const language_keywords;
-extern EdgeVariable<std::wstring>* const typos;
-extern EdgeVariable<std::wstring>* const directory_noise;
-extern EdgeVariable<std::wstring>* const contents_type;
-extern EdgeVariable<std::wstring>* const shell_command_help_filter;
-extern EdgeVariable<std::wstring>* const shell_command;
-extern EdgeVariable<std::wstring>* const cpp_prompt_namespaces;
-extern EdgeVariable<std::wstring>* const file_context_extensions;
-extern EdgeVariable<std::wstring>* const identifier_behavior;
-extern EdgeVariable<std::wstring>* const completion_model_paths;
+EdgeStruct<language::lazy_string::LazyString>* StringStruct();
+extern EdgeVariable<language::lazy_string::LazyString>* const name;
+extern EdgeVariable<language::lazy_string::LazyString>* const symbol_characters;
+extern EdgeVariable<language::lazy_string::LazyString>* const path_characters;
+extern EdgeVariable<language::lazy_string::LazyString>* const path;
+extern EdgeVariable<language::lazy_string::LazyString>* const pts_path;
+extern EdgeVariable<language::lazy_string::LazyString>* const children_path;
+extern EdgeVariable<language::lazy_string::LazyString>* const command;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    editor_commands_path;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    line_prefix_characters;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    paragraph_line_prefix_characters;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    line_suffix_superfluous_characters;
+extern EdgeVariable<language::lazy_string::LazyString>* const dictionary;
+extern EdgeVariable<language::lazy_string::LazyString>* const tree_parser;
+extern EdgeVariable<language::lazy_string::LazyString>* const language_keywords;
+extern EdgeVariable<language::lazy_string::LazyString>* const typos;
+extern EdgeVariable<language::lazy_string::LazyString>* const directory_noise;
+extern EdgeVariable<language::lazy_string::LazyString>* const contents_type;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    shell_command_help_filter;
+extern EdgeVariable<language::lazy_string::LazyString>* const shell_command;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    cpp_prompt_namespaces;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    file_context_extensions;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    identifier_behavior;
+extern EdgeVariable<language::lazy_string::LazyString>* const
+    completion_model_paths;
 
 EdgeStruct<int>* IntStruct();
 extern EdgeVariable<int>* const line_width;

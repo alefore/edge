@@ -1,18 +1,20 @@
 #include "src/editor_variables.h"
 
+using afc::language::lazy_string::LazyString;
+
 namespace afc::editor::editor_variables {
 
-EdgeStruct<std::wstring>* StringStruct() {
-  static EdgeStruct<std::wstring>* output = new EdgeStruct<std::wstring>();
+EdgeStruct<LazyString>* StringStruct() {
+  static EdgeStruct<LazyString>* output = new EdgeStruct<LazyString>();
   return output;
 }
 
-EdgeVariable<std::wstring>* const buffer_sort_order =
+EdgeVariable<LazyString>* const buffer_sort_order =
     &StringStruct()
          ->Add()
          .Name(L"buffer_sort_order")
          .Description(L"Set the sort order for the buffers.")
-         .DefaultValue(L"last_visit")
+         .DefaultValue(LazyString{L"last_visit"})
          .Build();
 
 EdgeStruct<bool>* BoolStruct() {

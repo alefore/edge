@@ -82,8 +82,10 @@ class EditorState {
   const bool& Read(const EdgeVariable<bool>* variable) const;
   void Set(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
-  const std::wstring& Read(const EdgeVariable<std::wstring>* variable) const;
-  void Set(const EdgeVariable<std::wstring>* variable, std::wstring value);
+  const language::lazy_string::LazyString& Read(
+      const EdgeVariable<language::lazy_string::LazyString>* variable) const;
+  void Set(const EdgeVariable<language::lazy_string::LazyString>* variable,
+           language::lazy_string::LazyString value);
   const int& Read(const EdgeVariable<int>* variable) const;
   void Set(const EdgeVariable<int>* variable, int value);
   const double& Read(const EdgeVariable<double>* variable) const;
@@ -258,7 +260,7 @@ class EditorState {
 
   language::gc::Pool gc_pool_;
 
-  EdgeStructInstance<std::wstring> string_variables_;
+  EdgeStructInstance<language::lazy_string::LazyString> string_variables_;
   EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<double> double_variables_;

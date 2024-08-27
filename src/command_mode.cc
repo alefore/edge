@@ -514,7 +514,7 @@ void ToggleVariable(EditorState& editor_state,
 
 void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
-                    const EdgeVariable<std::wstring>* variable,
+                    const EdgeVariable<LazyString>* variable,
                     MapModeCommands& map_mode) {
   // TODO(trivial, 2024-08-23): Change variable->name to return LazyString and
   // avoid conversion.

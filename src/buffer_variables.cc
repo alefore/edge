@@ -1,10 +1,9 @@
 #include "src/buffer_variables.h"
 
-namespace afc {
-namespace editor {
-namespace buffer_variables {
+using afc::language::lazy_string::LazyString;
+using afc::language::text::LineColumn;
 
-using language::text::LineColumn;
+namespace afc::editor::buffer_variables {
 
 EdgeStruct<bool>* BoolStruct() {
   static EdgeStruct<bool>* output = new EdgeStruct<bool>();
@@ -367,19 +366,19 @@ EdgeVariable<bool>* const view_center_lines =
              L"`paste_mode` is true.")
          .Build();
 
-EdgeStruct<std::wstring>* StringStruct() {
-  static EdgeStruct<std::wstring>* output = new EdgeStruct<std::wstring>();
+EdgeStruct<LazyString>* StringStruct() {
+  static EdgeStruct<LazyString>* output = new EdgeStruct<LazyString>();
   return output;
 }
 
-EdgeVariable<std::wstring>* const name =
+EdgeVariable<LazyString>* const name =
     &StringStruct()
          ->Add()
          .Name(L"name")
          .Description(L"Name of the current buffer.")
          .Build();
 
-EdgeVariable<std::wstring>* const symbol_characters =
+EdgeVariable<LazyString>* const symbol_characters =
     &StringStruct()
          ->Add()
          .Name(L"symbol_characters")
@@ -387,11 +386,11 @@ EdgeVariable<std::wstring>* const symbol_characters =
              L"String with all the characters that should be considered part "
              L"of "
              L"a symbol. This affects commands such as `dW` (delete symbol).")
-         .DefaultValue(
-             L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
+         .DefaultValue(LazyString{L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq"
+                                  L"rstuvwxyz0123456789_"})
          .Build();
 
-EdgeVariable<std::wstring>* const path_characters =
+EdgeVariable<LazyString>* const path_characters =
     &StringStruct()
          ->Add()
          .Name(L"path_characters")
@@ -399,13 +398,13 @@ EdgeVariable<std::wstring>* const path_characters =
              L"String with all the characters that should be considered part "
              L"of "
              L"a path.")
-         .DefaultValue(
-             L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
-             L"."
-             L"*:/")
+         .DefaultValue(LazyString{L"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                  L"abcdefghijklmnopqrstuvwxyz"
+                                  L"0123456789"
+                                  L"_-.*:/"})
          .Build();
 
-EdgeVariable<std::wstring>* const path =
+EdgeVariable<LazyString>* const path =
     &StringStruct()
          ->Add()
          .Name(L"path")
@@ -413,7 +412,7 @@ EdgeVariable<std::wstring>* const path =
          .Predictor(FilePredictor)
          .Build();
 
-EdgeVariable<std::wstring>* const pts_path =
+EdgeVariable<LazyString>* const pts_path =
     &StringStruct()
          ->Add()
          .Name(L"pts_path")
@@ -423,7 +422,7 @@ EdgeVariable<std::wstring>* const pts_path =
          .Predictor(FilePredictor)
          .Build();
 
-EdgeVariable<std::wstring>* const children_path =
+EdgeVariable<LazyString>* const children_path =
     &StringStruct()
          ->Add()
          .Name(L"children_path")
@@ -437,7 +436,7 @@ EdgeVariable<std::wstring>* const children_path =
          .Predictor(FilePredictor)
          .Build();
 
-EdgeVariable<std::wstring>* const command =
+EdgeVariable<LazyString>* const command =
     &StringStruct()
          ->Add()
          .Name(L"command")
@@ -447,7 +446,7 @@ EdgeVariable<std::wstring>* const command =
          .Predictor(FilePredictor)
          .Build();
 
-EdgeVariable<std::wstring>* const editor_commands_path =
+EdgeVariable<LazyString>* const editor_commands_path =
     &StringStruct()
          ->Add()
          .Name(L"editor_commands_path")
@@ -459,7 +458,7 @@ EdgeVariable<std::wstring>* const editor_commands_path =
          .Predictor(FilePredictor)
          .Build();
 
-EdgeVariable<std::wstring>* const line_prefix_characters =
+EdgeVariable<LazyString>* const line_prefix_characters =
     &StringStruct()
          ->Add()
          .Name(L"line_prefix_characters")
@@ -471,10 +470,10 @@ EdgeVariable<std::wstring>* const line_prefix_characters =
              L"line_prefix_characters) is copied to the new line.  The order "
              L"of "
              L"characters has no effect.")
-         .DefaultValue(L" ")
+         .DefaultValue(LazyString{L" "})
          .Build();
 
-EdgeVariable<std::wstring>* const paragraph_line_prefix_characters =
+EdgeVariable<LazyString>* const paragraph_line_prefix_characters =
     &StringStruct()
          ->Add()
          .Name(L"paragraph_line_prefix_characters")
@@ -483,10 +482,10 @@ EdgeVariable<std::wstring>* const paragraph_line_prefix_characters =
              L"characters that are allowed in the prefix of the first line of "
              L"a "
              L"paragraph (but wouldn't be allowed in continuation lines).")
-         .DefaultValue(L" ")
+         .DefaultValue(LazyString{L" "})
          .Build();
 
-EdgeVariable<std::wstring>* const line_suffix_superfluous_characters =
+EdgeVariable<LazyString>* const line_suffix_superfluous_characters =
     &StringStruct()
          ->Add()
          .Name(L"line_suffix_superfluous_characters")
@@ -495,10 +494,10 @@ EdgeVariable<std::wstring>* const line_suffix_superfluous_characters =
              L"suffix of a line (after editing it).  The order of characters "
              L"in "
              L"has no effect.")
-         .DefaultValue(L" ")
+         .DefaultValue(LazyString{L" "})
          .Build();
 
-EdgeVariable<std::wstring>* const dictionary =
+EdgeVariable<LazyString>* const dictionary =
     &StringStruct()
          ->Add()
          .Name(L"dictionary")
@@ -515,7 +514,7 @@ EdgeVariable<std::wstring>* const dictionary =
 
 // TODO(easy, 2023-09-16): Maintain a registry of available parsers, so that the
 // following "Valid values ..." string doesn't become outdated.
-EdgeVariable<std::wstring>* const tree_parser =
+EdgeVariable<LazyString>* const tree_parser =
     &StringStruct()
          ->Add()
          .Name(L"tree_parser")
@@ -526,7 +525,7 @@ EdgeVariable<std::wstring>* const tree_parser =
              L"\"cpp\". Any other value disables the tree logic.")
          .Build();
 
-EdgeVariable<std::wstring>* const language_keywords =
+EdgeVariable<LazyString>* const language_keywords =
     &StringStruct()
          ->Add()
          .Name(L"language_keywords")
@@ -535,7 +534,7 @@ EdgeVariable<std::wstring>* const language_keywords =
              L"the \"cpp\" tree parser (see variable tree_parser).")
          .Build();
 
-EdgeVariable<std::wstring>* const typos =
+EdgeVariable<LazyString>* const typos =
     &StringStruct()
          ->Add()
          .Name(L"typos")
@@ -545,7 +544,7 @@ EdgeVariable<std::wstring>* const typos =
              L"parser types (see variable tree_parser).")
          .Build();
 
-EdgeVariable<std::wstring>* const directory_noise =
+EdgeVariable<LazyString>* const directory_noise =
     &StringStruct()
          ->Add()
          .Name(L"directory_noise")
@@ -553,10 +552,10 @@ EdgeVariable<std::wstring>* const directory_noise =
              L"Regular expression to use in a buffer showing the contents of a "
              L"directory to identify files that should be considered as noise: "
              L"they are less important than most files.")
-         .DefaultValue(L".*(\\.o|~)|\\.(?!\\.$).*")
+         .DefaultValue(LazyString{L".*(\\.o|~)|\\.(?!\\.$).*"})
          .Build();
 
-EdgeVariable<std::wstring>* const contents_type =
+EdgeVariable<LazyString>* const contents_type =
     &StringStruct()
          ->Add()
          .Name(L"contents_type")
@@ -566,7 +565,9 @@ EdgeVariable<std::wstring>* const contents_type =
              L"string. This can be used to customize certain behaviors.")
          .Build();
 
-EdgeVariable<std::wstring>* const shell_command_help_filter =
+// TODO(trivial, 2024-08-27): This is dead code (along with declaration in
+// header). Delete it.
+EdgeVariable<LazyString>* const shell_command_help_filter =
     &StringStruct()
          ->Add()
          .Name(L"shell_command_help_filter")
@@ -574,14 +575,14 @@ EdgeVariable<std::wstring>* const shell_command_help_filter =
              L"Regular expression that matches commands for which a help "
              L"buffer "
              L"(based on running the command with `--help`) should be shown.")
-         .DefaultValue(
+         .DefaultValue(LazyString{
              L"^ *"
              L"(blaze|cat|date|edge|find|gcc|git|grep|ls|locate|make|python|rm|"
              L"sleep)"
-             L"[^|;]*$")
+             L"[^|;]*$"})
          .Build();
 
-EdgeVariable<std::wstring>* const shell_command =
+EdgeVariable<LazyString>* const shell_command =
     &StringStruct()
          ->Add()
          .Name(L"shell_command")
@@ -589,10 +590,10 @@ EdgeVariable<std::wstring>* const shell_command =
              L"Command to run for an execution operation. Should use the "
              L"environment variable EDGE_INPUT to load the contents that the "
              L"user has selected.")
-         .DefaultValue(L"/usr/bin/bash $EDGE_INPUT")
+         .DefaultValue(LazyString{L"/usr/bin/bash $EDGE_INPUT"})
          .Build();
 
-EdgeVariable<std::wstring>* const cpp_prompt_namespaces =
+EdgeVariable<LazyString>* const cpp_prompt_namespaces =
     &StringStruct()
          ->Add()
          .Name(L"cpp_prompt_namespaces")
@@ -603,7 +604,7 @@ EdgeVariable<std::wstring>* const cpp_prompt_namespaces =
              L"commands (functions) given to the CPP prompt (`:`).")
          .Build();
 
-EdgeVariable<std::wstring>* const file_context_extensions =
+EdgeVariable<LazyString>* const file_context_extensions =
     &StringStruct()
          ->Add()
          .Name(L"file_context_extensions")
@@ -613,7 +614,7 @@ EdgeVariable<std::wstring>* const file_context_extensions =
              L"the identifier under the cursor.")
          .Build();
 
-EdgeVariable<std::wstring>* const identifier_behavior =
+EdgeVariable<LazyString>* const identifier_behavior =
     &StringStruct()
          ->Add()
          .Name(L"identifier_behavior")
@@ -624,7 +625,7 @@ EdgeVariable<std::wstring>* const identifier_behavior =
              L"\"color-by-hash\" and empty string.")
          .Build();
 
-EdgeVariable<std::wstring>* const completion_model_paths =
+EdgeVariable<LazyString>* const completion_model_paths =
     &StringStruct()
          ->Add()
          .Name(L"completion_model_paths")
@@ -632,7 +633,7 @@ EdgeVariable<std::wstring>* const completion_model_paths =
          .Description(
              L"Paths to completion model files. See doc/completion_model.md "
              L"for details.")
-         .DefaultValue(L"iso-639/en")
+         .DefaultValue(LazyString{L"iso-639/en"})
          .Build();
 
 EdgeStruct<int>* IntStruct() {
@@ -764,6 +765,4 @@ EdgeStruct<LineColumn>* LineColumnStruct() {
 EdgeVariable<LineColumn>* const view_start =
     &LineColumnStruct()->Add().Name(L"view_start").Description(L"...").Build();
 
-}  // namespace buffer_variables
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor::buffer_variables

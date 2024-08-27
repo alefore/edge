@@ -50,7 +50,7 @@ namespace afc::editor {
 namespace {
 
 LazyString GetToken(const CompositeTransformation::Input& input,
-                    EdgeVariable<std::wstring>* characters_variable) {
+                    EdgeVariable<LazyString>* characters_variable) {
   if (input.position.column < ColumnNumber(2)) return LazyString();
   const ColumnNumber end = input.position.column.previous().previous();
   const LazyString line =

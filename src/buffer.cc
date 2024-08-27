@@ -2233,23 +2233,25 @@ void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
                     : !Read(variable));
 }
 
-LazyString OpenBuffer::ReadLazyString(
-    const EdgeVariable<std::wstring>* variable) const {
-  return LazyString{Read(variable)};
-}
-
-void OpenBuffer::Set(const EdgeVariable<std::wstring>* variable,
-                     LazyString value) {
-  Set(variable, value.ToString());
-}
-
-const std::wstring& OpenBuffer::Read(
-    const EdgeVariable<std::wstring>* variable) const {
+const LazyString& OpenBuffer::ReadLazyString(
+    const EdgeVariable<LazyString>* variable) const {
   return variables_.string_variables.Get(variable);
 }
 
-void OpenBuffer::Set(const EdgeVariable<std::wstring>* variable,
+void OpenBuffer::Set(const EdgeVariable<LazyString>* variable,
                      std::wstring value) {
+  // TODO(easy, 2024-08-27): Get rid of LazyString; receive value already as
+  // one.
+  Set(variable, LazyString{value});
+}
+
+std::wstring OpenBuffer::Read(const EdgeVariable<LazyString>* variable) const {
+  // TODO(easy, 2024-08-27): Get rid of ToString. Just return the LazyString.
+  return ReadLazyString(variable).ToString();
+}
+
+void OpenBuffer::Set(const EdgeVariable<LazyString>* variable,
+                     LazyString value) {
   variables_.string_variables.Set(variable, value);
 }
 

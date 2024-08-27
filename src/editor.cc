@@ -321,14 +321,14 @@ void EditorState::toggle_bool_variable(const EdgeVariable<bool>* variable) {
                     : !Read(variable));
 }
 
-const std::wstring& EditorState::Read(
-    const EdgeVariable<std::wstring>* variable) const {
+const LazyString& EditorState::Read(
+    const EdgeVariable<LazyString>* variable) const {
   return string_variables_.Get(variable);
 }
 
-void EditorState::Set(const EdgeVariable<std::wstring>* variable,
-                      std::wstring value) {
-  string_variables_.Set(variable, value);
+void EditorState::Set(const EdgeVariable<LazyString>* variable,
+                      LazyString value) {
+  string_variables_.Set(variable, std::move(value));
   if (variable == editor_variables::buffer_sort_order) {
     AdjustWidgets();
   }
@@ -433,7 +433,7 @@ void EditorState::AdvanceActiveBuffer(int delta) {
 
 void EditorState::AdjustWidgets() {
   buffer_tree_.SetBufferSortOrder(
-      Read(editor_variables::buffer_sort_order) == L"last_visit"
+      Read(editor_variables::buffer_sort_order) == LazyString{L"last_visit"}
           ? BuffersList::BufferSortOrder::kLastVisit
           : BuffersList::BufferSortOrder::kAlphabetic);
   auto buffers_to_retain = Read(editor_variables::buffers_to_retain);

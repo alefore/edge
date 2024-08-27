@@ -22,9 +22,8 @@ using afc::vm::EscapedString;
 
 namespace afc::editor {
 namespace {
-LazyString SerializeValue(std::wstring input) {
-  // TODO(trivial, 2024-01-02): Receive input already as LazyString.
-  return EscapedString::FromString(LazyString{input}).CppRepresentation();
+LazyString SerializeValue(LazyString input) {
+  return EscapedString::FromString(input).CppRepresentation();
 }
 
 LazyString SerializeValue(int input) {

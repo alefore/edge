@@ -502,16 +502,19 @@ class OpenBuffer {
 
   // TODO(2024-08-04): Unify with LazyString. EdgeVariable<LazyString> should
   // replace EdgeVariable<std::wstring>. Then this wrapper could be removed.
-  language::lazy_string::LazyString ReadLazyString(
-      const EdgeVariable<std::wstring>* variable) const;
-  void Set(const EdgeVariable<std::wstring>* variable,
-           language::lazy_string::LazyString value);
+  const language::lazy_string::LazyString& ReadLazyString(
+      const EdgeVariable<language::lazy_string::LazyString>* variable) const;
 
-  const std::wstring& Read(const EdgeVariable<std::wstring>* variable) const;
+  // TODO(2024-08-27, trivial): Return a const LazyString&.
+  std::wstring Read(
+      const EdgeVariable<language::lazy_string::LazyString>* variable) const;
 
   // TODO(2024-08-04): Unify with LazyString. EdgeVariable<LazyString> should
   // replace EdgeVariable<std::wstring>. Then this wrapper could be removed.
-  void Set(const EdgeVariable<std::wstring>* variable, std::wstring value);
+  void Set(const EdgeVariable<language::lazy_string::LazyString>* variable,
+           std::wstring value);
+  void Set(const EdgeVariable<language::lazy_string::LazyString>* variable,
+           language::lazy_string::LazyString value);
 
   const int& Read(const EdgeVariable<int>* variable) const;
   void Set(const EdgeVariable<int>* variable, int value);

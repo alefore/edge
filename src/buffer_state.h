@@ -11,7 +11,7 @@ namespace afc::editor {
 struct BufferVariablesInstance {
   EdgeStructInstance<bool> bool_variables =
       buffer_variables::BoolStruct()->NewInstance();
-  EdgeStructInstance<std::wstring> string_variables =
+  EdgeStructInstance<language::lazy_string::LazyString> string_variables =
       buffer_variables::StringStruct()->NewInstance();
   EdgeStructInstance<int> int_variables =
       buffer_variables::IntStruct()->NewInstance();

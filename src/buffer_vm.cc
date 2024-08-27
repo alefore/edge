@@ -327,9 +327,9 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   RegisterBufferFields<EdgeStruct<bool>, bool>(
       pool, buffer_variables::BoolStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
-  RegisterBufferFields<EdgeStruct<std::wstring>, std::wstring>(
+  RegisterBufferFields<EdgeStruct<LazyString>, LazyString>(
       pool, buffer_variables::StringStruct(), buffer_object_type,
-      &OpenBuffer::Read, &OpenBuffer::Set);
+      &OpenBuffer::ReadLazyString, &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<int>, int>(
       pool, buffer_variables::IntStruct(), buffer_object_type,
       &OpenBuffer::Read, &OpenBuffer::Set);
