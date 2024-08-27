@@ -22,7 +22,7 @@ class BufferSyntaxParser {
     // more specific type).
     std::wstring parser_name;
     std::unordered_set<language::lazy_string::LazyString> typos_set;
-    std::unordered_set<std::wstring> language_keywords;
+    std::unordered_set<language::lazy_string::LazyString> language_keywords;
     std::wstring symbol_characters;
     IdentifierBehavior identifier_behavior;
     language::text::SortedLineSequence dictionary;

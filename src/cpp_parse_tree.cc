@@ -50,7 +50,7 @@ static const LineModifierSet BAD_PARSE_MODIFIERS =
 
 class CppTreeParser : public parsers::LineOrientedTreeParser {
  public:
-  CppTreeParser(std::unordered_set<std::wstring> keywords,
+  CppTreeParser(std::unordered_set<LazyString> keywords,
                 std::unordered_set<LazyString> typos,
                 IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
@@ -209,8 +209,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                          .contents()
                          .Substring(original_position.column, length);
     LineModifierSet modifiers;
-    // TODO(2022-04-22): Avoid the call to ToString?
-    if (keywords_.find(str.ToString()) != keywords_.end()) {
+    if (keywords_.find(str) != keywords_.end()) {
       modifiers.insert(LineModifier::kCyan);
     } else if (typos_.find(str) != typos_.end()) {
       modifiers.insert(LineModifier::kRed);
@@ -309,7 +308,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
   }
 
   const NonNull<std::unique_ptr<TreeParser>> words_parser_;
-  const std::unordered_set<std::wstring> keywords_;
+  const std::unordered_set<LazyString> keywords_;
   const std::unordered_set<LazyString> typos_;
   const IdentifierBehavior identifier_behavior_;
 };
@@ -317,7 +316,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewCppTreeParser(
-    std::unordered_set<std::wstring> keywords,
+    std::unordered_set<LazyString> keywords,
     std::unordered_set<LazyString> typos,
     IdentifierBehavior identifier_behavior) {
   return MakeNonNullUnique<CppTreeParser>(std::move(keywords), std::move(typos),

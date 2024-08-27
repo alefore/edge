@@ -698,10 +698,14 @@ void OpenBuffer::UpdateTreeParser() {
                      std::istream_iterator<std::wstring, wchar_t>()} |
                  std::views::transform(
                      [](std::wstring i) { return LazyString{i}; })),
-             .language_keywords = std::unordered_set<std::wstring>(
-                 std::istream_iterator<std::wstring, wchar_t>(
-                     language_keywords),
-                 std::istream_iterator<std::wstring, wchar_t>()),
+             .language_keywords = language::container::Materialize<
+                 std::unordered_set<LazyString>>(
+                 std::vector<std::wstring>{
+                     std::istream_iterator<std::wstring, wchar_t>(
+                         language_keywords),
+                     std::istream_iterator<std::wstring, wchar_t>()} |
+                 std::views::transform(
+                     [](std::wstring i) { return LazyString{i}; })),
              .symbol_characters = Read(buffer_variables::symbol_characters),
              .identifier_behavior =
                  Read(buffer_variables::identifier_behavior) == L"color-by-hash"
