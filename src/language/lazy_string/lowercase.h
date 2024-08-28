@@ -1,3 +1,5 @@
+// TODO(trivial, 2024-08-28): Move to `case.h`, since this can also conver to
+// upper case.
 #ifndef __AFC_LANGUAGE_LAZY_STRING_LOWERCASE_H__
 #define __AFC_LANGUAGE_LAZY_STRING_LOWERCASE_H__
 
@@ -8,6 +10,7 @@
 
 namespace afc::language::lazy_string {
 LazyString LowerCase(LazyString input);
+LazyString UpperCase(LazyString input);
 }  // namespace afc::language::lazy_string
 
 #endif  // __AFC_LANGUAGE_LAZY_STRING_LOWERCASE_H__
