@@ -17,7 +17,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 
@@ -84,8 +83,7 @@ class FileLog : public Log {
         LazyString{L" "} + LazyString{std::to_wstring(id)} + LazyString{L": "} +
         statement + LazyString{L"\n"};
     LoggingThreadPool().RunIgnoringResult(
-        [data = std::move(data),
-         statement = ToByteString(full_statement.ToString())] {
+        [data = std::move(data), statement = full_statement.ToBytes()] {
           return write(data->fd.read(), statement.c_str(), statement.size());
         });
   }

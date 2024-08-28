@@ -32,7 +32,6 @@ using afc::language::IgnoreErrors;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
@@ -160,7 +159,7 @@ Line GetInitialPromptValue(std::optional<unsigned int> repetitions,
   if (path == std::nullopt) return Line{};
   struct stat stat_buffer;
   // TODO(blocking): Use FileSystemDriver here!
-  if (stat(ToByteString(path->read().ToString()).c_str(), &stat_buffer) == -1 ||
+  if (stat(path->ToBytes().c_str(), &stat_buffer) == -1 ||
       !S_ISDIR(stat_buffer.st_mode)) {
     LOG(INFO) << "Taking dirname for prompt: " << *path;
     std::visit(overload{IgnoreErrors{}, [&](Path dir) { path = dir; }},

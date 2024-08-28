@@ -44,7 +44,6 @@ using afc::language::FromByteString;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
@@ -63,7 +62,7 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
                       : ValueOrDie(Path::New(LazyString{FromByteString(
                             mktemp(strdup("/tmp/edge-server-XXXXXX")))}));
 
-    char* path_str = strdup(ToByteString(output.read().ToString()).c_str());
+    char* path_str = strdup(output.ToBytes().c_str());
     int mkfifo_result = mkfifo(path_str, 0600);
     free(path_str);
     if (mkfifo_result != -1) {
@@ -82,13 +81,13 @@ ValueOrError<Path> CreateFifo(std::optional<Path> input_path) {
 PossibleError SendPathToServer(FileDescriptor server_fd,
                                const Path& input_path) {
   LOG(INFO) << "Sending path to server: " << input_path;
-  // TODO(trivial, 2023-12-31): Remove call to ToString.
-  std::string command =
-      "editor.ConnectTo(" +
-      ToByteString(EscapedString::FromString(input_path.read())
-                       .CppRepresentation()
-                       .ToString()) +
-      ");\n";
+  // TODO(trivial, 2023-12-31): Create command as a LazyString and only convert
+  // to bytes at the end.
+  std::string command = "editor.ConnectTo(" +
+                        EscapedString::FromString(input_path.read())
+                            .CppRepresentation()
+                            .ToBytes() +
+                        ");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(server_fd.read(), command.c_str(), command.size()) == -1) {
     return Error{input_path.read() + LazyString{L": write failed: "} +
@@ -115,8 +114,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
       LazyString{L");\n"};
   LOG(INFO) << "Sending commands to fd: " << server_fd << " through path "
             << path_str.ToString() << ": " << commands_to_run;
-  const std::string commands_to_run_str =
-      ToByteString(commands_to_run.ToString());
+  const std::string commands_to_run_str = commands_to_run.ToBytes();
   while (pos.ToDelta() < ColumnNumberDelta(commands_to_run_str.size())) {
     VLOG(5) << commands_to_run_str.substr(pos.read());
     int bytes_written = write(tmp_fd, commands_to_run_str.c_str() + pos.read(),
@@ -132,8 +130,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
                  LazyString{FromByteString(failure)}};
   }
   DECLARE_OR_RETURN(Path input_path, Path::New(path_str));
-  std::string command =
-      "#include \"" + ToByteString(path_str.ToString()) + "\"\n";
+  std::string command = "#include \"" + path_str.ToBytes() + "\"\n";
   if (write(server_fd.read(), command.c_str(), command.size()) !=
       static_cast<int>(command.size())) {
     std::cerr << "write: " << strerror(errno);
@@ -165,8 +162,7 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
       AugmentError(
           path.read() + LazyString{L": Connecting to server: open failed: "} +
               LazyString{FromByteString(strerror(errno))},
-          FileDescriptor::New(
-              open(ToByteString(path.read().ToString()).c_str(), O_WRONLY))));
+          FileDescriptor::New(open(path.ToBytes().c_str(), O_WRONLY))));
   auto fd_deleter_callback = [](int* value) {
     close(*value);
     delete value;
@@ -186,8 +182,7 @@ ValueOrError<FileDescriptor> SyncConnectToServer(const Path& path) {
   return AugmentError(
       private_fifo.read() + LazyString{L": open failed: "} +
           LazyString{FromByteString(strerror(errno))},
-      FileDescriptor::New(
-          open(ToByteString(private_fifo.read().ToString()).c_str(), O_RDWR)));
+      FileDescriptor::New(open(private_fifo.ToBytes().c_str(), O_RDWR)));
 }
 
 void Daemonize(const std::unordered_set<FileDescriptor>& surviving_fds) {
@@ -227,8 +222,7 @@ ValueOrError<Path> StartServer(EditorState& editor_state,
   ASSIGN_OR_RETURN(Path output, AugmentError(LazyString{L"Creating Fifo"},
                                              CreateFifo(address)));
   LOG(INFO) << "Starting server: " << output.read();
-  setenv("EDGE_PARENT_ADDRESS", ToByteString(output.read().ToString()).c_str(),
-         1);
+  setenv("EDGE_PARENT_ADDRESS", output.ToBytes().c_str(), 1);
   OpenServerBuffer(editor_state, output);
   return output;
 }

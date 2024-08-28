@@ -27,7 +27,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
@@ -382,7 +381,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
               std::wstring tmp_path_output =
                   FromByteString(std::string(tmp_path_bytes));
               free(tmp_path_bytes);
-              std::string data = ToByteString(contents.ToString());
+              std::string data = contents.ToLazyString().ToBytes();
               write(tmp_fd, data.c_str(), data.size());
               close(tmp_fd);
               return tmp_path_output;

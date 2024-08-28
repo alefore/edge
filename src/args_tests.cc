@@ -19,7 +19,6 @@ using afc::infrastructure::Path;
 using afc::infrastructure::execution::ExecutionEnvironment;
 using afc::infrastructure::execution::ExecutionEnvironmentOptions;
 using afc::language::IsError;
-using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::lazy_string::LazyString;
 

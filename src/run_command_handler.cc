@@ -99,8 +99,7 @@ std::map<std::wstring, LazyString> LoadEnvironmentVariables(
                                 PathComponent::FromString(L"environment")));
                  for (auto dir : path) {
                    Path full_path = Path::Join(dir, environment_local_path);
-                   std::ifstream infile(
-                       ToByteString(full_path.read().ToString()));
+                   std::ifstream infile(full_path.read().ToBytes());
                    if (!infile.is_open()) {
                      continue;
                    }
@@ -197,12 +196,12 @@ futures::Value<PossibleError> GenerateContents(
       close(pipefd_err[child_fd]);
     }
 
-    auto children_path = target.Read(buffer_variables::children_path);
-    if (!children_path.empty() &&
-        chdir(ToByteString(children_path).c_str()) == -1) {
+    if (LazyString children_path =
+            target.ReadLazyString(buffer_variables::children_path);
+        !children_path.IsEmpty() &&
+        chdir(children_path.ToBytes().c_str()) == -1)
       LOG(FATAL) << children_path
                  << ": chdir failed: " << std::string(strerror(errno));
-    }
 
     // Copy variables from the current environment (environ(7)).
     for (size_t index = 0; environ[index] != nullptr; index++) {
@@ -224,8 +223,8 @@ futures::Value<PossibleError> GenerateContents(
         static_cast<char**>(calloc(environment.size() + 1, sizeof(char*)));
     size_t position = 0;
     for (const std::pair<const std::wstring, LazyString>& entry : environment) {
-      std::string str = ToByteString(entry.first) + "=" +
-                        ToByteString(entry.second.ToString());
+      std::string str =
+          ToByteString(entry.first) + "=" + entry.second.ToBytes();
       CHECK_LT(position, environment.size());
       envp[position++] = strdup(str.c_str());
     }
@@ -234,7 +233,8 @@ futures::Value<PossibleError> GenerateContents(
 
     char* argv[] = {
         strdup("sh"), strdup("-c"),
-        strdup(ToByteString(target.Read(buffer_variables::command)).c_str()),
+        strdup(
+            target.ReadLazyString(buffer_variables::command).ToBytes().c_str()),
         nullptr};
     int status = execve("/bin/sh", argv, envp);
     exit(WIFEXITED(status) ? WEXITSTATUS(status) : EX_OSERR);

@@ -41,7 +41,6 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
@@ -365,8 +364,7 @@ gc::Root<Environment> BuildEditorEnvironment(
       Identifier{LazyString{L"SendExitTo"}},
       vm::NewCallback(pool, kPurityTypeUnknown,
                       [](EditorState&, LazyString args) {
-                        int fd = open(ToByteString(args.ToString()).c_str(),
-                                      O_WRONLY);
+                        int fd = open(args.ToBytes().c_str(), O_WRONLY);
                         std::string command = "editor.Exit(0);\n";
                         write(fd, command.c_str(), command.size());
                         close(fd);

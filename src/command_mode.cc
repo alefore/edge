@@ -79,7 +79,6 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitPointer;
 using afc::language::lazy_string::LazyString;

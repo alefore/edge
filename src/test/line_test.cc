@@ -17,7 +17,6 @@ namespace testing {
 namespace {
 using infrastructure::screen::LineModifier;
 using infrastructure::screen::LineModifierSet;
-using language::ToByteString;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
@@ -43,7 +42,7 @@ void TestLineDeleteCharacters() {
   {
     LineBuilder line_copy = builder.Copy();
     line_copy.DeleteSuffix(ColumnNumber(2));
-    CHECK_EQ(ToByteString(line_copy.Copy().Build().ToString()), "al");
+    CHECK_EQ(line_copy.Copy().Build().ToBytes(), "al");
     CHECK_EQ(line_copy.modifiers_size(), 2ul);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(0)),
                    LineModifier::kRed);
@@ -54,7 +53,7 @@ void TestLineDeleteCharacters() {
   {
     LineBuilder line_copy = builder.Copy();
     line_copy.DeleteCharacters(ColumnNumber(1), ColumnNumberDelta(2));
-    CHECK_EQ(ToByteString(line_copy.Copy().Build().ToString()), "ajo");
+    CHECK_EQ(line_copy.Copy().Build().ToBytes(), "ajo");
     CHECK_EQ(line_copy.modifiers_size(), 3ul);
     CheckSingleton(line_copy.modifiers().at(ColumnNumber(0)),
                    LineModifier::kRed);

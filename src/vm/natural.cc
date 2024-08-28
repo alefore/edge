@@ -22,7 +22,6 @@ using afc::language::IgnoreErrors;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::overload;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::FindFirstColumnWithPredicate;
@@ -100,11 +99,9 @@ class ParseState {
       for (auto& c : candidates_) VLOG(6) << "Candidate: " << c;
       std::vector<Tree> extended_candidates;
       if (IsLiteralNumber(token))
-        PushValue(
-            Value::NewNumber(
-                pool_, math::numbers::Number::FromInt64(
-                           atoi(ToByteString(token.value.ToString()).c_str()))),
-            extended_candidates);
+        PushValue(Value::NewNumber(pool_, math::numbers::Number::FromInt64(atoi(
+                                              token.value.ToBytes().c_str()))),
+                  extended_candidates);
       std::visit(overload{[&](Identifier identifier) {
                             for (gc::Root<Value> value : LookUp(identifier))
                               PushValue(value, extended_candidates);

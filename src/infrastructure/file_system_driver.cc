@@ -24,7 +24,6 @@ using afc::language::FromByteString;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 using afc::language::view::ExtractErrors;
@@ -54,11 +53,10 @@ FileSystemDriver::FileSystemDriver(
     : thread_pool_(thread_pool) {}
 
 futures::ValueOrError<std::vector<Path>> FileSystemDriver::Glob(
-    language::lazy_string::LazyString pattern) {
+    LazyString pattern) {
   return thread_pool_.Run([pattern]() -> ValueOrError<std::vector<Path>> {
     glob_t output_glob;
-    switch (glob(ToByteString(pattern.ToString()).c_str(), 0, nullptr,
-                 &output_glob)) {
+    switch (glob(pattern.ToBytes().c_str(), 0, nullptr, &output_glob)) {
       case GLOB_NOSPACE:
         return Error{LazyString{L"Out of memory"}};
       case GLOB_ABORTED:
@@ -79,7 +77,7 @@ futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(
   return thread_pool_.Run(
       [path = std::move(path), flags, mode]() -> ValueOrError<FileDescriptor> {
         LOG(INFO) << "Opening file:" << path;
-        int fd = open(path.ToByteString().c_str(), flags, mode);
+        int fd = open(path.ToBytes().c_str(), flags, mode);
         ASSIGN_OR_RETURN(
             EmptyValue value,
             SyscallReturnValue(L"Open: " + path.read().ToString(), fd));
@@ -101,7 +99,7 @@ futures::Value<PossibleError> FileSystemDriver::Close(FileDescriptor fd) const {
 
 futures::Value<PossibleError> FileSystemDriver::Unlink(Path path) const {
   return thread_pool_.Run([path = std::move(path)]() {
-    return SyscallReturnValue(L"Unlink", unlink(path.ToByteString().c_str()));
+    return SyscallReturnValue(L"Unlink", unlink(path.ToBytes().c_str()));
   });
 }
 
@@ -109,7 +107,7 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
   return thread_pool_.Run([path = std::move(
                                path)]() -> language::ValueOrError<struct stat> {
     struct stat output;
-    if (stat(path.ToByteString().c_str(), &output) == -1) {
+    if (stat(path.ToBytes().c_str(), &output) == -1) {
       Error error{LazyString{L"Stat failed: `"} + path.read() +
                   LazyString{L"`: "} +
                   LazyString{FromByteString(strerror(errno))}};
@@ -123,9 +121,8 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
 futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
                                                        Path newpath) const {
   return thread_pool_.Run([oldpath, newpath] {
-    return SyscallReturnValue(
-        L"Rename",
-        rename(oldpath.ToByteString().c_str(), newpath.ToByteString().c_str()));
+    return SyscallReturnValue(L"Rename", rename(oldpath.ToBytes().c_str(),
+                                                newpath.ToBytes().c_str()));
   });
 }
 
@@ -134,7 +131,7 @@ futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
   return thread_pool_.Run([path, mode] {
     return AugmentError(
         path.read(),
-        SyscallReturnValue(L"Mkdir", mkdir(path.ToByteString().c_str(), mode)));
+        SyscallReturnValue(L"Mkdir", mkdir(path.ToBytes().c_str(), mode)));
   });
 }
 

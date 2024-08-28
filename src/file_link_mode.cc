@@ -62,7 +62,6 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
@@ -105,14 +104,14 @@ futures::Value<PossibleError> GenerateContents(
 }
 
 void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
-  const std::wstring path = buffer.Read(buffer_variables::path);
+  const LazyString path = buffer.ReadLazyString(buffer_variables::path);
   if (stat_buffer.st_mtime == 0) {
     LOG(INFO) << "Skipping file change check.";
     return;
   }
 
   LOG(INFO) << "Checking if file has changed: " << path;
-  const std::string path_raw = ToByteString(path);
+  const std::string path_raw = path.ToBytes();
   struct stat current_stat_buffer;
   if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
     return;
@@ -200,8 +199,7 @@ futures::Value<PossibleError> Save(
                           reload_buffer.Reload();
                         });
                   }
-                  stat(ToByteString(path.read().ToString()).c_str(),
-                       &stat_buffer.value());
+                  stat(path.ToBytes().c_str(), &stat_buffer.value());
                   break;
                 case OpenBuffer::Options::SaveType::kBackup:
                   break;
@@ -220,8 +218,8 @@ futures::Value<PossibleError> SaveContentsToOpenFile(
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
     std::optional<PossibleError> error;
     contents.EveryLine([&](LineNumber position, const Line& line) {
-      std::string str = (position == LineNumber(0) ? "" : "\n") +
-                        ToByteString(line.ToString());
+      std::string str =
+          (position == LineNumber(0) ? "" : "\n") + line.contents().ToBytes();
       if (write(fd.read(), str.c_str(), str.size()) == -1) {
         Error write_error{path.read() + LazyString{L": write failed: "} +
                           LazyString{std::to_wstring(fd.read())} +
@@ -637,7 +635,7 @@ class TestDriver {
  public:
   ~TestDriver() {
     for (const LazyString& path : paths_to_unlink_)
-      CHECK_NE(unlink(ToByteString(path.ToString()).c_str()), -1);
+      CHECK_NE(unlink(path.ToBytes().c_str()), -1);
   }
 
   LazyString NewTmpFile(const LineSequence& contents) {
@@ -653,7 +651,7 @@ class TestDriver {
           return line.contents();
         }) | Intersperse(LazyString{L"\n"}),
         [tmp_fd](LazyString line) {
-          std::string line_str = ToByteString(line.ToString());
+          std::string line_str = line.ToBytes();
           write(tmp_fd, line_str.c_str(), line_str.size());
         });
     close(tmp_fd);
@@ -679,10 +677,8 @@ class TestDriver {
                            expected_content->size());
                   CHECK(buffer.ptr()->contents().snapshot().EveryLine(
                       [expected_content](LineNumber i, const Line& line) {
-                        CHECK_EQ(
-                            ToByteString(line.contents().ToString()),
-                            ToByteString(
-                                expected_content->at(i).contents().ToString()));
+                        CHECK_EQ(line.contents().ToBytes(),
+                                 expected_content->at(i).contents().ToBytes());
                         return true;
                       }));
                 }

@@ -65,7 +65,6 @@ using afc::language::IsError;
 using afc::language::MakeNonNullShared;
 using afc::language::NonNull;
 using afc::language::overload;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;

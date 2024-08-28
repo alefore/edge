@@ -18,7 +18,6 @@ using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
-using afc::language::ToByteString;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
@@ -41,16 +40,16 @@ void TestMutableLineSequenceSnapshot() {
     contents.push_back(LineBuilder{LazyString{s}}.Build());
   }
   auto copy = contents.copy();
-  CHECK_EQ("\nalejandro\nforero\ncuervo",
-           ToByteString(contents.snapshot().ToString()));
-  CHECK_EQ("\nalejandro\nforero\ncuervo",
-           ToByteString(copy->snapshot().ToString()));
+  CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
+           contents.snapshot().ToString());
+  CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
+           copy->snapshot().ToString());
 
   contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)));
-  CHECK_EQ("\nalejandro\nfor\nero\ncuervo",
-           ToByteString(contents.snapshot().ToString()));
-  CHECK_EQ("\nalejandro\nforero\ncuervo",
-           ToByteString(copy->snapshot().ToString()));
+  CHECK_EQ(LazyString{L"\nalejandro\nfor\nero\ncuervo"},
+           contents.snapshot().ToString());
+  CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
+           copy->snapshot().ToString());
 }
 
 void TestBufferInsertModifiers() {

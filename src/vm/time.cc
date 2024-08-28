@@ -16,7 +16,6 @@ using afc::language::MakeNonNullShared;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::LazyString;
 
@@ -112,11 +111,11 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
       vm::NewCallback(
           pool, kPurityTypePure,
           [](Time input,
-             std::wstring format_str) -> futures::ValueOrError<std::wstring> {
+             LazyString format_str) -> futures::ValueOrError<std::wstring> {
             FUTURES_ASSIGN_OR_RETURN(struct tm t, LocalTime(&input.tv_sec));
             char buffer[2048];
-            if (strftime(buffer, sizeof(buffer),
-                         ToByteString(format_str).c_str(), &t) == 0) {
+            if (strftime(buffer, sizeof(buffer), format_str.ToBytes().c_str(),
+                         &t) == 0) {
               return futures::Past(Error{LazyString{L"strftime error"}});
             }
             return futures::Past(FromByteString(buffer));
@@ -144,8 +143,7 @@ void RegisterTimeType(gc::Pool& pool, Environment& environment) {
           [](LazyString value,
              LazyString format) -> futures::ValueOrError<Time> {
             struct tm t = {};
-            if (strptime(ToByteString(value.ToString()).c_str(),
-                         ToByteString(format.ToString()).c_str(),
+            if (strptime(value.ToBytes().c_str(), format.ToBytes().c_str(),
                          &t) == nullptr)
               return futures::Past(
                   Error{LazyString{L"strptime error: value: "} + value +

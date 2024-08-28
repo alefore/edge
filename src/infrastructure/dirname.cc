@@ -24,7 +24,6 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
@@ -315,16 +314,16 @@ const bool expand_home_directory_tests_registration = tests::Register(
 
 ValueOrError<Path> Path::Dirname() const {
   VLOG(5) << "Dirname: " << read();
-  std::unique_ptr<char, decltype(&std::free)> tmp(
-      strdup(ToByteString().c_str()), &std::free);
+  std::unique_ptr<char, decltype(&std::free)> tmp(strdup(ToBytes().c_str()),
+                                                  &std::free);
   CHECK(tmp != nullptr);
   return Path::New(LazyString{FromByteString(dirname(tmp.get()))});
 }
 
 ValueOrError<PathComponent> Path::Basename() const {
   VLOG(5) << "Pathname: " << read();
-  std::unique_ptr<char, decltype(&std::free)> tmp(
-      strdup(ToByteString().c_str()), &std::free);
+  std::unique_ptr<char, decltype(&std::free)> tmp(strdup(ToBytes().c_str()),
+                                                  &std::free);
   CHECK(tmp != nullptr);
   return PathComponent::New(LazyString{FromByteString(basename(tmp.get()))});
 }
@@ -425,7 +424,7 @@ Path::RootType Path::GetRootType() const {
 }
 
 ValueOrError<AbsolutePath> Path::Resolve() const {
-  char* result = realpath(ToByteString().c_str(), nullptr);
+  char* result = realpath(ToBytes().c_str(), nullptr);
   return result == nullptr
              ? Error{LazyString{FromByteString(strerror(errno))}}
              : AbsolutePath::FromString(LazyString{FromByteString(result)});
@@ -441,10 +440,6 @@ Path Path::LocalDirectory() {
 }
 Path Path::Root() {
   return ValueOrDie(Path::New(LazyString{L"/"}), L"Path::Root");
-}
-
-std::string Path::ToByteString() const {
-  return afc::language::ToByteString(read().ToString());
 }
 
 ValueOrError<AbsolutePath> AbsolutePath::FromString(LazyString path) {
@@ -481,7 +476,7 @@ ValueOrError<NonNull<std::unique_ptr<DIR, std::function<void(DIR*)>>>> OpenDir(
     Path path) {
   VLOG(10) << "Open dir: " << path;
   std::unique_ptr<DIR, std::function<void(DIR*)>> output(
-      opendir(ToByteString(to_wstring(path)).c_str()), closedir);
+      opendir(path.ToBytes().c_str()), closedir);
   if (output == nullptr)
     return Error(path.read() + LazyString{L": Unable to open directory: "} +
                  LazyString{FromByteString(strerror(errno))});

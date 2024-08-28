@@ -17,7 +17,6 @@ using afc::language::EmptyValue;
 using afc::language::Error;
 using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
-using afc::language::ToByteString;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;

@@ -50,7 +50,6 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ToUniquePtr;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
@@ -88,7 +87,7 @@ void CompileFile(Path path, Compilation& compilation, void* parser) {
 
   compilation.PushSource(path);
 
-  std::wifstream infile(path.ToByteString());
+  std::wifstream infile(path.ToBytes());
   infile.imbue(std::locale(""));
   if (infile.fail()) {
     compilation.AddError(Error{path.read() + LazyString{L": open failed"}});

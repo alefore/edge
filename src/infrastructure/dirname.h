@@ -88,8 +88,6 @@ class Path : public language::GhostType<Path, language::lazy_string::LazyString,
   RootType GetRootType() const;
 
   language::ValueOrError<AbsolutePath> Resolve() const;
-
-  std::string ToByteString() const;
 };
 
 class AbsolutePath : public Path {

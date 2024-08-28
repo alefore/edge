@@ -73,7 +73,6 @@ using afc::language::overload;
 using afc::language::Pointer;
 using afc::language::PossibleError;
 using afc::language::Success;
-using afc::language::ToByteString;
 using afc::language::ValueOrError;
 using afc::language::VisitOptional;
 using afc::language::VisitPointer;
