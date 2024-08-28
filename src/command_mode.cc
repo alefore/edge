@@ -578,7 +578,7 @@ template <typename T>
 void RegisterVariableKeys(EditorState& editor_state, EdgeStruct<T>* edge_struct,
                           VariableLocation variable_location,
                           MapModeCommands& map_mode) {
-  for (const std::wstring& name : edge_struct->VariableNames()) {
+  for (const LazyString& name : edge_struct->VariableNames()) {
     const EdgeVariable<T>* variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     if (!variable->key().empty()) {

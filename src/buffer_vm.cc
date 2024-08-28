@@ -131,12 +131,12 @@ void RegisterBufferFields(
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
   vm::Type buffer_type = object_type.ptr()->type();
 
-  for (const std::wstring& name : edge_struct->VariableNames()) {
+  for (const LazyString& name : edge_struct->VariableNames()) {
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     // Getter.
     object_type.ptr()->AddField(
-        Identifier(LazyString{variable->name()}),
+        Identifier(variable->name()),
         vm::NewCallback(pool, kPurityTypeReader,
                         [reader, variable](gc::Ptr<OpenBuffer> buffer) {
                           DVLOG(4) << "Buffer field reader is returning.";
@@ -146,7 +146,7 @@ void RegisterBufferFields(
 
     // Setter.
     object_type.ptr()->AddField(
-        Identifier{LazyString{L"set_"} + LazyString{variable->name()}},
+        Identifier{LazyString{L"set_"} + variable->name()},
         vm::NewCallback(
             pool, kPurityTypeUnknown,
             [variable, setter](gc::Ptr<OpenBuffer> buffer, FieldValue value) {

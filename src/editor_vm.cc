@@ -105,12 +105,12 @@ void RegisterVariableFields(
     const FieldValue& (EditorState::*reader)(const EdgeVariable<FieldValue>*)
         const,
     void (EditorState::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
-  for (const std::wstring& name : edge_struct->VariableNames()) {
+  for (const LazyString& name : edge_struct->VariableNames()) {
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     // Getter.
     editor_type.AddField(
-        Identifier{LazyString{variable->name()}},
+        Identifier{variable->name()},
         vm::NewCallback(pool, kPurityTypeReader,
                         [reader, variable](EditorState& editor) {
                           return (editor.*reader)(variable);
@@ -119,7 +119,7 @@ void RegisterVariableFields(
 
     // Setter.
     editor_type.AddField(
-        Identifier{LazyString{L"set_"} + LazyString{variable->name()}},
+        Identifier{LazyString{L"set_"} + variable->name()},
         vm::NewCallback(
             pool, kPurityTypeUnknown,
             [variable, setter](EditorState& editor, FieldVmValue value)

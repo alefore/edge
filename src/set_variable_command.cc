@@ -48,7 +48,7 @@ LazyString TrimWhitespace(LazyString in) {
 
 Predictor VariablesPredictor() {
   // We need to materialize the nested vector because, even though all ranges
-  // contain the same types (std::wstring), they actually have different types
+  // contain the same types (LazyString), they actually have different types
   // (because they are keys of maps with different value types).
   return PrecomputedPredictor(
       container::MaterializeVector(
@@ -60,9 +60,7 @@ Predictor VariablesPredictor() {
                           buffer_variables::IntStruct()->VariableNames()),
                       container::MaterializeVector(
                           buffer_variables::DoubleStruct()->VariableNames())} |
-          std::views::join |
-          // TODO(easy, 2024-08-23): Avoid conversion to LazyString here.
-          std::views::transform([](std::wstring i) { return LazyString{i}; })),
+          std::views::join),
       '_');
 }
 }  // namespace
@@ -91,16 +89,14 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
          .handler =
              [&editor_state, var](LazyString input) {
                editor_state.ResetRepetitions();
-               return editor_state.ForEachActiveBuffer([var, input](
-                                                           OpenBuffer& buffer) {
-                 buffer.Set(var, input);
-                 buffer.status().SetInformationText(
-                     // TODO(easy, 2024-08-28): Get rid of LazyString wrapper.
-                     LineBuilder(LazyString{var->name()} + LazyString{L" := "} +
-                                 input)
-                         .Build());
-                 return futures::Past(EmptyValue());
-               });
+               return editor_state.ForEachActiveBuffer(
+                   [var, input](OpenBuffer& buffer) {
+                     buffer.Set(var, input);
+                     buffer.status().SetInformationText(
+                         LineBuilder(var->name() + LazyString{L" := "} + input)
+                             .Build());
+                     return futures::Past(EmptyValue());
+                   });
              },
          .cancel_handler = []() { /* Nothing. */ },
          .predictor = var->predictor(),
@@ -133,9 +129,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                   if (ss.eof() && !ss.fail()) {
                     editor_state.Set(var, value);
                   } else {
-                    default_error_status.InsertError(Error{
-                        LazyString{L"Invalid value for double value “"} +
-                        LazyString{var->name()} + LazyString{L"”: "} + input});
+                    default_error_status.InsertError(
+                        Error{LazyString{L"Invalid value for double value “"} +
+                              var->name() + LazyString{L"”: "} + input});
                   }
                   return futures::Past(EmptyValue());
                 },
@@ -176,7 +172,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
               } catch (const std::invalid_argument& ia) {
                 default_error_status.InsertError(
                     Error{LazyString{L"Invalid value for integer value “"} +
-                          LazyString{var->name()} + LazyString{L"”: "} +
+                          var->name() + LazyString{L"”: "} +
                           LazyString{FromByteString(ia.what())}});
                 return futures::Past(EmptyValue());
               }
@@ -213,11 +209,9 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                       return futures::Past(EmptyValue());
                     });
               } else {
-                // TODO(easy, 2022-06-05): Get rid of ToString.
                 default_error_status.InsertError(
                     Error{LazyString{L"Invalid value for double value “"} +
-                          LazyString{var->name()} + LazyString{L"”: "} +
-                          LazyString{input.ToString()}});
+                          var->name() + LazyString{L"”: "} + input});
               }
               return futures::Past(EmptyValue());
             },
