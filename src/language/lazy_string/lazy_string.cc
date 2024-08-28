@@ -189,4 +189,6 @@ std::ostream& operator<<(std::ostream& os,
 
 std::wstring to_wstring(const LazyString& s) { return s.ToString(); }
 
+std::string LazyString::ToBytes() const { return ToByteString(ToString()); }
+
 }  // namespace afc::language::lazy_string

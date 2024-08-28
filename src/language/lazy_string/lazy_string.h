@@ -69,6 +69,8 @@ class LazyString {
 
   LazyString Append(LazyString) const;
 
+  std::string ToBytes() const;
+
   bool operator<(const LazyString& x) const;
 };
 
