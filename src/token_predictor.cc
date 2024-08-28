@@ -154,7 +154,7 @@ bool transform_lines_tests = tests::Register(
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"}));
             LineSequence expected = LineSequence::ForTests(
                 {L"foo src/buffer.cc blah", L"foo src/buffer.h blah"});
-            CHECK(result.read().lines().ToString() == expected.ToString());
+            CHECK(result.read().lines() == expected);
           }},
      {.name = L"SingleToken",
       .callback =
@@ -167,7 +167,7 @@ bool transform_lines_tests = tests::Register(
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"}));
             LineSequence expected =
                 LineSequence::ForTests({L"src/buffer.cc", L"src/buffer.h"});
-            CHECK(result.read().lines().ToString() == expected.ToString());
+            CHECK(result.read().lines() == expected);
           }},
      {.name = L"RepeatedTokenSpecificExpansion",
       .callback =
@@ -180,7 +180,7 @@ bool transform_lines_tests = tests::Register(
                                LineSequence::ForTests({L"src/buffer.cc"}));
             LineSequence expected =
                 LineSequence::ForTests({L"src/buf and again src/buffer.cc"});
-            CHECK(result.read().lines().ToString() == expected.ToString());
+            CHECK(result.read().lines() == expected);
           }},
      {.name = L"ExactMatchLinesSequence", .callback = [] {
         SortedLineSequenceUniqueLines result =
@@ -190,7 +190,7 @@ bool transform_lines_tests = tests::Register(
                                  .end = ColumnNumber(11)},
                            LineSequence::ForTests({L"src/buf"}));
         LineSequence expected = LineSequence::ForTests({L"foo src/buf blah"});
-        CHECK(result.read().lines().ToString() == expected.ToString());
+        CHECK(result.read().lines() == expected);
       }}});
 }  // namespace
 
