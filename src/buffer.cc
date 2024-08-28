@@ -1784,7 +1784,7 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
   });
 
   auto new_reader = [this](std::optional<FileDescriptor> fd,
-                           std::wstring name_suffix, LineModifierSet modifiers,
+                           LazyString name_suffix, LineModifierSet modifiers,
                            std::unique_ptr<FileDescriptorReader>& reader) {
     if (fd == std::nullopt) {
       reader = nullptr;
@@ -1793,11 +1793,8 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     futures::Future<EmptyValue> output;
     reader =
         std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
-            // TODO(trivial, 2024-08-28): Avoid call to ToString.
-            .name =
-                FileDescriptorName((ToLazyString(name()) + LazyString{L":"} +
-                                    LazyString{name_suffix})
-                                       .ToString()),
+            .name = FileDescriptorName(ToLazyString(name()) + LazyString{L":"} +
+                                       name_suffix),
             .fd = fd.value(),
             .receive_end_of_file =
                 [buffer = NewRoot(), this, &reader,
@@ -1828,9 +1825,9 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
   };
 
   futures::Value<EmptyValue> end_of_file_future =
-      JoinValues(new_reader(input_fd, L"stdout", {}, fd_),
-                 new_reader(input_error_fd, L"stderr", {LineModifier::kBold},
-                            fd_error_))
+      JoinValues(new_reader(input_fd, LazyString{L"stdout"}, {}, fd_),
+                 new_reader(input_error_fd, LazyString{L"stderr"},
+                            {LineModifier::kBold}, fd_error_))
           .Transform([this,
                       buffer = NewRoot()](std::tuple<EmptyValue, EmptyValue>) {
             CHECK(fd_ == nullptr);

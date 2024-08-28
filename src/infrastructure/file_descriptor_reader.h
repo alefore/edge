@@ -22,10 +22,9 @@
 namespace afc {
 namespace editor {
 // Description of the file descriptor, used for logging/debugging.
-//
-// TODO(2023-12-02): This should use LazyString.
 class FileDescriptorName
-    : public language::GhostType<FileDescriptorName, std::wstring> {};
+    : public language::GhostType<FileDescriptorName,
+                                 language::lazy_string::LazyString> {};
 
 // Class used to read input from a file descriptor into a buffer.
 class FileDescriptorReader {
