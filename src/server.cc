@@ -113,7 +113,7 @@ PossibleError SyncSendCommandsToServer(FileDescriptor server_fd,
       vm::EscapedString::FromString(path_str).CppRepresentation() +
       LazyString{L");\n"};
   LOG(INFO) << "Sending commands to fd: " << server_fd << " through path "
-            << path_str.ToString() << ": " << commands_to_run;
+            << path_str << ": " << commands_to_run;
   const std::string commands_to_run_str = commands_to_run.ToBytes();
   while (pos.ToDelta() < ColumnNumberDelta(commands_to_run_str.size())) {
     VLOG(5) << commands_to_run_str.substr(pos.read());

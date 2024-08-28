@@ -101,7 +101,7 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
               << adapter.contents().size();
 
     Line line_contents = adapter.contents().at(position.line);
-    DVLOG(5) << "Erasing line: " << line_contents.ToString();
+    DVLOG(5) << "Erasing line: " << line_contents.contents();
     VisitPointer(
         buffer.CurrentLine().outgoing_link(),
         [&](const OutgoingLink& outgoing_link) {

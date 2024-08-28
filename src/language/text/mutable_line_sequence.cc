@@ -260,14 +260,14 @@ const bool split_line_tests_registration = tests::Register(
                contents.push_back(L"foo");
                contents.push_back(L"alejandro");
                contents.push_back(L"forero");
-               CHECK(contents.snapshot().ToString() ==
-                     L"\nfoo\nalejandro\nforero");
+               CHECK_EQ(contents.snapshot().ToLazyString(),
+                        LazyString{L"\nfoo\nalejandro\nforero"});
                contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)));
-               CHECK(contents.snapshot().ToString() ==
-                     L"\nfoo\nale\njandro\nforero");
+               CHECK_EQ(contents.snapshot().ToLazyString(),
+                        LazyString{L"\nfoo\nale\njandro\nforero"});
              }},
     });
-}
+}  // namespace
 
 void MutableLineSequence::FoldNextLine(LineNumber position) {
   auto next_line = position + LineNumberDelta(1);
@@ -303,7 +303,7 @@ const bool push_back_wstring_tests_registration = tests::Register(
              [] {
                MutableLineSequence contents;
                contents.push_back(L"");
-               CHECK(contents.snapshot().ToString() == L"\n");
+               CHECK_EQ(contents.snapshot().ToLazyString(), LazyString{L"\n"});
                CHECK_EQ(contents.EndLine(), LineNumber(1));
              }},
         {.name = L"SingleLine",
@@ -311,7 +311,8 @@ const bool push_back_wstring_tests_registration = tests::Register(
              [] {
                MutableLineSequence contents;
                contents.push_back(L"foo");
-               CHECK(contents.snapshot().ToString() == L"\nfoo");
+               CHECK_EQ(contents.snapshot().ToLazyString(),
+                        LazyString{L"\nfoo"});
                CHECK_EQ(contents.EndLine(), LineNumber(1));
              }},
         {.name = L"MultiLine",
@@ -319,12 +320,12 @@ const bool push_back_wstring_tests_registration = tests::Register(
              [] {
                MutableLineSequence contents;
                contents.push_back(L"foo\nbar\nhey\n\n\nquux");
-               CHECK(contents.snapshot().ToString() ==
-                     L"\nfoo\nbar\nhey\n\n\nquux");
+               CHECK_EQ(contents.snapshot().ToLazyString(),
+                        LazyString{L"\nfoo\nbar\nhey\n\n\nquux"});
                CHECK_EQ(contents.EndLine(), LineNumber(6));
              }},
     });
-}
+}  // namespace
 
 void MutableLineSequence::push_back(Line line,
                                     ObserverBehavior observer_behavior) {
@@ -362,6 +363,7 @@ std::vector<tests::fuzz::Handler> MutableLineSequence::FuzzHandlers() {
     back();
     front();
     snapshot().ToString();
+    snapshot().ToLazyString();
     snapshot().CountCharacters();
   })));
 

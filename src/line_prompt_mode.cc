@@ -173,7 +173,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
             input.insert({L"name", LazyString{L"foo.cc"}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
-            CHECK(output.find(L"extension")->second.ToString() == L"cc");
+            CHECK_EQ(output.find(L"extension")->second, LazyString{L"cc"});
           }},
      {.name = L"ExtensionsLongDirectory",
       .callback =
@@ -182,7 +182,7 @@ const bool get_synthetic_features_tests_registration = tests::Register(
             input.insert({L"name", LazyString{L"/home/alejo/src/edge/foo.cc"}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"extension"), 1ul);
-            CHECK(output.find(L"extension")->second.ToString() == L"cc");
+            CHECK_EQ(output.find(L"extension")->second, LazyString{L"cc"});
           }},
      {.name = L"ExtensionsMultiple",
       .callback =
@@ -196,8 +196,9 @@ const bool get_synthetic_features_tests_registration = tests::Register(
             auto range = output.equal_range(L"extension");
             CHECK_EQ(std::distance(range.first, range.second), 3l);
             while (range.first != range.second) {
-              auto value = range.first->second.ToString();
-              CHECK(value == L"cc" || value == L"h" || value == L"md");
+              LazyString value = range.first->second;
+              CHECK(value == LazyString{L"cc"} || value == LazyString{L"h"} ||
+                    value == LazyString{L"md"});
               ++range.first;
             }
           }},
@@ -216,8 +217,8 @@ const bool get_synthetic_features_tests_registration = tests::Register(
             input.insert({L"name", LazyString{L"/home/alejo/edge/foo.cc"}});
             auto output = GetSyntheticFeatures(input);
             CHECK_EQ(output.count(L"directory"), 1ul);
-            CHECK(output.find(L"directory")->second.ToString() ==
-                  L"/home/alejo/edge");
+            CHECK_EQ(output.find(L"directory")->second,
+                     LazyString{L"/home/alejo/edge"});
           }},
      {.name = L"DirectoryMultiple", .callback = [] {
         std::unordered_multimap<std::wstring, LazyString> input;
@@ -228,8 +229,9 @@ const bool get_synthetic_features_tests_registration = tests::Register(
         auto range = output.equal_range(L"directory");
         CHECK_EQ(std::distance(range.first, range.second), 2l);
         while (range.first != range.second) {
-          auto value = range.first->second.ToString();
-          CHECK(value == L"/home/alejo/edge" || value == L"/home/alejo/btc");
+          LazyString value = range.first->second;
+          CHECK(value == LazyString{L"/home/alejo/edge"} ||
+                value == LazyString{L"/home/alejo/btc"});
           ++range.first;
         }
       }}});
@@ -308,7 +310,7 @@ auto parse_history_line_tests_registration = tests::Register(
           [] { CHECK(IsError(ParseHistoryLine(LazyString{L"prompt:\""}))); }},
      {.name = L"Empty", .callback = [] {
         auto result = ValueOrDie(ParseHistoryLine(LazyString{L"prompt:\"\""}));
-        CHECK(result.find(L"prompt")->second.ToString() == L"");
+        CHECK_EQ(result.find(L"prompt")->second, LazyString{});
       }}});
 
 // TODO(easy, 2022-06-03): Get rid of this? Just call EscapedString directly?
@@ -350,7 +352,7 @@ Line ColorizeLine(LazyString line, std::vector<TokenAndModifiers> tokens) {
        [](const TokenAndModifiers& a, const TokenAndModifiers& b) {
          return a.token.begin < b.token.begin;
        });
-  VLOG(6) << "Producing output: " << line.ToString();
+  VLOG(6) << "Producing output: " << line;
   LineBuilder options;
   ColumnNumber position;
   auto push_to_position = [&](ColumnNumber end, LineModifierSet modifiers) {
@@ -375,7 +377,7 @@ struct FilterSortHistorySyncOutput {
 };
 
 FilterSortHistorySyncOutput FilterSortHistorySync(
-    DeleteNotification::Value abort_value, std::wstring filter,
+    DeleteNotification::Value abort_value, LazyString filter,
     LineSequence history_contents,
     std::unordered_multimap<std::wstring, LazyString> features) {
   FilterSortHistorySyncOutput output;
@@ -385,9 +387,9 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
   // Tokens by parsing the `prompt` value in the history.
   std::unordered_map<math::naive_bayes::Event, std::vector<Token>>
       history_prompt_tokens;
-  std::vector<Token> filter_tokens = TokenizeBySpaces(LazyString{filter});
+  std::vector<Token> filter_tokens = TokenizeBySpaces(filter);
   history_contents.EveryLine([&](LineNumber, const Line& line) {
-    VLOG(8) << "Considering line: " << line.ToString();
+    VLOG(8) << "Considering line: " << line.contents();
     auto warn_if = [&](bool condition, Error error) {
       if (condition) {
         // We don't use AugmentError because we'd rather append to the
@@ -504,7 +506,8 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                DeleteNotification::Never(), L"", LineSequence(), features);
+                DeleteNotification::Never(), LazyString{L""}, LineSequence(),
+                features);
             CHECK(output.lines.empty());
           }},
      {.name = L"NoMatch",
@@ -512,7 +515,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                DeleteNotification::Never(), L"quux",
+                DeleteNotification::Never(), LazyString{L"quux"},
                 LineSequence::ForTests(
                     {L"prompt:\"foobar\"", L"prompt:\"foo\""}),
                 features);
@@ -523,12 +526,12 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                DeleteNotification::Never(), L"nbar",
+                DeleteNotification::Never(), LazyString{L"nbar"},
                 LineSequence::ForTests({L"prompt:\"foo\\\\nbardo\""}),
                 features);
             CHECK_EQ(output.lines.size(), 1ul);
             const Line& line = output.lines[0];
-            CHECK(line.ToString() == L"foo\\nbardo");
+            CHECK(line.contents() == LazyString{L"foo\\nbardo"});
 
             const std::map<ColumnNumber, LineModifierSet> modifiers =
                 line.modifiers();
@@ -551,7 +554,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                DeleteNotification::Never(), L"nbar",
+                DeleteNotification::Never(), LazyString{L"nbar"},
                 LineSequence::ForTests({L"prompt:\"foo\\nbar\""}), features);
             CHECK(output.lines.empty());
           }},
@@ -560,34 +563,34 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
           [] {
             std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                DeleteNotification::Never(), L"f",
+                DeleteNotification::Never(), LazyString{L"f"},
                 LineSequence::ForTests(
                     {L"prompt:\"foobar \\\"", L"prompt:\"foo\"",
                      L"prompt:\"foo\n bar\"", L"prompt:\"foo \\o bar \\\""}),
                 features);
             CHECK_EQ(output.lines.size(), 1ul);
-            CHECK(output.lines[0].ToString() == L"foo");
+            CHECK_EQ(output.lines[0].contents(), LazyString{L"foo"});
           }},
      {.name = L"HistoryWithRawNewLine",
       .callback =
           [] {
             std::unordered_multimap<std::wstring, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
-                DeleteNotification::Never(), L"ls",
+                DeleteNotification::Never(), LazyString{L"ls"},
                 LineSequence::ForTests({L"prompt:\"ls\n\""}), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"HistoryWithEscapedNewLine", .callback = [] {
         std::unordered_multimap<std::wstring, LazyString> features;
         FilterSortHistorySyncOutput output = FilterSortHistorySync(
-            DeleteNotification::Never(), L"ls",
+            DeleteNotification::Never(), LazyString{L"ls"},
             LineSequence::ForTests({L"prompt:\"ls\\n\""}), features);
         CHECK_EQ(output.lines.size(), 0ul);
       }}});
 
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
-    DeleteNotification::Value abort_value, std::wstring filter) {
+    DeleteNotification::Value abort_value, LazyString filter) {
   // TODO(trivial, 2024-08-28): Receive filter already as LazyString, avoid
   // conversion.
   BufferName name{(LazyString{L"- history filter: "} +
@@ -743,7 +746,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
 
     CHECK_EQ(prompt_buffer_.ptr()->lines_size(), LineNumberDelta(1));
     std::optional<Line> line = prompt_buffer_.ptr()->LineAt(LineNumber(0));
-    if (original_line.ToString() != line->ToString()) {
+    if (original_line.contents() != line->contents()) {
       LOG(INFO) << "Line has changed, ignoring prompt colorize update.";
       return;
     }
@@ -843,7 +846,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
 
   return JoinValues(
              FilterHistory(editor_state(), history(), abort_notification_value,
-                           line.ToString())
+                           line.contents())
                  .Transform([status_value_viewer](
                                 gc::Root<OpenBuffer> filtered_history) {
                    LOG(INFO) << "Propagating history information to status.";
@@ -951,7 +954,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
       VisitPointer(
           line_to_insert,
           [&](Line line) {
-            VLOG(5) << "Inserting line: " << line.ToString();
+            VLOG(5) << "Inserting line: " << line.contents();
             line_builder.Append(LineBuilder(line));
           },
           [] {});
@@ -995,7 +998,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),
                           prompt_state_->history(), abort_value,
-                          input.ToString())
+                          input.contents())
                 .Transform([](gc::Root<OpenBuffer> history_filtered) {
                   history_filtered.ptr()->set_current_position_line(
                       LineNumber(0) +
@@ -1154,10 +1157,12 @@ InsertModeOptions PromptState::insert_mode_options() {
                         LazyString{L"empty"});
                     return EmptyValue();
                   }
+                  // TODO(easy, 2024-08-28): Convert `common_prefix` to
+                  // LazyString and avoid wrapping it here.
                   if (results.value().common_prefix.has_value() &&
                       !results.value().common_prefix.value().empty() &&
-                      input.ToString() !=
-                          results.value().common_prefix.value()) {
+                      input !=
+                          LazyString{results.value().common_prefix.value()}) {
                     LOG(INFO) << "Prediction advanced from " << input << " to "
                               << results.value();
                     status_version_value->SetStatusValue(

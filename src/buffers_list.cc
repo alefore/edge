@@ -140,17 +140,16 @@ ValueOrError<LineBuilder> GetOutputComponents(
   return output;
 }
 
-std::wstring GetOutputComponentsForTesting(std::wstring path,
-                                           ColumnNumberDelta columns) {
-  std::wstring output =
+LazyString GetOutputComponentsForTesting(std::wstring path,
+                                         ColumnNumberDelta columns) {
+  LazyString output =
       ValueOrDie(
           GetOutputComponents(
               ValueOrDie(
                   ValueOrDie(Path::New(LazyString{path})).DirectorySplit()),
               columns, LineModifierSet{}, LineModifierSet{}, LineModifierSet{}))
           .Build()
-          .contents()
-          .ToString();
+          .contents();
   LOG(INFO) << "GetOutputComponentsForTesting: " << path << " -> " << output;
   return output;
 }
@@ -160,82 +159,86 @@ const bool get_output_components_tests_registration = tests::Register(
     {{.name = L"SingleFits",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(
-                      L"foo", ColumnNumberDelta(80)) == L"foo");
+            CHECK_EQ(
+                GetOutputComponentsForTesting(L"foo", ColumnNumberDelta(80)),
+                LazyString{L"foo"});
           }},
      {.name = L"SingleTrim",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(
-                      L"alejandro", ColumnNumberDelta(8)) == L"lejandro");
+            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro",
+                                                   ColumnNumberDelta(8)),
+                     LazyString{L"lejandro"});
           }},
      {.name = L"SingleFitsExactly",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(
-                      L"alejandro", ColumnNumberDelta(9)) == L"alejandro");
+            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro",
+                                                   ColumnNumberDelta(9)),
+                     LazyString{L"alejandro"});
           }},
      {.name = L"MultipleFits",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                                ColumnNumberDelta(80)) ==
-                  L"alejandro/forero/cuervo");
+            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                   ColumnNumberDelta(80)),
+                     LazyString{L"alejandro/forero/cuervo"});
           }},
      {.name = L"MultipleFitsExactly",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                                ColumnNumberDelta(23)) ==
-                  L"alejandro/forero/cuervo");
+            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                   ColumnNumberDelta(23)),
+                     LazyString{L"alejandro/forero/cuervo"});
           }},
      {.name = L"MultipleTrimFirst",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                                ColumnNumberDelta(22)) ==
-                  L"alejandr…forero/cuervo");
+            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                   ColumnNumberDelta(22)),
+                     LazyString{L"alejandr…forero/cuervo"});
           }},
      {.name = L"MultipleTrimSignificant",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(
-                      L"alejandro/forero/cuervo",
-                      ColumnNumberDelta((1 + 1) + (1 + 1) + 6)) ==
-                  L"a…f…cuervo");
+            CHECK_EQ(GetOutputComponentsForTesting(
+                         L"alejandro/forero/cuervo",
+                         ColumnNumberDelta((1 + 1) + (1 + 1) + 6)),
+                     LazyString{L"a…f…cuervo"});
           }},
      {.name = L"MultipleTrimSpill",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                                ColumnNumberDelta(2 + 1 + 6)) ==
-                  L"fo…cuervo");
+            CHECK_EQ(
+                GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                              ColumnNumberDelta(2 + 1 + 6)),
+                LazyString{L"fo…cuervo"});
           }},
      {.name = L"MultipleTrimToFirst",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                                ColumnNumberDelta(5)) ==
-                  L"uervo");
+            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                   ColumnNumberDelta(5)),
+                     LazyString{L"uervo"});
           }},
      {.name = L"MultipleTrimExact",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                                ColumnNumberDelta(6)) ==
-                  L"cuervo");
+            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                   ColumnNumberDelta(6)),
+                     LazyString{L"cuervo"});
           }},
      {.name = L"MultipleTrimUnusedSpill",
       .callback =
           [] {
-            CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                                ColumnNumberDelta(7)) ==
-                  L"…cuervo");
+            CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                                   ColumnNumberDelta(7)),
+                     LazyString{L"…cuervo"});
           }},
      {.name = L"MultipleTrimSmallSpill", .callback = [] {
-        CHECK(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
-                                            ColumnNumberDelta(8)) ==
-              L"f…cuervo");
+        CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
+                                               ColumnNumberDelta(8)),
+                 LazyString{L"f…cuervo"});
       }}});
 
 // Converts the `std::vector` of `BuffersList::filter_` to an
@@ -664,34 +667,30 @@ LineWithCursor::Generator::Vector ProduceBuffersList(
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width - kProgressWidth);
 
-            // TODO(easy, 2024-01-02): Conver to LazyString.
-            std::wstring progress;
+            LazyString progress;
             LineModifierSet progress_modifier;
             if (!buffer.GetLineMarks().empty()) {
-              progress = L"!";
+              progress = LazyString{L"!"};
               progress_modifier.insert(LineModifier::kRed);
             } else if (!buffer.GetExpiredLineMarks().empty()) {
-              progress = L"!";
+              progress = LazyString{L"!"};
             } else if (buffer.ShouldDisplayProgress()) {
               progress = ProgressString(buffer.Read(buffer_variables::progress),
-                                        OverflowBehavior::kModulo)
-                             .ToString();
+                                        OverflowBehavior::kModulo);
             } else {
               progress = ProgressStringFillUp(buffer.lines_size().read(),
-                                              OverflowBehavior::kModulo)
-                             .ToString();
+                                              OverflowBehavior::kModulo);
               progress_modifier.insert(LineModifier::kDim);
             }
             // If we ever make ProgressString return more than a single
             // character, we'll have to adjust this.
-            CHECK_EQ(progress.size(), 1ul);
+            CHECK_EQ(progress.size(), ColumnNumberDelta{1});
 
             if (columns_width[j] >= prefix_width)
               line_options_output.AppendString(
-                  LazyString{progress},
-                  filter_result == FilterResult::kExcluded
-                      ? LineModifierSet{LineModifier::kDim}
-                      : progress_modifier);
+                  progress, filter_result == FilterResult::kExcluded
+                                ? LineModifierSet{LineModifier::kDim}
+                                : progress_modifier);
 
             CHECK_EQ(line_options_output.contents().size(),
                      start.ToDelta() + prefix_width);

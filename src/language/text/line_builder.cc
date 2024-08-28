@@ -214,12 +214,12 @@ const bool line_set_character_tests_registration = tests::Register(
     {{.name = L"ConsecutiveSets", .callback = [] {
         LineBuilder options;
         options.AppendString(LazyString{L"ALEJANDRO"}, std::nullopt);
-        CHECK(options.contents().ToString() == L"ALEJANDRO");
+        CHECK_EQ(options.contents(), LazyString{L"ALEJANDRO"});
         CHECK(options.modifiers().empty());
 
         options.SetCharacter(ColumnNumber(1), L'l',
                              LineModifierSet{LineModifier::kBold});
-        CHECK(options.contents().ToString() == L"AlEJANDRO");
+        CHECK_EQ(options.contents(), LazyString{L"AlEJANDRO"});
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -228,7 +228,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(2), L'e',
                              LineModifierSet{LineModifier::kBold});
-        CHECK(options.contents().ToString() == L"AleJANDRO");
+        CHECK_EQ(options.contents(), LazyString{L"AleJANDRO"});
         CHECK_EQ(options.modifiers().size(), 2ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -237,7 +237,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(3), L'j',
                              LineModifierSet{LineModifier::kUnderline});
-        CHECK(options.contents().ToString() == L"AlejANDRO");
+        CHECK_EQ(options.contents(), LazyString{L"AlejANDRO"});
         CHECK_EQ(options.modifiers().size(), 3ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -248,7 +248,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(5), L'n',
                              LineModifierSet{LineModifier::kBlue});
-        CHECK(options.contents().ToString() == L"AlejAnDRO");
+        CHECK_EQ(options.contents(), LazyString{L"AlejAnDRO"});
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -263,7 +263,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(4), L'a',
                              LineModifierSet{LineModifier::kRed});
-        CHECK(options.contents().ToString() == L"AlejanDRO");
+        CHECK_EQ(options.contents(), LazyString{L"AlejanDRO"});
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(1))->second,
                  LineModifierSet{LineModifier::kBold});
@@ -278,7 +278,7 @@ const bool line_set_character_tests_registration = tests::Register(
 
         options.SetCharacter(ColumnNumber(0), L'a',
                              LineModifierSet{LineModifier::kBold});
-        CHECK(options.contents().ToString() == L"alejanDRO");
+        CHECK_EQ(options.contents(), LazyString{L"alejanDRO"});
         CHECK_EQ(options.modifiers().size(), 5ul);
         CHECK_EQ(options.modifiers().find(ColumnNumber(0))->second,
                  LineModifierSet{LineModifier::kBold});

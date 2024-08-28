@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/infrastructure/tracker.h"
+#include "src/language/container.h"
 #include "src/language/hash.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
@@ -12,18 +13,19 @@
 #include "src/language/text/line_column.h"
 #include "src/tests/tests.h"
 
+namespace container = afc::language::container;
+using afc::infrastructure::Tracker;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::MakeNonNullShared;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineNumberDelta;
+
 namespace afc::editor {
 using ::operator<<;
-
-using infrastructure::Tracker;
-using infrastructure::screen::LineModifierSet;
-using language::MakeNonNullShared;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::lazy_string::LazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineNumberDelta;
 
 LineWithCursor::Generator::Vector& LineWithCursor::Generator::Vector::resize(
     LineNumberDelta size) {
@@ -52,10 +54,10 @@ namespace {
 const bool tests_registration =
     tests::Register(L"LineWithCursor::Generator::Vector::Append", [] {
       auto Build = [](LineWithCursor::Generator::Vector rows) {
-        std::vector<std::wstring> output;
-        for (auto& g : rows.lines)
-          output.push_back(g.generate().line.ToString());
-        return output;
+        return container::MaterializeVector(
+            rows.lines | std::views::transform([](LineWithCursor::Generator g) {
+              return g.generate().line.contents();
+            }));
       };
       return std::vector<tests::Test>{
           {.name = L"TwoRowsShort", .callback = [&] {
@@ -65,10 +67,10 @@ const bool tests_registration =
                      .Append(RepeatLine(LineWithCursor{.line = Line(L"bottom")},
                                         LineNumberDelta(2))));
              CHECK_EQ(output.size(), 4ul);
-             CHECK(output[0] == L"top");
-             CHECK(output[1] == L"top");
-             CHECK(output[2] == L"bottom");
-             CHECK(output[3] == L"bottom");
+             CHECK_EQ(output[0], LazyString{L"top"});
+             CHECK_EQ(output[1], LazyString{L"top"});
+             CHECK_EQ(output[2], LazyString{L"bottom"});
+             CHECK_EQ(output[3], LazyString{L"bottom"});
            }}};
     }());
 }  // namespace

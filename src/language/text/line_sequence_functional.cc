@@ -17,7 +17,7 @@ LineSequence FilterLines(
       })));
   if (builder.size() > LineNumberDelta(1))
     builder.EraseLines(LineNumber(), LineNumber(1));
-  LOG(INFO) << "Output: [" << builder.snapshot().ToString() << "]";
+  LOG(INFO) << "Output: [" << builder.snapshot().ToLazyString() << "]";
   return builder.snapshot();
 }
 }  // namespace afc::language::text

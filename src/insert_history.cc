@@ -18,7 +18,7 @@ using ::operator<<;
 
 void InsertHistory::Append(const LineSequence& insertion) {
   if (insertion.range().empty()) return;
-  VLOG(5) << "Inserting to history: " << insertion.ToString();
+  VLOG(5) << "Inserting to history: " << insertion.ToLazyString();
   history_.push_back(insertion);
 }
 

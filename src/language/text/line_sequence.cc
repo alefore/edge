@@ -71,7 +71,7 @@ namespace {
 LineSequence LineSequenceForTests() {
   LineSequence output =
       LineSequence::ForTests({L"alejandro", L"forero", L"cuervo"});
-  LOG(INFO) << "Contents: " << output.ToString();
+  LOG(INFO) << "Contents: " << output.ToLazyString();
   return output;
 }
 
@@ -81,101 +81,112 @@ const bool filter_to_range_tests_registration = tests::Register(
         {.name = L"EmptyInput",
          .callback =
              [] {
-               CHECK(LineSequence().ViewRange(Range()).ToString() == L"");
+               CHECK_EQ(LineSequence().ViewRange(Range()).ToLazyString(),
+                        LazyString{});
              }},
         {.name = L"EmptyRange",
          .callback =
              [] {
-               CHECK(LineSequenceForTests().ViewRange(Range()).ToString() ==
-                     L"");
+               CHECK_EQ(
+                   LineSequenceForTests().ViewRange(Range()).ToLazyString(),
+                   LazyString{});
              }},
         {.name = L"WholeRange",
          .callback =
              [] {
                LineSequence buffer = LineSequenceForTests();
-               CHECK(buffer.ViewRange(buffer.range()).ToString() ==
-                     buffer.ToString());
+               CHECK_EQ(buffer.ViewRange(buffer.range()).ToLazyString(),
+                        buffer.ToLazyString());
              }},
         {.name = L"FirstLineFewChars",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(),
-                                   LineColumn(LineNumber(0), ColumnNumber(3))})
-                         .ToString() == L"ale");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(),
+                                LineColumn(LineNumber(0), ColumnNumber(3))})
+                            .ToLazyString(),
+                        LazyString{L"ale"});
              }},
         {.name = L"FirstLineExcludingBreak",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(),
-                                   LineColumn(LineNumber(0), ColumnNumber(9))})
-                         .ToString() == L"alejandro");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(),
+                                LineColumn(LineNumber(0), ColumnNumber(9))})
+                            .ToLazyString(),
+                        LazyString{L"alejandro"});
              }},
         {.name = L"FirstLineIncludingBreak",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(),
-                                   LineColumn(LineNumber(1), ColumnNumber(0))})
-                         .ToString() == L"alejandro\n");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(),
+                                LineColumn(LineNumber(1), ColumnNumber(0))})
+                            .ToLazyString(),
+                        LazyString{L"alejandro\n"});
              }},
         {.name = L"FirstLineMiddleChars",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(LineNumber(0), ColumnNumber(2)),
-                                   LineColumn(LineNumber(0), ColumnNumber(5))})
-                         .ToString() == L"eja");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(LineNumber(0), ColumnNumber(2)),
+                                LineColumn(LineNumber(0), ColumnNumber(5))})
+                            .ToLazyString(),
+                        LazyString{L"eja"});
              }},
         {.name = L"MultiLineMiddle",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(LineNumber(0), ColumnNumber(2)),
-                                   LineColumn(LineNumber(2), ColumnNumber(3))})
-                         .ToString() == L"ejandro\nforero\ncue");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(LineNumber(0), ColumnNumber(2)),
+                                LineColumn(LineNumber(2), ColumnNumber(3))})
+                            .ToLazyString(),
+                        LazyString{L"ejandro\nforero\ncue"});
              }},
         {.name = L"LastLineFewChars",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(LineNumber(2), ColumnNumber(2)),
-                                   LineColumn(LineNumber(2), ColumnNumber(6))})
-                         .ToString() == L"ervo");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(LineNumber(2), ColumnNumber(2)),
+                                LineColumn(LineNumber(2), ColumnNumber(6))})
+                            .ToLazyString(),
+                        LazyString{L"ervo"});
              }},
         {.name = L"LastLineExcludingBreak",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(LineNumber(2), ColumnNumber()),
-                                   LineColumn(LineNumber(2), ColumnNumber(6))})
-                         .ToString() == L"cuervo");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(LineNumber(2), ColumnNumber()),
+                                LineColumn(LineNumber(2), ColumnNumber(6))})
+                            .ToLazyString(),
+                        LazyString{L"cuervo"});
              }},
         {.name = L"LastLineIncludingBreak",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(LineNumber(1), ColumnNumber(6)),
-                                   LineColumn(LineNumber(2), ColumnNumber(6))})
-                         .ToString() == L"\ncuervo");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(LineNumber(1), ColumnNumber(6)),
+                                LineColumn(LineNumber(2), ColumnNumber(6))})
+                            .ToLazyString(),
+                        LazyString{L"\ncuervo"});
              }},
         {.name = L"LastLineMiddleChars",
          .callback =
              [] {
-               CHECK(LineSequenceForTests()
-                         .ViewRange(
-                             Range{LineColumn(LineNumber(2), ColumnNumber(2)),
-                                   LineColumn(LineNumber(2), ColumnNumber(5))})
-                         .ToString() == L"erv");
+               CHECK_EQ(LineSequenceForTests()
+                            .ViewRange(Range{
+                                LineColumn(LineNumber(2), ColumnNumber(2)),
+                                LineColumn(LineNumber(2), ColumnNumber(5))})
+                            .ToLazyString(),
+                        LazyString{L"erv"});
              }},
     });
 }  // namespace

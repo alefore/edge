@@ -235,7 +235,7 @@ void DefineSortLinesByKey(
               gc::Ptr<OpenBuffer> buffer;
               PossibleError possible_error = Success();
               gc::Root<vm::Value> callback;
-              std::unordered_map<std::wstring, KeyType> keys = {};
+              std::unordered_map<LazyString, KeyType> keys = {};
             };
 
             const auto data = MakeNonNullShared<Data>(
@@ -280,7 +280,7 @@ void DefineSortLinesByKey(
                                        auto key_value,
                                        get_key(output.ptr().value()));
                                    data->keys.insert(
-                                       {line.ToString(), key_value});
+                                       {line.contents(), key_value});
                                    return Success(
                                        futures::IterationControlCommand::
                                            kContinue);
@@ -302,10 +302,8 @@ void DefineSortLinesByKey(
                             data->buffer->SortContents(
                                 boundaries.first, boundaries.second,
                                 [data](const Line& a, const Line& b) {
-                                  auto it_a =
-                                      data->keys.find(a.contents().ToString());
-                                  auto it_b =
-                                      data->keys.find(b.contents().ToString());
+                                  auto it_a = data->keys.find(a.contents());
+                                  auto it_b = data->keys.find(b.contents());
                                   CHECK(it_a != data->keys.end());
                                   CHECK(it_b != data->keys.end());
                                   return it_a->second < it_b->second;

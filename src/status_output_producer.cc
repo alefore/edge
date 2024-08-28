@@ -44,7 +44,7 @@ using language::text::LineNumberDelta;
 
 namespace gc = language::gc;
 
-std::wstring GetBufferContext(const OpenBuffer& buffer) {
+LazyString GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
   if (auto current_line_marks =
           marks.lower_bound(LineColumn(buffer.position().line));
@@ -55,12 +55,14 @@ std::wstring GetBufferContext(const OpenBuffer& buffer) {
     if (source != buffer.editor().buffers()->end() &&
         LineNumber(0) + source->second.ptr()->contents().size() >
             mark.source_line) {
-      return source->second.ptr()->contents().at(mark.source_line).ToString();
+      return source->second.ptr()->contents().at(mark.source_line).contents();
     }
   }
+  // TODO(trivial, 2024-08-28): Switch this to ReadLazyString, avoid explicit
+  // conversion below.
   std::wstring name = buffer.Read(buffer_variables::name);
   std::replace(name.begin(), name.end(), L'\n', L' ');
-  return name;
+  return LazyString{name};
 }
 
 // This produces the main view of the status, ignoring the context. It handles
@@ -155,7 +157,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
 
     if (options.status.text().empty()) {
       output.AppendString(LazyString{L"  “"} +
-                          LazyString{GetBufferContext(*options.buffer)} +
+                          GetBufferContext(*options.buffer) +
                           LazyString{L"” "});
     }
 

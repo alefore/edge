@@ -214,7 +214,7 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     } else if (typos_.find(str) != typos_.end()) {
       modifiers.insert(LineModifier::kRed);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
-      modifiers = HashToModifiers(std::hash<std::wstring>{}(str.ToString()),
+      modifiers = HashToModifiers(std::hash<LazyString>{}(str),
                                   HashToModifiersBold::kNever);
     }
     result->PushAndPop(length, std::move(modifiers));
