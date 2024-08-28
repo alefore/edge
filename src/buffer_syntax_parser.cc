@@ -80,11 +80,10 @@ std::set<language::text::Range> BufferSyntaxParser::GetRangesForToken(
 }
 
 namespace {
-std::wstring GetSymbol(const Range& range, const LineSequence& contents) {
+LazyString GetSymbol(const Range& range, const LineSequence& contents) {
   return contents.at(range.begin().line)
       .Substring(range.begin().column,
-                 range.end().column - range.begin().column)
-      .ToString();
+                 range.end().column - range.begin().column);
 }
 
 void PrepareTokenPartition(
@@ -92,7 +91,7 @@ void PrepareTokenPartition(
     std::unordered_map<language::text::Range, size_t>& output_token_id,
     std::vector<std::set<language::text::Range>>& output_token_partition) {
   std::vector<NonNull<const ParseTree*>> trees = {tree};
-  std::unordered_map<std::wstring, size_t> contents_to_id;
+  std::unordered_map<LazyString, size_t> contents_to_id;
   while (!trees.empty()) {
     NonNull<const ParseTree*> head = trees.back();
     trees.pop_back();
@@ -101,9 +100,7 @@ void PrepareTokenPartition(
         head->range().begin().line == head->range().end().line) {
       auto insert_results = contents_to_id.insert(
           {GetSymbol(head->range(), contents), output_token_partition.size()});
-      if (insert_results.second) {
-        output_token_partition.push_back({});
-      }
+      if (insert_results.second) output_token_partition.push_back({});
       size_t id = insert_results.first->second;
       output_token_id.insert({head->range(), id});
       output_token_partition[id].insert(head->range());
