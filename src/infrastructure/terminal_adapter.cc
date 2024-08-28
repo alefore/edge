@@ -64,7 +64,7 @@ futures::Value<EmptyValue> TerminalAdapter::ReceiveInput(
   LineModifierSet modifiers = initial_modifiers;
 
   ColumnNumber read_index;
-  VLOG(5) << "Terminal input: " << str.ToString();
+  VLOG(5) << "Terminal input: " << str;
   while (read_index < ColumnNumber(0) + str.size()) {
     int c = str.get(read_index);
     ++read_index;
@@ -124,8 +124,8 @@ std::vector<tests::fuzz::Handler> TerminalAdapter::FuzzHandlers() {
 ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
     LazyString str, ColumnNumber read_index, LineModifierSet* modifiers) {
   if (str.size() <= read_index.ToDelta()) {
-    LOG(INFO) << "Unhandled character sequence: "
-              << str.Substring(read_index).ToString() << ")\n";
+    LOG(INFO) << "Unhandled character sequence: " << str.Substring(read_index)
+              << ")\n";
     return read_index;
   }
   switch (str.get(read_index)) {
@@ -140,7 +140,7 @@ ColumnNumber TerminalAdapter::ProcessTerminalEscapeSequence(
       break;
     default:
       LOG(INFO) << "Unhandled character sequence: "
-                << str.Substring(read_index).ToString();
+                << str.Substring(read_index);
   }
   ++read_index;
   CHECK_LE(data_->position.line, data_->receiver->contents().EndLine());
