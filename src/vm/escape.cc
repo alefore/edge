@@ -87,14 +87,12 @@ bool cpp_unescape_string_tests_registration =
       auto t = [](std::wstring name, std::wstring input) {
         return tests::Test{
             .name = name, .callback = [input] {
-              std::wstring output =
+              CHECK_EQ(
+                  LazyString{input},
                   ValueOrDie(EscapedString::Parse(
                                  EscapedString::FromString(LazyString{input})
                                      .EscapedRepresentation()))
-                      .OriginalString()
-                      .ToString();
-              LOG(INFO) << "Comparing: " << input << " to " << output;
-              CHECK(input == output);
+                      .OriginalString());
             }};
       };
       auto fail = [](std::wstring name, std::wstring input) {
