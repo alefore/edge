@@ -3,6 +3,7 @@
 #include "src/language/container.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/lazy_string/char_buffer.h"  // For tests.
+#include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/tokenize.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
@@ -23,6 +24,8 @@ using afc::language::NonNull;
 using afc::language::overload;
 using afc::language::ToByteString;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::FindFirstColumnWithPredicate;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::Token;
 
@@ -226,10 +229,10 @@ class ParseState {
   static bool IsLiteralNumber(const Token& token) {
     CHECK(!token.value.IsEmpty());
     // TODO(2023-12-15, trivial): Handle `-` and `.`.
-    // TODO(2024-01-02, trivial): Don't convert to string. Define range on
-    // LazyString.
-    return std::ranges::all_of(token.value.ToString(),
-                               [](wchar_t c) { return std::iswdigit(c); });
+    return FindFirstColumnWithPredicate(token.value,
+                                        [](ColumnNumber, wchar_t c) {
+                                          return !std::iswdigit(c);
+                                        }) == std::nullopt;
   }
 
   std::vector<gc::Root<Value>> LookUp(const Identifier& symbol) {
@@ -411,15 +414,12 @@ bool tests_registration = tests::Register(
            NonNull<std::shared_ptr<Expression>> expression = ValueOrDie(
                Compile(LazyString{L"foo foo foo \"bar\" "}, LazyString{},
                        environment.ptr().value(), {kEmptyNamespace}, pool));
-           // TODO(2023-12-18): Why the fuck do we need ToByteString here?
-           CHECK_EQ(ToByteString(ValueOrDie(Evaluate(expression, pool,
-                                                     environment, nullptr)
-                                                .Get()
-                                                .value())
-                                     .ptr()
-                                     ->get_string()
-                                     .ToString()),
-                    "[[[bar]]]");
+           CHECK_EQ(ValueOrDie(Evaluate(expression, pool, environment, nullptr)
+                                   .Get()
+                                   .value())
+                        .ptr()
+                        ->get_string(),
+                    LazyString{L"[[[bar]]]"});
            CHECK_EQ(calls, 3ul);
          }}});
 }  // namespace
