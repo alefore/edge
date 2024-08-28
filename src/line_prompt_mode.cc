@@ -272,14 +272,13 @@ ValueOrError<std::unordered_multimap<std::wstring, LazyString>>
 ParseHistoryLine(const LazyString& line) {
   std::unordered_multimap<std::wstring, LazyString> output;
   for (const Token& token : TokenizeBySpaces(line)) {
-    // TODO(trivial, 2024-01-02): Avoid conversion to std::wstring.
-    auto colon = token.value.ToString().find(':');
-    if (colon == std::wstring::npos)
+    std::optional<ColumnNumber> colon = FindFirstOf(token.value, {L':'});
+    if (colon == std::nullopt)
       return Error{
           LazyString{
               L"Unable to parse prompt line (no colon found in token): "} +
           line};
-    ColumnNumber value_start = token.begin + ColumnNumberDelta(colon);
+    ColumnNumber value_start = token.begin + colon->ToDelta();
     ++value_start;  // Skip the colon.
     ColumnNumber value_end = token.end;
     if (value_end <= value_start + ColumnNumberDelta(1) ||
@@ -290,11 +289,9 @@ ParseHistoryLine(const LazyString& line) {
     ++value_start;
     --value_end;
     // TODO(easy, 2024-01-02): Avoid conversion to string.
-    output.insert({token.value
-                       .Substring(ColumnNumber{0},
-                                  ColumnNumberDelta{static_cast<int>(colon)})
-                       .ToString(),
-                   line.Substring(value_start, value_end - value_start)});
+    output.insert(
+        {token.value.Substring(ColumnNumber{0}, colon->ToDelta()).ToString(),
+         line.Substring(value_start, value_end - value_start)});
   }
 
   std::unordered_multimap<std::wstring, LazyString> synthetic_features =
