@@ -190,6 +190,12 @@ class EdgeStruct {
     return instance;
   }
 
+  const EdgeVariable<T>* find_variable(
+      const language::lazy_string::LazyString& name) {
+    return find_variable(name.ToString());
+  }
+
+  // TODO(easy, 2024-08-28): Kill this method.
   const EdgeVariable<T>* find_variable(const std::wstring& name) {
     auto it = variables_.find(name);
     return it == variables_.end() ? nullptr : it->second.get().get();
