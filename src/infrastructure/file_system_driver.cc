@@ -39,12 +39,17 @@ PossibleError FileDescriptorValidator::Validate(const int& fd) {
 }
 
 namespace {
-PossibleError SyscallReturnValue(std::wstring description, int return_value) {
+PossibleError SyscallReturnValue(LazyString description, int return_value) {
   LOG(INFO) << "Syscall return value: " << description << ": " << return_value;
-  return return_value == -1
-             ? Error{LazyString{description} + LazyString{L" failed: "} +
-                     LazyString{FromByteString(strerror(errno))}}
-             : Success();
+  return return_value == -1 ? Error{description + LazyString{L": Failure: "} +
+                                    LazyString{FromByteString(strerror(errno))}}
+                            : Success();
+}
+
+PossibleError SyscallReturnValue(const Path& path, LazyString description,
+                                 int return_value) {
+  return SyscallReturnValue(path.read() + LazyString{L": "} + description,
+                            return_value);
 }
 }  // namespace
 
@@ -78,9 +83,8 @@ futures::ValueOrError<FileDescriptor> FileSystemDriver::Open(
       [path = std::move(path), flags, mode]() -> ValueOrError<FileDescriptor> {
         LOG(INFO) << "Opening file:" << path;
         int fd = open(path.ToBytes().c_str(), flags, mode);
-        ASSIGN_OR_RETURN(
-            EmptyValue value,
-            SyscallReturnValue(L"Open: " + path.read().ToString(), fd));
+        ASSIGN_OR_RETURN(EmptyValue value,
+                         SyscallReturnValue(path, LazyString{L"Open"}, fd));
         (void)value;
         return FileDescriptor::New(fd);
       });
@@ -93,13 +97,15 @@ futures::Value<ssize_t> FileSystemDriver::Read(FileDescriptor fd, void* buf,
 }
 
 futures::Value<PossibleError> FileSystemDriver::Close(FileDescriptor fd) const {
-  return thread_pool_.Run(
-      [fd] { return SyscallReturnValue(L"Close", close(fd.read())); });
+  return thread_pool_.Run([fd] {
+    return SyscallReturnValue(LazyString{L"Close"}, close(fd.read()));
+  });
 }
 
 futures::Value<PossibleError> FileSystemDriver::Unlink(Path path) const {
   return thread_pool_.Run([path = std::move(path)]() {
-    return SyscallReturnValue(L"Unlink", unlink(path.ToBytes().c_str()));
+    return SyscallReturnValue(path, LazyString{L"Unlink"},
+                              unlink(path.ToBytes().c_str()));
   });
 }
 
@@ -121,8 +127,9 @@ futures::ValueOrError<struct stat> FileSystemDriver::Stat(Path path) const {
 futures::Value<PossibleError> FileSystemDriver::Rename(Path oldpath,
                                                        Path newpath) const {
   return thread_pool_.Run([oldpath, newpath] {
-    return SyscallReturnValue(L"Rename", rename(oldpath.ToBytes().c_str(),
-                                                newpath.ToBytes().c_str()));
+    return SyscallReturnValue(
+        LazyString{L"Rename"},
+        rename(oldpath.ToBytes().c_str(), newpath.ToBytes().c_str()));
   });
 }
 
@@ -130,8 +137,8 @@ futures::Value<PossibleError> FileSystemDriver::Mkdir(Path path,
                                                       mode_t mode) const {
   return thread_pool_.Run([path, mode] {
     return AugmentError(
-        path.read(),
-        SyscallReturnValue(L"Mkdir", mkdir(path.ToBytes().c_str(), mode)));
+        path.read(), SyscallReturnValue(path, LazyString{L"Mkdir"},
+                                        mkdir(path.ToBytes().c_str(), mode)));
   });
 }
 

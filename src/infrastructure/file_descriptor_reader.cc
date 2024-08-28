@@ -85,7 +85,7 @@ void FileDescriptorReader::Register(
     chars_tracker_call = nullptr;
 
     LazyString buffer_wrapper = NewLazyString(std::move(buffer));
-    VLOG(5) << "Input: [" << buffer_wrapper.ToString() << "]";
+    VLOG(5) << "Input: [" << buffer_wrapper << "]";
 
     size_t processed = low_buffer_tmp == nullptr
                            ? low_buffer_length_
