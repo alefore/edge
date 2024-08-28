@@ -78,16 +78,12 @@ const bool prepare_buffer_tests_registration = tests::Register(
     {{.name = L"EmptyBuffer",
       .callback =
           [] {
-            CHECK(PrepareBuffer(LineSequence()).lines().ToString() == L"");
+            CHECK(PrepareBuffer(LineSequence{}).lines() == LineSequence{});
           }},
      {.name = L"UnsortedBuffer", .callback = [] {
-        LineSequence contents =
-            LineSequence::ForTests({L"", L"f fox", L"", L"", L"b baby", L""});
-        CHECK(contents.ToString() == L"\nf fox\n\n\nb baby\n");
-        std::wstring result =
-            PrepareBuffer(std::move(contents)).lines().ToString();
-        LOG(INFO) << "Result: [" << result << "]";
-        CHECK(result == L"b baby\nf fox");
+        SortedLineSequence result = PrepareBuffer(
+            LineSequence::ForTests({L"", L"f fox", L"", L"", L"b baby", L""}));
+        CHECK(result.lines() == LineSequence::ForTests({L"b baby", L"f fox"}));
       }}});
 
 std::optional<DictionaryValue> FindCompletionInModel(
