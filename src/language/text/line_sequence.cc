@@ -392,6 +392,10 @@ LineSequenceIterator LineSequence::end() const {
   return LineSequenceIterator(*this, LineNumber{} + size());
 }
 
+bool LineSequence::operator==(const LineSequence& other) const {
+  return std::equal(begin(), end(), other.begin(), other.end());
+}
+
 namespace {
 const bool position_after_tests_registration = tests::Register(
     L"LineSequence::PositionAfter",

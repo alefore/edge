@@ -81,6 +81,8 @@ class LineSequence {
   LineSequenceIterator begin() const;
   LineSequenceIterator end() const;
 
+  bool operator==(const LineSequence& other) const;
+
  private:
   friend class MutableLineSequence;
   friend class SortedLineSequence;
