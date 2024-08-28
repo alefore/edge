@@ -6,22 +6,23 @@
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 
+using afc::concurrent::ThreadPool;
+using afc::infrastructure::FileDescriptor;
+using afc::infrastructure::FileSystemDriver;
+using afc::infrastructure::HumanReadableTime;
+using afc::infrastructure::Now;
+using afc::infrastructure::Path;
+using afc::language::Error;
+using afc::language::MakeNonNullShared;
+using afc::language::NonNull;
+using afc::language::overload;
+using afc::language::Success;
+using afc::language::ToByteString;
+using afc::language::ValueOrError;
+using afc::language::lazy_string::LazyString;
+
 namespace afc::editor {
 namespace {
-using concurrent::ThreadPool;
-using infrastructure::FileDescriptor;
-using infrastructure::FileSystemDriver;
-using infrastructure::HumanReadableTime;
-using infrastructure::Now;
-using infrastructure::Path;
-using language::Error;
-using language::MakeNonNullShared;
-using language::NonNull;
-using language::overload;
-using language::Success;
-using language::ToByteString;
-using language::ValueOrError;
-
 ThreadPool& LoggingThreadPool() {
   static ThreadPool* output = new ThreadPool(1);
   return *output;
@@ -33,10 +34,8 @@ class NullLog : public Log {
     return NonNull<std::unique_ptr<NullLog>>();
   }
 
-  void Append(std::wstring) override {}
-  NonNull<std::unique_ptr<Log>> NewChild(std::wstring) override {
-    return New();
-  }
+  void Append(LazyString) override {}
+  NonNull<std::unique_ptr<Log>> NewChild(LazyString) override { return New(); }
 };
 
 struct FileLogData {
@@ -48,35 +47,45 @@ class FileLog : public Log {
  public:
   FileLog(NonNull<std::shared_ptr<FileLogData>> data)
       : data_(std::move(data)), id_(data_->next_id++) {
-    Write(data_, id_, L"Start");
+    Write(data_, id_, LazyString{L"Start"});
   }
 
-  ~FileLog() override { Write(data_, id_, L"End"); }
+  ~FileLog() override { Write(data_, id_, LazyString{L"End"}); }
 
-  void Append(std::wstring statement) override {
-    Write(data_, id_, L"Info: " + std::move(statement));
+  void Append(LazyString statement) override {
+    Write(data_, id_, LazyString{L"Info: "} + statement);
   }
 
-  NonNull<std::unique_ptr<Log>> NewChild(std::wstring name) override {
+  NonNull<std::unique_ptr<Log>> NewChild(LazyString name) override {
     Write(data_, id_,
-          L"New Child: id:" + std::to_wstring(data_->next_id) + L": " + name);
+          LazyString{L"New Child: id:"} +
+              LazyString{std::to_wstring(data_->next_id)} + LazyString{L": "} +
+              name);
     return NonNull<std::unique_ptr<FileLog>>(data_);
   }
 
  private:
   static void Write(NonNull<std::shared_ptr<FileLogData>> data, int id,
-                    std::wstring statement) {
+                    LazyString statement) {
     ValueOrError<std::wstring> time = HumanReadableTime(Now());
+    LazyString full_statement =
+        std::visit(overload{[](Error error) {
+                              return LazyString{L"[error:"} + error.read() +
+                                     LazyString{L"]"};
+                            },
+                            [](std::wstring value) {
+                              // TODO(trivial, 2024-08-28):
+                              // Change the parameter to
+                              // already be a LazyString and
+                              // remove this conversion.
+                              return LazyString{value};
+                            }},
+                   time) +
+        LazyString{L" "} + LazyString{std::to_wstring(id)} + LazyString{L": "} +
+        statement + LazyString{L"\n"};
     LoggingThreadPool().RunIgnoringResult(
         [data = std::move(data),
-         statement = ToByteString(
-             std::visit(overload{[](Error error) {
-                                   return L"[error:" + error.read().ToString() +
-                                          L"]";
-                                 },
-                                 [](std::wstring value) { return value; }},
-                        time) +
-             L" " + std::to_wstring(id) + L": " + statement + L"\n")] {
+         statement = ToByteString(full_statement.ToString())] {
           return write(data->fd.read(), statement.c_str(), statement.size());
         });
   }

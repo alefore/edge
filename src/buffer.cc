@@ -425,8 +425,8 @@ PossibleError OpenBuffer::IsUnableToPrepareToClose() const {
 
 futures::ValueOrError<OpenBuffer::PrepareToCloseOutput>
 OpenBuffer::PrepareToClose() {
-  log_->Append(L"PrepareToClose");
-  LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
+  log_->Append(LazyString{L"PrepareToClose"});
+  LOG(INFO) << "Preparing to close: " << ReadLazyString(buffer_variables::name);
   return std::visit(
       overload{
           [&](Error error) -> futures::ValueOrError<PrepareToCloseOutput> {
@@ -489,13 +489,15 @@ OpenBuffer::PrepareToClose() {
 }
 
 void OpenBuffer::Close() {
-  log_->Append(L"Closing");
+  log_->Append(LazyString{L"Closing"});
   if (dirty() && !Read(buffer_variables::allow_dirty_delete)) {
     if (Read(buffer_variables::save_on_close)) {
-      log_->Append(L"Saving buffer: " + Read(buffer_variables::name));
+      log_->Append(LazyString{L"Saving buffer: "} +
+                   ReadLazyString(buffer_variables::name));
       Save(Options::SaveType::kMainFile);
     } else {
-      log_->Append(L"Saving backup: " + Read(buffer_variables::name));
+      log_->Append(LazyString{L"Saving backup: "} +
+                   ReadLazyString(buffer_variables::name));
       Save(Options::SaveType::kBackup);
     }
   }
@@ -537,7 +539,7 @@ struct timespec OpenBuffer::last_visit() const { return last_visit_; }
 struct timespec OpenBuffer::last_action() const { return last_action_; }
 
 futures::Value<PossibleError> OpenBuffer::PersistState() const {
-  auto trace = log_->NewChild(L"Persist State");
+  auto trace = log_->NewChild(LazyString{L"Persist State"});
   if (!Read(buffer_variables::persist_state)) {
     return futures::Past(Success());
   }
@@ -1020,7 +1022,7 @@ Log& OpenBuffer::log() const { return log_.value(); }
 
 void OpenBuffer::UpdateBackup() {
   CHECK(backup_state_ == DiskState::kStale);
-  log_->Append(L"UpdateBackup starts.");
+  log_->Append(LazyString{L"UpdateBackup starts."});
   if (options_.handle_save != nullptr) {
     options_.handle_save(
         {.buffer = *this, .save_type = Options::SaveType::kBackup});
@@ -2308,8 +2310,9 @@ futures::Value<EmptyValue> OpenBuffer::ApplyToCursors(
     transformation::Variant transformation,
     Modifiers::CursorsAffected cursors_affected,
     transformation::Input::Mode mode) {
-  auto trace = log_->NewChild(L"ApplyToCursors transformation.");
-  trace->Append(L"Transformation: " + transformation::ToString(transformation));
+  auto trace = log_->NewChild(LazyString{L"ApplyToCursors transformation."});
+  trace->Append(LazyString{L"Transformation: "} +
+                LazyString{transformation::ToString(transformation)});
 
   if (!last_transformation_stack_.empty()) {
     last_transformation_stack_.back()->push_back(transformation);

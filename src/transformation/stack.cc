@@ -139,7 +139,8 @@ futures::Value<EmptyValue> ApplyStackDirectly(
              begin, end,
              [output, &input,
               trace](const transformation::Variant& transformation) {
-               trace->Append(L"Transformation: " + ToString(transformation));
+               trace->Append(LazyString{L"Transformation: "} +
+                             LazyString{ToString(transformation)});
                return Apply(transformation, input.NewChild(output->position))
                    .Transform([output](Result result) {
                      output->MergeFrom(std::move(result));
@@ -316,7 +317,7 @@ futures::Value<Result> ApplyBase(const Stack& parameters, Input input) {
   auto output = std::make_shared<Result>(input.position);
   auto copy = std::make_shared<Stack>(parameters);
   NonNull<std::shared_ptr<Log>> trace =
-      input.buffer.log().NewChild(L"ApplyBase(Stack)");
+      input.buffer.log().NewChild(LazyString{L"ApplyBase(Stack)"});
   return ApplyStackDirectly(copy->stack.begin(), copy->stack.end(), input,
                             trace, output)
       .Transform([output, input, copy, trace](EmptyValue) {
