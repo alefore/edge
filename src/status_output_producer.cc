@@ -15,6 +15,7 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/lowercase.h"
 #include "src/line_marks.h"
 #include "src/section_brackets_producer.h"
 #include "src/tests/tests.h"
@@ -33,6 +34,7 @@ using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::ForEachColumn;
 using language::lazy_string::LazyString;
+using language::lazy_string::UpperCase;
 using language::text::Line;
 using language::text::LineBuilder;
 using language::text::LineColumn;
@@ -108,44 +110,42 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
           std::nullopt);
     }
 
-    std::map<std::wstring, std::wstring> flags = options.buffer->Flags();
+    std::map<std::wstring, BufferFlagValue> flags = options.buffer->Flags();
     if (options.modifiers.repetitions.has_value()) {
-      flags.insert(
-          {std::to_wstring(options.modifiers.repetitions.value()), L""});
+      flags.insert({std::to_wstring(options.modifiers.repetitions.value()),
+                    BufferFlagValue{}});
     }
     if (options.modifiers.default_direction == Direction::kBackwards) {
-      flags.insert({L"REVERSE", L""});
+      flags.insert({L"REVERSE", BufferFlagValue{}});
     } else if (options.modifiers.direction == Direction::kBackwards) {
-      flags.insert({L"reverse", L""});
+      flags.insert({L"reverse", BufferFlagValue{}});
     }
 
     if (options.modifiers.default_insertion ==
         Modifiers::ModifyMode::kOverwrite) {
-      flags.insert({L"OVERWRITE", L""});
+      flags.insert({L"OVERWRITE", BufferFlagValue{}});
     } else if (options.modifiers.insertion ==
                Modifiers::ModifyMode::kOverwrite) {
-      flags.insert({L"overwrite", L""});
+      flags.insert({L"overwrite", BufferFlagValue{}});
     }
 
     if (options.modifiers.strength == Modifiers::Strength::kStrong) {
-      flags.insert({L"💪", L""});
+      flags.insert({L"💪", BufferFlagValue{}});
     }
 
-    std::wstring structure;
+    LazyString structure;
     if (options.modifiers.structure == Structure::kTree) {
-      structure =
-          L"tree<" + std::to_wstring(options.buffer->tree_depth()) + L">";
+      structure = LazyString{
+          L"tree<" + std::to_wstring(options.buffer->tree_depth()) + L">"};
     } else if (options.modifiers.structure != Structure::kChar) {
       std::ostringstream oss;
       oss << options.modifiers.structure;
-      structure = FromByteString(oss.str());
+      structure = LazyString{FromByteString(oss.str())};
     }
-    if (!structure.empty()) {
-      if (options.modifiers.sticky_structure) {
-        transform(structure.begin(), structure.end(), structure.begin(),
-                  ::toupper);
-      }
-      flags[L"St:"] = structure;
+    if (!structure.IsEmpty()) {
+      if (options.modifiers.sticky_structure)
+        structure = UpperCase(std::move(structure));
+      flags[L"St:"] = BufferFlagValue{structure};
     }
 
     if (!flags.empty()) {

@@ -270,37 +270,39 @@ futures::Value<PossibleError> GenerateContents(
       });
 }
 
-wstring DurationToString(size_t duration) {
+LazyString DurationToString(size_t duration) {
   static const std::vector<std::pair<size_t, std::wstring>> time_units = {
       {60, L"s"}, {60, L"m"}, {24, L"h"}, {99999999, L"d"}};
   size_t factor = 1;
   for (auto& entry : time_units) {
     if (duration < factor * entry.first) {
-      return std::to_wstring(duration / factor) + entry.second;
+      return LazyString{std::to_wstring(duration / factor) + entry.second};
     }
     factor *= entry.first;
   }
-  return L"very-long";
+  return LazyString{L"very-long"};
 }
 
-std::map<std::wstring, std::wstring> Flags(const CommandData& data,
-                                           const OpenBuffer& buffer) {
+std::map<std::wstring, BufferFlagValue> Flags(const CommandData& data,
+                                              const OpenBuffer& buffer) {
   time_t now;
   time(&now);
 
-  std::map<std::wstring, std::wstring> output;
+  std::map<std::wstring, BufferFlagValue> output;
   if (buffer.child_pid().has_value()) {
-    output.insert({L" …", L""});
+    output.insert({L" …", BufferFlagValue{}});
   } else if (buffer.child_exit_status().has_value()) {
     if (!WIFEXITED(buffer.child_exit_status().value())) {
-      output.insert({L"💀", L""});
+      output.insert({L"💀", BufferFlagValue{}});
     } else if (WEXITSTATUS(buffer.child_exit_status().value()) == 0) {
-      output.insert({L" 🏁", L""});
+      output.insert({L" 🏁", BufferFlagValue{}});
     } else {
-      output.insert({L" 💥", L""});
+      output.insert({L" 💥", BufferFlagValue{}});
     }
     if (now > data.time_end) {
-      output.insert({DurationToString(now - data.time_end), L""});
+      // TODO(2024-08-28, trivial): Avoid the need to call ToString.
+      output.insert({DurationToString(now - data.time_end).ToString(),
+                     BufferFlagValue{}});
     }
   }
 
@@ -309,7 +311,7 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
         (buffer.child_pid().has_value() || data.time_end < data.time_start)
             ? now
             : data.time_end;
-    output[L"⏲ "] = DurationToString(end - data.time_start);
+    output[L"⏲ "] = BufferFlagValue{DurationToString(end - data.time_start)};
   }
 
   auto update = buffer.last_progress_update();
@@ -323,22 +325,24 @@ std::map<std::wstring, std::wstring> Flags(const CommandData& data,
     VLOG(5) << buffer.Read(buffer_variables::name)
             << "Lines read rate: " << lines_read_rate;
     if (lines_read_rate > 5) {
-      output[L"🤖"] = L"🗫";
+      output[L"🤖"] = BufferFlagValue{LazyString{L"🗫"}};
     } else if (lines_read_rate > 2) {
-      output[L"🤖"] = L"🗪";
+      output[L"🤖"] = BufferFlagValue{LazyString{L"🗪"}};
     } else if (error_input != nullptr &&
                GetElapsedSecondsSince(error_input->last_input_received()) < 5) {
-      output[L"🤖"] = L"🗯";
+      output[L"🤖"] = BufferFlagValue{LazyString{L"🗯"}};
     } else if (seconds_since_input > 60 * 2) {
-      output[L"🤖"] = L"💤";
+      output[L"🤖"] = BufferFlagValue{LazyString{L"💤"}};
     } else if (seconds_since_input > 60) {
-      output[L"🤖"] = L"z";
+      output[L"🤖"] = BufferFlagValue{LazyString{L"z"}};
     } else if (seconds_since_input > 5) {
-      output[L"🤖"] = L"";
+      output[L"🤖"] = BufferFlagValue{LazyString{L""}};
     } else if (seconds_since_input >= 0) {
-      output[L"🤖"] = L"🗩";
+      output[L"🤖"] = BufferFlagValue{LazyString{L"🗩"}};
     }
-    output.insert({DurationToString(now - update.tv_sec), L""});
+    // TODO(2024-08-28, trivial): Avoid the need to call ToString.
+    output.insert(
+        {DurationToString(now - update.tv_sec).ToString(), BufferFlagValue{}});
   }
   return output;
 }

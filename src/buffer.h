@@ -56,6 +56,10 @@ class UndoState;
 
 class OpenBufferMutableLineSequenceObserver;
 
+struct BufferFlagValue
+    : public language::GhostType<BufferFlagValue,
+                                 language::lazy_string::LazyString> {};
+
 class OpenBuffer {
   struct ConstructorAccessTag {};
 
@@ -82,7 +86,7 @@ class OpenBuffer {
     // Optional function to generate additional information for the status of
     // this buffer (see OpenBuffer::FlagsString). The generated string must
     // begin with a space.
-    std::function<std::map<std::wstring, std::wstring>(const OpenBuffer&)>
+    std::function<std::map<std::wstring, BufferFlagValue>(const OpenBuffer&)>
         describe_status = nullptr;
 
     // Optional function that listens on visits to the buffer (i.e., the user
@@ -316,9 +320,9 @@ class OpenBuffer {
   std::unique_ptr<DiskState, std::function<void(DiskState*)>> FreezeDiskState();
 
   bool dirty() const;
-  std::map<std::wstring, std::wstring> Flags() const;
+  std::map<std::wstring, BufferFlagValue> Flags() const;
   static language::lazy_string::LazyString FlagsToString(
-      std::map<std::wstring, std::wstring> flags);
+      std::map<std::wstring, BufferFlagValue> flags);
 
   futures::Value<language::EmptyValue> ApplyToCursors(
       transformation::Variant transformation);
