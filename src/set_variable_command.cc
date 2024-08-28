@@ -28,6 +28,7 @@ using afc::language::FromByteString;
 using afc::language::NonNull;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -35,19 +36,14 @@ using afc::language::text::LineBuilder;
 namespace afc::editor {
 namespace {
 
-std::wstring TrimWhitespace(const std::wstring& in) {
-  size_t begin = in.find_first_not_of(' ', 0);
-  if (begin == std::wstring::npos) {
-    return L"";
+LazyString TrimWhitespace(LazyString in) {
+  if (std::optional<ColumnNumber> begin = FindFirstOf(in, {L' '});
+      begin.has_value()) {
+    if (std::optional<ColumnNumber> end = FindLastNotOf(in, {L' '});
+        end.has_value())
+      return in.Substring(*begin, *end - *begin + ColumnNumberDelta{1});
   }
-  size_t end = in.find_last_not_of(' ', in.size());
-  if (end == std::wstring::npos) {
-    return L"";
-  }
-  if (begin == 0 && end == in.size()) {
-    return in;
-  }
-  return in.substr(begin, end - begin + 1);
+  return LazyString{};
 }
 
 Predictor VariablesPredictor() {
@@ -73,9 +69,8 @@ Predictor VariablesPredictor() {
 
 futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                                      LazyString input_name) {
-  // TODO(easy, 2022-06-05): Get rid of ToString.
-  std::wstring name = TrimWhitespace(input_name.ToString());
-  if (name.empty()) {
+  LazyString name = TrimWhitespace(input_name);
+  if (name.IsEmpty()) {
     return futures::Past(EmptyValue());
   }
 
@@ -88,26 +83,28 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
   static const HistoryFile history_file{LazyString{L"values"}};
   if (auto var = buffer_variables::StringStruct()->find_variable(name);
       var != nullptr) {
-    Prompt({.editor_state = editor_state,
-            .prompt = LazyString{name} + LazyString{L" := "},
-            .history_file = history_file,
-            .initial_value = Line{active_buffers[0].ptr()->ReadLazyString(var)},
-            .handler =
-                [&editor_state, var](LazyString input) {
-                  editor_state.ResetRepetitions();
-                  return editor_state.ForEachActiveBuffer(
-                      [var, input](OpenBuffer& buffer) {
-                        buffer.Set(var, input);
-                        buffer.status().SetInformationText(
-                            LineBuilder(LazyString{var->name()} +
-                                        LazyString{L" := "} + input)
-                                .Build());
-                        return futures::Past(EmptyValue());
-                      });
-                },
-            .cancel_handler = []() { /* Nothing. */ },
-            .predictor = var->predictor(),
-            .status = PromptOptions::Status::kBuffer});
+    Prompt(
+        {.editor_state = editor_state,
+         .prompt = name + LazyString{L" := "},
+         .history_file = history_file,
+         .initial_value = Line{active_buffers[0].ptr()->ReadLazyString(var)},
+         .handler =
+             [&editor_state, var](LazyString input) {
+               editor_state.ResetRepetitions();
+               return editor_state.ForEachActiveBuffer([var, input](
+                                                           OpenBuffer& buffer) {
+                 buffer.Set(var, input);
+                 buffer.status().SetInformationText(
+                     // TODO(easy, 2024-08-28): Get rid of LazyString wrapper.
+                     LineBuilder(LazyString{var->name()} + LazyString{L" := "} +
+                                 input)
+                         .Build());
+                 return futures::Past(EmptyValue());
+               });
+             },
+         .cancel_handler = []() { /* Nothing. */ },
+         .predictor = var->predictor(),
+         .status = PromptOptions::Status::kBuffer});
     return futures::Past(EmptyValue());
   }
 
@@ -116,15 +113,14 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
     editor_state.toggle_bool_variable(var);
     editor_state.ResetRepetitions();
     editor_state.status().SetInformationText(
-        LineBuilder(LazyString{editor_state.Read(var) ? L"🗸 " : L"⛶ "} +
-                    LazyString{name})
+        LineBuilder(LazyString{editor_state.Read(var) ? L"🗸 " : L"⛶ "} + name)
             .Build());
     return futures::Past(EmptyValue());
   }
   if (auto var = editor_variables::DoubleStruct()->find_variable(name);
       var != nullptr) {
     Prompt({.editor_state = editor_state,
-            .prompt = LazyString{name} + LazyString{L" := "},
+            .prompt = name + LazyString{L" := "},
             .history_file = history_file,
             .initial_value =
                 Line{LazyString{std::to_wstring(editor_state.Read(var))}},
@@ -154,7 +150,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
           buffer.toggle_bool_variable(var);
           buffer.status().SetInformationText(
               LineBuilder(LazyString{(buffer.Read(var) ? L"🗸 " : L"⛶ ")} +
-                          LazyString{name})
+                          name)
                   .Build());
           return futures::Past(EmptyValue());
         })
@@ -167,7 +163,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
       var != nullptr) {
     Prompt(PromptOptions{
         .editor_state = editor_state,
-        .prompt = LazyString{name} + LazyString{L" := "},
+        .prompt = name + LazyString{L" := "},
         .history_file = history_file,
         .initial_value = Line{LazyString{
             std::to_wstring(active_buffers[0].ptr()->Read(var))}},
@@ -200,7 +196,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
       var != nullptr) {
     Prompt(PromptOptions{
         .editor_state = editor_state,
-        .prompt = LazyString{name} + LazyString{L" := "},
+        .prompt = name + LazyString{L" := "},
         .history_file = history_file,
         .initial_value = Line{LazyString{
             std::to_wstring(active_buffers[0].ptr()->Read(var))}},
@@ -231,7 +227,7 @@ futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
   }
 
   default_error_status.InsertError(
-      Error{LazyString{L"Unknown variable: "} + LazyString{name}});
+      Error{LazyString{L"Unknown variable: "} + name});
   return futures::Past(EmptyValue());
 }
 
