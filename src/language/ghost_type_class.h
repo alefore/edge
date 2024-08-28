@@ -62,6 +62,11 @@ template <typename Internal>
 concept HasSize = requires(Internal i) { i.size(); };
 
 template <typename Internal>
+concept HasToBytes = requires(Internal i) {
+  { i.ToBytes() } -> std::same_as<std::string>;
+};
+
+template <typename Internal>
 concept HasEmpty = requires(Internal i) {
   { i.empty() } -> std::same_as<bool>;
 };
@@ -205,6 +210,12 @@ class GhostType : public ghost_type_internal::ValueType<Internal> {
     requires ghost_type_internal::HasEmpty<Internal>
   {
     return value.empty();
+  }
+
+  std::string ToBytes() const
+    requires ghost_type_internal::HasToBytes<Internal>
+  {
+    return value.ToBytes();
   }
 
   template <typename Key>
