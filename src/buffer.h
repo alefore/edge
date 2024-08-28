@@ -302,7 +302,7 @@ class OpenBuffer {
 
   // Serializes the buffer into a string.  This is not particularly fast (it's
   // meant more for debugging/testing rather than for real use).
-  std::wstring ToString() const;
+  language::lazy_string::LazyString ToString() const;
 
   enum class DiskState {
     // The file (in disk) reflects our last changes.

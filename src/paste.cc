@@ -93,7 +93,7 @@ class Paste : public Command {
             return futures::Past(EmptyValue());
           }
           if (buffer.fd() != nullptr) {
-            std::string text = ToByteString(paste_buffer.ptr()->ToString());
+            std::string text = paste_buffer.ptr()->ToString().ToBytes();
             VLOG(4) << "Writing to fd: " << text;
             for (size_t i = 0; i < editor_state.repetitions().value_or(1);
                  i++) {

@@ -1719,8 +1719,8 @@ std::optional<Line> OpenBuffer::LineAt(LineNumber line_number) const {
   return contents_.at(line_number);
 }
 
-std::wstring OpenBuffer::ToString() const {
-  return contents_.snapshot().ToString();
+LazyString OpenBuffer::ToString() const {
+  return contents_.snapshot().ToLazyString();
 }
 
 const struct timespec OpenBuffer::time_last_exit() const {
