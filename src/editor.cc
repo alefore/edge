@@ -852,20 +852,22 @@ void EditorState::PushPosition(LineColumn position) {
                     });
 
       std::move(future_positions_buffer)
-          .Transform([line_to_insert =
-                          Line(position.ToString() + L" " +
-                               buffer->ptr()->Read(buffer_variables::name))](
-                         gc::Root<OpenBuffer> positions_buffer_root) {
-            OpenBuffer& positions_buffer = positions_buffer_root.ptr().value();
-            positions_buffer.CheckPosition();
-            CHECK_LE(positions_buffer.position().line,
-                     LineNumber(0) + positions_buffer.contents().size());
-            positions_buffer.InsertLine(
-                positions_buffer.current_position_line(), line_to_insert);
-            CHECK_LE(positions_buffer.position().line,
-                     LineNumber(0) + positions_buffer.contents().size());
-            return Success();
-          });
+          .Transform(
+              [line_to_insert =
+                   Line(LazyString{position.ToString()} + LazyString{L" "} +
+                        buffer->ptr()->ReadLazyString(buffer_variables::name))](
+                  gc::Root<OpenBuffer> positions_buffer_root) {
+                OpenBuffer& positions_buffer =
+                    positions_buffer_root.ptr().value();
+                positions_buffer.CheckPosition();
+                CHECK_LE(positions_buffer.position().line,
+                         LineNumber(0) + positions_buffer.contents().size());
+                positions_buffer.InsertLine(
+                    positions_buffer.current_position_line(), line_to_insert);
+                CHECK_LE(positions_buffer.position().line,
+                         LineNumber(0) + positions_buffer.contents().size());
+                return Success();
+              });
   }
 }
 
