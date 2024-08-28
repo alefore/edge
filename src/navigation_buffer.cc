@@ -63,8 +63,9 @@ void AppendLine(OpenBuffer& source, LazyString padding, LineColumn position,
                 OpenBuffer& target) {
   LineBuilder options;
   options.set_contents(padding);
-  options.SetOutgoingLink(
-      OutgoingLink{.path = to_wstring(source.name()), .line_column = position});
+  // TODO(trivial, 2024-08-28): Avoid call to ToString:
+  options.SetOutgoingLink(OutgoingLink{
+      .path = ToLazyString(source.name()).ToString(), .line_column = position});
   AddContents(source, *source.LineAt(position.line), &options);
   target.AppendRawLine(std::move(options).Build());
 }
@@ -89,8 +90,9 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
               tree.children()[i + 1].range().begin().line) {
         AddContents(source, *source.LineAt(child.range().end().line), &options);
       }
+      // TODO(trivial, 2024-08-28): Avoid call to ToString:
       options.SetOutgoingLink(
-          OutgoingLink{.path = to_wstring(source.name()),
+          OutgoingLink{.path = ToLazyString(source.name()).ToString(),
                        .line_column = child.range().begin()});
 
       target.AppendRawLine(std::move(options).Build());
@@ -158,7 +160,11 @@ class NavigationBufferCommand : public Command {
       return;
     }
 
-    BufferName name(L"Navigation: " + to_wstring(source->ptr()->name()));
+    // TODO(trivial, 2024-08-28): Declare a new buffer name? Avoid call to
+    // ToString.
+    BufferName name{
+        (LazyString{L"Navigation: "} + ToLazyString(source->ptr()->name()))
+            .ToString()};
     gc::Root<OpenBuffer> buffer_root =
         editor_state_.FindOrBuildBuffer(name, [&] {
           gc::WeakPtr<OpenBuffer> source_weak = source->ptr().ToWeakPtr();

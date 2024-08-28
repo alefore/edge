@@ -766,8 +766,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                             [&] { return futures::Past(EmptyValue()); });
                       }));
 
-  // TODO(easy, 2024-08-27): Change to_wstring for to_lazystring.
-  Set(buffer_variables::name, LazyString{to_wstring(options_.name)});
+  Set(buffer_variables::name, ToLazyString(options_.name));
   if (options_.path.has_value())
     Set(buffer_variables::path, options_.path.value().read());
   Set(buffer_variables::pts_path, LazyString{});
@@ -804,8 +803,7 @@ void OpenBuffer::Initialize(gc::Ptr<OpenBuffer> ptr_this) {
                   });
             }
           }},
-      // TODO(easy): Avoid conversion to LazyString.
-      Path::New(LazyString{Read(buffer_variables::path)}));
+      Path::New(ReadLazyString(buffer_variables::path)));
 
   contents_observer_->SetOpenBuffer(weak_this);
 }
@@ -970,7 +968,7 @@ futures::ValueOrError<Path> OpenBuffer::GetEdgeStateDirectory() const {
               LazyString{L" "} +
               (disk_state_ == DiskState::kStale ? LazyString{L"modified"}
                                                 : LazyString{L"not modified"}),
-          AbsolutePath::New(LazyString{Read(buffer_variables::path)})));
+          AbsolutePath::New(ReadLazyString(buffer_variables::path))));
 
   if (file_path.GetRootType() != Path::RootType::kAbsolute) {
     return futures::Past(ValueOrError<Path>(
@@ -1656,8 +1654,8 @@ NonNull<std::unique_ptr<TerminalAdapter>> OpenBuffer::NewTerminal() {
     infrastructure::TerminalName name() override {
       // TODO(easy, 2024-08-06): Change to_wstring to to_lazystring and remove
       // extra wrapping here.
-      return infrastructure::TerminalName{
-          LazyString{L"Terminal:"} + LazyString{to_wstring(buffer_.name())}};
+      return infrastructure::TerminalName{LazyString{L"Terminal:"} +
+                                          ToLazyString(buffer_.name())};
     }
 
     std::optional<infrastructure::FileDescriptor> fd() override {
@@ -1795,7 +1793,11 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     futures::Future<EmptyValue> output;
     reader =
         std::make_unique<FileDescriptorReader>(FileDescriptorReader::Options{
-            .name = FileDescriptorName(to_wstring(name()) + L":" + name_suffix),
+            // TODO(trivial, 2024-08-28): Avoid call to ToString.
+            .name =
+                FileDescriptorName((ToLazyString(name()) + LazyString{L":"} +
+                                    LazyString{name_suffix})
+                                       .ToString()),
             .fd = fd.value(),
             .receive_end_of_file =
                 [buffer = NewRoot(), this, &reader,
@@ -1951,7 +1953,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
   }
 
   std::vector<URL> urls_with_extensions = GetLocalFileURLsWithExtensions(
-      LazyString{buffer.Read(buffer_variables::file_context_extensions)},
+      buffer.ReadLazyString(buffer_variables::file_context_extensions),
       *initial_url);
 
   std::vector<Path> search_paths = {};
@@ -1966,8 +1968,7 @@ std::vector<URL> GetURLsForCurrentPosition(const OpenBuffer& buffer) {
                                             }},
                                    path.Dirname());
                       }},
-             // TODO(easy, 2024-08-04): Avoid conversion to LazyString here.
-             Path::New(LazyString{buffer.Read(buffer_variables::path)}));
+             Path::New(buffer.ReadLazyString(buffer_variables::path)));
 
   std::vector<URL> urls = urls_with_extensions;
 
@@ -2393,10 +2394,8 @@ futures::Value<typename transformation::Result> OpenBuffer::Apply(
                          editor().buffer_registry().Find(FuturePasteBuffer{});
                      paste_buffer.has_value()) {
             editor().buffer_registry().Remove(FuturePasteBuffer{});
-            // TODO(easy, 2024-08-27): Change from to_wstring to to_lazystring.
-            paste_buffer->ptr()->Set(
-                buffer_variables::name,
-                LazyString{to_wstring(BufferName{PasteBuffer{}})});
+            paste_buffer->ptr()->Set(buffer_variables::name,
+                                     ToLazyString(BufferName{PasteBuffer{}}));
             editor().buffer_registry().Add(PasteBuffer{},
                                            paste_buffer->ptr().ToWeakPtr());
           }

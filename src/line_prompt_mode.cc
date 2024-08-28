@@ -591,8 +591,12 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
     DeleteNotification::Value abort_value, std::wstring filter) {
-  BufferName name(L"- history filter: " +
-                  to_wstring(history_buffer.ptr()->name()) + L": " + filter);
+  // TODO(trivial, 2024-08-28): Receive filter already as LazyString, avoid
+  // conversion.
+  BufferName name{(LazyString{L"- history filter: "} +
+                   ToLazyString(history_buffer.ptr()->name()) +
+                   LazyString{L": "} + LazyString{filter})
+                      .ToString()};
   gc::Root<OpenBuffer> filter_buffer_root =
       OpenBuffer::New({.editor = editor_state, .name = name});
   OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
@@ -1209,7 +1213,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                     prompt_state->editor_state().status().InsertError(Error{
                         LazyString{
                             L"Error: Predict: predictions buffer not found: "} +
-                        LazyString{to_wstring(PredictionsBufferName{})}});
+                        ToLazyString(PredictionsBufferName{})});
                   }
                   return EmptyValue();
                 });

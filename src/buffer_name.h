@@ -85,7 +85,7 @@ using BufferName =
                  PredictionsBufferName, HistoryBufferName, ServerBufferName,
                  CommandBufferName, AnonymousBufferName, std::wstring>;
 
-std::wstring to_wstring(const BufferName&);
+language::lazy_string::LazyString ToLazyString(const BufferName&);
 
 std::ostream& operator<<(std::ostream& os, const BufferName& p);
 }  // namespace afc::editor

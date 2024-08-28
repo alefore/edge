@@ -467,7 +467,8 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
         (source.has_value() &&
          mark.source_line < LineNumber(0) + source->ptr()->contents().size())
             ? source->ptr()->contents().at(mark.source_line)
-            : Line(L"(dead mark: " + to_wstring(mark.source_buffer) + L")"),
+            : Line(LazyString{L"(dead mark: "} +
+                   ToLazyString(mark.source_buffer) + LazyString{L")"}),
         MetadataLine::Type::kMark});
   }
 

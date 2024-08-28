@@ -366,7 +366,7 @@ void DefineBufferType(gc::Pool& pool, Environment& environment) {
   buffer_object_type.ptr()->AddField(
       Identifier{LazyString{L"tostring"}},
       vm::NewCallback(pool, kPurityTypeReader, [](gc::Ptr<OpenBuffer> buffer) {
-        return to_wstring(buffer->name());
+        return ToLazyString(buffer->name());
       }).ptr());
 
   buffer_object_type.ptr()->AddField(

@@ -1,52 +1,55 @@
 #include "src/buffer_name.h"
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
 
 using afc::language::overload;
 using afc::language::to_wstring;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 
 using ::operator<<;
 
-std::wstring to_wstring(const BufferName& p) {
+LazyString ToLazyString(const BufferName& p) {
   return std::visit(
       overload{
-          [](const BufferFileId& i) { return to_wstring(i); },
-          [](const BufferListId&) -> std::wstring { return L"- buffers"; },
-          [](const PasteBuffer&) -> std::wstring { return L"- paste buffer"; },
-          [](const FuturePasteBuffer&) -> std::wstring {
-            return L"- future paste buffer";
+          [](const BufferFileId& i) { return LazyString{to_wstring(i)}; },
+          [](const BufferListId&) { return LazyString{L"- buffers"}; },
+          [](const PasteBuffer&) { return LazyString{L"- paste buffer"}; },
+          [](const FuturePasteBuffer&) {
+            return LazyString{L"- future paste buffer"};
           },
-          [](const TextInsertion&) -> std::wstring {
-            return L"- text inserted";
+          [](const TextInsertion&) { return LazyString{L"- text inserted"}; },
+          [](const InitialCommands&) {
+            return LazyString{L"- initial commands"};
           },
-          [](const InitialCommands&) -> std::wstring {
-            return L"- initial commands";
+          [](const ConsoleBufferName&) { return LazyString{L"- console"}; },
+          [](const PredictionsBufferName&) {
+            return LazyString{L"- predictions"};
           },
-          [](const ConsoleBufferName&) -> std::wstring { return L"- console"; },
-          [](const PredictionsBufferName&) -> std::wstring {
-            return L"- predictions";
+          [](const HistoryBufferName& input) {
+            return LazyString{L"- history: "} + LazyString{to_wstring(input)};
           },
-          [](const HistoryBufferName& input) -> std::wstring {
-            return L"- history: " + to_wstring(input);
+          [](const ServerBufferName& input) {
+            return LazyString{L"@ "} + LazyString{to_wstring(input)};
           },
-          [](const ServerBufferName& input) -> std::wstring {
-            return L"@ " + to_wstring(input);
+          [](const CommandBufferName& input) {
+            return LazyString{L"$ "} + LazyString{to_wstring(input)};
           },
-          [](const CommandBufferName& input) -> std::wstring {
-            return L"$ " + to_wstring(input);
+          [](const AnonymousBufferName& input) {
+            return LazyString{L"anonymous buffer "} +
+                   LazyString{to_wstring(input)};
           },
-          [](const AnonymousBufferName& input) -> std::wstring {
-            return L"anonymous buffer " + to_wstring(input);
+          [](const std::wstring& str) {
+            return LazyString{L"["} + LazyString{str} + LazyString{L"]"};
           },
-          [](const std::wstring& str) { return L"[" + str + L"]"; },
       },
       p);
 }
 std::ostream& operator<<(std::ostream& os, const BufferName& p) {
-  os << to_wstring(p);
+  os << ToLazyString(p).ToString();
   return os;
 }
 
