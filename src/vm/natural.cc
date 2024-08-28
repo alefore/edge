@@ -320,15 +320,13 @@ bool tests_registration = tests::Register(
                    Compile(LazyString{L"Moo Moo"}, LazyString{},
                            environment.ptr().value(), {kEmptyNamespace}, pool));
                LOG(INFO) << "Evaluating.";
-               // TODO(2023-12-18): Why the fuck do we need ToByteString here?
-               CHECK_EQ(ToByteString(ValueOrDie(Evaluate(expression, pool,
-                                                         environment, nullptr)
-                                                    .Get()
-                                                    .value())
-                                         .ptr()
-                                         ->get_string()
-                                         .ToString()),
-                        "{{,,},,}");
+               CHECK_EQ(
+                   ValueOrDie(Evaluate(expression, pool, environment, nullptr)
+                                  .Get()
+                                  .value())
+                       .ptr()
+                       ->get_string(),
+                   LazyString{L"{{,,},,}"});
              }},
         {.name = L"UnaryFunctionUnquotedArgument",
          .callback =
