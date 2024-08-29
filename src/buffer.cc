@@ -2582,7 +2582,7 @@ NonNull<std::unique_ptr<EditorState>> EditorForTests() {
   return MakeNonNullUnique<EditorState>(
       std::invoke([] {
         CommandLineValues output;
-        output.config_paths = {L"/home/edge-test-user/.edge/"};
+        output.config_paths = {LazyString{L"/home/edge-test-user/.edge/"}};
         return output;
       }),
       *player);

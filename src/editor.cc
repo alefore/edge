@@ -206,13 +206,7 @@ EditorState::EditorState(CommandLineValues args,
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
       edge_path_(container::MaterializeVector(
-          args_.config_paths |
-          std::views::transform([](std::wstring s) -> ValueOrError<Path> {
-            // TODO(easy, 2023-11-25): Change config_paths to be LazyString, to
-            // avoid need to wrap.
-            return Path::New(LazyString{s});
-          }) |
-          SkipErrors)),
+          args_.config_paths | std::views::transform(Path::New) | SkipErrors)),
       environment_([&] {
         gc::Root<vm::Environment> output = BuildEditorEnvironment(
             gc_pool_,

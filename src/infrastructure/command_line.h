@@ -39,8 +39,11 @@ extern "C" {
 }
 
 #include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/language/overload.h"
 #include "src/language/wstring.h"
+
+using afc::language::lazy_string::LazyString;
 
 namespace afc::command_line_arguments {
 template <typename ParsedValues>
@@ -52,7 +55,7 @@ enum class TestsBehavior { kRunAndExit, kListAndExit, kIgnore };
 // fields that the command-line parsing logic uses.
 struct StandardArguments {
   // Input parameter.
-  std::vector<std::wstring> config_paths;
+  std::vector<language::lazy_string::LazyString> config_paths;
 
   TestsBehavior tests_behavior = TestsBehavior::kIgnore;
   // If non-empty, tests given will be run despite the value of
@@ -368,11 +371,10 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
   ParsingData<ParsedValues> args_data;
   args_data.handlers = &handlers;
 
-  for (auto config_path : args_data.output.config_paths) {
-    auto flags_path = config_path + L"/flags.txt";
-    LOG(INFO) << "Attempting to load additional flags from: "
-              << ToByteString(flags_path);
-    std::wifstream flags_stream(ToByteString(flags_path));
+  for (LazyString config_path : args_data.output.config_paths) {
+    LazyString flags_path = config_path + LazyString{L"/flags.txt"};
+    LOG(INFO) << "Attempting to load additional flags from: " << flags_path;
+    std::wifstream flags_stream(flags_path.ToBytes());
     flags_stream.imbue(std::locale(""));
     if (flags_stream.fail()) {
       LOG(INFO) << "Unable to open file, skipping";
