@@ -283,27 +283,25 @@ LazyString DurationToString(size_t duration) {
   return LazyString{L"very-long"};
 }
 
-std::map<std::wstring, BufferFlagValue> Flags(const CommandData& data,
-                                              const OpenBuffer& buffer) {
+std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
+                                               const OpenBuffer& buffer) {
   time_t now;
   time(&now);
 
-  std::map<std::wstring, BufferFlagValue> output;
+  std::map<BufferFlagKey, BufferFlagValue> output;
   if (buffer.child_pid().has_value()) {
-    output.insert({L" …", BufferFlagValue{}});
+    output.insert({BufferFlagKey{LazyString{L" …"}}, BufferFlagValue{}});
   } else if (buffer.child_exit_status().has_value()) {
     if (!WIFEXITED(buffer.child_exit_status().value())) {
-      output.insert({L"💀", BufferFlagValue{}});
+      output.insert({BufferFlagKey{LazyString{L"💀"}}, BufferFlagValue{}});
     } else if (WEXITSTATUS(buffer.child_exit_status().value()) == 0) {
-      output.insert({L" 🏁", BufferFlagValue{}});
+      output.insert({BufferFlagKey{LazyString{L" 🏁"}}, BufferFlagValue{}});
     } else {
-      output.insert({L" 💥", BufferFlagValue{}});
+      output.insert({BufferFlagKey{LazyString{L" 💥"}}, BufferFlagValue{}});
     }
-    if (now > data.time_end) {
-      // TODO(2024-08-28, trivial): Avoid the need to call ToString.
-      output.insert({DurationToString(now - data.time_end).ToString(),
+    if (now > data.time_end)
+      output.insert({BufferFlagKey{DurationToString(now - data.time_end)},
                      BufferFlagValue{}});
-    }
   }
 
   if (now > data.time_start && data.time_start > 0) {
@@ -311,7 +309,8 @@ std::map<std::wstring, BufferFlagValue> Flags(const CommandData& data,
         (buffer.child_pid().has_value() || data.time_end < data.time_start)
             ? now
             : data.time_end;
-    output[L"⏲ "] = BufferFlagValue{DurationToString(end - data.time_start)};
+    output[BufferFlagKey{LazyString{L"⏲ "}}] =
+        BufferFlagValue{DurationToString(end - data.time_start)};
   }
 
   auto update = buffer.last_progress_update();
@@ -325,24 +324,30 @@ std::map<std::wstring, BufferFlagValue> Flags(const CommandData& data,
     VLOG(5) << buffer.Read(buffer_variables::name)
             << "Lines read rate: " << lines_read_rate;
     if (lines_read_rate > 5) {
-      output[L"🤖"] = BufferFlagValue{LazyString{L"🗫"}};
+      output[BufferFlagKey{LazyString{L"🤖"}}] =
+          BufferFlagValue{LazyString{L"🗫"}};
     } else if (lines_read_rate > 2) {
-      output[L"🤖"] = BufferFlagValue{LazyString{L"🗪"}};
+      output[BufferFlagKey{LazyString{L"🤖"}}] =
+          BufferFlagValue{LazyString{L"🗪"}};
     } else if (error_input != nullptr &&
                GetElapsedSecondsSince(error_input->last_input_received()) < 5) {
-      output[L"🤖"] = BufferFlagValue{LazyString{L"🗯"}};
+      output[BufferFlagKey{LazyString{L"🤖"}}] =
+          BufferFlagValue{LazyString{L"🗯"}};
     } else if (seconds_since_input > 60 * 2) {
-      output[L"🤖"] = BufferFlagValue{LazyString{L"💤"}};
+      output[BufferFlagKey{LazyString{L"🤖"}}] =
+          BufferFlagValue{LazyString{L"💤"}};
     } else if (seconds_since_input > 60) {
-      output[L"🤖"] = BufferFlagValue{LazyString{L"z"}};
+      output[BufferFlagKey{LazyString{L"🤖"}}] =
+          BufferFlagValue{LazyString{L"z"}};
     } else if (seconds_since_input > 5) {
-      output[L"🤖"] = BufferFlagValue{LazyString{L""}};
+      output[BufferFlagKey{LazyString{L"🤖"}}] =
+          BufferFlagValue{LazyString{L""}};
     } else if (seconds_since_input >= 0) {
-      output[L"🤖"] = BufferFlagValue{LazyString{L"🗩"}};
+      output[BufferFlagKey{LazyString{L"🤖"}}] =
+          BufferFlagValue{LazyString{L"🗩"}};
     }
-    // TODO(2024-08-28, trivial): Avoid the need to call ToString.
-    output.insert(
-        {DurationToString(now - update.tv_sec).ToString(), BufferFlagValue{}});
+    output.insert({BufferFlagKey{DurationToString(now - update.tv_sec)},
+                   BufferFlagValue{}});
   }
   return output;
 }

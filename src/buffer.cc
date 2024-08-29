@@ -2134,96 +2134,104 @@ bool OpenBuffer::dirty() const {
            WEXITSTATUS(child_exit_status_.value()) != 0));
 }
 
-std::map<std::wstring, BufferFlagValue> OpenBuffer::Flags() const {
-  std::map<std::wstring, BufferFlagValue> output;
-  if (options_.describe_status) {
-    output = options_.describe_status(*this);
-  }
+std::map<BufferFlagKey, BufferFlagValue> OpenBuffer::Flags() const {
+  std::map<BufferFlagKey, BufferFlagValue> output;
+  if (options_.describe_status) output = options_.describe_status(*this);
 
   if (size_t size = undo_state_.UndoStackSize(); size > 0)
-    output.insert({L"↶", BufferFlagValue{LazyString{std::to_wstring(size)}}});
+    output.insert({BufferFlagKey{LazyString{L"↶"}},
+                   BufferFlagValue{LazyString{std::to_wstring(size)}}});
 
   if (size_t size = undo_state_.RedoStackSize(); size > 0)
-    output.insert({L"↷", BufferFlagValue{LazyString{std::to_wstring(size)}}});
+    output.insert({BufferFlagKey{LazyString{L"↷"}},
+                   BufferFlagValue{LazyString{std::to_wstring(size)}}});
 
   if (disk_state() == DiskState::kStale) {
-    output.insert({L"🐾", BufferFlagValue{}});
+    output.insert({BufferFlagKey{LazyString{L"🐾"}}, BufferFlagValue{}});
   }
 
   if (ShouldDisplayProgress()) {
-    output.insert({ProgressString(Read(buffer_variables::progress),
-                                  OverflowBehavior::kModulo)
-                       .ToString(),
-                   BufferFlagValue{}});
+    output.insert(
+        {BufferFlagKey{ProgressString(Read(buffer_variables::progress),
+                                      OverflowBehavior::kModulo)},
+         BufferFlagValue{}});
   }
 
   if (fd() != nullptr) {
-    output.insert({L"<", BufferFlagValue{}});
+    output.insert({BufferFlagKey{LazyString{L"<"}}, BufferFlagValue{}});
     switch (contents_.size().read()) {
       case 1:
-        output.insert({L"⚊", BufferFlagValue{}});
+        output.insert({BufferFlagKey{LazyString{L"⚊"}}, BufferFlagValue{}});
         break;
       case 2:
-        output.insert({L"⚌ ", BufferFlagValue{}});
+        output.insert({BufferFlagKey{LazyString{L"⚌ "}}, BufferFlagValue{}});
         break;
       case 3:
-        output.insert({L"☰ ", BufferFlagValue{}});
+        output.insert({BufferFlagKey{LazyString{L"☰ "}}, BufferFlagValue{}});
         break;
       default:
-        output.insert({L"☰ ", BufferFlagValue{LazyString{
-                                  std::to_wstring(contents_.size().read())}}});
+        output.insert({BufferFlagKey{LazyString{L"☰ "}},
+                       BufferFlagValue{LazyString{
+                           std::to_wstring(contents_.size().read())}}});
     }
     if (Read(buffer_variables::follow_end_of_file)) {
-      output.insert({L"↓", BufferFlagValue{}});
+      output.insert({BufferFlagKey{LazyString{L"↓"}}, BufferFlagValue{}});
     }
     if (LazyString pts_path = ReadLazyString(buffer_variables::pts_path);
         !pts_path.IsEmpty())
-      output.insert({L"💻", BufferFlagValue{pts_path}});
+      output.insert(
+          {BufferFlagKey{LazyString{L"💻"}}, BufferFlagValue{pts_path}});
   }
 
   if (work_queue()->RecentUtilization() > 0.1) {
-    output.insert({L"⏳", BufferFlagValue{}});
+    output.insert({BufferFlagKey{LazyString{L"⏳"}}, BufferFlagValue{}});
   }
 
   if (Read(buffer_variables::pin)) {
-    output.insert({L"📌", BufferFlagValue{}});
+    output.insert({BufferFlagKey{LazyString{L"📌"}}, BufferFlagValue{}});
   }
 
   if (child_pid_.has_value()) {
-    output.insert({L"🟡", BufferFlagValue{LazyString{
-                              std::to_wstring(child_pid_->read())}}});
+    output.insert(
+        {BufferFlagKey{LazyString{L"🟡"}},
+         BufferFlagValue{LazyString{std::to_wstring(child_pid_->read())}}});
   } else if (!child_exit_status_.has_value()) {
     // Nothing.
   } else if (WIFEXITED(child_exit_status_.value())) {
     auto exit_status = WEXITSTATUS(child_exit_status_.value());
     if (exit_status == 0)
-      output.insert({L"🟢", BufferFlagValue{}});
+      output.insert({BufferFlagKey{LazyString{L"🟢"}}, BufferFlagValue{}});
     else
       output.insert(
-          {L"🔴", BufferFlagValue{LazyString{std::to_wstring(exit_status)}}});
+          {BufferFlagKey{LazyString{L"🔴"}},
+           BufferFlagValue{LazyString{std::to_wstring(exit_status)}}});
   } else if (WIFSIGNALED(child_exit_status_.value())) {
-    output.insert({L"🟣", BufferFlagValue{LazyString{std::to_wstring(
-                              WTERMSIG(child_exit_status_.value()))}}});
+    output.insert({BufferFlagKey{LazyString{L"🟣"}},
+                   BufferFlagValue{LazyString{std::to_wstring(
+                       WTERMSIG(child_exit_status_.value()))}}});
   } else {
-    output.insert({L"exit-status", BufferFlagValue{LazyString{std::to_wstring(
-                                       child_exit_status_.value())}}});
+    output.insert({BufferFlagKey{LazyString{L"exit-status"}},
+                   BufferFlagValue{LazyString{
+                       std::to_wstring(child_exit_status_.value())}}});
   }
 
   if (LazyString marks = GetLineMarksText(); !marks.IsEmpty()) {
-    output.insert({marks.ToString(), BufferFlagValue{}});  // TODO: Show better?
+    output.insert(
+        {BufferFlagKey{marks}, BufferFlagValue{}});  // TODO: Show better?
   }
 
   return output;
 }
 
 /* static */ LazyString OpenBuffer::FlagsToString(
-    std::map<std::wstring, BufferFlagValue> flags) {
-  return Concatenate(flags |
-                     std::views::transform(
-                         [](const std::pair<std::wstring, BufferFlagValue>& f) {
-                           return LazyString{f.first} + f.second.read();
-                         }) |
-                     Intersperse(LazyString{L"  "}));
+    std::map<BufferFlagKey, BufferFlagValue> flags) {
+  return Concatenate(
+      flags |
+      std::views::transform(
+          [](const std::pair<BufferFlagKey, BufferFlagValue>& f) {
+            return f.first.read() + f.second.read();
+          }) |
+      Intersperse(LazyString{L"  "}));
 }
 
 const bool& OpenBuffer::Read(const EdgeVariable<bool>* variable) const {

@@ -112,27 +112,30 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
           std::nullopt);
     }
 
-    std::map<std::wstring, BufferFlagValue> flags = options.buffer->Flags();
+    std::map<BufferFlagKey, BufferFlagValue> flags = options.buffer->Flags();
     if (options.modifiers.repetitions.has_value()) {
-      flags.insert({std::to_wstring(options.modifiers.repetitions.value()),
+      flags.insert({BufferFlagKey{LazyString{std::to_wstring(
+                        options.modifiers.repetitions.value())}},
                     BufferFlagValue{}});
     }
     if (options.modifiers.default_direction == Direction::kBackwards) {
-      flags.insert({L"REVERSE", BufferFlagValue{}});
+      flags.insert({BufferFlagKey{LazyString{L"REVERSE"}}, BufferFlagValue{}});
     } else if (options.modifiers.direction == Direction::kBackwards) {
-      flags.insert({L"reverse", BufferFlagValue{}});
+      flags.insert({BufferFlagKey{LazyString{L"reverse"}}, BufferFlagValue{}});
     }
 
     if (options.modifiers.default_insertion ==
         Modifiers::ModifyMode::kOverwrite) {
-      flags.insert({L"OVERWRITE", BufferFlagValue{}});
+      flags.insert(
+          {BufferFlagKey{LazyString{L"OVERWRITE"}}, BufferFlagValue{}});
     } else if (options.modifiers.insertion ==
                Modifiers::ModifyMode::kOverwrite) {
-      flags.insert({L"overwrite", BufferFlagValue{}});
+      flags.insert(
+          {BufferFlagKey{LazyString{L"overwrite"}}, BufferFlagValue{}});
     }
 
     if (options.modifiers.strength == Modifiers::Strength::kStrong) {
-      flags.insert({L"💪", BufferFlagValue{}});
+      flags.insert({BufferFlagKey{LazyString{L"💪"}}, BufferFlagValue{}});
     }
 
     LazyString structure;
@@ -147,7 +150,7 @@ LineWithCursor StatusBasicInfo(const StatusOutputOptions& options) {
     if (!structure.IsEmpty()) {
       if (options.modifiers.sticky_structure)
         structure = UpperCase(std::move(structure));
-      flags[L"St:"] = BufferFlagValue{structure};
+      flags[BufferFlagKey{LazyString{L"St:"}}] = BufferFlagValue{structure};
     }
 
     if (!flags.empty()) {
