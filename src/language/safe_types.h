@@ -207,6 +207,8 @@ class NonNull<std::unique_ptr<T, D>> {
 template <typename T>
 class NonNull<std::shared_ptr<T>> {
  public:
+  using element_type = T;
+
   NonNull() : value_(std::make_shared<T>()) {}
 
   // Use the `Other` type for types where `std::shared_ptr<Other>` can be
