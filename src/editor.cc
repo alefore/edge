@@ -205,8 +205,7 @@ EditorState::EditorState(CommandLineValues args,
       bool_variables_(editor_variables::BoolStruct()->NewInstance()),
       int_variables_(editor_variables::IntStruct()->NewInstance()),
       double_variables_(editor_variables::DoubleStruct()->NewInstance()),
-      edge_path_(container::MaterializeVector(
-          args_.config_paths | std::views::transform(Path::New) | SkipErrors)),
+      edge_path_(args_.config_paths),
       environment_([&] {
         gc::Root<vm::Environment> output = BuildEditorEnvironment(
             gc_pool_,

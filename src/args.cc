@@ -63,11 +63,11 @@ static Path GetHomeDirectory() {
   return Path::Root();  // What else?
 }
 
-static std::vector<LazyString> GetEdgeConfigPath(const Path& home) {
-  std::vector<LazyString> output;
+static std::vector<Path> GetEdgeConfigPath(const Path& home) {
+  std::vector<Path> output;
   std::unordered_set<Path> output_set;
   auto push = [&output, &output_set](Path path) {
-    if (output_set.insert(path).second) output.push_back(path.read());
+    if (output_set.insert(path).second) output.push_back(path);
   };
   push(Path::Join(home, PathComponent::FromString(L".edge")));
   LOG(INFO) << "Pushing config path: " << output[0];
