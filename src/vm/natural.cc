@@ -38,6 +38,7 @@ struct Tree {
   NonNull<std::shared_ptr<Expression>> value;
   std::vector<Tree> children = {};
 
+  // How many times can we descend down the right-most child?
   size_t DepthRightBranch() const {
     size_t output = 0;
     for (NonNull<const Tree*> tree = NonNull<const Tree*>::Unsafe(this);
@@ -47,6 +48,8 @@ struct Tree {
     return output;
   }
 
+  // Go down always choosing the right-most child `depth` times, return the
+  // matching tree.
   Tree& RightBranchTreeAtDepth(size_t depth) {
     VLOG(5) << "Getting right branch at depth: " << depth;
     NonNull<Tree*> tree = NonNull<Tree*>::Unsafe(this);
