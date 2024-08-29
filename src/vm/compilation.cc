@@ -17,8 +17,7 @@ Compilation::Compilation(gc::Pool& input_pool,
     : pool(input_pool), environment(std::move(input_environment)) {}
 
 void Compilation::AddError(Error error) {
-  // TODO: Enable this logging statement.
-  // LOG(INFO) << "Compilation error: " << error;
+  LOG(INFO) << "Compilation error: " << error;
   LazyString prefix;
   for (auto it = source_.begin(); it != source_.end(); ++it) {
     Source& source = *it;
