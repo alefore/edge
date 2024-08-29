@@ -405,11 +405,14 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   VisitPointer(
       contents.outgoing_link(),
       [&](const OutgoingLink& link) {
-        target_buffer_dummy = options.buffer.editor().buffer_registry().Find(
-            BufferName{link.path});
-        if (target_buffer_dummy.has_value())
-          target_buffer = NonNull<const OpenBuffer*>::AddressOf(
-              target_buffer_dummy->ptr().value());
+        VisitOptional(
+            [&](gc::Root<OpenBuffer> target_buffer_dummy_value) {
+              target_buffer_dummy = std::move(target_buffer_dummy_value);
+              target_buffer = NonNull<const OpenBuffer*>::AddressOf(
+                  target_buffer_dummy->ptr().value());
+            },
+            [] {},
+            options.buffer.editor().buffer_registry().FindPath(link.path));
       },
       [] {});
   auto info_char = L'•';

@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "src/buffer.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/direction.h"
 #include "src/editor.h"
@@ -25,22 +26,23 @@
 #include "src/vm/environment.h"
 #include "src/vm/function_call.h"
 
-namespace afc {
-using infrastructure::screen::LineModifier;
-using infrastructure::screen::LineModifierSet;
-using language::EmptyValue;
-using language::NonNull;
-using language::VisitPointer;
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::LazyString;
-using language::text::Line;
-using language::text::LineBuilder;
-using language::text::LineColumn;
-using language::text::LineNumber;
-using language::text::OutgoingLink;
-using language::text::Range;
+using afc::infrastructure::screen::LineModifier;
+using afc::infrastructure::screen::LineModifierSet;
+using afc::language::EmptyValue;
+using afc::language::NonNull;
+using afc::language::VisitOptional;
+using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
+using afc::language::text::LineColumn;
+using afc::language::text::LineNumber;
+using afc::language::text::OutgoingLink;
+using afc::language::text::Range;
 
-namespace gc = language::gc;
+namespace gc = afc::language::gc;
+namespace afc {
 namespace vm {
 template <>
 const types::ObjectName VMTypeMapper<NonNull<
@@ -105,15 +107,14 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
     VisitPointer(
         buffer.CurrentLine().outgoing_link(),
         [&](const OutgoingLink& outgoing_link) {
-          if (auto it = buffer.editor().buffers()->find(
-                  BufferName{outgoing_link.path});
-              it != buffer.editor().buffers()->end()) {
-            gc::Root<OpenBuffer> target_buffer = it->second;
-            if (&target_buffer.ptr().value() != &buffer) {
-              target_buffer.ptr()->editor().CloseBuffer(
-                  target_buffer.ptr().value());
-            }
-          }
+          VisitOptional(
+              [&](gc::Root<OpenBuffer> target_buffer) {
+                if (&target_buffer.ptr().value() != &buffer)
+                  target_buffer.ptr()->editor().CloseBuffer(
+                      target_buffer.ptr().value());
+              },
+              [] {},
+              buffer.editor().buffer_registry().FindPath(outgoing_link.path));
         },
         [] {});
     std::function<void()> f = line_contents.explicit_delete_observer();

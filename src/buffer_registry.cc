@@ -46,6 +46,11 @@ std::optional<gc::Root<OpenBuffer>> BufferRegistry::Find(
   return std::nullopt;
 }
 
+std::optional<gc::Root<OpenBuffer>> BufferRegistry::FindPath(
+    const infrastructure::Path& path) const {
+  return Find(BufferFileId{path});
+}
+
 AnonymousBufferName BufferRegistry::NewAnonymousBufferName() {
   return AnonymousBufferName(next_anonymous_buffer_name_++);
 }

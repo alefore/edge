@@ -10,6 +10,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "src/buffer_registry.h"
 #include "src/buffer_subtypes.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_vm.h"
@@ -1154,10 +1155,13 @@ void EnterInsertMode(InsertModeOptions options) {
           VisitPointer(
               buffer_root.ptr()->CurrentLine().outgoing_link(),
               [&](const OutgoingLink& link) {
-                if (auto it = buffer_root.ptr()->editor().buffers()->find(
-                        BufferName{link.path});
-                    it != buffer_root.ptr()->editor().buffers()->end())
-                  buffer_root = it->second.ptr().ToRoot();
+                VisitOptional(
+                    [&buffer_root](gc::Root<OpenBuffer> link_target) {
+                      buffer_root = std::move(link_target);
+                    },
+                    [] {},
+                    buffer_root.ptr()->editor().buffer_registry().FindPath(
+                        link.path));
               },
               [] {});
         }

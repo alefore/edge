@@ -33,6 +33,8 @@ class BufferRegistry {
 
   std::optional<language::gc::Root<OpenBuffer>> Find(
       const BufferName& name) const;
+  std::optional<language::gc::Root<OpenBuffer>> FindPath(
+      const infrastructure::Path& path) const;
 
   AnonymousBufferName NewAnonymousBufferName();
 

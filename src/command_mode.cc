@@ -12,6 +12,7 @@
 #include <string>
 
 #include "src/buffer_contents_util.h"
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/command_argument_mode.h"
@@ -362,23 +363,25 @@ class ActivateLink : public Command {
           VisitPointer(
               buffer.ptr()->CurrentLine().outgoing_link(),
               [&](OutgoingLink outgoing_link) {
-                if (auto it = buffer.ptr()->editor().buffers()->find(
-                        BufferName{outgoing_link.path});
-                    it != buffer.ptr()->editor().buffers()->end() &&
-                    &it->second.ptr().value() != &buffer.ptr().value()) {
-                  LOG(INFO) << "Visiting buffer: " << it->second.ptr()->name();
+                if (std::optional<gc::Root<OpenBuffer>> target_link =
+                        buffer.ptr()->editor().buffer_registry().FindPath(
+                            outgoing_link.path);
+                    target_link.has_value() &&
+                    &target_link->ptr().value() != &buffer.ptr().value()) {
+                  LOG(INFO)
+                      << "Visiting buffer: " << target_link->ptr()->name();
                   editor_state_.status().Reset();
                   buffer.ptr()->status().Reset();
                   editor_state_.set_current_buffer(
-                      it->second, CommandArgumentModeApplyMode::kFinal);
+                      target_link.value(),
+                      CommandArgumentModeApplyMode::kFinal);
                   std::optional<LineColumn> target_position =
                       outgoing_link.line_column;
-                  if (target_position.has_value()) {
-                    it->second.ptr()->set_position(*target_position);
-                  }
+                  if (target_position.has_value())
+                    target_link->ptr()->set_position(*target_position);
                   editor_state_.PushCurrentPosition();
                   buffer.ptr()->ResetMode();
-                  it->second.ptr()->ResetMode();
+                  target_link->ptr()->ResetMode();
                   return;
                 }
               },

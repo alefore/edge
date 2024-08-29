@@ -11,6 +11,7 @@
 
 #include "src/futures/futures.h"
 #include "src/futures/listenable_value.h"
+#include "src/infrastructure/dirname.h"
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/gc.h"
 #include "src/language/lazy_string/lazy_string.h"
@@ -26,8 +27,7 @@ struct LineMetadataEntry {
 };
 
 struct OutgoingLink {
-  // TODO(2024-06-13): Change the type to Path?
-  language::lazy_string::LazyString path;
+  infrastructure::Path path;
   std::optional<LineColumn> line_column;
 };
 

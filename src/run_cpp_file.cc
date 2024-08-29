@@ -44,7 +44,7 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
         outgoing_link.has_value())
       if (std::optional<gc::Root<OpenBuffer>> link_buffer =
               editor_state.buffer_registry().Find(
-                  BufferName{outgoing_link->path});
+                  BufferFileId{outgoing_link->path});
           link_buffer.has_value())
         buffer = std::move(link_buffer);
     editor_state.ResetModifiers();

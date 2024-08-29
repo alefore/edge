@@ -162,8 +162,7 @@ gc::Ptr<OpenBuffer> MaybeFollowOutgoingLink(gc::Ptr<OpenBuffer> buffer) {
         buffer->CurrentLine().outgoing_link(),
         [&](const OutgoingLink& link) {
           if (std::optional<gc::Root<OpenBuffer>> link_buffer =
-                  buffer->editor().buffer_registry().Find(
-                      BufferName{link.path});
+                  buffer->editor().buffer_registry().FindPath(link.path);
               link_buffer.has_value())
             return link_buffer->ptr();
           return buffer;
