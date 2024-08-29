@@ -18,6 +18,10 @@ class LineSequenceIterator;
 
 // TODO: Add more methods here.
 
+// A non-empty sequence of lines.
+//
+// Non-emptyness is ensured statically through the use of NonNull<> types.
+//
 // This class is thread-compatible.
 class LineSequence {
  private:
