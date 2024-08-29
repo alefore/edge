@@ -17,7 +17,6 @@ SortedLineSequence::SortedLineSequence(LineSequence input,
     : SortedLineSequence(
           TrustedConstructorTag(),
           [&] {
-            if (input.empty()) return input;
             TRACK_OPERATION(SortedLineSequence_sort);
             std::vector<Line> lines = container::MaterializeVector(input);
             std::sort(lines.begin(), lines.end(), compare);

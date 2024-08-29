@@ -45,7 +45,6 @@ class LineSequence {
   std::wstring ToString() const;
 
   LineNumberDelta size() const;
-  bool empty() const;
   // The last valid line (which can be fed to `at`).
   LineNumber EndLine() const;
   Range range() const;
