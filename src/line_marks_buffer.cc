@@ -116,7 +116,7 @@ class Impl : public Command {
       buffer.Set(buffer_variables::push_positions_to_history, false);
       buffer.Set(buffer_variables::allow_dirty_delete, true);
       buffer.Set(buffer_variables::reload_on_enter, true);
-      buffer.Set(buffer_variables::tree_parser, parsers::MarkdownParserId());
+      buffer.Set(buffer_variables::tree_parser, ParserId::Markdown().read());
       buffer.Reload();
       editor_.StartHandlingInterrupts();
       buffer.ResetMode();

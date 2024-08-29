@@ -18,9 +18,7 @@ namespace afc::editor {
 class BufferSyntaxParser {
  public:
   struct ParserOptions {
-    // TODO(2024-08-27, trivial): Convert to LazyString (or, even better, to a
-    // more specific type).
-    std::wstring parser_name;
+    ParserId parser_name;
     std::unordered_set<language::lazy_string::LazyString> typos_set;
     std::unordered_set<language::lazy_string::LazyString> language_keywords;
     std::wstring symbol_characters;

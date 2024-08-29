@@ -163,7 +163,7 @@ class HelpCommand : public Command {
   static futures::Value<language::PossibleError> GenerateContents(
       const MapModeCommands& commands, gc::Root<OpenBuffer> input,
       OpenBuffer& output) {
-    output.Set(buffer_variables::tree_parser, parsers::MarkdownParserId());
+    output.Set(buffer_variables::tree_parser, ParserId::Markdown().read());
     output.Set(buffer_variables::wrap_from_content, true);
     output.Set(buffer_variables::allow_dirty_delete, true);
     output.InsertInPosition(GenerateLines(commands, input.ptr().value()),

@@ -9,8 +9,6 @@
 #include "src/parse_tree.h"
 
 namespace afc::editor::parsers {
-const language::lazy_string::LazyString& MarkdownParserId();
-
 language::NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
     std::wstring symbol_characters,
     language::text::SortedLineSequence dictionary);

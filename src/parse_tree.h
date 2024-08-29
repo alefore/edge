@@ -9,6 +9,7 @@
 #include "src/infrastructure/screen/line_modifier.h"
 #include "src/language/error/value_or_error.h"
 #include "src/language/ghost_type.h"
+#include "src/language/ghost_type_class.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_column.h"
@@ -19,6 +20,16 @@
 
 namespace afc::editor {
 enum class IdentifierBehavior { kNone, kColorByHash };
+
+class ParserId
+    : public language::GhostType<ParserId, language::lazy_string::LazyString> {
+ public:
+  static const ParserId& Text();
+  static const ParserId& Cpp();
+  static const ParserId& Diff();
+  static const ParserId& Markdown();
+  static const ParserId& Csv();
+};
 
 class ParseTreeProperty {
  public:

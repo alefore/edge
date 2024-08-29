@@ -690,29 +690,30 @@ void OpenBuffer::UpdateTreeParser() {
         std::wistringstream typos_stream(Read(buffer_variables::typos));
         std::wistringstream language_keywords(
             Read(buffer_variables::language_keywords));
-        buffer_syntax_parser_.UpdateParser(
-            {.parser_name = Read(buffer_variables::tree_parser),
-             .typos_set = language::container::Materialize<
-                 std::unordered_set<LazyString>>(
-                 std::vector<std::wstring>{
-                     std::istream_iterator<std::wstring, wchar_t>(typos_stream),
-                     std::istream_iterator<std::wstring, wchar_t>()} |
-                 std::views::transform(
-                     [](std::wstring i) { return LazyString{i}; })),
-             .language_keywords = language::container::Materialize<
-                 std::unordered_set<LazyString>>(
-                 std::vector<std::wstring>{
-                     std::istream_iterator<std::wstring, wchar_t>(
-                         language_keywords),
-                     std::istream_iterator<std::wstring, wchar_t>()} |
-                 std::views::transform(
-                     [](std::wstring i) { return LazyString{i}; })),
-             .symbol_characters = Read(buffer_variables::symbol_characters),
-             .identifier_behavior =
-                 Read(buffer_variables::identifier_behavior) == L"color-by-hash"
-                     ? IdentifierBehavior::kColorByHash
-                     : IdentifierBehavior::kNone,
-             .dictionary = std::move(dictionary)});
+        buffer_syntax_parser_.UpdateParser(BufferSyntaxParser::ParserOptions{
+            .parser_name =
+                ParserId{ReadLazyString(buffer_variables::tree_parser)},
+            .typos_set = language::container::Materialize<
+                std::unordered_set<LazyString>>(
+                std::vector<std::wstring>{
+                    std::istream_iterator<std::wstring, wchar_t>(typos_stream),
+                    std::istream_iterator<std::wstring, wchar_t>()} |
+                std::views::transform(
+                    [](std::wstring i) { return LazyString{i}; })),
+            .language_keywords = language::container::Materialize<
+                std::unordered_set<LazyString>>(
+                std::vector<std::wstring>{
+                    std::istream_iterator<std::wstring, wchar_t>(
+                        language_keywords),
+                    std::istream_iterator<std::wstring, wchar_t>()} |
+                std::views::transform(
+                    [](std::wstring i) { return LazyString{i}; })),
+            .symbol_characters = Read(buffer_variables::symbol_characters),
+            .identifier_behavior =
+                Read(buffer_variables::identifier_behavior) == L"color-by-hash"
+                    ? IdentifierBehavior::kColorByHash
+                    : IdentifierBehavior::kNone,
+            .dictionary = std::move(dictionary)});
         MaybeStartUpdatingSyntaxTrees();
         return EmptyValue();
       });

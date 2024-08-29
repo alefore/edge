@@ -48,6 +48,27 @@ const types::ObjectName VMTypeMapper<NonNull<std::shared_ptr<Protected<
 }
 
 namespace afc::editor {
+/* static */ const ParserId& ParserId::Text() {
+  static const ParserId output{LazyString{L"text"}};
+  return output;
+}
+/* static */ const ParserId& ParserId::Cpp() {
+  static const ParserId output{LazyString{L"cpp"}};
+  return output;
+}
+/* static */ const ParserId& ParserId::Diff() {
+  static const ParserId output{LazyString{L"diff"}};
+  return output;
+}
+/* static */ const ParserId& ParserId::Markdown() {
+  static const ParserId output{LazyString{L"md"}};
+  return output;
+}
+/* static */ const ParserId& ParserId::Csv() {
+  static const ParserId output{LazyString{L"csv"}};
+  return output;
+}
+
 /*static*/ const ParseTreeProperty& ParseTreeProperty::Link() {
   static const auto* output = new ParseTreeProperty(L"link");
   return *output;

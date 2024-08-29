@@ -29,11 +29,6 @@ using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
 
 namespace afc::editor::parsers {
-const LazyString& MarkdownParserId() {
-  static LazyString id{L"md"};
-  return id;
-}
-
 namespace {
 using ::operator<<;
 
