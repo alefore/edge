@@ -63,9 +63,8 @@ void AppendLine(OpenBuffer& source, LazyString padding, LineColumn position,
                 OpenBuffer& target) {
   LineBuilder options;
   options.set_contents(padding);
-  // TODO(trivial, 2024-08-28): Avoid call to ToString:
-  options.SetOutgoingLink(OutgoingLink{
-      .path = ToLazyString(source.name()).ToString(), .line_column = position});
+  options.SetOutgoingLink(OutgoingLink{.path = ToLazyString(source.name()),
+                                       .line_column = position});
   AddContents(source, *source.LineAt(position.line), &options);
   target.AppendRawLine(std::move(options).Build());
 }
@@ -90,9 +89,8 @@ void DisplayTree(OpenBuffer& source, size_t depth_left, const ParseTree& tree,
               tree.children()[i + 1].range().begin().line) {
         AddContents(source, *source.LineAt(child.range().end().line), &options);
       }
-      // TODO(trivial, 2024-08-28): Avoid call to ToString:
       options.SetOutgoingLink(
-          OutgoingLink{.path = ToLazyString(source.name()).ToString(),
+          OutgoingLink{.path = ToLazyString(source.name()),
                        .line_column = child.range().begin()});
 
       target.AppendRawLine(std::move(options).Build());

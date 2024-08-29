@@ -362,8 +362,9 @@ class ActivateLink : public Command {
           VisitPointer(
               buffer.ptr()->CurrentLine().outgoing_link(),
               [&](OutgoingLink outgoing_link) {
+                // TODO(trivial, 2024-08-29): Get rid of ToString.
                 if (auto it = buffer.ptr()->editor().buffers()->find(
-                        BufferName(outgoing_link.path));
+                        BufferName(outgoing_link.path.ToString()));
                     it != buffer.ptr()->editor().buffers()->end() &&
                     &it->second.ptr().value() != &buffer.ptr().value()) {
                   LOG(INFO) << "Visiting buffer: " << it->second.ptr()->name();

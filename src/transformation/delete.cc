@@ -105,8 +105,9 @@ void HandleLineDeletion(Range range, transformation::Input::Adapter& adapter,
     VisitPointer(
         buffer.CurrentLine().outgoing_link(),
         [&](const OutgoingLink& outgoing_link) {
+          // TODO(trivial, 2024-08-29): Get rid of ToString call.
           if (auto it = buffer.editor().buffers()->find(
-                  BufferName(outgoing_link.path));
+                  BufferName(outgoing_link.path.ToString()));
               it != buffer.editor().buffers()->end()) {
             gc::Root<OpenBuffer> target_buffer = it->second;
             if (&target_buffer.ptr().value() != &buffer) {
