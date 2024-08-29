@@ -290,7 +290,7 @@ futures::Value<PossibleError> SaveContentsToFile(
 namespace {
 futures::Value<gc::Root<OpenBuffer>> GetSearchPathsBuffer(
     EditorState& editor_state, const Path& edge_path) {
-  BufferName buffer_name(L"- search paths");
+  BufferName buffer_name{LazyString{L"- search paths"}};
   auto it = editor_state.buffers()->find(buffer_name);
   futures::Value<gc::Root<OpenBuffer>> output =
       it != editor_state.buffers()->end()

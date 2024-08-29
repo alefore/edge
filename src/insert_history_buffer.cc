@@ -10,13 +10,15 @@
 
 namespace gc = afc::language::gc;
 
+using afc::language::NonNull;
+using afc::language::PossibleError;
+using afc::language::Success;
+using afc::language::lazy_string::LazyString;
+using afc::language::text::LineColumn;
+using afc::language::text::LineSequence;
+using afc::language::text::MutableLineSequence;
+
 namespace afc::editor {
-using language::NonNull;
-using language::PossibleError;
-using language::Success;
-using language::text::LineColumn;
-using language::text::LineSequence;
-using language::text::MutableLineSequence;
 
 namespace {
 futures::Value<PossibleError> InsertHistoryBufferContents(OpenBuffer& output) {
@@ -30,7 +32,7 @@ futures::Value<PossibleError> InsertHistoryBufferContents(OpenBuffer& output) {
 }  // namespace
 
 void ShowInsertHistoryBuffer(EditorState& editor) {
-  const BufferName name(L"- Insert History");
+  const BufferName name{LazyString{L"- Insert History"}};
 
   gc::Root<OpenBuffer> buffer_root =
       OpenBuffer::New({.editor = editor,

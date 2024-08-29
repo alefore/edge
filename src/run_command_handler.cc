@@ -555,9 +555,7 @@ class ForkEditorCommand : public Command {
           prompt_state.base_command = base_command;
           ForkCommandOptions options;
           options.command = base_command;
-          // TODO(2024-01-24): Avoid call to ToString.
-          options.name = BufferName(
-              (LazyString{L"- preview: "} + base_command).ToString());
+          options.name = BufferName{LazyString{L"- preview: "} + base_command};
           options.insertion_type = BuffersList::AddBufferType::kIgnore;
           gc::Root<OpenBuffer> help_buffer_root = ForkCommand(editor, options);
           OpenBuffer& help_buffer = help_buffer_root.ptr().value();

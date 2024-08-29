@@ -158,11 +158,9 @@ class NavigationBufferCommand : public Command {
       return;
     }
 
-    // TODO(trivial, 2024-08-28): Declare a new buffer name? Avoid call to
-    // ToString.
-    BufferName name{
-        (LazyString{L"Navigation: "} + ToLazyString(source->ptr()->name()))
-            .ToString()};
+    // TODO(trivial, 2024-08-28): Declare a new buffer name?
+    BufferName name{LazyString{L"Navigation: "} +
+                    ToLazyString(source->ptr()->name())};
     gc::Root<OpenBuffer> buffer_root =
         editor_state_.FindOrBuildBuffer(name, [&] {
           gc::WeakPtr<OpenBuffer> source_weak = source->ptr().ToWeakPtr();

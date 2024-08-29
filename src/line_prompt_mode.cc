@@ -591,12 +591,9 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
 futures::Value<gc::Root<OpenBuffer>> FilterHistory(
     EditorState& editor_state, gc::Root<OpenBuffer> history_buffer,
     DeleteNotification::Value abort_value, LazyString filter) {
-  // TODO(trivial, 2024-08-28): Receive filter already as LazyString, avoid
-  // conversion.
-  BufferName name{(LazyString{L"- history filter: "} +
-                   ToLazyString(history_buffer.ptr()->name()) +
-                   LazyString{L": "} + LazyString{filter})
-                      .ToString()};
+  BufferName name{LazyString{L"- history filter: "} +
+                  ToLazyString(history_buffer.ptr()->name()) +
+                  LazyString{L": "} + filter};
   gc::Root<OpenBuffer> filter_buffer_root =
       OpenBuffer::New({.editor = editor_state, .name = name});
   OpenBuffer& filter_buffer = filter_buffer_root.ptr().value();
@@ -641,7 +638,7 @@ class StatusVersionAdapter;
 futures::Value<gc::Root<OpenBuffer>> GetPromptBuffer(
     EditorState& editor, const LazyString& prompt_contents_type,
     Line initial_value) {
-  BufferName name(L"- prompt");
+  BufferName name{LazyString{L"- prompt"}};
   gc::Root<OpenBuffer> output =
       editor.buffer_registry().MaybeAdd(name, [&editor, &name] {
         return OpenBuffer::New({.editor = editor, .name = name});

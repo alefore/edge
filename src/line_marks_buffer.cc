@@ -103,7 +103,7 @@ class Impl : public Command {
   std::wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(ExtendedChar) override {
-    BufferName name(L"Marks");
+    BufferName name{LazyString{L"Marks"}};
     gc::Root<OpenBuffer> buffer_root = editor_.FindOrBuildBuffer(name, [this,
                                                                         &name] {
       LOG(INFO) << "Building Marks Buffer.";

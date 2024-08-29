@@ -161,10 +161,9 @@ gc::Ptr<OpenBuffer> MaybeFollowOutgoingLink(gc::Ptr<OpenBuffer> buffer) {
     return VisitPointer(
         buffer->CurrentLine().outgoing_link(),
         [&](const OutgoingLink& link) {
-          // TODO(trivial, 2024-08-29): Avoid the call to ToString?
           if (std::optional<gc::Root<OpenBuffer>> link_buffer =
                   buffer->editor().buffer_registry().Find(
-                      BufferName{link.path.ToString()});
+                      BufferName{link.path});
               link_buffer.has_value())
             return link_buffer->ptr();
           return buffer;

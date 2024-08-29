@@ -795,7 +795,8 @@ std::optional<EditorState::ScreenState> EditorState::FlushScreenState() {
 // The current line position is set to one line after the line to be returned by
 // a pop.  To insert a new position, we insert it right at the current line.
 static const BufferName& PositionsBufferName() {
-  static const BufferName* const output = new BufferName(L"- positions");
+  static const BufferName* const output =
+      new BufferName{LazyString{L"- positions"}};
   return *output;
 }
 
@@ -874,7 +875,7 @@ static BufferPosition PositionFromLine(const std::wstring& line) {
   line_stream.get();
   std::wstring buffer_name;
   getline(line_stream, buffer_name);
-  return BufferPosition{.buffer_name = BufferName(buffer_name),
+  return BufferPosition{.buffer_name = BufferName{LazyString{buffer_name}},
                         .position = std::move(position)};
 }
 

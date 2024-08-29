@@ -607,7 +607,7 @@ futures::Value<PredictorOutput> SyntaxBasedPredictor(PredictorInput input) {
                  std::istream_iterator<std::wstring, wchar_t>());
   }
   gc::Root<OpenBuffer> dictionary = OpenBuffer::New(
-      {.editor = input.editor, .name = BufferName(L"Dictionary")});
+      {.editor = input.editor, .name = BufferName{LazyString{L"Dictionary"}}});
   // TODO(2023-11-26, Ranges): Add a method to Buffer that takes the range
   // directly, to avoid the need to call MaterializeVector.
   dictionary.ptr()->AppendLines(container::MaterializeVector(

@@ -83,7 +83,8 @@ using BufferName =
     std::variant<BufferFileId, PasteBuffer, FuturePasteBuffer, BufferListId,
                  TextInsertion, InitialCommands, ConsoleBufferName,
                  PredictionsBufferName, HistoryBufferName, ServerBufferName,
-                 CommandBufferName, AnonymousBufferName, std::wstring>;
+                 CommandBufferName, AnonymousBufferName,
+                 language::lazy_string::LazyString>;
 
 language::lazy_string::LazyString ToLazyString(const BufferName&);
 

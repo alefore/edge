@@ -42,8 +42,8 @@ LazyString ToLazyString(const BufferName& p) {
             return LazyString{L"anonymous buffer "} +
                    LazyString{to_wstring(input)};
           },
-          [](const std::wstring& str) {
-            return LazyString{L"["} + LazyString{str} + LazyString{L"]"};
+          [](const LazyString& str) {
+            return LazyString{L"["} + str + LazyString{L"]"};
           },
       },
       p);

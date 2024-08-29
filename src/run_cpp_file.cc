@@ -42,10 +42,9 @@ futures::Value<PossibleError> RunCppFileHandler(EditorState& editor_state,
     if (std::optional<OutgoingLink> outgoing_link =
             buffer->ptr()->CurrentLine().outgoing_link();
         outgoing_link.has_value())
-      // TODO(easy, 2024-08-29): Get rid of call to ToString.
       if (std::optional<gc::Root<OpenBuffer>> link_buffer =
               editor_state.buffer_registry().Find(
-                  BufferName(outgoing_link->path.ToString()));
+                  BufferName{outgoing_link->path});
           link_buffer.has_value())
         buffer = std::move(link_buffer);
     editor_state.ResetModifiers();

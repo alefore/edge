@@ -144,7 +144,8 @@ class HelpCommand : public Command {
   void ProcessInput(ExtendedChar) override {
     VisitOptional(
         [&](gc::Root<OpenBuffer> original_buffer) {
-          const BufferName name(L"- help: " + mode_description_);
+          const BufferName name(LazyString{L"- help: "} +
+                                LazyString{mode_description_});
           gc::Root<OpenBuffer> buffer_root =
               OpenBuffer::New(OpenBuffer::Options{
                   .editor = editor_state_,

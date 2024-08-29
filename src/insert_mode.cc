@@ -1154,9 +1154,8 @@ void EnterInsertMode(InsertModeOptions options) {
           VisitPointer(
               buffer_root.ptr()->CurrentLine().outgoing_link(),
               [&](const OutgoingLink& link) {
-                // TODO(2024-08-29, trivial): Avoid call to ToString.
                 if (auto it = buffer_root.ptr()->editor().buffers()->find(
-                        BufferName(link.path.ToString()));
+                        BufferName{link.path});
                     it != buffer_root.ptr()->editor().buffers()->end())
                   buffer_root = it->second.ptr().ToRoot();
               },
