@@ -66,8 +66,6 @@ extern EdgeVariable<language::lazy_string::LazyString>* const language_keywords;
 extern EdgeVariable<language::lazy_string::LazyString>* const typos;
 extern EdgeVariable<language::lazy_string::LazyString>* const directory_noise;
 extern EdgeVariable<language::lazy_string::LazyString>* const contents_type;
-extern EdgeVariable<language::lazy_string::LazyString>* const
-    shell_command_help_filter;
 extern EdgeVariable<language::lazy_string::LazyString>* const shell_command;
 extern EdgeVariable<language::lazy_string::LazyString>* const
     cpp_prompt_namespaces;

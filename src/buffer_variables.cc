@@ -565,23 +565,6 @@ EdgeVariable<LazyString>* const contents_type =
              L"string. This can be used to customize certain behaviors.")
          .Build();
 
-// TODO(trivial, 2024-08-27): This is dead code (along with declaration in
-// header). Delete it.
-EdgeVariable<LazyString>* const shell_command_help_filter =
-    &StringStruct()
-         ->Add()
-         .Name(L"shell_command_help_filter")
-         .Description(
-             L"Regular expression that matches commands for which a help "
-             L"buffer "
-             L"(based on running the command with `--help`) should be shown.")
-         .DefaultValue(LazyString{
-             L"^ *"
-             L"(blaze|cat|date|edge|find|gcc|git|grep|ls|locate|make|python|rm|"
-             L"sleep)"
-             L"[^|;]*$"})
-         .Build();
-
 EdgeVariable<LazyString>* const shell_command =
     &StringStruct()
          ->Add()
