@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include "src/language/hash.h"
+#include "src/language/lazy_string/lazy_string.h"
 
 namespace afc::infrastructure::screen {
 enum class LineModifier {
@@ -29,7 +30,7 @@ enum class LineModifier {
 using LineModifierSet =
     std::unordered_set<LineModifier, language::EnumClassHash>;
 
-std::string ModifierToString(LineModifier modifier);
+language::lazy_string::LazyString ModifierToString(LineModifier modifier);
 LineModifier ModifierFromString(std::string modifier);
 
 void ToggleModifier(LineModifier m, LineModifierSet& output);

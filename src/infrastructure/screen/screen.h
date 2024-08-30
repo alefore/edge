@@ -28,16 +28,16 @@ class Screen {
     NORMAL,
   };
 
-  static std::string CursorVisibilityToString(
+  static language::lazy_string::LazyString CursorVisibilityToString(
       CursorVisibility cursor_visibility) {
     switch (cursor_visibility) {
       case INVISIBLE:
-        return "INVISIBLE";
+        return language::lazy_string::LazyString{L"INVISIBLE"};
       case NORMAL:
-        return "NORMAL";
+        return language::lazy_string::LazyString{L"NORMAL"};
     }
     LOG(WARNING) << "Invalid cursor visibility: " << cursor_visibility;
-    return "UNKNOWN";
+    return language::lazy_string::LazyString{L"UNKNOWN"};
   }
 
   static CursorVisibility CursorVisibilityFromString(

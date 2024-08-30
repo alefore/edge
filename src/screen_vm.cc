@@ -62,42 +62,44 @@ class ScreenVm : public Screen {
 
   ~ScreenVm() override {
     LOG(INFO) << "Sending terminate command to remote screen: fd: " << fd_;
-    buffer_ += "set_terminate(0);";
+    buffer_ += LazyString{L"set_terminate(0);"};
     Write();
   }
 
   void Flush() override {
-    buffer_ += "screen.Flush();";
+    buffer_ += LazyString{L"screen.Flush();"};
     Write();
   }
 
-  void HardRefresh() override { buffer_ += "screen.HardRefresh();"; }
+  void HardRefresh() override {
+    buffer_ += LazyString{L"screen.HardRefresh();"};
+  }
 
-  void Refresh() override { buffer_ += "screen.Refresh();"; }
+  void Refresh() override { buffer_ += LazyString{L"screen.Refresh();"}; }
 
-  void Clear() override { buffer_ += "screen.Clear();"; }
+  void Clear() override { buffer_ += LazyString{L"screen.Clear();"}; }
 
   void SetCursorVisibility(CursorVisibility cursor_visibility) override {
-    buffer_ += "screen.SetCursorVisibility(\"" +
-               CursorVisibilityToString(cursor_visibility) + "\");";
+    buffer_ += LazyString{L"screen.SetCursorVisibility(\""} +
+               CursorVisibilityToString(cursor_visibility) +
+               LazyString{L"\");"};
   }
 
   void Move(LineColumn position) override {
-    buffer_ += "screen.Move(LineColumn(" +
-               ToByteString(to_wstring(position.line)) + ", " +
-               ToByteString(to_wstring(position.column)) + "));";
+    buffer_ += LazyString{L"screen.Move(LineColumn("} +
+               LazyString{to_wstring(position.line)} + LazyString{L", "} +
+               LazyString{to_wstring(position.column)} + LazyString{L"));"};
   }
 
   void WriteString(const LazyString& str) override {
-    buffer_ +=
-        "screen.WriteString(" +
-        ToByteString(
-            vm::EscapedString::FromString(str).CppRepresentation().ToString()) +
-        ");";
+    buffer_ += LazyString{L"screen.WriteString("} +
+               vm::EscapedString::FromString(str).CppRepresentation() +
+               LazyString{L");"};
   }
 
   void SetModifier(LineModifier modifier) override {
-    buffer_ += "screen.SetModifier(\"" + ModifierToString(modifier) + "\");";
+    buffer_ += LazyString{L"screen.SetModifier(\""} +
+               ModifierToString(modifier) + LazyString{L"\");"};
   }
 
   LineColumnDelta size() const override { return size_; }
@@ -108,17 +110,17 @@ class ScreenVm : public Screen {
 
  private:
   void Write() {
-    buffer_ += "\n";
+    buffer_ += LazyString{L"\n"};
     LOG(INFO) << "Sending command: " << buffer_;
-    int result = write(fd_.read(), buffer_.c_str(), buffer_.size());
-    if (result != static_cast<int>(buffer_.size())) {
+    std::string bytes = buffer_.ToBytes();
+    buffer_ = LazyString{};
+    int result = write(fd_.read(), bytes.c_str(), bytes.size());
+    if (result != static_cast<int>(bytes.size())) {
       LOG(INFO) << "Remote screen update failed!";
     }
-    buffer_.clear();
   }
 
-  // TODO(easy, 2022-06-06): Turn this into a LazyString? Serialize it at once?
-  std::string buffer_;
+  LazyString buffer_;
   const FileDescriptor fd_;
   LineColumnDelta size_ =
       LineColumnDelta(LineNumberDelta(25), ColumnNumberDelta(80));

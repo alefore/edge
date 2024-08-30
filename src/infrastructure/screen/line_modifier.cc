@@ -5,8 +5,11 @@
 #include <ostream>
 
 #include "src/language/container.h"
+#include "src/language/wstring.h"
 
+using afc::language::FromByteString;
 using afc::language::InsertOrDie;
+using afc::language::lazy_string::LazyString;
 
 namespace afc::infrastructure::screen {
 const std::unordered_map<std::string, LineModifier>& ModifierNames() {
@@ -28,17 +31,20 @@ const std::unordered_map<std::string, LineModifier>& ModifierNames() {
   return values;
 }
 
-std::string ModifierToString(LineModifier modifier) {
-  static const std::unordered_map<LineModifier, std::string> values = [] {
-    std::unordered_map<LineModifier, std::string> output;
-    for (const std::pair<const std::string, LineModifier>& entry :
-         ModifierNames())
-      InsertOrDie(output, {entry.second, entry.first});
-    return output;
-  }();
+LazyString ModifierToString(LineModifier modifier) {
+  static const std::unordered_map<LineModifier, LazyString> values =
+      std::invoke([] {
+        std::unordered_map<LineModifier, LazyString> output;
+        for (const std::pair<const std::string, LineModifier>& entry :
+             ModifierNames())
+          // TODO(easy, 2024-08-30): Get rid of FromByteString/LazyString here.
+          InsertOrDie(output,
+                      {entry.second, LazyString{FromByteString(entry.first)}});
+        return output;
+      });
 
   if (auto it = values.find(modifier); it != values.end()) return it->second;
-  return "UNKNOWN";
+  return LazyString{L"UNKNOWN"};
 }
 
 LineModifier ModifierFromString(std::string modifier) {
