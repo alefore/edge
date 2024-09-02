@@ -182,8 +182,14 @@ void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
   SerializeCall(kDescriptionShell.read(), {LazyString{c.input}}, output);
 }
 
-void AppendStatus(const CommandPaste&, LineBuilder& output) {
-  SerializeCall(kDescriptionPaste.read(), std::vector<LazyString>{}, output);
+void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
+  SerializeCall(
+      kDescriptionPaste.read(),
+      std::vector<LazyString>{
+          // TODO(easy, 2024-07-26): Switch c.input to use Lazystring to avoid
+          // conversion.
+          {paste.repetitions.ToString()}},
+      output);
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -336,9 +342,9 @@ transformation::Stack GetTransformation(
 
 transformation::Stack GetTransformation(
     const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
-    CommandPaste) {
-  return transformation::Stack{
-      .stack = {NonNull<std::unique_ptr<transformation::Paste>>{}}};
+    CommandPaste paste) {
+  return ApplyRepetitions(paste.repetitions, std::nullopt,
+                          NonNull<std::shared_ptr<transformation::Paste>>{});
 }
 
 class State {
@@ -836,8 +842,13 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
                    });
 }
 
-void GetKeyCommandsMap(KeyCommandsMap&, CommandPaste*, State*) {
-  // TODO(Paste, 2024-09-02): Start parsing sub-commands.
+void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandPaste* output, State*) {
+  CheckRepetitionsChar(cmap, &output->repetitions);
+  cmap.Insert(L'p', {.category = KeyCommandsMap::Category::kRepetitions,
+                     .description = Description{LazyString{L"Paste"}},
+                     .handler = [output](ExtendedChar) {
+                       output->repetitions.sum(1);
+                     }});
 }
 
 class OperationMode : public EditorMode {

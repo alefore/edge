@@ -59,12 +59,12 @@ class CommandArgumentRepetitions {
 // A sequence of arguments becomes a command.
 struct CommandReach {
   std::optional<Structure> structure = std::nullopt;
-  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(0);
+  CommandArgumentRepetitions repetitions = {0};
 };
 
 struct CommandReachBegin {
   std::optional<Structure> structure = std::nullopt;
-  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(1);
+  CommandArgumentRepetitions repetitions = {1};
   Direction direction = Direction::kForwards;
 };
 
@@ -74,12 +74,12 @@ struct CommandReachBegin {
 // 'l' should advance by the structure; with CommandReachLine, they switch us
 // back to CommandReach (to move left or right).
 struct CommandReachLine {
-  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(0);
+  CommandArgumentRepetitions repetitions = {0};
 };
 
 // Similar to CommandReachLine.
 struct CommandReachPage {
-  CommandArgumentRepetitions repetitions = CommandArgumentRepetitions(0);
+  CommandArgumentRepetitions repetitions = {0};
 };
 
 // Finds occurrences of a given string.
@@ -96,7 +96,9 @@ struct CommandSetShell {
   language::lazy_string::LazyString input;
 };
 
-struct CommandPaste {};
+struct CommandPaste {
+  CommandArgumentRepetitions repetitions = {1};
+};
 
 using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
                              CommandReachPage, CommandReachQuery,
