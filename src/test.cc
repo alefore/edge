@@ -21,6 +21,7 @@ using afc::infrastructure::VectorExtendedChar;
 using afc::language::ConstTree;
 using afc::language::VectorBlock;
 using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
@@ -42,7 +43,9 @@ bool IsEmpty(EditorState* editor_state) {
 void Clear(EditorState* editor_state) {
   editor_state->ProcessInput({ControlChar::kEscape});
   editor_state->set_current_buffer(
-      editor_state->buffers()->find(BufferName(L"anonymous buffer 0"))->second,
+      editor_state->buffers()
+          ->find(BufferName(LazyString{L"anonymous buffer 0"}))
+          ->second,
       CommandArgumentModeApplyMode::kFinal);
 
   editor_state->ProcessInput(VectorExtendedChar(L"eegde999999999999999\n"));
@@ -176,7 +179,7 @@ void TestCases() {
       editor_state.current_buffer()->ptr()->OptionalCurrentLine()->ToString() ==
       L"alejo forero");
   editor_state.ProcessInput(VectorExtendedChar(L"gde\n"));
-  CHECK(editor_state.current_buffer()->ptr()->ToString().empty());
+  CHECK(editor_state.current_buffer()->ptr()->ToString().IsEmpty());
 
   editor_state.ProcessInput(VectorExtendedChar(L"ialejandro\nforero\ncuervo"));
   editor_state.ProcessInput({ControlChar::kEscape});
@@ -225,7 +228,7 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()
                ->ptr()
                ->OptionalCurrentLine()
-               ->ToString()
+               ->contents()
                .ToBytes(),
            "cuervo");
 

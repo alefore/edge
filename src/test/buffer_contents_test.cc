@@ -41,15 +41,15 @@ void TestMutableLineSequenceSnapshot() {
   }
   auto copy = contents.copy();
   CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
-           contents.snapshot().ToString());
+           contents.snapshot().ToLazyString());
   CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
-           copy->snapshot().ToString());
+           copy->snapshot().ToLazyString());
 
   contents.SplitLine(LineColumn(LineNumber(2), ColumnNumber(3)));
   CHECK_EQ(LazyString{L"\nalejandro\nfor\nero\ncuervo"},
-           contents.snapshot().ToString());
+           contents.snapshot().ToLazyString());
   CHECK_EQ(LazyString{L"\nalejandro\nforero\ncuervo"},
-           copy->snapshot().ToString());
+           copy->snapshot().ToLazyString());
 }
 
 void TestBufferInsertModifiers() {
