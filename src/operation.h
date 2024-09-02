@@ -96,9 +96,11 @@ struct CommandSetShell {
   language::lazy_string::LazyString input;
 };
 
+struct CommandPaste {};
+
 using Command = std::variant<CommandReach, CommandReachBegin, CommandReachLine,
                              CommandReachPage, CommandReachQuery,
-                             CommandReachBisect, CommandSetShell>;
+                             CommandReachBisect, CommandSetShell, CommandPaste>;
 
 language::gc::Root<afc::editor::Command> NewTopLevelCommand(
     std::wstring name, language::lazy_string::LazyString description,

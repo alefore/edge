@@ -332,6 +332,8 @@ src/transformation/move.cc \
 src/transformation/move.h \
 src/transformation/noop.cc \
 src/transformation/noop.h \
+src/transformation/paste.cc \
+src/transformation/paste.h \
 src/transformation/reach_query.cc \
 src/transformation/reach_query.h \
 src/transformation/repetitions.cc \

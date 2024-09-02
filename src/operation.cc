@@ -3,6 +3,7 @@
 #include <memory>
 #include <ranges>
 
+#include "src/buffer_registry.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
@@ -25,6 +26,7 @@
 #include "src/transformation/delete.h"
 #include "src/transformation/move.h"
 #include "src/transformation/noop.h"
+#include "src/transformation/paste.h"
 #include "src/transformation/reach_query.h"
 #include "src/transformation/stack.h"
 
@@ -112,6 +114,7 @@ static const Description kHomeUp = Description{LazyString{L"🏠👆"}};
 static const Description kHomeDown = Description{LazyString{L"🏠👇"}};
 static const Description kReachQuery = Description{LazyString{L"🔮"}};
 static const Description kDescriptionShell = Description{LazyString{L"🌀"}};
+static const Description kDescriptionPaste = Description{LazyString{L"📎"}};
 
 void AppendStatus(const CommandReach& reach, LineBuilder& output) {
   SerializeCall(
@@ -177,6 +180,10 @@ void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
   // TODO(easy, 2024-07-26): Switch c.input to use Lazystring to avoid
   // conversion.
   SerializeCall(kDescriptionShell.read(), {LazyString{c.input}}, output);
+}
+
+void AppendStatus(const CommandPaste&, LineBuilder& output) {
+  SerializeCall(kDescriptionPaste.read(), std::vector<LazyString>{}, output);
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
@@ -325,6 +332,13 @@ transformation::Stack GetTransformation(
       transformation::Stack::PostTransformationBehavior::kCommandSystem;
   stack.shell = transformation::ShellCommand(shell.input);
   return transformation::Stack{};
+}
+
+transformation::Stack GetTransformation(
+    const NonNull<std::shared_ptr<OperationScope>>&, transformation::Stack&,
+    CommandPaste) {
+  return transformation::Stack{
+      .stack = {NonNull<std::unique_ptr<transformation::Paste>>{}}};
 }
 
 class State {
@@ -822,6 +836,10 @@ void GetKeyCommandsMap(KeyCommandsMap& cmap, CommandSetShell* output, State*) {
                    });
 }
 
+void GetKeyCommandsMap(KeyCommandsMap&, CommandPaste*, State*) {
+  // TODO(Paste, 2024-09-02): Start parsing sub-commands.
+}
+
 class OperationMode : public EditorMode {
  public:
   OperationMode(TopCommand top_command, EditorState& editor_state)
@@ -1057,6 +1075,16 @@ class OperationMode : public EditorMode {
                        }
                        state.set_top_command(top_command);
                      }})
+        .Insert(
+            L'p',
+            KeyCommandsMap::KeyCommand{
+                .category = KeyCommandsMap::Category::kNewCommand,
+                .description = kDescriptionPaste,
+                .active = editor_state_.buffer_registry()
+                              .Find(PasteBuffer{})
+                              .has_value(),
+                .handler = [&state = state_](
+                               ExtendedChar) { state.Push(CommandPaste{}); }})
         .Insert(L'?',
                 {.category = KeyCommandsMap::Category::kTop,
                  .description = Description{LazyString{L"Help"}},
