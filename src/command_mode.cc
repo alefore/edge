@@ -41,7 +41,6 @@
 #include "src/open_file_command.h"
 #include "src/operation.h"
 #include "src/parse_tree.h"
-#include "src/paste.h"
 #include "src/quit_command.h"
 #include "src/record_command.h"
 #include "src/repeat_mode.h"
@@ -716,7 +715,12 @@ gc::Root<MapModeCommands> NewCommandMode(EditorState& editor_state) {
           {operation::CommandReach{
               .repetitions = operation::CommandArgumentRepetitions(1)}})
           .ptr());
-  commands.Add(VectorExtendedChar(L"p"), NewPasteCommand(editor_state).ptr());
+  commands.Add(
+      VectorExtendedChar(L"p"),
+      operation::NewTopLevelCommand(
+          L"paste", LazyString{L"paste from the delete buffer"},
+          operation::TopCommand(), editor_state, {operation::CommandPaste{}})
+          .ptr());
 
   commands.Add(
       VectorExtendedChar(L"u"),

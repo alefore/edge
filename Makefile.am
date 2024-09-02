@@ -259,8 +259,6 @@ src/parsers/markdown.cc \
 src/parsers/markdown.h \
 src/parsers/util.cc \
 src/parsers/util.h \
-src/paste.cc \
-src/paste.h \
 src/path_flags.cc \
 src/path_flags.h \
 src/predictor.cc \
