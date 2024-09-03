@@ -164,7 +164,7 @@ class GotoCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"goes to Rth structure from the beginning"};
   }
-  std::wstring Category() const override { return L"Navigate"; }
+  LazyString Category() const override { return LazyString{L"Navigate"}; }
 
   void ProcessInput(ExtendedChar c) override {
     if (c != ExtendedChar('g')) {

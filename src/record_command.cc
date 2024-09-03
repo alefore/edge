@@ -38,7 +38,7 @@ class RecordCommand : public Command {
     return LazyString{L"starts/stops recording a transformation"};
   }
 
-  std::wstring Category() const override { return L"Edit"; }
+  LazyString Category() const override { return LazyString{L"Edit"}; }
 
   void ProcessInput(ExtendedChar) override {
     VisitPointer(

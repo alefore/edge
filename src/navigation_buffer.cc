@@ -148,7 +148,7 @@ class NavigationBufferCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"displays a navigation view of the current buffer"};
   }
-  std::wstring Category() const override { return L"Navigate"; }
+  LazyString Category() const override { return LazyString{L"Navigate"}; }
 
   void ProcessInput(ExtendedChar) override {
     std::optional<gc::Root<OpenBuffer>> source = editor_state_.current_buffer();

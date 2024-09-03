@@ -73,8 +73,7 @@ class CppCommand : public Command {
         environment_(std::move(environment)) {}
 
   LazyString Description() const override { return description_; }
-  // TODO(trivial, 2024-08-13): Get rid of ToString.
-  std::wstring Category() const override { return category_.ToString(); }
+  LazyString Category() const override { return category_; }
 
   void ProcessInput(ExtendedChar) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";

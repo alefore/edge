@@ -10,7 +10,7 @@ namespace afc::editor {
 class Command : public EditorMode {
  public:
   virtual ~Command() {}
-  virtual std::wstring Category() const = 0;
+  virtual language::lazy_string::LazyString Category() const = 0;
   virtual language::lazy_string::LazyString Description() const = 0;
   CursorMode cursor_mode() const override;
 };

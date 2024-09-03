@@ -50,8 +50,8 @@ class CommandFromFunction : public Command {
       : callback_(std::move(callback)), description_(std::move(description)) {}
 
   LazyString Description() const override { return description_; }
-  std::wstring Category() const override {
-    return L"C++ Functions (Extensions)";
+  LazyString Category() const override {
+    return LazyString{L"C++ Functions (Extensions)"};
   }
 
   void ProcessInput(ExtendedChar) override { callback_.value()(); }
@@ -109,7 +109,8 @@ MapModeCommands::Coallesce() const {
   for (const auto& frame : frames_) {
     for (const auto& it : frame->commands) {
       if (already_seen.insert(it.first).second) {
-        output[it.second->Category()].insert(
+        // TODO(easy, 2024-09-03): Get rid of ToString.
+        output[it.second->Category().ToString()].insert(
             {it.first, NonNull<Command*>::AddressOf(it.second.value())});
       }
     }

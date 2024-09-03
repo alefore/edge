@@ -139,7 +139,7 @@ class HelpCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Shows documentation."};
   }
-  std::wstring Category() const override { return L"Editor"; }
+  LazyString Category() const override { return LazyString{L"Editor"}; }
 
   void ProcessInput(ExtendedChar) override {
     VisitOptional(

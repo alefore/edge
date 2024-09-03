@@ -33,7 +33,7 @@ class OpenDirectoryCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"opens a view of the current directory"};
   }
-  std::wstring Category() const override { return L"Buffers"; }
+  LazyString Category() const override { return LazyString{L"Buffers"}; }
 
   void ProcessInput(ExtendedChar) override {
     OpenOrCreateFile(OpenFileOptions{

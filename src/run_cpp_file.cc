@@ -96,7 +96,7 @@ class RunCppFileCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"runs a command from a file"};
   }
-  std::wstring Category() const override { return L"Extensions"; }
+  LazyString Category() const override { return LazyString{L"Extensions"}; }
 
   void ProcessInput(ExtendedChar) override {
     if (!editor_state_.has_current_buffer()) {

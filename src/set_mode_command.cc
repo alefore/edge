@@ -22,10 +22,7 @@ class SetModeCommand : public Command {
   SetModeCommand(SetModeCommandOptions options)
       : options_(std::move(options)) {}
 
-  std::wstring Category() const override {
-    // TODO(easy, 2024-07-26): Stop calling ToString. Just return a LazyString.
-    return options_.category.ToString();
-  }
+  LazyString Category() const override { return options_.category; }
   LazyString Description() const override { return options_.description; }
   void ProcessInput(ExtendedChar) override {
     options_.editor_state.set_keyboard_redirect(options_.factory());

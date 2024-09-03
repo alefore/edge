@@ -100,7 +100,7 @@ class Impl : public Command {
   LazyString Description() const override {
     return LazyString{L"Shows Line Marks."};
   }
-  std::wstring Category() const override { return L"Editor"; }
+  LazyString Category() const override { return LazyString{L"Editor"}; }
 
   void ProcessInput(ExtendedChar) override {
     BufferName name{LazyString{L"Marks"}};

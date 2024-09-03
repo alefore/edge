@@ -203,7 +203,7 @@ class SearchCommand : public Command {
   LazyString Description() const override {
     return LazyString{L"Searches for a string."};
   }
-  std::wstring Category() const override { return L"Navigate"; }
+  LazyString Category() const override { return LazyString{L"Navigate"}; }
 
   void ProcessInput(ExtendedChar) override {
     if (GetStructureSearchQuery(editor_state_.structure()) ==
