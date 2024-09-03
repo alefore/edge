@@ -29,7 +29,7 @@ using ::operator<<;
 namespace {
 static const ColumnNumberDelta kQueryLength = ColumnNumberDelta(2);
 
-std::vector<LineColumn> FindPositions(const std::wstring& query,
+std::vector<LineColumn> FindPositions(const LazyString& query,
                                       const OpenBuffer& buffer) {
   std::vector<LineColumn> output;
   LineColumn view_start = buffer.Read(buffer_variables::view_start);
@@ -39,14 +39,14 @@ std::vector<LineColumn> FindPositions(const std::wstring& query,
   LineNumber end_line = view_start.line + view_size->line;
   while (view_start.line < end_line && view_start.line <= buffer.EndLine()) {
     Line line = buffer.contents().snapshot().at(view_start.line);
-    while (view_start.column + std::max(kQueryLength + ColumnNumberDelta(1),
-                                        ColumnNumberDelta(query.size())) <=
+    while (view_start.column +
+               std::max(kQueryLength + ColumnNumberDelta(1), query.size()) <=
            line.EndColumn()) {
       bool match = true;
-      for (size_t i = 0; i < query.size() && match; i++) {
-        match = std::tolower(static_cast<wchar_t>(
-                    line.get(view_start.column + ColumnNumberDelta(i)))) ==
-                std::tolower(query[i]);
+      for (ColumnNumberDelta i; i < query.size() && match; ++i) {
+        match = std::tolower(
+                    static_cast<wchar_t>(line.get(view_start.column + i))) ==
+                std::tolower(query.get(ColumnNumber{} + i));
       }
       if (match) output.push_back(view_start);
       ++view_start.column;
@@ -134,19 +134,17 @@ futures::Value<CompositeTransformation::Output> GoTo(
 futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     CompositeTransformation::Input input) const {
   if (query_.IsEmpty() || query_.size() > kQueryLength + ColumnNumberDelta(1))
-    return futures::Past(Output());
+    return futures::Past(Output{});
 
   PositionIdentifierMap matches = FindIdentifiers(
-      // TODO(trivial, 2024-09-03): Avoid call to ToString.
       FindPositions(
-          query_.SubstringWithRangeChecks(ColumnNumber{0}, kQueryLength)
-              .ToString(),
+          query_.SubstringWithRangeChecks(ColumnNumber{0}, kQueryLength),
           input.buffer),
       input.buffer.contents().snapshot());
 
   LOG(INFO) << "Found matches: " << matches.size();
 
-  if (matches.empty()) return futures::Past(Output());
+  if (matches.empty()) return futures::Past(Output{});
 
   if (matches.size() == 1 && matches.begin()->second.size() == 1) {
     return GoTo(matches.begin()->second.begin()->second);
