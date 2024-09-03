@@ -13,10 +13,12 @@
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/lazy_string.h"
+#include "src/language/lazy_string/trim.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line.h"
 #include "src/language/wstring.h"
 #include "src/line_prompt_mode.h"
+#include "src/tests/tests.h"
 
 namespace container = afc::language::container;
 namespace gc = afc::language::gc;
@@ -30,22 +32,12 @@ using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::Trim;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 
 namespace afc::editor {
 namespace {
-
-LazyString TrimWhitespace(LazyString in) {
-  if (std::optional<ColumnNumber> begin = FindFirstOf(in, {L' '});
-      begin.has_value()) {
-    if (std::optional<ColumnNumber> end = FindLastNotOf(in, {L' '});
-        end.has_value())
-      return in.Substring(*begin, *end - *begin + ColumnNumberDelta{1});
-  }
-  return LazyString{};
-}
-
 Predictor VariablesPredictor() {
   // We need to materialize the nested vector because, even though all ranges
   // contain the same types (LazyString), they actually have different types
@@ -67,10 +59,9 @@ Predictor VariablesPredictor() {
 
 futures::Value<EmptyValue> SetVariableCommandHandler(EditorState& editor_state,
                                                      LazyString input_name) {
-  LazyString name = TrimWhitespace(input_name);
-  if (name.IsEmpty()) {
-    return futures::Past(EmptyValue());
-  }
+  LazyString name = Trim(input_name, {L' '});
+  LOG(INFO) << "SetVariableCommandHandler: " << input_name << " -> " << name;
+  if (name.IsEmpty()) return futures::Past(EmptyValue());
 
   std::vector<gc::Root<OpenBuffer>> active_buffers =
       editor_state.active_buffers();
