@@ -3,17 +3,17 @@
 
 #include <string>
 
+#include "src/language/lazy_string/lazy_string.h"
 #include "src/transformation/composite.h"
 
 namespace afc::editor::transformation {
 class ReachQueryTransformation : public CompositeTransformation {
+  const language::lazy_string::LazyString query_;
+
  public:
-  ReachQueryTransformation(std::wstring query);
+  ReachQueryTransformation(language::lazy_string::LazyString query);
   std::wstring Serialize() const override;
   futures::Value<Output> Apply(Input input) const override;
-
- private:
-  const std::wstring query_;
 };
 }  // namespace afc::editor::transformation
 

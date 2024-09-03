@@ -14,6 +14,7 @@ using afc::infrastructure::screen::VisualOverlayMap;
 using afc::infrastructure::screen::VisualOverlayPriority;
 using afc::language::NonNull;
 using afc::language::VisitPointer;
+using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
@@ -113,7 +114,7 @@ PositionIdentifierMap FindIdentifiers(std::vector<LineColumn> matches,
 }
 }  // namespace
 
-ReachQueryTransformation::ReachQueryTransformation(std::wstring query)
+ReachQueryTransformation::ReachQueryTransformation(LazyString query)
     : query_(std::move(query)) {}
 
 std::wstring ReachQueryTransformation::Serialize() const {
@@ -132,12 +133,15 @@ futures::Value<CompositeTransformation::Output> GoTo(
 
 futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
     CompositeTransformation::Input input) const {
-  if (query_.empty() ||
-      ColumnNumberDelta(query_.size()) > kQueryLength + ColumnNumberDelta(1))
+  if (query_.IsEmpty() || query_.size() > kQueryLength + ColumnNumberDelta(1))
     return futures::Past(Output());
 
   PositionIdentifierMap matches = FindIdentifiers(
-      FindPositions(query_.substr(0, kQueryLength.read()), input.buffer),
+      // TODO(trivial, 2024-09-03): Avoid call to ToString.
+      FindPositions(
+          query_.SubstringWithRangeChecks(ColumnNumber{0}, kQueryLength)
+              .ToString(),
+          input.buffer),
       input.buffer.contents().snapshot());
 
   LOG(INFO) << "Found matches: " << matches.size();
@@ -150,9 +154,9 @@ futures::Value<CompositeTransformation::Output> ReachQueryTransformation::Apply(
 
   if (ColumnNumberDelta(query_.size()) == kQueryLength + ColumnNumberDelta(1)) {
     std::map<Identifier, LineColumn>& dictionary =
-        matches[std::tolower(query_[1])];
+        matches[std::tolower(query_.get(ColumnNumber{1}))];
     LOG(INFO) << "Query is done, possibilities: " << dictionary.size();
-    Identifier id = query_[kQueryLength.read()];
+    Identifier id = query_.get(ColumnNumber{} + kQueryLength);
     auto it = dictionary.find(id);
     if (it == dictionary.end()) {
       Identifier replace_id =

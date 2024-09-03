@@ -313,11 +313,9 @@ transformation::Stack GetTransformation(
     CommandReachQuery reach_query) {
   if (reach_query.query.IsEmpty()) return transformation::Stack{};
   transformation::Stack transformation;
-  // TODO(trivial, 2024-07-26): Change ReachQueryTransformation to receive the
-  // LazyString directly.
   transformation.push_back(
       MakeNonNullUnique<transformation::ReachQueryTransformation>(
-          reach_query.query.ToString()));
+          reach_query.query));
   return transformation;
 }
 
