@@ -321,7 +321,7 @@ std::map<BufferFlagKey, BufferFlagValue> Flags(const CommandData& data,
         buffer.fd() == nullptr
             ? -1
             : GetElapsedSecondsSince(buffer.fd()->last_input_received());
-    VLOG(5) << buffer.Read(buffer_variables::name)
+    VLOG(5) << buffer.ReadLazyString(buffer_variables::name)
             << "Lines read rate: " << lines_read_rate;
     if (lines_read_rate > 5) {
       output[BufferFlagKey{LazyString{L"🤖"}}] =
@@ -401,7 +401,7 @@ futures::Value<EmptyValue> RunCommandHandler(EditorState& editor_state,
   auto buffer = editor_state.current_buffer();
   if (buffer.has_value()) {
     environment[L"EDGE_SOURCE_BUFFER_PATH"] =
-        LazyString{buffer->ptr()->Read(buffer_variables::path)};
+        buffer->ptr()->ReadLazyString(buffer_variables::path);
   }
   name += LazyString{L" "} +
           EscapedString::FromString(input).EscapedRepresentation();

@@ -71,8 +71,10 @@ std::optional<LineColumn> ComputeGoToPosition(Structure structure,
                                               const Modifiers& modifiers,
                                               LineColumn position, int calls) {
   if (structure == Structure::kChar) {
+    // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on LazyString.
     const std::wstring& line_prefix_characters =
-        buffer.Read(buffer_variables::line_prefix_characters);
+        buffer.ReadLazyString(buffer_variables::line_prefix_characters)
+            .ToString();
     const auto& line = buffer.LineAt(position.line);
     if (!line.has_value()) return std::nullopt;
     ColumnNumber start =

@@ -447,7 +447,7 @@ OpenBuffer::PrepareToClose() {
                             LazyString{L"Already waiting for termination."}});
                       }
                       LOG(INFO) << "Sending termination and preparing handler: "
-                                << Read(buffer_variables::name);
+                                << ReadLazyString(buffer_variables::name);
                       file_system_driver().Kill(child_pid_.value(),
                                                 UnixSignal(SIGHUP));
                       auto future =
@@ -457,7 +457,7 @@ OpenBuffer::PrepareToClose() {
                            consumer = std::move(future.consumer)]() mutable {
                             CHECK(!child_pid_.has_value());
                             LOG(INFO) << "Subprocess terminated: "
-                                      << Read(buffer_variables::name);
+                                      << ReadLazyString(buffer_variables::name);
                             PrepareToClose().SetConsumer(std::move(consumer));
                           };
                       return std::move(future.value);
@@ -570,7 +570,8 @@ futures::Value<PossibleError> OpenBuffer::PersistState() const {
 }
 
 void OpenBuffer::ClearContents() {
-  VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
+  VLOG(5) << "Clear contents of buffer: "
+          << ReadLazyString(buffer_variables::name);
   options_.editor.line_marks().RemoveExpiredMarksFromSource(name());
   options_.editor.line_marks().ExpireMarksFromSource(contents().snapshot(),
                                                      name());
@@ -687,9 +688,14 @@ void OpenBuffer::UpdateTreeParser() {
         return futures::Past(SortedLineSequence(LineSequence()));
       })
       .Transform([this, root_this = NewRoot()](SortedLineSequence dictionary) {
-        std::wistringstream typos_stream(Read(buffer_variables::typos));
+        // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on
+        // LazyString.
+        std::wistringstream typos_stream(
+            ReadLazyString(buffer_variables::typos).ToString());
+        // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on
+        // LazyString.
         std::wistringstream language_keywords(
-            Read(buffer_variables::language_keywords));
+            ReadLazyString(buffer_variables::language_keywords).ToString());
         buffer_syntax_parser_.UpdateParser(BufferSyntaxParser::ParserOptions{
             .parser_name =
                 ParserId{ReadLazyString(buffer_variables::tree_parser)},
@@ -708,9 +714,13 @@ void OpenBuffer::UpdateTreeParser() {
                     std::istream_iterator<std::wstring, wchar_t>()} |
                 std::views::transform(
                     [](std::wstring i) { return LazyString{i}; })),
-            .symbol_characters = Read(buffer_variables::symbol_characters),
+            // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on
+            // LazyString.
+            .symbol_characters =
+                ReadLazyString(buffer_variables::symbol_characters).ToString(),
             .identifier_behavior =
-                Read(buffer_variables::identifier_behavior) == L"color-by-hash"
+                ReadLazyString(buffer_variables::identifier_behavior) ==
+                        LazyString{L"color-by-hash"}
                     ? IdentifierBehavior::kColorByHash
                     : IdentifierBehavior::kNone,
             .dictionary = std::move(dictionary)});
@@ -1197,8 +1207,8 @@ futures::ValueOrError<gc::Root<Value>> OpenBuffer::EvaluateFile(
                  return futures::Past(ValueOrError<gc::Root<Value>>(error));
                },
                [&](NonNull<std::unique_ptr<Expression>> expression) {
-                 LOG(INFO) << Read(buffer_variables::path) << " ("
-                           << Read(buffer_variables::name)
+                 LOG(INFO) << ReadLazyString(buffer_variables::path) << " ("
+                           << ReadLazyString(buffer_variables::name)
                            << "): Evaluating file: " << path;
                  return Evaluate(
                      std::move(expression), editor().gc_pool(),
@@ -2126,7 +2136,7 @@ OpenBuffer::FreezeDiskState() {
 
 bool OpenBuffer::dirty() const {
   return (disk_state_ == DiskState::kStale &&
-          (!Read(buffer_variables::path).empty() ||
+          (!ReadLazyString(buffer_variables::path).IsEmpty() ||
            !contents().EveryLine(
                [](LineNumber, const Line& l) { return l.empty(); }))) ||
          child_pid_.has_value() ||

@@ -107,8 +107,10 @@ class NewLineTransformation : public CompositeTransformation {
     if (input.buffer.Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
       return futures::Past(Output());
-    const std::wstring& line_prefix_characters(
-        input.buffer.Read(buffer_variables::line_prefix_characters));
+    // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on LazyString.
+    const std::wstring& line_prefix_characters =
+        input.buffer.ReadLazyString(buffer_variables::line_prefix_characters)
+            .ToString();
     ColumnNumber prefix_end;
     if (!input.buffer.Read(buffer_variables::paste_mode)) {
       while (prefix_end < column &&
@@ -896,7 +898,7 @@ class InsertMode : public InputReceiver {
       const OpenBuffer& buffer) {
     return MakeNonNullShared<std::vector<Path>>(container::MaterializeVector(
         TokenizeBySpaces(
-            LazyString{buffer.Read(buffer_variables::completion_model_paths)}) |
+            buffer.ReadLazyString(buffer_variables::completion_model_paths)) |
         std::views::transform([](Token path_str) {
           return OptionalFrom(Path::New(path_str.value));
         }) |

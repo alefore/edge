@@ -360,8 +360,7 @@ void EditorState::CloseBuffer(OpenBuffer& buffer) {
               -> futures::ValueOrError<OpenBuffer::PrepareToCloseOutput> {
             error = AugmentError(
                 LazyString{L"🖝  Unable to close (“*ad” to ignore): "} +
-                    // TODO(easy, 2024-07-31): Avoid conversion to LazyString.
-                    LazyString{buffer.ptr()->Read(buffer_variables::name)},
+                    buffer.ptr()->ReadLazyString(buffer_variables::name),
                 error);
             switch (buffer.ptr()->status().InsertError(error, 30)) {
               case error::Log::InsertResult::kInserted:
@@ -554,8 +553,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
                     std::views::transform(
                         [](const NonNull<OpenBuffer*>& buffer) -> LazyString {
                           return LazyString{L" "} +
-                                 LazyString{
-                                     buffer->Read(buffer_variables::name)};
+                                 buffer->ReadLazyString(buffer_variables::name);
                         })))},
           30)) {
         case error::Log::InsertResult::kInserted:

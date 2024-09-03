@@ -63,11 +63,10 @@ struct SearchNamespaces {
       : namespaces([&] {
           static const vm::Namespace kEmptyNamespace;
           std::vector<vm::Namespace> output = {kEmptyNamespace};
-          auto var =
-              LazyString{buffer.Read(buffer_variables::cpp_prompt_namespaces)};
-          for (auto& token : TokenizeBySpaces(var)) {
+          LazyString var =
+              buffer.ReadLazyString(buffer_variables::cpp_prompt_namespaces);
+          for (auto& token : TokenizeBySpaces(var))
             output.push_back(vm::Namespace({Identifier{token.value}}));
-          }
           return output;
         }()) {}
 

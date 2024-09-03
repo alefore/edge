@@ -195,7 +195,8 @@ futures::Value<PossibleError> Save(
                         [&path](OpenBuffer& reload_buffer) {
                           LOG(INFO)
                               << "Write of " << path << " triggers reload: "
-                              << reload_buffer.Read(buffer_variables::name);
+                              << reload_buffer.ReadLazyString(
+                                     buffer_variables::name);
                           reload_buffer.Reload();
                         });
                   }

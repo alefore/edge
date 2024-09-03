@@ -326,7 +326,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
   const OpenBuffer& buffer = input.buffer;
 
   LOG(INFO) << "BufferWidget::RecomputeData: "
-            << buffer.Read(buffer_variables::name);
+            << buffer.ReadLazyString(buffer_variables::name);
   LineWithCursor::Generator::Vector status_lines;
   switch (input.status_behavior) {
     case BufferOutputProducerInput::StatusBehavior::kShow:
@@ -356,7 +356,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .line_wrap_style = buffer.Read(buffer_variables::wrap_from_content)
                              ? LineWrapStyle::kContentBased
                              : LineWrapStyle::kBreakWords,
-      .symbol_characters = buffer.Read(buffer_variables::symbol_characters),
+      // TODO(trivial, 2024-09-03): Avoid explicit call to ToString. Pass as
+      // LazyString.
+      .symbol_characters =
+          buffer.ReadLazyString(buffer_variables::symbol_characters).ToString(),
       .lines_shown = input.output_producer_options.size.line,
       .status_lines = status_lines.size(),
       .columns_shown =
@@ -464,7 +467,7 @@ LineWithCursor::Generator::Vector BufferWidget::CreateOutput(
         if (options_.position_in_parent.has_value()) {
           FrameOutputProducerOptions frame_options;
           frame_options.title =
-              LazyString{buffer.ptr()->Read(buffer_variables::name)};
+              buffer.ptr()->ReadLazyString(buffer_variables::name);
 
           frame_options.position_in_parent =
               options_.position_in_parent.value();

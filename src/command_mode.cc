@@ -396,11 +396,11 @@ class ActivateLink : public Command {
                     return VisitPointer(
                         optional_target,
                         [&](gc::Root<OpenBuffer> target) {
-                          if (std::wstring path =
-                                  target.ptr()->Read(buffer_variables::path);
-                              !path.empty())
+                          if (LazyString path = target.ptr()->ReadLazyString(
+                                  buffer_variables::path);
+                              !path.IsEmpty())
                             AddLineToHistory(editor_state, HistoryFileFiles(),
-                                             LazyString{path});
+                                             path);
                           editor_state.AddBuffer(
                               target, BuffersList::AddBufferType::kVisit);
                           return Success();
