@@ -54,8 +54,8 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
                 std::unordered_set<LazyString> typos,
                 IdentifierBehavior identifier_behavior)
       : words_parser_(NewWordsTreeParser(
-            L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", typos,
-            NewNullTreeParser())),
+            LazyString{L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"},
+            typos, NewNullTreeParser())),
         keywords_(std::move(keywords)),
         typos_(std::move(typos)),
         identifier_behavior_(identifier_behavior) {}

@@ -10,7 +10,7 @@
 
 namespace afc::editor::parsers {
 language::NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
-    std::wstring symbol_characters,
+    language::lazy_string::LazyString symbol_characters,
     language::text::SortedLineSequence dictionary);
 }  // namespace afc::editor::parsers
 

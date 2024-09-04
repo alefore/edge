@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "src/infrastructure/screen/line_modifier.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/lowercase.h"
 #include "src/language/text/line_builder.h"
 #include "src/language/text/line_sequence.h"
@@ -12,6 +13,7 @@
 #include "src/parsers/util.h"
 #include "src/seek.h"
 
+namespace container = afc::language::container;
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
@@ -50,9 +52,13 @@ enum State {
 };
 
 class MarkdownParser : public LineOrientedTreeParser {
+  const std::unordered_set<wchar_t> symbol_characters_;
+  const SortedLineSequence dictionary_;
+
  public:
-  MarkdownParser(std::wstring symbol_characters, SortedLineSequence dictionary)
-      : symbol_characters_(std::move(symbol_characters)),
+  MarkdownParser(LazyString symbol_characters, SortedLineSequence dictionary)
+      : symbol_characters_(container::Materialize<std::unordered_set<wchar_t>>(
+            symbol_characters)),
         dictionary_(std::move(dictionary)) {
     LOG(INFO) << "Created with dictionary entries: "
               << dictionary_.lines().size();
@@ -103,9 +109,9 @@ class MarkdownParser : public LineOrientedTreeParser {
           HandleCloseLinkUrl(result);
           break;
         default:
-          if (IsSymbol(seek.read())) {
+          if (AtSymbol(seek)) {
             LineColumn original_position = result->position();
-            while (!seek.AtRangeEnd() && IsSymbol(seek.read())) seek.Once();
+            while (!seek.AtRangeEnd() && AtSymbol(seek)) seek.Once();
             ColumnNumberDelta length =
                 result->position().column - original_position.column;
             LazyString str = result->buffer()
@@ -122,8 +128,8 @@ class MarkdownParser : public LineOrientedTreeParser {
     }
   }
 
-  bool IsSymbol(int c) const {
-    return symbol_characters_.find(c) != symbol_characters_.npos;
+  bool AtSymbol(Seek& seek) const {
+    return symbol_characters_.contains(seek.read());
   }
 
   bool IsTypo(LazyString symbol) const {
@@ -311,14 +317,11 @@ class MarkdownParser : public LineOrientedTreeParser {
     result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column.ToDelta(), {modifiers});
   }
-
-  const std::wstring symbol_characters_;
-  const SortedLineSequence dictionary_;
 };
 }  // namespace
 
 NonNull<std::unique_ptr<TreeParser>> NewMarkdownTreeParser(
-    std::wstring symbol_characters, SortedLineSequence dictionary) {
+    LazyString symbol_characters, SortedLineSequence dictionary) {
   return MakeNonNullUnique<MarkdownParser>(std::move(symbol_characters),
                                            std::move(dictionary));
 }

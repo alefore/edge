@@ -286,11 +286,16 @@ class NullTreeParser : public TreeParser {
 };
 
 class WordsTreeParser : public TreeParser {
+  const std::unordered_set<wchar_t> symbol_characters_;
+  const std::unordered_set<LazyString> typos_;
+  const NonNull<std::unique_ptr<TreeParser>> delegate_;
+
  public:
-  WordsTreeParser(std::wstring symbol_characters,
+  WordsTreeParser(LazyString symbol_characters,
                   std::unordered_set<LazyString> typos,
                   NonNull<std::unique_ptr<TreeParser>> delegate)
-      : symbol_characters_(symbol_characters),
+      : symbol_characters_(container::Materialize<std::unordered_set<wchar_t>>(
+            symbol_characters)),
         typos_(typos),
         delegate_(std::move(delegate)) {}
 
@@ -329,12 +334,8 @@ class WordsTreeParser : public TreeParser {
 
  private:
   bool IsSpace(const Line& line, ColumnNumber column) {
-    return symbol_characters_.find(line.get(column)) == symbol_characters_.npos;
+    return !symbol_characters_.contains(line.get(column));
   }
-
-  const std::wstring symbol_characters_;
-  const std::unordered_set<LazyString> typos_;
-  const NonNull<std::unique_ptr<TreeParser>> delegate_;
 };
 
 class LineTreeParser : public TreeParser {
@@ -373,7 +374,7 @@ NonNull<std::unique_ptr<TreeParser>> NewNullTreeParser() {
 }
 
 NonNull<std::unique_ptr<TreeParser>> NewWordsTreeParser(
-    std::wstring symbol_characters, std::unordered_set<LazyString> typos,
+    LazyString symbol_characters, std::unordered_set<LazyString> typos,
     NonNull<std::unique_ptr<TreeParser>> delegate) {
   return MakeNonNullUnique<WordsTreeParser>(
       std::move(symbol_characters), std::move(typos), std::move(delegate));
