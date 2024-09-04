@@ -21,6 +21,7 @@ class LazyStringImpl {
 
 class AppendImpl;
 class LazyStringImpl;
+class LazyStringIterator;
 
 class LazyString {
   language::NonNull<std::shared_ptr<const LazyStringImpl>> data_;
@@ -43,6 +44,9 @@ class LazyString {
   bool IsEmpty() const { return data_->size().IsZero(); }
 
   std::wstring ToString() const;
+
+  LazyStringIterator begin() const;
+  LazyStringIterator end() const;
 
   // Returns the substring from `column` to the end of the string.
   //
@@ -82,6 +86,66 @@ std::ostream& operator<<(std::ostream& os,
                          const afc::language::lazy_string::LazyString& obj);
 
 std::wstring to_wstring(const LazyString&);
+
+class LazyStringIterator {
+ private:
+  LazyString container_;
+  ColumnNumber position_;
+
+ public:
+  LazyStringIterator() {}
+  LazyStringIterator(const LazyStringIterator&) = default;
+  LazyStringIterator(LazyStringIterator&&) = default;
+  LazyStringIterator& operator=(const LazyStringIterator&) = default;
+  LazyStringIterator& operator=(LazyStringIterator&&) = default;
+
+  using iterator_category = std::random_access_iterator_tag;
+  using difference_type = int;
+  using value_type = wchar_t;
+  using reference = value_type&;
+
+  LazyStringIterator(LazyString container, ColumnNumber position)
+      : container_(std::move(container)), position_(position) {}
+
+  wchar_t operator*() const { return container_.get(position_); }
+
+  bool operator!=(const LazyStringIterator& other) const {
+    return !(*this == other);
+  }
+
+  bool operator==(const LazyStringIterator& other) const {
+    CHECK_EQ(&container_, &other.container_);
+    if (IsAtEnd() || other.IsAtEnd()) return IsAtEnd() && other.IsAtEnd();
+    return position_ == other.position_;
+  }
+
+  LazyStringIterator& operator++() {  // Prefix increment.
+    ++position_;
+    return *this;
+  }
+
+  LazyStringIterator operator++(int) {  // Postfix increment.
+    LazyStringIterator tmp = *this;
+    ++*this;
+    return tmp;
+  }
+
+  int operator-(const LazyStringIterator& other) const {
+    CHECK_EQ(&container_, &other.container_);
+    return (position_ - other.position_).read();
+  }
+
+  LazyStringIterator operator+(int n) const {
+    return LazyStringIterator(container_, position_ + ColumnNumberDelta(n));
+  }
+
+  LazyStringIterator operator+(int n) {
+    return LazyStringIterator(container_, position_ + ColumnNumberDelta(n));
+  }
+
+ private:
+  bool IsAtEnd() const { return position_.ToDelta() >= container_.size(); }
+};
 }  // namespace afc::language::lazy_string
 
 GHOST_TYPE_TOP_LEVEL(afc::language::lazy_string::ColumnNumber)

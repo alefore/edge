@@ -187,6 +187,14 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+LazyStringIterator LazyString::begin() const {
+  return LazyStringIterator(*this, ColumnNumber{});
+}
+
+LazyStringIterator LazyString::end() const {
+  return LazyStringIterator(*this, ColumnNumber{} + size());
+}
+
 std::wstring to_wstring(const LazyString& s) { return s.ToString(); }
 
 std::string LazyString::ToBytes() const { return ToByteString(ToString()); }
