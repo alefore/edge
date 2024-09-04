@@ -38,6 +38,7 @@ extern "C" {
 #include "src/language/lazy_string/functional.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/lazy_string/lowercase.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/language/observers_gc.h"
 #include "src/language/once_only_function.h"
 #include "src/language/overload.h"
@@ -122,6 +123,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
 using afc::language::lazy_string::LowerCase;
+using afc::language::lazy_string::Token;
 using afc::language::text::DelegatingMutableLineSequenceObserver;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
@@ -688,32 +690,18 @@ void OpenBuffer::UpdateTreeParser() {
         return futures::Past(SortedLineSequence(LineSequence()));
       })
       .Transform([this, root_this = NewRoot()](SortedLineSequence dictionary) {
-        // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on
-        // LazyString.
-        std::wistringstream typos_stream(
-            ReadLazyString(buffer_variables::typos).ToString());
-        // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on
-        // LazyString.
-        std::wistringstream language_keywords(
-            ReadLazyString(buffer_variables::language_keywords).ToString());
         buffer_syntax_parser_.UpdateParser(BufferSyntaxParser::ParserOptions{
             .parser_name =
                 ParserId{ReadLazyString(buffer_variables::tree_parser)},
             .typos_set = language::container::Materialize<
                 std::unordered_set<LazyString>>(
-                std::vector<std::wstring>{
-                    std::istream_iterator<std::wstring, wchar_t>(typos_stream),
-                    std::istream_iterator<std::wstring, wchar_t>()} |
-                std::views::transform(
-                    [](std::wstring i) { return LazyString{i}; })),
+                TokenizeBySpaces(ReadLazyString(buffer_variables::typos)) |
+                std::views::transform(&Token::value)),
             .language_keywords = language::container::Materialize<
                 std::unordered_set<LazyString>>(
-                std::vector<std::wstring>{
-                    std::istream_iterator<std::wstring, wchar_t>(
-                        language_keywords),
-                    std::istream_iterator<std::wstring, wchar_t>()} |
-                std::views::transform(
-                    [](std::wstring i) { return LazyString{i}; })),
+                TokenizeBySpaces(
+                    ReadLazyString(buffer_variables::language_keywords)) |
+                std::views::transform(&Token::value)),
             // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on
             // LazyString.
             .symbol_characters =
