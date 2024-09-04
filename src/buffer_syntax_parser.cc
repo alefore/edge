@@ -23,8 +23,10 @@ namespace afc::editor {
 void BufferSyntaxParser::UpdateParser(ParserOptions options) {
   data_->lock([&options](Data& data) {
     if (options.parser_name == ParserId::Text()) {
-      data.tree_parser = NewLineTreeParser(NewWordsTreeParser(
-          options.symbol_characters, options.typos_set, NewNullTreeParser()));
+      // TODO(trivial, 2024-09-04): Avoid call to ToString.
+      data.tree_parser = NewLineTreeParser(
+          NewWordsTreeParser(options.symbol_characters.ToString(),
+                             options.typos_set, NewNullTreeParser()));
     } else if (options.parser_name == ParserId::Cpp()) {
       data.tree_parser =
           NewCppTreeParser(options.language_keywords, options.typos_set,
@@ -32,8 +34,9 @@ void BufferSyntaxParser::UpdateParser(ParserOptions options) {
     } else if (options.parser_name == ParserId::Diff()) {
       data.tree_parser = parsers::NewDiffTreeParser();
     } else if (options.parser_name == ParserId::Markdown()) {
+      // TODO(trivial, 2024-09-04): Avoid call to ToString.
       data.tree_parser = parsers::NewMarkdownTreeParser(
-          options.symbol_characters, options.dictionary);
+          options.symbol_characters.ToString(), options.dictionary);
     } else if (options.parser_name == ParserId::Csv()) {
       data.tree_parser = parsers::NewCsvTreeParser();
     } else {

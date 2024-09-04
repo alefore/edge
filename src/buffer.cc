@@ -702,10 +702,8 @@ void OpenBuffer::UpdateTreeParser() {
                 TokenizeBySpaces(
                     ReadLazyString(buffer_variables::language_keywords)) |
                 std::views::transform(&Token::value)),
-            // TODO(trivial, 2024-09-03): Get rid of ToString. Operate on
-            // LazyString.
             .symbol_characters =
-                ReadLazyString(buffer_variables::symbol_characters).ToString(),
+                ReadLazyString(buffer_variables::symbol_characters),
             .identifier_behavior =
                 ReadLazyString(buffer_variables::identifier_behavior) ==
                         LazyString{L"color-by-hash"}
