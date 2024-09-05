@@ -574,9 +574,6 @@ class OpenBuffer {
   // Signal that EndOfFile was received in both fd_ and fd_error_.
   void SignalEndOfFile();
 
-  // TODO(P1, 2023-11-24): Remove this? Just use `AppendLines`?
-  void InsertLines(std::vector<language::text::Line>);
-
   SeekInput NewSeekInput(Structure structure, Direction direction,
                          language::text::LineColumn* position) const;
   void OnCursorMove();

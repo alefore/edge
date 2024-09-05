@@ -1753,23 +1753,6 @@ FileSystemDriver& OpenBuffer::file_system_driver() const {
 
 BufferName OpenBuffer::name() const { return options_.name; }
 
-void OpenBuffer::InsertLines(std::vector<Line> lines_to_insert) {
-  // These changes don't count: they come from disk.
-  auto disk_state_freezer = FreezeDiskState();
-
-  auto follower = GetEndPositionFollower();
-  AppendToLastLine(lines_to_insert.front());
-  // TODO: Avoid the linear complexity operation in the next line. However,
-  // according to `tracker_erase`, it doesn't seem to matter much.
-  static Tracker tracker_erase(L"FileDescriptorReader::InsertLines::Erase");
-  auto tracker_erase_call = tracker_erase.Call();
-  lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
-  tracker_erase_call = nullptr;
-
-  AppendLines(std::move(lines_to_insert),
-              MutableLineSequence::ObserverBehavior::kHide);
-}
-
 futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     std::optional<FileDescriptor> input_fd,
     std::optional<FileDescriptor> input_error_fd, bool fd_is_terminal,
@@ -1782,7 +1765,24 @@ futures::Value<EmptyValue> OpenBuffer::SetInputFiles(
     if (fd_is_terminal) return NewTerminal();
     return MakeNonNullUnique<RegularFileAdapter>(RegularFileAdapter::Options{
         .thread_pool = editor().thread_pool(),
-        .insert_lines = [this](auto lines) { InsertLines(std::move(lines)); }});
+        .insert_lines = [this](auto lines_to_insert) {
+          // These changes don't count: they come from disk.
+          auto disk_state_freezer = FreezeDiskState();
+
+          auto follower = GetEndPositionFollower();
+          AppendToLastLine(lines_to_insert.front());
+          // TODO: Avoid the linear complexity operation in the next line.
+          // However, according to `tracker_erase`, it doesn't seem to matter
+          // much.
+          static Tracker tracker_erase(
+              L"FileDescriptorReader::InsertLines::Erase");
+          auto tracker_erase_call = tracker_erase.Call();
+          lines_to_insert.erase(lines_to_insert.begin());  // Ugh, linear.
+          tracker_erase_call = nullptr;
+
+          AppendLines(std::move(lines_to_insert),
+                      MutableLineSequence::ObserverBehavior::kHide);
+        }});
   });
 
   auto new_reader = [this](std::optional<FileDescriptor> fd,
