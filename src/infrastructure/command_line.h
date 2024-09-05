@@ -127,24 +127,16 @@ class Handler {
   Handler<ParsedValues>& PushBackTo(
       std::vector<language::lazy_string::LazyString> ParsedValues::*field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
-      if (data->current_value.has_value()) {
-        // TODO(trivial, 2024-09-05): Avoid the LazyString conversion.
-        (data->output.*field)
-            .push_back(
-                language::lazy_string::LazyString{data->current_value.value()});
-      }
+      if (data->current_value.has_value())
+        (data->output.*field).push_back(data->current_value.value());
     });
   }
 
   Handler<ParsedValues>& AppendTo(
       language::lazy_string::LazyString ParsedValues::*field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
-      if (data->current_value.has_value()) {
-        // TODO(2024-09-05, easy): Find a way to avoid the LazyString
-        // conversion.
-        (data->output.*field) +=
-            language::lazy_string::LazyString{data->current_value.value()};
-      }
+      if (data->current_value.has_value())
+        (data->output.*field) += data->current_value.value();
     });
   }
 
