@@ -33,6 +33,7 @@ using afc::language::overload;
 using afc::language::Success;
 using afc::language::ValueOrDie;
 using afc::language::ValueOrError;
+using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::Intersperse;
 using afc::language::lazy_string::LazyString;
@@ -299,10 +300,12 @@ LazyString CommandsToRun(CommandLineValues args) {
       LazyString{args.commands_to_run} +
       LazyString{L"VectorBuffer buffers_to_watch = VectorBuffer();\n"};
   bool start_shell = args.commands_to_run.empty();
-  for (auto& path : args.naked_arguments) {
-    std::wstring full_path;
-    if (!path.empty() &&
-        std::wstring(L"/~").find(path[0]) != std::wstring::npos) {
+  for (auto& path_str : args.naked_arguments) {
+    LazyString full_path;
+    // TODO(2024-09-05, easy): Avoid explicit LazyString conversion.
+    LazyString path{path_str};
+    if (!path.IsEmpty() && std::wstring(L"/~").find(path.get(ColumnNumber{})) !=
+                               std::wstring::npos) {
       LOG(INFO) << L"Will open an absolute path: " << path;
       full_path = path;
     } else {
@@ -310,7 +313,7 @@ LazyString CommandsToRun(CommandLineValues args) {
       switch (args.initial_path_resolution_behavior) {
         case CommandLineValues::LocalPathResolutionBehavior::kSimple: {
           char* dir = get_current_dir_name();
-          full_path = FromByteString(dir) + L"/" + path;
+          full_path = LazyString{FromByteString(dir)} + LazyString{L"/"} + path;
           free(dir);
           break;
         }
@@ -320,7 +323,7 @@ LazyString CommandsToRun(CommandLineValues args) {
     }
     commands_to_run +=
         LazyString{L"buffers_to_watch.push_back(editor.OpenFile("} +
-        EscapedString::FromString(LazyString{full_path}).CppRepresentation() +
+        EscapedString::FromString(full_path).CppRepresentation() +
         LazyString{L", true));\n"};
     start_shell = false;
   }
