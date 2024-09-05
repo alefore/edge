@@ -103,7 +103,8 @@ struct IgnoreErrors {
 };
 
 template <typename T>
-T ValueOrDie(ValueOrError<T>&& value, std::wstring error_location = L"") {
+T ValueOrDie(ValueOrError<T>&& value,
+             language::lazy_string::LazyString error_location) {
   return std::visit(
       language::overload{[&](Error error) -> T {
                            LOG(FATAL) << error_location << ": " << error;
@@ -111,6 +112,18 @@ T ValueOrDie(ValueOrError<T>&& value, std::wstring error_location = L"") {
                          },
                          [](T&& t) { return std::forward<T>(t); }},
       std::forward<ValueOrError<T>>(value));
+}
+
+template <typename T>
+T ValueOrDie(ValueOrError<T>&& value) {
+  return ValueOrDie(std::forward<ValueOrError<T>>(value),
+                    language::lazy_string::LazyString{});
+}
+
+template <typename T>
+T ValueOrDie(ValueOrError<T>&& value, std::wstring error_location) {
+  return ValueOrDie(std::forward<ValueOrError<T>>(value),
+                    language::lazy_string::LazyString{error_location});
 }
 
 template <typename Overload>
