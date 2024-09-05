@@ -59,7 +59,7 @@ struct StandardArguments {
   TestsBehavior tests_behavior = TestsBehavior::kIgnore;
   // If non-empty, tests given will be run despite the value of
   // `tests_behavior`.
-  std::vector<std::wstring> tests_filter;
+  std::vector<language::lazy_string::LazyString> tests_filter;
 
   // Output parameter with the name of the binary.
   language::lazy_string::LazyString binary_name;
@@ -69,10 +69,10 @@ struct StandardArguments {
 template <typename ParsedValues>
 struct ParsingData {
   const std::vector<Handler<ParsedValues>>* handlers;
-  std::list<std::wstring> input;
+  std::list<language::lazy_string::LazyString> input;
   ParsedValues output;
-  std::wstring current_flag;
-  std::optional<std::wstring> current_value;
+  language::lazy_string::LazyString current_flag;
+  std::optional<language::lazy_string::LazyString> current_value;
 };
 
 template <typename ParsedValues>
@@ -93,10 +93,12 @@ class Handler {
                 L"behavior",
                 L"The behavior for tests. Valid values are `run` and `list`.")
             .Set(&ParsedValues::tests_behavior,
-                 [](std::wstring input)
+                 [](language::lazy_string::LazyString input)
                      -> language::ValueOrError<TestsBehavior> {
-                   if (input == L"run") return TestsBehavior::kRunAndExit;
-                   if (input == L"list") return TestsBehavior::kListAndExit;
+                   if (input == language::lazy_string::LazyString{L"run"})
+                     return TestsBehavior::kRunAndExit;
+                   if (input == language::lazy_string::LazyString{L"list"})
+                     return TestsBehavior::kListAndExit;
                    return language::Error{
                        language::lazy_string::LazyString{
                            L"Invalid value (valid values are `run` and "
@@ -123,10 +125,13 @@ class Handler {
   }
 
   Handler<ParsedValues>& PushBackTo(
-      std::vector<std::wstring> ParsedValues::*field) {
+      std::vector<language::lazy_string::LazyString> ParsedValues::*field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value()) {
-        (data->output.*field).push_back(data->current_value.value());
+        // TODO(trivial, 2024-09-05): Avoid the LazyString conversion.
+        (data->output.*field)
+            .push_back(
+                language::lazy_string::LazyString{data->current_value.value()});
       }
     });
   }
@@ -146,24 +151,28 @@ class Handler {
   Handler<ParsedValues>& Set(bool ParsedValues::*field, bool default_value) {
     return PushDelegate([field,
                          default_value](ParsingData<ParsedValues>* data) {
-      if (data->current_value.has_value() && data->current_value != L"true" &&
-          data->current_value != L"false") {
+      if (data->current_value.has_value() &&
+          data->current_value != language::lazy_string::LazyString{L"true"} &&
+          data->current_value != language::lazy_string::LazyString{L"false"}) {
         std::cerr << data->output.binary_name << ": " << data->current_flag
                   << ": Invalid bool value (expected \"true\" or \"false\"): "
                   << data->current_value.value() << std::endl;
         exit(EX_USAGE);
       }
-      (data->output.*field) = data->current_value.has_value()
-                                  ? data->current_value.value() == L"true"
-                                  : default_value;
+      (data->output.*field) =
+          data->current_value.has_value()
+              ? data->current_value.value() ==
+                    language::lazy_string::LazyString{L"true"}
+              : default_value;
     });
   }
 
   template <typename Type>
   Handler<ParsedValues>& Set(Type ParsedValues::*field, Type value) {
     return PushDelegate([field, value](ParsingData<ParsedValues>* data) {
-      if (data->current_value.has_value() && data->current_value != L"true" &&
-          data->current_value != L"false") {
+      if (data->current_value.has_value() &&
+          data->current_value != language::lazy_string::LazyString{L"true"} &&
+          data->current_value != language::lazy_string::LazyString{L"false"}) {
         std::cerr << data->output.binary_name << ": " << data->current_flag
                   << ": Invalid value: " << data->current_value.value()
                   << std::endl;
@@ -205,18 +214,10 @@ class Handler {
     });
   }
 
-  Handler<ParsedValues>& Set(std::wstring ParsedValues::*field) {
-    return PushDelegate([field](ParsingData<ParsedValues>* data) {
-      if (data->current_value.has_value()) {
-        (data->output.*field) = data->current_value.value();
-      }
-    });
-  }
-
   Handler<ParsedValues>& Set(double ParsedValues::*field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       try {
-        data->output.*field = std::stod(data->current_value.value());
+        data->output.*field = std::stod(data->current_value.value().ToString());
       } catch (const std::invalid_argument& ia) {
         std::cerr << data->output.binary_name << ": " << data->current_flag
                   << ": " << ia.what() << std::endl;
@@ -258,12 +259,8 @@ class Handler {
         // Fallthrough.
 
       case VariableType::kOptional:
-        if (data->current_value.has_value()) {
-          // TODO(trivial, 2024-09-05): Avoid conversions.
-          data->current_value = transform_(language::lazy_string::LazyString{
-                                               data->current_value.value()})
-                                    .ToString();
-        }
+        if (data->current_value.has_value())
+          data->current_value = transform_(data->current_value.value());
         return delegate_(data);
     }
   }
@@ -404,15 +401,14 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
       continue;
     }
     std::wstring line;
-    while (std::getline(flags_stream, line)) {
-      args_data.input.push_back(line);
-    }
+    while (std::getline(flags_stream, line))
+      args_data.input.push_back(LazyString{line});
   }
 
   CHECK_GT(argc, 0);
   args_data.output.binary_name = LazyString{FromByteString(argv[0])};
   for (int i = 1; i < argc; i++) {
-    args_data.input.push_back(FromByteString(argv[i]));
+    args_data.input.push_back(LazyString{FromByteString(argv[i])});
   }
 
   std::map<std::wstring, int> handlers_map;
@@ -424,8 +420,7 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
   }
 
   while (!args_data.input.empty()) {
-    // TODO(trivial, 2024-09-05): Find a way to avoid this explicit conversion.
-    LazyString cmd = LazyString{args_data.input.front()};
+    LazyString cmd = args_data.input.front();
     if (cmd.IsEmpty()) {
       args_data.input.pop_front();
       continue;
@@ -438,20 +433,17 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
     }
 
     if (auto equals = FindFirstOf(cmd, {'='}); equals.has_value()) {
-      // TODO(trivial, 2024-09-05): Avoid ToString.
-      args_data.current_flag =
-          cmd.Substring(ColumnNumber{}, equals->ToDelta()).ToString();
-      // TODO(trivial, 2024-09-05): Avoid ToString.
+      args_data.current_flag = cmd.Substring(ColumnNumber{}, equals->ToDelta());
       args_data.current_value =
-          cmd.Substring(equals.value() + ColumnNumberDelta{1}).ToString();
+          cmd.Substring(equals.value() + ColumnNumberDelta{1});
     } else {
-      // TODO(trivial, 2024-09-05): Avoid ToString.
-      args_data.current_flag = cmd.ToString();
+      args_data.current_flag = cmd;
       args_data.current_value = std::nullopt;
     }
     args_data.input.pop_front();
 
-    if (auto it = handlers_map.find(args_data.current_flag);
+    // TODO(trivial, 2024-09-05): Avoid this stupid conversion to std::wstring.
+    if (auto it = handlers_map.find(args_data.current_flag.ToString());
         it != handlers_map.end()) {
       handlers[it->second].Execute(&args_data);
     } else {

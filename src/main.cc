@@ -249,8 +249,9 @@ int main(int argc, const char** argv) {
   global_editor_state =
       std::make_unique<EditorState>(args, audio_player.value());
 
-  if (!args.benchmark.empty()) {
-    afc::tests::RunBenchmark(args.benchmark);
+  if (!args.benchmark.IsEmpty()) {
+    // TODO(2024-09-05, trivial): Avoid this stupid conversion to std::wstring.
+    afc::tests::RunBenchmark(args.benchmark.ToString());
     exit(0);
   }
 

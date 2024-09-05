@@ -153,13 +153,11 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
               L"you can run the client command again.")
           .Accept(L"path", L"Path to the pipe in which to run the server")
           .Set(&CommandLineValues::server_path,
-               [](std::wstring input) -> ValueOrError<std::optional<Path>> {
-                 if (input.empty()) {
+               [](LazyString input) -> ValueOrError<std::optional<Path>> {
+                 if (input.IsEmpty()) {
                    return Success(std::optional<Path>());
                  }
-                 // TODO(easy, 2024-08-04): Receive input already as LazyString
-                 // and avoid explicit conversion.
-                 ValueOrError<Path> output = Path::New(LazyString{input});
+                 ValueOrError<Path> output = Path::New(input);
                  if (std::holds_alternative<Error>(output)) {
                    return std::get<Error>(output);
                  }
@@ -172,10 +170,8 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Require(L"path",
                    L"Path to the pipe in which the daemon is listening")
           .Set(&CommandLineValues::client,
-               [](std::wstring input) -> ValueOrError<std::optional<Path>> {
-                 // TODO(easy, 2024-08-04): Receive input already as LazyString
-                 // and avoid explicit conversion.
-                 ValueOrError<Path> output = Path::New(LazyString{input});
+               [](LazyString input) -> ValueOrError<std::optional<Path>> {
+                 ValueOrError<Path> output = Path::New(input);
                  if (std::holds_alternative<Error>(output)) {
                    return std::get<Error>(output);
                  }
@@ -214,18 +210,21 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
 
       Handler<CommandLineValues>({L"benchmark"}, L"Run a benchmark")
           .Require(L"benchmark", L"The benchmark to run.")
-          .Set<std::wstring>(
+          .Set<LazyString>(
               &CommandLineValues::benchmark,
-              [](std::wstring input) -> ValueOrError<std::wstring> {
+              [](LazyString input) -> ValueOrError<LazyString> {
                 std::vector<std::wstring> benchmarks = tests::BenchmarkNames();
-                if (std::find(benchmarks.begin(), benchmarks.end(), input) !=
-                    benchmarks.end()) {
+                // TODO(trivial, 2024-09-05): Avoid call to ToString.
+                if (std::find(benchmarks.begin(), benchmarks.end(),
+                              input.ToString()) != benchmarks.end()) {
                   return input;
                 }
                 return Error{LazyString{L"Invalid value (valid values: "} +
                              Concatenate(benchmarks |
                                          std::views::transform(
                                              [](const std::wstring& b) {
+                                               // TODO(trivial, 2024-09-05):
+                                               // Avoid this conversion.
                                                return LazyString{b};
                                              }) |
                                          Intersperse(LazyString{L", "})) +
@@ -238,15 +237,15 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
                    L"`default`.")
           .Set<CommandLineValues::ViewMode>(
               &CommandLineValues::view_mode,
-              [](std::wstring input)
+              [](LazyString input)
                   -> ValueOrError<CommandLineValues::ViewMode> {
-                if (input == L"all")
+                if (input == LazyString{L"all"})
                   return CommandLineValues::ViewMode::kAllBuffers;
-                if (input == L"default")
+                if (input == LazyString{L"default"})
                   return CommandLineValues::ViewMode::kDefault;
-                return Error{LazyString{
-                    L"Invalid value (valid values are `all` and `default`): " +
-                    input}};
+                return Error{LazyString{L"Invalid value (valid values are "
+                                        L"`all` and `default`): "} +
+                             input};
               }),
 
       Handler<CommandLineValues>({L"fps"}, L"Frames per second")

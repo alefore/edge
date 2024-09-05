@@ -16,7 +16,7 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
 
   infrastructure::Path home_directory;
 
-  std::vector<std::wstring> commands_to_fork;
+  std::vector<language::lazy_string::LazyString> commands_to_fork;
 
   // Contains C++ (VM) code to execute.
   language::lazy_string::LazyString commands_to_run;
@@ -45,7 +45,8 @@ struct CommandLineValues : public command_line_arguments::StandardArguments {
   bool prompt_for_path = false;
 
   // If non-empty, benchmark to run.
-  std::wstring benchmark = L"";
+  language::lazy_string::LazyString benchmark;
+  ;
 
   enum class ViewMode {
     // Automatically start editing all files opened (as soon as they have been
