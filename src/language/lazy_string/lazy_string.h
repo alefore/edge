@@ -28,6 +28,7 @@ class LazyString {
 
   friend AppendImpl;
   friend LazyStringImpl;
+  friend LazyStringIterator;
 
  public:
   LazyString();
@@ -109,42 +110,16 @@ class LazyStringIterator {
 
   wchar_t operator*() const { return container_.get(position_); }
 
-  bool operator!=(const LazyStringIterator& other) const {
-    return !(*this == other);
-  }
-
-  bool operator==(const LazyStringIterator& other) const {
-    CHECK_EQ(&container_, &other.container_);
-    if (IsAtEnd() || other.IsAtEnd()) return IsAtEnd() && other.IsAtEnd();
-    return position_ == other.position_;
-  }
-
-  LazyStringIterator& operator++() {  // Prefix increment.
-    ++position_;
-    return *this;
-  }
-
-  LazyStringIterator operator++(int) {  // Postfix increment.
-    LazyStringIterator tmp = *this;
-    ++*this;
-    return tmp;
-  }
-
-  int operator-(const LazyStringIterator& other) const {
-    CHECK_EQ(&container_, &other.container_);
-    return (position_ - other.position_).read();
-  }
-
-  LazyStringIterator operator+(int n) const {
-    return LazyStringIterator(container_, position_ + ColumnNumberDelta(n));
-  }
-
-  LazyStringIterator operator+(int n) {
-    return LazyStringIterator(container_, position_ + ColumnNumberDelta(n));
-  }
+  bool operator!=(const LazyStringIterator& other) const;
+  bool operator==(const LazyStringIterator& other) const;
+  LazyStringIterator& operator++();    // Prefix increment.
+  LazyStringIterator operator++(int);  // Postfix increment.
+  int operator-(const LazyStringIterator& other) const;
+  LazyStringIterator operator+(int n) const;
+  LazyStringIterator operator+(int n);
 
  private:
-  bool IsAtEnd() const { return position_.ToDelta() >= container_.size(); }
+  bool IsAtEnd() const;
 };
 }  // namespace afc::language::lazy_string
 

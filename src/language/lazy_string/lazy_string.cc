@@ -6,6 +6,7 @@
 #include "src/language/const_tree.h"
 #include "src/language/lazy_string/functional.h"
 #include "src/language/wstring.h"
+#include "src/tests/tests.h"
 
 namespace afc::language::lazy_string {
 namespace {
@@ -198,5 +199,84 @@ LazyStringIterator LazyString::end() const {
 std::wstring to_wstring(const LazyString& s) { return s.ToString(); }
 
 std::string LazyString::ToBytes() const { return ToByteString(ToString()); }
+
+bool LazyStringIterator::operator!=(const LazyStringIterator& other) const {
+  return !(*this == other);
+}
+
+bool LazyStringIterator::operator==(const LazyStringIterator& other) const {
+  if (container_.data_ != other.container_.data_) {
+    CHECK(IsAtEnd() && other.IsAtEnd());
+    return false;
+  }
+  if (IsAtEnd() || other.IsAtEnd()) return IsAtEnd() && other.IsAtEnd();
+  return position_ == other.position_;
+}
+
+LazyStringIterator& LazyStringIterator::operator++() {  // Prefix increment.
+  ++position_;
+  return *this;
+}
+
+LazyStringIterator LazyStringIterator::operator++(int) {  // Postfix increment.
+  LazyStringIterator tmp = *this;
+  ++*this;
+  return tmp;
+}
+
+int LazyStringIterator::operator-(const LazyStringIterator& other) const {
+  CHECK_EQ(&container_, &other.container_);
+  return (position_ - other.position_).read();
+}
+
+LazyStringIterator LazyStringIterator::operator+(int n) const {
+  return LazyStringIterator(container_, position_ + ColumnNumberDelta(n));
+}
+
+LazyStringIterator LazyStringIterator::operator+(int n) {
+  return LazyStringIterator(container_, position_ + ColumnNumberDelta(n));
+}
+
+bool LazyStringIterator::IsAtEnd() const {
+  return position_.ToDelta() >= container_.size();
+}
+
+namespace {
+const bool iterator_tests_registration = tests::Register(
+    L"LazyStringIterator",
+    {{.name = L"EndComparisonOk",
+      .callback =
+          [] { CHECK(LazyString{L""}.end() != LazyString{L""}.end()); }},
+     {.name = L"EmptyBeginComparisonOk",
+      .callback =
+          [] { CHECK(LazyString{L""}.begin() != LazyString{L""}.begin()); }},
+     {.name = L"ComparisonEqual",
+      .callback =
+          [] {
+            LazyString input{L"alejandro"};
+            CHECK(input.begin() == input.begin());
+          }},
+     {.name = L"ComparisonDifferent",
+      .callback =
+          [] {
+            LazyString input{L"alejandro"};
+            CHECK(++input.begin() != input.begin());
+          }},
+     {.name = L"ComparisonDifferentContainersCrashes",
+      .callback =
+          [] {
+            tests::ForkAndWaitForFailure(
+                [] { LazyString{L"a"}.begin() == LazyString{L"a"}.begin(); });
+          }},
+     {.name = L"EventuallyReachesEnd", .callback = [] {
+        LazyString input{L"foo"};
+        LazyStringIterator it = input.begin();
+        ++it;
+        ++it;
+        ++it;
+        CHECK(it == input.end());
+      }}});
+
+}  // namespace
 
 }  // namespace afc::language::lazy_string
