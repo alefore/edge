@@ -115,7 +115,9 @@ class Handler {
       : aliases_(aliases), short_help_(short_help) {}
 
   Handler<ParsedValues>& Transform(
-      std::function<std::wstring(std::wstring)> transform) {
+      std::function<
+          language::lazy_string::LazyString(language::lazy_string::LazyString)>
+          transform) {
     transform_ = std::move(transform);
     return *this;
   }
@@ -129,10 +131,14 @@ class Handler {
     });
   }
 
-  Handler<ParsedValues>& AppendTo(std::wstring(ParsedValues::*field)) {
+  Handler<ParsedValues>& AppendTo(
+      language::lazy_string::LazyString ParsedValues::*field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value()) {
-        (data->output.*field) += data->current_value.value();
+        // TODO(2024-09-05, easy): Find a way to avoid the LazyString
+        // conversion.
+        (data->output.*field) +=
+            language::lazy_string::LazyString{data->current_value.value()};
       }
     });
   }
@@ -253,7 +259,10 @@ class Handler {
 
       case VariableType::kOptional:
         if (data->current_value.has_value()) {
-          data->current_value = transform_(data->current_value.value());
+          // TODO(trivial, 2024-09-05): Avoid conversions.
+          data->current_value = transform_(language::lazy_string::LazyString{
+                                               data->current_value.value()})
+                                    .ToString();
         }
         return delegate_(data);
     }
@@ -358,9 +367,9 @@ class Handler {
   VariableType type_ = VariableType::kNone;
   std::wstring name_;
   std::wstring argument_description_;
-  std::function<std::wstring(std::wstring)> transform_ = [](std::wstring x) {
-    return x;
-  };
+  std::function<language::lazy_string::LazyString(
+      language::lazy_string::LazyString)>
+      transform_ = [](language::lazy_string::LazyString x) { return x; };
   std::function<void(ParsingData<ParsedValues>*)> delegate_ =
       [](ParsingData<ParsedValues>*) {};
 };

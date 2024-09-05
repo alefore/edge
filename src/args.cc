@@ -120,13 +120,11 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
       Handler<CommandLineValues>({L"load", L"l"},
                                  L"Load a file with VM commands")
           .Require(L"path", L"Path to file containing VM commands to run")
-          .Transform([](std::wstring value) {
-            // TODO(easy, 2023-12-31): Avoid ToString.
-            return L"buffer.EvaluateFile(" +
+          .Transform([](LazyString value) {
+            return LazyString{L"buffer.EvaluateFile("} +
                    vm::EscapedString::FromString(LazyString{value})
-                       .CppRepresentation()
-                       .ToString() +
-                   L");";
+                       .CppRepresentation() +
+                   LazyString{L");"};
           })
           .AppendTo(&CommandLineValues::commands_to_run),
 
@@ -295,11 +293,10 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
 
 LazyString CommandsToRun(CommandLineValues args) {
   using afc::vm::EscapedString;
-  // TODO(trivial, 2023-12-31): Avoid LazyString.
   LazyString commands_to_run =
-      LazyString{args.commands_to_run} +
+      args.commands_to_run +
       LazyString{L"VectorBuffer buffers_to_watch = VectorBuffer();\n"};
-  bool start_shell = args.commands_to_run.empty();
+  bool start_shell = args.commands_to_run.IsEmpty();
   for (LazyString path : args.naked_arguments) {
     LazyString full_path;
     if (!path.IsEmpty() && std::wstring(L"/~").find(path.get(ColumnNumber{})) !=
@@ -364,7 +361,7 @@ LazyString CommandsToRun(CommandLineValues args) {
     start_shell = false;
   }
   if (start_shell) {
-    static const LazyString kDefaultCommandsToRun = LazyString{
+    static const LazyString kDefaultCommandsToRun{
         L"ForkCommandOptions options = ForkCommandOptions();\n"
         L"options.set_command(\"sh -l\");\n"
         L"options.set_insertion_type(\"search_or_create\");\n"
