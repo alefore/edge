@@ -29,8 +29,9 @@ void Observers::Notify() {
     new_observers.swap(*new_observers_.lock());
 
     observers_.lock([&new_observers](std::vector<Observer>& observers) {
-      observers.insert(observers.end(), new_observers.begin(),
-                       new_observers.end());
+      observers.insert(observers.end(),
+                       std::make_move_iterator(new_observers.begin()),
+                       std::make_move_iterator(new_observers.end()));
 
       bool expired_observers = false;
       for (auto& o : observers) {
@@ -65,13 +66,9 @@ void Observers::Notify() {
 
 futures::Value<EmptyValue> Observers::NewFuture() const {
   futures::Future<EmptyValue> output;
-  // TODO(2023-11-28, P1): This is ugly, don't use std::make_shared. Make
-  // `Observers::Once` receive a OnceOnlyFunction directly?
-  Add(Observers::Once(
-      [consumer = std::make_shared<futures::Value<EmptyValue>::Consumer>(
-           std::move(output.consumer))] mutable {
-        std::invoke(std::move(*consumer), EmptyValue());
-      }));
+  Add(Observers::Once([consumer = std::move(output.consumer)] mutable {
+    std::invoke(std::move(consumer), EmptyValue());
+  }));
   return std::move(output.value);
 }
 

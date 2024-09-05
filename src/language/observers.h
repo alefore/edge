@@ -16,7 +16,7 @@ class Observable {
   virtual ~Observable() {}
 
   enum class State { kExpired, kAlive };
-  using Observer = std::function<State()>;
+  using Observer = std::move_only_function<State()>;
 
   // Why const? Because adding an observer doesn't modify the observable object.
   virtual void Add(Observer observer) const = 0;
@@ -51,9 +51,9 @@ class Observers : public Observable {
     };
   }
 
-  static Observer Once(std::function<void()> observer) {
-    return [observer = std::move(observer)] {
-      observer();
+  static Observer Once(OnceOnlyFunction<void()> observer) {
+    return [observer = std::move(observer)] mutable {
+      std::move(observer)();
       return State::kExpired;
     };
   }
@@ -63,7 +63,7 @@ class Observers : public Observable {
 
   // `Add` only adds to `new_observers_`, and it is the job of `Notify` to merge
   // those back into `observers_`. We do this so that observers can call `Add`
-  // without deadlocking. We never require both locks to be held concurrently.
+  // without deadlocking. We never hold both locks concurrently.
   //
   // This is mutable so that `Add` can be const.
   mutable concurrent::Protected<std::vector<Observer>> new_observers_;
