@@ -62,8 +62,8 @@ struct StandardArguments {
   std::vector<std::wstring> tests_filter;
 
   // Output parameter with the name of the binary.
-  std::wstring binary_name;
-  std::vector<std::wstring> naked_arguments;
+  language::lazy_string::LazyString binary_name;
+  std::vector<language::lazy_string::LazyString> naked_arguments;
 };
 
 template <typename ParsedValues>
@@ -187,6 +187,18 @@ class Handler {
     });
   }
 
+  Handler<ParsedValues>& Set(
+      language::lazy_string::LazyString ParsedValues::*field) {
+    return PushDelegate([field](ParsingData<ParsedValues>* data) {
+      if (data->current_value.has_value()) {
+        // TODO(2024-09-05, easy): Change `current_value` to LazyString, remove
+        // this conversion.
+        (data->output.*field) =
+            language::lazy_string::LazyString{data->current_value.value()};
+      }
+    });
+  }
+
   Handler<ParsedValues>& Set(std::wstring ParsedValues::*field) {
     return PushDelegate([field](ParsingData<ParsedValues>* data) {
       if (data->current_value.has_value()) {
@@ -284,8 +296,7 @@ class Handler {
   }
 
   static void DisplayHelp(ParsingData<ParsedValues>* data) {
-    using language::ToByteString;
-    std::cout << "Usage: " << ToByteString(data->output.binary_name)
+    std::cout << "Usage: " << data->output.binary_name
               << " [OPTION]... [FILE]...\n\n"
               << "Supports the following options:\n";
 
@@ -330,12 +341,12 @@ class Handler {
     for (size_t i = 0; i < sorted_handlers.size(); i++) {
       const Handler<ParsedValues>* handler = sorted_handlers[i];
       // TODO: Figure out how to get rid of the calls to `ToByteString`.
-      std::cout << ToByteString(initial_table[i])
+      std::cout << language::ToByteString(initial_table[i])
                 << std::string(padding > initial_table[i].size()
                                    ? padding - initial_table[i].size()
                                    : 1,
                                ' ')
-                << ToByteString(handler->short_help()) << "\n";
+                << language::ToByteString(handler->short_help()) << "\n";
     }
     exit(0);
   }
@@ -361,6 +372,9 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
                    const char** argv) {
   using language::FromByteString;
   using language::ToByteString;
+  using language::lazy_string::ColumnNumber;
+  using language::lazy_string::ColumnNumberDelta;
+  using language::lazy_string::LazyString;
   using std::cerr;
   using std::cout;
 
@@ -387,7 +401,7 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
   }
 
   CHECK_GT(argc, 0);
-  args_data.output.binary_name = FromByteString(argv[0]);
+  args_data.output.binary_name = LazyString{FromByteString(argv[0])};
   for (int i = 1; i < argc; i++) {
     args_data.input.push_back(FromByteString(argv[i]));
   }
@@ -401,23 +415,29 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
   }
 
   while (!args_data.input.empty()) {
-    std::wstring cmd = args_data.input.front();
-    if (cmd.empty()) {
+    // TODO(trivial, 2024-09-05): Find a way to avoid this explicit conversion.
+    LazyString cmd = LazyString{args_data.input.front()};
+    if (cmd.IsEmpty()) {
       args_data.input.pop_front();
       continue;
     }
 
-    if (cmd[0] != '-') {
+    if (cmd.get(ColumnNumber{}) != '-') {
       args_data.output.naked_arguments.push_back(cmd);
       args_data.input.pop_front();
       continue;
     }
 
-    if (auto equals = cmd.find('='); equals != std::wstring::npos) {
-      args_data.current_flag = cmd.substr(0, equals);
-      args_data.current_value = cmd.substr(equals + 1, cmd.size());
+    if (auto equals = FindFirstOf(cmd, {'='}); equals.has_value()) {
+      // TODO(trivial, 2024-09-05): Avoid ToString.
+      args_data.current_flag =
+          cmd.Substring(ColumnNumber{}, equals->ToDelta()).ToString();
+      // TODO(trivial, 2024-09-05): Avoid ToString.
+      args_data.current_value =
+          cmd.Substring(equals.value() + ColumnNumberDelta{1}).ToString();
     } else {
-      args_data.current_flag = cmd;
+      // TODO(trivial, 2024-09-05): Avoid ToString.
+      args_data.current_flag = cmd.ToString();
       args_data.current_value = std::nullopt;
     }
     args_data.input.pop_front();

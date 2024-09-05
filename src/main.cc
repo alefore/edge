@@ -117,9 +117,10 @@ Path StartServer(const CommandLineValues& args, bool connected_to_parent) {
     // will run.
     Daemonize(surviving_fds);
   }
-  Path server_address =
-      ValueOrDie(StartServer(editor_state(), args.server_path),
-                 args.binary_name + L"Unable to start server");
+  // TODO(2024-09-05, trivial): Remove call to ToString.
+  Path server_address = ValueOrDie(
+      StartServer(editor_state(), args.server_path),
+      (args.binary_name + LazyString{L"Unable to start server"}).ToString());
   if (args.server) {
     if (!connected_to_parent) {
       std::cout << args.binary_name
@@ -254,11 +255,13 @@ int main(int argc, const char** argv) {
   }
 
   bool connected_to_parent = false;
+  // TODO(trivial, 2024-09-05): Remove call to ToString, change ValueOrDie.
   const std::optional<FileDescriptor> remote_server_fd =
       args.client.has_value()
-          ? ValueOrDie(
-                SyncConnectToServer(args.client.value()),
-                args.binary_name + L": Unable to connect to remote server")
+          ? ValueOrDie(SyncConnectToServer(args.client.value()),
+                       (args.binary_name +
+                        LazyString{L": Unable to connect to remote server"})
+                           .ToString())
           : std::visit(
                 overload{[](Error) { return std::optional<FileDescriptor>(); },
                          [&](FileDescriptor fd) {

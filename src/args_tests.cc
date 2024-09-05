@@ -24,7 +24,7 @@ using afc::language::lazy_string::LazyString;
 
 namespace afc::editor {
 namespace {
-bool server_tests_registration = tests::Register(
+bool args_tests_registration = tests::Register(
     L"Args", std::invoke([]() -> std::vector<tests::Test> {
       auto add_test = [](std::wstring name,
                          std::function<CommandLineValues()> args,
@@ -78,7 +78,8 @@ bool server_tests_registration = tests::Register(
                   L"File",
                   [] {
                     CommandLineValues output;
-                    output.naked_arguments = {L"/foo/bar", L"/tmp"};
+                    output.naked_arguments = {LazyString{L"/foo/bar"},
+                                              LazyString{L"/tmp"}};
                     return output;
                   },
                   [has_buffer](EditorState& editor) {

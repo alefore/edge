@@ -300,10 +300,8 @@ LazyString CommandsToRun(CommandLineValues args) {
       LazyString{args.commands_to_run} +
       LazyString{L"VectorBuffer buffers_to_watch = VectorBuffer();\n"};
   bool start_shell = args.commands_to_run.empty();
-  for (auto& path_str : args.naked_arguments) {
+  for (LazyString path : args.naked_arguments) {
     LazyString full_path;
-    // TODO(2024-09-05, easy): Avoid explicit LazyString conversion.
-    LazyString path{path_str};
     if (!path.IsEmpty() && std::wstring(L"/~").find(path.get(ColumnNumber{})) !=
                                std::wstring::npos) {
       LOG(INFO) << L"Will open an absolute path: " << path;
