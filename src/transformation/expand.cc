@@ -20,6 +20,7 @@
 #include "src/transformation/vm.h"
 
 namespace gc = afc::language::gc;
+namespace container = afc::language::container;
 
 using afc::futures::OnError;
 using afc::infrastructure::Path;
@@ -56,15 +57,14 @@ LazyString GetToken(const CompositeTransformation::Input& input,
   const LazyString line =
       input.buffer.contents().snapshot().at(input.position.line).contents();
 
-  std::wstring chars_str = input.buffer.Read(characters_variable);
   ColumnNumber symbol_start = VisitOptional(
       [](ColumnNumber index_before_symbol) {
         return index_before_symbol.next();
       },
       [] { return ColumnNumber(0); },
-      FindLastNotOf(
-          line.Substring(ColumnNumber{}, end.ToDelta()),
-          std::unordered_set<wchar_t>(chars_str.begin(), chars_str.end())));
+      FindLastNotOf(line.Substring(ColumnNumber{}, end.ToDelta()),
+                    container::Materialize<std::unordered_set<wchar_t>>(
+                        input.buffer.ReadLazyString(characters_variable))));
 
   return line.Substring(symbol_start,
                         end - symbol_start + ColumnNumberDelta(1));
