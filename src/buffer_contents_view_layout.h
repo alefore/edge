@@ -24,7 +24,7 @@ struct BufferContentsViewLayout {
     const infrastructure::screen::CursorsSet& active_cursors;
 
     LineWrapStyle line_wrap_style;
-    std::wstring symbol_characters;
+    std::unordered_set<wchar_t> symbol_characters;
 
     // Maximum number of lines in the output. May return fewer lines (e.g., if
     // the contents are shorter).

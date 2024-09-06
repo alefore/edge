@@ -3,6 +3,8 @@
 #ifndef __AFC_EDITOR_LINE_OUTPUT_H__
 #define __AFC_EDITOR_LINE_OUTPUT_H__
 
+#include <unordered_set>
+
 #include "src/language/text/line.h"
 
 namespace afc::editor {
@@ -21,7 +23,8 @@ struct ColumnRange {
 std::list<ColumnRange> BreakLineForOutput(
     const language::text::Line& line,
     language::lazy_string::ColumnNumberDelta screen_positions,
-    LineWrapStyle line_wrap_style, std::wstring symbol_characters);
+    LineWrapStyle line_wrap_style,
+    std::unordered_set<wchar_t> symbol_characters);
 
 }  // namespace afc::editor
 

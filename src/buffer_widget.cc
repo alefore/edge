@@ -356,10 +356,8 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .line_wrap_style = buffer.Read(buffer_variables::wrap_from_content)
                              ? LineWrapStyle::kContentBased
                              : LineWrapStyle::kBreakWords,
-      // TODO(trivial, 2024-09-03): Avoid explicit call to ToString. Pass as
-      // LazyString.
-      .symbol_characters =
-          buffer.ReadLazyString(buffer_variables::symbol_characters).ToString(),
+      .symbol_characters = container::Materialize<std::unordered_set<wchar_t>>(
+          buffer.ReadLazyString(buffer_variables::symbol_characters)),
       .lines_shown = input.output_producer_options.size.line,
       .status_lines = status_lines.size(),
       .columns_shown =

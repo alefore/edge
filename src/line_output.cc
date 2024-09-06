@@ -1,18 +1,20 @@
 #include "src/line_output.h"
 
+#include "src/language/container.h"
 #include "src/tests/tests.h"
 
-namespace afc::editor {
-using language::lazy_string::ColumnNumber;
-using language::lazy_string::ColumnNumberDelta;
-using language::text::Line;
-using language::text::LineBuilder;
+namespace container = afc::language::container;
+using afc::language::lazy_string::ColumnNumber;
+using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::text::Line;
+using afc::language::text::LineBuilder;
 
+namespace afc::editor {
 namespace {
-ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
-                                   ColumnNumberDelta screen_positions,
-                                   LineWrapStyle line_wrap_style,
-                                   std::wstring symbol_characters) {
+ColumnNumberDelta LineOutputLength(
+    const Line& line, ColumnNumber begin, ColumnNumberDelta screen_positions,
+    LineWrapStyle line_wrap_style,
+    std::unordered_set<wchar_t> symbol_characters) {
   ColumnNumberDelta output;
   ColumnNumberDelta shown;
   while (begin + output < line.EndColumn() && shown < screen_positions) {
@@ -28,8 +30,7 @@ ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
       }
       const ColumnNumberDelta original_output = output;
       while (output > ColumnNumberDelta(1) &&
-             symbol_characters.find(line.get(begin + output)) !=
-                 symbol_characters.npos)
+             symbol_characters.contains(line.get(begin + output)))
         --output;  // Scroll back: we're in a symbol.
       if (output <= ColumnNumberDelta(1)) {
         output = original_output;
@@ -40,7 +41,9 @@ ColumnNumberDelta LineOutputLength(const Line& line, ColumnNumber begin,
   return output;
 }
 
-std::wstring symbol_characters_for_testing = L"abcdefghijklmnopqrstuvwxyz";
+const std::unordered_set<wchar_t> symbol_characters_for_testing =
+    container::Materialize<std::unordered_set<wchar_t>>(
+        std::wstring{L"abcdefghijklmnopqrstuvwxyz"});
 
 const bool compute_column_delta_for_output_tests_registration = tests::Register(
     L"LineOutputLength",
@@ -48,14 +51,14 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(LineOutputLength({}, ColumnNumber(), ColumnNumberDelta(),
-                                   LineWrapStyle::kBreakWords, L"")
+                                   LineWrapStyle::kBreakWords, {})
                       .IsZero());
           }},
      {.name = L"EmptyAndWants",
       .callback =
           [] {
             CHECK(LineOutputLength({}, ColumnNumber(), ColumnNumberDelta(80),
-                                   LineWrapStyle::kBreakWords, L"")
+                                   LineWrapStyle::kBreakWords, {})
                       .IsZero());
           }},
      {.name = L"NormalConsumed",
@@ -63,14 +66,14 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
           [] {
             CHECK(LineOutputLength(
                       Line(L"alejandro"), ColumnNumber(), ColumnNumberDelta(80),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(9));
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(9));
           }},
      {.name = L"NormalOverflow",
       .callback =
           [] {
             CHECK(LineOutputLength(
                       Line(L"alejandro"), ColumnNumber(), ColumnNumberDelta(6),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(6));
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(6));
           }},
      {.name = L"SimpleWide",
       .callback =
@@ -78,42 +81,42 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
             CHECK(LineOutputLength(Line(L"a🦋lejandro"), ColumnNumber(),
                                    ColumnNumberDelta(6),
                                    LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(5));
+                                   {}) == ColumnNumberDelta(5));
           }},
      {.name = L"WideConsumed",
       .callback =
           [] {
             CHECK(LineOutputLength(
                       Line(L"a🦋o"), ColumnNumber(), ColumnNumberDelta(6),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(3));
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(3));
           }},
      {.name = L"CharacterDoesNotFit",
       .callback =
           [] {
             CHECK(LineOutputLength(
                       Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(6),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(5));
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(5));
           }},
      {.name = L"CharacterAtBorder",
       .callback =
           [] {
             CHECK(LineOutputLength(
                       Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(7),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(6));
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(6));
           }},
      {.name = L"SingleWidthNormalCharacter",
       .callback =
           [] {
             CHECK(LineOutputLength(
                       Line(L"alejo🦋"), ColumnNumber(), ColumnNumberDelta(1),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(1));
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(1));
           }},
      {.name = L"SingleWidthWide",
       .callback =
           [] {
             CHECK(LineOutputLength(
                       Line(L"🦋"), ColumnNumber(), ColumnNumberDelta(1),
-                      LineWrapStyle::kBreakWords, L"") == ColumnNumberDelta(1));
+                      LineWrapStyle::kBreakWords, {}) == ColumnNumberDelta(1));
           }},
      {.name = L"ManyWideOverflow",
       .callback =
@@ -121,7 +124,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
             CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
                                    ColumnNumberDelta(5),
                                    LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(2));
+                                   {}) == ColumnNumberDelta(2));
           }},
      {.name = L"ManyWideOverflowAfter",
       .callback =
@@ -129,7 +132,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
             CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
                                    ColumnNumberDelta(10),
                                    LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(6));
+                                   {}) == ColumnNumberDelta(6));
           }},
      {.name = L"ManyWideOverflowExact",
       .callback =
@@ -137,7 +140,7 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
             CHECK(LineOutputLength(Line(L"🦋🦋🦋🦋abcdef"), ColumnNumber(),
                                    ColumnNumberDelta(4),
                                    LineWrapStyle::kBreakWords,
-                                   L"") == ColumnNumberDelta(2));
+                                   {}) == ColumnNumberDelta(2));
           }},
      {.name = L"ContentBasedWrapFits",
       .callback =
@@ -163,10 +166,10 @@ const bool compute_column_delta_for_output_tests_registration = tests::Register(
       }}});
 }  // namespace
 
-std::list<ColumnRange> BreakLineForOutput(const Line& line,
-                                          ColumnNumberDelta screen_positions,
-                                          LineWrapStyle line_wrap_style,
-                                          std::wstring symbol_characters) {
+std::list<ColumnRange> BreakLineForOutput(
+    const Line& line, ColumnNumberDelta screen_positions,
+    LineWrapStyle line_wrap_style,
+    std::unordered_set<wchar_t> symbol_characters) {
   std::list<ColumnRange> output;
   ColumnNumber start;
   while (output.empty() || start < line.EndColumn()) {
@@ -194,21 +197,21 @@ const bool break_line_for_output_tests_registration = tests::Register(
       .callback =
           [] {
             CHECK(BreakLineForOutput({}, ColumnNumberDelta(10),
-                                     LineWrapStyle::kBreakWords, L"") ==
+                                     LineWrapStyle::kBreakWords, {}) ==
                   std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(0)}}));
           }},
      {.name = L"Fits",
       .callback =
           [] {
             CHECK(BreakLineForOutput(Line(L"foo"), ColumnNumberDelta(10),
-                                     LineWrapStyle::kBreakWords, L"") ==
+                                     LineWrapStyle::kBreakWords, {}) ==
                   std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(3)}}));
           }},
      {.name = L"FitsExactly",
       .callback =
           [] {
             CHECK(BreakLineForOutput(Line(L"foobar"), ColumnNumberDelta(6),
-                                     LineWrapStyle::kBreakWords, L"") ==
+                                     LineWrapStyle::kBreakWords, {}) ==
                   std::list<ColumnRange>({{ColumnNumber(0), ColumnNumber(6)}}));
           }},
      {.name = L"Breaks",
@@ -216,7 +219,7 @@ const bool break_line_for_output_tests_registration = tests::Register(
           [] {
             CHECK(BreakLineForOutput(Line(L"foobarheyyou"),
                                      ColumnNumberDelta(3),
-                                     LineWrapStyle::kBreakWords, L"") ==
+                                     LineWrapStyle::kBreakWords, {}) ==
                   std::list<ColumnRange>({
                       {ColumnNumber(0), ColumnNumber(3)},
                       {ColumnNumber(3), ColumnNumber(6)},
@@ -246,5 +249,5 @@ const bool break_line_for_output_tests_registration = tests::Register(
                   {ColumnNumber(12), ColumnNumber(15)},
               }));
       }}});
-}
+}  // namespace
 }  // namespace afc::editor
