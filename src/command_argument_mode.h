@@ -7,6 +7,8 @@
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/language/container.h"
+#include "src/language/gc_view.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/text/line.h"
 #include "src/terminal.h"
@@ -46,7 +48,9 @@ class CommandArgumentMode : public EditorMode {
   };
 
   CommandArgumentMode(Options options)
-      : options_(options), buffers_(options_.editor_state.active_buffers()) {
+      : options_(options),
+        buffers_(afc::language::container::MaterializeVector(
+            options_.editor_state.active_buffers() | language::gc::view::Ptr)) {
     CHECK(options_.char_consumer != nullptr);
     CHECK(options_.status_factory != nullptr);
     CHECK(options_.undo != nullptr);
@@ -94,7 +98,8 @@ class CommandArgumentMode : public EditorMode {
 
   std::vector<language::NonNull<std::shared_ptr<language::gc::ObjectMetadata>>>
   Expand() const override {
-    return {};
+    return language::container::MaterializeVector(
+        buffers_ | language::gc::view::ObjectMetadata);
   }
 
  private:
@@ -118,9 +123,7 @@ class CommandArgumentMode : public EditorMode {
   }
 
   const Options options_;
-  // TODO(easy, 2023-10-14): Turn the buffers into gc::Ptr, return them in
-  // `Expand`.
-  const std::vector<language::gc::Root<OpenBuffer>> buffers_;
+  const std::vector<language::gc::Ptr<OpenBuffer>> buffers_;
   std::wstring argument_string_;
 };
 
