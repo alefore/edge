@@ -16,6 +16,7 @@ extern "C" {
 
 #include "src/infrastructure/command_line.h"
 #include "src/infrastructure/dirname.h"
+#include "src/language/container.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/overload.h"
@@ -23,6 +24,8 @@ extern "C" {
 #include "src/server.h"
 #include "src/tests/benchmarks.h"
 #include "src/vm/escape.h"
+
+namespace container = afc::language::container;
 
 using afc::infrastructure::Path;
 using afc::infrastructure::PathComponent;
@@ -213,22 +216,17 @@ const std::vector<Handler<CommandLineValues>>& CommandLineArgs() {
           .Set<LazyString>(
               &CommandLineValues::benchmark,
               [](LazyString input) -> ValueOrError<LazyString> {
-                std::vector<std::wstring> benchmarks = tests::BenchmarkNames();
-                // TODO(trivial, 2024-09-05): Avoid call to ToString.
-                if (std::find(benchmarks.begin(), benchmarks.end(),
-                              input.ToString()) != benchmarks.end()) {
-                  return input;
-                }
-                return Error{LazyString{L"Invalid value (valid values: "} +
-                             Concatenate(benchmarks |
-                                         std::views::transform(
-                                             [](const std::wstring& b) {
-                                               // TODO(trivial, 2024-09-05):
-                                               // Avoid this conversion.
-                                               return LazyString{b};
-                                             }) |
-                                         Intersperse(LazyString{L", "})) +
-                             LazyString{L")"}};
+                std::set<LazyString> benchmarks = container::MaterializeSet(
+                    tests::BenchmarkNames() |
+                    std::views::transform([](const std::wstring& b) {
+                      // TODO(trivial, 2024-09-05): Avoid this conversion.
+                      return LazyString{b};
+                    }));
+                if (benchmarks.contains(input)) return input;
+                return Error{
+                    LazyString{L"Invalid value (valid values: "} +
+                    Concatenate(benchmarks | Intersperse(LazyString{L", "})) +
+                    LazyString{L")"}};
               }),
 
       Handler<CommandLineValues>({L"view"}, L"Widget mode")
