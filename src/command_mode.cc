@@ -288,7 +288,6 @@ class SetStructureCommand : public Command {
  private:
   EditorState& editor_state_;
   Structure structure_;
-  const std::wstring description_;
 };
 
 class SetStrengthCommand : public Command {
@@ -475,8 +474,7 @@ void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<bool>* variable,
                     MapModeCommands& map_mode) {
-  // TODO(2024-08-23): Drop explicit LazyString conversion.
-  LazyString name = LazyString{variable->name()};
+  LazyString name = variable->name();
   LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
@@ -515,9 +513,7 @@ void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<LazyString>* variable,
                     MapModeCommands& map_mode) {
-  // TODO(trivial, 2024-08-23): Change variable->name to return LazyString and
-  // avoid conversion.
-  LazyString name{variable->name()};
+  LazyString name = variable->name();
   LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
@@ -534,7 +530,7 @@ void ToggleVariable(EditorState& editor_state,
   map_mode.Add(VectorExtendedChar(L"v" + variable->key()),
                ValueOrDie(NewCppCommand(editor_state,
                                         editor_state.environment(), command),
-                          L"ToggleVariable<std::wstring> Definition")
+                          L"ToggleVariable<LazyString> Definition")
                    .ptr());
 }
 
@@ -542,10 +538,7 @@ void ToggleVariable(EditorState& editor_state,
                     VariableLocation variable_location,
                     const EdgeVariable<int>* variable,
                     MapModeCommands& map_mode) {
-  // TODO: Honor variable_location.
-  // TODO(trivial, 2024-08-23): Change variable->name to return LazyString and
-  // avoid conversion.
-  LazyString name{variable->name()};
+  LazyString name = variable->name();
   LazyString command;
   switch (variable_location) {
     case VariableLocation::kBuffer:
