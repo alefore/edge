@@ -48,7 +48,7 @@ struct PromptOptions {
 
   // Used to set buffer_variables::contents_type on the buffer for the prompt.
   // The extensions code inspects this and can adjust behaviors.
-  std::wstring prompt_contents_type = L"";
+  language::lazy_string::LazyString prompt_contents_type = {};
 
   // Name of the file with the history for this type of prompt.
   HistoryFile history_file;

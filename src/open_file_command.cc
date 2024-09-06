@@ -294,7 +294,7 @@ gc::Root<Command> NewOpenFileCommand(EditorState& editor) {
     return PromptOptions{
         .editor_state = editor,
         .prompt = LazyString{L"<"},
-        .prompt_contents_type = L"path",
+        .prompt_contents_type = LazyString{L"path"},
         .history_file = HistoryFileFiles(),
         .initial_value =
             source_buffers.empty()

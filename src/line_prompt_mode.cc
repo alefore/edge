@@ -1245,11 +1245,8 @@ void Prompt(PromptOptions options) {
         history.ptr()->set_current_position_line(
             LineNumber(0) + history.ptr()->contents().size());
 
-        // TODO(trivial, 2024-08-27): Avoid the need to wrap
-        // prompt_contents_type here. Convert it natively to LazyString.
         futures::Value<gc::Root<OpenBuffer>> prompt_buffer_future =
-            GetPromptBuffer(options.editor_state,
-                            LazyString{options.prompt_contents_type},
+            GetPromptBuffer(options.editor_state, options.prompt_contents_type,
                             options.initial_value);
         return std::move(prompt_buffer_future)
             .Transform([options = std::move(options),
