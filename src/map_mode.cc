@@ -100,21 +100,17 @@ gc::Root<MapModeCommands> MapModeCommands::NewChild() {
   return output;
 }
 
-std::map<std::wstring, std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
+std::map<LazyString, std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
 MapModeCommands::Coallesce() const {
-  std::map<std::wstring, std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
+  std::map<LazyString, std::map<std::vector<ExtendedChar>, NonNull<Command*>>>
       output;
   // Avoid showing unreachable commands.
   std::set<std::vector<ExtendedChar>> already_seen;
-  for (const auto& frame : frames_) {
-    for (const auto& it : frame->commands) {
-      if (already_seen.insert(it.first).second) {
-        // TODO(easy, 2024-09-03): Get rid of ToString.
-        output[it.second->Category().ToString()].insert(
+  for (const auto& frame : frames_)
+    for (const auto& it : frame->commands)
+      if (already_seen.insert(it.first).second)
+        output[it.second->Category()].insert(
             {it.first, NonNull<Command*>::AddressOf(it.second.value())});
-      }
-    }
-  }
   return output;
 }
 

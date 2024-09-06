@@ -47,8 +47,9 @@ class MapModeCommands {
 
   // Flattens the set of commands (in the entire list), grouped by category (as
   // the key of the outer map).
-  std::map<std::wstring, std::map<std::vector<infrastructure::ExtendedChar>,
-                                  language::NonNull<Command*>>>
+  std::map<language::lazy_string::LazyString,
+           std::map<std::vector<infrastructure::ExtendedChar>,
+                    language::NonNull<Command*>>>
   Coallesce() const;
 
   // Adds an entry mapping a given string to a given command.

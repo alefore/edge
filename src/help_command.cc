@@ -182,7 +182,7 @@ class HelpCommand : public Command {
     ShowCommands(commands, output);
     ShowEnvironment(buffer, output);
 
-    StartSection(L"## Buffer Variables", output);
+    StartSection(LazyString{L"## Buffer Variables"}, output);
     output.push_back(
         L"The following are all the buffer variables defined for your buffer.");
     output.push_back(L"");
@@ -214,15 +214,15 @@ class HelpCommand : public Command {
   }
 
  private:
-  static void StartSection(std::wstring section, MutableLineSequence& buffer) {
+  static void StartSection(LazyString section, MutableLineSequence& buffer) {
     VLOG(2) << "Section: " << section;
-    buffer.push_back(std::move(section));
-    buffer.push_back(L"");
+    buffer.push_back(Line{std::move(section)});
+    buffer.push_back(Line{});
   }
 
   static void ShowCommands(const MapModeCommands& commands,
                            MutableLineSequence& output) {
-    StartSection(L"## Commands", output);
+    StartSection(LazyString{L"## Commands"}, output);
 
     output.push_back(
         L"The following is a list of all commands available in "
@@ -230,7 +230,7 @@ class HelpCommand : public Command {
     output.push_back(L"");
 
     for (const auto& category : commands.Coallesce()) {
-      StartSection(L"### " + category.first, output);
+      StartSection(LazyString{L"### "} + category.first, output);
       for (const auto& [input, command] : category.second) {
         LineBuilder line;
         line.AppendString(LazyString{L"* "}, std::nullopt);
@@ -246,11 +246,11 @@ class HelpCommand : public Command {
   // This is public for testability.
   static void ShowEnvironment(const OpenBuffer& original_buffer,
                               MutableLineSequence& output) {
-    StartSection(L"## Environment", output);
+    StartSection(LazyString{L"## Environment"}, output);
 
     const gc::Ptr<vm::Environment> environment = original_buffer.environment();
 
-    StartSection(L"### Types & methods", output);
+    StartSection(LazyString{L"### Types & methods"}, output);
 
     output.push_back(
         L"This section contains a list of all types available to Edge "
@@ -260,7 +260,7 @@ class HelpCommand : public Command {
 
     environment->ForEachType(
         [&](const vm::types::ObjectName& name, vm::ObjectType& type) {
-          StartSection(L"#### " + name.read().ToString(), output);
+          StartSection(LazyString{L"#### "} + name.read(), output);
           type.ForEachField([&](const vm::Identifier& field_name,
                                 vm::Value& value) {
             std::stringstream value_stream;
@@ -280,7 +280,7 @@ class HelpCommand : public Command {
         });
     output.push_back(L"");
 
-    StartSection(L"### Variables", output);
+    StartSection(LazyString{L"### Variables"}, output);
 
     output.push_back(
         L"The following are all variables defined in the environment "
@@ -312,7 +312,9 @@ class HelpCommand : public Command {
       std::wstring type_name, const OpenBuffer& source,
       MutableLineSequence& output, EdgeStruct<T>* variables, C print,
       const T& (OpenBuffer::*reader)(const EdgeVariable<T>*) const) {
-    StartSection(L"### " + type_name, output);
+    // TODO(easy, 2024-09-06): Receive type_name as LazyString and remove
+    // conversion below.
+    StartSection(LazyString{L"### "} + LazyString{type_name}, output);
     for (const auto& variable : variables->variables()) {
       output.push_back(LineBuilder{LazyString{L"#### "} +
                                    LazyString{variable.second->name()}}
@@ -338,11 +340,13 @@ class HelpCommand : public Command {
   }
 
   static void CommandLineVariables(MutableLineSequence& output) {
-    StartSection(L"## Command line arguments", output);
+    StartSection(LazyString{L"## Command line arguments"}, output);
     using command_line_arguments::Handler;
     auto handlers = CommandLineArgs();
     for (auto& h : handlers) {
-      StartSection(L"### " + h.aliases()[0], output);
+      // TODO(easy, 2024-09-06): Change aliases() to return LazyString and
+      // remove conversion.
+      StartSection(LazyString{L"### "} + LazyString{h.aliases()[0]}, output);
       switch (h.argument_type()) {
         case Handler<CommandLineValues>::VariableType::kRequired:
           output.push_back(L"Required argument: " + h.argument() + L": " +
