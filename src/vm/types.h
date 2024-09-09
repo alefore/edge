@@ -17,8 +17,6 @@
 #include "src/language/wstring.h"
 
 namespace afc::vm {
-// TODO(trivial, 2023-12-21): Assert that it only contains alphanumeric
-// characters.
 struct IdentifierValidator {
   static language::PossibleError Validate(
       const language::lazy_string::LazyString& input);
