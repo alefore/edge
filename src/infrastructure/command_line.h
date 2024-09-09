@@ -403,11 +403,13 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
     args_data.input.push_back(LazyString{FromByteString(argv[i])});
   }
 
-  std::map<std::wstring, int> handlers_map;
+  std::map<LazyString, int> handlers_map;
   for (size_t i = 0; i < handlers.size(); i++) {
     for (auto& alias : handlers[i].aliases()) {
-      handlers_map[L"-" + alias] = i;
-      handlers_map[L"--" + alias] = i;
+      // TODO(trivial, 2024-09-07): Convert aliases to LazyString, avoid this
+      // explicit conversion.
+      handlers_map[LazyString{L"-"} + LazyString{alias}] = i;
+      handlers_map[LazyString{L"--"} + LazyString{alias}] = i;
     }
   }
 
@@ -434,8 +436,7 @@ ParsedValues Parse(std::vector<Handler<ParsedValues>> handlers, int argc,
     }
     args_data.input.pop_front();
 
-    // TODO(trivial, 2024-09-05): Avoid this stupid conversion to std::wstring.
-    if (auto it = handlers_map.find(args_data.current_flag.ToString());
+    if (auto it = handlers_map.find(args_data.current_flag);
         it != handlers_map.end()) {
       handlers[it->second].Execute(&args_data);
     } else {
