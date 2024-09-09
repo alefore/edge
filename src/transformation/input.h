@@ -11,6 +11,7 @@
 namespace afc::editor {
 class OpenBuffer;
 class CompositeTransformation;
+class FragmentsContainer;
 namespace transformation {
 struct Input {
   class Adapter {
@@ -26,6 +27,7 @@ struct Input {
         const std::optional<infrastructure::screen::LineModifierSet>&
             modifiers) = 0;
     virtual void AddError(language::Error) = 0;
+    virtual void AddFragment(language::text::LineSequence contents) = 0;
   };
 
   explicit Input(Adapter& adapter, editor::OpenBuffer& input_buffer);

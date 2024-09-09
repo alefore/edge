@@ -299,6 +299,25 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
     buffer_.status().SetInformationText(Line(error.read()));
   }
 
+  void AddFragment(LineSequence fragment) override {
+    gc::Root<OpenBuffer> fragments_buffer =
+        buffer_.editor().buffer_registry().MaybeAdd(
+            FragmentsBuffer{}, [&editor = buffer_.editor()] {
+              return OpenBuffer::New(
+                  {.editor = editor, .name = FragmentsBuffer{}});
+            });
+    fragments_buffer.ptr()->WaitForEndOfFile().Transform(
+        [fragments_buffer, fragment](EmptyValue) {
+          std::vector<LazyString> line_for_history;
+          line_for_history.emplace_back(LazyString{L"fragment:"});
+          line_for_history.emplace_back(
+              EscapedString{fragment}.CppRepresentation());
+          fragments_buffer.ptr()->AppendLine(
+              Concatenate(std::move(line_for_history)));
+          return futures::Past(EmptyValue{});
+        });
+  }
+
  private:
   OpenBuffer& buffer_;
 };

@@ -12,11 +12,15 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
+using afc::language::text::LineSequence;
 
 namespace afc::vm {
 /* static */ EscapedString EscapedString::FromString(LazyString input) {
   return EscapedString(input);
 }
+
+EscapedString::EscapedString(LineSequence input)
+    : EscapedString(input.ToLazyString()) {}
 
 /* static */ language::ValueOrError<EscapedString> EscapedString::Parse(
     language::lazy_string::LazyString input) {

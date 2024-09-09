@@ -201,6 +201,7 @@ futures::Value<transformation::Result> ApplyBase(const Delete& options,
     output->added_to_paste_buffer = true;
     input.delete_buffer->ptr()->ApplyToCursors(transformation::Insert{
         .contents_to_insert = delete_buffer.ptr()->contents().snapshot()});
+    input.adapter.AddFragment(delete_buffer.ptr()->contents().snapshot());
   }
 
   if (options.modifiers.text_delete_behavior ==

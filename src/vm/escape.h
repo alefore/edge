@@ -8,11 +8,13 @@
 #include "src/language/ghost_type.h"
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
+#include "src/language/text/line_sequence.h"
 
 namespace afc::vm {
 class EscapedString {
  public:
   static EscapedString FromString(language::lazy_string::LazyString input);
+  EscapedString(language::text::LineSequence input);
 
   static language::ValueOrError<EscapedString> Parse(
       language::lazy_string::LazyString input);
@@ -29,6 +31,7 @@ class EscapedString {
   // The original (unescaped) string.
   language::lazy_string::LazyString input_;
 };
+
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_PUBLIC_ESCAPE_H__
