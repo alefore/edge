@@ -32,8 +32,6 @@ enum class ControlChar {
 // Represents either a regular wchar_t, or a special control character.
 using ExtendedChar = std::variant<wchar_t, ControlChar>;
 
-// TODO(2024-01-24): Remove this function, convert everyone to LazyString.
-std::vector<ExtendedChar> VectorExtendedChar(const std::wstring&);
 std::vector<ExtendedChar> VectorExtendedChar(
     const language::lazy_string::LazyString&);
 

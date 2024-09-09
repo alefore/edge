@@ -75,10 +75,9 @@ gc::Root<Command> MakeCommandFromFunction(gc::Pool& pool,
 gc::Root<MapModeCommands> MapModeCommands::New(EditorState& editor_state) {
   gc::Root<MapModeCommands> output = editor_state.gc_pool().NewRoot(
       MakeNonNullUnique<MapModeCommands>(ConstructorAccessTag(), editor_state));
-  output.ptr()->Add(
-      VectorExtendedChar(L"?"),
-      NewHelpCommand(editor_state, output.ptr().value(), L"command mode")
-          .ptr());
+  output.ptr()->Add({L'?'}, NewHelpCommand(editor_state, output.ptr().value(),
+                                           L"command mode")
+                                .ptr());
   return output;
 }
 
@@ -93,10 +92,9 @@ gc::Root<MapModeCommands> MapModeCommands::NewChild() {
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
-  output.ptr()->Add(
-      VectorExtendedChar(L"?"),
-      NewHelpCommand(editor_state_, output.ptr().value(), L"command mode")
-          .ptr());
+  output.ptr()->Add({L'?'}, NewHelpCommand(editor_state_, output.ptr().value(),
+                                           L"command mode")
+                                .ptr());
   return output;
 }
 
@@ -222,8 +220,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                gc::Root<OpenBuffer> buffer = NewBufferForTests(editor.value());
                bool executed = false;
                editor->default_commands().ptr()->Add(
-                   VectorExtendedChar(L"X"),
-                   LazyString{L"Activates something."},
+                   {L'X'}, LazyString{L"Activates something."},
                    vm::NewCallback(editor->gc_pool(), vm::kPurityTypeUnknown,
                                    [&executed]() { executed = true; }),
                    editor->environment().ptr());
@@ -240,7 +237,7 @@ const bool map_mode_commands_tests_registration = tests::Register(
                bool executed = false;
                LOG(INFO) << "Adding handler.";
                editor->default_commands().ptr()->Add(
-                   {ExtendedChar(L'A'), ExtendedChar(ControlChar::kPageDown)},
+                   {L'A', ControlChar::kPageDown},
                    LazyString{L"Activates something."},
                    vm::NewCallback(editor->gc_pool(), vm::kPurityTypeUnknown,
                                    [&executed]() {
