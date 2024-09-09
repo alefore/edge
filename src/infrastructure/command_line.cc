@@ -11,14 +11,12 @@ using afc::language::lazy_string::LazyString;
 namespace afc::command_line_arguments {
 void HonorStandardArguments(const StandardArguments& arguments) {
   if (!arguments.tests_filter.empty()) {
-    // TODO(2024-09-05, easy): Avoid this silly conversion to string.
     tests::Run(container::MaterializeVector(
         arguments.tests_filter | std::views::transform(&LazyString::ToString)));
     exit(0);
   }
   switch (arguments.tests_behavior) {
     case TestsBehavior::kRunAndExit:
-      // TODO(2024-09-05, easy): Avoid this silly conversion to string.
       tests::Run(container::MaterializeVector(
           arguments.tests_filter |
           std::views::transform(&LazyString::ToString)));
