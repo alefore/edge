@@ -177,19 +177,12 @@ void AppendStatus(const CommandReachBisect& c, LineBuilder& output) {
 }
 
 void AppendStatus(const CommandSetShell& c, LineBuilder& output) {
-  // TODO(easy, 2024-07-26): Switch c.input to use Lazystring to avoid
-  // conversion.
-  SerializeCall(kDescriptionShell.read(), {LazyString{c.input}}, output);
+  SerializeCall(kDescriptionShell.read(), {c.input}, output);
 }
 
 void AppendStatus(const CommandPaste& paste, LineBuilder& output) {
-  SerializeCall(
-      kDescriptionPaste.read(),
-      std::vector<LazyString>{
-          // TODO(easy, 2024-07-26): Switch c.input to use Lazystring to avoid
-          // conversion.
-          {paste.repetitions.ToString()}},
-      output);
+  SerializeCall(kDescriptionPaste.read(),
+                std::vector<LazyString>{paste.repetitions.ToString()}, output);
 }
 
 futures::Value<UndoCallback> ExecuteTransformation(
