@@ -59,8 +59,8 @@ class MarkdownParser : public LineOrientedTreeParser {
 
  public:
   MarkdownParser(LazyString symbol_characters, SortedLineSequence dictionary)
-      : symbol_characters_(container::Materialize<std::unordered_set<wchar_t>>(
-            symbol_characters)),
+      : symbol_characters_(
+            container::MaterializeUnorderedSet(symbol_characters)),
         dictionary_(std::move(dictionary)) {
     LOG(INFO) << "Created with dictionary entries: "
               << dictionary_.lines().size();

@@ -70,15 +70,13 @@ PossibleError CheckFunctionArguments(
 std::vector<Type> DeduceTypes(
     Expression& func,
     const std::vector<NonNull<std::shared_ptr<Expression>>>& args) {
-  return container::MaterializeVector(
-      container::Materialize<std::unordered_set<Type>>(
-          func.Types() |
-          std::views::transform(
-              [&args](const Type& type) -> ValueOrError<Type> {
-                RETURN_IF_ERROR(CheckFunctionArguments(type, args));
-                return std::get<types::Function>(type).output.get();
-              }) |
-          SkipErrors));
+  return container::MaterializeVector(container::MaterializeUnorderedSet(
+      func.Types() |
+      std::views::transform([&args](const Type& type) -> ValueOrError<Type> {
+        RETURN_IF_ERROR(CheckFunctionArguments(type, args));
+        return std::get<types::Function>(type).output.get();
+      }) |
+      SkipErrors));
 }
 
 class FunctionCall : public Expression {
@@ -383,8 +381,8 @@ futures::ValueOrError<gc::Root<Value>> Call(
   return Evaluate(
       NewFunctionCall(
           NewConstantExpression(pool.NewRoot(MakeNonNullUnique<Value>(func))),
-          // Need to spell the vector type explicitly, to trigger conversion
-          // from NonNull<unique<>> to NonNull<shared<>>.
+          // Why spell the vector type explicitly? To trigger conversion from
+          // NonNull<std::unique<>> to NonNull<std::shared<>>.
           container::Materialize<
               std::vector<NonNull<std::shared_ptr<Expression>>>>(
               args | std::views::transform(NewConstantExpression))),

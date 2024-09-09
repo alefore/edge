@@ -384,7 +384,7 @@ template <typename MarkType>
 std::list<MarkType> PushMarks(std::multimap<LineColumn, MarkType> input,
                               Range range) {
   TRACK_OPERATION(BufferMetadataOutput_Prepare_PushMarks);
-  return container::Materialize<std::list<MarkType>>(
+  return container::MaterializeList(
       std::ranges::subrange(input.lower_bound(range.begin()),
                             input.lower_bound(range.end())) |
       std::views::values | std::views::filter([&range](const MarkType& m) {

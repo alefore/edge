@@ -26,6 +26,7 @@ using afc::language::MakeNonNullShared;
 using afc::language::VisitOptional;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::LazyString;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
@@ -408,9 +409,8 @@ const bool buffer_contents_view_layout_tests_registration =
                    .active_position = LineColumn(),
                    .active_cursors = active_cursors,
                    .line_wrap_style = LineWrapStyle::kBreakWords,
-                   .symbol_characters =
-                       container::Materialize<std::unordered_set<wchar_t>>(
-                           std::wstring{L"abcdefghijklmnopqrstuvwxyz"}),
+                   .symbol_characters = container::MaterializeUnorderedSet(
+                       LazyString{L"abcdefghijklmnopqrstuvwxyz"}),
                    .lines_shown = LineNumberDelta(10),
                    .status_lines = LineNumberDelta(),
                    .columns_shown = ColumnNumberDelta(80),

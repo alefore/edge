@@ -356,7 +356,7 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       .line_wrap_style = buffer.Read(buffer_variables::wrap_from_content)
                              ? LineWrapStyle::kContentBased
                              : LineWrapStyle::kBreakWords,
-      .symbol_characters = container::Materialize<std::unordered_set<wchar_t>>(
+      .symbol_characters = container::MaterializeUnorderedSet(
           buffer.ReadLazyString(buffer_variables::symbol_characters)),
       .lines_shown = input.output_producer_options.size.line,
       .status_lines = status_lines.size(),

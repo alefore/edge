@@ -1235,7 +1235,7 @@ int CommandArgumentRepetitions::get() const {
 }
 
 std::list<int> CommandArgumentRepetitions::get_list() const {
-  return container::Materialize<std::list<int>>(
+  return container::MaterializeList(
       entries_ | std::views::transform(Flatten) |
       std::views::filter([](int c) { return c != 0; }));
 }

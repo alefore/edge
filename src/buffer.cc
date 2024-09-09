@@ -693,12 +693,10 @@ void OpenBuffer::UpdateTreeParser() {
         buffer_syntax_parser_.UpdateParser(BufferSyntaxParser::ParserOptions{
             .parser_name =
                 ParserId{ReadLazyString(buffer_variables::tree_parser)},
-            .typos_set = language::container::Materialize<
-                std::unordered_set<LazyString>>(
+            .typos_set = language::container::MaterializeUnorderedSet(
                 TokenizeBySpaces(ReadLazyString(buffer_variables::typos)) |
                 std::views::transform(&Token::value)),
-            .language_keywords = language::container::Materialize<
-                std::unordered_set<LazyString>>(
+            .language_keywords = language::container::MaterializeUnorderedSet(
                 TokenizeBySpaces(
                     ReadLazyString(buffer_variables::language_keywords)) |
                 std::views::transform(&Token::value)),

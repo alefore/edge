@@ -279,12 +279,11 @@ EditorState::~EditorState() {
   std::ranges::for_each(buffer_registry().buffers() | gc::view::Value,
                         &OpenBuffer::Close);
 
-  buffer_tree_.RemoveBuffers(
-      container::Materialize<std::unordered_set<NonNull<const OpenBuffer*>>>(
-          buffer_registry().buffers() | gc::view::Value |
-          std::views::transform([](const OpenBuffer& buffer) {
-            return NonNull<const OpenBuffer*>::AddressOf(buffer);
-          })));
+  buffer_tree_.RemoveBuffers(container::MaterializeUnorderedSet(
+      buffer_registry().buffers() | gc::view::Value |
+      std::views::transform([](const OpenBuffer& buffer) {
+        return NonNull<const OpenBuffer*>::AddressOf(buffer);
+      })));
 
   environment_.ptr()->Clear();  // We may have loops. This helps break them.
   buffers_.clear();

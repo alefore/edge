@@ -42,7 +42,7 @@ ColumnNumberDelta LineOutputLength(
 }
 
 const std::unordered_set<wchar_t> symbol_characters_for_testing =
-    container::Materialize<std::unordered_set<wchar_t>>(
+    container::MaterializeUnorderedSet(
         std::wstring{L"abcdefghijklmnopqrstuvwxyz"});
 
 const bool compute_column_delta_for_output_tests_registration = tests::Register(

@@ -23,12 +23,10 @@ Protected<Trackers>::Lock lock_trackers() {
 }  // namespace
 
 /* static */ std::list<Tracker::Data> Tracker::GetData() {
-  auto trackers = lock_trackers();
-  auto output = container::Materialize<std::list<Tracker::Data>>(
-      *trackers | std::views::transform([](const auto* tracker) {
+  std::list<Tracker::Data> output = container::MaterializeList(
+      *lock_trackers() | std::views::transform([](const auto* tracker) {
         return *tracker->data_.lock();
       }));
-  trackers = nullptr;
   output.sort([](const Tracker::Data& a, const Tracker::Data& b) {
     return a.seconds < b.seconds;
   });

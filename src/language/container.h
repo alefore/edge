@@ -7,6 +7,7 @@
 #include <ranges>
 #include <set>
 #include <type_traits>
+#include <unordered_set>
 #include <vector>
 
 namespace afc::language {
@@ -119,6 +120,11 @@ auto MaterializeVector(auto&& view) {
 
 auto MaterializeSet(auto&& view) {
   return Materialize<std::set<std::decay_t<decltype(*view.begin())>>>(
+      std::move(view));
+}
+
+auto MaterializeUnorderedSet(auto&& view) {
+  return Materialize<std::unordered_set<std::decay_t<decltype(*view.begin())>>>(
       std::move(view));
 }
 

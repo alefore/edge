@@ -294,8 +294,8 @@ class WordsTreeParser : public TreeParser {
   WordsTreeParser(LazyString symbol_characters,
                   std::unordered_set<LazyString> typos,
                   NonNull<std::unique_ptr<TreeParser>> delegate)
-      : symbol_characters_(container::Materialize<std::unordered_set<wchar_t>>(
-            symbol_characters)),
+      : symbol_characters_(
+            container::MaterializeUnorderedSet(symbol_characters)),
         typos_(typos),
         delegate_(std::move(delegate)) {}
 
