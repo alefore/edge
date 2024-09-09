@@ -12,6 +12,11 @@ class OpenBuffer;
 class BufferFileId
     : public language::GhostType<BufferFileId, infrastructure::Path> {};
 
+struct FragmentsBuffer {
+  bool operator==(const FragmentsBuffer&) const { return true; }
+  bool operator<(const FragmentsBuffer&) const { return false; }
+};
+
 // Name of the buffer that holds the contents that the paste command should
 // paste, which corresponds to things that have been deleted recently.
 struct PasteBuffer {
@@ -80,10 +85,10 @@ class AnonymousBufferName
     : public language::GhostType<AnonymousBufferName, size_t> {};
 
 using BufferName =
-    std::variant<BufferFileId, PasteBuffer, FuturePasteBuffer, BufferListId,
-                 TextInsertion, InitialCommands, ConsoleBufferName,
-                 PredictionsBufferName, HistoryBufferName, ServerBufferName,
-                 CommandBufferName, AnonymousBufferName,
+    std::variant<BufferFileId, FragmentsBuffer, PasteBuffer, FuturePasteBuffer,
+                 BufferListId, TextInsertion, InitialCommands,
+                 ConsoleBufferName, PredictionsBufferName, HistoryBufferName,
+                 ServerBufferName, CommandBufferName, AnonymousBufferName,
                  language::lazy_string::LazyString>;
 
 language::lazy_string::LazyString ToLazyString(const BufferName&);
@@ -92,6 +97,11 @@ std::ostream& operator<<(std::ostream& os, const BufferName& p);
 }  // namespace afc::editor
 
 namespace std {
+template <>
+struct hash<afc::editor::FragmentsBuffer> {
+  size_t operator()(const afc::editor::FragmentsBuffer&) const { return 0; }
+};
+
 template <>
 struct hash<afc::editor::PasteBuffer> {
   size_t operator()(const afc::editor::PasteBuffer&) const { return 0; }

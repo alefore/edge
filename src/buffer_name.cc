@@ -17,6 +17,7 @@ LazyString ToLazyString(const BufferName& p) {
       overload{
           [](const BufferFileId& i) { return LazyString{to_wstring(i)}; },
           [](const BufferListId&) { return LazyString{L"- buffers"}; },
+          [](const FragmentsBuffer&) { return LazyString{L"- fragments"}; },
           [](const PasteBuffer&) { return LazyString{L"- paste buffer"}; },
           [](const FuturePasteBuffer&) {
             return LazyString{L"- future paste buffer"};
