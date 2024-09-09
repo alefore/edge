@@ -225,7 +225,10 @@ LazyStringIterator LazyStringIterator::operator++(int) {  // Postfix increment.
 }
 
 int LazyStringIterator::operator-(const LazyStringIterator& other) const {
-  CHECK_EQ(&container_, &other.container_);
+  if (container_.data_ != other.container_.data_) {
+    CHECK(IsAtEnd() && other.IsAtEnd());
+    return 0;
+  }
   return (position_ - other.position_).read();
 }
 
