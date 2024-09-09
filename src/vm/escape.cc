@@ -1,7 +1,10 @@
 #include "src/vm/escape.h"
 
+#include "src/language/error/value_or_error.h"
+#include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
 #include "src/language/lazy_string/functional.h"
+#include "src/language/lazy_string/tokenize.h"
 #include "src/language/wstring.h"
 #include "src/tests/tests.h"
 
@@ -10,8 +13,10 @@ using afc::language::NonNull;
 using afc::language::ValueOrDie;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
+using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::ForEachColumn;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::Token;
 using afc::language::text::LineSequence;
 
 namespace afc::vm {
@@ -121,4 +126,47 @@ bool cpp_unescape_string_tests_registration =
       });
     }());
 }  // namespace
+
+EscapedMap::EscapedMap(Map input) : input_(std::move(input)) {}
+
+/* static */ language::ValueOrError<EscapedMap> EscapedMap::Parse(
+    language::lazy_string::LazyString input) {
+  std::multimap<Identifier, LazyString> output;
+  for (const Token& token : TokenizeBySpaces(input)) {
+    std::optional<ColumnNumber> colon = FindFirstOf(token.value, {L':'});
+    if (colon == std::nullopt)
+      return Error{
+          LazyString{L"Unable to parse map line (no colon found in token): "} +
+          input};
+    ColumnNumber value_start = token.begin + colon->ToDelta();
+    ++value_start;  // Skip the colon.
+    ColumnNumber value_end = token.end;
+    if (value_end <= value_start + ColumnNumberDelta(1) ||
+        input.get(value_start) != '\"' ||
+        input.get(value_end.previous()) != '\"')
+      return Error{
+          LazyString{L"Unable to parse prompt line (expected quote): "} +
+          input};
+    // Skip quotes:
+    ++value_start;
+    --value_end;
+    DECLARE_OR_RETURN(Identifier id, Identifier::New(token.value.Substring(
+                                         ColumnNumber{0}, colon->ToDelta())));
+    output.insert({id, input.Substring(value_start, value_end - value_start)});
+  }
+
+  return EscapedMap{output};
+}
+
+language::lazy_string::LazyString EscapedMap::Serialize() const {
+  return Concatenate(
+      input_ |
+      std::views::transform([](std::pair<Identifier, LazyString> data) {
+        return data.first.read() + LazyString{L":"} +
+               EscapedString::FromString(data.second).CppRepresentation();
+      }));
+}
+
+const EscapedMap::Map& EscapedMap::read() const { return input_; }
+
 }  // namespace afc::vm

@@ -1,6 +1,7 @@
 #ifndef __AFC_VM_PUBLIC_ESCAPE_H__
 #define __AFC_VM_PUBLIC_ESCAPE_H__
 
+#include <map>
 #include <optional>
 #include <string>
 
@@ -9,12 +10,13 @@
 #include "src/language/lazy_string/lazy_string.h"
 #include "src/language/safe_types.h"
 #include "src/language/text/line_sequence.h"
+#include "src/vm/types.h"
 
 namespace afc::vm {
 class EscapedString {
  public:
   static EscapedString FromString(language::lazy_string::LazyString input);
-  EscapedString(language::text::LineSequence input);
+  explicit EscapedString(language::text::LineSequence input);
 
   static language::ValueOrError<EscapedString> Parse(
       language::lazy_string::LazyString input);
@@ -32,6 +34,23 @@ class EscapedString {
   language::lazy_string::LazyString input_;
 };
 
+class EscapedMap {
+ public:
+  using Map = std::multimap<Identifier, language::lazy_string::LazyString>;
+
+ private:
+  Map input_;
+
+ public:
+  explicit EscapedMap(Map input);
+
+  static language::ValueOrError<EscapedMap> Parse(
+      language::lazy_string::LazyString input);
+
+  language::lazy_string::LazyString Serialize() const;
+
+  const Map& read() const;
+};
 }  // namespace afc::vm
 
 #endif  // __AFC_VM_PUBLIC_ESCAPE_H__
