@@ -308,12 +308,10 @@ class TransformationInputAdapterImpl : public transformation::Input::Adapter {
             });
     fragments_buffer.ptr()->WaitForEndOfFile().Transform(
         [fragments_buffer, fragment](EmptyValue) {
-          std::vector<LazyString> line_for_history;
-          line_for_history.emplace_back(LazyString{L"fragment:"});
-          line_for_history.emplace_back(
-              EscapedString{fragment}.CppRepresentation());
-          fragments_buffer.ptr()->AppendLine(
-              Concatenate(std::move(line_for_history)));
+          fragments_buffer.ptr()->AppendLine(vm::EscapedMap{
+              std::multimap<Identifier, LazyString>{
+                  {Identifier{LazyString{L"fragment:"}},
+                   fragment.ToLazyString()}}}.Serialize());
           return futures::Past(EmptyValue{});
         });
   }
