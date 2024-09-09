@@ -120,9 +120,11 @@ class MarkdownParser : public LineOrientedTreeParser {
                                  .at(original_position.line)
                                  .contents()
                                  .Substring(original_position.column, length);
-            result->PushAndPop(length, IsTypo(str)
-                                           ? LineModifierSet{LineModifier::kRed}
-                                           : LineModifierSet{});
+            result->PushAndPop(length,
+                               dictionary_.lines().range().empty() ||
+                                       dictionary_.contains(LowerCase(str))
+                                   ? LineModifierSet{}
+                                   : LineModifierSet{LineModifier::kRed});
           } else {
             seek.Once();
           }
@@ -132,10 +134,6 @@ class MarkdownParser : public LineOrientedTreeParser {
 
   bool AtSymbol(Seek& seek) const {
     return symbol_characters_.contains(seek.read());
-  }
-
-  bool IsTypo(LazyString symbol) const {
-    return !dictionary_.contains(LowerCase(symbol));
   }
 
   void HandleOpenLink(ParseData* result) {
