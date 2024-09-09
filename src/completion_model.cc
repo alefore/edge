@@ -32,6 +32,7 @@ using afc::language::text::LineBuilder;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
+using afc::language::text::LineSequenceIterator;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::SortedLineSequence;
 
@@ -90,13 +91,12 @@ std::optional<DictionaryValue> FindCompletionInModel(
     const SortedLineSequence& contents, const DictionaryKey& compressed_text) {
   VLOG(3) << "Starting completion with model with size: "
           << contents.lines().size() << " token: " << compressed_text;
-  LineNumber line =
+  LineSequenceIterator line_it =
       contents.upper_bound(LineBuilder(compressed_text.read()).Build());
 
-  if (line > contents.lines().EndLine()) return std::nullopt;
+  if (line_it == contents.lines().end()) return std::nullopt;
 
-  LazyString line_contents = contents.lines().at(line).contents();
-  VLOG(5) << "Check: " << compressed_text << " against: " << line_contents;
+  VLOG(5) << "Check: " << compressed_text << " against: " << *line_it;
   return std::visit(
       overload{
           [&](const ParsedLine& parsed_line) -> std::optional<DictionaryValue> {
@@ -117,7 +117,7 @@ std::optional<DictionaryValue> FindCompletionInModel(
             return parsed_line.value;
           },
           [](Error) { return std::optional<DictionaryValue>(); }},
-      Parse(contents.lines().at(line)));
+      Parse(*line_it));
 }
 
 const bool find_completion_tests_registration = tests::Register(

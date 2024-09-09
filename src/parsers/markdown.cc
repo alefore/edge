@@ -14,6 +14,7 @@
 #include "src/seek.h"
 
 namespace container = afc::language::container;
+
 using afc::infrastructure::screen::LineModifier;
 using afc::infrastructure::screen::LineModifierSet;
 using afc::language::MakeNonNullShared;
@@ -27,6 +28,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
+using afc::language::text::LineSequenceIterator;
 using afc::language::text::Range;
 using afc::language::text::SortedLineSequence;
 
@@ -133,14 +135,7 @@ class MarkdownParser : public LineOrientedTreeParser {
   }
 
   bool IsTypo(LazyString symbol) const {
-    if (dictionary_.lines().range().empty()) return false;
-    LineNumber line =
-        dictionary_.upper_bound(LineBuilder(LowerCase(symbol)).Build());
-    if (line.IsZero()) return false;
-
-    --line;
-    return LowerCase(dictionary_.lines().at(line).contents()) !=
-           LowerCase(symbol);
+    return !dictionary_.contains(LowerCase(symbol));
   }
 
   void HandleOpenLink(ParseData* result) {

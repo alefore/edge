@@ -27,12 +27,14 @@ class SortedLineSequence {
 
   const LineSequence& lines() const;
 
-  // Returns the first element such that key < element.
-  language::text::LineNumber upper_bound(const language::text::Line& key) const;
+  // Returns an iterator to the first element such that key < element (or end).
+  LineSequenceIterator upper_bound(const language::text::Line& key) const;
 
   SortedLineSequence FilterLines(
       const std::function<FilterPredicateResult(const language::text::Line&)>&
           predicate) const;
+
+  bool contains(lazy_string::LazyString line) const;
 
  private:
   friend class SortedLineSequenceUniqueLines;

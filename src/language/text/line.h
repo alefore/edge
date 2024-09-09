@@ -78,7 +78,8 @@ class Line {
   size_t hash() const { return hash_; }
 
   Line& operator=(const Line&) = default;
-  bool operator==(const Line& other) const;
+  bool operator==(const Line& a) const;
+  bool operator<(const Line& other) const;
 
  private:
   struct Data {

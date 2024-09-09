@@ -35,6 +35,7 @@ class LineSequence {
   LineSequence(LineSequence&&) = default;
   LineSequence& operator=(const LineSequence&) = default;
 
+  LineSequence(LineSequenceIterator a, LineSequenceIterator b);
   static LineSequence ForTests(std::vector<std::wstring> inputs);
   static LineSequence WithLine(Line line);
 
@@ -135,6 +136,8 @@ class LineSequenceIterator {
     ++*this;
     return tmp;
   }
+
+  LineSequenceIterator& operator--();
 
   int operator-(const LineSequenceIterator& other) const {
     CHECK(container_.lines_ == other.container_.lines_);

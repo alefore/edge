@@ -33,15 +33,22 @@ SortedLineSequence::SortedLineSequence(TrustedConstructorTag,
 
 const LineSequence& SortedLineSequence::lines() const { return lines_; }
 
-LineNumber SortedLineSequence::upper_bound(const Line& key) const {
-  return LineNumber(LineSequence::Lines::UpperBound(lines_.lines_.get_shared(),
-                                                    key, compare_));
+LineSequenceIterator SortedLineSequence::upper_bound(const Line& key) const {
+  return lines_.begin() + LineSequence::Lines::UpperBound(
+                              lines_.lines_.get_shared(), key, compare_);
 }
 
 SortedLineSequence SortedLineSequence::FilterLines(
     const std::function<FilterPredicateResult(const Line&)>& predicate) const {
   return SortedLineSequence(TrustedConstructorTag(),
                             text::FilterLines(lines_, predicate), compare_);
+}
+
+bool SortedLineSequence::contains(lazy_string::LazyString key) const {
+  LineSequenceIterator it = upper_bound(LineBuilder(key).Build());
+  if (it == lines().begin()) return false;
+  --it;
+  return (*it).contents() == key;
 }
 
 SortedLineSequenceUniqueLines::SortedLineSequenceUniqueLines(

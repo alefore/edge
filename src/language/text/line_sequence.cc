@@ -25,6 +25,18 @@ using language::lazy_string::LazyString;
 
 using ::operator<<;
 
+LineSequence::LineSequence(LineSequenceIterator a, LineSequenceIterator b)
+    : LineSequence(std::invoke([&] {
+        CHECK(a != b);
+        Lines::Ptr output = nullptr;
+        while (a != b) {
+          output = Lines::PushBack(output, Line(*a)).get_shared();
+          ++a;
+        }
+        // This is safe because we've validated that inputs isn't empty.
+        return LineSequence(NonNull<Lines::Ptr>::Unsafe(std::move(output)));
+      })) {}
+
 /* static */ LineSequence LineSequence::ForTests(
     std::vector<std::wstring> inputs) {
   CHECK(!inputs.empty());
@@ -533,4 +545,15 @@ const bool line_sequence_iterator_tests_registration = tests::Register(
                                }}});
 
 }  // namespace
+
+LineSequenceIterator& LineSequenceIterator::operator--() {
+  if (IsAtEnd()) {
+    position_ = LineNumber{} + container_.size() - LineNumberDelta{1};
+  } else {
+    CHECK_GT(position_, LineNumber{});
+    --position_;
+  }
+  return *this;
+}
+
 }  // namespace afc::language::text

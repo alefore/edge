@@ -67,6 +67,7 @@ using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
 using afc::language::text::LineNumberDelta;
 using afc::language::text::LineSequence;
+using afc::language::text::LineSequenceIterator;
 using afc::language::text::MutableLineSequence;
 using afc::language::text::SortedLineSequence;
 using afc::language::text::SortedLineSequenceUniqueLines;
@@ -534,43 +535,26 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
   // TODO(2023-10-09, Responsive): Move this to a background thread and use a
   // future instead.
   SortedLineSequenceUniqueLines contents(
-      SortedLineSequence(dictionary_root.ptr()->contents().snapshot(),
-                         [](const Line& a, const Line& b) {
-                           return a.ToString() < b.ToString();
-                         }));
+      SortedLineSequence(dictionary_root.ptr()->contents().snapshot()));
 
   return [contents](PredictorInput input) {
     Line input_line = LineBuilder(input.input).Build();
-    LineNumber line = contents.read().upper_bound(input_line);
-
-    // TODO(2023-12-02): Find a way to do this without `ToString`.
-    const std::wstring input_str = input.input.ToString();
-
-    MutableLineSequence output_contents;
     // TODO: This has complexity N log N. We could instead extend BufferContents
     // to expose a wrapper around `Suffix`, allowing this to have complexity N
     // (just take the suffix once, and then walk it, with `ConstTree::Every`).
-    while (line < contents.read().lines().EndLine()) {
-      const Line& line_contents = contents.read().lines().at(line);
-      auto line_str = line_contents.ToString();
-      auto result =
-          mismatch(input_str.begin(), input_str.end(), line_str.begin());
-      if (result.first != input_str.end()) {
-        break;
-      }
-      output_contents.push_back(line_contents);
-
-      ++line;
-    }
-    output_contents.MaybeEraseEmptyFirstLine();
+    const LineSequenceIterator begin = contents.read().upper_bound(input_line);
+    LineSequenceIterator end = begin;
+    while (end != contents.read().lines().end() &&
+           StartsWith((*end).contents(), input.input))
+      ++end;
 
     // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add
     // methods to SortedLineSequence that allows us to extract a sub-range view,
     // and filter. There shouldn't be a need to re-sort.
     TRACK_OPERATION(DictionaryPredictor_Sorting);
     return futures::Past(
-        PredictorOutput({.contents = SortedLineSequenceUniqueLines(
-                             SortedLineSequence(output_contents.snapshot()))}));
+        PredictorOutput({.contents = SortedLineSequenceUniqueLines{
+                             SortedLineSequence{LineSequence{begin, end}}}}));
   };
 }
 
