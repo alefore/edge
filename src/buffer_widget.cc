@@ -136,7 +136,7 @@ LineWithCursor::Generator::Vector LinesSpanView(
         .generate = [original_generator = buffer_output.lines.back().generate] {
           LineWithCursor output = original_generator();
           LineBuilder line_options;
-          line_options.AppendString(output.line.contents(),
+          line_options.AppendString(output.line.contents().read(),
                                     LineModifierSet{LineModifier::kDim});
           output.line = std::move(line_options).Build();
           return output;

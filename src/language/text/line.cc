@@ -59,7 +59,7 @@ size_t Line::ComputeHash(const Line::Data& data) {
           }));
 }
 
-LazyString Line::contents() const { return data_->contents.read(); }
+SingleLine Line::contents() const { return data_->contents; }
 
 ColumnNumber Line::EndColumn() const {
   return ColumnNumber(0) + data_->contents.size();
@@ -73,11 +73,13 @@ wint_t Line::get(ColumnNumber column) const {
 }
 
 LazyString Line::Substring(ColumnNumber column, ColumnNumberDelta delta) const {
-  return contents().Substring(column, delta);
+  // TODO(trivial, 2024-09-10): Return the SingleLine.
+  return contents().read().Substring(column, delta);
 }
 
 LazyString Line::Substring(ColumnNumber column) const {
-  return contents().Substring(column);
+  // TODO(trivial, 2024-09-10): Return the SingleLine.
+  return contents().read().Substring(column);
 }
 
 const std::map<LazyString, LineMetadataEntry>& Line::metadata() const {

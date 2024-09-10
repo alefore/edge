@@ -545,7 +545,7 @@ Predictor DictionaryPredictor(gc::Root<const OpenBuffer> dictionary_root) {
     const LineSequenceIterator begin = contents.read().upper_bound(input_line);
     LineSequenceIterator end = begin;
     while (end != contents.read().lines().end() &&
-           StartsWith((*end).contents(), input.input))
+           StartsWith((*end).contents().read(), input.input))
       ++end;
 
     // TODO(easy, 2023-10-08): Don't call SortedLineSequence here. Instead, add

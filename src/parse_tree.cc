@@ -30,6 +30,7 @@ using afc::language::NonNull;
 using afc::language::ValueOrError;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineColumn;
 using afc::language::text::LineNumber;
@@ -318,13 +319,13 @@ class WordsTreeParser : public TreeParser {
         while (column < line_end && !IsSpace(contents, column)) ++column;
         if (begin == column) return;
 
-        LazyString keyword =
+        SingleLine keyword =
             contents.contents().Substring(begin, column - begin);
         ParseTree child = delegate_->FindChildren(
             buffer, LineRange(LineColumn(line, begin), column - begin).read());
-        if (typos_.find(keyword) != typos_.end()) {
+        // TODO(trivial, 2024-09-10): Avoid the need to call `read`.
+        if (typos_.contains(keyword.read()))
           child.InsertModifier(LineModifier::kRed);
-        }
         DVLOG(6) << "Adding word: " << child;
         output.PushChild(std::move(child));
       }

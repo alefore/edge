@@ -30,6 +30,7 @@ using afc::language::overload;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::LineColumn;
 using afc::language::text::LineColumnDelta;
 using afc::language::text::LineNumber;
@@ -207,9 +208,10 @@ Terminal::LineDrawer Terminal::GetLineDrawer(LineWithCursor line_with_cursor,
     if (start != input_column) {
       static Tracker tracker(L"Terminal::GetLineDrawer: Call WriteString");
       auto call = tracker.Call();
-      LazyString str = line_with_cursor.line.contents().Substring(
+      SingleLine str = line_with_cursor.line.contents().Substring(
           start, input_column - start);
-      functions.push_back([str](Screen& screen) { screen.WriteString(str); });
+      functions.push_back(
+          [str](Screen& screen) { screen.WriteString(str.read()); });
     }
 
     if (modifiers_it != modifiers.end()) {

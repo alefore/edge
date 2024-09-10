@@ -44,6 +44,7 @@ using language::text::LineNumberDelta;
 
 namespace gc = language::gc;
 
+// TODO(trivial, 2024-09-10): Return SingleLine.
 LazyString GetBufferContext(const OpenBuffer& buffer) {
   auto marks = buffer.GetLineMarks();
   if (auto current_line_marks =
@@ -55,7 +56,11 @@ LazyString GetBufferContext(const OpenBuffer& buffer) {
     if (source != buffer.editor().buffers()->end() &&
         LineNumber(0) + source->second.ptr()->contents().size() >
             mark.source_line) {
-      return source->second.ptr()->contents().at(mark.source_line).contents();
+      return source->second.ptr()
+          ->contents()
+          .at(mark.source_line)
+          .contents()
+          .read();
     }
   }
   // TODO(trivial, 2024-08-28): Switch this to ReadLazyString, avoid explicit

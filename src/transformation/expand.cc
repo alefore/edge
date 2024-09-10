@@ -39,6 +39,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::FindLastNotOf;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -50,11 +51,11 @@ using afc::language::text::SortedLineSequenceUniqueLines;
 namespace afc::editor {
 namespace {
 
-LazyString GetToken(const CompositeTransformation::Input& input,
+SingleLine GetToken(const CompositeTransformation::Input& input,
                     EdgeVariable<LazyString>* characters_variable) {
-  if (input.position.column < ColumnNumber(2)) return LazyString();
+  if (input.position.column < ColumnNumber(2)) return SingleLine{};
   const ColumnNumber end = input.position.column.previous().previous();
-  const LazyString line =
+  const SingleLine line =
       input.buffer.contents().snapshot().at(input.position.line).contents();
 
   ColumnNumber symbol_start = VisitOptional(
@@ -327,7 +328,7 @@ class ExpandTransformation : public CompositeTransformation {
         transformation_future = futures::Past(nullptr);
     switch (c) {
       case 'r': {
-        LazyString symbol =
+        SingleLine symbol =
             GetToken(input, buffer_variables::symbol_characters);
         output->Push(
             DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size()));
@@ -337,19 +338,20 @@ class ExpandTransformation : public CompositeTransformation {
                                   futures::Past(std::make_unique<ReadAndInsert>(
                                       path, OpenFileIfFound));
                             }},
-                   Path::New(symbol));
+                   Path::New(symbol.read()));
       } break;
       case '/':
-        if (LazyString path =
+        if (SingleLine path =
                 GetToken(input, buffer_variables::path_characters);
             !path.size().IsZero()) {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
-          transformation_future = futures::Past(
-              std::make_unique<PredictorTransformation>(FilePredictor, path));
+          transformation_future =
+              futures::Past(std::make_unique<PredictorTransformation>(
+                  FilePredictor, path.read()));
         }
         break;
       case ' ':
-        if (LazyString symbol =
+        if (SingleLine symbol =
                 GetToken(input, buffer_variables::symbol_characters);
             !symbol.size().IsZero()) {
           output->Push(DeleteLastCharacters(ColumnNumberDelta(1)));
@@ -377,24 +379,25 @@ class ExpandTransformation : public CompositeTransformation {
           transformation_future =
               std::move(predictor_future)
                   .Transform([symbol](Predictor predictor) {
-                    return std::make_unique<PredictorTransformation>(predictor,
-                                                                     symbol);
+                    return std::make_unique<PredictorTransformation>(
+                        predictor, symbol.read());
                   });
         }
         break;
       case ':': {
-        auto symbol = GetToken(input, buffer_variables::symbol_characters);
+        SingleLine symbol =
+            GetToken(input, buffer_variables::symbol_characters);
         output->Push(DeleteLastCharacters(ColumnNumberDelta(1) + symbol.size() +
                                           ColumnNumberDelta(1)));
         transformation_future =
-            futures::Past(std::make_unique<Execute>(symbol));
+            futures::Past(std::make_unique<Execute>(symbol.read()));
       } break;
       case '.': {
-        auto query = GetToken(input, buffer_variables::path_characters);
+        SingleLine query = GetToken(input, buffer_variables::path_characters);
         transformation_future =
             futures::Past(std::make_unique<InsertHistoryTransformation>(
                 DeleteLastCharacters(query.size() + ColumnNumberDelta(1)),
-                query));
+                query.read()));
       }
     }
     return std::move(transformation_future)

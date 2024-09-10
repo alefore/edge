@@ -339,7 +339,7 @@ futures::Value<std::vector<Path>> GetSearchPaths(EditorState& editor_state) {
                      std::ranges::copy(
                          buffer.ptr()->contents().snapshot() |
                              std::views::transform([](const Line& line) {
-                               return Path::New(line.contents());
+                               return Path::New(line.contents().read());
                              }) |
                              language::view::SkipErrors |
                              std::views::transform(
@@ -649,7 +649,7 @@ class TestDriver {
 
     std::ranges::for_each(
         contents | std::views::transform([](const Line& line) {
-          return line.contents();
+          return line.contents().read();
         }) | Intersperse(LazyString{L"\n"}),
         [tmp_fd](LazyString line) {
           std::string line_str = line.ToBytes();

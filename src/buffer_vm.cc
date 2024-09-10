@@ -279,7 +279,7 @@ void DefineSortLinesByKey(
                                        auto key_value,
                                        get_key(output.ptr().value()));
                                    data->keys.insert(
-                                       {line.contents(), key_value});
+                                       {line.contents().read(), key_value});
                                    return Success(
                                        futures::IterationControlCommand::
                                            kContinue);
@@ -301,8 +301,10 @@ void DefineSortLinesByKey(
                             data->buffer->SortContents(
                                 boundaries.first, boundaries.second,
                                 [data](const Line& a, const Line& b) {
-                                  auto it_a = data->keys.find(a.contents());
-                                  auto it_b = data->keys.find(b.contents());
+                                  auto it_a =
+                                      data->keys.find(a.contents().read());
+                                  auto it_b =
+                                      data->keys.find(b.contents().read());
                                   CHECK(it_a != data->keys.end());
                                   CHECK(it_b != data->keys.end());
                                   return it_a->second < it_b->second;

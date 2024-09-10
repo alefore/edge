@@ -12,7 +12,8 @@ LazyString GetCurrentToken(CurrentTokenOptions options) {
   std::unordered_set<wchar_t> token_characters{options.token_characters.begin(),
                                                options.token_characters.end()};
 
-  LazyString line = options.contents.at(options.line_column.line).contents();
+  LazyString line =
+      options.contents.at(options.line_column.line).contents().read();
   // Scroll back to the first character outside of the token. If we're in not
   // inside a token, this is a no-op.
   line = line.Substring(

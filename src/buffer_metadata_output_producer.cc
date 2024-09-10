@@ -45,6 +45,7 @@ using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::Concatenate;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -478,15 +479,14 @@ std::list<MetadataLine> Prepare(const BufferMetadataOutputOptions& options,
   // When an expired mark appears again, no need to show it redundantly (as
   // expired). We use `marks_strings` to detect this.
   // TODO(easy, 2023-12-14): This should use Line directly?
-  std::set<LazyString> marks_strings;
+  std::set<SingleLine> marks_strings;
   for (const auto& mark : marks)
     VisitOptional(
         [&](gc::Root<OpenBuffer> source) {
           if (mark.source_line <
-              LineNumber(0) + source.ptr()->contents().size()) {
+              LineNumber(0) + source.ptr()->contents().size())
             marks_strings.insert(
                 source.ptr()->contents().at(mark.source_line).contents());
-          }
         },
         [] {},
         options.buffer.editor().buffer_registry().Find(mark.source_buffer));

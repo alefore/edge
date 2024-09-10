@@ -157,7 +157,8 @@ std::vector<Line> UpdateLineMetadata(OpenBuffer& buffer,
   for (Line& line : lines)
     if (line.metadata().empty() && !line.empty())
       if (std::map<LineProcessorKey, LineProcessorOutputFuture> output =
-              line_processor_map.Process(LineProcessorInput(line.contents()));
+              line_processor_map.Process(
+                  LineProcessorInput(line.contents().read()));
           !output.empty()) {
         LineBuilder line_builder(std::move(line));
         std::map<LazyString, LineMetadataEntry> line_metadata_map;

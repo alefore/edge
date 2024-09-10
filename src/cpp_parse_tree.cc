@@ -19,6 +19,7 @@ using language::NonNull;
 using language::lazy_string::ColumnNumber;
 using language::lazy_string::ColumnNumberDelta;
 using language::lazy_string::LazyString;
+using language::lazy_string::SingleLine;
 using language::text::LineColumn;
 using language::text::LineNumber;
 using language::text::LineNumberDelta;
@@ -204,17 +205,17 @@ class CppTreeParser : public parsers::LineOrientedTreeParser {
     CHECK_EQ(original_position.line, result->position().line);
     CHECK_GT(result->position().column, original_position.column);
     auto length = result->position().column - original_position.column;
-    LazyString str = result->buffer()
+    SingleLine str = result->buffer()
                          .at(original_position.line)
                          .contents()
                          .Substring(original_position.column, length);
     LineModifierSet modifiers;
-    if (keywords_.find(str) != keywords_.end()) {
+    if (keywords_.find(str.read()) != keywords_.end()) {
       modifiers.insert(LineModifier::kCyan);
-    } else if (typos_.find(str) != typos_.end()) {
+    } else if (typos_.find(str.read()) != typos_.end()) {
       modifiers.insert(LineModifier::kRed);
     } else if (identifier_behavior_ == IdentifierBehavior::kColorByHash) {
-      modifiers = HashToModifiers(std::hash<LazyString>{}(str),
+      modifiers = HashToModifiers(std::hash<SingleLine>{}(str),
                                   HashToModifiersBold::kNever);
     }
     result->PushAndPop(length, std::move(modifiers));

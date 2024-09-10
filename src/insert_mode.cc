@@ -927,11 +927,13 @@ class InsertMode : public InputReceiver {
 
   static DictionaryKey GetCompletionToken(const LineSequence& buffer_contents,
                                           LineRange token_range) {
-    DictionaryKey output{LowerCase(
-        buffer_contents.at(token_range.line())
-            .contents()
-            .Substring(token_range.begin_column(),
-                       token_range.end_column() - token_range.begin_column()))};
+    DictionaryKey output{
+        LowerCase(buffer_contents.at(token_range.line())
+                      .contents()
+                      .Substring(token_range.begin_column(),
+                                 token_range.end_column() -
+                                     token_range.begin_column()))
+            .read()};
     VLOG(6) << "Found completion token: " << output;
     return output;
   }

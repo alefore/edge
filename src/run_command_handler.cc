@@ -500,7 +500,7 @@ class ForkEditorCommand : public Command {
                       }
                     },
                     [&](Error error) { editor_state_.status().Set(error); }},
-                EscapedString::Parse(current_line.contents()));
+                EscapedString::Parse(current_line.contents().read()));
           },
           [] {});
     } else {
@@ -698,14 +698,15 @@ futures::Value<EmptyValue> RunMultipleCommandsHandler(EditorState& editor_state,
                                                       LazyString input) {
   return editor_state
       .ForEachActiveBuffer([&editor_state, input](OpenBuffer& buffer) {
-        std::ranges::for_each(
-            buffer.contents().snapshot(),
-            [&editor_state, input](const Line& arg) {
-              RunCommandHandler(
-                  editor_state,
-                  std::map<std::wstring, LazyString>{{L"ARG", arg.contents()}},
-                  input, LazyString{L" "} + arg.contents());
-            });
+        std::ranges::for_each(buffer.contents().snapshot(),
+                              [&editor_state, input](const Line& arg) {
+                                RunCommandHandler(
+                                    editor_state,
+                                    std::map<std::wstring, LazyString>{
+                                        {L"ARG", arg.contents().read()}},
+                                    input,
+                                    LazyString{L" "} + arg.contents().read());
+                              });
         return futures::Past(EmptyValue());
       })
       .Transform([&editor_state](EmptyValue) {

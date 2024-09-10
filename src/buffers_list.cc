@@ -13,6 +13,7 @@
 #include "src/language/gc_view.h"
 #include "src/language/lazy_string/append.h"
 #include "src/language/lazy_string/char_buffer.h"
+#include "src/language/lazy_string/single_line.h"
 #include "src/language/lazy_string/trim.h"
 #include "src/language/overload.h"
 #include "src/tests/tests.h"
@@ -42,6 +43,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumnDelta;
@@ -140,9 +142,9 @@ ValueOrError<LineBuilder> GetOutputComponents(
   return output;
 }
 
-LazyString GetOutputComponentsForTesting(std::wstring path,
+SingleLine GetOutputComponentsForTesting(std::wstring path,
                                          ColumnNumberDelta columns) {
-  LazyString output =
+  SingleLine output =
       ValueOrDie(
           GetOutputComponents(
               ValueOrDie(
@@ -161,42 +163,42 @@ const bool get_output_components_tests_registration = tests::Register(
           [] {
             CHECK_EQ(
                 GetOutputComponentsForTesting(L"foo", ColumnNumberDelta(80)),
-                LazyString{L"foo"});
+                SingleLine{LazyString{L"foo"}});
           }},
      {.name = L"SingleTrim",
       .callback =
           [] {
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro",
                                                    ColumnNumberDelta(8)),
-                     LazyString{L"lejandro"});
+                     SingleLine{LazyString{L"lejandro"}});
           }},
      {.name = L"SingleFitsExactly",
       .callback =
           [] {
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro",
                                                    ColumnNumberDelta(9)),
-                     LazyString{L"alejandro"});
+                     SingleLine{LazyString{L"alejandro"}});
           }},
      {.name = L"MultipleFits",
       .callback =
           [] {
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(80)),
-                     LazyString{L"alejandro/forero/cuervo"});
+                     SingleLine{LazyString{L"alejandro/forero/cuervo"}});
           }},
      {.name = L"MultipleFitsExactly",
       .callback =
           [] {
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(23)),
-                     LazyString{L"alejandro/forero/cuervo"});
+                     SingleLine{LazyString{L"alejandro/forero/cuervo"}});
           }},
      {.name = L"MultipleTrimFirst",
       .callback =
           [] {
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(22)),
-                     LazyString{L"alejandr…forero/cuervo"});
+                     SingleLine{LazyString{L"alejandr…forero/cuervo"}});
           }},
      {.name = L"MultipleTrimSignificant",
       .callback =
@@ -204,7 +206,7 @@ const bool get_output_components_tests_registration = tests::Register(
             CHECK_EQ(GetOutputComponentsForTesting(
                          L"alejandro/forero/cuervo",
                          ColumnNumberDelta((1 + 1) + (1 + 1) + 6)),
-                     LazyString{L"a…f…cuervo"});
+                     SingleLine{LazyString{L"a…f…cuervo"}});
           }},
      {.name = L"MultipleTrimSpill",
       .callback =
@@ -212,33 +214,33 @@ const bool get_output_components_tests_registration = tests::Register(
             CHECK_EQ(
                 GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                               ColumnNumberDelta(2 + 1 + 6)),
-                LazyString{L"fo…cuervo"});
+                SingleLine{LazyString{L"fo…cuervo"}});
           }},
      {.name = L"MultipleTrimToFirst",
       .callback =
           [] {
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(5)),
-                     LazyString{L"uervo"});
+                     SingleLine{LazyString{L"uervo"}});
           }},
      {.name = L"MultipleTrimExact",
       .callback =
           [] {
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(6)),
-                     LazyString{L"cuervo"});
+                     SingleLine{LazyString{L"cuervo"}});
           }},
      {.name = L"MultipleTrimUnusedSpill",
       .callback =
           [] {
             CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                    ColumnNumberDelta(7)),
-                     LazyString{L"…cuervo"});
+                     SingleLine{LazyString{L"…cuervo"}});
           }},
      {.name = L"MultipleTrimSmallSpill", .callback = [] {
         CHECK_EQ(GetOutputComponentsForTesting(L"alejandro/forero/cuervo",
                                                ColumnNumberDelta(8)),
-                 LazyString{L"f…cuervo"});
+                 SingleLine{LazyString{L"f…cuervo"}});
       }}});
 
 // Converts the `std::vector` of `BuffersList::filter_` to an

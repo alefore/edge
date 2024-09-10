@@ -47,7 +47,7 @@ class Line {
 
   Line(const Line& line);
 
-  language::lazy_string::LazyString contents() const;
+  language::lazy_string::SingleLine contents() const;
   language::lazy_string::ColumnNumber EndColumn() const;
   bool empty() const;
 
@@ -60,7 +60,7 @@ class Line {
   language::lazy_string::LazyString Substring(
       language::lazy_string::ColumnNumber column) const;
 
-  std::wstring ToString() const { return contents().ToString(); }
+  std::wstring ToString() const { return contents().read().ToString(); }
 
   const std::map<language::lazy_string::LazyString, LineMetadataEntry>&
   metadata() const;

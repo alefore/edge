@@ -99,7 +99,7 @@ std::wstring ToStringBase(const Insert& options) {
   LazyString output =
       LazyString{L"InsertTransformationBuilder()"} + LazyString{L".set_text("} +
       vm::EscapedString::FromString(
-          options.contents_to_insert.at(LineNumber(0)).contents())
+          options.contents_to_insert.at(LineNumber(0)).contents().read())
           .CppRepresentation() +
       LazyString{L")"} + LazyString{L".set_modifiers("} +
       LazyString{options.modifiers.Serialize()} + LazyString{L")"};

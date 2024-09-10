@@ -74,6 +74,7 @@ using afc::language::VisitPointer;
 using afc::language::lazy_string::ColumnNumber;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::lazy_string::Token;
 using afc::language::lazy_string::TokenizeBySpaces;
 using afc::language::text::Line;
@@ -288,6 +289,7 @@ futures::Value<gc::Root<OpenBuffer>> GetHistoryBuffer(EditorState& editor_state,
       });
 }
 
+// TODO(trivial, 2024-09-10): Receive `line` as SingleLine.
 ValueOrError<std::multimap<Identifier, LazyString>> ParseHistoryLine(
     const LazyString& line) {
   DECLARE_OR_RETURN(EscapedMap line_map, EscapedMap::Parse(line));
@@ -383,7 +385,8 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
       if (condition) {
         // We don't use AugmentError because we'd rather append to the
         // end of the description, not the beginning.
-        Error wrapper_error{error.read() + LazyString{L": "} + line.contents()};
+        Error wrapper_error{error.read() + LazyString{L": "} +
+                            line.contents().read()};
         VLOG(5) << "Found error: " << wrapper_error;
         output.errors.push_back(wrapper_error);
       }
@@ -391,7 +394,7 @@ FilterSortHistorySyncOutput FilterSortHistorySync(
     };
     if (line.empty()) return true;
     ValueOrError<std::multimap<Identifier, LazyString>> line_keys_or_error =
-        ParseHistoryLine(line.contents());
+        ParseHistoryLine(line.contents().read());
     auto* line_keys = std::get_if<0>(&line_keys_or_error);
     if (line_keys == nullptr) {
       output.errors.push_back(std::get<Error>(line_keys_or_error));
@@ -555,7 +558,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
                 DeleteNotification::Never(), LazyString{L"f"},
                 LineSequence::ForTests(
                     {L"prompt:\"foobar \\\"", L"prompt:\"foo\"",
-                     L"prompt:\"foo\n bar\"", L"prompt:\"foo \\o bar \\\""}),
+                     L"prompt:\"foo\\n bar\"", L"prompt:\"foo \\o bar \\\""}),
                 features);
             CHECK_EQ(output.lines.size(), 1ul);
             CHECK_EQ(output.lines[0].contents(), LazyString{L"foo"});
@@ -566,7 +569,7 @@ auto filter_sort_history_sync_tests_registration = tests::Register(
             std::multimap<Identifier, LazyString> features;
             FilterSortHistorySyncOutput output = FilterSortHistorySync(
                 DeleteNotification::Never(), LazyString{L"ls"},
-                LineSequence::ForTests({L"prompt:\"ls\n\""}), features);
+                LineSequence::ForTests({L"prompt:\"ls\\n\""}), features);
             CHECK(output.lines.empty());
           }},
      {.name = L"HistoryWithEscapedNewLine", .callback = [] {
@@ -738,7 +741,7 @@ class PromptState : public std::enable_shared_from_this<PromptState> {
     }
 
     prompt_buffer_.ptr()->AppendRawLine(
-        ColorizeLine(line->contents(), std::move(options.tokens)));
+        ColorizeLine(line->contents().read(), std::move(options.tokens)));
     prompt_buffer_.ptr()->EraseLines(LineNumber(0), LineNumber(1));
     std::visit(overload{[](ColorizePromptOptions::ContextUnmodified) {},
                         [&](ColorizePromptOptions::ContextClear) {
@@ -832,7 +835,7 @@ futures::Value<EmptyValue> PromptState::OnModify() {
 
   return JoinValues(
              FilterHistory(editor_state(), history(), abort_notification_value,
-                           line.contents())
+                           line.contents().read())
                  .Transform([status_value_viewer](
                                 gc::Root<OpenBuffer> filtered_history) {
                    LOG(INFO) << "Propagating history information to status.";
@@ -850,7 +853,8 @@ futures::Value<EmptyValue> PromptState::OnModify() {
                  }),
              options()
                  .colorize_options_provider(
-                     line.contents(), NewProgressChannel(status_value_viewer),
+                     line.contents().read(),
+                     NewProgressChannel(status_value_viewer),
                      abort_notification_value)
                  .Transform([shared_this = shared_from_this(),
                              abort_notification_value, line](
@@ -984,7 +988,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
         futures::ListenableValue(
             FilterHistory(prompt_state_->editor_state(),
                           prompt_state_->history(), abort_value,
-                          input.contents())
+                          input.contents().read())
                 .Transform([](gc::Root<OpenBuffer> history_filtered) {
                   history_filtered.ptr()->set_current_position_line(
                       LineNumber(0) +
@@ -1035,8 +1039,8 @@ class LinePromptCommand : public Command {
           buffer->ptr()->OptionalCurrentLine(),
           [&](Line line) {
             AddLineToHistory(editor_state_, options.history_file,
-                             line.contents());
-            options.handler(line.contents());
+                             line.contents().read());
+            options.handler(line.contents().read());
           },
           [] {});
     } else {
@@ -1104,7 +1108,8 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .new_line_handler =
           [prompt_state](OpenBuffer& buffer) {
-            LazyString input = buffer.CurrentLine().contents();
+            // TODO(trivial, 2024-09-10): Avoid call to `read`.
+            LazyString input = buffer.CurrentLine().contents().read();
             AddLineToHistory(prompt_state->editor_state(),
                              prompt_state->options().history_file, input);
             auto ensure_survival_of_current_closure =
@@ -1115,7 +1120,7 @@ InsertModeOptions PromptState::insert_mode_options() {
           },
       .start_completion =
           [prompt_state](OpenBuffer& buffer) {
-            LazyString input = buffer.CurrentLine().contents();
+            SingleLine input = buffer.CurrentLine().contents();
             LOG(INFO) << "Triggering predictions from: " << input;
             CHECK(prompt_state->status().prompt_extra_information() != nullptr);
             auto status_version_value =
@@ -1147,7 +1152,7 @@ InsertModeOptions PromptState::insert_mode_options() {
                   // LazyString and avoid wrapping it here.
                   if (results.value().common_prefix.has_value() &&
                       !results.value().common_prefix.value().empty() &&
-                      input !=
+                      input.read() !=
                           LazyString{results.value().common_prefix.value()}) {
                     LOG(INFO) << "Prediction advanced from " << input << " to "
                               << results.value();

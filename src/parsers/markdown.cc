@@ -22,6 +22,7 @@ using afc::language::MakeNonNullUnique;
 using afc::language::NonNull;
 using afc::language::lazy_string::ColumnNumberDelta;
 using afc::language::lazy_string::LazyString;
+using afc::language::lazy_string::SingleLine;
 using afc::language::text::Line;
 using afc::language::text::LineBuilder;
 using afc::language::text::LineColumn;
@@ -116,15 +117,17 @@ class MarkdownParser : public LineOrientedTreeParser {
             while (!seek.AtRangeEnd() && AtSymbol(seek)) seek.Once();
             ColumnNumberDelta length =
                 result->position().column - original_position.column;
-            LazyString str = result->buffer()
+            SingleLine str = result->buffer()
                                  .at(original_position.line)
                                  .contents()
                                  .Substring(original_position.column, length);
-            result->PushAndPop(length,
-                               dictionary_.lines().range().empty() ||
-                                       dictionary_.contains(LowerCase(str))
-                                   ? LineModifierSet{}
-                                   : LineModifierSet{LineModifier::kRed});
+            // TODO(easy, 2024-09-10): Avoid call to `read` (operate directly on
+            // SingleLine).
+            result->PushAndPop(
+                length, dictionary_.lines().range().empty() ||
+                                dictionary_.contains(LowerCase(str).read())
+                            ? LineModifierSet{}
+                            : LineModifierSet{LineModifier::kRed});
           } else {
             seek.Once();
           }
